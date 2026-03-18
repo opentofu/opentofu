@@ -39,7 +39,7 @@ func TestConfigFileLocations(t *testing.T) {
 			},
 			expected: map[string]*ConfigHost{
 				"config0.example.com": {
-					Services: map[string]interface{}{
+					Services: map[string]any{
 						"modules.v0": "https://config0.example.com/",
 					},
 				},
@@ -52,7 +52,7 @@ func TestConfigFileLocations(t *testing.T) {
 			},
 			expected: map[string]*ConfigHost{
 				"config0.example.com": {
-					Services: map[string]interface{}{
+					Services: map[string]any{
 						"modules.v0": "https://config0.example.com/",
 					},
 				},
@@ -65,12 +65,12 @@ func TestConfigFileLocations(t *testing.T) {
 			},
 			expected: map[string]*ConfigHost{
 				"config1.example.com": {
-					Services: map[string]interface{}{
+					Services: map[string]any{
 						"modules.v1": "https://config1.example.com/",
 					},
 				},
 				"0and1.example.com": {
-					Services: map[string]interface{}{
+					Services: map[string]any{
 						"modules.v1": "https://0and1.example.com/",
 					},
 				},
@@ -85,17 +85,17 @@ func TestConfigFileLocations(t *testing.T) {
 			},
 			expected: map[string]*ConfigHost{
 				"config1.example.com": {
-					Services: map[string]interface{}{
+					Services: map[string]any{
 						"modules.v1": "https://config1.example.com/",
 					},
 				},
 				"0and1.example.com": {
-					Services: map[string]interface{}{
+					Services: map[string]any{
 						"modules.v1": "https://0and1.example.com/",
 					},
 				},
 				"1and2.example.com": {
-					Services: map[string]interface{}{
+					Services: map[string]any{
 						"modules.v1": "https://1and2.example.com/",
 					},
 				},
@@ -110,7 +110,7 @@ func TestConfigFileLocations(t *testing.T) {
 			},
 			expected: map[string]*ConfigHost{
 				"config0.example.com": {
-					Services: map[string]interface{}{
+					Services: map[string]any{
 						"modules.v0": "https://config0.example.com/",
 					},
 				},
@@ -124,17 +124,17 @@ func TestConfigFileLocations(t *testing.T) {
 			},
 			expected: map[string]*ConfigHost{
 				"config0.example.com": {
-					Services: map[string]interface{}{
+					Services: map[string]any{
 						"modules.v0": "https://config0.example.com/",
 					},
 				},
 				"0and1.example.com": {
-					Services: map[string]interface{}{
+					Services: map[string]any{
 						"modules.v0": "https://0and1.example.com/",
 					},
 				},
 				"0and2.example.com": {
-					Services: map[string]interface{}{
+					Services: map[string]any{
 						"modules.v0": "https://0and2.example.com/",
 					},
 				},

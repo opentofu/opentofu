@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"maps"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -341,9 +342,7 @@ func (m *Meta) StateOutPath() string {
 // Colorize returns the colorization structure for a command.
 func (m *Meta) Colorize() *colorstring.Colorize {
 	colors := make(map[string]string)
-	for k, v := range colorstring.DefaultColors {
-		colors[k] = v
-	}
+	maps.Copy(colors, colorstring.DefaultColors)
 	colors["purple"] = "38;5;57"
 
 	return &colorstring.Colorize{
@@ -602,19 +601,6 @@ func (m *Meta) defaultFlagSet(n string) *flag.FlagSet {
 	return f
 }
 
-// ignoreRemoteVersionFlagSet add the ignore-remote version flag to suppress
-// the error when the configured OpenTofu version on the remote workspace
-// does not match the local OpenTofu version.
-func (m *Meta) ignoreRemoteVersionFlagSet(n string) *flag.FlagSet {
-	f := m.defaultFlagSet(n)
-
-	m.varFlagSet(f)
-
-	f.BoolVar(&m.ignoreRemoteVersion, "ignore-remote-version", false, "continue even if remote and local OpenTofu versions are incompatible")
-
-	return f
-}
-
 func (m *Meta) varFlagSet(f *flag.FlagSet) {
 	if m.variableArgs.Items == nil {
 		m.variableArgs = flags.NewRawFlags("-var")
@@ -729,18 +715,13 @@ func (m *Meta) configureUiFromView(options arguments.ViewOptions) {
 	// responsibility of the caller of this method.
 }
 
-// uiHook returns the UiHook to use with the context.
-func (m *Meta) uiHook() *views.UiHook {
-	return views.NewUiHook(m.View)
-}
-
 // confirm asks a yes/no confirmation.
 func (m *Meta) confirm(opts *tofu.InputOpts) (bool, error) {
 	if !m.Input() {
 		return false, errors.New("input is disabled")
 	}
 
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		v, err := m.UIInput().Input(context.Background(), opts)
 		if err != nil {
 			return false, fmt.Errorf(
@@ -766,7 +747,7 @@ func (m *Meta) confirm(opts *tofu.InputOpts) (bool, error) {
 //
 // Internally this function uses Diagnostics.Append, and so it will panic
 // if given unsupported value types, just as Append does.
-func (m *Meta) showDiagnostics(vals ...interface{}) {
+func (m *Meta) showDiagnostics(vals ...any) {
 
 	var diags tfdiags.Diagnostics
 	diags = diags.Append(vals...)
@@ -923,18 +904,14 @@ func (m *Meta) checkRequiredVersion(ctx context.Context) tfdiags.Diagnostics {
 		return diags
 	}
 
-	config, configDiags := loader.LoadConfig(ctx, pwd, call)
+	_, configDiags := loader.LoadConfig(ctx, pwd, call)
 	if configDiags.HasErrors() {
 		diags = diags.Append(configDiags)
 		return diags
 	}
 
-	versionDiags := tofu.CheckCoreVersionRequirements(config)
-	if versionDiags.HasErrors() {
-		diags = diags.Append(versionDiags)
-		return diags
-	}
-
+	// If there were any OpenTofu-version-related errors then they would've
+	// already been detected by loader.LoadConfig above.
 	return nil
 }
 

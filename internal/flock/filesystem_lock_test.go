@@ -89,7 +89,7 @@ func TestLock_Contention(t *testing.T) {
 	if err != nil {
 		// Case 1: True contention detected (expected on some systems or configurations)
 		t.Logf("Second lock failed as expected - true contention detected: %v", err)
-		
+
 		// Verify that unlocking the first handle allows the second to succeed
 		// We are likely in a Windows OS now and our Unlock implementation for Windows is a no-op
 		// As commented there, we need to use Close
@@ -111,17 +111,17 @@ func TestLock_Contention(t *testing.T) {
 	} else {
 		// Case 2: Same-process lock sharing (common on POSIX systems)
 		t.Logf("Second lock succeeded - same process can hold multiple locks (POSIX behavior)")
-		
+
 		// Both handles now "hold" the lock from the OS perspective
 		// This is correct behavior for fcntl locks - they're process-scoped
 		// The actual protection is against OTHER PROCESSES, not other handles in same process
-		
+
 		// Clean up both locks (order doesn't matter for same-process locks)
 		err = Unlock(f1)
 		if err != nil {
 			t.Logf("Unlock f1 returned: %v (may be no-op on some systems)", err)
 		}
-		
+
 		err = Unlock(f2)
 		if err != nil {
 			t.Logf("Unlock f2 returned: %v (may be no-op on some systems)", err)
@@ -164,7 +164,7 @@ func TestLockBlocking_Cancellation(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	lockFile := filepath.Join(tmpDir, "cancel.lock")
-	
+
 	// Create test file
 	f1, err := os.OpenFile(lockFile, os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
@@ -183,7 +183,7 @@ func TestLockBlocking_Cancellation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to acquire first lock: %v", err)
 	}
-	
+
 	// Test if second lock fails
 	testErr := Lock(f2)
 	if testErr == nil {
@@ -197,7 +197,7 @@ func TestLockBlocking_Cancellation(t *testing.T) {
 		t.Skip("No contention between same-process handles on this system")
 		return
 	}
-	
+
 	// We have real contention - Windows behaviour, so test cancellation
 	t.Logf("System supports real contention between same-process handles")
 
@@ -221,7 +221,7 @@ func TestLockBlocking_Cancellation(t *testing.T) {
 	// Check cancellation behavior
 	if err == context.DeadlineExceeded || err == context.Canceled {
 		t.Logf("Lock was properly cancelled: %v (took %v)", err, elapsed)
-		
+
 		// Should have been cancelled within reasonable time
 		if elapsed > 200*time.Millisecond {
 			t.Fatalf("Cancellation took too long: %v", elapsed)
@@ -232,7 +232,7 @@ func TestLockBlocking_Cancellation(t *testing.T) {
 }
 
 func TestLockBlocking_EventualSuccess(t *testing.T) {
-	// Tests eventual success of LockBlocking on a single file while a Lock is 
+	// Tests eventual success of LockBlocking on a single file while a Lock is
 	// already in place which is then released
 	// Doesn't really test anything in POSIX systems since the same process can hold multiple locks
 	// on the same file
@@ -263,12 +263,10 @@ func TestLockBlocking_EventualSuccess(t *testing.T) {
 	var lockErr error
 
 	// Start blocking lock in goroutine
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		ctx := context.Background()
 		lockErr = LockBlocking(ctx, f2)
-	}()
+	})
 
 	// Release first lock after short delay
 	time.Sleep(50 * time.Millisecond)
@@ -313,21 +311,18 @@ func TestConcurrentLocking(t *testing.T) {
 
 	var wg sync.WaitGroup
 	successCount := make(chan int, numGoroutines)
-	
+
 	// Launch multiple goroutines trying to acquire locks
-	for i := 0; i < numGoroutines; i++ {
-		wg.Add(1)
-		go func(id int) {
-			defer wg.Done()
-			
+	for i := range numGoroutines {
+		wg.Go(func() {
 			successes := 0
-			for j := 0; j < iterations; j++ {
+			for range iterations {
 				f, err := os.OpenFile(lockFile, os.O_RDWR, 0644)
 				if err != nil {
-					t.Errorf("Goroutine %d: Failed to open file: %v", id, err)
+					t.Errorf("Goroutine %d: Failed to open file: %v", i, err)
 					continue
 				}
-				
+
 				err = Lock(f)
 				if err == nil {
 					successes++
@@ -336,12 +331,12 @@ func TestConcurrentLocking(t *testing.T) {
 					_ = Unlock(f)
 				}
 				f.Close()
-				
+
 				// Brief pause between attempts
 				time.Sleep(1 * time.Millisecond)
 			}
 			successCount <- successes
-		}(i)
+		})
 	}
 
 	wg.Wait()
@@ -358,6 +353,6 @@ func TestConcurrentLocking(t *testing.T) {
 		t.Fatal("No goroutine managed to acquire any locks")
 	}
 
-	t.Logf("Total successful lock acquisitions: %d out of %d attempts", 
+	t.Logf("Total successful lock acquisitions: %d out of %d attempts",
 		totalSuccesses, numGoroutines*iterations)
 }

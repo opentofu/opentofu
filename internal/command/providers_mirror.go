@@ -14,7 +14,10 @@ import (
 
 	"github.com/apparentlymart/go-versions/versions"
 	"github.com/hashicorp/go-getter"
+	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/flags"
+	"github.com/opentofu/opentofu/internal/command/views"
 
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/httpclient"
@@ -33,38 +36,49 @@ func (c *ProvidersMirrorCommand) Synopsis() string {
 	return "Save local copies of all required provider plugins"
 }
 
-func (c *ProvidersMirrorCommand) Run(args []string) int {
-	args = c.Meta.process(args)
-	cmdFlags := c.Meta.defaultFlagSet("providers mirror")
-	c.Meta.varFlagSet(cmdFlags)
-	var optPlatforms flags.FlagStringSlice
-	cmdFlags.Var(&optPlatforms, "platform", "target platform")
-	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
-	if err := cmdFlags.Parse(args); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing command-line flags: %s\n", err.Error()))
-		return 1
-	}
+func (c *ProvidersMirrorCommand) Run(rawArgs []string) int {
+	// new view
+	common, rawArgs := arguments.ParseView(rawArgs)
+	c.View.Configure(common)
+	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
+	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
+	c.View.DiagsWithNewline()
 
-	var diags tfdiags.Diagnostics
+	// Propagate -no-color for legacy use of Ui. The remote backend and
+	// cloud package use this; it should be removed when/if they are
+	// migrated to views.
+	c.Meta.color = !common.NoColor
+	c.Meta.Color = c.Meta.color
 
-	args = cmdFlags.Args()
-	if len(args) != 1 {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"No output directory specified",
-			"The providers mirror command requires an output directory as a command-line argument.",
-		))
-		c.showDiagnostics(diags)
-		return 1
+	// Parse and validate flags
+	args, closer, diags := arguments.ParseProvidersMirror(rawArgs)
+	defer closer()
+
+	// Instantiate the view, even if there are flag errors, so that we render
+	// diagnostics according to the desired view
+	view := views.NewProvidersMirror(args.ViewOptions, c.View)
+	// ... and initialise the Meta.Ui to wrap Meta.View into a new implementation
+	// that is able to print by using View abstraction and use the Meta.Ui
+	// to ask for the user input.
+	c.Meta.configureUiFromView(args.ViewOptions)
+
+	if diags.HasErrors() {
+		view.Diagnostics(diags)
+		if args.ViewOptions.ViewType == arguments.ViewJSON {
+			return 1 // in case it's json, do not print the help of the command
+		}
+		return cli.RunResultHelp
 	}
-	outputDir := args[0]
+	c.GatherVariables(args.Vars)
+
+	outputDir := args.Directory
 
 	var platforms []getproviders.Platform
-	if len(optPlatforms) == 0 {
+	if len(args.OptPlatforms) == 0 {
 		platforms = []getproviders.Platform{getproviders.CurrentPlatform}
 	} else {
-		platforms = make([]getproviders.Platform, 0, len(optPlatforms))
-		for _, platformStr := range optPlatforms {
+		platforms = make([]getproviders.Platform, 0, len(args.OptPlatforms))
+		for _, platformStr := range args.OptPlatforms {
 			platform, err := getproviders.ParsePlatform(platformStr)
 			if err != nil {
 				diags = diags.Append(tfdiags.Sourceless(
@@ -93,7 +107,7 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 
 	// If we have any error diagnostics already then we won't proceed further.
 	if diags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
@@ -142,11 +156,11 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 
 	for provider, constraints := range reqs {
 		if provider.IsBuiltIn() {
-			c.Ui.Output(fmt.Sprintf("- Skipping %s because it is built in to OpenTofu CLI", provider.ForDisplay()))
+			view.ProviderSkipped(provider.ForDisplay())
 			continue
 		}
 		constraintsStr := getproviders.VersionConstraintsString(constraints)
-		c.Ui.Output(fmt.Sprintf("- Mirroring %s...", provider.ForDisplay()))
+		view.MirroringProvider(provider.ForDisplay())
 		// First we'll look for the latest version that matches the given
 		// constraint, which we'll then try to mirror for each target platform.
 		acceptable := versions.MeetingConstraints(constraints)
@@ -174,14 +188,14 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 				continue
 			}
 			selected = lockedDeps.Provider(provider).Version()
-			c.Ui.Output(fmt.Sprintf("  - Selected v%s to match dependency lock file", selected.String()))
+			view.ProviderVersionSelectedToMatchLockfile(provider.ForDisplay(), selected.String())
 		} else if len(constraintsStr) > 0 {
-			c.Ui.Output(fmt.Sprintf("  - Selected v%s to meet constraints %s", selected.String(), constraintsStr))
+			view.ProviderVersionSelectedToMatchConstraints(provider.ForDisplay(), selected.String(), constraintsStr)
 		} else {
-			c.Ui.Output(fmt.Sprintf("  - Selected v%s with no constraints", selected.String()))
+			view.ProviderVersionSelectedWithNoConstraints(provider.ForDisplay(), selected.String())
 		}
 		for _, platform := range platforms {
-			c.Ui.Output(fmt.Sprintf("  - Downloading package for %s...", platform.String()))
+			view.DownloadingPackageFor(provider.ForDisplay(), selected.String(), platform.String())
 			meta, err := source.PackageMeta(ctx, provider, selected, platform)
 			if err != nil {
 				diags = diags.Append(tfdiags.Sourceless(
@@ -241,7 +255,7 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 					))
 					continue
 				}
-				c.Ui.Output(fmt.Sprintf("  - Package authenticated: %s", result))
+				view.PackageAuthenticated(provider.ForDisplay(), selected.String(), platform.String(), result.String())
 			}
 			os.Remove(targetPath) // okay if it fails because we're going to try to rename over it next anyway
 			err = os.Rename(stagingPath, targetPath)
@@ -356,7 +370,7 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 		}
 	}
 
-	c.showDiagnostics(diags)
+	view.Diagnostics(diags)
 	if diags.HasErrors() {
 		return 1
 	}
@@ -399,5 +413,32 @@ Options:
                      to the default files terraform.tfvars and *.auto.tfvars.
                      Use this option more than once to include more than one
                      variables file.
+
+  -json               Produce output in a machine-readable JSON format, 
+                      suitable for use in text editor integrations and other 
+                      automated systems. Always disables color.
+
+  -json-into=out.json Produce the same output as -json, but sent directly
+                      to the given file. This allows automation to preserve
+                      the original human-readable output streams, while
+                      capturing more detailed logs for machine analysis.
 `
+}
+
+// TODO meta-refactor: move this to arguments once all commands are using the same shim logic
+func (c *ProvidersMirrorCommand) GatherVariables(args *arguments.Vars) {
+	// FIXME the arguments package currently trivially gathers variable related
+	// arguments in a heterogeneous slice, in order to minimize the number of
+	// code paths gathering variables during the transition to this structure.
+	// Once all commands that gather variables have been converted to this
+	// structure, we could move the variable gathering code to the arguments
+	// package directly, removing this shim layer.
+
+	varArgs := args.All()
+	items := make([]flags.RawFlag, len(varArgs))
+	for i := range varArgs {
+		items[i].Name = varArgs[i].Name
+		items[i].Value = varArgs[i].Value
+	}
+	c.Meta.variableArgs = flags.RawFlags{Items: &items}
 }

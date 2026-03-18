@@ -8,7 +8,7 @@ package pbkdf2_test
 import (
 	"fmt"
 
-	"github.com/hashicorp/hcl/v2/gohcl"
+	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider/pbkdf2"
 
 	"github.com/opentofu/opentofu/internal/encryption/config"
@@ -31,12 +31,9 @@ func Example_decrypt() {
 		panic(diags)
 	}
 
-	// Use gohcl to parse the hcl block from parsedConfig into the static configuration struct:
-	if err := gohcl.DecodeBody(
-		parsedConfig.KeyProviderConfigs[0].Body,
-		nil,
-		configStruct,
-	); err != nil {
+	// The `pbkdf2` key provider config has its own decoding so use that instead of gohcl
+	decoder := configStruct.(keyprovider.SelfDecodingConfig)
+	if err := decoder.DecodeConfig(parsedConfig.KeyProviderConfigs[0].Body, nil); err != nil {
 		panic(err)
 	}
 

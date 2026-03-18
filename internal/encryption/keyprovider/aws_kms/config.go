@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
@@ -199,12 +200,13 @@ func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
 	_, awsConfig, awsDiags := awsbase.GetAwsConfig(ctx, cfg)
 
 	if awsDiags.HasError() {
-		out := "errors were encountered in aws kms configuration"
+		var out strings.Builder
+		out.WriteString("errors were encountered in aws kms configuration")
 		for _, diag := range awsDiags.Errors() {
-			out += "\n" + diag.Summary() + " : " + diag.Detail()
+			out.WriteString("\n" + diag.Summary() + " : " + diag.Detail())
 		}
 
-		return nil, nil, fmt.Errorf("%s", out)
+		return nil, nil, fmt.Errorf("%s", out.String())
 	}
 
 	return &keyProvider{

@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/flags"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
@@ -27,41 +28,55 @@ type StateMvCommand struct {
 	StateMeta
 }
 
-func (c *StateMvCommand) Run(args []string) int {
+func (c *StateMvCommand) Run(rawArgs []string) int {
 	ctx := c.CommandContext()
-	args = c.Meta.process(args)
-	// We create two metas to track the two states
-	var backupPathOut, statePathOut string
 
-	var dryRun bool
-	cmdFlags := c.Meta.ignoreRemoteVersionFlagSet("state mv")
-	cmdFlags.BoolVar(&dryRun, "dry-run", false, "dry run")
-	cmdFlags.StringVar(&c.backupPath, "backup", "-", "backup")
-	cmdFlags.StringVar(&backupPathOut, "backup-out", "-", "backup")
-	cmdFlags.BoolVar(&c.Meta.stateLock, "lock", true, "lock states")
-	cmdFlags.DurationVar(&c.Meta.stateLockTimeout, "lock-timeout", 0, "lock timeout")
-	cmdFlags.StringVar(&c.statePath, "state", "", "path")
-	cmdFlags.StringVar(&statePathOut, "state-out", "", "path")
-	if err := cmdFlags.Parse(args); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing command-line flags: %s\n", err.Error()))
-		return 1
-	}
-	args = cmdFlags.Args()
-	if len(args) != 2 {
-		c.Ui.Error("Exactly two arguments expected.\n")
+	common, rawArgs := arguments.ParseView(rawArgs)
+	c.View.Configure(common)
+	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
+	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
+	c.View.DiagsWithNewline()
+
+	// Propagate -no-color for legacy use of Ui. The remote backend and
+	// cloud package use this; it should be removed when/if they are
+	// migrated to views.
+	c.Meta.color = !common.NoColor
+	c.Meta.Color = c.Meta.color
+
+	// Parse and validate flags
+	args, closer, diags := arguments.ParseStateMv(rawArgs)
+	defer closer()
+
+	// Instantiate the view, even if there are flag errors, so that we render
+	// diagnostics according to the desired view
+	view := views.NewState(args.ViewOptions, c.View)
+	// ... and initialise the Meta.Ui to wrap Meta.View into a new implementation
+	// that is able to print by using View abstraction and use the Meta.Ui
+	// to ask for the user input.
+	c.Meta.configureUiFromView(args.ViewOptions)
+	if diags.HasErrors() {
+		view.Diagnostics(diags)
 		return cli.RunResultHelp
 	}
+	// TODO meta-refactor: remove these assignments once there is a clear way to propagate these to the place
+	//   where are used
+	c.backupPath = args.BackupPath
+	c.statePath = args.StatePath
+	c.stateLock = args.Backend.StateLock
+	c.stateLockTimeout = args.Backend.StateLockTimeout
+	c.ignoreRemoteVersion = args.Backend.IgnoreRemoteVersion
+	c.GatherVariables(args.Vars)
 
 	if diags := c.Meta.checkRequiredVersion(ctx); diags != nil {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
 	// If backup or backup-out options are set
 	// and the state option is not set, make sure
 	// the backend is local
-	backupOptionSetWithoutStateOption := c.backupPath != "-" && c.statePath == ""
-	backupOutOptionSetWithoutStateOption := backupPathOut != "-" && c.statePath == ""
+	backupOptionSetWithoutStateOption := args.BackupPath != "-" && args.StatePath == ""
+	backupOutOptionSetWithoutStateOption := args.BackupPathOut != "-" && args.StatePath == ""
 
 	var setLegacyLocalBackendOptions []string
 	if backupOptionSetWithoutStateOption {
@@ -74,14 +89,14 @@ func (c *StateMvCommand) Run(args []string) int {
 	// Load the encryption configuration
 	enc, encDiags := c.Encryption(ctx)
 	if encDiags.HasErrors() {
-		c.showDiagnostics(encDiags)
+		view.Diagnostics(encDiags)
 		return 1
 	}
 
 	if len(setLegacyLocalBackendOptions) > 0 {
 		currentBackend, diags := c.backendFromConfig(ctx, &BackendOpts{}, enc.State())
 		if diags.HasErrors() {
-			c.showDiagnostics(diags)
+			view.Diagnostics(diags)
 			return 1
 		}
 
@@ -96,7 +111,7 @@ func (c *StateMvCommand) Run(args []string) int {
 					"Command line options -backup and -backup-out are legacy options that operate on a local state file only. You must specify a local state file with the -state option or switch to the local backend.",
 				),
 			)
-			c.showDiagnostics(diags)
+			view.Diagnostics(diags)
 			return 1
 		}
 	}
@@ -104,31 +119,31 @@ func (c *StateMvCommand) Run(args []string) int {
 	// Read the from state
 	stateFromMgr, err := c.State(ctx, enc)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf(errStateLoadingState, err))
+		view.StateLoadingFailure(err.Error())
 		return 1
 	}
 
 	if c.stateLock {
-		stateLocker := clistate.NewLocker(c.stateLockTimeout, views.NewStateLocker(arguments.ViewOptions{ViewType: arguments.ViewHuman}, c.View))
+		stateLocker := clistate.NewLocker(c.stateLockTimeout, views.NewStateLocker(args.ViewOptions, c.View))
 		if diags := stateLocker.Lock(stateFromMgr, "state-mv"); diags.HasErrors() {
-			c.showDiagnostics(diags)
+			view.Diagnostics(diags)
 			return 1
 		}
 		defer func() {
 			if diags := stateLocker.Unlock(); diags.HasErrors() {
-				c.showDiagnostics(diags)
+				view.Diagnostics(diags)
 			}
 		}()
 	}
 
 	if err := stateFromMgr.RefreshState(context.TODO()); err != nil {
-		c.Ui.Error(fmt.Sprintf("Failed to refresh source state: %s", err))
+		view.Diagnostics(diags.Append(fmt.Errorf("Failed to refresh source state: %s", err)))
 		return 1
 	}
 
 	stateFrom := stateFromMgr.State()
 	if stateFrom == nil {
-		c.Ui.Error(errStateNotFound)
+		view.StateNotFound()
 		return 1
 	}
 
@@ -136,31 +151,31 @@ func (c *StateMvCommand) Run(args []string) int {
 	stateToMgr := stateFromMgr
 	stateTo := stateFrom
 
-	if statePathOut != "" {
-		c.statePath = statePathOut
-		c.backupPath = backupPathOut
+	if args.StateOutPath != "" {
+		c.statePath = args.StateOutPath
+		c.backupPath = args.BackupPathOut
 
 		stateToMgr, err = c.State(ctx, enc)
 		if err != nil {
-			c.Ui.Error(fmt.Sprintf(errStateLoadingState, err))
+			view.StateLoadingFailure(err.Error())
 			return 1
 		}
 
 		if c.stateLock {
-			stateLocker := clistate.NewLocker(c.stateLockTimeout, views.NewStateLocker(arguments.ViewOptions{ViewType: arguments.ViewHuman}, c.View))
+			stateLocker := clistate.NewLocker(c.stateLockTimeout, views.NewStateLocker(args.ViewOptions, c.View))
 			if diags := stateLocker.Lock(stateToMgr, "state-mv"); diags.HasErrors() {
-				c.showDiagnostics(diags)
+				view.Diagnostics(diags)
 				return 1
 			}
 			defer func() {
 				if diags := stateLocker.Unlock(); diags.HasErrors() {
-					c.showDiagnostics(diags)
+					view.Diagnostics(diags)
 				}
 			}()
 		}
 
 		if err := stateToMgr.RefreshState(context.TODO()); err != nil {
-			c.Ui.Error(fmt.Sprintf("Failed to refresh destination state: %s", err))
+			view.Diagnostics(diags.Append(fmt.Errorf("Failed to refresh destination state: %s", err)))
 			return 1
 		}
 
@@ -170,19 +185,13 @@ func (c *StateMvCommand) Run(args []string) int {
 		}
 	}
 
-	var diags tfdiags.Diagnostics
-	sourceAddr, moreDiags := c.lookupSingleStateObjectAddr(stateFrom, args[0])
+	sourceAddr, moreDiags := c.lookupSingleStateObjectAddr(stateFrom, args.RawSrcAddr)
 	diags = diags.Append(moreDiags)
-	destAddr, moreDiags := c.lookupSingleStateObjectAddr(stateFrom, args[1])
+	destAddr, moreDiags := c.lookupSingleStateObjectAddr(stateFrom, args.RawDestAddr)
 	diags = diags.Append(moreDiags)
 	if diags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
-	}
-
-	prefix := "Move"
-	if dryRun {
-		prefix = "Would move"
 	}
 
 	const msgInvalidSource = "Invalid source address"
@@ -197,7 +206,7 @@ func (c *StateMvCommand) Run(args []string) int {
 			msgInvalidSource,
 			fmt.Sprintf("Cannot move %s: does not match anything in the current state.", sourceAddr),
 		))
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 	for _, rawAddrFrom := range sourceAddrs {
@@ -211,7 +220,7 @@ func (c *StateMvCommand) Run(args []string) int {
 					msgInvalidTarget,
 					fmt.Sprintf("Cannot move %s to %s: the target must also be a module.", addrFrom, destAddr),
 				))
-				c.showDiagnostics(diags)
+				view.Diagnostics(diags)
 				return 1
 			}
 
@@ -223,7 +232,7 @@ func (c *StateMvCommand) Run(args []string) int {
 			}
 
 			if stateTo.Module(addrTo) != nil {
-				c.Ui.Error(fmt.Sprintf(errStateMv, "destination module already exists"))
+				view.ErrorMovingToAlreadyExistingDst()
 				return 1
 			}
 
@@ -234,13 +243,13 @@ func (c *StateMvCommand) Run(args []string) int {
 					msgInvalidSource,
 					fmt.Sprintf("The current state does not contain %s.", addrFrom),
 				))
-				c.showDiagnostics(diags)
+				view.Diagnostics(diags)
 				return 1
 			}
 
 			moved++
-			c.Ui.Output(fmt.Sprintf("%s %q to %q", prefix, addrFrom.String(), addrTo.String()))
-			if !dryRun {
+			view.ResourceMoveStatus(args.DryRun, addrFrom.String(), addrTo.String())
+			if !args.DryRun {
 				ssFrom.RemoveModule(addrFrom)
 
 				// Update the address before adding it to the state.
@@ -256,7 +265,7 @@ func (c *StateMvCommand) Run(args []string) int {
 					msgInvalidTarget,
 					fmt.Sprintf("Cannot move %s to %s: the source is a whole resource (not a resource instance) so the target must also be a whole resource.", addrFrom, destAddr),
 				))
-				c.showDiagnostics(diags)
+				view.Diagnostics(diags)
 				return 1
 			}
 			diags = diags.Append(c.validateResourceMove(addrFrom, addrTo))
@@ -279,13 +288,13 @@ func (c *StateMvCommand) Run(args []string) int {
 			}
 
 			if diags.HasErrors() {
-				c.showDiagnostics(diags)
+				view.Diagnostics(diags)
 				return 1
 			}
 
 			moved++
-			c.Ui.Output(fmt.Sprintf("%s %q to %q", prefix, addrFrom.String(), addrTo.String()))
-			if !dryRun {
+			view.ResourceMoveStatus(args.DryRun, addrFrom.String(), addrTo.String())
+			if !args.DryRun {
 				ssFrom.RemoveResource(addrFrom)
 
 				// Update the address before adding it to the state.
@@ -303,7 +312,7 @@ func (c *StateMvCommand) Run(args []string) int {
 						msgInvalidTarget,
 						fmt.Sprintf("Cannot move %s to %s: the target must also be a resource instance.", addrFrom, destAddr),
 					))
-					c.showDiagnostics(diags)
+					view.Diagnostics(diags)
 					return 1
 				}
 				addrTo = ra.Instance(addrs.NoKey)
@@ -333,13 +342,13 @@ func (c *StateMvCommand) Run(args []string) int {
 			}
 
 			if diags.HasErrors() {
-				c.showDiagnostics(diags)
+				view.Diagnostics(diags)
 				return 1
 			}
 
 			moved++
-			c.Ui.Output(fmt.Sprintf("%s %q to %q", prefix, addrFrom.String(), args[1]))
-			if !dryRun {
+			view.ResourceMoveStatus(args.DryRun, addrFrom.String(), args.RawDestAddr)
+			if !args.DryRun {
 				fromResourceAddr := addrFrom.ContainingResource()
 				fromResource := ssFrom.Resource(fromResourceAddr)
 				fromProviderAddr := fromResource.ProviderConfig
@@ -394,17 +403,15 @@ func (c *StateMvCommand) Run(args []string) int {
 		}
 	}
 
-	if dryRun {
-		if moved == 0 {
-			c.Ui.Output("Would have moved nothing.")
-		}
+	if args.DryRun {
+		view.DryRunMovedStatus(moved)
 		return 0 // This is as far as we go in dry-run mode
 	}
 
 	b, backendDiags := c.Backend(ctx, nil, enc.State())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
@@ -418,33 +425,28 @@ func (c *StateMvCommand) Run(args []string) int {
 
 	// Write the new state
 	if err := stateToMgr.WriteState(stateTo); err != nil {
-		c.Ui.Error(fmt.Sprintf(errStateRmPersist, err))
+		view.StateSavingError(err.Error())
 		return 1
 	}
 	if err := stateToMgr.PersistState(context.TODO(), schemas); err != nil {
-		c.Ui.Error(fmt.Sprintf(errStateRmPersist, err))
+		view.StateSavingError(err.Error())
 		return 1
 	}
 
 	// Write the old state if it is different
 	if stateTo != stateFrom {
 		if err := stateFromMgr.WriteState(stateFrom); err != nil {
-			c.Ui.Error(fmt.Sprintf(errStateRmPersist, err))
+			view.StateSavingError(err.Error())
 			return 1
 		}
 		if err := stateFromMgr.PersistState(context.TODO(), schemas); err != nil {
-			c.Ui.Error(fmt.Sprintf(errStateRmPersist, err))
+			view.StateSavingError(err.Error())
 			return 1
 		}
 	}
 
-	c.showDiagnostics(diags)
-
-	if moved == 0 {
-		c.Ui.Output("No matching objects found.")
-	} else {
-		c.Ui.Output(fmt.Sprintf("Successfully moved %d object(s).", moved))
-	}
+	view.Diagnostics(diags)
+	view.MoveFinalStatus(moved)
 	return 0
 }
 
@@ -583,6 +585,15 @@ Options:
                           Use this option more than once to include more than one
                           variables file.
 
+  -json                   Produce output in a machine-readable JSON format, 
+                          suitable for use in text editor integrations and other 
+                          automated systems. Always disables color.
+
+  -json-into=out.json     Produce the same output as -json, but sent directly
+                          to the given file. This allows automation to preserve
+                          the original human-readable output streams, while
+                          capturing more detailed logs for machine analysis.
+
   -state, state-out, and -backup are legacy options supported for the local
   backend only. For more information, see the local backend's documentation.
 
@@ -594,7 +605,20 @@ func (c *StateMvCommand) Synopsis() string {
 	return "Move an item in the state"
 }
 
-const errStateMv = `Error moving state: %s
+// TODO meta-refactor: move this to arguments once all commands are using the same shim logic
+func (c *StateMvCommand) GatherVariables(args *arguments.Vars) {
+	// FIXME the arguments package currently trivially gathers variable related
+	// arguments in a heterogeneous slice, in order to minimize the number of
+	// code paths gathering variables during the transition to this structure.
+	// Once all commands that gather variables have been converted to this
+	// structure, we could move the variable gathering code to the arguments
+	// package directly, removing this shim layer.
 
-Please ensure your addresses and state paths are valid. No
-state was persisted. Your existing states are untouched.`
+	varArgs := args.All()
+	items := make([]flags.RawFlag, len(varArgs))
+	for i := range varArgs {
+		items[i].Name = varArgs[i].Name
+		items[i].Value = varArgs[i].Value
+	}
+	c.Meta.variableArgs = flags.RawFlags{Items: &items}
+}

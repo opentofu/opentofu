@@ -113,7 +113,7 @@ func New(enc encryption.StateEncryption) backend.Backend {
 				Optional:    true,
 				Description: "The timeout in seconds for initializing a client or retrieving a Blob or a Metadata from Azure.",
 				DefaultFunc: schema.EnvDefaultFunc("ARM_TIMEOUT_SECONDS", defaultTimeout),
-				ValidateFunc: func(v interface{}, _ string) ([]string, []error) {
+				ValidateFunc: func(v any, _ string) ([]string, []error) {
 					value, ok := v.(int)
 					if !ok || value < 0 {
 						return nil, []error{fmt.Errorf("timeout_seconds expected to be a non-negative integer")}
@@ -205,20 +205,29 @@ func New(enc encryption.StateEncryption) backend.Backend {
 			"oidc_token_file_path": {
 				Type:        schema.TypeString,
 				Optional:    true,
-				DefaultFunc: schema.EnvDefaultFunc("ARM_OIDC_TOKEN_FILE_PATH", ""),
+				DefaultFunc: schema.MultiEnvDefaultFunc([]string{"ARM_OIDC_TOKEN_FILE_PATH", "AZURE_FEDERATED_TOKEN_FILE"}, ""),
 				Description: "Path to file containing a generic JWT token that can be used for OIDC authentication. Should not be used in conjunction with `oidc_request_token`.",
 			},
 			"oidc_request_url": {
 				Type:        schema.TypeString,
 				Optional:    true,
-				DefaultFunc: schema.MultiEnvDefaultFunc([]string{"ARM_OIDC_REQUEST_URL", "ACTIONS_ID_TOKEN_REQUEST_URL"}, ""),
+				DefaultFunc: schema.MultiEnvDefaultFunc([]string{"ARM_OIDC_REQUEST_URL", "ACTIONS_ID_TOKEN_REQUEST_URL", "SYSTEM_OIDCREQUESTURI"}, ""),
 				Description: "The URL of the OIDC provider from which to request an ID token. Needs to be used in conjunction with `oidc_request_token`. This is meant to be used for Github Actions.",
 			},
 			"oidc_request_token": {
 				Type:        schema.TypeString,
 				Optional:    true,
-				DefaultFunc: schema.MultiEnvDefaultFunc([]string{"ARM_OIDC_REQUEST_TOKEN", "ACTIONS_ID_TOKEN_REQUEST_TOKEN"}, ""),
+				DefaultFunc: schema.MultiEnvDefaultFunc([]string{"ARM_OIDC_REQUEST_TOKEN", "ACTIONS_ID_TOKEN_REQUEST_TOKEN", "SYSTEM_ACCESSTOKEN"}, ""),
 				Description: "The bearer token to use for the request to the OIDC providers `oidc_request_url` URL to fetch an ID token. Needs to be used in conjunction with `oidc_request_url`. This is meant to be used for Github Actions.",
+			},
+
+			// Azure DevOps / Pipelines specific field
+			// shares all other configuration with the generic OIDC auth method.
+			"ado_service_connection_id": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				DefaultFunc: schema.MultiEnvDefaultFunc([]string{"ARM_ADO_PIPELINE_SERVICE_CONNECTION_ID", "ARM_OIDC_AZURE_SERVICE_CONNECTION_ID", "AZURESUBSCRIPTION_SERVICE_CONNECTION_ID"}, ""),
+				Description: "The Azure DevOps Service Connection ID to use when authenticating with Azure DevOps. This is meant to be used in Azure DevOps pipelines.",
 			},
 
 			"use_aks_workload_identity": {
@@ -295,6 +304,9 @@ func (b *Backend) configure(ctx context.Context) error {
 	}
 
 	config := &auth.Config{
+		ADOAuthConfig: auth.ADOAuthConfig{
+			ADOServiceConnectionId: data.Get("ado_service_connection_id").(string),
+		},
 		AzureCLIAuthConfig: auth.AzureCLIAuthConfig{
 			CLIAuthEnabled: data.Get("use_cli").(bool),
 		},

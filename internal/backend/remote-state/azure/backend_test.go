@@ -34,7 +34,7 @@ func TestBackendConfig(t *testing.T) {
 	// This test just instantiates the client. Shouldn't make any actual
 	// requests nor incur any costs.
 
-	config := map[string]interface{}{
+	config := map[string]any{
 		"storage_account_name": "tfaccount",
 		"container_name":       "tfcontainer",
 		"key":                  "state",
@@ -226,7 +226,7 @@ func TestAccBackendAccessKeyBasic(t *testing.T) {
 	}
 
 	// The call to backend.TestBackendStates tests workspace creation, list and deletion.
-	b1 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
+	b1 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]any{
 		"storage_account_name": res.storageAccountName,
 		"container_name":       res.storageContainerName,
 		"key":                  res.storageKeyName,
@@ -236,7 +236,7 @@ func TestAccBackendAccessKeyBasic(t *testing.T) {
 
 	backend.TestBackendStates(t, b1)
 
-	b2 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
+	b2 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]any{
 		"storage_account_name": res.storageAccountName,
 		"container_name":       res.storageContainerName,
 		"key":                  res.storageKeyName,
@@ -285,7 +285,7 @@ func TestAccBackendSASToken(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b1 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
+	b1 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]any{
 		"storage_account_name": res.storageAccountName,
 		"container_name":       res.storageContainerName,
 		"key":                  res.storageKeyName,
@@ -295,7 +295,7 @@ func TestAccBackendSASToken(t *testing.T) {
 
 	backend.TestBackendStates(t, b1)
 
-	b2 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
+	b2 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]any{
 		"storage_account_name": res.storageAccountName,
 		"container_name":       res.storageContainerName,
 		"key":                  res.storageKeyName,
@@ -344,7 +344,7 @@ Please set TF_AZURE_TEST_CLIENT_ID and TF_AZURE_TEST_CLIENT_SECRET, either manua
 		t.Fatal(err)
 	}
 
-	b1 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
+	b1 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]any{
 		"storage_account_name": res.storageAccountName,
 		"container_name":       res.storageContainerName,
 		"key":                  res.storageKeyName,
@@ -356,7 +356,7 @@ Please set TF_AZURE_TEST_CLIENT_ID and TF_AZURE_TEST_CLIENT_SECRET, either manua
 
 	backend.TestBackendStates(t, b1)
 
-	b2 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
+	b2 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]any{
 		"storage_account_name": res.storageAccountName,
 		"container_name":       res.storageContainerName,
 		"key":                  res.storageKeyName,
@@ -414,7 +414,7 @@ func TestAccBackendServicePrincipalClientCertificate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b1 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
+	b1 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]any{
 		"storage_account_name":        res.storageAccountName,
 		"container_name":              res.storageContainerName,
 		"key":                         res.storageKeyName,
@@ -442,7 +442,7 @@ func TestAccBackendManagedServiceIdentity(t *testing.T) {
 		t.Skip("For MSI tests, all infrastructure must be set up ahead of time and passed through environment variables.")
 	}
 
-	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
+	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]any{
 		"storage_account_name": storageAccountName,
 		"container_name":       containerName,
 		"key":                  "testState",
@@ -487,7 +487,7 @@ func TestAccBackendAKSWorkloadIdentity(t *testing.T) {
 		t.Skip("For MSI tests, all infrastructure must be set up ahead of time and passed through environment variables.")
 	}
 
-	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
+	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]any{
 		"storage_account_name":      storageAccountName,
 		"container_name":            containerName,
 		"key":                       "testState",
@@ -508,6 +508,52 @@ func TestAccBackendAKSWorkloadIdentity(t *testing.T) {
 			Cloud:     cloud.AzurePublic,
 		}},
 	)
+	if err != nil {
+		t.Logf("Skipping deleting blobs in container %s due to error obtaining credentials: %v", containerName, err)
+		return
+	}
+
+	// Manually delete all blobs in the container
+	deleteBlobsManually(t, authCred, storageAccountName, resourceGroupName, containerName)
+}
+
+// TestAccBackendADOWorkloadIdentity tests if the backend functions when using workload identity, on Azure DevOps (ADO).
+// Note: this test does NOT create its own resource group, storage account, or storage container. You must set up that infrastructure
+// manually, as well as the Azure DevOps Org, workload identity, and managed identity which this test depends upon.
+func TestAccBackendADOWorkloadIdentity(t *testing.T) {
+	testAccAzureBackend(t)
+
+	storageAccountName := os.Getenv("TF_AZURE_TEST_STORAGE_ACCOUNT_NAME")
+	resourceGroupName := os.Getenv("TF_AZURE_TEST_RESOURCE_GROUP_NAME")
+	containerName := os.Getenv("TF_AZURE_TEST_CONTAINER_NAME")
+	adoServiceConnectionId := os.Getenv("AZURESUBSCRIPTION_SERVICE_CONNECTION_ID")
+	tenantId := os.Getenv("ARM_TENANT_ID")
+	clientId := os.Getenv("ARM_CLIENT_ID")
+	oidcRequestUri := os.Getenv("SYSTEM_OIDCREQUESTURI")
+	oidcRequestToken := os.Getenv("SYSTEM_ACCESSTOKEN")
+
+	if storageAccountName == "" || resourceGroupName == "" || containerName == "" || tenantId == "" || clientId == "" || adoServiceConnectionId == "" || oidcRequestUri == "" || oidcRequestToken == "" {
+		t.Skip("For ADO tests, all infrastructure must be set up ahead of time and passed through environment variables.")
+	}
+
+	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]any{
+		"storage_account_name":      storageAccountName,
+		"container_name":            containerName,
+		"key":                       "testState",
+		"resource_group_name":       resourceGroupName,
+		"use_azuread_auth":          true,
+		"tenant_id":                 tenantId,
+		"client_id":                 clientId,
+		"oidc_request_url":          oidcRequestUri,
+		"oidc_request_token":        oidcRequestToken,
+		"ado_service_connection_id": adoServiceConnectionId,
+		"use_oidc":                  true,
+		"use_cli":                   false,
+	})).(*Backend)
+
+	backend.TestBackendStates(t, b)
+
+	authCred, err := azidentity.NewAzurePipelinesCredential(tenantId, clientId, adoServiceConnectionId, oidcRequestToken, nil)
 	if err != nil {
 		t.Logf("Skipping deleting blobs in container %s due to error obtaining credentials: %v", containerName, err)
 		return

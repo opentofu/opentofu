@@ -14,7 +14,6 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/encryption/config"
 	"github.com/opentofu/opentofu/internal/experiments"
-	tfversion "github.com/opentofu/opentofu/version"
 )
 
 // Module is a container for a set of configuration constructs that are
@@ -31,10 +30,6 @@ type Module struct {
 	// purposes. It should be treated as immutable by all consumers of Module
 	// values.
 	SourceDir string
-
-	CoreVersionConstraints []VersionConstraint
-
-	ActiveExperiments experiments.Set
 
 	Backend              *Backend
 	CloudConfig          *CloudConfig
@@ -68,6 +63,11 @@ type Module struct {
 
 	// StaticEvaluator is used to evaluate static expressions in the scope of the Module.
 	StaticEvaluator *StaticEvaluator
+
+	// ActiveExperiments is not currently used and so is always nil, but is
+	// reserved to be a place to capture a module's active experiments if we
+	// begin using language experiments in a later release.
+	ActiveExperiments experiments.Set
 }
 
 // GetProviderConfig uses name and alias to find the respective Provider configuration.
@@ -89,10 +89,6 @@ func (m *Module) GetProviderConfig(name, alias string) (*Provider, bool) {
 // analysis of individual elements, but must be built into a Module to detect
 // duplicate declarations.
 type File struct {
-	CoreVersionConstraints []VersionConstraint
-
-	ActiveExperiments experiments.Set
-
 	Backends          []*Backend
 	CloudConfigs      []*CloudConfig
 	ProviderConfigs   []*Provider
@@ -273,8 +269,6 @@ func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall, sourc
 		diags = append(diags, pDiags...)
 	}
 
-	diags = append(diags, checkModuleExperiments(mod)...)
-
 	// Generate the FQN -> LocalProviderName map
 	mod.gatherProviderLocalNames()
 
@@ -299,12 +293,6 @@ func (m *Module) ResourceByAddr(addr addrs.Resource) *Resource {
 
 func (m *Module) appendFile(file *File) hcl.Diagnostics {
 	var diags hcl.Diagnostics
-
-	// If there are any conflicting requirements then we'll catch them
-	// when we actually check these constraints.
-	m.CoreVersionConstraints = append(m.CoreVersionConstraints, file.CoreVersionConstraints...)
-
-	m.ActiveExperiments = experiments.SetUnion(m.ActiveExperiments, file.ActiveExperiments)
 
 	for _, b := range file.Backends {
 		if m.Backend != nil {
@@ -602,14 +590,6 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 func (m *Module) mergeFile(file *File) hcl.Diagnostics {
 	var diags hcl.Diagnostics
 
-	if len(file.CoreVersionConstraints) != 0 {
-		// This is a bit of a strange case for overriding since we normally
-		// would union together across multiple files anyway, but we'll
-		// allow it and have each override file clobber any existing list.
-		m.CoreVersionConstraints = nil
-		m.CoreVersionConstraints = append(m.CoreVersionConstraints, file.CoreVersionConstraints...)
-	}
-
 	if len(file.Backends) != 0 {
 		switch len(file.Backends) {
 		case 1:
@@ -872,62 +852,6 @@ func (m *Module) ImpliedProviderForUnqualifiedType(pType string) addrs.Provider 
 		return provider.Type
 	}
 	return addrs.ImpliedProviderForUnqualifiedType(pType)
-}
-
-func (m *Module) CheckCoreVersionRequirements(path addrs.Module, sourceAddr addrs.ModuleSource) hcl.Diagnostics {
-	var diags hcl.Diagnostics
-
-	for _, constraint := range m.CoreVersionConstraints {
-		// Before checking if the constraints are met, check that we are not using any prerelease fields as these
-		// are not currently supported.
-		var prereleaseDiags hcl.Diagnostics
-		for _, required := range constraint.Required {
-			if required.Prerelease() {
-				prereleaseDiags = prereleaseDiags.Append(&hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Invalid required_version constraint",
-					Detail: fmt.Sprintf(
-						"Prerelease version constraints are not supported: %s. Remove the prerelease information from the constraint. Prerelease versions of OpenTofu will match constraints using their version core only.",
-						required.String()),
-					Subject: constraint.DeclRange.Ptr(),
-				})
-			}
-		}
-
-		if len(prereleaseDiags) > 0 {
-			// There were some prerelease fields in the constraints. Don't check the constraints as they will
-			// fail, and populate the diagnostics for these constraints with the prerelease diagnostics.
-			diags = diags.Extend(prereleaseDiags)
-			continue
-		}
-
-		if !constraint.Required.Check(tfversion.SemVer) {
-			switch {
-			case len(path) == 0:
-				diags = diags.Append(&hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Unsupported OpenTofu Core version",
-					Detail: fmt.Sprintf(
-						"This configuration does not support OpenTofu version %s. To proceed, either choose another supported OpenTofu version or update this version constraint. Version constraints are normally set for good reason, so updating the constraint may lead to other errors or unexpected behavior.",
-						tfversion.String(),
-					),
-					Subject: constraint.DeclRange.Ptr(),
-				})
-			default:
-				diags = diags.Append(&hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Unsupported OpenTofu Core version",
-					Detail: fmt.Sprintf(
-						"Module %s (from %s) does not support OpenTofu version %s. To proceed, either choose another supported OpenTofu version or update this version constraint. Version constraints are normally set for good reason, so updating the constraint may lead to other errors or unexpected behavior.",
-						path, sourceAddr, tfversion.String(),
-					),
-					Subject: constraint.DeclRange.Ptr(),
-				})
-			}
-		}
-	}
-
-	return diags
 }
 
 // EphemeralVariablesHints builds a map that indicates what variable name of the module

@@ -99,7 +99,7 @@ func PlanChanges(ctx context.Context, prevRoundState *states.State, configInst *
 					// a temporary situation while we're operating in a mixed
 					// world where most of the system doesn't know about the
 					// new runtime yet.
-					objState := prevRoundState.SyncWrapper().ResourceInstanceObjectFull(instAddr, dk)
+					objState := prevRoundState.SyncWrapper().ResourceInstanceObjectFull(instAddr.Object(dk))
 					if objState == nil {
 						// If we get here then there's a bug in the
 						// ResourceInstanceObjectFull function, because we

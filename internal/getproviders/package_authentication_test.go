@@ -436,6 +436,126 @@ func TestMatchingChecksumAuthentication_failure(t *testing.T) {
 	}
 }
 
+func TestRegistryPackageAuthentication(t *testing.T) {
+	location := PackageLocalArchive("testdata/filesystem-mirror/registry.opentofu.org/hashicorp/null/terraform-provider-null_2.1.0_linux_amd64.zip")
+	platform := Platform{"linux", "amd64"}
+	meta := PackageMeta{
+		Provider:       addrs.MustParseProviderSourceString("registry.opentofu.org/hashicorp/null"),
+		Version:        MustParseVersion("2.1.0"),
+		TargetPlatform: platform,
+	}
+	validSha := "086119a26576d06b8281a97e8644380da89ce16197cd955f74ea5ee664e9358b"
+	validH1 := "tru5tm3br0"
+	zh := Hash("zh:" + validSha)
+	h1 := Hash("h1:" + validH1)
+
+	tests := []struct {
+		name        string
+		sha         string
+		packageData map[Platform]RegistryPlatformData
+		location    PackageLocation
+		result      *PackageAuthenticationResult
+		err         string
+	}{{
+		name:     "fallback",
+		location: location,
+		sha:      validSha,
+	}, {
+		name:     "success",
+		location: location,
+		sha:      validSha,
+		packageData: map[Platform]RegistryPlatformData{
+			platform: {
+				Hashes:      []Hash{zh, h1},
+				PackageSize: 294,
+			},
+		},
+		result: &PackageAuthenticationResult{hashes: HashDispositions{
+			h1: &HashDisposition{ReportedByRegistry: true},
+			zh: &HashDisposition{ReportedByRegistry: true},
+		}},
+	}, {
+		name:        "missing_platform",
+		location:    location,
+		sha:         validSha,
+		packageData: map[Platform]RegistryPlatformData{Platform{}: {}},
+		err:         `registry response missing package with platform "linux_amd64"`,
+	}, {
+		name:     "invalid_package_size",
+		location: location,
+		sha:      validSha,
+		packageData: map[Platform]RegistryPlatformData{
+			platform: {
+				Hashes:      []Hash{zh, h1},
+				PackageSize: -200,
+			},
+		},
+		err: `registry response has invalid package size -200`,
+	}, {
+		name:     "wrong_package_size",
+		location: location,
+		sha:      validSha,
+		packageData: map[Platform]RegistryPlatformData{
+			platform: {
+				Hashes:      []Hash{zh, h1},
+				PackageSize: 295,
+			},
+		},
+		err: `registry response indicates a package of size 295, but recieved a package of size 294`,
+	}, {
+		name:     "incorrect_platform_hash",
+		location: location,
+		sha:      validSha,
+		packageData: map[Platform]RegistryPlatformData{
+			platform: {
+				Hashes:      []Hash{"zh:superduperincorrect", h1},
+				PackageSize: 294,
+			},
+		},
+		err: `registry response expected sha256sum is "086119a26576d06b8281a97e8644380da89ce16197cd955f74ea5ee664e9358b", which does not match the platform's value of "superduperincorrect"`,
+	}, {
+		name:     "missing_platform_hash",
+		location: location,
+		sha:      validSha,
+		packageData: map[Platform]RegistryPlatformData{
+			platform: {
+				Hashes:      []Hash{h1},
+				PackageSize: 294,
+			},
+		},
+		err: "registry response does not contain matching sha256sum package entry and is invalid",
+	}}
+
+	for _, tc := range tests {
+		auth := NewRegistryPackageAuthentication(meta, tc.sha, tc.packageData)
+		result, err := auth.AuthenticatePackage(tc.location)
+
+		if tc.err != "" {
+			if err == nil {
+				t.Errorf("wrong err: got nil, wanted %q", tc.err)
+			} else if err.Error() != tc.err {
+				t.Errorf("wrong err: got %q, wanted %q", err.Error(), tc.err)
+			}
+		} else {
+			if err != nil {
+				t.Errorf("wrong err: got %q, wanted nil", err.Error())
+			}
+		}
+
+		if tc.result != nil {
+			if result == nil {
+				t.Errorf("wrong result: got nil, wanted %#v", tc.result)
+			} else if diff := cmp.Diff(result.hashes, tc.result.hashes); diff != "" {
+				t.Errorf("wrong results: %s", diff)
+			}
+		} else {
+			if result != nil {
+				t.Errorf("wrong result: got %#v, wanted nil", result)
+			}
+		}
+	}
+}
+
 // Signature authentication takes a checksum document, a signature, and a list
 // of signing keys. If the document is signed by one of the given keys, the
 // authentication is successful. The value of the result depends on the signing

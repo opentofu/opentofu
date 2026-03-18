@@ -38,13 +38,11 @@ func TestUnlock(t *testing.T) {
 	}
 
 	p := testProvider()
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &UnlockCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
 			View:             view,
 		},
 	}
@@ -54,8 +52,10 @@ func TestUnlock(t *testing.T) {
 		"LOCK_ID",
 	}
 
-	if code := c.Run(args); code != 1 {
-		t.Fatalf("bad: %d\n%s\n%s", code, ui.OutputWriter.String(), ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 1 {
+		t.Fatalf("bad: %d\n%s", code, output.All())
 	}
 
 	// make sure we don't crash with arguments in the wrong order
@@ -63,9 +63,12 @@ func TestUnlock(t *testing.T) {
 		"LOCK_ID",
 		"-force",
 	}
-
-	if code := c.Run(args); code != cli.RunResultHelp {
-		t.Fatalf("bad: %d\n%s\n%s", code, ui.OutputWriter.String(), ui.ErrorWriter.String())
+	view, done = testView(t)
+	c.Meta.View = view
+	code = c.Run(args)
+	output = done(t)
+	if code != cli.RunResultHelp {
+		t.Fatalf("bad: %d\n%s", code, output.All())
 	}
 }
 
@@ -78,25 +81,24 @@ func TestUnlock_inmemBackend(t *testing.T) {
 	defer inmem.Reset()
 
 	// init backend
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	initView, initDone := testView(t)
 	ci := &InitCommand{
 		Meta: Meta{
 			WorkingDir: workdir.NewDir("."),
-			Ui:         ui,
-			View:       view,
+			View:       initView,
 		},
 	}
-	if code := ci.Run(nil); code != 0 {
-		t.Fatalf("bad: %d\n%s", code, ui.ErrorWriter)
+	code := ci.Run(nil)
+	initOutput := initDone(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n%s", code, initOutput.Stderr())
 	}
 
-	ui = new(cli.MockUi)
+	unlockView, unlockDone := testView(t)
 	c := &UnlockCommand{
 		Meta: Meta{
 			WorkingDir: workdir.NewDir("."),
-			Ui:         ui,
-			View:       view,
+			View:       unlockView,
 		},
 	}
 
@@ -106,23 +108,25 @@ func TestUnlock_inmemBackend(t *testing.T) {
 		"LOCK_ID",
 	}
 
-	if code := c.Run(args); code == 0 {
-		t.Fatalf("bad: %d\n%s\n%s", code, ui.OutputWriter.String(), ui.ErrorWriter.String())
+	code = c.Run(args)
+	unlockOutput := unlockDone(t)
+	if code == 0 {
+		t.Fatalf("bad: %d\n%s", code, unlockOutput.All())
 	}
 
-	ui = new(cli.MockUi)
+	unlockView, unlockDone = testView(t)
 	c = &UnlockCommand{
 		Meta: Meta{
 			WorkingDir: workdir.NewDir("."),
-			Ui:         ui,
-			View:       view,
+			View:       unlockView,
 		},
 	}
 
 	// lockID set in the test fixture
 	args[1] = "2b6a6738-5dd5-50d6-c0ae-f6352977666b"
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: %d\n%s\n%s", code, ui.OutputWriter.String(), ui.ErrorWriter.String())
+	code = c.Run(args)
+	unlockOutput = unlockDone(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n%s", code, unlockOutput.All())
 	}
-
 }

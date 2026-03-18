@@ -66,6 +66,56 @@ func runTest(t *testing.T, command []string) {
 					ValidBuild: false,
 				},
 			},
+			JSONParseTestCases: map[string]compliancetest.JSONParseTestCase[*Config, *keyProvider]{
+				"empty": {
+					JSON: `{
+	"key_provider": {
+		"external": {
+			"foo": {
+			}
+		}
+	}
+}`,
+					ValidJSON:  false,
+					ValidBuild: false,
+					Validate:   nil,
+				},
+				"basic": {
+					JSON: `{
+	"key_provider": {
+		"external": {
+			"foo": {
+				"command": ["test-provider"]
+			}
+		}
+	}
+}`,
+					ValidJSON:  true,
+					ValidBuild: true,
+					Validate: func(config *Config, keyProvider *keyProvider) error {
+						if len(config.Command) != 1 {
+							return fmt.Errorf("invalid command after parsing")
+						}
+						if config.Command[0] != "test-provider" {
+							return fmt.Errorf("invalid command after parsing")
+						}
+						return nil
+					},
+				},
+				"empty-binary": {
+					JSON: `{
+	"key_provider": {
+		"external": {
+			"foo": {
+				"command": []
+			}
+		}
+	}
+}`,
+					ValidJSON:  true,
+					ValidBuild: false,
+				},
+			},
 			ConfigStructTestCases: map[string]compliancetest.ConfigStructTestCase[*Config, *keyProvider]{},
 			MetadataStructTestCases: map[string]compliancetest.MetadataStructTestCase[*Config, *MetadataV1]{
 				"not-present-externaldata": {

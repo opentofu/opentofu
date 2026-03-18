@@ -75,3 +75,26 @@ output "aks_env_vars" {
   EOT
   sensitive = true
 }
+
+
+output "ado_instructions" {
+  value = !var.use_ado ? "Set use_ado=true and environment variable AZDO_ORG_SERVICE_URL to https://dev.azure.com/<your_org_name> to get instructions for Azure DevOps setup" : <<-EOT
+Now that the test infrastructure is set up, follow the instructions below to actually run the tests.
+Here comes the description of what you need to do, then comes the shell commands to execute in order to do it.
+- Build the test binary
+- Clone the created Azure DevOps repository
+- Copy the the test binary
+- Commit and push the test binary to the repository
+- The pipeline should automatically trigger and run the tests using the pushed binary
+- Confirm the tests ran successfully in the pipeline run
+
+cd ..
+GOOS=linux GOARCH=amd64 go test -c -o azure.test .
+git clone ${module.ado[0].repository_information.ssh_url} adotest
+cp azure.test adotest/
+cd adotest
+git add azure.test
+git commit -m "Add test binary"
+git push origin main
+EOT
+}

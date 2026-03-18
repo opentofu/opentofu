@@ -14,6 +14,7 @@ import (
 )
 
 type Config struct {
+	ADOAuthConfig
 	AzureCLIAuthConfig
 	ClientSecretCredentialAuthConfig
 	ClientCertificateAuthConfig
@@ -49,6 +50,8 @@ func GetAuthMethod(ctx context.Context, config *Config) (AuthMethod, error) {
 	authMethods := []AuthMethod{
 		&clientCertAuth{},
 		&clientSecretCredentialAuth{},
+		// make sure this comes before oidcAuth, since adoAuth is a more specific OIDC auth
+		&adoAuth{},
 		&oidcAuth{},
 		&managedIdentityAuth{},
 		&workloadIdentityAuth{},

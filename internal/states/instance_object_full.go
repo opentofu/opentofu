@@ -6,6 +6,7 @@
 package states
 
 import (
+	"iter"
 	"slices"
 
 	"github.com/zclconf/go-cty/cty"
@@ -79,23 +80,23 @@ func EncodeResourceInstanceObjectFull(obj *ResourceInstanceObjectFull, ty cty.Ty
 //
 // The return value is a pointer to a copy of the object, which the caller
 // may then freely access and mutate.
-func (s *SyncState) ResourceInstanceObjectFull(addr addrs.AbsResourceInstance, deposedKey DeposedKey) *ResourceInstanceObjectFullSrc {
+func (s *SyncState) ResourceInstanceObjectFull(addr addrs.AbsResourceInstanceObject) *ResourceInstanceObjectFullSrc {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
-	rsrc := s.state.Resource(addr.ContainingResource())
+	rsrc := s.state.Resource(addr.InstanceAddr.ContainingResource())
 	if rsrc == nil {
 		return nil
 	}
-	inst := rsrc.Instances[addr.Resource.Key]
+	inst := rsrc.Instances[addr.InstanceAddr.Resource.Key]
 	if inst == nil {
 		return nil
 	}
 	var srcObj *ResourceInstanceObjectSrc
-	if deposedKey == NotDeposed {
+	if addr.IsCurrent() {
 		srcObj = inst.Current
 	} else {
-		srcObj = inst.Deposed[deposedKey]
+		srcObj = inst.Deposed[addr.DeposedKey]
 	}
 	if srcObj == nil {
 		return nil
@@ -131,7 +132,7 @@ func (s *SyncState) ResourceInstanceObjectFull(addr addrs.AbsResourceInstance, d
 		Private:              slices.Clone(srcObj.Private),
 		Status:               srcObj.Status,
 		ProviderInstanceAddr: providerInstAddr,
-		ResourceType:         addr.Resource.Resource.Type,
+		ResourceType:         addr.InstanceAddr.Resource.Resource.Type,
 		SchemaVersion:        srcObj.SchemaVersion,
 		Dependencies:         slices.Clone(srcObj.Dependencies),
 		CreateBeforeDestroy:  srcObj.CreateBeforeDestroy,
@@ -142,8 +143,9 @@ func (s *SyncState) ResourceInstanceObjectFull(addr addrs.AbsResourceInstance, d
 // instance object, overwriting an existing object with the same identity
 // if present.
 //
-// Set deposedKey to [NotDeposed] to set the "current" object associated
-// with the given resource instance address.
+// The object must not be nil. To represent removing the record of an object
+// from the state completely, use [SyncState.RemoveResourceInstanceObjectFull]
+// instead.
 //
 // This is currently for use with the experimental new language runtime only.
 // Callers from the old runtime should use [SyncState.SetResourceInstance]
@@ -160,26 +162,21 @@ func (s *SyncState) ResourceInstanceObjectFull(addr addrs.AbsResourceInstance, d
 // so that's not a big deal, but we will probably want to update the state
 // model at some point to remove this constraint that isn't actually necessary
 // for the new language runtime.
-func (s *SyncState) SetResourceInstanceObjectFull(addr addrs.AbsResourceInstance, deposedKey DeposedKey, obj *ResourceInstanceObjectFullSrc) {
+func (s *SyncState) SetResourceInstanceObjectFull(addr addrs.AbsResourceInstanceObject, obj *ResourceInstanceObjectFullSrc) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
+	if obj == nil {
+		// If you see a panic here, the caller probably ought to have called
+		// [SyncState.RemoveResourceInstanceObjectFull] instead.
+		panic("called SetResourceInstanceObjectFull with nil object")
+	}
+
 	// Currently this is a wrapper around various other methods as we
 	// shim the new-style representation to fit the traditional representation.
-	ms := s.state.EnsureModule(addr.Module)
-	providerConfigAddr := addrs.AbsProviderConfig{
-		// NOTE: This is currently a little lossy because
-		// [addrs.AbsProviderConfig] is constrained by the limitations of our
-		// old language runtime. In particular, it loses any instance keys
-		// of modules in the module address, because the old runtime did not
-		// permit provider configurations inside multi-instanced modules.
-		// FIXME: Update our underlying model to support this more generally,
-		// once we're confident enough about the new runtime to risk changes
-		// that could impact code from the old runtime.
-		Module:   obj.ProviderInstanceAddr.Config.Module.Module(),
-		Provider: obj.ProviderInstanceAddr.Config.Config.Provider,
-		Alias:    obj.ProviderInstanceAddr.Config.Config.Alias,
-	}
+	ms := s.state.EnsureModule(addr.InstanceAddr.Module)
+
+	providerConfigAddr, providerInstanceKey := lossyProviderConfigAddrFromProviderInstanceAddr(obj.ProviderInstanceAddr)
 	smallerObj := &ResourceInstanceObjectSrc{
 		AttrsJSON:           obj.Value.ValueJSON,
 		SchemaVersion:       obj.SchemaVersion,
@@ -198,12 +195,44 @@ func (s *SyncState) SetResourceInstanceObjectFull(addr addrs.AbsResourceInstance
 			}
 		}
 	}
-	if deposedKey == NotDeposed {
-		ms.SetResourceInstanceCurrent(addr.Resource, smallerObj, providerConfigAddr, obj.ProviderInstanceAddr.Key)
+	if addr.IsCurrent() {
+		ms.SetResourceInstanceCurrent(addr.InstanceAddr.Resource, smallerObj, providerConfigAddr, providerInstanceKey)
 	} else {
-		ms.SetResourceInstanceDeposed(addr.Resource, deposedKey, smallerObj, providerConfigAddr, obj.ProviderInstanceAddr.Key)
+		ms.SetResourceInstanceDeposed(addr.InstanceAddr.Resource, addr.DeposedKey, smallerObj, providerConfigAddr, providerInstanceKey)
 	}
-	s.maybePruneModule(addr.Module)
+	s.maybePruneModule(addr.InstanceAddr.Module)
+}
+
+// RemoveResourceInstanceObjectFull removes any representation of the given
+// resource instance object from the state.
+//
+// The providerInstAddr argument should be the address of the provider instance
+// that was used to delete the corresponding remote object. This strange API
+// quirk exists because changes to resource instance objects currently also
+// implicitly update resource-level and instance-level metadata.
+func (s *SyncState) RemoveResourceInstanceObjectFull(addr addrs.AbsResourceInstanceObject, providerInstAddr addrs.AbsProviderInstanceCorrect) {
+	// FIXME: Rework this so that removing an object does _not_ also implicitly
+	// update the resource-level and instance-level provider tracking, which
+	// is only currently necessary because we're trying to use preexisting
+	// [ModuleState] methods without modifying them.
+
+	ms := s.state.Module(addr.InstanceAddr.Module)
+	if ms == nil {
+		// If the containing module instance doesn't exist in the state at all
+		// then we have nothing to remove.
+		return
+	}
+
+	providerConfigAddr, providerInstanceKey := lossyProviderConfigAddrFromProviderInstanceAddr(providerInstAddr)
+
+	// These [ModuleState] methods represent "remove" by the caller passing a
+	// nil object, rather than by having a separate "remove" method.
+	if addr.IsCurrent() {
+		ms.SetResourceInstanceCurrent(addr.InstanceAddr.Resource, nil, providerConfigAddr, providerInstanceKey)
+	} else {
+		ms.SetResourceInstanceDeposed(addr.InstanceAddr.Resource, addr.DeposedKey, nil, providerConfigAddr, providerInstanceKey)
+	}
+	s.maybePruneModule(addr.InstanceAddr.Module)
 }
 
 // ResourceInstanceObjectFullRepr is the generic type that both
@@ -259,6 +288,12 @@ type resourceInstanceObjectRepr[V interface {
 	// just because that needs less shimming from the current underlying
 	// representation, and so we can wait until we better understand what the
 	// caller needs before we spend time implementing that.
+	//
+	// Use [State.InstancesMatchingConfigResource] to find all of the
+	// instances that match an address in this slice, which should include
+	// _at least_ the same instances that ought to have been recorded here,
+	// along with some spurious extras that we match due to the lossiness
+	// of this representation.
 	Dependencies []addrs.ConfigResource
 
 	// CreateBeforeDestroy reflects the status of the lifecycle
@@ -341,4 +376,70 @@ func EncodeValueJSONWithMetadata(v cty.Value, ty cty.Type) (ValueJSONWithMetadat
 		}
 	}
 	return ret, nil
+}
+
+// InstancesMatchingConfigResource is an adapter to help deal with the fact
+// that our state model current represents dependencies between whole resources
+// using their unexpanded addresses, but in the new experimental language
+// runtime we want to work in relationships between individual resource
+// instances instead.
+//
+// Given an [addrs.ConfigResource] address, the result is every
+// [addrs.AbsResourceInstance] that matches the given address and has a current
+// object in the state.
+//
+// TODO: Consider changing the state model so that we track relationships
+// between resource instances as the _main_ representation, rather than throwing
+// that information away and then trying to recover it lossily later.
+func (s *State) InstancesMatchingConfigResource(addr addrs.ConfigResource) iter.Seq[addrs.AbsResourceInstance] {
+	// (This function is lurking in here just because it's exclusively for
+	// the new experimental langauge runtime and this is the file where we're
+	// gathering all of its state model extensions. It's not actually
+	// particularly related to "full" state object representations except that
+	// it's helping to compensate for a current concession we're making in
+	// _not_ representing dependencies properly in the "full" representations.)
+
+	return func(yield func(addrs.AbsResourceInstance) bool) {
+		for _, ms := range s.Modules {
+			if !ms.Addr.IsForModule(addr.Module) {
+				continue
+			}
+			for _, rs := range ms.Resources {
+				if !rs.Addr.Resource.Equal(addr.Resource) {
+					continue
+				}
+				for key, is := range rs.Instances {
+					if is.Current == nil {
+						continue // instances that only have deposed objects are not eligible
+					}
+					if !yield(rs.Addr.Instance(key)) {
+						return
+					}
+				}
+			}
+		}
+	}
+}
+
+// lossyProviderConfigAddrFromProviderInstanceAddr is a lossy adapter for
+// converting from the "correct" representation of provider instance addresses
+// in [addrs.AbsProviderInstanceCorrect] to the incomplete, legacy
+// representation that our state models are still currently using.
+//
+// In particular, it loses any instance keys of modules in the module address,
+// because the old runtime did not permit provider configurations inside
+// multi-instanced modules.
+//
+// FIXME: Update our underlying model to support this more generally, once we're
+// confident enough about the new runtime to risk changes that could impact code
+// from the old runtime. At that point we can hopefully remove this helper
+// function altogether.
+func lossyProviderConfigAddrFromProviderInstanceAddr(addr addrs.AbsProviderInstanceCorrect) (addrs.AbsProviderConfig, addrs.InstanceKey) {
+	configAddr := addrs.AbsProviderConfig{
+		Module:   addr.Config.Module.Module(),
+		Provider: addr.Config.Config.Provider,
+		Alias:    addr.Config.Config.Alias,
+	}
+	instanceKey := addr.Key
+	return configAddr, instanceKey
 }

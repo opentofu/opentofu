@@ -28,14 +28,15 @@ func TestProvidersLock(t *testing.T) {
 		td := t.TempDir()
 		t.Chdir(td)
 
-		ui := new(cli.MockUi)
+		view, done := testView(t)
 		c := &ProvidersLockCommand{
 			Meta: Meta{
 				WorkingDir: workdir.NewDir("."),
-				Ui:         ui,
+				View:       view,
 			},
 		}
 		code := c.Run([]string{})
+		_ = done(t)
 		if code != 0 {
 			t.Fatalf("wrong exit code; expected 0, got %d", code)
 		}
@@ -91,17 +92,18 @@ func runProviderLockGenericTest(t *testing.T, testDirectory, expected string) {
 	}
 
 	p := testProvider()
-	ui := new(cli.MockUi)
+	view, done := testView(t)
 	c := &ProvidersLockCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
-			Ui:               ui,
+			View:             view,
 			testingOverrides: metaOverridesForProvider(p),
 		},
 	}
 
 	args := []string{"-fs-mirror=fs-mirror"}
 	code := c.Run(args)
+	_ = done(t)
 	if code != 0 {
 		t.Fatalf("wrong exit code; expected 0, got %d", code)
 	}
@@ -119,11 +121,11 @@ func runProviderLockGenericTest(t *testing.T, testDirectory, expected string) {
 func TestProvidersLock_args(t *testing.T) {
 
 	t.Run("mirror collision", func(t *testing.T) {
-		ui := new(cli.MockUi)
+		view, done := testView(t)
 		c := &ProvidersLockCommand{
 			Meta: Meta{
 				WorkingDir: workdir.NewDir("."),
-				Ui:         ui,
+				View:       view,
 			},
 		}
 
@@ -133,55 +135,55 @@ func TestProvidersLock_args(t *testing.T) {
 			"-net-mirror=www.foo.com",
 		}
 		code := c.Run(args)
-
-		if code != 1 {
-			t.Fatalf("wrong exit code; expected 1, got %d", code)
+		cmdOutput := done(t)
+		if code != cli.RunResultHelp {
+			t.Fatalf("wrong exit code; got %d", code)
 		}
-		output := ui.ErrorWriter.String()
+		output := cmdOutput.Stderr()
 		if !strings.Contains(output, "The -fs-mirror and -net-mirror command line options are mutually-exclusive.") {
 			t.Fatalf("missing expected error message: %s", output)
 		}
 	})
 
 	t.Run("invalid platform", func(t *testing.T) {
-		ui := new(cli.MockUi)
+		view, done := testView(t)
 		c := &ProvidersLockCommand{
 			Meta: Meta{
 				WorkingDir: workdir.NewDir("."),
-				Ui:         ui,
+				View:       view,
 			},
 		}
 
 		// not a valid platform
-		args := []string{"-platform=arbitrary_nonsense_that_isnt_valid"}
+		args := []string{"-no-color", "-platform=arbitrary_nonsense_that_isnt_valid"}
 		code := c.Run(args)
-
+		cmdOutput := done(t)
 		if code != 1 {
 			t.Fatalf("wrong exit code; expected 1, got %d", code)
 		}
-		output := ui.ErrorWriter.String()
+		output := cmdOutput.Stderr()
 		if !strings.Contains(output, "must be two words separated by an underscore.") {
 			t.Fatalf("missing expected error message: %s", output)
 		}
 	})
 
 	t.Run("invalid provider argument", func(t *testing.T) {
-		ui := new(cli.MockUi)
+		view, done := testView(t)
 		c := &ProvidersLockCommand{
 			Meta: Meta{
 				WorkingDir: workdir.NewDir("."),
-				Ui:         ui,
+				View:       view,
 			},
 		}
 
 		// There is no configuration, so it's not valid to use any provider argument
-		args := []string{"hashicorp/random"}
+		args := []string{"-no-color", "hashicorp/random"}
 		code := c.Run(args)
-
+		cmdOutput := done(t)
 		if code != 1 {
 			t.Fatalf("wrong exit code; expected 1, got %d", code)
 		}
-		output := ui.ErrorWriter.String()
+		output := cmdOutput.Stderr()
 		if !strings.Contains(output, "The provider registry.opentofu.org/hashicorp/random is not required by the\ncurrent configuration.") {
 			t.Fatalf("missing expected error message: %s", output)
 		}

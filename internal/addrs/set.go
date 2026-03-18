@@ -65,12 +65,8 @@ func (s Set[T]) Remove(addr T) {
 // of both the receiver and the given other set.
 func (s Set[T]) Union(other Set[T]) Set[T] {
 	ret := make(Set[T])
-	for k, addr := range s {
-		ret[k] = addr
-	}
-	for k, addr := range other {
-		ret[k] = addr
-	}
+	maps.Copy(ret, s)
+	maps.Copy(ret, other)
 	return ret
 }
 
