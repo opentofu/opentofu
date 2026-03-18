@@ -48,10 +48,10 @@ func (c *ProvidersSchemaCommand) Run(rawArgs []string) int {
 
 	view := views.NewProvidersSchema(args.ViewOptions, c.View)
 
-	// The actual schema data is printed directly to stdout at the end of the command
-	// and doesn't rely on the UI layer. Configuring JSON UI drops a Version payload
-	// into stdout which invalidates the raw schema JSON output.
-	// c.Meta.configureUiFromView(args.ViewOptions)
+	// Configure Meta.Ui with human view type. The schema output is raw JSON written
+	// directly via streams.Println, so we must not initialise the JSON UI wrapper
+	// (which would prepend a Version payload and corrupt the output).
+	c.Meta.configureUiFromView(arguments.ViewOptions{ViewType: arguments.ViewHuman})
 
 	if diags.HasErrors() {
 		view.HelpPrompt()
