@@ -23,7 +23,7 @@ type testInstallerEventLogItem struct {
 
 	// The type of Args will vary by event, but it should always be something
 	// that can be deterministically compared using the go-cmp package.
-	Args interface{}
+	Args any
 }
 
 // installerLogEventsForTests is a test helper that produces an InstallerEvents
