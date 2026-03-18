@@ -336,11 +336,10 @@ func TestReadWriteRoundTrip(t *testing.T) {
 		t.Errorf("version mismatch: got %d, want %d", result.Version, StateVersion)
 	}
 
-	if result.Backend == nil || result.Backend.Type != "s3" {
-		if result.Backend == nil {
-			t.Errorf("backend mismatch: got nil, want type %q", "s3")
-		} else {
-			t.Errorf("backend mismatch: got type %q, want %q", result.Backend.Type, "s3")
-		}
+	if result.Backend == nil {
+		t.Fatal("expected backend to be non-nil")
+	}
+	if result.Backend.Type != "s3" {
+		t.Errorf("backend type: got %q, want %q", result.Backend.Type, "s3")
 	}
 }
