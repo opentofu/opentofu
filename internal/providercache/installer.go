@@ -380,6 +380,18 @@ func (i *Installer) ensureProviderVersionsNeed(
 			return getproviders.Version{}, err
 		}
 
+		if locked[provider] && i.globalCacheDir != nil {
+			pl := locks.Provider(provider)
+			if i.globalCacheDir.ProviderVersion(pl.Provider(), pl.Version()) != nil {
+				log.Printf("[DEBUG] Global cache dir enabled and contains locked provider %s %s. Skipping check for retracted provider version.", pl.Provider(), pl.Version())
+				if cb := evts.QueryPackagesSuccess; cb != nil {
+					cb(pl.Provider(), pl.Version())
+				}
+				return pl.Version(), nil
+			}
+
+		}
+
 		available, warnings, err := i.source.AvailableVersions(ctx, provider)
 		if err != nil {
 			if cb := evts.QueryPackagesFailure; cb != nil {
@@ -614,9 +626,10 @@ func (i *Installer) ensureProviderVersionInDirectory(
 
 	isGlobalCache := installTo == i.globalCacheDir
 
-	// If our target directory already has the provider version that fulfills the lock file, carry on
-	if installed := installTo.ProviderVersion(provider, version); installed != nil {
-		if len(preferredHashes) > 0 {
+	// If we have hashes in the lockfile
+	if len(preferredHashes) > 0 {
+		// If our target directory already has the provider version that fulfills the lock file, carry on
+		if installed := installTo.ProviderVersion(provider, version); installed != nil {
 			if matches, _ := installed.MatchesAnyHash(preferredHashes); matches {
 				if cb := evts.ProviderAlreadyInstalled; cb != nil {
 					cb(provider, version, isGlobalCache)
@@ -624,6 +637,21 @@ func (i *Installer) ensureProviderVersionInDirectory(
 
 				// Even though the package is installed, the requirements in the lockfile may still need to be updated
 				return nil, lock.AllHashes(), nil
+			}
+		}
+
+		// If the global cache already contains the installed provider and it matches existing hashes, install it.
+		// Don't add any additional hashes to the lockfile. This allows us to prevent spurious registry requests
+		// when using the global provider cache
+		if isGlobalCache {
+			if installed := i.globalCacheDir.ProviderVersion(provider, version); installed != nil {
+				if matches, _ := installed.MatchesAnyHash(preferredHashes); matches {
+					if cb := evts.ProviderAlreadyInstalled; cb != nil {
+						cb(provider, version, isGlobalCache)
+					}
+
+					return nil, nil, nil
+				}
 			}
 		}
 	}
