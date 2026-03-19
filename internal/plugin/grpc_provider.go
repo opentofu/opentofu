@@ -122,18 +122,19 @@ func (p *GRPCProvider) UpgradeResourceIdentity(ctx context.Context, req provider
 		return resp
 	}
 
-	identitySchemas := p.GetResourceIdentitySchemas(ctx)
-	if identitySchemas.Diagnostics.HasErrors() {
-		resp.Diagnostics = resp.Diagnostics.Append(identitySchemas.Diagnostics)
+	// Now we need to look up the resource identity schema from the provider resource schemas.
+	providerSchema := p.GetProviderSchema(ctx)
+	if providerSchema.Diagnostics.HasErrors() {
+		resp.Diagnostics = resp.Diagnostics.Append(providerSchema.Diagnostics)
 		return resp
 	}
-	identitySchema, ok := identitySchemas.IdentitySchemas[req.TypeName]
-	if !ok {
+	resSchema, ok := providerSchema.ResourceTypes[req.TypeName]
+	if !ok || resSchema.IdentitySchema == nil {
 		resp.Diagnostics = resp.Diagnostics.Append(fmt.Errorf("no identity schema for %q", req.TypeName))
 		return resp
 	}
 
-	identity, err := decodeDynamicValue(protoResp.UpgradedIdentity.IdentityData, identitySchema.Body.ImpliedType())
+	identity, err := decodeDynamicValue(protoResp.UpgradedIdentity.IdentityData, resSchema.IdentitySchema.ImpliedType())
 	if err != nil {
 		resp.Diagnostics = resp.Diagnostics.Append(err)
 		return resp
@@ -209,7 +210,7 @@ func (p *GRPCProvider) getProviderSchema(ctx context.Context) (resp providers.Ge
 		resp.Functions[name] = convert.ProtoToFunctionSpec(fn)
 	}
 
-	identitySchemas := p.GetResourceIdentitySchemas(ctx)
+	identitySchemas := p.getResourceIdentitySchemas(ctx)
 	if identitySchemas.Diagnostics.HasErrors() {
 		// Identity schemas are an optional enhancement. A provider bug in
 		// identity schemas should not prevent the provider from being used
@@ -255,8 +256,8 @@ func (p *GRPCProvider) getProtoProviderSchema(ctx context.Context) (*proto.GetPr
 	return resp, err
 }
 
-func (p *GRPCProvider) GetResourceIdentitySchemas(ctx context.Context) providers.GetResourceIdentitySchemasResponse {
-	logger.Trace("GRPCProvider: GetResourceIdentitySchemas")
+func (p *GRPCProvider) getResourceIdentitySchemas(ctx context.Context) providers.GetResourceIdentitySchemasResponse {
+	logger.Trace("GRPCProvider: getResourceIdentitySchemas")
 
 	// Caching is not needed here: callers should use resSchema.IdentitySchema
 	// from the cached GetProviderSchema response instead of calling this directly.
