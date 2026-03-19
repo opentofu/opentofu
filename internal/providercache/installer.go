@@ -380,6 +380,18 @@ func (i *Installer) ensureProviderVersionsNeed(
 			return getproviders.Version{}, err
 		}
 
+		if locked[provider] && i.globalCacheDir != nil {
+			pl := locks.Provider(provider)
+			if i.globalCacheDir.ProviderVersion(pl.Provider(), pl.Version()) != nil {
+				log.Printf("[DEBUG] Global cache dir enabled and contains locked provider %s %s. Skipping check for retracted provider version.", pl.Provider(), pl.Version())
+				if cb := evts.QueryPackagesSuccess; cb != nil {
+					cb(pl.Provider(), pl.Version())
+				}
+				return pl.Version(), nil
+			}
+
+		}
+
 		available, warnings, err := i.source.AvailableVersions(ctx, provider)
 		if err != nil {
 			if cb := evts.QueryPackagesFailure; cb != nil {
