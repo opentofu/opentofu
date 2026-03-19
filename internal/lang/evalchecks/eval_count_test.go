@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hcltest"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -113,6 +114,17 @@ func TestEvaluateCountExpression_errors(t *testing.T) {
 			"Invalid count argument",
 			"The \"count\" value depends on resource attributes that cannot be determined until apply, so OpenTofu cannot predict how many instances will be created.\n\nTo work around this, use the planning option -exclude=module.a.bar.foo to first apply without this object, and then apply normally to converge.",
 			true,
+		},
+		"ephemeral value": {
+			cty.NumberIntVal(1).Mark(marks.Ephemeral),
+			addrs.Resource{
+				Mode: addrs.ManagedResourceMode,
+				Name: "foo",
+				Type: "bar",
+			}.Absolute(addrs.RootModuleInstance.Child("a", addrs.NoKey)),
+			"Invalid count argument",
+			"Ephemeral values, or values derived from ephemeral values, cannot be used as count arguments. If used, the ephemeral value could be exposed as a resource instance key.",
+			false,
 		},
 	}
 
