@@ -199,9 +199,10 @@ func TestGRPCProvider_GetSchema(t *testing.T) {
 	}
 }
 
+// TestGRPCProvider_GetSchema_WithResourceIdentitySchemas ensures that the provider client correctly
+// attaches the resource identities to the resource schemas
+// when you call GetProviderSchema.
 func TestGRPCProvider_GetSchema_WithResourceIdentitySchemas(t *testing.T) {
-	// This test ensures that the provider client correctly attaches the resource identities to the resource schemas
-	// when you call GetProviderSchema.
 
 	ctrl := gomock.NewController(t)
 	client := mockproto.NewMockProviderClient(ctrl)

@@ -111,7 +111,7 @@ func ProtoToProviderSchema(s *proto.Schema) providers.Schema {
 func ProtoToResourceIdentitySchema(s *proto.ResourceIdentitySchema) *providers.ResourceIdentitySchema {
 	// This method is taking a similar approach to ProtoToConfigSchema below, basically
 
-	// We cant convert these
+	// We can't convert these
 	if s == nil {
 		return nil
 	}
@@ -138,7 +138,7 @@ func ProtoToResourceIdentitySchema(s *proto.ResourceIdentitySchema) *providers.R
 
 		Body: &configschema.Object{
 			Attributes: attributes,
-			Nesting:    configschema.NestingSingle, // We dont allow nested schema here, hence we're using an Object and not a Block
+			Nesting:    configschema.NestingSingle, // We don't allow nested schema here, hence we're using an Object and not a Block
 		},
 	}
 }

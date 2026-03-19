@@ -131,7 +131,7 @@ func decodeImportBlock(block *hcl.Block) (*Import, hcl.Diagnostics) {
 		imp.ForEach = attr.Expr
 	}
 
-	// We need atleast one of ID or Identity to be set
+	// We need at least one of ID or Identity to be set
 	if !idExists && !identityExists {
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,

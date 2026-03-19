@@ -33,7 +33,7 @@ type ResourceInstanceObject struct {
 	// a provider can use it for retaining any necessary private state.
 	Private []byte
 
-	// TODO: godoc
+	// Identity is the resource identity for this instance
 	Identity cty.Value
 
 	// Status represents the "readiness" of the object as of the last time

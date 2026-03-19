@@ -61,16 +61,16 @@ func ConfigSchemaToProto(b *configschema.Block) *proto.Schema_Block {
 	return block
 }
 
-func ProtoToResourceIdentitySchema(s *proto.ResourceIdentitySchema) *providers.ResourceIdentitySchema {
+func ProtoToResourceIdentitySchema(schema *proto.ResourceIdentitySchema) *providers.ResourceIdentitySchema {
 	// This method is taking a similar approach to ProtoToConfigSchema below, basically
 
-	// We cant convert these, and so we should return nil here.
-	if s == nil {
+	// We can't convert these, and so we should return nil here.
+	if schema == nil {
 		return nil
 	}
 
-	attributes := make(map[string]*configschema.Attribute, len(s.IdentityAttributes))
-	for _, a := range s.IdentityAttributes {
+	attributes := make(map[string]*configschema.Attribute, len(schema.IdentityAttributes))
+	for _, a := range schema.IdentityAttributes {
 		attribute := &configschema.Attribute{
 			Description: a.Description,
 			Required:    a.RequiredForImport,
@@ -88,11 +88,11 @@ func ProtoToResourceIdentitySchema(s *proto.ResourceIdentitySchema) *providers.R
 	}
 
 	return &providers.ResourceIdentitySchema{
-		Version: s.Version,
+		Version: schema.Version,
 
 		Body: &configschema.Object{
 			Attributes: attributes,
-			Nesting:    configschema.NestingSingle, // We dont allow nested schema here, hence we're using an Object and not a Block
+			Nesting:    configschema.NestingSingle, // We don't allow nested schema here, hence we're using an Object and not a Block
 		},
 	}
 }

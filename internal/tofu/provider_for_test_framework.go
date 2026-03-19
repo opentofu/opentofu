@@ -109,7 +109,7 @@ func (p providerForTest) ApplyResourceChange(_ context.Context, r providers.Appl
 
 func (p providerForTest) ReadDataSource(_ context.Context, r providers.ReadDataSourceRequest) providers.ReadDataSourceResponse {
 	resSchema, _ := p.schema.SchemaForResourceType(addrs.DataResourceMode, r.TypeName)
-	
+
 	var resp providers.ReadDataSourceResponse
 	resp.State, resp.Diagnostics = newMockValueComposer(r.TypeName).ComposeBySchema(resSchema.Block, r.Config, p.overrideValues)
 
@@ -150,7 +150,6 @@ func (p providerForTest) GetProviderSchema(ctx context.Context) providers.GetPro
 }
 
 func (p providerForTest) GetResourceIdentitySchemas(ctx context.Context) providers.GetResourceIdentitySchemasResponse {
-	// TODO: Check if this is the correct way to handle this, im 95% certain it is
 	return p.internal.GetResourceIdentitySchemas(ctx)
 }
 
