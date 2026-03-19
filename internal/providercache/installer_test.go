@@ -37,14 +37,15 @@ func TestEnsureProviderVersions(t *testing.T) {
 	// permutations that it ends up being more concise to express them as
 	// normal code.
 	type Test struct {
-		Source     getproviders.Source
-		Prepare    func(*testing.T, *Installer, *Dir)
-		LockFile   string
-		Reqs       getproviders.Requirements
-		Mode       InstallMode
-		Check      func(*testing.T, *Dir, *depsfile.Locks)
-		WantErr    string
-		WantEvents func(*Installer, *Dir) map[addrs.Provider][]*testInstallerEventLogItem
+		Source      getproviders.Source
+		Prepare     func(*testing.T, *Installer, *Dir)
+		LockFile    string
+		Reqs        getproviders.Requirements
+		Mode        InstallMode
+		Check       func(*testing.T, *Dir, *depsfile.Locks)
+		CheckSource func(*testing.T, getproviders.Source)
+		WantErr     string
+		WantEvents  func(*Installer, *Dir) map[addrs.Provider][]*testInstallerEventLogItem
 	}
 
 	// noProvider is just the zero value of addrs.Provider, which we're
@@ -709,23 +710,8 @@ func TestEnsureProviderVersions(t *testing.T) {
 			},
 		},
 		"successful initial install of one provider through a warm global cache and correct locked checksum": {
-			Source: getproviders.NewMockSource(
-				[]getproviders.PackageMeta{
-					{
-						Provider:       beepProvider,
-						Version:        getproviders.MustParseVersion("2.0.0"),
-						TargetPlatform: fakePlatform,
-						Location:       beepProviderDir,
-					},
-					{
-						Provider:       beepProvider,
-						Version:        getproviders.MustParseVersion("2.1.0"),
-						TargetPlatform: fakePlatform,
-						Location:       beepProviderDir,
-					},
-				},
-				nil,
-			),
+			// Should not use the source at all
+			Source: getproviders.NewMockSource(nil, nil),
 			LockFile: `
 				# The existing cache entry is valid only if it matches a
 				# checksum already recorded in the lock file.
@@ -787,6 +773,12 @@ func TestEnsureProviderVersions(t *testing.T) {
 				}
 				if diff := cmp.Diff(wantEntry, gotEntry); diff != "" {
 					t.Errorf("wrong cache entry\n%s", diff)
+				}
+			},
+			CheckSource: func(t *testing.T, source getproviders.Source) {
+				expectedCallLog := [][]interface{}(nil)
+				if diff := cmp.Diff(source.(*getproviders.MockSource).CallLog(), expectedCallLog); diff != "" {
+					t.Error(diff)
 				}
 			},
 			WantEvents: func(inst *Installer, dir *Dir) map[addrs.Provider][]*testInstallerEventLogItem {
@@ -946,6 +938,18 @@ func TestEnsureProviderVersions(t *testing.T) {
 				}
 				if diff := cmp.Diff(wantEntry, gotEntry); diff != "" {
 					t.Errorf("wrong cache entry\n%s", diff)
+				}
+			},
+			CheckSource: func(t *testing.T, source getproviders.Source) {
+				expectedCallLog := [][]interface{}{[]interface{}{
+					"PackageMeta",
+					beepProvider,
+					versions.MustParseVersion("2.1.0"),
+					fakePlatform,
+				}}
+
+				if diff := cmp.Diff(source.(*getproviders.MockSource).CallLog(), expectedCallLog); diff != "" {
+					t.Error(diff)
 				}
 			},
 			WantEvents: func(inst *Installer, dir *Dir) map[addrs.Provider][]*testInstallerEventLogItem {
@@ -2509,6 +2513,10 @@ func TestEnsureProviderVersions(t *testing.T) {
 
 			if test.Check != nil {
 				test.Check(t, outputDir, newLocks)
+			}
+
+			if test.CheckSource != nil {
+				test.CheckSource(t, source)
 			}
 
 			if test.WantEvents != nil {
