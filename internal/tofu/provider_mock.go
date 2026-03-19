@@ -32,6 +32,9 @@ type MockProvider struct {
 	GetProviderSchemaCalled   bool
 	GetProviderSchemaResponse *providers.GetProviderSchemaResponse
 
+	GetResourceIdentitySchemasCalled   bool
+	GetResourceIdentitySchemasResponse *providers.GetResourceIdentitySchemasResponse
+
 	ValidateProviderConfigCalled   bool
 	ValidateProviderConfigResponse *providers.ValidateProviderConfigResponse
 	ValidateProviderConfigRequest  providers.ValidateProviderConfigRequest
@@ -155,6 +158,29 @@ func (p *MockProvider) getProviderSchema() providers.GetProviderSchemaResponse {
 		DataSources:        map[string]providers.Schema{},
 		ResourceTypes:      map[string]providers.Schema{},
 		EphemeralResources: map[string]providers.Schema{},
+	}
+}
+
+func (p *MockProvider) GetResourceIdentitySchemas(context.Context) providers.GetResourceIdentitySchemasResponse {
+	tracing.ContextProbeReport(context.Background(), 0)
+	p.Lock()
+	defer p.Unlock()
+	p.GetResourceIdentitySchemasCalled = true
+	return p.getResourceIdentitySchemas()
+}
+
+func (p *MockProvider) getResourceIdentitySchemas() providers.GetResourceIdentitySchemasResponse {
+	// Similar to getProviderSchema above,
+	// This version of getResourceIdentitySchemas doesn't do any locking, so it's suitable to
+	// call from other methods of this mock as long as they are already
+	// holding the lock.
+
+	if p.GetResourceIdentitySchemasResponse != nil {
+		return *p.GetResourceIdentitySchemasResponse
+	}
+
+	return providers.GetResourceIdentitySchemasResponse{
+		IdentitySchemas: map[string]providers.ResourceIdentitySchema{},
 	}
 }
 

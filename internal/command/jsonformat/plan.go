@@ -419,7 +419,6 @@ func resourceChangeComment(resource jsonplan.ResourceChange, action plans.Action
 	}
 
 	var printedMoved bool
-	var printedImported bool
 
 	switch action {
 	case plans.Create:
@@ -565,7 +564,6 @@ func resourceChangeComment(resource jsonplan.ResourceChange, action plans.Action
 			if len(resource.Change.GeneratedConfig) > 0 {
 				buf.WriteString("\n  #[reset] (config will be generated)")
 			}
-			printedImported = true
 			break
 		}
 		fallthrough
@@ -578,7 +576,7 @@ func resourceChangeComment(resource jsonplan.ResourceChange, action plans.Action
 	if len(resource.PreviousAddress) > 0 && resource.PreviousAddress != resource.Address && !printedMoved {
 		buf.WriteString(fmt.Sprintf("  # [reset](moved from %s)\n", resource.PreviousAddress))
 	}
-	if resource.Change.Importing != nil && !printedImported {
+	if resource.Change.Importing != nil {
 		// We want to make this as forward compatible as possible, and we know
 		// the ID may be removed from the Importing metadata in favour of
 		// something else.
@@ -588,7 +586,17 @@ func resourceChangeComment(resource jsonplan.ResourceChange, action plans.Action
 		if len(resource.Change.Importing.ID) > 0 {
 			buf.WriteString(fmt.Sprintf("  # [reset](imported from \"%s\")\n", resource.Change.Importing.ID))
 		} else if len(resource.Change.Importing.Identity) > 0 {
-			buf.WriteString(fmt.Sprintf("  # [reset](imported via identity %s)\n", string(resource.Change.Importing.Identity)))
+			// We want to render the identity here in it's json format for now, in the future we should reconsider how this is rendered by for now this is good enough
+			var jsonOut bytes.Buffer
+			err := json.Indent(&jsonOut, []byte(resource.Change.Importing.Identity), "  # ", "  ")
+			if err != nil {
+				// If we fail to indent the JSON for any reason, we should still render the raw identity string,
+				// as it's better than rendering nothing at all and this is just an extra detail for the user
+				buf.WriteString(fmt.Sprintf("  # [reset]imported using resource identity \"%s\"\n", resource.Change.Importing.Identity))
+			} else {
+				// If we successfully indented the JSON, we should render it in a more human friendly way with new lines and indentation
+				buf.WriteString(fmt.Sprintf("  # [reset]imported using resource identity: %s\n", jsonOut.String()))
+			}
 		} else {
 			buf.WriteString("  # [reset](will be imported first)\n")
 		}
