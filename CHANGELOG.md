@@ -46,6 +46,7 @@ value was declared inside the module. ([#3067](https://github.com/opentofu/opent
 - The `gcs` backend now supports a `universe_domain` option to support sovereign GCP services. ([#3758](https://github.com/opentofu/opentofu/issues/3758))
 - OpenTofu now consistently sends "null" to `key_provider "external"` programs when only encryption the key is requested. ([#3672](https://github.com/opentofu/opentofu/pull/3672))
 - Ephemeral resources are not stored in the plan anymore. ([#3897](https://github.com/opentofu/opentofu/pull/3897))
+- `resource` and `data` blocks are not allowed to use ephemeral values in `count`/`for_each`/`enabled` meta arguments. `ephemeral` block can use ephemeral values in these meta arguments now. ([#3907](https://github.com/opentofu/opentofu/pull/3907))
 
 ## Previous Releases
 
