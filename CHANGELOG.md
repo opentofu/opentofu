@@ -11,7 +11,7 @@ UPGRADE NOTES:
 
 - If you are installing providers from the registry (most users), you should expect to see additional `h1:value` provider hashes in your `.terraform.lock.hcl` file.
 
-    We have improved the OpenTofu registry to serve both `zh:value` and `h1:value` hashes, as well as instructing OpenTofu in how to integrate this data into it's existing provider trust chain. Including these additional hashes will reduce friction in cross-platform environments. These and other related changes below should subsume the need to use `tofu providers lock` in most scenarios, simplifying many existing cross-platform workflows. For more information, see the [corresponding RFC](rfc/20251027-provider-registry-hashes.md) and [discussion](https://github.com/opentofu/opentofu/pull/3434)
+    We have improved the OpenTofu registry to serve both `zh:value` and `h1:value` hashes, as well as instructing OpenTofu in how to integrate this data into its existing provider trust chain. Including these additional hashes will reduce friction in cross-platform environments. These and other related changes below should subsume the need to use `tofu providers lock` in most scenarios, simplifying many existing cross-platform workflows. For more information, see the [corresponding RFC](rfc/20251027-provider-registry-hashes.md) and [discussion](https://github.com/opentofu/opentofu/pull/3434)
 
 
 ENHANCEMENTS:
