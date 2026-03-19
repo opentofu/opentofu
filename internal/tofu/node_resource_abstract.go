@@ -547,7 +547,7 @@ func (n *NodeAbstractResource) writeResourceState(ctx context.Context, evalCtx E
 		expander.SetResourceCount(addr.Module, n.Addr.Resource, count)
 
 	case n.Config != nil && n.Config.Enabled != nil:
-		enabled, enabledDiags := evaluateEnabledExpression(ctx, n.Config.Enabled, evalCtx)
+		enabled, enabledDiags := evaluateEnabledExpression(ctx, n.Config.Enabled, evalCtx, addr.Resource.Mode == addrs.EphemeralResourceMode)
 		diags = diags.Append(enabledDiags)
 		if enabledDiags.HasErrors() {
 			return diags

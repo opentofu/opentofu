@@ -148,7 +148,7 @@ func (n *nodeExpandModule) Execute(ctx context.Context, evalCtx EvalContext, op 
 			expander.SetModuleForEach(module, call, forEach)
 
 		case n.ModuleCall.Enabled != nil:
-			enabled, enDiags := evaluateEnabledExpression(ctx, n.ModuleCall.Enabled, evalCtx)
+			enabled, enDiags := evaluateEnabledExpression(ctx, n.ModuleCall.Enabled, evalCtx, false)
 			diags = diags.Append(enDiags)
 			if diags.HasErrors() {
 				return diags

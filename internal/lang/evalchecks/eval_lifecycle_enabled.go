@@ -19,7 +19,7 @@ import (
 // EvaluateEnabledExpression evaluates an expression assigned to an "enabled"
 // meta-argument and returns either its boolean result or errors describing
 // why such a result cannot be evaluated.
-func EvaluateEnabledExpression(expr hcl.Expression, hclCtxFunc ContextFunc) (bool, tfdiags.Diagnostics) {
+func EvaluateEnabledExpression(expr hcl.Expression, hclCtxFunc ContextFunc, allowConfidentialValue bool) (bool, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	if expr == nil {
@@ -38,7 +38,8 @@ func EvaluateEnabledExpression(expr hcl.Expression, hclCtxFunc ContextFunc) (boo
 	rawEnabledVal, enabledDiags := expr.Value(hclCtx)
 	diags = diags.Append(enabledDiags)
 
-	if rawEnabledVal.HasMark(marks.Sensitive) {
+	rawEnabledVal, valMarks := rawEnabledVal.UnmarkDeep()
+	if _, ok := valMarks[marks.Sensitive]; ok && !allowConfidentialValue {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity:    hcl.DiagError,
 			Summary:     "Invalid enabled argument",
@@ -50,7 +51,7 @@ func EvaluateEnabledExpression(expr hcl.Expression, hclCtxFunc ContextFunc) (boo
 		})
 	}
 
-	if rawEnabledVal.HasMark(marks.Ephemeral) {
+	if _, ok := valMarks[marks.Ephemeral]; ok && !allowConfidentialValue {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity:    hcl.DiagError,
 			Summary:     "Invalid enabled argument",

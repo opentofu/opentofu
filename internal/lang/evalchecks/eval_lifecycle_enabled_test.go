@@ -19,15 +19,16 @@ import (
 
 func TestEvaluateEnabledExpression_valid(t *testing.T) {
 	tests := map[string]struct {
-		expr     hcl.Expression
-		expected bool
+		expr                   hcl.Expression
+		expected               bool
+		allowConfidentialValue bool
 	}{
 		"true": {
-			hcltest.MockExprLiteral(cty.BoolVal(true)),
-			true,
+			expr:     hcltest.MockExprLiteral(cty.BoolVal(true)),
+			expected: true,
 		},
 		"equal condition": {
-			&hclsyntax.BinaryOpExpr{
+			expr: &hclsyntax.BinaryOpExpr{
 				LHS: &hclsyntax.LiteralValueExpr{
 					Val: cty.StringVal("5"),
 				},
@@ -36,10 +37,10 @@ func TestEvaluateEnabledExpression_valid(t *testing.T) {
 				},
 				Op: hclsyntax.OpEqual,
 			},
-			true,
+			expected: true,
 		},
 		"unequal condition": {
-			&hclsyntax.BinaryOpExpr{
+			expr: &hclsyntax.BinaryOpExpr{
 				LHS: &hclsyntax.LiteralValueExpr{
 					Val: cty.StringVal("3"),
 				},
@@ -48,17 +49,27 @@ func TestEvaluateEnabledExpression_valid(t *testing.T) {
 				},
 				Op: hclsyntax.OpEqual,
 			},
-			false,
+			expected: false,
 		},
 		"false": {
-			hcltest.MockExprLiteral(cty.BoolVal(false)),
-			false,
+			expr:     hcltest.MockExprLiteral(cty.BoolVal(false)),
+			expected: false,
+		},
+		"allowed sensitive": {
+			expr:                   hcltest.MockExprLiteral(cty.StringVal("1").Mark(marks.Sensitive)),
+			expected:               true,
+			allowConfidentialValue: true,
+		},
+		"allowed ephemeral": {
+			expr:                   hcltest.MockExprLiteral(cty.StringVal("1").Mark(marks.Ephemeral)),
+			expected:               true,
+			allowConfidentialValue: true,
 		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			actual, diags := EvaluateEnabledExpression(test.expr, mockRefsFunc())
+			actual, diags := EvaluateEnabledExpression(test.expr, mockRefsFunc(), test.allowConfidentialValue)
 
 			if len(diags) != 0 {
 				t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
@@ -177,7 +188,7 @@ func TestEvaluateEnabledExpression_errors(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			_, diags := EvaluateEnabledExpression(test.expr, mockRefsFunc())
+			_, diags := EvaluateEnabledExpression(test.expr, mockRefsFunc(), false)
 
 			if len(diags) != len(test.Wanted) {
 				t.Fatalf("wrong diagnostics size: (want %d, got %d):\n", len(test.Wanted), len(diags))

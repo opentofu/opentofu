@@ -38,8 +38,8 @@ func evaluateForEachExpression(ctx context.Context, expr hcl.Expression, evalCtx
 	return evalchecks.EvaluateForEachExpression(expr, evalContextScope(ctx, evalCtx), excludeableAddr, allowConfidentialValue)
 }
 
-func evaluateEnabledExpression(ctx context.Context, expr hcl.Expression, evalCtx EvalContext) (bool, tfdiags.Diagnostics) {
-	return evalchecks.EvaluateEnabledExpression(expr, evalContextScope(ctx, evalCtx))
+func evaluateEnabledExpression(ctx context.Context, expr hcl.Expression, evalCtx EvalContext, allowConfidentialValue bool) (bool, tfdiags.Diagnostics) {
+	return evalchecks.EvaluateEnabledExpression(expr, evalContextScope(ctx, evalCtx), allowConfidentialValue)
 }
 
 func evaluateForEachExpressionValue(ctx context.Context, expr hcl.Expression, evalCtx EvalContext, allowUnknown bool, allowTuple bool, excludeableAddr addrs.Targetable, allowConfidentialValue bool) (cty.Value, tfdiags.Diagnostics) {
