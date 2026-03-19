@@ -127,7 +127,12 @@ single-instance resources, [`count`](../../language/meta-arguments/count.mdx) fo
 
 The `enabled` meta-argument cannot use:
 - Unknown values (values not known until apply)
-- Sensitive values
 - Null values
-- Ephemeral values
 - Non-boolean values
+
+In addition to the usage restriction above, when using `enabled` in context of `resource`
+and `data` blocks, it cannot use sensitive or ephemeral values either.
+These kind of values can be used only when `enabled` is used in the context of
+`ephemeral` blocks.
+
+This is needed to be sure that OpenTofu stores no ephemeral information in the plan or the state.

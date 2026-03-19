@@ -119,6 +119,10 @@ using a `for` expression. For example, if you would like to call `keys(local.map
 `local.map` is an object with sensitive values (but non-sensitive keys), you can create a
 value to pass to  `for_each` with `toset([for k,v in local.map : k])`.
 
+Though, in context of `ephemeral` blocks, sensitive and ephemeral values can be used in the
+expressions for the `for_each` meta argument since the ephemeral resources information will not
+be stored in plan or state.
+
 ## Using Expressions in `for_each`
 
 The `for_each` meta-argument accepts map or set [expressions](../../language/expressions/index.mdx).
