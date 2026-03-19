@@ -34,16 +34,16 @@ func evalContextEvaluate(ctx context.Context, evalCtx EvalContext) evalchecks.Ev
 	}
 }
 
-func evaluateForEachExpression(ctx context.Context, expr hcl.Expression, evalCtx EvalContext, excludeableAddr addrs.Targetable) (map[string]cty.Value, tfdiags.Diagnostics) {
-	return evalchecks.EvaluateForEachExpression(expr, evalContextScope(ctx, evalCtx), excludeableAddr)
+func evaluateForEachExpression(ctx context.Context, expr hcl.Expression, evalCtx EvalContext, excludeableAddr addrs.Targetable, allowConfidentialValue bool) (map[string]cty.Value, tfdiags.Diagnostics) {
+	return evalchecks.EvaluateForEachExpression(expr, evalContextScope(ctx, evalCtx), excludeableAddr, allowConfidentialValue)
 }
 
 func evaluateEnabledExpression(ctx context.Context, expr hcl.Expression, evalCtx EvalContext) (bool, tfdiags.Diagnostics) {
 	return evalchecks.EvaluateEnabledExpression(expr, evalContextScope(ctx, evalCtx))
 }
 
-func evaluateForEachExpressionValue(ctx context.Context, expr hcl.Expression, evalCtx EvalContext, allowUnknown bool, allowTuple bool, excludeableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
-	return evalchecks.EvaluateForEachExpressionValue(expr, evalContextScope(ctx, evalCtx), allowUnknown, allowTuple, excludeableAddr)
+func evaluateForEachExpressionValue(ctx context.Context, expr hcl.Expression, evalCtx EvalContext, allowUnknown bool, allowTuple bool, excludeableAddr addrs.Targetable, allowConfidentialValue bool) (cty.Value, tfdiags.Diagnostics) {
+	return evalchecks.EvaluateForEachExpressionValue(expr, evalContextScope(ctx, evalCtx), allowUnknown, allowTuple, excludeableAddr, allowConfidentialValue)
 }
 
 func evaluateCountExpression(ctx context.Context, expr hcl.Expression, evalCtx EvalContext, excludeableAddr addrs.Targetable, allowEphemeral bool) (int, tfdiags.Diagnostics) {

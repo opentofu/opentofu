@@ -125,7 +125,7 @@ func (ri *ImportResolver) ValidateImportIDs(ctx context.Context, importTarget *I
 		const tupleAllowed = true
 
 		// The import target has a for_each attribute, so we need to expand it
-		forEachVal, evalDiags := evaluateForEachExpressionValue(ctx, importTarget.Config.ForEach, rootCtx, unknownsAllowed, tupleAllowed, nil)
+		forEachVal, evalDiags := evaluateForEachExpressionValue(ctx, importTarget.Config.ForEach, rootCtx, unknownsAllowed, tupleAllowed, nil, false)
 		diags = diags.Append(evalDiags)
 		if diags.HasErrors() {
 			return diags
@@ -178,7 +178,7 @@ func (ri *ImportResolver) ExpandAndResolveImport(ctx context.Context, importTarg
 		const tupleAllowed = true
 
 		// The import target has a for_each attribute, so we need to expand it
-		forEachVal, evalDiags := evaluateForEachExpressionValue(ctx, importTarget.Config.ForEach, rootCtx, unknownsNotAllowed, tupleAllowed, nil)
+		forEachVal, evalDiags := evaluateForEachExpressionValue(ctx, importTarget.Config.ForEach, rootCtx, unknownsNotAllowed, tupleAllowed, nil, false)
 		diags = diags.Append(evalDiags)
 		if diags.HasErrors() {
 			return diags

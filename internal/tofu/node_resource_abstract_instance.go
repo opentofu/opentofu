@@ -1151,7 +1151,7 @@ func (n *NodeAbstractResourceInstance) plan(
 	}
 
 	// Evaluate the configuration
-	forEach, _ := evaluateForEachExpression(ctx, n.Config.ForEach, evalCtx, n.Addr)
+	forEach, _ := evaluateForEachExpression(ctx, n.Config.ForEach, evalCtx, n.Addr, false)
 
 	keyData = EvalDataForInstanceKey(n.ResourceInstanceAddr().Resource.Key, forEach)
 
@@ -2159,7 +2159,7 @@ func (n *NodeAbstractResourceInstance) planDataSource(ctx context.Context, evalC
 	objTy := schema.ImpliedType()
 	priorVal := cty.NullVal(objTy)
 
-	forEach, _ := evaluateForEachExpression(ctx, config.ForEach, evalCtx, n.Addr)
+	forEach, _ := evaluateForEachExpression(ctx, config.ForEach, evalCtx, n.Addr, false)
 	keyData = EvalDataForInstanceKey(n.ResourceInstanceAddr().Resource.Key, forEach)
 
 	checkDiags := evalCheckRules(
@@ -2453,7 +2453,7 @@ func (n *NodeAbstractResourceInstance) applyDataSource(ctx context.Context, eval
 		return nil, keyData, diags
 	}
 
-	forEach, _ := evaluateForEachExpression(ctx, config.ForEach, evalCtx, n.Addr)
+	forEach, _ := evaluateForEachExpression(ctx, config.ForEach, evalCtx, n.Addr, false)
 	keyData = EvalDataForInstanceKey(n.Addr.Resource.Key, forEach)
 
 	checkDiags := evalCheckRules(
@@ -2778,7 +2778,7 @@ func (n *NodeAbstractResourceInstance) applyProvisioners(ctx context.Context, ev
 func (n *NodeAbstractResourceInstance) evalProvisionerConfig(ctx context.Context, evalCtx EvalContext, body hcl.Body, self cty.Value, schema *configschema.Block) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	forEach, forEachDiags := evaluateForEachExpression(ctx, n.Config.ForEach, evalCtx, n.Addr)
+	forEach, forEachDiags := evaluateForEachExpression(ctx, n.Config.ForEach, evalCtx, n.Addr, false)
 	diags = diags.Append(forEachDiags)
 
 	keyData := EvalDataForInstanceKey(n.ResourceInstanceAddr().Resource.Key, forEach)
@@ -3305,7 +3305,7 @@ func (n *NodeAbstractResourceInstance) planEphemeralResource(ctx context.Context
 	objTy := schema.ImpliedType()
 	priorVal := cty.NullVal(objTy)
 
-	forEach, _ := evaluateForEachExpression(ctx, config.ForEach, evalCtx, n.Addr)
+	forEach, _ := evaluateForEachExpression(ctx, config.ForEach, evalCtx, n.Addr, true)
 	keyData = EvalDataForInstanceKey(n.ResourceInstanceAddr().Resource.Key, forEach)
 
 	checkDiags := evalCheckRules(

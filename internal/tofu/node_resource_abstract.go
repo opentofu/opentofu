@@ -557,7 +557,7 @@ func (n *NodeAbstractResource) writeResourceState(ctx context.Context, evalCtx E
 		expander.SetResourceEnabled(addr.Module, n.Addr.Resource, enabled)
 
 	case n.Config != nil && n.Config.ForEach != nil:
-		forEach, forEachDiags := evaluateForEachExpression(ctx, n.Config.ForEach, evalCtx, addr)
+		forEach, forEachDiags := evaluateForEachExpression(ctx, n.Config.ForEach, evalCtx, addr, addr.Resource.Mode == addrs.EphemeralResourceMode)
 		diags = diags.Append(forEachDiags)
 		if forEachDiags.HasErrors() {
 			return diags

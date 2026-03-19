@@ -207,7 +207,7 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 		}
 
 		// Evaluate the for_each expression here so we can expose the diagnostics
-		forEachDiags := validateForEach(ctx, evalCtx, n.Config.ForEach)
+		forEachDiags := validateForEach(ctx, evalCtx, n.Config.ForEach, n.Addr.Resource.Mode == addrs.EphemeralResourceMode)
 		diags = diags.Append(forEachDiags)
 	}
 
@@ -523,11 +523,11 @@ func validateCount(ctx context.Context, evalCtx EvalContext, expr hcl.Expression
 	return diags
 }
 
-func validateForEach(ctx context.Context, evalCtx EvalContext, expr hcl.Expression) (diags tfdiags.Diagnostics) {
+func validateForEach(ctx context.Context, evalCtx EvalContext, expr hcl.Expression, allowConfidentialValue bool) (diags tfdiags.Diagnostics) {
 	const unknownsAllowed = true
 	const tupleNotAllowed = false
 
-	val, forEachDiags := evaluateForEachExpressionValue(ctx, expr, evalCtx, unknownsAllowed, tupleNotAllowed, nil)
+	val, forEachDiags := evaluateForEachExpressionValue(ctx, expr, evalCtx, unknownsAllowed, tupleNotAllowed, nil, allowConfidentialValue)
 	// If the value isn't known then that's the best we can do for now, but
 	// we'll check more thoroughly during the plan walk
 	if !val.IsKnown() {

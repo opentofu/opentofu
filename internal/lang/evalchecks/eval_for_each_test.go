@@ -155,7 +155,7 @@ func TestEvaluateForEachExpression_multi_errors(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			_, diags := EvaluateForEachExpression(test.Expr, mockRefsFunc(), nil)
+			_, diags := EvaluateForEachExpression(test.Expr, mockRefsFunc(), nil, false)
 			if len(diags) != len(test.Wanted) {
 				t.Fatalf("Expected diagnostics: %s\nGot: %s\n", spew.Sdump(test.Wanted), spew.Sdump(diags))
 			}
@@ -191,8 +191,9 @@ func TestEvaluateForEachExpression_multi_errors(t *testing.T) {
 func TestEvaluateForEachExpressionValueTuple(t *testing.T) {
 	// Tests for cases where allowTuple is true. This can't be added to the tests on TestEvaluateForEach since they are called with allowTuple as false.
 	tests := map[string]struct {
-		Value        cty.Value
-		expectedErrs []expectedErr
+		Value                  cty.Value
+		expectedErrs           []expectedErr
+		AllowConfidentialValue bool
 	}{
 		"valid tuple": {
 			Value: cty.TupleVal([]cty.Value{cty.StringVal("a"), cty.StringVal("b")}),
@@ -211,7 +212,7 @@ func TestEvaluateForEachExpressionValueTuple(t *testing.T) {
 				},
 			},
 		},
-		"sensitive tuple": {
+		"sensitive tuple and not allowed confidential value": {
 			Value: cty.TupleVal([]cty.Value{cty.StringVal("a"), cty.StringVal("b")}).Mark(marks.Sensitive),
 			expectedErrs: []expectedErr{
 				{
@@ -222,7 +223,7 @@ func TestEvaluateForEachExpressionValueTuple(t *testing.T) {
 				},
 			},
 		},
-		"ephemeral tuple": {
+		"ephemeral tuple and not allowed confidential value": {
 			Value: cty.TupleVal([]cty.Value{cty.StringVal("a"), cty.StringVal("b")}).Mark(marks.Ephemeral),
 			expectedErrs: []expectedErr{
 				{
@@ -232,6 +233,14 @@ func TestEvaluateForEachExpressionValueTuple(t *testing.T) {
 					CausedBySensitive: true,
 				},
 			},
+		},
+		"sensitive tuple and allowed confidential value": {
+			Value:                  cty.TupleVal([]cty.Value{cty.StringVal("a"), cty.StringVal("b")}).Mark(marks.Sensitive),
+			AllowConfidentialValue: true,
+		},
+		"ephemeral tuple and allowed confidential value": {
+			Value:                  cty.TupleVal([]cty.Value{cty.StringVal("a"), cty.StringVal("b")}).Mark(marks.Ephemeral),
+			AllowConfidentialValue: true,
 		},
 		"unknown tuple": {
 			Value: cty.UnknownVal(cty.Tuple([]cty.Type{cty.String})),
@@ -249,7 +258,7 @@ func TestEvaluateForEachExpressionValueTuple(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			expr := hcltest.MockExprLiteral(test.Value)
-			_, diags := EvaluateForEachExpressionValue(expr, mockRefsFunc(), false, true, nil)
+			_, diags := EvaluateForEachExpressionValue(expr, mockRefsFunc(), false, true, nil, test.AllowConfidentialValue)
 
 			assertDiagnosticsMatch(t, diags, test.expectedErrs, "plan")
 		})
@@ -392,11 +401,12 @@ func TestEvaluateForEach(t *testing.T) {
 	t.Parallel()
 
 	tests := map[string]struct {
-		Input                cty.Value
-		ValidateExpectedErrs []expectedErr
-		ValidateReturnValue  cty.Value
-		PlanExpectedErrs     []expectedErr
-		PlanReturnValue      map[string]cty.Value
+		Input                  cty.Value
+		ValidateExpectedErrs   []expectedErr
+		ValidateReturnValue    cty.Value
+		PlanExpectedErrs       []expectedErr
+		PlanReturnValue        map[string]cty.Value
+		AllowConfidentialValue bool
 	}{
 		"empty_set": {
 			Input:                cty.SetValEmpty(cty.String),
@@ -850,6 +860,14 @@ func TestEvaluateForEach(t *testing.T) {
 				}},
 			PlanReturnValue: map[string]cty.Value{},
 		},
+		"sensitive_set_elements but confidential value allowed": {
+			Input:               cty.SetVal([]cty.Value{cty.StringVal("a").Mark(marks.Sensitive)}),
+			ValidateReturnValue: cty.SetVal([]cty.Value{cty.StringVal("a")}).Mark(marks.Sensitive),
+			PlanReturnValue: map[string]cty.Value{
+				"a": cty.StringVal("a"),
+			},
+			AllowConfidentialValue: true,
+		},
 		"ephemeral_tuple": {
 			Input: cty.TupleVal([]cty.Value{cty.StringVal("a"), cty.StringVal("b")}).Mark(marks.Ephemeral),
 			ValidateExpectedErrs: []expectedErr{
@@ -920,6 +938,14 @@ func TestEvaluateForEach(t *testing.T) {
 					CausedBySensitive: true,
 				}},
 			PlanReturnValue: map[string]cty.Value{},
+		},
+		"ephemeral_set_elements but allowed confidential value": {
+			Input:               cty.SetVal([]cty.Value{cty.StringVal("a").Mark(marks.Ephemeral)}),
+			ValidateReturnValue: cty.SetVal([]cty.Value{cty.StringVal("a")}).Mark(marks.Ephemeral),
+			PlanReturnValue: map[string]cty.Value{
+				"a": cty.StringVal("a"),
+			},
+			AllowConfidentialValue: true,
 		},
 		"string": {
 			Input: cty.StringVal("i am definitely a set"),
@@ -1250,7 +1276,7 @@ func TestEvaluateForEach(t *testing.T) {
 			allowUnknown := true
 			allowTuple := false
 			expr := hcltest.MockExprLiteral(test.Input)
-			validateReturn, validateDiags := EvaluateForEachExpressionValue(expr, mockRefsFunc(), allowUnknown, allowTuple, nil)
+			validateReturn, validateDiags := EvaluateForEachExpressionValue(expr, mockRefsFunc(), allowUnknown, allowTuple, nil, test.AllowConfidentialValue)
 
 			if !validateReturn.RawEquals(test.ValidateReturnValue) {
 				t.Errorf("got %#v in validate phase; want %#v", validateReturn, test.ValidateReturnValue)
@@ -1261,7 +1287,7 @@ func TestEvaluateForEach(t *testing.T) {
 			}
 
 			// Plan Phase
-			planReturn, planDiags := EvaluateForEachExpression(expr, mockRefsFunc(), nil)
+			planReturn, planDiags := EvaluateForEachExpression(expr, mockRefsFunc(), nil, test.AllowConfidentialValue)
 
 			if !reflect.DeepEqual(planReturn, test.PlanReturnValue) {
 				t.Errorf("got %#v in plan phase; want %#v", planReturn, test.PlanReturnValue)

@@ -140,7 +140,7 @@ func (n *nodeExpandModule) Execute(ctx context.Context, evalCtx EvalContext, op 
 			expander.SetModuleCount(module, call, count)
 
 		case n.ModuleCall.ForEach != nil:
-			forEach, feDiags := evaluateForEachExpression(ctx, n.ModuleCall.ForEach, evalCtx, module)
+			forEach, feDiags := evaluateForEachExpression(ctx, n.ModuleCall.ForEach, evalCtx, module, false)
 			diags = diags.Append(feDiags)
 			if diags.HasErrors() {
 				return diags
@@ -289,7 +289,7 @@ func (n *nodeValidateModule) Execute(ctx context.Context, evalCtx EvalContext, o
 		case n.ModuleCall.ForEach != nil:
 			const unknownsAllowed = true
 			const tupleNotAllowed = false
-			_, forEachDiags := evaluateForEachExpressionValue(ctx, n.ModuleCall.ForEach, evalCtx, unknownsAllowed, tupleNotAllowed, module)
+			_, forEachDiags := evaluateForEachExpressionValue(ctx, n.ModuleCall.ForEach, evalCtx, unknownsAllowed, tupleNotAllowed, module, false)
 			diags = diags.Append(forEachDiags)
 		}
 

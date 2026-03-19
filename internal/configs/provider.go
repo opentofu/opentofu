@@ -180,7 +180,7 @@ func (p *Provider) decodeStaticFields(ctx context.Context, eval *StaticEvaluator
 			return evalContext, diags.Append(evalDiags)
 		}
 
-		forVal, evalDiags := evalchecks.EvaluateForEachExpression(p.ForEach, forEachRefsFunc, nil)
+		forVal, evalDiags := evalchecks.EvaluateForEachExpression(p.ForEach, forEachRefsFunc, nil, false)
 		diags = append(diags, evalDiags.ToHCL()...)
 		if evalDiags.HasErrors() {
 			return diags

@@ -37,10 +37,10 @@ type ContextFunc func(refs []*addrs.Reference) (*hcl.EvalContext, tfdiags.Diagno
 // If excludableAddr is non-nil then the unknown value error will include
 // an additional idea to exclude that address using the -exclude
 // planning option to converge over multiple plan/apply rounds.
-func EvaluateForEachExpression(expr hcl.Expression, ctx ContextFunc, excludableAddr addrs.Targetable) (map[string]cty.Value, tfdiags.Diagnostics) {
+func EvaluateForEachExpression(expr hcl.Expression, ctx ContextFunc, excludableAddr addrs.Targetable, allowConfidentialValue bool) (map[string]cty.Value, tfdiags.Diagnostics) {
 	const unknownsNotAllowed = false
 	const tupleNotAllowed = false
-	forEachVal, diags := EvaluateForEachExpressionValue(expr, ctx, unknownsNotAllowed, tupleNotAllowed, excludableAddr)
+	forEachVal, diags := EvaluateForEachExpressionValue(expr, ctx, unknownsNotAllowed, tupleNotAllowed, excludableAddr, allowConfidentialValue)
 	// forEachVal might be unknown, but if it is then there should already
 	// be an error about it in diags, which we'll return below.
 
@@ -48,7 +48,9 @@ func EvaluateForEachExpression(expr hcl.Expression, ctx ContextFunc, excludableA
 		// we check length, because an empty set return a nil map
 		return map[string]cty.Value{}, diags
 	}
-
+	// We drop marks here because the for_each value is allowed to be marked only when allowConfidentialValue=true.
+	// This means that the value will not be stored in the plan/state since it will be used only in ephemeral contexts.
+	forEachVal, _ = forEachVal.UnmarkDeepWithPaths()
 	return forEachVal.AsValueMap(), diags
 }
 
@@ -60,7 +62,7 @@ func EvaluateForEachExpression(expr hcl.Expression, ctx ContextFunc, excludableA
 // If excludableAddr is non-nil then any unknown-value-related error will
 // include an additional idea to exclude that address using the -exclude
 // planning option to converge over multiple plan/apply rounds.
-func EvaluateForEachExpressionValue(expr hcl.Expression, hclCtxFunc ContextFunc, allowUnknown bool, allowTuple bool, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
+func EvaluateForEachExpressionValue(expr hcl.Expression, hclCtxFunc ContextFunc, allowUnknown bool, allowTuple bool, excludableAddr addrs.Targetable, allowConfidentialValue bool) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	nullMap := cty.NullVal(cty.Map(cty.DynamicPseudoType))
 
@@ -83,7 +85,7 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, hclCtxFunc ContextFunc,
 	forEachVal, deprDiags := marks.ExtractDeprecatedDiagnosticsWithExpr(forEachVal, expr)
 	diags = diags.Append(deprDiags)
 
-	checksVal, checksDiags := performTypeAndValueChecks(expr, hclCtx, allowUnknown, allowTuple, forEachVal, excludableAddr)
+	checksVal, checksDiags := performTypeAndValueChecks(expr, hclCtx, allowUnknown, allowTuple, forEachVal, excludableAddr, allowConfidentialValue)
 	diags = diags.Append(checksDiags)
 
 	return checksVal, diags
@@ -93,25 +95,25 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, hclCtxFunc ContextFunc,
 // - it checks if the type is valid
 // - it checks if the values depending on the type are valid;
 // It returns the cty.Value wrapped in some special cases (like null or and unknown values) and the errors
-func performTypeAndValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, allowTuple bool, forEachVal cty.Value, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
+func performTypeAndValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, allowTuple bool, forEachVal cty.Value, excludableAddr addrs.Targetable, allowConfidentialValue bool) (cty.Value, tfdiags.Diagnostics) {
 	ty := forEachVal.Type()
 
 	switch {
 	case ty == cty.DynamicPseudoType:
-		return performValueChecks(expr, hclCtx, allowUnknown, forEachVal, forEachVal, errInvalidUnknownDetailDynamic, excludableAddr)
+		return performValueChecks(expr, hclCtx, allowUnknown, forEachVal, forEachVal, errInvalidUnknownDetailDynamic, excludableAddr, allowConfidentialValue)
 	case ty.IsMapType() || ty.IsObjectType():
-		return performValueChecks(expr, hclCtx, allowUnknown, forEachVal, forEachVal, errInvalidUnknownDetailMap, excludableAddr)
+		return performValueChecks(expr, hclCtx, allowUnknown, forEachVal, forEachVal, errInvalidUnknownDetailMap, excludableAddr, allowConfidentialValue)
 	case ty.IsSetType():
 		resultVal, typeDiags := performSetTypeChecks(expr, hclCtx, allowUnknown, forEachVal)
 		setVal, setValueDiags := performSetValueChecks(expr, hclCtx, resultVal)
 
 		// Now that we have refined the set value, we can run the generic type checks
-		resultVal, valueDiags := performValueChecks(expr, hclCtx, allowUnknown, forEachVal, setVal, errInvalidUnknownDetailSet, excludableAddr)
+		resultVal, valueDiags := performValueChecks(expr, hclCtx, allowUnknown, forEachVal, setVal, errInvalidUnknownDetailSet, excludableAddr, allowConfidentialValue)
 
 		// TODO: odd diag ordering due to existing tests
 		return resultVal, valueDiags.Append(setValueDiags).Append(typeDiags)
 	case ty.IsTupleType() && allowTuple:
-		return performValueChecks(expr, hclCtx, allowUnknown, forEachVal, forEachVal, errInvalidUnknownDetailTuple, excludableAddr)
+		return performValueChecks(expr, hclCtx, allowUnknown, forEachVal, forEachVal, errInvalidUnknownDetailTuple, excludableAddr, allowConfidentialValue)
 	default:
 		allowedTypesMessage := "map, or set of strings"
 		if allowTuple {
@@ -127,7 +129,7 @@ func performTypeAndValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, all
 			EvalContext: hclCtx,
 		})
 
-		_, valueDiags := performValueChecks(expr, hclCtx, allowUnknown, forEachVal, forEachVal, errInvalidUnknownDetailDynamic, excludableAddr)
+		_, valueDiags := performValueChecks(expr, hclCtx, allowUnknown, forEachVal, forEachVal, errInvalidUnknownDetailDynamic, excludableAddr, allowConfidentialValue)
 
 		// TODO: odd diag ordering due to existing tests
 		return cty.NullVal(ty), valueDiags.Append(typeDiags)
@@ -135,7 +137,15 @@ func performTypeAndValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, all
 
 }
 
-func performValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, forEachVal cty.Value, typeCheckVal cty.Value, errInvalidUnknownDetail string, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
+func performValueChecks(
+	expr hcl.Expression,
+	hclCtx *hcl.EvalContext,
+	allowUnknown bool,
+	forEachVal cty.Value,
+	typeCheckVal cty.Value,
+	errInvalidUnknownDetail string,
+	excludableAddr addrs.Targetable,
+	allowConfidentialValue bool) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	ty := forEachVal.Type()
 	resultVal := typeCheckVal
@@ -171,7 +181,7 @@ func performValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnkno
 
 	// If a whole map is marked, or a set contains marked values (which means the set is then marked)
 	// give an error diagnostic as this value cannot be used in for_each
-	if forEachVal.HasMark(marks.Sensitive) {
+	if !allowConfidentialValue && forEachVal.HasMark(marks.Sensitive) {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity:    hcl.DiagError,
 			Summary:     "Invalid for_each argument",
@@ -183,7 +193,7 @@ func performValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnkno
 		})
 		resultVal = cty.NullVal(ty)
 	}
-	if forEachVal.HasMark(marks.Ephemeral) {
+	if !allowConfidentialValue && forEachVal.HasMark(marks.Ephemeral) {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity:    hcl.DiagError,
 			Summary:     "Invalid for_each argument",

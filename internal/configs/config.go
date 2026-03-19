@@ -1038,7 +1038,7 @@ func (mp *MockProvider) evaluateProviderConfig(evalCtx *hcl.EvalContext) hcl.Dia
 		return evalCtx, nil
 	}
 
-	forVal, evalDiags := evalchecks.EvaluateForEachExpression(mp.ForEach, forEachRefsFunc, nil)
+	forVal, evalDiags := evalchecks.EvaluateForEachExpression(mp.ForEach, forEachRefsFunc, nil, false)
 	diags = append(diags, evalDiags.ToHCL()...)
 	if evalDiags.HasErrors() {
 		return diags
