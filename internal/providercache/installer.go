@@ -640,7 +640,8 @@ func (i *Installer) ensureProviderVersionInDirectory(
 			}
 		}
 
-		// If the global cache already contains the installed provider and it matches existing hashes, install it.
+		// If the global cache already contains the installed provider and it matches existing hashes, we are done
+		// and can tell the caller that the linking can proceed.
 		// Don't add any additional hashes to the lockfile. This allows us to prevent spurious registry requests
 		// when using the global provider cache
 		if isGlobalCache {
