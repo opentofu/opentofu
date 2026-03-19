@@ -400,10 +400,8 @@ func (n *NodeDestroyDeposedResourceInstanceObject) writeResourceInstanceState(ct
 		return fmt.Errorf("failed to encode %s in state: no resource type schema available", absAddr)
 	}
 
-	identitySchemaVersion := providerSchema.ResourceTypes[n.Addr.ContainingResource().Resource.Type].IdentitySchemaVersion
-
 	obj.Value = schema.Block.RemoveEphemeralFromWriteOnly(obj.Value)
-	src, err := obj.Encode(schema.Block.ImpliedType(), currentVersion, uint64(identitySchemaVersion))
+	src, err := obj.Encode(schema.Block.ImpliedType(), currentVersion, uint64(schema.IdentitySchemaVersion))
 	if err != nil {
 		return fmt.Errorf("failed to encode %s in state: %w", absAddr, err)
 	}
