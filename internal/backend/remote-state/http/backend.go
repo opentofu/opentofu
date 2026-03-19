@@ -12,7 +12,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
@@ -181,8 +180,14 @@ func (b *Backend) configureTLS(client *retryablehttp.Client, data *schema.Resour
 	}
 
 	// TLS configuration is needed; create an object and configure it
+	// internal/httpclient creates a chain of RountTrippers, which we need to unwind to find
+	// the actual *http.Transport where we configure TLS.
+	transport := httpclient.UnderlyingTransport(client.HTTPClient.Transport)
+	if transport == nil {
+		return fmt.Errorf("cannot configure TLS: HTTP client transport chain has no *http.Transport")
+	}
 	var tlsConfig tls.Config
-	client.HTTPClient.Transport.(*http.Transport).TLSClientConfig = &tlsConfig
+	transport.TLSClientConfig = &tlsConfig
 
 	if skipCertVerification {
 		// ignores TLS verification

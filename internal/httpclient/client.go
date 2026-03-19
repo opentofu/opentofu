@@ -69,3 +69,24 @@ func New(ctx context.Context) *http.Client {
 
 	return cli
 }
+
+// UnderlyingTransport unwraps a chain of RoundTrippers to find whether it has
+// an underlying *http.Transport. This is the case when using the default client
+// that this class sets up via `New` above.
+// Returns nil if the chain does not contain a *http.Transport.
+func UnderlyingTransport(rt http.RoundTripper) *http.Transport {
+	for rt != nil {
+		if t, ok := rt.(*http.Transport); ok {
+			return t
+		}
+		switch w := rt.(type) {
+		case *userAgentRoundTripper:
+			rt = w.inner
+		case *tracingTransport:
+			rt = w.inner
+		default:
+			return nil
+		}
+	}
+	return nil
+}
