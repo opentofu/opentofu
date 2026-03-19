@@ -6,6 +6,7 @@
 package e2etest
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -15,6 +16,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/go-cmp/cmp"
@@ -259,14 +261,18 @@ func TestEphemeralWorkflowAndOutput(t *testing.T) {
 		providerBuilderFunc(t, tf.WorkDir())
 
 		{ // INIT
-			_, stderr, err := tf.Run("init", "-plugin-dir=cache")
+			ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
+			defer cancel()
+			_, stderr, err := tf.RunCtx(ctx, "init", "-plugin-dir=cache")
 			if err != nil {
 				t.Fatalf("unexpected init error: %s\nstderr:\n%s", err, stderr)
 			}
 		}
 
 		{ // PLAN
-			stdout, stderr, err := tf.Run("plan", "-out=tfplan", `-var=simple_input=plan_val`, `-var=ephemeral_input=ephemeral_val`)
+			ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
+			defer cancel()
+			stdout, stderr, err := tf.RunCtx(ctx, "plan", "-out=tfplan", `-var=simple_input=plan_val`, `-var=ephemeral_input=ephemeral_val`)
 			if err != nil {
 				t.Fatalf("unexpected plan error: %s\nstderr:\n%s", err, stderr)
 			}
@@ -367,9 +373,11 @@ Changes to Outputs:
 		}
 
 		{ // APPLY with wrong variables
+			ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
+			defer cancel()
 			expectedToContain := `╷ Error: Mismatch between input and plan variable value  Value saved in the plan file for variable "simple_input" is different from the one given to the current command.╵`
 			expectedErr := fmt.Errorf("exit status 1")
-			_, stderr, err := tf.Run("apply", `-var=simple_input=different_from_the_plan_one`, `-var=ephemeral_input=ephemeral_val`, "tfplan")
+			_, stderr, err := tf.RunCtx(ctx, "apply", `-var=simple_input=different_from_the_plan_one`, `-var=ephemeral_input=ephemeral_val`, "tfplan")
 			if err == nil {
 				t.Fatalf("expected an error but got nothing")
 			}
@@ -383,9 +391,11 @@ Changes to Outputs:
 		}
 
 		{ // APPLY with no ephemeral variable value
+			ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
+			defer cancel()
 			expectedToContain := "╷ Error: No value for required variable    on main.tf line 15:   15: variable \"ephemeral_input\" {  Variable \"ephemeral_input\" is configured as ephemeral. This type of variables need to be given a value during `tofu plan` and also during `tofu apply`.╵"
 			expectedErr := fmt.Errorf("exit status 1")
-			_, stderr, err := tf.Run("apply", `-var=simple_input=plan_val`, "tfplan")
+			_, stderr, err := tf.RunCtx(ctx, "apply", `-var=simple_input=plan_val`, "tfplan")
 			if err == nil {
 				t.Fatalf("expected an error but got nothing")
 			}
@@ -398,7 +408,9 @@ Changes to Outputs:
 			}
 		}
 		{ // APPLY
-			stdout, stderr, err := tf.Run("apply", `-var=simple_input=plan_val`, `-var=ephemeral_input=ephemeral_val`, "tfplan")
+			ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
+			defer cancel()
+			stdout, stderr, err := tf.RunCtx(ctx, "apply", `-var=simple_input=plan_val`, `-var=ephemeral_input=ephemeral_val`, "tfplan")
 			if err != nil {
 				t.Fatalf("unexpected apply error: %s\nstderr:\n%s", err, stderr)
 			}
@@ -469,7 +481,9 @@ Changes to Outputs:
 			checker.check(t, "apply", out)
 		}
 		{ // DESTROY
-			stdout, stderr, err := tf.Run("destroy", `-var=simple_input=plan_val`, `-var=ephemeral_input=ephemeral_val`, "-auto-approve")
+			ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
+			defer cancel()
+			stdout, stderr, err := tf.RunCtx(ctx, "destroy", `-var=simple_input=plan_val`, `-var=ephemeral_input=ephemeral_val`, "-auto-approve")
 			if err != nil {
 				t.Fatalf("unexpected destroy error: %s\nstderr:\n%s", err, stderr)
 			}
@@ -525,14 +539,18 @@ func TestEphemeralRepetitionData(t *testing.T) {
 		expectedDestroyOutput []outputCheck,
 	) {
 		{ // INIT
-			_, stderr, err := tf.Run("-chdir="+chdir, "init", "-plugin-dir=../cache")
+			ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
+			defer cancel()
+			_, stderr, err := tf.RunCtx(ctx, "-chdir="+chdir, "init", "-plugin-dir=../cache")
 			if err != nil {
 				t.Fatalf("unexpected init error: %s\nstderr:\n%s", err, stderr)
 			}
 		}
 
 		{ // PLAN
-			stdout, stderr, err := tf.Run("-chdir="+chdir, "plan")
+			ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
+			defer cancel()
+			stdout, stderr, err := tf.RunCtx(ctx, "-chdir="+chdir, "plan")
 			combined := fmt.Sprintf("%s\n\n%s", stripAnsi(stdout), stripAnsi(stderr))
 			if err == nil {
 				t.Errorf("expected to have an error during plan but got nothing. output:\n%s", combined)
@@ -541,7 +559,9 @@ func TestEphemeralRepetitionData(t *testing.T) {
 			entriesChecker.check(t, "plan", combined)
 		}
 		{ // APPLY
-			stdout, stderr, err := tf.Run("-chdir="+chdir, "apply", "-auto-approve")
+			ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
+			defer cancel()
+			stdout, stderr, err := tf.RunCtx(ctx, "-chdir="+chdir, "apply", "-auto-approve")
 			combined := fmt.Sprintf("%s\n\n%s", stripAnsi(stdout), stripAnsi(stderr))
 			if err == nil {
 				t.Errorf("expected to have an error during apply but got nothing. output:\n%s", combined)
@@ -550,7 +570,9 @@ func TestEphemeralRepetitionData(t *testing.T) {
 			entriesChecker.check(t, "apply", combined)
 		}
 		{ // DESTROY
-			stdout, stderr, err := tf.Run("-chdir="+chdir, "destroy", "-auto-approve")
+			ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
+			defer cancel()
+			stdout, stderr, err := tf.RunCtx(ctx, "-chdir="+chdir, "destroy", "-auto-approve")
 			combined := fmt.Sprintf("%s\n\n%s", stripAnsi(stdout), stripAnsi(stderr))
 			if !expectDestroyError && err != nil {
 				t.Errorf("expected to have no error during destroy. got %q instead. output:\n%s", err, combined)

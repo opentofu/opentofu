@@ -7,6 +7,7 @@ package e2e
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -122,7 +123,16 @@ func (b *binary) AddEnv(entry string) {
 // The returned object can be mutated by the caller to customize how the
 // process will be run, before calling Run.
 func (b *binary) Cmd(args ...string) *exec.Cmd {
-	cmd := exec.Command(b.binPath, args...)
+	return b.CmdCtx(context.Background(), args...)
+}
+
+// CmdCtx returns an exec.Cmd pre-configured to run the generated OpenTofu
+// binary with the given arguments in the temporary working directory.
+//
+// The returned object can be mutated by the caller to customize how the
+// process will be run, before calling Run.
+func (b *binary) CmdCtx(ctx context.Context, args ...string) *exec.Cmd {
+	cmd := exec.CommandContext(ctx, b.binPath, args...)
 	cmd.Dir = b.workDir
 	cmd.Env = os.Environ()
 
@@ -139,6 +149,24 @@ func (b *binary) Cmd(args ...string) *exec.Cmd {
 // situations, use Cmd and customize the command before running it.
 func (b *binary) Run(args ...string) (stdout, stderr string, err error) {
 	cmd := b.Cmd(args...)
+	cmd.Stdin = nil
+	cmd.Stdout = &bytes.Buffer{}
+	cmd.Stderr = &bytes.Buffer{}
+	err = cmd.Run()
+	stdout = cmd.Stdout.(*bytes.Buffer).String()
+	stderr = cmd.Stderr.(*bytes.Buffer).String()
+	return
+}
+
+// RunCtx executes the generated OpenTofu binary with the given arguments
+// and returns the bytes that it wrote to both stdout and stderr.
+//
+// This is a simple way to run OpenTofu for non-interactive commands
+// that don't need any special environment variables. For more complex
+// situations, use Cmd and customize the command before running it.
+// This allows to provide a context to cancel the command.
+func (b *binary) RunCtx(ctx context.Context, args ...string) (stdout, stderr string, err error) {
+	cmd := b.CmdCtx(ctx, args...)
 	cmd.Stdin = nil
 	cmd.Stdout = &bytes.Buffer{}
 	cmd.Stderr = &bytes.Buffer{}
