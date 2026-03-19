@@ -112,20 +112,6 @@ func (s simple) GetProviderSchema(_ context.Context) providers.GetProviderSchema
 	return s.schema
 }
 
-func (s simple) GetResourceIdentitySchemas(_ context.Context) providers.GetResourceIdentitySchemasResponse {
-	identitySchemas := make(map[string]providers.ResourceIdentitySchema, len(s.schema.ResourceTypes))
-	for typeName, schema := range s.schema.ResourceTypes {
-		if schema.IdentitySchema != nil {
-			identitySchemas[typeName] = providers.ResourceIdentitySchema{
-				Version: schema.IdentitySchemaVersion,
-				Body:    schema.IdentitySchema,
-			}
-		}
-	}
-	return providers.GetResourceIdentitySchemasResponse{
-		IdentitySchemas: identitySchemas,
-	}
-}
 
 func (s simple) ValidateProviderConfig(_ context.Context, req providers.ValidateProviderConfigRequest) (resp providers.ValidateProviderConfigResponse) {
 	return resp

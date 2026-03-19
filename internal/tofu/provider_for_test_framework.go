@@ -149,9 +149,6 @@ func (p providerForTest) GetProviderSchema(ctx context.Context) providers.GetPro
 	return providerSchema
 }
 
-func (p providerForTest) GetResourceIdentitySchemas(ctx context.Context) providers.GetResourceIdentitySchemasResponse {
-	return p.internal.GetResourceIdentitySchemas(ctx)
-}
 
 // providerForTest doesn't configure its internal provider because it is mocked.
 func (p providerForTest) ConfigureProvider(context.Context, providers.ConfigureProviderRequest) providers.ConfigureProviderResponse {

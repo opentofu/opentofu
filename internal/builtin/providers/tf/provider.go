@@ -51,10 +51,6 @@ func (p *Provider) GetProviderSchema(_ context.Context) providers.GetProviderSch
 	}
 }
 
-// GetResourceIdentitySchemas fetches the identity schemas for terraform_data
-func (p *Provider) GetResourceIdentitySchemas(context.Context) providers.GetResourceIdentitySchemasResponse {
-	return providers.GetResourceIdentitySchemasResponse{}
-}
 
 // ValidateProviderConfig is used to validate the configuration values.
 func (p *Provider) ValidateProviderConfig(_ context.Context, req providers.ValidateProviderConfigRequest) providers.ValidateProviderConfigResponse {

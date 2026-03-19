@@ -22,10 +22,29 @@ import (
 // This is useful for creating a test binary out of an internal provider
 // implementation.
 func Provider(p providers.Interface) tfplugin5.ProviderServer {
+	schema := p.GetProviderSchema(context.TODO())
 	return &provider{
 		provider:        p,
-		schema:          p.GetProviderSchema(context.TODO()),
-		identitySchemas: p.GetResourceIdentitySchemas(context.TODO()),
+		schema:          schema,
+		identitySchemas: identitySchemasFromProviderSchema(schema),
+	}
+}
+
+// identitySchemasFromProviderSchema derives the identity schemas from the
+// provider schema response, since identity schemas are embedded in each
+// resource type's Schema.
+func identitySchemasFromProviderSchema(schema providers.GetProviderSchemaResponse) providers.GetResourceIdentitySchemasResponse {
+	identitySchemas := make(map[string]providers.ResourceIdentitySchema)
+	for typeName, s := range schema.ResourceTypes {
+		if s.IdentitySchema != nil {
+			identitySchemas[typeName] = providers.ResourceIdentitySchema{
+				Version: s.IdentitySchemaVersion,
+				Body:    s.IdentitySchema,
+			}
+		}
+	}
+	return providers.GetResourceIdentitySchemasResponse{
+		IdentitySchemas: identitySchemas,
 	}
 }
 

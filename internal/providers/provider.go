@@ -27,10 +27,6 @@ type Unconfigured interface {
 	// GetSchema returns the complete schema for the provider.
 	GetProviderSchema(context.Context) GetProviderSchemaResponse
 
-	// GetResourceIdentitySchemas returns the identity schemas for all resources
-	// in the provider.
-	GetResourceIdentitySchemas(context.Context) GetResourceIdentitySchemasResponse
-
 	// ValidateProviderConfig allows the provider to validate the configuration.
 	// The ValidateProviderConfigResponse.PreparedConfig field is unused. The
 	// final configuration is not stored in the state, and any modifications

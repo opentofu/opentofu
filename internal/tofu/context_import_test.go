@@ -1453,11 +1453,6 @@ func TestContextImport_multiInstanceProviderIdentity(t *testing.T) {
 		},
 		Nesting: configschema.NestingSingle,
 	}
-	identitySchema := providers.ResourceIdentitySchema{
-		Version: 1,
-		Body:    identitySchemaObj,
-	}
-
 	resourceTypeSchema := providers.Schema{
 		Block: &configschema.Block{
 			Attributes: map[string]*configschema.Attribute{
@@ -1497,11 +1492,6 @@ func TestContextImport_multiInstanceProviderIdentity(t *testing.T) {
 		log.Printf("[TRACE] TestContextImport_multiInstanceProviderIdentity: creating new instance of provider 'test' at %p", ret)
 
 		ret.GetProviderSchemaResponse = providerSchema
-		ret.GetResourceIdentitySchemasResponse = &providers.GetResourceIdentitySchemasResponse{
-			IdentitySchemas: map[string]providers.ResourceIdentitySchema{
-				"test_thing": identitySchema,
-			},
-		}
 		ret.ConfigureProviderFn = func(req providers.ConfigureProviderRequest) providers.ConfigureProviderResponse {
 			configuredMarker = req.Config.GetAttr("marker")
 			log.Printf("[TRACE] TestContextImport_multiInstanceProviderIdentity: ConfigureProvider for %p with marker = %#v", ret, configuredMarker)

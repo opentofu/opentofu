@@ -22,10 +22,11 @@ import (
 // plugin protocol v6. This is useful for creating a test binary out of an
 // internal provider implementation.
 func Provider6(p providers.Interface) tfplugin6.ProviderServer {
+	schema := p.GetProviderSchema(context.TODO())
 	return &provider6{
 		provider:        p,
-		schema:          p.GetProviderSchema(context.TODO()),
-		identitySchemas: p.GetResourceIdentitySchemas(context.TODO()),
+		schema:          schema,
+		identitySchemas: identitySchemasFromProviderSchema(schema),
 	}
 }
 
