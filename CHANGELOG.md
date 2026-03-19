@@ -30,7 +30,7 @@ ENHANCEMENTS:
 - Module registries can now specify that package downloads should use the same credentials as the registry's API calls, without needing to configure credentials separately in a `.netrc` file. This approach is helpful when the module packages are served by the registry itself, rather than when the registry just links to an external location such as a GitHub repository. ([#3313](https://github.com/opentofu/opentofu/issues/3313))
 - Provider installation now makes concurrent requests to download provider packages, which may allow `tofu init` to complete faster. ([#2729](https://github.com/opentofu/opentofu/pull/2729))
 - Provider checksum verification and schema loading are now better optimized, including no longer verifying checksums for providers that are present in the local cache but will not be used by a particular command. ([#2730](https://github.com/opentofu/opentofu/pull/2730))
-- `tofu init` now accepts additional provider platform hash data from the registry, which should simplify managing lockfiles in cross-platform environments. ([3868](https://github.com/opentofu/opentofu/pull/3868))
+- `tofu init` now includes a full set of checksums for all supported platforms when updating a dependency lock file, using additional information now reported by the provider registry. This should remove the need to run `tofu providers lock` in many situations where it was previously required. ([#3868](https://github.com/opentofu/opentofu/pull/3868))
 - The `network_mirror` configuration now includes an option to trust all hashes reported by the mirror. This also simplifies managing lockfiles in cross-platform environments. ([3885](https://github.com/opentofu/opentofu/pull/3885))
 
 
