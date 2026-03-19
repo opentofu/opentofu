@@ -222,15 +222,52 @@ func TestPackageHashAuthentication_success(t *testing.T) {
 		Hash("h1:qjsREM4DqEWECD43FcPqddZ9oxCG+IaMTxvWPciS05g="),
 	}
 
-	auth := NewPackageHashAuthentication(Platform{"linux", "amd64"}, wantHashes)
-	result, err := auth.AuthenticatePackage(location)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
+	t.Run("single hash untrusted", func(t *testing.T) {
+		auth := NewPackageHashAuthentication(Platform{"linux", "amd64"}, wantHashes, false)
+		result, err := auth.AuthenticatePackage(location)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
 
-	if got, want := result.String(), "verified checksum"; got != want {
-		t.Errorf("wrong result summary\ngot:  %s\nwant: %s", got, want)
-	}
+		if got, want := result.String(), "verified checksum"; got != want {
+			t.Errorf("wrong result summary\ngot:  %s\nwant: %s", got, want)
+		}
+	})
+
+	// Add bogus hash reported by the source
+	wantHashes = append(wantHashes, Hash("zh:reportedhashvalue"))
+
+	t.Run("multiple hashes untrusted", func(t *testing.T) {
+		auth := NewPackageHashAuthentication(Platform{"linux", "amd64"}, wantHashes, false)
+		result, err := auth.AuthenticatePackage(location)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		if got, want := result.String(), "verified checksum"; got != want {
+			t.Errorf("wrong result summary\ngot:  %s\nwant: %s", got, want)
+		}
+
+		if len(result.hashes) != 1 {
+			t.Errorf("expected 1 hash, got %d hashes", len(result.hashes))
+		}
+	})
+
+	t.Run("multiple hashes trusted", func(t *testing.T) {
+		auth := NewPackageHashAuthentication(Platform{"linux", "amd64"}, wantHashes, true)
+		result, err := auth.AuthenticatePackage(location)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		if got, want := result.String(), "verified checksum"; got != want {
+			t.Errorf("wrong result summary\ngot:  %s\nwant: %s", got, want)
+		}
+
+		if len(result.hashes) != 2 {
+			t.Errorf("expected 2 hash, got %d hashes", len(result.hashes))
+		}
+	})
 }
 
 // Package has authentication can fail for various reasons.
@@ -257,7 +294,7 @@ func TestPackageHashAuthentication_failure(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			// Invalid expected hash, either because we'll error before we
 			// reach it, or we want to force a checksum mismatch.
-			auth := NewPackageHashAuthentication(Platform{"linux", "amd64"}, []Hash{"h1:invalid"})
+			auth := NewPackageHashAuthentication(Platform{"linux", "amd64"}, []Hash{"h1:invalid"}, false)
 			result, err := auth.AuthenticatePackage(test.location)
 
 			if result != nil {
@@ -471,8 +508,8 @@ func TestRegistryPackageAuthentication(t *testing.T) {
 			},
 		},
 		result: &PackageAuthenticationResult{hashes: HashDispositions{
-			h1: &HashDisposition{ReportedByRegistry: true},
-			zh: &HashDisposition{ReportedByRegistry: true},
+			h1: &HashDisposition{ReportedByRegistry: true, Platform: &platform},
+			zh: &HashDisposition{ReportedByRegistry: true, Platform: &platform},
 		}},
 	}, {
 		name:        "missing_platform",
@@ -527,32 +564,34 @@ func TestRegistryPackageAuthentication(t *testing.T) {
 	}}
 
 	for _, tc := range tests {
-		auth := NewRegistryPackageAuthentication(meta, tc.sha, tc.packageData)
-		result, err := auth.AuthenticatePackage(tc.location)
+		t.Run(tc.name, func(t *testing.T) {
+			auth := NewRegistryPackageAuthentication(meta, tc.sha, tc.packageData)
+			result, err := auth.AuthenticatePackage(tc.location)
 
-		if tc.err != "" {
-			if err == nil {
-				t.Errorf("wrong err: got nil, wanted %q", tc.err)
-			} else if err.Error() != tc.err {
-				t.Errorf("wrong err: got %q, wanted %q", err.Error(), tc.err)
+			if tc.err != "" {
+				if err == nil {
+					t.Errorf("wrong err: got nil, wanted %q", tc.err)
+				} else if err.Error() != tc.err {
+					t.Errorf("wrong err: got %q, wanted %q", err.Error(), tc.err)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("wrong err: got %q, wanted nil", err.Error())
+				}
 			}
-		} else {
-			if err != nil {
-				t.Errorf("wrong err: got %q, wanted nil", err.Error())
-			}
-		}
 
-		if tc.result != nil {
-			if result == nil {
-				t.Errorf("wrong result: got nil, wanted %#v", tc.result)
-			} else if diff := cmp.Diff(result.hashes, tc.result.hashes); diff != "" {
-				t.Errorf("wrong results: %s", diff)
+			if tc.result != nil {
+				if result == nil {
+					t.Errorf("wrong result: got nil, wanted %#v", tc.result)
+				} else if diff := cmp.Diff(result.hashes, tc.result.hashes); diff != "" {
+					t.Errorf("wrong results: %s", diff)
+				}
+			} else {
+				if result != nil {
+					t.Errorf("wrong result: got %#v, wanted nil", result)
+				}
 			}
-		} else {
-			if result != nil {
-				t.Errorf("wrong result: got %#v, wanted nil", result)
-			}
-		}
+		})
 	}
 }
 

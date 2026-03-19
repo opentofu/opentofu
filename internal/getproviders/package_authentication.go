@@ -66,6 +66,7 @@ func (t *PackageAuthenticationResult) summaryResult() packageAuthenticationResul
 	}
 	signedCount := 0
 	registryReportCount := 0
+	trustedMirrorReportCount := 0
 	locallyVerifiedCount := 0
 	for _, disp := range t.hashes {
 		if disp.SignedByAnyGPGKeys() {
@@ -73,6 +74,9 @@ func (t *PackageAuthenticationResult) summaryResult() packageAuthenticationResul
 		}
 		if disp.ReportedByRegistry {
 			registryReportCount++
+		}
+		if disp.ReportedByTrustedMirror {
+			trustedMirrorReportCount++
 		}
 		if disp.VerifiedLocally {
 			locallyVerifiedCount++
@@ -85,6 +89,8 @@ func (t *PackageAuthenticationResult) summaryResult() packageAuthenticationResul
 		return signingSkipped
 	case locallyVerifiedCount > 0:
 		return verifiedChecksum
+	case trustedMirrorReportCount > 0:
+		return signingSkipped
 	default:
 		return unauthenticated
 	}
@@ -148,7 +154,7 @@ func (t *PackageAuthenticationResult) SigningSkipped() bool {
 	if t == nil || t.Signed() {
 		return false
 	}
-	return t.hashes.HasAnyReportedByRegistry()
+	return t.hashes.HasAnyReportedByRegistry() || t.hashes.HasAnyReportedByTrustedMirror()
 }
 
 // SigningKey represents a key used to sign packages from a registry. These are
@@ -213,6 +219,7 @@ type packageHashAuthentication struct {
 	RequiredHashes []Hash
 	AllHashes      []Hash
 	Platform       Platform
+	TrustAllHashes bool
 }
 
 // NewPackageHashAuthentication returns a PackageAuthentication implementation
@@ -223,12 +230,13 @@ type packageHashAuthentication struct {
 // MatchesHash. The PreferredHashes function will select which of the given
 // hashes are considered by OpenTofu to be the strongest verification, and
 // authentication succeeds as long as one of those matches.
-func NewPackageHashAuthentication(platform Platform, validHashes []Hash) PackageAuthentication {
+func NewPackageHashAuthentication(platform Platform, validHashes []Hash, trustAllHashes bool) PackageAuthentication {
 	requiredHashes := PreferredHashes(validHashes)
 	return packageHashAuthentication{
 		RequiredHashes: requiredHashes,
 		AllHashes:      validHashes,
 		Platform:       platform,
+		TrustAllHashes: trustAllHashes,
 	}
 }
 
@@ -247,10 +255,26 @@ func (a packageHashAuthentication) AuthenticatePackage(localLocation PackageLoca
 		}
 		hashes[verifiedHash] = &HashDisposition{
 			VerifiedLocally: true,
+			Platform:        &a.Platform,
 		}
 	}
 
 	if len(hashes) > 0 {
+		if a.TrustAllHashes {
+			// The user has explicitly marked this source as trusted. We will add
+			// all of the reported hashes.
+			//
+			// We use RequiredHashes here as we know they are compatible with this version
+			// of OpenTofu. If PreferredHashes ever changes, we may need to change this loop.
+			for _, hash := range a.RequiredHashes {
+				if _, ok := hashes[hash]; !ok {
+					hashes[hash] = &HashDisposition{
+						ReportedByTrustedMirror: true,
+						Platform:                &a.Platform,
+					}
+				}
+			}
+		}
 		return &PackageAuthenticationResult{hashes: hashes}, nil
 	}
 	if len(a.RequiredHashes) == 1 {
@@ -308,6 +332,7 @@ func (a archiveHashAuthentication) AuthenticatePackage(localLocation PackageLoca
 		hashes: HashDispositions{
 			gotHash: &HashDisposition{
 				VerifiedLocally: true,
+				Platform:        &a.Platform,
 			},
 		},
 	}, nil
@@ -446,7 +471,9 @@ func (a *registryPackageAuthentication) AuthenticatePackage(localLocation Packag
 
 	// Parse and record all applicable package hashes
 	hashes := HashDispositions{}
-	for _, meta := range a.PackageData {
+	for platform, meta := range a.PackageData {
+		// Needed because we are taking the reference below
+		platform := platform
 		for _, hash := range meta.Hashes {
 			switch hash.Scheme() {
 			case HashScheme1, HashSchemeZip:
@@ -460,6 +487,7 @@ func (a *registryPackageAuthentication) AuthenticatePackage(localLocation Packag
 			// VerifiedLocally.
 			hashes[hash] = &HashDisposition{
 				ReportedByRegistry: true,
+				Platform:           &platform,
 			}
 		}
 	}
