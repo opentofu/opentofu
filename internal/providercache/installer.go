@@ -626,10 +626,9 @@ func (i *Installer) ensureProviderVersionInDirectory(
 
 	isGlobalCache := installTo == i.globalCacheDir
 
-	// If we have hashes in the lockfile
-	if len(preferredHashes) > 0 {
-		// If our target directory already has the provider version that fulfills the lock file, carry on
-		if installed := installTo.ProviderVersion(provider, version); installed != nil {
+	// If our target directory already has the provider version that fulfills the lock file, carry on
+	if installed := installTo.ProviderVersion(provider, version); installed != nil {
+		if len(preferredHashes) > 0 {
 			if matches, _ := installed.MatchesAnyHash(preferredHashes); matches {
 				if cb := evts.ProviderAlreadyInstalled; cb != nil {
 					cb(provider, version, isGlobalCache)
@@ -637,22 +636,6 @@ func (i *Installer) ensureProviderVersionInDirectory(
 
 				// Even though the package is installed, the requirements in the lockfile may still need to be updated
 				return nil, lock.AllHashes(), nil
-			}
-		}
-
-		// If the global cache already contains the installed provider and it matches existing hashes, we are done
-		// and can tell the caller that the linking can proceed.
-		// Don't add any additional hashes to the lockfile. This allows us to prevent spurious registry requests
-		// when using the global provider cache
-		if isGlobalCache {
-			if installed := i.globalCacheDir.ProviderVersion(provider, version); installed != nil {
-				if matches, _ := installed.MatchesAnyHash(preferredHashes); matches {
-					if cb := evts.ProviderAlreadyInstalled; cb != nil {
-						cb(provider, version, isGlobalCache)
-					}
-
-					return nil, nil, nil
-				}
 			}
 		}
 	}
