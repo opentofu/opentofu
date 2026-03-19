@@ -30,8 +30,8 @@ type EvaluateFunc func(expr hcl.Expression) (cty.Value, tfdiags.Diagnostics)
 // If excludableAddr is non-nil then the unknown value error will include
 // an additional idea to exclude that address using the -exclude
 // planning option to converge over multiple plan/apply rounds.
-func EvaluateCountExpression(expr hcl.Expression, ctx EvaluateFunc, excludableAddr addrs.Targetable) (int, tfdiags.Diagnostics) {
-	countVal, diags := EvaluateCountExpressionValue(expr, ctx)
+func EvaluateCountExpression(expr hcl.Expression, ctx EvaluateFunc, excludableAddr addrs.Targetable, allowEphemeral bool) (int, tfdiags.Diagnostics) {
+	countVal, diags := EvaluateCountExpressionValue(expr, ctx, allowEphemeral)
 	if !countVal.IsKnown() {
 		// Currently this is a rather bad outcome from a UX standpoint, since we have
 		// no real mechanism to deal with this situation and all we can do is produce
@@ -66,7 +66,7 @@ func EvaluateCountExpression(expr hcl.Expression, ctx EvaluateFunc, excludableAd
 // EvaluateCountExpressionValue is like EvaluateCountExpression
 // except that it returns a cty.Value which must be a cty.Number and can be
 // unknown.
-func EvaluateCountExpressionValue(expr hcl.Expression, ctx EvaluateFunc) (cty.Value, tfdiags.Diagnostics) {
+func EvaluateCountExpressionValue(expr hcl.Expression, ctx EvaluateFunc, allowEphemeral bool) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	nullCount := cty.NullVal(cty.Number)
 	if expr == nil {
@@ -83,8 +83,8 @@ func EvaluateCountExpressionValue(expr hcl.Expression, ctx EvaluateFunc) (cty.Va
 	// as using it here will not disclose the sensitive value
 	countVal, valMarks := countVal.UnmarkDeep()
 
-	// We do not allow ephemeral values in the count value
-	if _, ok := valMarks[marks.Ephemeral]; ok {
+	// We do not allow ephemeral values in the count value for blocks other than the "ephemeral" ones
+	if _, ok := valMarks[marks.Ephemeral]; !allowEphemeral && ok {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity:   hcl.DiagError,
 			Summary:    "Invalid count argument",

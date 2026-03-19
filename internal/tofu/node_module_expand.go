@@ -131,7 +131,8 @@ func (n *nodeExpandModule) Execute(ctx context.Context, evalCtx EvalContext, op 
 		evalCtx = evalCtx.WithPath(module)
 		switch {
 		case n.ModuleCall.Count != nil:
-			count, ctDiags := evaluateCountExpression(ctx, n.ModuleCall.Count, evalCtx, module)
+			// Do not allow ephemeral values in the count for modules
+			count, ctDiags := evaluateCountExpression(ctx, n.ModuleCall.Count, evalCtx, module, false)
 			diags = diags.Append(ctDiags)
 			if diags.HasErrors() {
 				return diags
@@ -281,7 +282,8 @@ func (n *nodeValidateModule) Execute(ctx context.Context, evalCtx EvalContext, o
 		// a full expansion, presuming these errors will be caught in later steps
 		switch {
 		case n.ModuleCall.Count != nil:
-			_, countDiags := evaluateCountExpressionValue(ctx, n.ModuleCall.Count, evalCtx)
+			// Do not allow ephemeral values in the count for modules
+			_, countDiags := evaluateCountExpressionValue(ctx, n.ModuleCall.Count, evalCtx, false)
 			diags = diags.Append(countDiags)
 
 		case n.ModuleCall.ForEach != nil:

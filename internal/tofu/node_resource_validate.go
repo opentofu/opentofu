@@ -197,7 +197,7 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 
 		// Basic type-checking of the count argument. More complete validation
 		// of this will happen when we DynamicExpand during the plan walk.
-		countDiags := validateCount(ctx, evalCtx, n.Config.Count)
+		countDiags := validateCount(ctx, evalCtx, n.Config.Count, n.Addr.Resource.Mode == addrs.EphemeralResourceMode)
 		diags = diags.Append(countDiags)
 
 	case n.Config.ForEach != nil:
@@ -508,8 +508,8 @@ func (n *NodeValidatableResource) validateCheckRules(ctx context.Context, evalCt
 	return diags
 }
 
-func validateCount(ctx context.Context, evalCtx EvalContext, expr hcl.Expression) (diags tfdiags.Diagnostics) {
-	val, countDiags := evaluateCountExpressionValue(ctx, expr, evalCtx)
+func validateCount(ctx context.Context, evalCtx EvalContext, expr hcl.Expression, allowEphemeral bool) (diags tfdiags.Diagnostics) {
+	val, countDiags := evaluateCountExpressionValue(ctx, expr, evalCtx, allowEphemeral)
 	// If the value isn't known then that's the best we can do for now, but
 	// we'll check more thoroughly during the plan walk
 	if !val.IsKnown() {

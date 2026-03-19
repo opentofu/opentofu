@@ -46,10 +46,10 @@ func evaluateForEachExpressionValue(ctx context.Context, expr hcl.Expression, ev
 	return evalchecks.EvaluateForEachExpressionValue(expr, evalContextScope(ctx, evalCtx), allowUnknown, allowTuple, excludeableAddr)
 }
 
-func evaluateCountExpression(ctx context.Context, expr hcl.Expression, evalCtx EvalContext, excludeableAddr addrs.Targetable) (int, tfdiags.Diagnostics) {
-	return evalchecks.EvaluateCountExpression(expr, evalContextEvaluate(ctx, evalCtx), excludeableAddr)
+func evaluateCountExpression(ctx context.Context, expr hcl.Expression, evalCtx EvalContext, excludeableAddr addrs.Targetable, allowEphemeral bool) (int, tfdiags.Diagnostics) {
+	return evalchecks.EvaluateCountExpression(expr, evalContextEvaluate(ctx, evalCtx), excludeableAddr, allowEphemeral)
 }
 
-func evaluateCountExpressionValue(ctx context.Context, expr hcl.Expression, evalCtx EvalContext) (cty.Value, tfdiags.Diagnostics) {
-	return evalchecks.EvaluateCountExpressionValue(expr, evalContextEvaluate(ctx, evalCtx))
+func evaluateCountExpressionValue(ctx context.Context, expr hcl.Expression, evalCtx EvalContext, allowEphemeral bool) (cty.Value, tfdiags.Diagnostics) {
+	return evalchecks.EvaluateCountExpressionValue(expr, evalContextEvaluate(ctx, evalCtx), allowEphemeral)
 }

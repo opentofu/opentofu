@@ -18,23 +18,31 @@ import (
 
 func TestEvaluateCountExpression(t *testing.T) {
 	tests := map[string]struct {
-		Expr  hcl.Expression
-		Count int
+		Expr           hcl.Expression
+		Count          int
+		AllowEphemeral bool
 	}{
 		"zero": {
 			hcltest.MockExprLiteral(cty.NumberIntVal(0)),
 			0,
+			false,
 		},
 		"expression with marked value": {
 			hcltest.MockExprLiteral(cty.NumberIntVal(8).Mark(marks.Sensitive)),
 			8,
+			false,
+		},
+		"expression with marked value as ephemeral": {
+			hcltest.MockExprLiteral(cty.NumberIntVal(8).Mark(marks.Ephemeral)),
+			8,
+			true,
 		},
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			ctx := &MockEvalContext{}
 			ctx.installSimpleEval()
-			countVal, diags := evaluateCountExpression(t.Context(), test.Expr, ctx, nil)
+			countVal, diags := evaluateCountExpression(t.Context(), test.Expr, ctx, nil, test.AllowEphemeral)
 
 			if len(diags) != 0 {
 				t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))

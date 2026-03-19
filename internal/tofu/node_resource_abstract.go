@@ -537,7 +537,7 @@ func (n *NodeAbstractResource) writeResourceState(ctx context.Context, evalCtx E
 
 	switch {
 	case n.Config != nil && n.Config.Count != nil:
-		count, countDiags := evaluateCountExpression(ctx, n.Config.Count, evalCtx, addr)
+		count, countDiags := evaluateCountExpression(ctx, n.Config.Count, evalCtx, addr, addr.Resource.Mode == addrs.EphemeralResourceMode)
 		diags = diags.Append(countDiags)
 		if countDiags.HasErrors() {
 			return diags

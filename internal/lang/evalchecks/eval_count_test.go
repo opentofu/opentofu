@@ -28,18 +28,25 @@ func mockEvaluateFunc(val cty.Value) EvaluateFunc {
 
 func TestEvaluateCountExpression_valid(t *testing.T) {
 	tests := map[string]struct {
-		val      cty.Value
-		expected int
+		val            cty.Value
+		expected       int
+		allowEphemeral bool
 	}{
 		"1": {
 			cty.NumberIntVal(1),
 			1,
+			false,
+		},
+		"1 with ephemeral": {
+			cty.NumberIntVal(1).Mark(marks.Ephemeral),
+			1,
+			true,
 		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			actual, diags := EvaluateCountExpression(hcltest.MockExprLiteral(test.val), mockEvaluateFunc(test.val), nil)
+			actual, diags := EvaluateCountExpression(hcltest.MockExprLiteral(test.val), mockEvaluateFunc(test.val), nil, test.allowEphemeral)
 
 			if len(diags) != 0 {
 				t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
@@ -130,7 +137,7 @@ func TestEvaluateCountExpression_errors(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			_, diags := EvaluateCountExpression(hcltest.MockExprLiteral(test.val), mockEvaluateFunc(test.val), test.excludableAddr)
+			_, diags := EvaluateCountExpression(hcltest.MockExprLiteral(test.val), mockEvaluateFunc(test.val), test.excludableAddr, false)
 
 			if len(diags) != 1 {
 				t.Fatalf("got %d diagnostics; want 1", diags)
