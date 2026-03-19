@@ -81,7 +81,7 @@ func EvaluateCountExpressionValue(expr hcl.Expression, ctx EvaluateFunc, allowEp
 
 	// Unmark the count value, sensitive values are allowed in count but not for_each,
 	// as using it here will not disclose the sensitive value
-	countVal, valMarks := countVal.UnmarkDeep()
+	countVal, valMarks := countVal.Unmark()
 
 	// We do not allow ephemeral values in the count value for blocks other than the "ephemeral" ones
 	if _, ok := valMarks[marks.Ephemeral]; !allowEphemeral && ok {
