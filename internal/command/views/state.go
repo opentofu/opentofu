@@ -8,6 +8,7 @@ package views
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -64,7 +65,7 @@ func NewState(args arguments.ViewOptions, view *View) State {
 	var ret State
 	switch args.ViewType {
 	case arguments.ViewJSON:
-		ret = &StateJSON{view: NewJSONView(view, nil)}
+		ret = &StateJSON{view: NewJSONView(view, nil), output: view.streams.Stdout.File}
 	case arguments.ViewHuman:
 		ret = &StateHuman{view: view}
 	default:
@@ -72,7 +73,7 @@ func NewState(args arguments.ViewOptions, view *View) State {
 	}
 
 	if args.JSONInto != nil {
-		ret = &StateMulti{ret, &StateJSON{view: NewJSONView(view, args.JSONInto)}}
+		ret = &StateMulti{ret, &StateJSON{view: NewJSONView(view, args.JSONInto), output: args.JSONInto}}
 	}
 	return ret
 }
@@ -361,7 +362,8 @@ func (v *StateHuman) ShowResourceState(_ context.Context, stateFile *statefile.F
 }
 
 type StateJSON struct {
-	view *JSONView
+	view   *JSONView
+	output *os.File
 }
 
 var _ State = (*StateJSON)(nil)
@@ -512,7 +514,8 @@ func (v *StateJSON) ShowResourceState(_ context.Context, stateFile *statefile.Fi
 		v.view.Info("no state")
 		return 0
 	}
-	state, err := jsonstate.MarshalForLog(stateFile, schemas)
+
+	rawState, err := jsonstate.Marshal(stateFile, schemas)
 	if err != nil {
 		v.Diagnostics(tfdiags.Diagnostics{}.Append(tfdiags.Sourceless(
 			tfdiags.Error,
@@ -521,7 +524,7 @@ func (v *StateJSON) ShowResourceState(_ context.Context, stateFile *statefile.Fi
 		)))
 		return 1
 	}
-	v.view.log.Info("resource state", "state", state)
+	_, _ = fmt.Fprintln(v.output, string(rawState))
 	return 0
 }
 

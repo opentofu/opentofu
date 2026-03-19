@@ -437,7 +437,7 @@ func TestJSONView_Outputs(t *testing.T) {
 // against a slice of structs representing the desired log messages. It
 // verifies that the output of JSONView is in JSON log format, one message per
 // line.
-func testJSONViewOutputEqualsFull(t *testing.T, output string, want []map[string]any, options ...cmp.Option) {
+func testJSONViewOutputComparer(t *testing.T, output string, want []map[string]any, timestamp bool, options ...cmp.Option) {
 	t.Helper()
 
 	// Remove final trailing newline
@@ -468,15 +468,17 @@ func testJSONViewOutputEqualsFull(t *testing.T, output string, want []map[string
 			t.Fatal(err)
 		}
 
-		if timestamp, ok := gotStruct["@timestamp"]; !ok {
-			t.Errorf("message has no timestamp: %#v", gotStruct)
-		} else {
-			// Remove the timestamp value from the struct to allow comparison
-			delete(gotStruct, "@timestamp")
+		if timestamp {
+			if timestamp, ok := gotStruct["@timestamp"]; !ok {
+				t.Errorf("message has no timestamp: %#v", gotStruct)
+			} else {
+				// Remove the timestamp value from the struct to allow comparison
+				delete(gotStruct, "@timestamp")
 
-			// Verify the timestamp format
-			if _, err := time.Parse("2006-01-02T15:04:05.000000Z07:00", timestamp.(string)); err != nil {
-				t.Errorf("error parsing timestamp on line %d: %s", i, err)
+				// Verify the timestamp format
+				if _, err := time.Parse("2006-01-02T15:04:05.000000Z07:00", timestamp.(string)); err != nil {
+					t.Errorf("error parsing timestamp on line %d: %s", i, err)
+				}
 			}
 		}
 
@@ -484,6 +486,28 @@ func testJSONViewOutputEqualsFull(t *testing.T, output string, want []map[string
 			t.Errorf("unexpected output on line %d:\n%s", i, cmp.Diff(wantStruct, gotStruct))
 		}
 	}
+
+}
+
+// This helper function tests a possibly multi-line JSONView output string
+// against a slice of structs representing the desired log messages. It
+// verifies that the output of JSONView is in JSON log format, one message per
+// line.
+func testJSONViewOutputEqualsFull(t *testing.T, output string, want []map[string]interface{}, options ...cmp.Option) {
+	testJSONViewOutputComparer(t, output, want, true, options...)
+}
+
+// testJSONViewOutputEquals skips the first line of output, since it ought to
+// be a version message that we don't care about for most of our tests.
+func testJSONViewOutputEqualsIgnoringTimestamp(t *testing.T, output string, want []map[string]interface{}, options ...cmp.Option) {
+	t.Helper()
+
+	// Remove up to the first newline
+	index := strings.Index(output, "\n")
+	if index >= 0 {
+		output = output[index+1:]
+	}
+	testJSONViewOutputComparer(t, output, want, false, options...)
 }
 
 // testJSONViewOutputEquals skips the first line of output, since it ought to

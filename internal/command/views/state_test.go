@@ -25,10 +25,11 @@ import (
 
 func TestStateViews(t *testing.T) {
 	tests := map[string]struct {
-		viewCall   func(state State)
-		wantJson   []map[string]any
-		wantStdout string
-		wantStderr string
+		viewCall        func(state State)
+		wantJson        []map[string]any
+		wantStdout      string
+		wantStderr      string
+		ignoreTimestamp bool
 	}{
 		"stateNotFound": {
 			viewCall: func(state State) {
@@ -373,6 +374,8 @@ Changing 1 resources:
 			},
 			wantStderr: withNewline("No instance found for the given address!\n\nThis command requires that the address references one specific instance.\nTo view the available instances, use \"tofu state list\". Please modify \nthe address to reference a specific instance."),
 		},
+		// ShowResourceState for success cases has its own dedicated test because in that situation the json output
+		// is in a raw format and not adhere to the way "informative" messages are shown.
 		"showResourceState with nil state": {
 			viewCall: func(state State) {
 				state.ShowResourceState(context.Background(), nil, nil)
@@ -388,6 +391,7 @@ Changing 1 resources:
 			},
 		},
 		"showResourceState with proper state": {
+			ignoreTimestamp: true,
 			viewCall: func(state State) {
 				stateFile := states.BuildState(func(s *states.SyncState) {
 					s.SetResourceInstanceCurrent(
@@ -439,28 +443,23 @@ resource "test_resource" "foo" {
 			wantStderr: "",
 			wantJson: []map[string]any{
 				{
-					"@level":   "info",
-					"@message": "resource state",
-					"@module":  "tofu.ui",
-					"state": map[string]any{
-						"format_version":    "1.0",
-						"terraform_version": "1.12.0",
-						"values": map[string]any{
-							"root_module": map[string]any{
-								"resources": []any{
-									map[string]any{
-										"address":        "test_resource.foo",
-										"mode":           "managed",
-										"type":           "test_resource",
-										"name":           "foo",
-										"provider_name":  "registry.opentofu.org/hashicorp/test",
-										"schema_version": float64(0),
-										"values": map[string]any{
-											"foo": "value",
-											"id":  "bar",
-										},
-										"sensitive_values": map[string]any{},
+					"format_version":    "1.0",
+					"terraform_version": "1.12.0",
+					"values": map[string]any{
+						"root_module": map[string]any{
+							"resources": []any{
+								map[string]any{
+									"address":        "test_resource.foo",
+									"mode":           "managed",
+									"type":           "test_resource",
+									"name":           "foo",
+									"provider_name":  "registry.opentofu.org/hashicorp/test",
+									"schema_version": float64(0),
+									"values": map[string]any{
+										"foo": "value",
+										"id":  "bar",
 									},
+									"sensitive_values": map[string]any{},
 								},
 							},
 						},
@@ -554,8 +553,8 @@ resource "test_resource" "foo" {
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			testStateHuman(t, tc.viewCall, tc.wantStdout, tc.wantStderr)
-			testStateJson(t, tc.viewCall, tc.wantJson)
-			testStateMulti(t, tc.viewCall, tc.wantStdout, tc.wantStderr, tc.wantJson)
+			testStateJson(t, tc.viewCall, tc.wantJson, !tc.ignoreTimestamp)
+			testStateMulti(t, tc.viewCall, tc.wantStdout, tc.wantStderr, tc.wantJson, !tc.ignoreTimestamp)
 		})
 	}
 }
@@ -573,7 +572,7 @@ func testStateHuman(t *testing.T, call func(state State), wantStdout, wantStderr
 	}
 }
 
-func testStateJson(t *testing.T, call func(state State), want []map[string]interface{}) {
+func testStateJson(t *testing.T, call func(state State), want []map[string]interface{}, withTimestamp bool) {
 	view, done := testView(t)
 	stateView := NewState(arguments.ViewOptions{ViewType: arguments.ViewJSON}, view)
 	call(stateView)
@@ -582,10 +581,14 @@ func testStateJson(t *testing.T, call func(state State), want []map[string]inter
 		t.Errorf("expected no stderr but got:\n%s", output.Stderr())
 	}
 
-	testJSONViewOutputEquals(t, output.Stdout(), want)
+	if withTimestamp {
+		testJSONViewOutputEquals(t, output.Stdout(), want)
+		return
+	}
+	testJSONViewOutputEqualsIgnoringTimestamp(t, output.Stdout(), want)
 }
 
-func testStateMulti(t *testing.T, call func(state State), wantStdout string, wantStderr string, want []map[string]interface{}) {
+func testStateMulti(t *testing.T, call func(state State), wantStdout string, wantStderr string, want []map[string]interface{}, withTimestamp bool) {
 	jsonInto, err := os.CreateTemp(t.TempDir(), "json-into-*")
 	if err != nil {
 		t.Fatalf("failed to create the file to write json content into: %s", err)
@@ -602,7 +605,11 @@ func testStateMulti(t *testing.T, call func(state State), wantStdout string, wan
 		if err != nil {
 			t.Fatalf("failed to read the file content with the json output: %s", err)
 		}
-		testJSONViewOutputEquals(t, string(fileContent), want)
+		if withTimestamp {
+			testJSONViewOutputEquals(t, string(fileContent), want)
+			return
+		}
+		testJSONViewOutputEqualsIgnoringTimestamp(t, string(fileContent), want)
 	}
 	{
 		// check the human output
