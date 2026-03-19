@@ -23,6 +23,7 @@ import (
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/plugin6/convert"
 	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	proto6 "github.com/opentofu/opentofu/internal/tfplugin6"
 )
 
@@ -222,7 +223,13 @@ func (p *GRPCProvider) UpgradeResourceIdentity(ctx context.Context, req provider
 	resp.Diagnostics = resp.Diagnostics.Append(convert.ProtoToDiagnostics(protoResp.Diagnostics))
 
 	if protoResp.UpgradedIdentity == nil || protoResp.UpgradedIdentity.IdentityData == nil {
-		resp.Diagnostics = resp.Diagnostics.Append(fmt.Errorf("call to UpgradeResourceIdentity returned nil for IdentityData, this should be non-nil"))
+		if !resp.Diagnostics.HasErrors() {
+			resp.Diagnostics = resp.Diagnostics.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Provider returned no identity after upgrade",
+				fmt.Sprintf("The provider returned a nil identity for %q after UpgradeResourceIdentity without reporting an error. This is a bug in the provider.", req.TypeName),
+			))
+		}
 		return resp
 	}
 
