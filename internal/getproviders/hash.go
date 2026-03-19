@@ -303,6 +303,11 @@ func HashesMatchingPackage(loc PackageLocation, toTest []Hash) iter.Seq2[Hash, e
 // format. If PreferredHash returns a non-empty string then it will be one
 // of the hash strings in "given", and that hash is the one that must pass
 // verification in order for a package to be considered valid.
+//
+// In practice, this function is used in a variety of locations with a broader
+// goal in mind. It is used to filter out any hashes that OpenTofu does not
+// currently recognise. If this function is ever heavily modified, all call
+// sites should be checked carefully.
 func PreferredHashes(given []Hash) []Hash {
 	// For now this is just filtering for the two hash formats we support,
 	// both of which are considered equally "preferred". If we introduce
