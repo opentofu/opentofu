@@ -58,7 +58,7 @@ func (d *Dir) installPackageWithLock(ctx context.Context, meta getproviders.Pack
 
 		if matches, err := entry.MatchesAnyHash(allowedHashes); err == nil && matches {
 			// No auth result needed, package is valid
-			return getproviders.NewPackageHashAuthentication(meta.TargetPlatform, allowedHashes).AuthenticatePackage(entry.PackageLocation())
+			return getproviders.NewPackageHashAuthentication(meta.TargetPlatform, allowedHashes, false).AuthenticatePackage(entry.PackageLocation())
 		}
 	}
 

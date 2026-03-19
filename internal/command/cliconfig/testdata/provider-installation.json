@@ -12,7 +12,8 @@
       "url": "https://tf-Mirror.example.com/",
       "include": ["registry.opentofu.org/*/*"],
       "exclude": ["registry.OpenTofu.org/foobar/*"],
-      "download_retry_count": 2
+      "download_retry_count": 2,
+      "trust_all_hashes": true
     }],
     "filesystem_mirror": [{
       "path": "/tmp/example2"

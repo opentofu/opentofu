@@ -9,6 +9,11 @@ UPGRADE NOTES:
 
     If you run OpenTofu in a context where an environment variable of that name is already set, it may cause OpenTofu to now open a web browser in a different way than previous versions would have. Unsetting that environment variable will restore the previous platform-specific behavior.
 
+- If you are installing providers from the registry (most users), you should expect to see additional `h1:value` provider hashes in your `.terraform.lock.hcl` file.
+
+    We have improved the OpenTofu registry to serve both `zh:value` and `h1:value` hashes, as well as instructing OpenTofu in how to integrate this data into its existing provider trust chain. Including these additional hashes will reduce friction in cross-platform environments. These and other related changes below should subsume the need to use `tofu providers lock` in most scenarios, simplifying many existing cross-platform workflows. For more information, see the [corresponding RFC](rfc/20251027-provider-registry-hashes.md) and [discussion](https://github.com/opentofu/opentofu/pull/3434)
+
+
 ENHANCEMENTS:
 
 - A `prevent_destroy` argument in the `lifecycle` block for managed resources can now refer to other symbols in the same module, such as to the module's input variables. ([#3474](https://github.com/opentofu/opentofu/issues/3474), [#3507](https://github.com/opentofu/opentofu/issues/3507))
@@ -18,14 +23,16 @@ ENHANCEMENTS:
 - The `yamldecode` function now supports the "merge" tag, most commonly written as `<<` where a map key would be expected, with sequences of mappings rather than just individual mappings. ([#3607](https://github.com/opentofu/opentofu/pull/3607))
 - A new configuration block type `language` offers a more general way to define version constraints that separates OpenTofu constraints from other software. Note that module authors should delay adopting this new syntax until they are ready to require OpenTofu v1.12.0 or later, but there is an interim solution available that is backward-compatible with earlier OpenTofu versions. ([#3300](https://github.com/opentofu/opentofu/issues/3300))
 - New CLI argument `-json-into=<outfile>` allows emitting both human-readable and machine-readable logs. ([#3606](https://github.com/opentofu/opentofu/pull/3606))
+- Provider installation now makes concurrent requests to download provider packages, which may allow `tofu init` to complete faster. ([#2729](https://github.com/opentofu/opentofu/pull/2729))
+- Provider checksum verification and schema loading are now better optimized, including no longer verifying checksums for providers that are present in the local cache but will not be used by a particular command. ([#2730](https://github.com/opentofu/opentofu/pull/2730))
+- `tofu init` now includes a full set of checksums for all supported platforms when updating a dependency lock file, using additional information now reported by the provider registry. This should remove the need to run `tofu providers lock` in many situations where it was previously required. ([#3868](https://github.com/opentofu/opentofu/pull/3868))
+- The `network_mirror` configuration now includes an option to trust all hashes reported by the mirror. This also simplifies managing lockfiles in cross-platform environments. ([3885](https://github.com/opentofu/opentofu/pull/3885))
+- Module registries can now specify that package downloads should use the same credentials as the registry's API calls, without needing to configure credentials separately in a `.netrc` file. This approach is helpful when the module packages are served by the registry itself, rather than when the registry just links to an external location such as a GitHub repository. ([#3313](https://github.com/opentofu/opentofu/issues/3313))
 - `tofu destroy` now supports `-suppress-forget-errors` to suppress errors and exit with a zero status code when resources are forgotten during destroy operations. ([#3588](https://github.com/opentofu/opentofu/issues/3588))
 - `tofu console` now supports `-lock=false` and `-lock-timeout=DURATION` to control whether and how this command uses state locks. ([#3800](https://github.com/opentofu/opentofu/pull/3800))
 - `tofu login` now uses the `BROWSER` environment variable when launching a web browser on Unix platforms, as long as it's set to a single command that can accept a URL to open as its first and only argument. ([#3456](https://github.com/opentofu/opentofu/issues/3456))
 - The `s3` backend now automatically discovers and uses AWS credentials issued using [the `aws login` command](https://docs.aws.amazon.com/cli/latest/reference/login/) in AWS CLI. ([#3767](https://github.com/opentofu/opentofu/pull/3767))
 - The `azurerm` backend now supports authentication using Azure DevOps and Azure Pipelines workload identity federation. ([#3820](https://github.com/opentofu/opentofu/pull/3820))
-- Module registries can now specify that package downloads should use the same credentials as the registry's API calls, without needing to configure credentials separately in a `.netrc` file. This approach is helpful when the module packages are served by the registry itself, rather than when the registry just links to an external location such as a GitHub repository. ([#3313](https://github.com/opentofu/opentofu/issues/3313))
-- Provider installation now makes concurrent requests to download provider packages, which may allow `tofu init` to complete faster. ([#2729](https://github.com/opentofu/opentofu/pull/2729))
-- Provider checksum verification and schema loading are now better optimized, including no longer verifying checksums for providers that are present in the local cache but will not be used by a particular command. ([#2730](https://github.com/opentofu/opentofu/pull/2730))
 
 BUG FIXES:
 

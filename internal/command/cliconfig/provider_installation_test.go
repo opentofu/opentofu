@@ -40,6 +40,7 @@ func TestLoadConfig_providerInstallation(t *testing.T) {
 								Retries: func() (int, bool) {
 									return 2, true
 								},
+								Trusted: func() bool { return true },
 							},
 							{
 								Location: ProviderInstallationFilesystemMirror("/tmp/example2"),
@@ -50,6 +51,7 @@ func TestLoadConfig_providerInstallation(t *testing.T) {
 								Retries: func() (int, bool) {
 									return 3, true
 								},
+								Trusted: nil,
 							},
 						},
 
@@ -60,8 +62,7 @@ func TestLoadConfig_providerInstallation(t *testing.T) {
 					},
 				},
 			}
-
-			if diff := cmp.Diff(want, got, cmp.Comparer(func(a, b ProviderInstallationMethodRetries) bool {
+			retries := cmp.Comparer(func(a, b ProviderInstallationMethodRetries) bool {
 				if (a == nil && b != nil) || (a != nil && b == nil) {
 					return false
 				}
@@ -71,7 +72,19 @@ func TestLoadConfig_providerInstallation(t *testing.T) {
 				ar, aok := a()
 				br, bok := b()
 				return ar == br && aok == bok
-			})); diff != "" {
+			})
+			trusted := cmp.Comparer(func(a, b ProviderInstallationMethodTrusted) bool {
+				if (a == nil && b != nil) || (a != nil && b == nil) {
+					return false
+				}
+				if a == nil && b == nil {
+					return true
+				}
+				ar := a()
+				br := b()
+				return ar == br
+			})
+			if diff := cmp.Diff(want, got, retries, trusted); diff != "" {
 				t.Errorf("wrong result\n%s", diff)
 			}
 		})
