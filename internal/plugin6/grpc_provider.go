@@ -255,13 +255,11 @@ func (p *GRPCProvider) UpgradeResourceIdentity(ctx context.Context, req provider
 	return resp
 }
 
+// getResourceIdentitySchemas should ONLY be called from GetProviderSchema, which
+// merges the identity schemas into the cached provider schema response. All other
+// callers should use resSchema.IdentitySchema from the GetProviderSchema response.
 func (p *GRPCProvider) getResourceIdentitySchemas(ctx context.Context) providers.GetResourceIdentitySchemasResponse {
 	logger.Trace("GRPCProvider.v6: getResourceIdentitySchemas")
-
-	// Caching is not needed here: callers should use resSchema.IdentitySchema
-	// from the cached GetProviderSchema response instead of calling this directly.
-	// This method is only used by GetProviderSchema (to merge identity schemas)
-	// and UpgradeResourceIdentity (called once per stale resource).
 	resp := providers.GetResourceIdentitySchemasResponse{
 		IdentitySchemas: make(map[string]providers.ResourceIdentitySchema),
 	}

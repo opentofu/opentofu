@@ -22,6 +22,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/legacy/hcl2shim"
 	mockproto "github.com/opentofu/opentofu/internal/plugin6/mock_proto"
 	"github.com/opentofu/opentofu/internal/providers"
@@ -417,29 +418,29 @@ func TestGRPCProvider_UpgradeResourceIdentity(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	client := mockproto.NewMockProviderClient(ctrl)
 
-	// initial identity
-	client.EXPECT().GetResourceIdentitySchemas(
-		gomock.Any(),
-		gomock.Any(),
-	).Return(&proto.GetResourceIdentitySchemas_Response{
-		IdentitySchemas: map[string]*proto.ResourceIdentitySchema{
-			"test_resource": {
-				Version: 1,
-				IdentityAttributes: []*proto.ResourceIdentitySchema_IdentityAttribute{
-					{
-						Name:              "id",
-						Type:              []byte(`"string"`),
-						RequiredForImport: true,
+	// Assert that no schema RPCs are made: the schema cache is pre-warmed and
+	// UpgradeResourceIdentity must not bypass it by calling schema RPCs directly.
+	client.EXPECT().GetProviderSchema(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+	client.EXPECT().GetResourceIdentitySchemas(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+
+	cache := providers.NewSchemaCache()
+	cache(func() providers.GetProviderSchemaResponse {
+		return providers.GetProviderSchemaResponse{
+			ServerCapabilities: providers.ServerCapabilities{GetProviderSchemaOptional: true},
+			ResourceTypes: map[string]providers.Schema{
+				"test_resource": {
+					IdentitySchema: &configschema.Object{
+						Nesting: configschema.NestingSingle,
+						Attributes: map[string]*configschema.Attribute{
+							"id":     {Type: cty.String},
+							"region": {Type: cty.String},
+						},
 					},
-					{
-						Name:              "region",
-						Type:              []byte(`"string"`),
-						RequiredForImport: true,
-					},
+					IdentitySchemaVersion: 1,
 				},
 			},
-		},
-	}, nil)
+		}
+	})
 
 	// upgraded entity from the provider
 	upgradedIdentity := cty.ObjectVal(map[string]cty.Value{
@@ -460,8 +461,7 @@ func TestGRPCProvider_UpgradeResourceIdentity(t *testing.T) {
 		},
 	}, nil)
 
-	// Ensure that our UpgradeResourceIdentity logic does what it should
-	p := newGRPCProvider(client)
+	p := &GRPCProvider{client: client, SchemaCache: cache}
 	resp := p.UpgradeResourceIdentity(t.Context(), providers.UpgradeResourceIdentityRequest{
 		TypeName:        "test_resource",
 		Version:         1,
