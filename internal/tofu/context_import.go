@@ -118,7 +118,7 @@ func NewImportResolver() *ImportResolver {
 func (ri *ImportResolver) ValidateImportIDs(ctx context.Context, importTarget *ImportTarget, evalCtx EvalContext) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
-	getIdentitySchemaType := func(ctx context.Context, importTarget *ImportTarget, evalCtx EvalContext, keyData instances.RepetitionData) (tfdiags.Diagnostics, cty.Type) {
+	getIdentitySchemaType := func(ctx context.Context, importTarget *ImportTarget, evalCtx EvalContext, keyData instances.RepetitionData) (cty.Type, tfdiags.Diagnostics) {
 		var diags tfdiags.Diagnostics
 		if importTarget.Config.Provider.Type == "" {
 			diags = diags.Append(&hcl.Diagnostic{
@@ -182,7 +182,7 @@ func (ri *ImportResolver) ValidateImportIDs(ctx context.Context, importTarget *I
 				evalDiags = validateImportIdExpression(ctx, importTarget.Config.ID, rootCtx, keyData)
 				diags = diags.Append(evalDiags)
 			} else if importTarget.Config.Identity != nil {
-				identityDiags, identityType := getIdentitySchemaType(ctx, importTarget, evalCtx, keyData)
+				identityType, identityDiags := getIdentitySchemaType(ctx, importTarget, evalCtx, keyData)
 				diags = diags.Append(identityDiags)
 				if !identityDiags.HasErrors() {
 					evalDiags = validateImportIdentityExpression(ctx, importTarget.Config.Identity, rootCtx, keyData, identityType)
@@ -197,7 +197,7 @@ func (ri *ImportResolver) ValidateImportIDs(ctx context.Context, importTarget *I
 			evalDiags := validateImportIdExpression(ctx, importTarget.Config.ID, rootCtx, EvalDataForNoInstanceKey)
 			diags = diags.Append(evalDiags)
 		} else if importTarget.Config.Identity != nil {
-			identityDiags, identityType := getIdentitySchemaType(ctx, importTarget, evalCtx, EvalDataForNoInstanceKey)
+			identityType, identityDiags := getIdentitySchemaType(ctx, importTarget, evalCtx, EvalDataForNoInstanceKey)
 			diags = diags.Append(identityDiags)
 			if !identityDiags.HasErrors() {
 				evalDiags := validateImportIdentityExpression(ctx, importTarget.Config.Identity, rootCtx, EvalDataForNoInstanceKey, identityType)
