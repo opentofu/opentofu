@@ -133,8 +133,6 @@ func (ri *ImportResolver) ValidateImportIDs(ctx context.Context, importTarget *I
 		schema, schemaDiags := getIdentitySchema(
 			ctx, evalCtx,
 			importTarget.Config.Provider,
-			importTarget.Config.ProviderConfigRef,
-			addrs.RootModule,
 			importTarget.Config.StaticTo.Resource.Type,
 			importTarget.Config.Identity.Range(),
 			importTarget.Config.StaticTo.String())
@@ -291,8 +289,6 @@ func (ri *ImportResolver) resolveImport(ctx context.Context, importTarget *Impor
 		identitySchema, schemaDiags := getIdentitySchema(
 			ctx, evalCtx,
 			importTarget.Config.Provider,
-			importTarget.Config.ProviderConfigRef,
-			importAddress.Module.Module(),
 			importAddress.Resource.Resource.Type,
 			importTarget.Config.Identity.Range(),
 			importAddress.String(),
@@ -349,27 +345,15 @@ func getIdentitySchema(
 	ctx context.Context,
 	evalCtx EvalContext,
 	provider addrs.Provider,
-	providerConfigRef *configs.ProviderConfigRef,
-	module addrs.Module,
 	resourceType string,
 	identityRange hcl.Range,
 	subjectStr string,
 ) (*configschema.Object, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	providerAddr := addrs.AbsProviderConfig{
-		Module:   module,
-		Provider: provider,
-	}
-
-	// be sure to propagate the provider config ref alias to the provider address
-	if providerConfigRef != nil {
-		providerAddr.Alias = providerConfigRef.Alias
-	}
-
 	// We are assuming that the provider schema should have the resource identity schema attached here,
 	// so we need to look up the provider schema first
-	providerSchema, schemaDiags := evalCtx.Providers().GetProviderSchema(ctx, providerAddr.Provider)
+	providerSchema, schemaDiags := evalCtx.Providers().GetProviderSchema(ctx, provider)
 	diags = diags.Append(schemaDiags)
 	if diags.HasErrors() {
 		return nil, diags
@@ -381,14 +365,13 @@ func getIdentitySchema(
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Unable to determine identity schema for import identity",
-			Detail:   fmt.Sprintf("The provider %q does not provide an identity schema for the resource type %q, which is required when trying to import the resource %q using identity-based import. Please ensure the resource type supports identity-based import.", providerAddr, resourceType, subjectStr),
+			Detail:   fmt.Sprintf("The provider %q does not provide an identity schema for the resource type %q, which is required when trying to import the resource %q using identity-based import. Please ensure the resource type supports identity-based import.", provider, resourceType, subjectStr),
 			Subject:  identityRange.Ptr(),
 		})
 		return nil, diags
 	}
 
 	return resourceSchema.IdentitySchema, diags
-
 }
 
 // GetAllImports returns all resolved imports
