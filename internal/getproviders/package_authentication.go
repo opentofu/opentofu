@@ -474,13 +474,7 @@ func (a *registryPackageAuthentication) AuthenticatePackage(localLocation Packag
 	for platform, meta := range a.PackageData {
 		// Needed because we are taking the reference below
 		platform := platform
-		for _, hash := range meta.Hashes {
-			switch hash.Scheme() {
-			case HashScheme1, HashSchemeZip:
-				// Valid for this version of OpenTofu
-			default:
-				continue
-			}
+		for _, hash := range PreferredHashes(meta.Hashes) {
 			// Some of these will overlap with entries from the other Authenticators.
 			// The dispositions will be merged. In practice the zh's will be merged
 			// with SignedByGPGKeyIDs (if provided) and one of the h1's will be
