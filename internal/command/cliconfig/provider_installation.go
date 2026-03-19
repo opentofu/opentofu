@@ -210,7 +210,7 @@ func decodeProviderInstallationFromConfig(hclFile *hclast.File) ([]*ProviderInst
 					Include         []string `hcl:"include"`
 					Exclude         []string `hcl:"exclude"`
 					DownloadRetries *int     `hcl:"download_retry_count"`
-					Trusted         *bool    `hcl:"trust_all_hashes"`
+					Trusted         bool     `hcl:"trust_all_hashes"`
 				}
 				var bodyContent BodyContent
 				err := hcl.DecodeObject(&bodyContent, methodBody)
@@ -240,10 +240,7 @@ func decodeProviderInstallationFromConfig(hclFile *hclast.File) ([]*ProviderInst
 					return *bodyContent.DownloadRetries, true
 				}
 				trustedF = func() bool {
-					if bodyContent.Trusted == nil {
-						return false
-					}
-					return *bodyContent.Trusted
+					return bodyContent.Trusted
 				}
 			case "oci_mirror":
 				var moreDiags tfdiags.Diagnostics
