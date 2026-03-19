@@ -161,7 +161,7 @@ func (n *NodeValidatableResource) validateProvisioner(ctx context.Context, evalC
 		connVal, _, connDiags := n.evaluateBlock(ctx, evalCtx, p.Connection.Config, shared.ConnectionBlockSupersetSchema)
 		diags = diags.Append(connDiags)
 
-		if connVal == cty.NilVal {
+		if connVal == cty.NilVal || diags.HasErrors() {
 			return diags
 		}
 
