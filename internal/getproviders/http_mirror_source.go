@@ -220,7 +220,7 @@ func (s *HTTPMirrorSource) PackageMeta(ctx context.Context, provider addrs.Provi
 	// the package has no source-defined authentication whatsoever.
 	var hashes []Hash
 	for platform, meta := range bodyContent.Archives {
-		if s.locationConfig.TrustedSource || platform == target.String() {
+		if s.locationConfig.TrustAllHashes || platform == target.String() {
 			if len(meta.Hashes) > 0 {
 				for _, hashStr := range meta.Hashes {
 					hash, err := ParseHash(hashStr)
@@ -237,7 +237,7 @@ func (s *HTTPMirrorSource) PackageMeta(ctx context.Context, provider addrs.Provi
 		}
 	}
 	if len(hashes) > 0 {
-		ret.Authentication = NewPackageHashAuthentication(target, hashes, s.locationConfig.TrustedSource)
+		ret.Authentication = NewPackageHashAuthentication(target, hashes, s.locationConfig.TrustAllHashes)
 	}
 
 	return ret, nil

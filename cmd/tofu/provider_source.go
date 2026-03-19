@@ -306,7 +306,7 @@ func providerDevOverrides(configs []*cliconfig.ProviderInstallation) map[addrs.P
 // TF_PROVIDER_DOWNLOAD_RETRY env variable and is meant to be passed through
 // [getproviders.Source] all the way down to the [getproviders.PackageLocation]
 // to be able to tweak the configurations of the http clients used there.
-func providerSourceLocationConfig(locationRetries cliconfig.ProviderInstallationMethodRetries, trustedSource cliconfig.ProviderInstallationMethodTrusted) getproviders.LocationConfig {
+func providerSourceLocationConfig(locationRetries cliconfig.ProviderInstallationMethodRetries, trustAllHashes cliconfig.ProviderInstallationMethodTrusted) getproviders.LocationConfig {
 	// If there is no configuration for the retries in .tofurc, get the one from env variable
 	retries, configured := locationRetries()
 	if !configured {
@@ -314,7 +314,7 @@ func providerSourceLocationConfig(locationRetries cliconfig.ProviderInstallation
 	}
 	return getproviders.LocationConfig{
 		ProviderDownloadRetries: retries,
-		TrustedSource:           trustedSource != nil && trustedSource(),
+		TrustAllHashes:          trustAllHashes != nil && trustAllHashes(),
 	}
 }
 

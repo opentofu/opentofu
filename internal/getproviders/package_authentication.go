@@ -219,7 +219,7 @@ type packageHashAuthentication struct {
 	RequiredHashes []Hash
 	AllHashes      []Hash
 	Platform       Platform
-	TrustedSource  bool
+	TrustAllHashes bool
 }
 
 // NewPackageHashAuthentication returns a PackageAuthentication implementation
@@ -230,13 +230,13 @@ type packageHashAuthentication struct {
 // MatchesHash. The PreferredHashes function will select which of the given
 // hashes are considered by OpenTofu to be the strongest verification, and
 // authentication succeeds as long as one of those matches.
-func NewPackageHashAuthentication(platform Platform, validHashes []Hash, trustedSource bool) PackageAuthentication {
+func NewPackageHashAuthentication(platform Platform, validHashes []Hash, trustAllHashes bool) PackageAuthentication {
 	requiredHashes := PreferredHashes(validHashes)
 	return packageHashAuthentication{
 		RequiredHashes: requiredHashes,
 		AllHashes:      validHashes,
 		Platform:       platform,
-		TrustedSource:  trustedSource,
+		TrustAllHashes: trustAllHashes,
 	}
 }
 
@@ -260,7 +260,7 @@ func (a packageHashAuthentication) AuthenticatePackage(localLocation PackageLoca
 	}
 
 	if len(hashes) > 0 {
-		if a.TrustedSource {
+		if a.TrustAllHashes {
 			// The user has explicitly marked this source as trusted. We will add
 			// all of the reported hashes.
 			//

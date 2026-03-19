@@ -13,7 +13,7 @@
       "include": ["registry.opentofu.org/*/*"],
       "exclude": ["registry.OpenTofu.org/foobar/*"],
       "download_retry_count": 2,
-      "trusted_source": true
+      "trust_all_hashes": true
     }],
     "filesystem_mirror": [{
       "path": "/tmp/example2"

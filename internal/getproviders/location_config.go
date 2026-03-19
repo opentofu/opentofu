@@ -17,5 +17,5 @@ type LocationConfig struct {
 	// TODO - use this when we'll introduce per installation method configuration
 	ProviderDownloadTimeout time.Duration
 
-	TrustedSource bool
+	TrustAllHashes bool
 }

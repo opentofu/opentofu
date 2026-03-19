@@ -302,12 +302,12 @@ with no such configuration, the environment variable will be used instead.
 :::
 
 The `network_mirror` method supports an additional argument
-`trusted_source`. When set to `true`, any hashes the network mirror
+`trust_all_hashes`. When set to `true`, any hashes the network mirror
 reports will be included in the lockfile, similar to how registry hashes
 are handled.
 
 :::warning
-Only set `trusted_source=true` for mirrors that you have *complete trust* in
+Only set `trust_all_hashes=true` for mirrors that you have *complete trust* in
 as they can pollute the hashes for not just your machine/architecture, but all
 platforms reported.
 :::
@@ -316,9 +316,9 @@ platforms reported.
 provider_installation {
   network_mirror {
     # Our trusted intranet provider mirror
-    url            = "https://example.com/"
-    include        = ["example.com/*/*"]
-    trusted_source = true
+    url              = "https://example.com/"
+    include          = ["example.com/*/*"]
+    trust_all_hashes = true
   }
 }
 ```
