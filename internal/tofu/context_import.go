@@ -127,7 +127,7 @@ func (ri *ImportResolver) ValidateImportIDs(ctx context.Context, importTarget *I
 				Detail:   fmt.Sprintf("The provider for import target %q could not be determined. Please ensure the import block has a valid provider configuration.", importTarget.Config.StaticTo),
 				Subject:  importTarget.Config.Identity.Range().Ptr(),
 			})
-			return diags, cty.DynamicPseudoType
+			return cty.DynamicPseudoType, diags
 		}
 
 		schema, schemaDiags := getIdentitySchema(
@@ -140,9 +140,9 @@ func (ri *ImportResolver) ValidateImportIDs(ctx context.Context, importTarget *I
 			importTarget.Config.StaticTo.String())
 		diags = diags.Append(schemaDiags)
 		if diags.HasErrors() {
-			return diags, cty.DynamicPseudoType
+			return cty.DynamicPseudoType, diags
 		}
-		return diags, schema.SpecType()
+		return schema.SpecType(), diags
 	}
 
 	// The import block expressions are declared within the root module.
