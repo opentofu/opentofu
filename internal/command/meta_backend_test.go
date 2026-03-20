@@ -700,7 +700,7 @@ func TestMetaBackend_configuredUnchangedWithStaticEvalVars(t *testing.T) {
 	// fix to the original bug, discussed here:
 	//    https://github.com/opentofu/opentofu/issues/2118
 	t.Cleanup(
-		backendInit.RegisterTemp("_test_local", func(enc encryption.StateEncryption) backend.Backend {
+		backendInit.RegisterTemp("_test_local", func(args backend.InitArgs) backend.Backend {
 			return &backendInit.MockBackend{
 				ConfigSchemaFn: func() *configschema.Block {
 					// The following is based on a subset of the normal "local"
@@ -735,7 +735,7 @@ func TestMetaBackend_configuredUnchangedWithStaticEvalVars(t *testing.T) {
 					// just use the same filesystem-based implementation that
 					// the real local backend would use, but fixed to use our
 					// local-state.tfstate file from the test fixture.
-					return statemgr.NewFilesystem("local-state.tfstate", enc), nil
+					return statemgr.NewFilesystem("local-state.tfstate", args.StateEncryption), nil
 				},
 			}
 		}),

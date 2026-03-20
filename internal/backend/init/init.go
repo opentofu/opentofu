@@ -26,8 +26,8 @@ import (
 	backendOSS "github.com/opentofu/opentofu/internal/backend/remote-state/oss"
 	backendPg "github.com/opentofu/opentofu/internal/backend/remote-state/pg"
 	backendS3 "github.com/opentofu/opentofu/internal/backend/remote-state/s3"
+	"github.com/opentofu/opentofu/internal/backend/remote-state/state_store"
 	backendCloud "github.com/opentofu/opentofu/internal/cloud"
-	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -72,27 +72,27 @@ func Init(services *disco.Disco) {
 	// to the following table.
 
 	backends = map[string]backend.InitFn{
-		"local":  func(enc encryption.StateEncryption) backend.Backend { return backendLocal.New(enc) },
-		"remote": func(enc encryption.StateEncryption) backend.Backend { return backendRemote.New(services, enc) },
+		"local":  func(args backend.InitArgs) backend.Backend { return backendLocal.New(args.StateEncryption) },
+		"remote": func(args backend.InitArgs) backend.Backend { return backendRemote.New(services, args.StateEncryption) },
 
 		// Remote State backends.
-		"azurerm":    func(enc encryption.StateEncryption) backend.Backend { return backendAzure.New(enc) },
-		"consul":     func(enc encryption.StateEncryption) backend.Backend { return backendConsul.New(enc) },
-		"cos":        func(enc encryption.StateEncryption) backend.Backend { return backendCos.New(enc) },
-		"gcs":        func(enc encryption.StateEncryption) backend.Backend { return backendGCS.New(enc) },
-		"http":       func(enc encryption.StateEncryption) backend.Backend { return backendHTTP.New(enc) },
-		"inmem":      func(enc encryption.StateEncryption) backend.Backend { return backendInmem.New(enc) },
-		"kubernetes": func(enc encryption.StateEncryption) backend.Backend { return backendKubernetes.New(enc) },
-		"oss":        func(enc encryption.StateEncryption) backend.Backend { return backendOSS.New(enc) },
-		"pg":         func(enc encryption.StateEncryption) backend.Backend { return backendPg.New(enc) },
-		"s3":         func(enc encryption.StateEncryption) backend.Backend { return backendS3.New(enc) },
-		"state_store": func(enc encryption.StateEncryption) backend.Backend {
-			panic("THIS WILL BE REPLACED AT RUNTIME")
+		"azurerm":    func(args backend.InitArgs) backend.Backend { return backendAzure.New(args.StateEncryption) },
+		"consul":     func(args backend.InitArgs) backend.Backend { return backendConsul.New(args.StateEncryption) },
+		"cos":        func(args backend.InitArgs) backend.Backend { return backendCos.New(args.StateEncryption) },
+		"gcs":        func(args backend.InitArgs) backend.Backend { return backendGCS.New(args.StateEncryption) },
+		"http":       func(args backend.InitArgs) backend.Backend { return backendHTTP.New(args.StateEncryption) },
+		"inmem":      func(args backend.InitArgs) backend.Backend { return backendInmem.New(args.StateEncryption) },
+		"kubernetes": func(args backend.InitArgs) backend.Backend { return backendKubernetes.New(args.StateEncryption) },
+		"oss":        func(args backend.InitArgs) backend.Backend { return backendOSS.New(args.StateEncryption) },
+		"pg":         func(args backend.InitArgs) backend.Backend { return backendPg.New(args.StateEncryption) },
+		"s3":         func(args backend.InitArgs) backend.Backend { return backendS3.New(args.StateEncryption) },
+		"state_store": func(args backend.InitArgs) backend.Backend {
+			return state_store.New(args.StateEncryption, args.StateStorePlugins, args.StateStoreProvider, args.StateStoreType)
 		},
 
 		// Terraform Cloud 'backend'
 		// This is an implementation detail only, used for the cloud package
-		"cloud": func(enc encryption.StateEncryption) backend.Backend { return backendCloud.New(services, enc) },
+		"cloud": func(args backend.InitArgs) backend.Backend { return backendCloud.New(services, args.StateEncryption) },
 	}
 	backendAliases = map[string]string{
 		// There are currently no backend aliases

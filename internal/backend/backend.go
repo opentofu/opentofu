@@ -29,6 +29,7 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/planfile"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -55,8 +56,15 @@ var (
 	ErrWorkspacesNotSupported = errors.New("workspaces not supported")
 )
 
+type InitArgs struct {
+	StateEncryption    encryption.StateEncryption
+	StateStorePlugins  plugins.Library
+	StateStoreType     string
+	StateStoreProvider addrs.Provider
+}
+
 // InitFn is used to initialize a new backend.
-type InitFn func(encryption.StateEncryption) Backend
+type InitFn func(InitArgs) Backend
 
 // Backend is the minimal interface that must be implemented to enable OpenTofu.
 type Backend interface {

@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/zclconf/go-cty/cty"
@@ -533,7 +534,7 @@ func TestPlan_outBackend(t *testing.T) {
 	}
 	{
 		httpBackendInit, _ := backendinit.Backend("http")
-		httpBackend := httpBackendInit(encryption.StateEncryptionDisabled())
+		httpBackend := httpBackendInit(backend.InitArgs{StateEncryption: encryption.StateEncryptionDisabled()})
 		schema := httpBackend.ConfigSchema()
 		got, err := plan.Backend.Config.Decode(schema.ImpliedType())
 		if err != nil {

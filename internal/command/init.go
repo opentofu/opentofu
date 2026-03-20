@@ -23,7 +23,6 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
 	backendInit "github.com/opentofu/opentofu/internal/backend/init"
-	"github.com/opentofu/opentofu/internal/backend/remote-state/state_store"
 	"github.com/opentofu/opentofu/internal/cloud"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
@@ -449,17 +448,6 @@ func (c *InitCommand) initStateStore(ctx context.Context, root *configs.Module, 
 
 	backendConfig := root.StateStoreConfig.ToBackendConfig()
 
-	plugins, _ := c.pluginLibrary()
-	manager := plugins.NewProviderManager()
-
-	backendInit.Set("state_store", func(enc encryption.StateEncryption) backend.Backend {
-		b, diags := state_store.New(enc, manager, root.StateStoreConfig.Provider, root.StateStoreConfig.Type)
-		if diags.HasErrors() {
-			view.Diagnostics(diags)
-		}
-		return b
-	})
-
 	opts := &BackendOpts{
 		Config: &backendConfig,
 		Init:   true,
@@ -510,7 +498,11 @@ func (c *InitCommand) initBackend(ctx context.Context, root *configs.Module, ext
 			view.BackendTypeAlias(backendType, canonType)
 		}
 
-		b := bf(nil) // This is only used to get the schema, encryption should panic if attempted
+		b := bf(backend.InitArgs{
+			// This is only used to get the schema, encryption should panic if attempted.
+			StateEncryption: nil,
+			// We handle state store separately
+		})
 		backendSchema := b.ConfigSchema()
 		backendConfig = root.Backend
 

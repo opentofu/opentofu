@@ -126,8 +126,8 @@ type TestLocalSingleState struct {
 
 // TestNewLocalSingle is a factory for creating a TestLocalSingleState.
 // This function matches the signature required for backend/init.
-func TestNewLocalSingle(enc encryption.StateEncryption) backend.Backend {
-	return &TestLocalSingleState{Local: New(encryption.StateEncryptionDisabled())}
+func TestNewLocalSingle(args backend.InitArgs) backend.Backend {
+	return &TestLocalSingleState{Local: New(args.StateEncryption)}
 }
 
 func (b *TestLocalSingleState) Workspaces(context.Context) ([]string, error) {
@@ -156,8 +156,8 @@ type TestLocalNoDefaultState struct {
 
 // TestNewLocalNoDefault is a factory for creating a TestLocalNoDefaultState.
 // This function matches the signature required for backend/init.
-func TestNewLocalNoDefault(enc encryption.StateEncryption) backend.Backend {
-	return &TestLocalNoDefaultState{Local: New(encryption.StateEncryptionDisabled())}
+func TestNewLocalNoDefault(args backend.InitArgs) backend.Backend {
+	return &TestLocalNoDefaultState{Local: New(args.StateEncryption)}
 }
 
 func (b *TestLocalNoDefaultState) Workspaces(ctx context.Context) ([]string, error) {
