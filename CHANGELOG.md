@@ -13,6 +13,9 @@ UPGRADE NOTES:
 
     We have improved the OpenTofu registry to serve both `zh:value` and `h1:value` hashes, as well as instructing OpenTofu in how to integrate this data into its existing provider trust chain. Including these additional hashes will reduce friction in cross-platform environments. These and other related changes below should subsume the need to use `tofu providers lock` in most scenarios, simplifying many existing cross-platform workflows. For more information, see the [corresponding RFC](rfc/20251027-provider-registry-hashes.md) and [discussion](https://github.com/opentofu/opentofu/pull/3434)
 
+- The OpenTofu project is planning to stop providing official release packages for 32-bit CPU architectures (`*_386` and `*_arm` platforms) in a future release series.
+
+    We intend to continue producing packages for these platforms at least throughout the v1.12.x and v1.13.x series and so no immediate action is required, but if you are currently relying on our official packages for these platforms then we suggest that you begin planning to migrate to running OpenTofu on a 64-bit CPU architecture (`*_amd64` or `*_arm64` platforms).
 
 ENHANCEMENTS:
 
