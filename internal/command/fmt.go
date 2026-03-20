@@ -20,13 +20,10 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mitchellh/cli"
-
+	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-)
-
-const (
-	stdinArg = "-"
 )
 
 var (
@@ -43,89 +40,87 @@ var (
 // files to a canonical format and style.
 type FmtCommand struct {
 	Meta
-	list      bool
-	write     bool
-	diff      bool
-	check     bool
-	recursive bool
-	input     io.Reader // STDIN if nil
+	input io.Reader // STDIN if nil
 }
 
-func (c *FmtCommand) Run(args []string) int {
+func (c *FmtCommand) Run(rawArgs []string) int {
 	if c.input == nil {
 		c.input = os.Stdin
 	}
 
-	args = c.Meta.process(args)
-	cmdFlags := c.Meta.defaultFlagSet("fmt")
-	cmdFlags.BoolVar(&c.list, "list", true, "list")
-	cmdFlags.BoolVar(&c.write, "write", true, "write")
-	cmdFlags.BoolVar(&c.diff, "diff", false, "diff")
-	cmdFlags.BoolVar(&c.check, "check", false, "check")
-	cmdFlags.BoolVar(&c.recursive, "recursive", false, "recursive")
-	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
-	if err := cmdFlags.Parse(args); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing command-line flags: %s\n", err.Error()))
-		return 1
-	}
+	// new view
+	common, rawArgs := arguments.ParseView(rawArgs)
+	c.View.Configure(common)
+	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
+	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
+	c.View.DiagsWithNewline()
 
-	args = cmdFlags.Args()
+	// Propagate -no-color for legacy use of Ui. The remote backend and
+	// cloud package use this; it should be removed when/if they are
+	// migrated to views.
+	c.Meta.color = !common.NoColor
+	c.Meta.Color = c.Meta.color
 
-	var paths []string
-	if len(args) == 0 {
-		paths = []string{"."}
-	} else if args[0] == stdinArg {
-		c.list = false
-		c.write = false
-	} else {
-		paths = args
+	// Parse and validate flags
+	args, closer, diags := arguments.ParseFmt(rawArgs)
+	defer closer()
+
+	// Instantiate the view, even if there are flag errors, so that we render
+	// diagnostics according to the desired view
+	view := views.NewFmt(c.View)
+	// ... and initialise the Meta.Ui to wrap Meta.View into a new implementation
+	// that is able to print by using View abstraction and use the Meta.Ui
+	// to ask for the user input.
+	c.Meta.configureUiFromView(args.ViewOptions)
+
+	if diags.HasErrors() {
+		view.Diagnostics(diags)
+		return cli.RunResultHelp
 	}
 
 	var output io.Writer
-	list := c.list // preserve the original value of -list
-	if c.check {
+	list := args.List // preserve the original value of -list
+	if args.Check {
 		// set to true so we can use the list output to check
 		// if the input needs formatting
-		c.list = true
-		c.write = false
+		args.List = true
+		args.Write = false
 		output = &bytes.Buffer{}
 	} else {
-		output = &cli.UiWriter{Ui: c.Ui}
+		output = view.UserOutputWriter()
 	}
 
-	diags := c.fmt(paths, c.input, output)
-	c.showDiagnostics(diags)
+	diags = diags.Append(c.fmt(args.Paths, c.input, output, *args))
+	view.Diagnostics(diags)
 	if diags.HasErrors() {
 		return 2
 	}
 
-	if c.check {
+	if args.Check {
 		buf := output.(*bytes.Buffer)
 		ok := buf.Len() == 0
 		if list {
-			if _, err := io.Copy(&cli.UiWriter{Ui: c.Ui}, buf); err != nil {
+			if _, err := io.Copy(view.UserOutputWriter(), buf); err != nil {
 				log.Printf("[ERROR] Unable to write UI output: %s", err)
 			}
 		}
-		if ok {
-			return 0
-		} else {
+		if !ok {
 			return 3
 		}
+		return 0
 	}
-
 	return 0
 }
 
-func (c *FmtCommand) fmt(paths []string, stdin io.Reader, stdout io.Writer) tfdiags.Diagnostics {
+func (c *FmtCommand) fmt(paths []string, stdin io.Reader, stdout io.Writer, args arguments.Fmt) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	if len(paths) == 0 { // Assuming stdin, then.
-		if c.write {
+		if args.Write {
 			diags = diags.Append(fmt.Errorf("Option -write cannot be used when reading from stdin"))
 			return diags
 		}
-		fileDiags := c.processFile("<stdin>", stdin, stdout, true)
+		fileDiags := c.processFile("<stdin>", stdin, stdout, args)
 		diags = diags.Append(fileDiags)
 		return diags
 	}
@@ -138,7 +133,7 @@ func (c *FmtCommand) fmt(paths []string, stdin io.Reader, stdout io.Writer) tfdi
 			return diags
 		}
 		if info.IsDir() {
-			dirDiags := c.processDir(path, stdout)
+			dirDiags := c.processDir(path, stdout, args)
 			diags = diags.Append(dirDiags)
 		} else {
 			fmtd := false
@@ -152,9 +147,9 @@ func (c *FmtCommand) fmt(paths []string, stdin io.Reader, stdout io.Writer) tfdi
 						continue
 					}
 
-					fileDiags := c.processFile(c.Meta.WorkingDir.NormalizePath(path), f, stdout, false)
+					fileDiags := c.processFile(c.Meta.WorkingDir.NormalizePath(path), f, stdout, args)
 					diags = diags.Append(fileDiags)
-					f.Close()
+					_ = f.Close()
 
 					// Take note that we processed the file.
 					fmtd = true
@@ -174,7 +169,7 @@ func (c *FmtCommand) fmt(paths []string, stdin io.Reader, stdout io.Writer) tfdi
 	return diags
 }
 
-func (c *FmtCommand) processFile(path string, r io.Reader, w io.Writer, isStdout bool) tfdiags.Diagnostics {
+func (c *FmtCommand) processFile(path string, r io.Reader, w io.Writer, args arguments.Fmt) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	log.Printf("[TRACE] tofu fmt: Formatting %s", path)
@@ -202,17 +197,17 @@ func (c *FmtCommand) processFile(path string, r io.Reader, w io.Writer, isStdout
 
 	if !bytes.Equal(src, result) {
 		// Something was changed
-		if c.list {
-			fmt.Fprintln(w, path)
+		if args.List {
+			_, _ = fmt.Fprintln(w, path)
 		}
-		if c.write {
+		if args.Write {
 			err := os.WriteFile(path, result, 0644)
 			if err != nil {
 				diags = diags.Append(fmt.Errorf("Failed to write %s", path))
 				return diags
 			}
 		}
-		if c.diff {
+		if args.Diff {
 			diff, err := bytesDiff(src, result, path)
 			if err != nil {
 				diags = diags.Append(fmt.Errorf("Failed to generate diff for %s: %w", path, err))
@@ -224,7 +219,7 @@ func (c *FmtCommand) processFile(path string, r io.Reader, w io.Writer, isStdout
 		}
 	}
 
-	if !c.list && !c.write && !c.diff {
+	if !args.List && !args.Write && !args.Diff {
 		_, err = w.Write(result)
 		if err != nil {
 			diags = diags.Append(fmt.Errorf("Failed to write result"))
@@ -234,7 +229,7 @@ func (c *FmtCommand) processFile(path string, r io.Reader, w io.Writer, isStdout
 	return diags
 }
 
-func (c *FmtCommand) processDir(path string, stdout io.Writer) tfdiags.Diagnostics {
+func (c *FmtCommand) processDir(path string, stdout io.Writer, args arguments.Fmt) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	log.Printf("[TRACE] tofu fmt: looking for files in %s", path)
@@ -259,8 +254,8 @@ func (c *FmtCommand) processDir(path string, stdout io.Writer) tfdiags.Diagnosti
 		}
 		subPath := filepath.Join(path, name)
 		if info.IsDir() {
-			if c.recursive {
-				subDiags := c.processDir(subPath, stdout)
+			if args.Recursive {
+				subDiags := c.processDir(subPath, stdout, args)
 				diags = diags.Append(subDiags)
 			}
 
@@ -280,9 +275,9 @@ func (c *FmtCommand) processDir(path string, stdout io.Writer) tfdiags.Diagnosti
 					continue
 				}
 
-				fileDiags := c.processFile(c.Meta.WorkingDir.NormalizePath(subPath), f, stdout, false)
+				fileDiags := c.processFile(c.Meta.WorkingDir.NormalizePath(subPath), f, stdout, args)
 				diags = diags.Append(fileDiags)
-				f.Close()
+				_ = f.Close()
 
 				// Don't need to check the remaining extensions.
 				break
@@ -297,7 +292,7 @@ func (c *FmtCommand) processDir(path string, stdout io.Writer) tfdiags.Diagnosti
 // is selected (directly or indirectly) on the command line.
 func (c *FmtCommand) formatSourceCode(src []byte, filename string) []byte {
 	f, diags := hclwrite.ParseConfig(src, filename, hcl.InitialPos)
-	if diags.HasErrors() {
+	if diags.HasErrors() || f == nil { // ensure that f is not nil to avoid possible nil pointer dereference later
 		// It would be weird to get here because the caller should already have
 		// checked for syntax errors and returned them. We'll just do nothing
 		// in this case, returning the input exactly as given.

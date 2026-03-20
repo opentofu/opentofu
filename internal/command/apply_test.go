@@ -21,6 +21,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/zclconf/go-cty/cty"
 
@@ -339,7 +340,7 @@ func TestApply_parallelism(t *testing.T) {
 	// here. They will all have the same mock implementation function assigned
 	// but crucially they will each have their own mutex.
 	providerFactories := map[addrs.Provider]providers.Factory{}
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		name := fmt.Sprintf("test%d", i)
 		provider := &tofu.MockProvider{}
 		provider.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
@@ -442,7 +443,7 @@ func TestApply_defaultState(t *testing.T) {
 	testCopyDir(t, testFixturePath("apply"), td)
 	t.Chdir(td)
 
-	statePath := filepath.Join(td, DefaultStateFilename)
+	statePath := filepath.Join(td, arguments.DefaultStateFilename)
 
 	p := applyFixtureProvider()
 	view, done := testView(t)
@@ -821,7 +822,7 @@ func TestApply_plan_remoteState(t *testing.T) {
 	test = false
 	defer func() { test = true }()
 	tmp := testCwdTemp(t)
-	remoteStatePath := filepath.Join(tmp, workdir.DefaultDataDir, DefaultStateFilename)
+	remoteStatePath := filepath.Join(tmp, workdir.DefaultDataDir, arguments.DefaultStateFilename)
 	if err := os.MkdirAll(filepath.Dir(remoteStatePath), 0755); err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -886,8 +887,8 @@ func TestApply_plan_remoteState(t *testing.T) {
 	}
 
 	// State file should be not be installed
-	if _, err := os.Stat(filepath.Join(tmp, DefaultStateFilename)); err == nil {
-		data, _ := os.ReadFile(DefaultStateFilename)
+	if _, err := os.Stat(filepath.Join(tmp, arguments.DefaultStateFilename)); err == nil {
+		data, _ := os.ReadFile(arguments.DefaultStateFilename)
 		t.Fatalf("State path should not exist: %s", string(data))
 	}
 
@@ -1849,30 +1850,34 @@ func TestApply_tfWorkspaceNonDefault(t *testing.T) {
 
 	// Create new env
 	{
-		ui := new(cli.MockUi)
+		wsView, wsDone := testView(t)
 		newCmd := &WorkspaceNewCommand{
 			Meta: Meta{
 				WorkingDir: workdir.NewDir("."),
-				Ui:         ui,
+				View:       wsView,
 			},
 		}
-		if code := newCmd.Run([]string{"test"}); code != 0 {
-			t.Fatal("error creating workspace")
+		code := newCmd.Run([]string{"test"})
+		output := wsDone(t)
+		if code != 0 {
+			t.Fatalf("error creating workspace: %s", output.All())
 		}
 	}
 
 	// Switch to it
 	{
 		args := []string{"test"}
-		ui := new(cli.MockUi)
+		wsView, wsDone := testView(t)
 		selCmd := &WorkspaceSelectCommand{
 			Meta: Meta{
 				WorkingDir: workdir.NewDir("."),
-				Ui:         ui,
+				View:       wsView,
 			},
 		}
-		if code := selCmd.Run(args); code != 0 {
-			t.Fatal("error switching workspace")
+		code := selCmd.Run(args)
+		output := wsDone(t)
+		if code != 0 {
+			t.Fatalf("error switching workspace: %s", output.All())
 		}
 	}
 
@@ -1914,30 +1919,33 @@ func TestApply_tofuWorkspaceNonDefault(t *testing.T) {
 
 	// Create new env
 	{
-		ui := new(cli.MockUi)
+		wsView, wsDone := testView(t)
 		newCmd := &WorkspaceNewCommand{
 			Meta: Meta{
 				WorkingDir: workdir.NewDir("."),
-				Ui:         ui,
+				View:       wsView,
 			},
 		}
-		if code := newCmd.Run([]string{"test"}); code != 0 {
-			t.Fatal("error creating workspace")
+		code := newCmd.Run([]string{"test"})
+		output := wsDone(t)
+		if code != 0 {
+			t.Fatalf("error creating workspace: %s", output.All())
 		}
 	}
 
 	// Switch to it
 	{
-		args := []string{"test"}
-		ui := new(cli.MockUi)
+		wsView, wsDone := testView(t)
 		selCmd := &WorkspaceSelectCommand{
 			Meta: Meta{
 				WorkingDir: workdir.NewDir("."),
-				Ui:         ui,
+				View:       wsView,
 			},
 		}
-		if code := selCmd.Run(args); code != 0 {
-			t.Fatal("error switching workspace")
+		code := selCmd.Run([]string{"test"})
+		output := wsDone(t)
+		if code != 0 {
+			t.Fatalf("error switching workspace: %s", output.All())
 		}
 	}
 

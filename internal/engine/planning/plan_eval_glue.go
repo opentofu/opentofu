@@ -16,7 +16,6 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/collections"
 	"github.com/opentofu/opentofu/internal/lang/eval"
-	"github.com/opentofu/opentofu/internal/plans/objchange"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -300,31 +299,6 @@ func (p *planGlue) desiredResourceInstanceMustBeDeferred(inst *eval.DesiredResou
 	return inst.IsPlaceholder() || inst.ProviderInstance == nil || derivedFromDeferredVal(inst.ConfigVal)
 }
 
-func (p *planGlue) resourceInstancePlaceholderValue(ctx context.Context, providerAddr addrs.Provider, resourceMode addrs.ResourceMode, resourceType string, priorVal, configVal cty.Value) cty.Value {
-	evalCtx := p.oracle.EvalContext(ctx)
-	schema, diags := evalCtx.Providers.ResourceTypeSchema(ctx, providerAddr, resourceMode, resourceType)
-	if diags.HasErrors() {
-		// If we can't get any schema information then we'll just return
-		// a completely-unknown object as our placeholder. We should get here
-		// only if the eval system already failed to use the provider to decode
-		// or validate the configuration, and so it should already have reported
-		// a related error upstream.
-		return cty.DynamicVal
-	}
-
-	if configVal.IsNull() {
-		return cty.NullVal(schema.Block.ImpliedType().WithoutOptionalAttributesDeep())
-	}
-	if !configVal.IsKnown() {
-		return cty.UnknownVal(schema.Block.ImpliedType().WithoutOptionalAttributesDeep())
-	}
-	return objchange.ProposedNew(
-		schema.Block,
-		priorVal,
-		configVal,
-	)
-}
-
 // resourceInstancesFilter returns a sequence of resource instances from the
 // given state whose addresses caused the "want" function to return true.
 //
@@ -355,7 +329,7 @@ func resourceInstancesFilter(state *states.State, want func(addrs.AbsResourceIns
 					// a temporary situation while we're operating in a mixed
 					// world where most of the system doesn't know about the
 					// new runtime yet.
-					objState := state.SyncWrapper().ResourceInstanceObjectFull(instAddr, states.NotDeposed)
+					objState := state.SyncWrapper().ResourceInstanceObjectFull(instAddr.CurrentObject())
 					if objState == nil {
 						// If we get here then there's a bug in the
 						// ResourceInstanceObjectFull function, because we

@@ -26,9 +26,6 @@ const pluginMachineName = runtime.GOOS + "_" + runtime.GOARCH
 // exists, it is never created by tofu.
 const DefaultPluginVendorDir = "terraform.d/plugins/" + pluginMachineName
 
-// DefaultStateFilename is the default filename used for the state file.
-const DefaultStateFilename = "terraform.tfstate"
-
 // DefaultVarsExtension is the default file extension used for vars
 const DefaultVarsExtension = ".tfvars"
 

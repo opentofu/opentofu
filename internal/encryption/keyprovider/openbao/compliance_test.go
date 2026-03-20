@@ -110,6 +110,118 @@ func TestKeyProvider(t *testing.T) {
 					ValidBuild: true,
 				},
 			},
+			JSONParseTestCases: map[string]compliancetest.JSONParseTestCase[*Config, *keyProvider]{
+				"success": {
+					JSON: fmt.Sprintf(`{
+	"key_provider": {
+		"openbao": {
+			"foo": {
+				"key_name": "%s"
+			}
+		}
+	}
+}`, testKeyName),
+					ValidJSON:  true,
+					ValidBuild: true,
+				},
+				"success-full-creds": {
+					JSON: fmt.Sprintf(`{
+	"key_provider": {
+		"openbao": {
+			"foo": {
+				"key_name": "%s",
+				"token": "s.dummytoken",
+				"address": "http://127.0.0.1:8201"
+			}
+		}
+	}
+}`, testKeyName),
+					ValidJSON:  true,
+					ValidBuild: true,
+				},
+				"empty": {
+					JSON: `{
+	"key_provider": {
+		"openbao": {
+			"foo": {
+			}
+		}
+	}
+}`,
+					ValidJSON:  false,
+					ValidBuild: false,
+				},
+				"empty-key-name": {
+					JSON: `{
+	"key_provider": {
+		"openbao": {
+			"foo": {
+				"key_name": ""
+			}
+		}
+	}
+}`,
+					ValidJSON:  true,
+					ValidBuild: false,
+				},
+				"invalid-key-length": {
+					JSON: fmt.Sprintf(`{
+	"key_provider": {
+		"openbao": {
+			"foo": {
+				"key_name": "%s",
+				"key_length": 17
+			}
+		}
+	}
+}`, testKeyName),
+					ValidJSON:  true,
+					ValidBuild: false,
+				},
+				"no-key-name": {
+					JSON: `{
+	"key_provider": {
+		"openbao": {
+			"foo": {
+				"key_length": 16
+			}
+		}
+	}
+}`,
+					ValidJSON:  false,
+					ValidBuild: false,
+				},
+				"unknown-property": {
+					JSON: fmt.Sprintf(`{
+	"key_provider": {
+		"openbao": {
+			"foo": {
+				"key_name": "%s",
+				"key_length": 16,
+				"unknown_property": "foo"
+			}
+		}
+	}
+}`, testKeyName),
+					ValidJSON:  false,
+					ValidBuild: false,
+				},
+				"transit-path": {
+					JSON: fmt.Sprintf(`{
+	"key_provider": {
+		"openbao": {
+			"foo": {
+				"key_name": "%s",
+				"key_length": 16,
+				"transit_engine_path": "foo"
+			}
+		}
+	}
+}`, testKeyName),
+					ValidJSON:  true,
+					ValidBuild: true,
+				},
+			},
 			ConfigStructTestCases: map[string]compliancetest.ConfigStructTestCase[*Config, *keyProvider]{
 				"success": {
 					Config: &Config{
@@ -199,7 +311,7 @@ func prepareClientMockForKeyProviderTest(t *testing.T, testKeyName string) mockC
 	generateDataKeyPath := fmt.Sprintf("/transit/datakey/plaintext/%s", escapedTestKeyName)
 	decryptPath := fmt.Sprintf("/transit/decrypt/%s", escapedTestKeyName)
 
-	return func(ctx context.Context, path string, data map[string]interface{}) (*openbao.Secret, error) {
+	return func(ctx context.Context, path string, data map[string]any) (*openbao.Secret, error) {
 		switch path {
 		case generateDataKeyPath:
 			bits, ok := data["bits"].(int)
@@ -213,7 +325,7 @@ func prepareClientMockForKeyProviderTest(t *testing.T, testKeyName string) mockC
 			}
 
 			s := &openbao.Secret{
-				Data: map[string]interface{}{
+				Data: map[string]any{
 					"plaintext":  base64.StdEncoding.EncodeToString(plaintext),
 					"ciphertext": string(append([]byte(testKeyName), plaintext...)),
 				},
@@ -230,7 +342,7 @@ func prepareClientMockForKeyProviderTest(t *testing.T, testKeyName string) mockC
 			plaintext := []byte(ciphertext[len(testKeyName):])
 
 			s := &openbao.Secret{
-				Data: map[string]interface{}{
+				Data: map[string]any{
 					"plaintext": base64.StdEncoding.EncodeToString(plaintext),
 				},
 			}

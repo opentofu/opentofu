@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -39,12 +39,10 @@ func TestTaint(t *testing.T) {
 	})
 	statePath := testStateFile(t, state)
 
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &TaintCommand{
 		Meta: Meta{
 			WorkingDir: workdir.NewDir("."),
-			Ui:         ui,
 			View:       view,
 		},
 	}
@@ -53,8 +51,10 @@ func TestTaint(t *testing.T) {
 		"-state", statePath,
 		"test_instance.foo",
 	}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
 	}
 
 	testStateOutput(t, statePath, testTaintStr)
@@ -86,12 +86,10 @@ func TestTaint_lockedState(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer unlock()
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &TaintCommand{
 		Meta: Meta{
 			WorkingDir: workdir.NewDir("."),
-			Ui:         ui,
 			View:       view,
 		},
 	}
@@ -100,13 +98,15 @@ func TestTaint_lockedState(t *testing.T) {
 		"-state", statePath,
 		"test_instance.foo",
 	}
-	if code := c.Run(args); code == 0 {
+	code := c.Run(args)
+	output := done(t)
+	if code == 0 {
 		t.Fatal("expected error")
 	}
 
-	output := ui.ErrorWriter.String()
-	if !strings.Contains(output, "lock") {
-		t.Fatal("command output does not look like a lock error:", output)
+	stderr := output.Stderr()
+	if !strings.Contains(stderr, "lock") {
+		t.Fatal("command output does not look like a lock error:", stderr)
 	}
 }
 
@@ -135,12 +135,10 @@ func TestTaint_backup(t *testing.T) {
 	})
 	testStateFileDefault(t, state)
 
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &TaintCommand{
 		Meta: Meta{
 			WorkingDir: workdir.NewDir("."),
-			Ui:         ui,
 			View:       view,
 		},
 	}
@@ -148,12 +146,14 @@ func TestTaint_backup(t *testing.T) {
 	args := []string{
 		"test_instance.foo",
 	}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
 	}
 
-	testStateOutput(t, DefaultStateFilename+".backup", testTaintDefaultStr)
-	testStateOutput(t, DefaultStateFilename, testTaintStr)
+	testStateOutput(t, arguments.DefaultStateFilename+".backup", testTaintDefaultStr)
+	testStateOutput(t, arguments.DefaultStateFilename, testTaintStr)
 }
 
 func TestTaint_backupDisable(t *testing.T) {
@@ -181,12 +181,10 @@ func TestTaint_backupDisable(t *testing.T) {
 	})
 	testStateFileDefault(t, state)
 
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &TaintCommand{
 		Meta: Meta{
 			WorkingDir: workdir.NewDir("."),
-			Ui:         ui,
 			View:       view,
 		},
 	}
@@ -195,34 +193,36 @@ func TestTaint_backupDisable(t *testing.T) {
 		"-backup", "-",
 		"test_instance.foo",
 	}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
 	}
 
-	if _, err := os.Stat(DefaultStateFilename + ".backup"); err == nil {
+	if _, err := os.Stat(arguments.DefaultStateFilename + ".backup"); err == nil {
 		t.Fatal("backup path should not exist")
 	}
 
-	testStateOutput(t, DefaultStateFilename, testTaintStr)
+	testStateOutput(t, arguments.DefaultStateFilename, testTaintStr)
 }
 
 func TestTaint_badState(t *testing.T) {
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &TaintCommand{
 		Meta: Meta{
 			WorkingDir: workdir.NewDir("."),
-			Ui:         ui,
 			View:       view,
 		},
 	}
 
 	args := []string{
 		"-state", "i-should-not-exist-ever",
-		"foo",
+		"foo.bar",
 	}
-	if code := c.Run(args); code != 1 {
-		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 1 {
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
 	}
 }
 
@@ -251,12 +251,10 @@ func TestTaint_defaultState(t *testing.T) {
 	})
 	testStateFileDefault(t, state)
 
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &TaintCommand{
 		Meta: Meta{
 			WorkingDir: workdir.NewDir("."),
-			Ui:         ui,
 			View:       view,
 		},
 	}
@@ -264,11 +262,13 @@ func TestTaint_defaultState(t *testing.T) {
 	args := []string{
 		"test_instance.foo",
 	}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
 	}
 
-	testStateOutput(t, DefaultStateFilename, testTaintStr)
+	testStateOutput(t, arguments.DefaultStateFilename, testTaintStr)
 }
 
 func TestTaint_defaultWorkspaceState(t *testing.T) {
@@ -296,11 +296,9 @@ func TestTaint_defaultWorkspaceState(t *testing.T) {
 	testWorkspace := "development"
 	path := testStateFileWorkspaceDefault(t, testWorkspace, state)
 
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	meta := Meta{
 		WorkingDir: workdir.NewDir("."),
-		Ui:         ui,
 		View:       view,
 	}
 	if err := meta.SetWorkspace(testWorkspace); err != nil {
@@ -313,8 +311,10 @@ func TestTaint_defaultWorkspaceState(t *testing.T) {
 	args := []string{
 		"test_instance.foo",
 	}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
 	}
 
 	testStateOutput(t, path, testTaintStr)
@@ -341,12 +341,10 @@ func TestTaint_missing(t *testing.T) {
 	})
 	statePath := testStateFile(t, state)
 
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &TaintCommand{
 		Meta: Meta{
 			WorkingDir: workdir.NewDir("."),
-			Ui:         ui,
 			View:       view,
 		},
 	}
@@ -355,8 +353,10 @@ func TestTaint_missing(t *testing.T) {
 		"-state", statePath,
 		"test_instance.bar",
 	}
-	if code := c.Run(args); code == 0 {
-		t.Fatalf("bad: %d\n\n%s", code, ui.OutputWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code == 0 {
+		t.Fatalf("bad: %d\n\n%s", code, output.All())
 	}
 }
 
@@ -381,27 +381,28 @@ func TestTaint_missingAllow(t *testing.T) {
 	})
 	statePath := testStateFile(t, state)
 
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &TaintCommand{
 		Meta: Meta{
 			WorkingDir: workdir.NewDir("."),
-			Ui:         ui,
 			View:       view,
 		},
 	}
 
 	args := []string{
+		"-no-color",
 		"-allow-missing",
 		"-state", statePath,
 		"test_instance.bar",
 	}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
 	}
 
 	// Check for the warning
-	actual := strings.TrimSpace(ui.ErrorWriter.String())
+	actual := strings.TrimSpace(output.Stdout())
 	expected := strings.TrimSpace(`
 Warning: No such resource instance
 
@@ -439,12 +440,10 @@ func TestTaint_stateOut(t *testing.T) {
 	})
 	testStateFileDefault(t, state)
 
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &TaintCommand{
 		Meta: Meta{
 			WorkingDir: workdir.NewDir("."),
-			Ui:         ui,
 			View:       view,
 		},
 	}
@@ -453,11 +452,13 @@ func TestTaint_stateOut(t *testing.T) {
 		"-state-out", "foo",
 		"test_instance.foo",
 	}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
 	}
 
-	testStateOutput(t, DefaultStateFilename, testTaintDefaultStr)
+	testStateOutput(t, arguments.DefaultStateFilename, testTaintDefaultStr)
 	testStateOutput(t, "foo", testTaintStr)
 }
 
@@ -498,12 +499,10 @@ func TestTaint_module(t *testing.T) {
 	})
 	statePath := testStateFile(t, state)
 
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &TaintCommand{
 		Meta: Meta{
 			WorkingDir: workdir.NewDir("."),
-			Ui:         ui,
 			View:       view,
 		},
 	}
@@ -512,8 +511,10 @@ func TestTaint_module(t *testing.T) {
 		"-state", statePath,
 		"module.child.test_instance.blah",
 	}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
 	}
 
 	testStateOutput(t, statePath, testTaintModuleStr)
@@ -546,27 +547,27 @@ func TestTaint_checkRequiredVersion(t *testing.T) {
 	})
 	path := testStateFile(t, state)
 
-	ui := cli.NewMockUi()
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &TaintCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
-			Ui:               ui,
 			View:             view,
 		},
 	}
 
 	args := []string{"test_instance.foo"}
-	if code := c.Run(args); code != 1 {
-		t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, ui.ErrorWriter.String(), ui.OutputWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 1 {
+		t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, output.Stderr(), output.All())
 	}
 
 	// State is unchanged
 	testStateOutput(t, path, testTaintDefaultStr)
 
 	// Required version diags are correct
-	errStr := ui.ErrorWriter.String()
+	errStr := output.Stderr()
 	if !strings.Contains(errStr, `required_version = "~> 0.9.0"`) {
 		t.Fatalf("output should point to unmet version constraint, but is:\n\n%s", errStr)
 	}

@@ -9,24 +9,24 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 )
 
 func TestProviders(t *testing.T) {
 	t.Chdir(testFixturePath("providers/basic"))
 
-	ui := new(cli.MockUi)
+	view, done := testView(t)
 	c := &ProvidersCommand{
 		Meta: Meta{
 			WorkingDir: workdir.NewDir("."),
-			Ui:         ui,
+			View:       view,
 		},
 	}
 
-	args := []string{}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
+	code := c.Run(nil)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
 	}
 
 	wantOutput := []string{
@@ -35,10 +35,10 @@ func TestProviders(t *testing.T) {
 		"provider[registry.opentofu.org/hashicorp/baz]",
 	}
 
-	output := ui.OutputWriter.String()
+	stdout := output.Stdout()
 	for _, want := range wantOutput {
-		if !strings.Contains(output, want) {
-			t.Errorf("output missing %s:\n%s", want, output)
+		if !strings.Contains(stdout, want) {
+			t.Errorf("output missing %s:\n%s", want, stdout)
 		}
 	}
 }
@@ -46,24 +46,25 @@ func TestProviders(t *testing.T) {
 func TestProviders_noConfigs(t *testing.T) {
 	t.Chdir(testFixturePath(""))
 
-	ui := new(cli.MockUi)
+	view, done := testView(t)
 	c := &ProvidersCommand{
 		Meta: Meta{
 			WorkingDir: workdir.NewDir("."),
-			Ui:         ui,
+			View:       view,
 		},
 	}
 
-	args := []string{}
-	if code := c.Run(args); code == 0 {
+	code := c.Run(nil)
+	output := done(t)
+	if code == 0 {
 		t.Fatal("expected command to return non-zero exit code" +
 			" when no configs are available")
 	}
 
-	output := ui.ErrorWriter.String()
+	stderr := output.Stderr()
 	expectedErrMsg := "No configuration files"
-	if !strings.Contains(output, expectedErrMsg) {
-		t.Errorf("Expected error message: %s\nGiven output: %s", expectedErrMsg, output)
+	if !strings.Contains(stderr, expectedErrMsg) {
+		t.Errorf("Expected error message: %s\nGiven output: %s", expectedErrMsg, stderr)
 	}
 }
 
@@ -73,40 +74,41 @@ func TestProviders_modules(t *testing.T) {
 	t.Chdir(td)
 
 	// first run init with mock provider sources to install the module
-	providerSource, close := newMockProviderSource(t, map[string][]string{
+	providerSource, closer := newMockProviderSource(t, map[string][]string{
 		"foo": {"1.0.0"},
 		"bar": {"2.0.0"},
 		"baz": {"1.2.2"},
 	})
-	defer close()
-	view, done := testView(t)
+	defer closer()
+	initView, initDone := testView(t)
 	initMeta := Meta{
 		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: metaOverridesForProvider(testProvider()),
-		View:             view,
+		View:             initView,
 		ProviderSource:   providerSource,
 	}
 	ic := &InitCommand{
 		Meta: initMeta,
 	}
-	code := ic.Run([]string{})
-	output := done(t)
+	code := ic.Run(nil)
+	initOutput := initDone(t)
 	if code != 0 {
-		t.Fatalf("init failed\n%s", output.Stderr())
+		t.Fatalf("init failed\n%s", initOutput.Stderr())
 	}
 
 	// Providers command
-	ui := new(cli.MockUi)
+	view, done := testView(t)
 	c := &ProvidersCommand{
 		Meta: Meta{
 			WorkingDir: workdir.NewDir("."),
-			Ui:         ui,
+			View:       view,
 		},
 	}
 
-	args := []string{}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
+	code = c.Run(nil)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
 	}
 
 	wantOutput := []string{
@@ -116,7 +118,7 @@ func TestProviders_modules(t *testing.T) {
 		"provider[registry.opentofu.org/hashicorp/baz]", // implied by a resource in the child module
 	}
 
-	stdout := ui.OutputWriter.String()
+	stdout := output.Stdout()
 	for _, want := range wantOutput {
 		if !strings.Contains(stdout, want) {
 			t.Errorf("output missing %s:\n%s", want, stdout)
@@ -127,17 +129,18 @@ func TestProviders_modules(t *testing.T) {
 func TestProviders_state(t *testing.T) {
 	t.Chdir(testFixturePath("providers/state"))
 
-	ui := new(cli.MockUi)
+	view, done := testView(t)
 	c := &ProvidersCommand{
 		Meta: Meta{
 			WorkingDir: workdir.NewDir("."),
-			Ui:         ui,
+			View:       view,
 		},
 	}
 
-	args := []string{}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
+	code := c.Run(nil)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
 	}
 
 	wantOutput := []string{
@@ -147,10 +150,10 @@ func TestProviders_state(t *testing.T) {
 		"provider[registry.opentofu.org/hashicorp/baz]",       // from a resource in state (only)
 	}
 
-	output := ui.OutputWriter.String()
+	stdout := output.Stdout()
 	for _, want := range wantOutput {
-		if !strings.Contains(output, want) {
-			t.Errorf("output missing %s:\n%s", want, output)
+		if !strings.Contains(stdout, want) {
+			t.Errorf("output missing %s:\n%s", want, stdout)
 		}
 	}
 }
@@ -158,17 +161,18 @@ func TestProviders_state(t *testing.T) {
 func TestProviders_tests(t *testing.T) {
 	t.Chdir(testFixturePath("providers/tests"))
 
-	ui := new(cli.MockUi)
+	view, done := testView(t)
 	c := &ProvidersCommand{
 		Meta: Meta{
 			WorkingDir: workdir.NewDir("."),
-			Ui:         ui,
+			View:       view,
 		},
 	}
 
-	args := []string{}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
+	code := c.Run(nil)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
 	}
 
 	wantOutput := []string{
@@ -177,10 +181,10 @@ func TestProviders_tests(t *testing.T) {
 		"provider[registry.opentofu.org/hashicorp/bar]",
 	}
 
-	output := ui.OutputWriter.String()
+	stdout := output.Stdout()
 	for _, want := range wantOutput {
-		if !strings.Contains(output, want) {
-			t.Errorf("output missing %s:\n%s", want, output)
+		if !strings.Contains(stdout, want) {
+			t.Errorf("output missing %s:\n%s", want, stdout)
 		}
 	}
 }

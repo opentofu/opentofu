@@ -38,10 +38,11 @@ func (p ModulePackage) String() string {
 	return string(p)
 }
 
-// A ModuleRegistryPackage is an extra indirection over a ModulePackage where
-// we use a module registry to translate a more symbolic address (and
-// associated version constraint given out of band) into a physical source
-// location.
+// ModuleRegistryPackage represents a module package that can be installed
+// using information from an OpenTofu module registry. The registry can then
+// either return a ModulePackage to install from indirectly, or directly
+// return an HTTP URL when the package is hosted directly in the registry
+// itself.
 //
 // ModuleRegistryPackage is distinct from ModulePackage because they have
 // disjoint use-cases: registry package addresses are only used to query a

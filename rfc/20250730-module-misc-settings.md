@@ -98,10 +98,9 @@ Modules that use a `language` block should choose carefully where to place it:
   block which OpenTofu will then use _in preference to_ the settings in
   the `versions.tf` file.
 
-For any module that contains a `language` block, OpenTofu will completely
-ignore any of the corresponding arguments within `terraform` blocks assuming
-that they are intended only for Terraform's use. We'd recommend, but not
-_require_, that `language` blocks be placed in `.tofu` configuration files.
+OpenTofu will allow `language` blocks to appear in `.tf` files, but our
+documentation will recommend placing them in `.tofu` files to increase the
+chances of an OpenTofu module being cross-compatible with Terraform.
 
 ### The existing `required_version` argument in `terraform` blocks
 
@@ -135,6 +134,20 @@ until all currently-supported OpenTofu minor release series support it, so that
 anyone trying to use the module with older versions of OpenTofu will recieve
 an error message about an incorrect OpenTofu version, rather than a generic
 syntax error about the unsupported `language` block.
+
+To draw attention to that consideration, OpenTofu v1.12 will include a heuristic
+which checks whether a version constraint given in the new-style
+`compatible_with` block would allow OpenTofu v1.11.0. If so, it will emit a
+warning recommending to use the old-style `required_version` approach instead
+for that version constraint. Authors may also quiet the warning by including
+a lower bound of `1.12` in their configured version constriant. We may choose to
+remove that warning in a later version of OpenTofu once the v1.11 series reaches
+end-of-life.
+
+Although there is no useful reason to include both a `language` block and an
+old-style `required_version` declaration in the same module, OpenTofu will
+allow that and will check and enforce each one separately as long as the
+`required_version` argument is in a `.tofu`-suffixed file.
 
 ## Provider Dependencies
 

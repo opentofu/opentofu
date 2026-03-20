@@ -26,6 +26,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/opentofu/opentofu/internal/command/arguments"
 
 	"github.com/opentofu/svchost"
 	"github.com/opentofu/svchost/disco"
@@ -34,6 +35,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	backendInit "github.com/opentofu/opentofu/internal/backend/init"
 	backendLocal "github.com/opentofu/opentofu/internal/backend/local"
+	"github.com/opentofu/opentofu/internal/command/clistate"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/opentofu/opentofu/internal/configs"
@@ -44,7 +46,6 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/initwd"
-	legacy "github.com/opentofu/opentofu/internal/legacy/tofu"
 	_ "github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/planfile"
@@ -412,7 +413,7 @@ func testStateFile(t *testing.T, s *states.State) string {
 func testStateFileDefault(t *testing.T, s *states.State) {
 	t.Helper()
 
-	f, err := os.Create(DefaultStateFilename)
+	f, err := os.Create(arguments.DefaultStateFilename)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -434,7 +435,7 @@ func testStateFileWorkspaceDefault(t *testing.T, workspace string, s *states.Sta
 		t.Fatalf("err: %s", err)
 	}
 
-	path := filepath.Join(workspaceDir, DefaultStateFilename)
+	path := filepath.Join(workspaceDir, arguments.DefaultStateFilename)
 	f, err := os.Create(path)
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -450,10 +451,10 @@ func testStateFileWorkspaceDefault(t *testing.T, workspace string, s *states.Sta
 
 // testStateFileRemote writes the state out to the remote statefile
 // in the cwd. Use `testCwd` to change into a temp cwd.
-func testStateFileRemote(t *testing.T, s *legacy.State) string {
+func testStateFileRemote(t *testing.T, s *clistate.CLIState) string {
 	t.Helper()
 
-	path := filepath.Join(workdir.DefaultDataDir, DefaultStateFilename)
+	path := filepath.Join(workdir.DefaultDataDir, arguments.DefaultStateFilename)
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -464,7 +465,7 @@ func testStateFileRemote(t *testing.T, s *legacy.State) string {
 	}
 	defer f.Close()
 
-	if err := legacy.WriteState(s, f); err != nil {
+	if err := clistate.WriteState(s, f); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -492,9 +493,9 @@ func testStateRead(t *testing.T, path string) *states.State {
 // testDataStateRead reads a "data state", which is a file format resembling
 // our state format v3 that is used only to track current backend settings.
 //
-// This old format still uses *legacy.State, but should be replaced with
-// a more specialized type in a later release.
-func testDataStateRead(t *testing.T, path string) *legacy.State {
+// This uses *clistate.CLIState which is the specialized type for
+// tracking backend configuration.
+func testDataStateRead(t *testing.T, path string) *clistate.CLIState {
 	t.Helper()
 
 	f, err := os.Open(path)
@@ -503,7 +504,7 @@ func testDataStateRead(t *testing.T, path string) *legacy.State {
 	}
 	defer f.Close()
 
-	s, err := legacy.ReadState(f)
+	s, err := clistate.ReadState(f)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -602,49 +603,6 @@ func testStdinPipe(t *testing.T, src io.Reader) func() {
 	}
 }
 
-// Modify os.Stdout to write to the given buffer. Note that this is generally
-// not useful since the commands are configured to write to a cli.Ui, not
-// Stdout directly. Commands like `console` though use the raw stdout.
-func testStdoutCapture(t *testing.T, dst io.Writer) func() {
-	t.Helper()
-
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-
-	// Modify stdout
-	old := os.Stdout
-	os.Stdout = w
-
-	// Copy
-	doneCh := make(chan struct{})
-	go func() {
-		defer close(doneCh)
-		if _, err := io.Copy(dst, r); err != nil {
-			panic(err)
-		}
-		if err := r.Close(); err != nil {
-			panic(err)
-		}
-	}()
-
-	return func() {
-		// Close the writer end of the pipe
-		// This test code is racey
-		_ = w.Sync()
-		if err := w.Close(); err != nil {
-			t.Fatal(err)
-		}
-
-		// Reset stdout
-		os.Stdout = old
-
-		// Wait for the data copy to complete to avoid a race reading data
-		<-doneCh
-	}
-}
-
 // testInteractiveInput configures tests so that the answers given are sent
 // in order to interactive prompts. The returned function must be called
 // in a defer to clean up.
@@ -713,7 +671,7 @@ func testInputMap(t *testing.T, answers map[string]string) func() {
 // be returned about the backend configuration having changed and that
 // "tofu init" must be run, since the test backend config cache created
 // by this function contains the hash for an empty configuration.
-func testBackendState(t *testing.T, s *states.State, c int) (*legacy.State, *httptest.Server) {
+func testBackendState(t *testing.T, s *states.State, c int) (*clistate.CLIState, *httptest.Server) {
 	t.Helper()
 
 	var b64md5 string
@@ -757,8 +715,8 @@ func testBackendState(t *testing.T, s *states.State, c int) (*legacy.State, *htt
 	configSchema := b.ConfigSchema()
 	hash, _ := backendConfig.Hash(t.Context(), configSchema)
 
-	state := legacy.NewState()
-	state.Backend = &legacy.BackendState{
+	state := clistate.NewState()
+	state.Backend = &clistate.BackendState{
 		Type:      "http",
 		ConfigRaw: json.RawMessage(fmt.Sprintf(`{"address":%q}`, srv.URL)),
 		Hash:      uint64(hash),
@@ -768,12 +726,12 @@ func testBackendState(t *testing.T, s *states.State, c int) (*legacy.State, *htt
 }
 
 // testRemoteState is used to make a test HTTP server to return a given
-// state file that can be used for testing legacy remote state.
+// state file that can be used for testing remote backend state.
 //
-// The return values are a *legacy.State instance that should be written
+// The return values are a *clistate.CLIState instance that should be written
 // as the "data state" (really: backend state) and the server that the
 // returned data state refers to.
-func testRemoteState(t *testing.T, s *states.State, c int) (*legacy.State, *httptest.Server) {
+func testRemoteState(t *testing.T, s *states.State, c int) (*clistate.CLIState, *httptest.Server) {
 	t.Helper()
 
 	var b64md5 string
@@ -795,10 +753,10 @@ func testRemoteState(t *testing.T, s *states.State, c int) (*legacy.State, *http
 		}
 	}
 
-	retState := legacy.NewState()
+	retState := clistate.NewState()
 
 	srv := httptest.NewServer(http.HandlerFunc(cb))
-	b := &legacy.BackendState{
+	b := &clistate.BackendState{
 		Type: "http",
 	}
 	if err := b.SetConfig(cty.ObjectVal(map[string]cty.Value{
@@ -1012,7 +970,7 @@ func testServices(t *testing.T) (services *disco.Disco, cleanup func()) {
 	server := httptest.NewServer(http.HandlerFunc(fakeRegistryHandler))
 
 	services = disco.New()
-	services.ForceHostServices(svchost.Hostname("registry.opentofu.org"), map[string]interface{}{
+	services.ForceHostServices(svchost.Hostname("registry.opentofu.org"), map[string]any{
 		"providers.v1": server.URL + "/providers/v1/",
 	})
 
@@ -1157,10 +1115,10 @@ func checkGoldenReference(t *testing.T, output *terminal.TestOutput, fixturePath
 	}
 
 	// Compare the rest of the lines against the golden reference
-	var gotLineMaps []map[string]interface{}
+	var gotLineMaps []map[string]any
 	for i, line := range gotLines[1:] {
 		index := i + 1
-		var gotMap map[string]interface{}
+		var gotMap map[string]any
 		if err := json.Unmarshal([]byte(line), &gotMap); err != nil {
 			t.Errorf("failed to unmarshal got line %d: %s\n%s", index, err, gotLines[index])
 		}
@@ -1172,10 +1130,10 @@ func checkGoldenReference(t *testing.T, output *terminal.TestOutput, fixturePath
 		gotLineMaps = append(gotLineMaps, gotMap)
 	}
 
-	var wantLineMaps []map[string]interface{}
+	var wantLineMaps []map[string]any
 	for i, line := range wantLines[1:] {
 		index := i + 1
-		var wantMap map[string]interface{}
+		var wantMap map[string]any
 		if err := json.Unmarshal([]byte(line), &wantMap); err != nil {
 			t.Errorf("failed to unmarshal want line %d: %s\n%s", index, err, gotLines[index])
 		}
@@ -1190,8 +1148,8 @@ func checkGoldenReference(t *testing.T, output *terminal.TestOutput, fixturePath
 	}
 }
 
-func deleteMapField(fieldMap map[string]interface{}, rootField, field string) map[string]interface{} {
-	rootMap, ok := fieldMap[rootField].(map[string]interface{})
+func deleteMapField(fieldMap map[string]any, rootField, field string) map[string]any {
+	rootMap, ok := fieldMap[rootField].(map[string]any)
 	if !ok {
 		return fieldMap
 	}

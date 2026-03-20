@@ -37,14 +37,15 @@ func TestEnsureProviderVersions(t *testing.T) {
 	// permutations that it ends up being more concise to express them as
 	// normal code.
 	type Test struct {
-		Source     getproviders.Source
-		Prepare    func(*testing.T, *Installer, *Dir)
-		LockFile   string
-		Reqs       getproviders.Requirements
-		Mode       InstallMode
-		Check      func(*testing.T, *Dir, *depsfile.Locks)
-		WantErr    string
-		WantEvents func(*Installer, *Dir) map[addrs.Provider][]*testInstallerEventLogItem
+		Source      getproviders.Source
+		Prepare     func(*testing.T, *Installer, *Dir)
+		LockFile    string
+		Reqs        getproviders.Requirements
+		Mode        InstallMode
+		Check       func(*testing.T, *Dir, *depsfile.Locks)
+		CheckSource func(*testing.T, getproviders.Source)
+		WantErr     string
+		WantEvents  func(*Installer, *Dir) map[addrs.Provider][]*testInstallerEventLogItem
 	}
 
 	// noProvider is just the zero value of addrs.Provider, which we're
@@ -261,7 +262,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 						TargetPlatform: fakePlatform,
 						Location:       beepProviderZip,
 						Authentication: getproviders.NewPackageHashAuthentication(
-							fakePlatform, []getproviders.Hash{beepProviderZipHash},
+							fakePlatform, []getproviders.Hash{beepProviderZipHash}, false,
 						),
 					},
 				},
@@ -318,6 +319,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 								beepProvider: getproviders.NewPackageAuthenticationResult(getproviders.HashDispositions{
 									beepProviderZipHash: {
 										VerifiedLocally: true,
+										Platform:        &fakePlatform,
 									},
 								}),
 							},
@@ -709,23 +711,8 @@ func TestEnsureProviderVersions(t *testing.T) {
 			},
 		},
 		"successful initial install of one provider through a warm global cache and correct locked checksum": {
-			Source: getproviders.NewMockSource(
-				[]getproviders.PackageMeta{
-					{
-						Provider:       beepProvider,
-						Version:        getproviders.MustParseVersion("2.0.0"),
-						TargetPlatform: fakePlatform,
-						Location:       beepProviderDir,
-					},
-					{
-						Provider:       beepProvider,
-						Version:        getproviders.MustParseVersion("2.1.0"),
-						TargetPlatform: fakePlatform,
-						Location:       beepProviderDir,
-					},
-				},
-				nil,
-			),
+			// Should not use the source at all
+			Source: getproviders.NewMockSource(nil, nil),
 			LockFile: `
 				# The existing cache entry is valid only if it matches a
 				# checksum already recorded in the lock file.
@@ -787,6 +774,12 @@ func TestEnsureProviderVersions(t *testing.T) {
 				}
 				if diff := cmp.Diff(wantEntry, gotEntry); diff != "" {
 					t.Errorf("wrong cache entry\n%s", diff)
+				}
+			},
+			CheckSource: func(t *testing.T, source getproviders.Source) {
+				expectedCallLog := [][]interface{}(nil)
+				if diff := cmp.Diff(source.(*getproviders.MockSource).CallLog(), expectedCallLog); diff != "" {
+					t.Error(diff)
 				}
 			},
 			WantEvents: func(inst *Installer, dir *Dir) map[addrs.Provider][]*testInstallerEventLogItem {
@@ -946,6 +939,18 @@ func TestEnsureProviderVersions(t *testing.T) {
 				}
 				if diff := cmp.Diff(wantEntry, gotEntry); diff != "" {
 					t.Errorf("wrong cache entry\n%s", diff)
+				}
+			},
+			CheckSource: func(t *testing.T, source getproviders.Source) {
+				expectedCallLog := [][]interface{}{[]interface{}{
+					"PackageMeta",
+					beepProvider,
+					versions.MustParseVersion("2.1.0"),
+					fakePlatform,
+				}}
+
+				if diff := cmp.Diff(source.(*getproviders.MockSource).CallLog(), expectedCallLog); diff != "" {
+					t.Error(diff)
 				}
 			},
 			WantEvents: func(inst *Installer, dir *Dir) map[addrs.Provider][]*testInstallerEventLogItem {
@@ -2511,6 +2516,10 @@ func TestEnsureProviderVersions(t *testing.T) {
 				test.Check(t, outputDir, newLocks)
 			}
 
+			if test.CheckSource != nil {
+				test.CheckSource(t, source)
+			}
+
 			if test.WantEvents != nil {
 				wantEvents := test.WantEvents(inst, outputDir)
 				if diff := cmp.Diff(wantEvents, providerEvents, cmp.AllowUnexported(getproviders.PackageAuthenticationResult{})); diff != "" {
@@ -2714,7 +2723,7 @@ func TestRaceConditionOnLocks(t *testing.T) {
 		})
 		err := os.WriteFile(
 			filepath.Join(providerLocation, fmt.Sprintf("terraform-provider-%s", providerName)),
-			[]byte(fmt.Sprintf("binary content for provider %s", providerName)),
+			fmt.Appendf(nil, "binary content for provider %s", providerName),
 			0644,
 		)
 		if err != nil {
@@ -2751,16 +2760,16 @@ func testServices(t *testing.T) (services *disco.Disco, baseURL string, cleanup 
 	server := httptest.NewServer(http.HandlerFunc(fakeRegistryHandler))
 
 	services = disco.New()
-	services.ForceHostServices(svchost.Hostname("example.com"), map[string]interface{}{
+	services.ForceHostServices(svchost.Hostname("example.com"), map[string]any{
 		"providers.v1": server.URL + "/providers/v1/",
 	})
-	services.ForceHostServices(svchost.Hostname("not.example.com"), map[string]interface{}{})
-	services.ForceHostServices(svchost.Hostname("too-new.example.com"), map[string]interface{}{
+	services.ForceHostServices(svchost.Hostname("not.example.com"), map[string]any{})
+	services.ForceHostServices(svchost.Hostname("too-new.example.com"), map[string]any{
 		// This service doesn't actually work; it's here only to be
 		// detected as "too new" by the discovery logic.
 		"providers.v99": server.URL + "/providers/v99/",
 	})
-	services.ForceHostServices(svchost.Hostname("fails.example.com"), map[string]interface{}{
+	services.ForceHostServices(svchost.Hostname("fails.example.com"), map[string]any{
 		"providers.v1": server.URL + "/fails-immediately/",
 	})
 
@@ -2769,7 +2778,7 @@ func testServices(t *testing.T) (services *disco.Disco, baseURL string, cleanup 
 	// hostname. It behaves the same as example.com, which should be preferred
 	// if you're not testing something specific to the default registry in order
 	// to ensure that most things are hostname-agnostic.
-	services.ForceHostServices(svchost.Hostname("registry.opentofu.org"), map[string]interface{}{
+	services.ForceHostServices(svchost.Hostname("registry.opentofu.org"), map[string]any{
 		"providers.v1": server.URL + "/providers/v1/",
 	})
 
@@ -2908,7 +2917,7 @@ func fakeRegistryHandler(resp http.ResponseWriter, req *http.Request) {
 				return
 			}
 			version := pathParts[2]
-			body := map[string]interface{}{
+			body := map[string]any{
 				"protocols":             []string{"99.0"},
 				"os":                    pathParts[4],
 				"arch":                  pathParts[5],
@@ -2917,8 +2926,8 @@ func fakeRegistryHandler(resp http.ResponseWriter, req *http.Request) {
 				"download_url":          "/pkg/awesomesauce/happycloud_" + version + ".zip",
 				"shasums_url":           "/pkg/awesomesauce/happycloud_" + version + "_SHA256SUMS",
 				"shasums_signature_url": "/pkg/awesomesauce/happycloud_" + version + "_SHA256SUMS.sig",
-				"signing_keys": map[string]interface{}{
-					"gpg_public_keys": []map[string]interface{}{
+				"signing_keys": map[string]any{
+					"gpg_public_keys": []map[string]any{
 						{
 							"ascii_armor": getproviders.TestingPublicKey,
 						},
@@ -2945,7 +2954,7 @@ func fakeRegistryHandler(resp http.ResponseWriter, req *http.Request) {
 				protocols = []string{"5.0"}
 			}
 
-			body := map[string]interface{}{
+			body := map[string]any{
 				"protocols":             protocols,
 				"os":                    pathParts[4],
 				"arch":                  pathParts[5],
@@ -2954,8 +2963,8 @@ func fakeRegistryHandler(resp http.ResponseWriter, req *http.Request) {
 				"download_url":          "/pkg/awesomesauce/happycloud_" + version + ".zip",
 				"shasums_url":           "/pkg/awesomesauce/happycloud_" + version + "_SHA256SUMS",
 				"shasums_signature_url": "/pkg/awesomesauce/happycloud_" + version + "_SHA256SUMS.sig",
-				"signing_keys": map[string]interface{}{
-					"gpg_public_keys": []map[string]interface{}{
+				"signing_keys": map[string]any{
+					"gpg_public_keys": []map[string]any{
 						{
 							"ascii_armor": getproviders.TestingPublicKey,
 						},

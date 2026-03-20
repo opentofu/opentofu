@@ -54,7 +54,7 @@ func (ops *execOperations) resourceInstanceStateObject(
 	deposedKey states.DeposedKey,
 ) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	src := ops.priorState.ResourceInstanceObjectFull(instAddr, deposedKey)
+	src := ops.priorState.ResourceInstanceObjectFull(instAddr.Object(deposedKey))
 	if src == nil {
 		return nil, diags
 	}

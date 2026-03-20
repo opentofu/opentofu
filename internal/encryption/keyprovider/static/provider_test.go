@@ -57,6 +57,68 @@ func TestKeyProvider(t *testing.T) {
 					ValidBuild: false,
 				},
 			},
+			JSONParseTestCases: map[string]compliancetest.JSONParseTestCase[*Config, *staticKeyProvider]{
+				"success": {
+					JSON: `{
+	"key_provider": {
+		"static": {
+			"foo": {
+				"key": "48656c6c6f20776f726c6421"
+			}
+		}
+	}
+}`,
+					ValidJSON:  true,
+					ValidBuild: true,
+					Validate: func(config *Config, keyProvider *staticKeyProvider) error {
+						if config.Key != "48656c6c6f20776f726c6421" {
+							return fmt.Errorf("incorrect key returned")
+						}
+						if !bytes.Equal(keyProvider.key, []byte("Hello world!")) {
+							return fmt.Errorf("key provider contains invalid key")
+						}
+						return nil
+					},
+				},
+				"empty": {
+					JSON: `{
+	"key_provider": {
+		"static": {
+			"foo": {
+			}
+		}
+	}
+}`,
+					ValidJSON:  false,
+					ValidBuild: false,
+				},
+				"bad-hex": {
+					JSON: `{
+	"key_provider": {
+		"static": {
+			"foo": {
+				"key": "G"
+			}
+		}
+	}
+}`,
+					ValidJSON:  true,
+					ValidBuild: false,
+				},
+				"bad-argument-name": {
+					JSON: `{
+	"key_provider": {
+		"static": {
+			"foo": {
+				"keys": "48656c6c6f20776f726c6421"
+			}
+		}
+	}
+}`,
+					ValidJSON:  false,
+					ValidBuild: false,
+				},
+			},
 			ConfigStructTestCases: map[string]compliancetest.ConfigStructTestCase[*Config, *staticKeyProvider]{
 				"empty": {
 					Config: &Config{

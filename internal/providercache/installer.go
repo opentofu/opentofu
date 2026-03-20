@@ -284,13 +284,7 @@ func (i *Installer) ensureProviderVersionsMightNeed(
 		if provider.IsBuiltIn() {
 			// Built in providers do not require installation but we'll still
 			// verify that the requested provider name is valid.
-			valid := false
-			for _, name := range i.builtInProviderTypes {
-				if name == provider.Type {
-					valid = true
-					break
-				}
-			}
+			valid := slices.Contains(i.builtInProviderTypes, provider.Type)
 			var err error
 			if valid {
 				if len(versionConstraints) == 0 {
@@ -384,6 +378,18 @@ func (i *Installer) ensureProviderVersionsNeed(
 				cb(provider, err)
 			}
 			return getproviders.Version{}, err
+		}
+
+		if locked[provider] && i.globalCacheDir != nil {
+			pl := locks.Provider(provider)
+			if i.globalCacheDir.ProviderVersion(pl.Provider(), pl.Version()) != nil {
+				log.Printf("[DEBUG] Global cache dir enabled and contains locked provider %s %s. Skipping check for retracted provider version.", pl.Provider(), pl.Version())
+				if cb := evts.QueryPackagesSuccess; cb != nil {
+					cb(pl.Provider(), pl.Version())
+				}
+				return pl.Version(), nil
+			}
+
 		}
 
 		available, warnings, err := i.source.AvailableVersions(ctx, provider)
@@ -739,11 +745,13 @@ func (i *Installer) ensureProviderVersionInDirectory(
 			// that was reported by the origin registry was "signed",
 			// just for the purposes of updating the lock file and
 			// reporting that lock file update to the UI layer through
-			// the evts object.
+			// the evts object. We also allow trusted mirror hashes
+			// here and treat those equivalent to ones reported by the
+			// registry.
 			// Note that the "tofu init" UI relies on us pretending
 			// that these are "signed" to avoid generating its warning
 			// that the dependency lock file might be incomplete.
-			return hd.ReportedByRegistry
+			return hd.ReportedByRegistry || hd.ReportedByTrustedMirror
 		}
 		return hd.SignedByAnyGPGKeys()
 	}))

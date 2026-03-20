@@ -20,11 +20,12 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/hcl/v2"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/plugins"
-	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/lang/marks"
@@ -4654,6 +4655,71 @@ resource "test_object" "b" {
 	}
 }
 
+// TestContext2Plan_triggeredByRecreate tests that replace_triggered_by fires
+// when the referenced resource is being created from scratch (e.g. after
+// "tofu state rm"), not just when it is being updated or replaced.
+// Regression test for https://github.com/opentofu/opentofu/issues/3714
+func TestContext2Plan_triggeredByRecreate(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+resource "test_object" "a" {
+  test_string = "hello"
+}
+resource "test_object" "b" {
+  test_string = "world"
+  lifecycle {
+    replace_triggered_by = [test_object.a]
+  }
+}
+`,
+	})
+
+	p := simpleMockProvider()
+	ctx := testContext2(t, &ContextOpts{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		}, nil),
+	})
+
+	// Only test_object.b is in state; test_object.a was removed via "state rm".
+	state := states.BuildState(func(s *states.SyncState) {
+		s.SetResourceInstanceCurrent(
+			mustResourceInstanceAddr("test_object.b"),
+			&states.ResourceInstanceObjectSrc{
+				AttrsJSON: []byte(`{"test_string":"world"}`),
+				Status:    states.ObjectReady,
+			},
+			mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+			addrs.NoKey,
+		)
+	})
+
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
+		Mode: plans.NormalMode,
+	})
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors\n%s", diags.Err().Error())
+	}
+
+	for _, c := range plan.Changes.Resources {
+		switch c.Addr.String() {
+		case "test_object.a":
+			if c.Action != plans.Create {
+				t.Fatalf("unexpected %s change for %s; want Create", c.Action, c.Addr)
+			}
+		case "test_object.b":
+			if c.Action != plans.DeleteThenCreate {
+				t.Fatalf("unexpected %s change for %s; want DeleteThenCreate", c.Action, c.Addr)
+			}
+			if c.ActionReason != plans.ResourceInstanceReplaceByTriggers {
+				t.Fatalf("incorrect reason for change: %s; want ResourceInstanceReplaceByTriggers", c.ActionReason)
+			}
+		default:
+			t.Fatal("unexpected change", c.Addr, c.Action)
+		}
+	}
+}
+
 func TestContext2Plan_dataSchemaChange(t *testing.T) {
 	// We can't decode the prior state when a data source upgrades the schema
 	// in an incompatible way. Since prior state for data sources is purely
@@ -5334,6 +5400,64 @@ import {
 				t.Errorf("expected addr to be %s, but was %s", wantAddr, addr)
 			}
 		})
+	}
+}
+
+func TestContext2Plan_importUsingProviderDefinedFunction(t *testing.T) {
+	p := testProvider("aws")
+
+	p.GetProviderSchemaResponse.Functions = map[string]providers.FunctionSpec{
+		"echo": {
+			Parameters: []providers.FunctionParameterSpec{{
+				Name: "input",
+				Type: cty.String,
+			}},
+			Return: cty.String,
+		},
+	}
+
+	p.CallFunctionResponse = &providers.CallFunctionResponse{
+		Result: cty.StringVal("foo"),
+	}
+
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+terraform {
+	required_providers {
+	  aws = {}
+	}
+}
+
+import {
+	to = aws_instance.foo
+	id = provider::aws::echo("foo")
+}
+
+resource "aws_instance" "foo" {
+}
+`,
+	})
+
+	ctx := testContext2(t, &ContextOpts{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		}, nil),
+	})
+
+	p.ImportResourceStateResponse = &providers.ImportResourceStateResponse{
+		ImportedResources: []providers.ImportedResource{
+			{
+				TypeName: "aws_instance",
+				State: cty.ObjectVal(map[string]cty.Value{
+					"id": cty.StringVal("foo"),
+				}),
+			},
+		},
+	}
+
+	_, diags := ctx.Plan(t.Context(), m, states.NewState(), DefaultPlanOpts)
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors: %s", diags.Err())
 	}
 }
 

@@ -228,9 +228,7 @@ func (c *BuiltinEvalContext) EvaluateReplaceTriggeredBy(ctx context.Context, exp
 	// for any change.
 	if len(ref.Remaining) == 0 {
 		for _, c := range changes {
-			switch c.ChangeSrc.Action {
-			// Only immediate changes to the resource will trigger replacement.
-			case plans.Update, plans.DeleteThenCreate, plans.CreateThenDelete:
+			if c.ChangeSrc.Action.CanTriggerDownstreamReplace() {
 				return ref, true, diags
 			}
 		}
@@ -243,12 +241,9 @@ func (c *BuiltinEvalContext) EvaluateReplaceTriggeredBy(ctx context.Context, exp
 	// single change.
 	change := changes[0]
 
-	// Make sure the change is actionable. A create or delete action will have
-	// a change in value, but are not valid for our purposes here.
-	switch change.ChangeSrc.Action {
-	case plans.Update, plans.DeleteThenCreate, plans.CreateThenDelete:
-		// OK
-	default:
+	// Make sure the change is actionable. A Delete action will have a change
+	// in value, but is not valid for our purposes here.
+	if !change.ChangeSrc.Action.CanTriggerDownstreamReplace() {
 		return nil, false, diags
 	}
 

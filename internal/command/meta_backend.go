@@ -39,7 +39,6 @@ import (
 	backendInit "github.com/opentofu/opentofu/internal/backend/init"
 	backendLocal "github.com/opentofu/opentofu/internal/backend/local"
 	"github.com/opentofu/opentofu/internal/backend/remote-state/plugin"
-	legacy "github.com/opentofu/opentofu/internal/legacy/tofu"
 )
 
 // BackendOpts are the options used to initialize a backend.Backend.
@@ -219,7 +218,7 @@ func (m *Meta) Backend(ctx context.Context, opts *BackendOpts, enc encryption.St
 		// with inside backendFromConfig, because we still need that codepath
 		// to be able to recognize the lack of a config as distinct from
 		// explicitly setting local until we do some more refactoring here.
-		m.backendState = &legacy.BackendState{
+		m.backendState = &clistate.BackendState{
 			Type:      "local",
 			ConfigRaw: json.RawMessage("{}"),
 		}
@@ -575,10 +574,7 @@ func (m *Meta) backendConfig(ctx context.Context, opts *BackendOpts) (*configs.B
 // This function handles various edge cases around backend config loading. For
 // example: new config changes, backend type changes, etc.
 //
-// As of the 0.12 release it can no longer migrate from legacy remote state
-// to backends, and will instead instruct users to use 0.11 or earlier as
-// a stepping-stone to do that migration.
-//
+// Legacy remote state is no longer supported.
 // This function may query the user for input unless input is disabled, in
 // which case this function will error.
 func (m *Meta) backendFromConfig(ctx context.Context, opts *BackendOpts, enc encryption.StateEncryption) (backend.Backend, tfdiags.Diagnostics) {
@@ -595,25 +591,21 @@ func (m *Meta) backendFromConfig(ctx context.Context, opts *BackendOpts, enc enc
 
 	// ------------------------------------------------------------------------
 	// For historical reasons, current backend configuration for a working
-	// directory is kept in a *state-like* file, using the legacy state
-	// structures in the OpenTofu package. It is not actually a OpenTofu
-	// state, and so only the "backend" portion of it is actually used.
+	// directory is kept in a *state-like* file using clistate.CLIState.
+	// It is not actually an OpenTofu resource state, and so only the
+	// "backend" portion of it is actually used.
 	//
 	// The remainder of this code often confusingly refers to this as a "state",
 	// so it's unfortunately important to remember that this is not actually
 	// what we _usually_ think of as "state", and is instead a local working
-	// directory "backend configuration state" that is never persisted anywhere.
-	//
-	// Since the "real" state has since moved on to be represented by
-	// states.State, we can recognize the special meaning of state that applies
-	// to this function and its callees by their continued use of the
-	// otherwise-obsolete tofu.State.
+	// directory "backend configuration state" that is never persisted anywhere
+	// except the .terraform directory.
 	// ------------------------------------------------------------------------
 
 	// Get the path to where we store a local cache of backend configuration
 	// if we're using a remote backend. This may not yet exist which means
 	// we haven't used a non-local backend before. That is okay.
-	statePath := filepath.Join(m.WorkingDir.DataDir(), DefaultStateFilename)
+	statePath := filepath.Join(m.WorkingDir.DataDir(), arguments.DefaultStateFilename)
 	sMgr := &clistate.LocalState{Path: statePath}
 	if err := sMgr.RefreshState(context.TODO()); err != nil {
 		diags = diags.Append(fmt.Errorf("Failed to load state: %w", err))
@@ -624,11 +616,11 @@ func (m *Meta) backendFromConfig(ctx context.Context, opts *BackendOpts, enc enc
 	s := sMgr.State()
 	if s == nil {
 		log.Printf("[TRACE] Meta.Backend: backend has not previously been initialized in this working directory")
-		s = legacy.NewState()
+		s = clistate.NewState()
 	} else if s.Backend != nil {
 		log.Printf("[TRACE] Meta.Backend: working directory was previously initialized for %q backend", s.Backend.Type)
 	} else {
-		log.Printf("[TRACE] Meta.Backend: working directory was previously initialized but has no backend (is using legacy remote state?)")
+		log.Printf("[TRACE] Meta.Backend: working directory was previously initialized but has no backend configuration")
 	}
 
 	// if we want to force reconfiguration of the backend, we set the backend
@@ -646,17 +638,6 @@ func (m *Meta) backendFromConfig(ctx context.Context, opts *BackendOpts, enc enc
 			m.backendState = s.Backend
 		}
 	}()
-
-	if !s.Remote.Empty() {
-		// Legacy remote state is no longer supported. User must first
-		// migrate with Terraform 0.11 or earlier.
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Legacy remote state not supported",
-			"This working directory is configured for legacy remote state, which is no longer supported from Terraform v0.12 onwards, and thus not supported by OpenTofu, either. To migrate this environment, first run \"terraform init\" under a Terraform 0.11 release, and then upgrade to OpenTofu.",
-		))
-		return nil, diags
-	}
 
 	// This switch statement covers all the different combinations of
 	// configuring new backends, updating previously-configured backends, etc.
@@ -841,7 +822,7 @@ func (m *Meta) backendFromState(ctx context.Context, enc encryption.StateEncrypt
 	// Get the path to where we store a local cache of backend configuration
 	// if we're using a remote backend. This may not yet exist which means
 	// we haven't used a non-local backend before. That is okay.
-	statePath := filepath.Join(m.WorkingDir.DataDir(), DefaultStateFilename)
+	statePath := filepath.Join(m.WorkingDir.DataDir(), arguments.DefaultStateFilename)
 	sMgr := &clistate.LocalState{Path: statePath}
 	if err := sMgr.RefreshState(context.TODO()); err != nil {
 		diags = diags.Append(fmt.Errorf("Failed to load state: %w", err))
@@ -855,7 +836,7 @@ func (m *Meta) backendFromState(ctx context.Context, enc encryption.StateEncrypt
 	}
 	if s.Backend == nil {
 		// s.Backend is nil, so return a local backend
-		log.Printf("[TRACE] Meta.Backend: working directory was previously initialized but has no backend (is using legacy remote state?)")
+		log.Printf("[TRACE] Meta.Backend: working directory was previously initialized but has no backend configuration")
 		return backendLocal.New(enc), diags
 	}
 	log.Printf("[TRACE] Meta.Backend: working directory was previously initialized for %q backend", s.Backend.Type)
@@ -1143,13 +1124,13 @@ func (m *Meta) backend_C_r_s(ctx context.Context, c *configs.Backend, cHash int,
 	// Store the metadata in our saved state location
 	s := sMgr.State()
 	if s == nil {
-		s = legacy.NewState()
+		s = clistate.NewState()
 	}
 	var stateStoreProvider string
 	if !c.StateStoreProvider.IsZero() {
 		stateStoreProvider = c.StateStoreProvider.String()
 	}
-	s.Backend = &legacy.BackendState{
+	s.Backend = &clistate.BackendState{
 		Type:      c.Type,
 		ConfigRaw: json.RawMessage(configJSON),
 		Hash:      uint64(cHash),
@@ -1298,13 +1279,13 @@ func (m *Meta) backend_C_r_S_changed(ctx context.Context, c *configs.Backend, cH
 	// Update the backend state
 	s = sMgr.State()
 	if s == nil {
-		s = legacy.NewState()
+		s = clistate.NewState()
 	}
 	var stateStoreProvider string
 	if !c.StateStoreProvider.IsZero() {
 		stateStoreProvider = c.StateStoreProvider.String()
 	}
-	s.Backend = &legacy.BackendState{
+	s.Backend = &clistate.BackendState{
 		Type:      c.Type,
 		ConfigRaw: json.RawMessage(configJSON),
 		Hash:      uint64(cHash),
@@ -1436,7 +1417,7 @@ func (m *Meta) updateSavedBackendHash(cHash int, sMgr *clistate.LocalState) tfdi
 // this function will conservatively assume that migration is required,
 // expecting that the migration code will subsequently deal with the same
 // errors.
-func (m *Meta) backendConfigNeedsMigration(ctx context.Context, c *configs.Backend, s *legacy.BackendState) bool {
+func (m *Meta) backendConfigNeedsMigration(ctx context.Context, c *configs.Backend, s *clistate.BackendState) bool {
 	if s == nil || s.Empty() {
 		log.Print("[TRACE] backendConfigNeedsMigration: no cached config, so migration is required")
 		return true

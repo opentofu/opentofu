@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 
 	"github.com/mitchellh/cli"
@@ -167,13 +168,13 @@ func TestMeta_initStatePaths(t *testing.T) {
 	}
 	m.initStatePaths()
 
-	if m.statePath != DefaultStateFilename {
+	if m.statePath != arguments.DefaultStateFilename {
 		t.Fatalf("bad: %#v", m)
 	}
-	if m.stateOutPath != DefaultStateFilename {
+	if m.stateOutPath != arguments.DefaultStateFilename {
 		t.Fatalf("bad: %#v", m)
 	}
-	if m.backupPath != DefaultStateFilename+DefaultBackupExtension {
+	if m.backupPath != arguments.DefaultStateFilename+DefaultBackupExtension {
 		t.Fatalf("bad: %#v", m)
 	}
 
@@ -196,7 +197,7 @@ func TestMeta_initStatePaths(t *testing.T) {
 	m.stateOutPath = "foo"
 	m.initStatePaths()
 
-	if m.statePath != DefaultStateFilename {
+	if m.statePath != arguments.DefaultStateFilename {
 		t.Fatalf("bad: %#v", m)
 	}
 	if m.backupPath != "foo"+DefaultBackupExtension {

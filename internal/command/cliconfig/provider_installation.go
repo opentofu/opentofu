@@ -150,6 +150,7 @@ func decodeProviderInstallationFromConfig(hclFile *hclast.File) ([]*ProviderInst
 			var location ProviderInstallationLocation
 			var include, exclude []string
 			var retriesF ProviderInstallationMethodRetries
+			var trustedF ProviderInstallationMethodTrusted
 			switch methodTypeStr {
 			case "direct":
 				type BodyContent struct {
@@ -209,6 +210,7 @@ func decodeProviderInstallationFromConfig(hclFile *hclast.File) ([]*ProviderInst
 					Include         []string `hcl:"include"`
 					Exclude         []string `hcl:"exclude"`
 					DownloadRetries *int     `hcl:"download_retry_count"`
+					Trusted         bool     `hcl:"trust_all_hashes"`
 				}
 				var bodyContent BodyContent
 				err := hcl.DecodeObject(&bodyContent, methodBody)
@@ -236,6 +238,9 @@ func decodeProviderInstallationFromConfig(hclFile *hclast.File) ([]*ProviderInst
 						return 0, false
 					}
 					return *bodyContent.DownloadRetries, true
+				}
+				trustedF = func() bool {
+					return bodyContent.Trusted
 				}
 			case "oci_mirror":
 				var moreDiags tfdiags.Diagnostics
@@ -308,6 +313,7 @@ func decodeProviderInstallationFromConfig(hclFile *hclast.File) ([]*ProviderInst
 				Include:  include,
 				Exclude:  exclude,
 				Retries:  retriesF,
+				Trusted:  trustedF,
 			})
 		}
 
@@ -584,6 +590,7 @@ type ProviderInstallationMethod struct {
 	Include  []string
 	Exclude  []string
 	Retries  ProviderInstallationMethodRetries
+	Trusted  ProviderInstallationMethodTrusted
 }
 
 // ProviderInstallationLocation is an interface type representing the
@@ -668,3 +675,5 @@ func (i ProviderInstallationOCIMirror) GoString() string {
 // number returned will be 0, meaning that the configuration was not
 // specified.
 type ProviderInstallationMethodRetries func() (int, bool)
+
+type ProviderInstallationMethodTrusted func() bool

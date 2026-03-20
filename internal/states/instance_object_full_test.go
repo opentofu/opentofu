@@ -80,7 +80,7 @@ func TestSyncStateResourceInstanceObjectFull(t *testing.T) {
 	ss := s.SyncWrapper()
 
 	t.Run("current object", func(t *testing.T) {
-		gotObjSrc := ss.ResourceInstanceObjectFull(instAddrAbs, NotDeposed)
+		gotObjSrc := ss.ResourceInstanceObjectFull(instAddrAbs.CurrentObject())
 		gotObj, err := DecodeResourceInstanceObjectFull(gotObjSrc, objTy)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
@@ -105,7 +105,7 @@ func TestSyncStateResourceInstanceObjectFull(t *testing.T) {
 		}
 	})
 	t.Run("deposed object", func(t *testing.T) {
-		gotObjSrc := ss.ResourceInstanceObjectFull(instAddrAbs, deposedKey)
+		gotObjSrc := ss.ResourceInstanceObjectFull(instAddrAbs.Object(deposedKey))
 		gotObj, err := DecodeResourceInstanceObjectFull(gotObjSrc, objTy)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
@@ -191,8 +191,8 @@ func TestSyncStateSetResourceInstanceObjectFull(t *testing.T) {
 	}
 
 	gotState := BuildState(func(ss *SyncState) {
-		ss.SetResourceInstanceObjectFull(instAddrAbs, deposedKey, deposedObjSrc)
-		ss.SetResourceInstanceObjectFull(instAddrAbs, NotDeposed, currentObjSrc)
+		ss.SetResourceInstanceObjectFull(instAddrAbs.Object(deposedKey), deposedObjSrc)
+		ss.SetResourceInstanceObjectFull(instAddrAbs.CurrentObject(), currentObjSrc)
 	})
 	wantState := &State{
 		Modules: map[string]*Module{

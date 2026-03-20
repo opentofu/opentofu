@@ -222,15 +222,52 @@ func TestPackageHashAuthentication_success(t *testing.T) {
 		Hash("h1:qjsREM4DqEWECD43FcPqddZ9oxCG+IaMTxvWPciS05g="),
 	}
 
-	auth := NewPackageHashAuthentication(Platform{"linux", "amd64"}, wantHashes)
-	result, err := auth.AuthenticatePackage(location)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
+	t.Run("single hash untrusted", func(t *testing.T) {
+		auth := NewPackageHashAuthentication(Platform{"linux", "amd64"}, wantHashes, false)
+		result, err := auth.AuthenticatePackage(location)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
 
-	if got, want := result.String(), "verified checksum"; got != want {
-		t.Errorf("wrong result summary\ngot:  %s\nwant: %s", got, want)
-	}
+		if got, want := result.String(), "verified checksum"; got != want {
+			t.Errorf("wrong result summary\ngot:  %s\nwant: %s", got, want)
+		}
+	})
+
+	// Add bogus hash reported by the source
+	wantHashes = append(wantHashes, Hash("zh:reportedhashvalue"))
+
+	t.Run("multiple hashes untrusted", func(t *testing.T) {
+		auth := NewPackageHashAuthentication(Platform{"linux", "amd64"}, wantHashes, false)
+		result, err := auth.AuthenticatePackage(location)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		if got, want := result.String(), "verified checksum"; got != want {
+			t.Errorf("wrong result summary\ngot:  %s\nwant: %s", got, want)
+		}
+
+		if len(result.hashes) != 1 {
+			t.Errorf("expected 1 hash, got %d hashes", len(result.hashes))
+		}
+	})
+
+	t.Run("multiple hashes trusted", func(t *testing.T) {
+		auth := NewPackageHashAuthentication(Platform{"linux", "amd64"}, wantHashes, true)
+		result, err := auth.AuthenticatePackage(location)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		if got, want := result.String(), "verified checksum"; got != want {
+			t.Errorf("wrong result summary\ngot:  %s\nwant: %s", got, want)
+		}
+
+		if len(result.hashes) != 2 {
+			t.Errorf("expected 2 hash, got %d hashes", len(result.hashes))
+		}
+	})
 }
 
 // Package has authentication can fail for various reasons.
@@ -257,7 +294,7 @@ func TestPackageHashAuthentication_failure(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			// Invalid expected hash, either because we'll error before we
 			// reach it, or we want to force a checksum mismatch.
-			auth := NewPackageHashAuthentication(Platform{"linux", "amd64"}, []Hash{"h1:invalid"})
+			auth := NewPackageHashAuthentication(Platform{"linux", "amd64"}, []Hash{"h1:invalid"}, false)
 			result, err := auth.AuthenticatePackage(test.location)
 
 			if result != nil {
@@ -431,6 +468,128 @@ func TestMatchingChecksumAuthentication_failure(t *testing.T) {
 			}
 			if gotErr := err.Error(); gotErr != test.err {
 				t.Errorf("wrong err: got %q, want %q", gotErr, test.err)
+			}
+		})
+	}
+}
+
+func TestRegistryPackageAuthentication(t *testing.T) {
+	location := PackageLocalArchive("testdata/filesystem-mirror/registry.opentofu.org/hashicorp/null/terraform-provider-null_2.1.0_linux_amd64.zip")
+	platform := Platform{"linux", "amd64"}
+	meta := PackageMeta{
+		Provider:       addrs.MustParseProviderSourceString("registry.opentofu.org/hashicorp/null"),
+		Version:        MustParseVersion("2.1.0"),
+		TargetPlatform: platform,
+	}
+	validSha := "086119a26576d06b8281a97e8644380da89ce16197cd955f74ea5ee664e9358b"
+	validH1 := "tru5tm3br0"
+	zh := Hash("zh:" + validSha)
+	h1 := Hash("h1:" + validH1)
+
+	tests := []struct {
+		name        string
+		sha         string
+		packageData map[Platform]RegistryPlatformData
+		location    PackageLocation
+		result      *PackageAuthenticationResult
+		err         string
+	}{{
+		name:     "fallback",
+		location: location,
+		sha:      validSha,
+	}, {
+		name:     "success",
+		location: location,
+		sha:      validSha,
+		packageData: map[Platform]RegistryPlatformData{
+			platform: {
+				Hashes:      []Hash{zh, h1},
+				PackageSize: 294,
+			},
+		},
+		result: &PackageAuthenticationResult{hashes: HashDispositions{
+			h1: &HashDisposition{ReportedByRegistry: true, Platform: &platform},
+			zh: &HashDisposition{ReportedByRegistry: true, Platform: &platform},
+		}},
+	}, {
+		name:        "missing_platform",
+		location:    location,
+		sha:         validSha,
+		packageData: map[Platform]RegistryPlatformData{Platform{}: {}},
+		err:         `registry response missing package with platform "linux_amd64"`,
+	}, {
+		name:     "invalid_package_size",
+		location: location,
+		sha:      validSha,
+		packageData: map[Platform]RegistryPlatformData{
+			platform: {
+				Hashes:      []Hash{zh, h1},
+				PackageSize: -200,
+			},
+		},
+		err: `registry response has invalid package size -200`,
+	}, {
+		name:     "wrong_package_size",
+		location: location,
+		sha:      validSha,
+		packageData: map[Platform]RegistryPlatformData{
+			platform: {
+				Hashes:      []Hash{zh, h1},
+				PackageSize: 295,
+			},
+		},
+		err: `registry response indicates a package of size 295, but recieved a package of size 294`,
+	}, {
+		name:     "incorrect_platform_hash",
+		location: location,
+		sha:      validSha,
+		packageData: map[Platform]RegistryPlatformData{
+			platform: {
+				Hashes:      []Hash{"zh:superduperincorrect", h1},
+				PackageSize: 294,
+			},
+		},
+		err: `registry response expected sha256sum is "086119a26576d06b8281a97e8644380da89ce16197cd955f74ea5ee664e9358b", which does not match the platform's value of "superduperincorrect"`,
+	}, {
+		name:     "missing_platform_hash",
+		location: location,
+		sha:      validSha,
+		packageData: map[Platform]RegistryPlatformData{
+			platform: {
+				Hashes:      []Hash{h1},
+				PackageSize: 294,
+			},
+		},
+		err: "registry response does not contain matching sha256sum package entry and is invalid",
+	}}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			auth := NewRegistryPackageAuthentication(meta, tc.sha, tc.packageData)
+			result, err := auth.AuthenticatePackage(tc.location)
+
+			if tc.err != "" {
+				if err == nil {
+					t.Errorf("wrong err: got nil, wanted %q", tc.err)
+				} else if err.Error() != tc.err {
+					t.Errorf("wrong err: got %q, wanted %q", err.Error(), tc.err)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("wrong err: got %q, wanted nil", err.Error())
+				}
+			}
+
+			if tc.result != nil {
+				if result == nil {
+					t.Errorf("wrong result: got nil, wanted %#v", tc.result)
+				} else if diff := cmp.Diff(result.hashes, tc.result.hashes); diff != "" {
+					t.Errorf("wrong results: %s", diff)
+				}
+			} else {
+				if result != nil {
+					t.Errorf("wrong result: got %#v, wanted nil", result)
+				}
 			}
 		})
 	}

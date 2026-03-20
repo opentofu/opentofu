@@ -323,10 +323,6 @@ func (c *Context) watchStop(walker *ContextGraphWalker) (chan struct{}, <-chan s
 func (c *Context) checkConfigDependencies(config *configs.Config) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
-	// This checks the OpenTofu CLI version constraints specified in all of
-	// the modules.
-	diags = diags.Append(CheckCoreVersionRequirements(config))
-
 	// We only check that we have a factory for each required provider, and
 	// assume the caller already assured that any separately-installed
 	// plugins are of a suitable version, match expected checksums, etc.

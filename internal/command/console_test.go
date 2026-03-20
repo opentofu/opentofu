@@ -6,13 +6,12 @@
 package command
 
 import (
-	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
@@ -31,31 +30,25 @@ func TestConsole_basic(t *testing.T) {
 	testCwdTemp(t)
 
 	p := testProvider()
-	ui := cli.NewMockUi()
-	view, _ := testView(t)
-	streams, _ := terminal.StreamsForTesting(t)
+	streams, done := terminal.StreamsForTesting(t)
+	view := views.NewView(streams)
 	c := &ConsoleCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
 			View:             view,
 			Streams:          streams,
 		},
 	}
-
-	var output bytes.Buffer
 	defer testStdinPipe(t, strings.NewReader("1+5\n"))()
-	outCloser := testStdoutCapture(t, &output)
 
-	args := []string{}
-	code := c.Run(args)
-	outCloser()
+	code := c.Run(nil)
+	output := done(t)
 	if code != 0 {
-		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
 	}
 
-	actual := output.String()
+	actual := output.Stdout()
 	if actual != "6\n" {
 		t.Fatalf("bad: %q", actual)
 	}
@@ -84,31 +77,26 @@ func TestConsole_tfvars(t *testing.T) {
 			},
 		},
 	}
-	ui := cli.NewMockUi()
-	view, _ := testView(t)
-	streams, _ := terminal.StreamsForTesting(t)
+	streams, done := terminal.StreamsForTesting(t)
+	view := views.NewView(streams)
 	c := &ConsoleCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
 			View:             view,
 			Streams:          streams,
 		},
 	}
 
-	var output bytes.Buffer
 	defer testStdinPipe(t, strings.NewReader("var.foo\n"))()
-	outCloser := testStdoutCapture(t, &output)
 
-	args := []string{}
-	code := c.Run(args)
-	outCloser()
+	code := c.Run(nil)
+	output := done(t)
 	if code != 0 {
-		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
 	}
 
-	actual := output.String()
+	actual := output.Stdout()
 	if actual != "\"bar\"\n" {
 		t.Fatalf("bad: %q", actual)
 	}
@@ -139,32 +127,26 @@ func TestConsole_unsetRequiredVars(t *testing.T) {
 			},
 		},
 	}
-	ui := cli.NewMockUi()
-	view, _ := testView(t)
-	streams, _ := terminal.StreamsForTesting(t)
+	streams, done := terminal.StreamsForTesting(t)
+	view := views.NewView(streams)
 	c := &ConsoleCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
 			View:             view,
 			Streams:          streams,
 		},
 	}
 
-	var output bytes.Buffer
 	defer testStdinPipe(t, strings.NewReader("var.foo\n"))()
-	outCloser := testStdoutCapture(t, &output)
 
-	args := []string{}
-	code := c.Run(args)
-	outCloser()
-
+	code := c.Run(nil)
+	output := done(t)
 	if code != 0 {
-		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
 	}
 
-	if got, want := output.String(), "(known after apply)\n"; got != want {
+	if got, want := output.Stdout(), "(known after apply)\n"; got != want {
 		t.Fatalf("unexpected output\n got: %q\nwant: %q", got, want)
 	}
 }
@@ -175,18 +157,6 @@ func TestConsole_variables(t *testing.T) {
 	t.Chdir(td)
 
 	p := testProvider()
-	ui := cli.NewMockUi()
-	view, _ := testView(t)
-	streams, _ := terminal.StreamsForTesting(t)
-	c := &ConsoleCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
-			View:             view,
-			Streams:          streams,
-		},
-	}
 
 	commands := map[string]string{
 		"var.foo\n":          "\"bar\"\n",
@@ -198,19 +168,30 @@ func TestConsole_variables(t *testing.T) {
 	args := []string{}
 
 	for cmd, val := range commands {
-		var output bytes.Buffer
-		defer testStdinPipe(t, strings.NewReader(cmd))()
-		outCloser := testStdoutCapture(t, &output)
-		code := c.Run(args)
-		outCloser()
-		if code != 0 {
-			t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
-		}
+		t.Run(strings.TrimSpace(cmd), func(t *testing.T) {
+			defer testStdinPipe(t, strings.NewReader(cmd))()
+			streams, done := terminal.StreamsForTesting(t)
+			view := views.NewView(streams)
+			c := &ConsoleCommand{
+				Meta: Meta{
+					WorkingDir:       workdir.NewDir("."),
+					testingOverrides: metaOverridesForProvider(p),
+					View:             view,
+					Streams:          streams,
+				},
+			}
 
-		actual := output.String()
-		if output.String() != val {
-			t.Fatalf("bad: %q, expected %q", actual, val)
-		}
+			code := c.Run(args)
+			output := done(t)
+			if code != 0 {
+				t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
+			}
+
+			actual := output.Stdout()
+			if output.Stdout() != val {
+				t.Fatalf("bad: %q, expected %q", actual, val)
+			}
+		})
 	}
 }
 
@@ -220,18 +201,6 @@ func TestConsole_modules(t *testing.T) {
 	t.Chdir(td)
 
 	p := applyFixtureProvider()
-	ui := cli.NewMockUi()
-	view, _ := testView(t)
-	streams, _ := terminal.StreamsForTesting(t)
-	c := &ConsoleCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
-			View:             view,
-			Streams:          streams,
-		},
-	}
 
 	commands := map[string]string{
 		"module.child.myoutput\n":          "\"bar\"\n",
@@ -239,22 +208,31 @@ func TestConsole_modules(t *testing.T) {
 		"local.foo\n":                      "3\n",
 	}
 
-	args := []string{}
-
 	for cmd, val := range commands {
-		var output bytes.Buffer
-		defer testStdinPipe(t, strings.NewReader(cmd))()
-		outCloser := testStdoutCapture(t, &output)
-		code := c.Run(args)
-		outCloser()
-		if code != 0 {
-			t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
-		}
+		t.Run(strings.TrimSpace(cmd), func(t *testing.T) {
+			defer testStdinPipe(t, strings.NewReader(cmd))()
+			streams, done := terminal.StreamsForTesting(t)
+			view := views.NewView(streams)
+			c := &ConsoleCommand{
+				Meta: Meta{
+					WorkingDir:       workdir.NewDir("."),
+					testingOverrides: metaOverridesForProvider(p),
+					View:             view,
+					Streams:          streams,
+				},
+			}
+			code := c.Run(nil)
+			output := done(t)
+			if code != 0 {
+				t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
+			}
 
-		actual := output.String()
-		if output.String() != val {
-			t.Fatalf("bad: %q, expected %q", actual, val)
-		}
+			actual := output.Stdout()
+			if output.Stdout() != val {
+				t.Fatalf("bad: %q, expected %q", actual, val)
+			}
+		})
+
 	}
 }
 
@@ -333,33 +311,26 @@ func TestConsole_multiline_pipe(t *testing.T) {
 
 	for testName, tc := range tests {
 		t.Run(testName, func(t *testing.T) {
-			streams, _ := terminal.StreamsForTesting(t)
-
-			ui := cli.NewMockUi()
-			view, _ := testView(t)
+			streams, done := terminal.StreamsForTesting(t)
+			view := views.NewView(streams)
 			c := &ConsoleCommand{
 				Meta: Meta{
 					WorkingDir:       workdir.NewDir("."),
 					testingOverrides: metaOverridesForProvider(p),
-					Ui:               ui,
 					View:             view,
 					Streams:          streams,
 				},
 			}
 
-			var output bytes.Buffer
 			defer testStdinPipe(t, strings.NewReader(tc.input))()
-			outCloser := testStdoutCapture(t, &output)
 
-			args := []string{}
-			code := c.Run(args)
-			outCloser()
-
+			code := c.Run(nil)
+			output := done(t)
 			if code != 0 {
-				t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
+				t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
 			}
 
-			got := output.String()
+			got := output.Stdout()
 			if got != tc.expected {
 				t.Fatalf("unexpected output\ngot: %q\nexpected: %q", got, tc.expected)
 			}

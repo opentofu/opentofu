@@ -71,6 +71,24 @@ type ModuleCall struct {
 	// or compilation is likely to fail with a potentially-confusing error.
 	InputValues exprs.Valuer
 
+	// ProvidersFromParent are values representing provider instances passed in
+	// through our side-channel using the "providers" meta argument in the
+	// calling module block.
+	//
+	// These valuers MUST return values of types returned by
+	// [configgraph.ProviderInstanceRefType], which are capsule types that
+	// carry [configgraph.ProviderInstance] values. It's implemented this
+	// way so that [configgraph] can think of provider instance references as
+	// just normal values and not be aware of the current weird situation where
+	// they have their own special reference expression syntax and pass
+	// between modules via completely different rules than other values.
+	//
+	// (One day we'd like to actually offer provider instance references as
+	// normal values in the surface language too, but it's not obvious how
+	// to get there from our current language without splitting the ecosystem
+	// between old-style and new-style modules.)
+	ProvidersFromParent map[addrs.LocalProviderConfig]exprs.Valuer
+
 	// AllowImpureFunctions controls whether to allow full use of a small
 	// number of functions that produce different results each time they are
 	// called, such as "timestamp".

@@ -301,6 +301,28 @@ will be used for each method that it is configured with. For the methods
 with no such configuration, the environment variable will be used instead.
 :::
 
+The `network_mirror` method supports an additional argument
+`trust_all_hashes`. When set to `true`, any hashes the network mirror
+reports will be included in the lockfile, similar to how registry hashes
+are handled.
+
+:::warning
+Only set `trust_all_hashes=true` for mirrors that you have *complete trust* in
+as they can pollute the hashes for not just your machine/architecture, but all
+platforms reported.
+:::
+
+```hcl
+provider_installation {
+  network_mirror {
+    # Our trusted intranet provider mirror
+    url              = "https://example.com/"
+    include          = ["example.com/*/*"]
+    trust_all_hashes = true
+  }
+}
+```
+
 OpenTofu will try all of the specified methods whose include and exclude
 patterns match a given provider, and select the newest version available across
 all of those methods that matches the version constraint given in each
@@ -394,9 +416,14 @@ under your current working directory. When possible OpenTofu will use
 symbolic links to avoid storing a separate copy of a cached plugin in multiple
 directories.
 
-The plugin cache directory _must not_ also be one of the configured or implied
-filesystem mirror directories, since the cache management logic conflicts with
-the filesystem mirror logic when operating on the same directory.
+:::warning
+The plugin cache directory must not be one of the configured or implied
+[filesystem mirror directories](#explicit-installation-method-configuration).
+Setting `TF_PLUGIN_CACHE_DIR` or `plugin_cache_dir` to one of the
+[implied local mirror directories](#implied-local-mirror-directories)
+will cause conflicts between the cache management logic and the filesystem
+mirror logic when operating on the same directory.
+:::
 
 OpenTofu will never itself delete a plugin from the plugin cache once it has
 been placed there. Over time, as plugins are upgraded, the cache directory may

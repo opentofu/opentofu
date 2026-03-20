@@ -9,15 +9,14 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"strings"
 
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/lang/eval"
-	"github.com/opentofu/opentofu/internal/plans/objchange"
 	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/resources"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -27,7 +26,7 @@ func (ops *execOperations) ManagedFinalPlan(
 	ctx context.Context,
 	desired *eval.DesiredResourceInstance,
 	prior *exec.ResourceInstanceObject,
-	plannedVal cty.Value,
+	initialPlannedVal cty.Value,
 	providerClient *exec.ProviderClient,
 ) (*exec.ManagedResourceObjectFinalPlan, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
@@ -55,111 +54,54 @@ func (ops *execOperations) ManagedFinalPlan(
 		log.Printf("[TRACE] apply phase: ManagedFinalPlan without either desired or prior state, so no change is needed")
 		return nil, diags
 	}
-	if deposedKey == states.NotDeposed {
-		log.Printf("[TRACE] apply phase: ManagedFinalPlan %s using %s", instAddr, providerClient.InstanceAddr)
-	} else {
-		log.Printf("[TRACE] apply phase: ManagedFinalPlan %s deposed object %s using %s", instAddr, deposedKey, providerClient.InstanceAddr)
-	}
-
-	// TODO: Find a good place to centralize a function for asking a provider
-	// to produce a plan, which we can then share between this operation and
-	// the equivalent step in the planning engine. But we'll need to figure
-	// out how best to frame that shared operation because the planning engine
-	// has the additional need of recognizing whether an "update" operation
-	// needs to be treated as a "replace", whereas the execution graph should
-	// already have "replace" actions decomposed into separate create and
-	// destroy actions.
-	//
-	// For now we just have a simple implementation inline, which is good
-	// enough as a proof-of-concept.
+	objAddr := instAddr.Object(deposedKey)
+	log.Printf("[TRACE] apply phase: ManagedFinalPlan %s using %s", objAddr, providerClient.InstanceAddr)
 
 	providerAddr := providerClient.InstanceAddr.Config.Config.Provider
-	schema, moreDiags := ops.plugins.ResourceTypeSchema(
-		ctx,
-		providerAddr,
-		addrs.ManagedResourceMode,
-		resourceTypeName,
-	)
+	resourceType := resources.NewManagedResourceType(providerAddr, resourceTypeName, providerClient.Ops)
+
+	var desiredVal, currentVal cty.Value
+	var currentPrivate []byte
+	if desired != nil {
+		desiredVal = desired.ConfigVal
+	}
+	if prior != nil {
+		currentVal = prior.State.Value
+		currentPrivate = prior.State.Private
+	}
+
+	resp, moreDiags := resourceType.PlanChanges(ctx, &resources.ManagedResourcePlanRequest{
+		Current: resources.ValueWithPrivate{
+			Value:   currentVal,
+			Private: currentPrivate,
+		},
+		DesiredValue: desiredVal,
+		// TODO: Do we want to still support ProviderMeta? If so, who is
+		// responsible for propagating its value into here?
+		ProviderMetaValue: cty.NilVal,
+	}, objAddr)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		return nil, diags
 	}
 
-	var configVal, priorVal cty.Value
-	var priorPrivate []byte
-	if desired != nil {
-		configVal = desired.ConfigVal
-	} else {
-		configVal = cty.NullVal(cty.DynamicPseudoType)
-	}
-	if prior != nil {
-		priorVal = prior.State.Value
-		priorPrivate = prior.State.Private
-	} else {
-		priorVal = cty.NullVal(cty.DynamicPseudoType)
-	}
-	proposedVal := objchange.ProposedNew(schema.Block, priorVal, configVal)
-
-	// TODO: We should preserve the marks from prior and config and reapply
-	// them to the result.
-	priorValUnmarked, _ := priorVal.UnmarkDeep()
-	configValUnmarked, _ := configVal.UnmarkDeep()
-	proposedValUnmarked, _ := proposedVal.UnmarkDeep()
-
-	resp := providerClient.Ops.PlanResourceChange(ctx, providers.PlanResourceChangeRequest{
-		TypeName:         resourceTypeName,
-		PriorState:       priorValUnmarked,
-		Config:           configValUnmarked,
-		ProposedNewState: proposedValUnmarked,
-		PriorPrivate:     priorPrivate,
-		// TODO: Do we want to still support ProviderMeta? If so, who is
-		// responsible for propagating its value into here?
-		ProviderMeta: cty.NullVal(cty.DynamicPseudoType),
-	})
-	diags = diags.Append(resp.Diagnostics)
-	if resp.Diagnostics.HasErrors() {
+	// The final plan must be a valid concretization of the initial plan,
+	// which includes the rule that any known values from the initial plan
+	// remain unchanged in the final plan.
+	moreDiags = resourceType.ValidateFinalPlan(ctx, initialPlannedVal, resp.Planned.Value, objAddr)
+	diags = diags.Append(moreDiags)
+	if moreDiags.HasErrors() {
 		return nil, diags
-	}
-
-	if errs := objchange.AssertPlanValid(schema.Block, priorValUnmarked, configValUnmarked, plannedVal); len(errs) > 0 {
-		if resp.LegacyTypeSystem {
-			// The shimming of the old type system in the legacy SDK is not precise
-			// enough to pass this consistency check, so we'll give it a pass here,
-			// but we will generate a warning about it so that we are more likely
-			// to notice in the logs if an inconsistency beyond the type system
-			// leads to a downstream provider failure.
-			var buf strings.Builder
-			fmt.Fprintf(&buf,
-				"[WARN] Provider %q produced an invalid plan for %s, but we are tolerating it because it is using the legacy plugin SDK.\n    The following problems may be the cause of any confusing errors from downstream operations:",
-				providerAddr, instAddr,
-			)
-			for _, err := range errs {
-				fmt.Fprintf(&buf, "\n      - %s", tfdiags.FormatError(err))
-			}
-			log.Print(buf.String())
-		} else {
-			for _, err := range errs {
-				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
-					"Provider produced invalid plan",
-					fmt.Sprintf(
-						"Provider %q planned an invalid value for %s.\n\nThis is a bug in the provider, which should be reported in the provider's own issue tracker.",
-						providerAddr, tfdiags.FormatErrorPrefixed(err, instAddr.String()),
-					),
-				))
-			}
-			return nil, diags
-		}
 	}
 
 	return &exec.ManagedResourceObjectFinalPlan{
 		InstanceAddr:    instAddr,
 		DeposedKey:      deposedKey,
 		ResourceType:    resourceTypeName,
-		PriorStateVal:   priorVal,
-		ConfigVal:       configVal,
-		PlannedVal:      resp.PlannedState,
-		ProviderPrivate: resp.PlannedPrivate,
+		PriorStateVal:   resp.Current.Value,
+		ConfigVal:       resp.DesiredValue,
+		PlannedVal:      resp.Planned.Value,
+		ProviderPrivate: resp.Planned.Private,
 	}, diags
 }
 
@@ -219,11 +161,26 @@ func (ops *execOperations) ManagedApply(
 		return nil, diags
 	}
 
+	// TODO: Encapsulate most of the following logic into a method of
+	// [resources.ManagedResourceType].
+
 	// TODO: We should preserve the marks from prior and config and reapply
 	// them to the result.
 	priorValUnmarked, _ := plan.PriorStateVal.UnmarkDeep()
 	configValUnmarked, _ := plan.ConfigVal.UnmarkDeep()
 	plannedValUnmarked, _ := plan.PlannedVal.UnmarkDeep()
+
+	// Some provider client implementations can't tolerate the values being
+	// completely nil, so we'll substitute null values to avoid crashes.
+	if priorValUnmarked == cty.NilVal {
+		priorValUnmarked = cty.NullVal(schema.Block.ImpliedType())
+	}
+	if configValUnmarked == cty.NilVal {
+		configValUnmarked = cty.NullVal(schema.Block.ImpliedType())
+	}
+	if plannedValUnmarked == cty.NilVal {
+		plannedValUnmarked = cty.NullVal(schema.Block.ImpliedType())
+	}
 
 	resp := providerClient.Ops.ApplyResourceChange(ctx, providers.ApplyResourceChangeRequest{
 		TypeName:       plan.ResourceType,
@@ -270,14 +227,17 @@ func (ops *execOperations) ManagedApply(
 	// consistent with what was planned. (That'll need the provider schema
 	// we fetched above, but currently we're just discarding that schema.)
 
-	status := states.ObjectTainted
-	if !diags.HasErrors() {
-		status = states.ObjectReady
-	}
-	ret := &exec.ResourceInstanceObject{
-		InstanceAddr: plan.InstanceAddr,
-		DeposedKey:   plan.DeposedKey,
-		State: &states.ResourceInstanceObjectFull{
+	// FIXME: Change [exec.ManagedResourceObjectFinalPlan] to use
+	// [addrs.AbsResourceInstanceObject] itself, instead of separate instance
+	// address and deposed key fields.
+	objAddr := plan.InstanceAddr.Object(plan.DeposedKey)
+	var state *states.ResourceInstanceObjectFull
+	if !resp.NewState.IsNull() {
+		status := states.ObjectTainted
+		if !diags.HasErrors() {
+			status = states.ObjectReady
+		}
+		state = &states.ResourceInstanceObjectFull{
 			Status:               status,
 			Value:                resp.NewState,
 			Private:              resp.Private,
@@ -290,21 +250,34 @@ func (ops *execOperations) ManagedApply(
 			// TODO: Propagate whether this resource instance has
 			// "create_before_destroy" set into the final plan and then
 			// populate CreateBeforeDestroy here.
-		},
+		}
+		stateSrc, err := states.EncodeResourceInstanceObjectFull(state, schema.Block.ImpliedType())
+		if err != nil {
+			// This is a worst-case scenario where we've successfully changed
+			// something but we can't represent what changed in the state for some
+			// reason, and so the changes just get lost. It shouldn't be possible
+			// to get here in practice though, because resp.NewState would've
+			// already been decoded using the same schema if it came from a plugin,
+			// and so it should definitely conform to that schema.
+			// FIXME: A proper error message for this.
+			diags = diags.Append(fmt.Errorf("failed to encode the new state for %s: %w", plan.InstanceAddr, err))
+			return nil, diags
+		}
+		ops.workingState.SetResourceInstanceObjectFull(objAddr, stateSrc)
+	} else {
+		// A null value for "new state" represents that the object has been
+		// deleted, so we now just need to remove it from the state.
+		// Unfortunately this API is still a little quirkly and wants us to
+		// pass the provider instance address so that it can update some
+		// resource-level and instance-level metadata as a side-effect.
+		ops.workingState.RemoveResourceInstanceObjectFull(objAddr, providerClient.InstanceAddr)
 	}
-	stateSrc, err := states.EncodeResourceInstanceObjectFull(ret.State, schema.Block.ImpliedType())
-	if err != nil {
-		// This is a worst-case scenario where we've successfully changed
-		// something but we can't represent what changed in the state for some
-		// reason, and so the changes just get lost. It shouldn't be possible
-		// to get here in practice though, because resp.NewState would've
-		// already been decoded using the same schema if it came from a plugin,
-		// and so it should definitely conform to that schema.
-		// FIXME: A proper error message for this.
-		diags = diags.Append(fmt.Errorf("failed to encode the new state for %s: %w", plan.InstanceAddr, err))
-		return ret, diags
+
+	ret := &exec.ResourceInstanceObject{
+		InstanceAddr: plan.InstanceAddr,
+		DeposedKey:   plan.DeposedKey,
+		State:        state, // nil if the object was deleted
 	}
-	ops.workingState.SetResourceInstanceObjectFull(plan.InstanceAddr, plan.DeposedKey, stateSrc)
 	return ret, diags
 }
 

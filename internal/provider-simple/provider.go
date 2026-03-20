@@ -24,44 +24,43 @@ type simple struct {
 }
 
 func Provider() providers.Interface {
-	simpleResource := providers.Schema{
-		Block: &configschema.Block{
-			Attributes: map[string]*configschema.Attribute{
-				"id": {
-					Computed: true,
-					Type:     cty.String,
-				},
-				"value": {
-					Optional: true,
-					Type:     cty.String,
-				},
-			},
-		},
-	}
-	// Only managed resource should have write-only arguments.
-	withWriteOnlyBlocks := func(s providers.Schema) providers.Schema {
-		b := *s.Block
-
-		b.BlockTypes = map[string]*configschema.NestedBlock{
-			"nested_block": {
-				Nesting: configschema.NestingSingle,
-				Block: configschema.Block{
-					Attributes: map[string]*configschema.Attribute{
-						"nested_block_attr": {
-							Type:      cty.String,
-							Optional:  true,
-							WriteOnly: true,
-						},
+	schema := func(withWoField bool) providers.Schema {
+		ret := providers.Schema{
+			Block: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"id": {
+						Computed: true,
+						Type:     cty.String,
+					},
+					"value": {
+						Optional: true,
+						Type:     cty.String,
 					},
 				},
 			},
 		}
-		b.Attributes["value_wo"] = &configschema.Attribute{
-			Optional:  true,
-			Type:      cty.String,
-			WriteOnly: true,
+		if withWoField {
+			ret.Block.Attributes["value_wo"] = &configschema.Attribute{
+				Optional:  true,
+				Type:      cty.String,
+				WriteOnly: true,
+			}
+			ret.Block.BlockTypes = map[string]*configschema.NestedBlock{
+				"nested_block": {
+					Nesting: configschema.NestingSingle,
+					Block: configschema.Block{
+						Attributes: map[string]*configschema.Attribute{
+							"nested_block_attr": {
+								Type:      cty.String,
+								Optional:  true,
+								WriteOnly: true,
+							},
+						},
+					},
+				},
+			}
 		}
-		return providers.Schema{Block: &b}
+		return ret
 	}
 
 	return simple{
@@ -84,13 +83,13 @@ func Provider() providers.Interface {
 				},
 			},
 			ResourceTypes: map[string]providers.Schema{
-				"simple_resource": withWriteOnlyBlocks(simpleResource),
+				"simple_resource": schema(true),
 			},
 			DataSources: map[string]providers.Schema{
-				"simple_resource": simpleResource,
+				"simple_resource": schema(false),
 			},
 			EphemeralResources: map[string]providers.Schema{
-				"simple_resource": simpleResource,
+				"simple_resource": schema(false),
 			},
 			ServerCapabilities: providers.ServerCapabilities{
 				PlanDestroy: true,

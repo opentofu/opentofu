@@ -44,11 +44,11 @@ func TestVersion(t *testing.T) {
 		nil,
 	)
 
-	ui := cli.NewMockUi()
+	view, done := testView(t)
 	c := &VersionCommand{
 		Meta: Meta{
 			WorkingDir: workdir.NewDir("."),
-			Ui:         ui,
+			View:       view,
 		},
 		Version:           "4.5.6",
 		VersionPrerelease: "foo",
@@ -57,11 +57,13 @@ func TestVersion(t *testing.T) {
 	if err := c.replaceLockedDependencies(context.Background(), locks); err != nil {
 		t.Fatal(err)
 	}
-	if code := c.Run([]string{}); code != 0 {
-		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
+	code := c.Run([]string{})
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", output.Stderr())
 	}
 
-	actual := strings.TrimSpace(ui.OutputWriter.String())
+	actual := strings.TrimSpace(output.Stdout())
 	expected := "OpenTofu v4.5.6-foo\non aros_riscv64\n+ provider registry.opentofu.org/hashicorp/test1 v7.8.9-beta.2\n+ provider registry.opentofu.org/hashicorp/test2 v1.2.3"
 	if actual != expected {
 		t.Fatalf("wrong output\ngot:\n%s\nwant:\n%s", actual, expected)
@@ -70,10 +72,10 @@ func TestVersion(t *testing.T) {
 }
 
 func TestVersion_flags(t *testing.T) {
-	ui := new(cli.MockUi)
+	view, done := testView(t)
 	m := Meta{
 		WorkingDir: workdir.NewDir("."),
-		Ui:         ui,
+		View:       view,
 	}
 
 	// `tofu version`
@@ -84,11 +86,13 @@ func TestVersion_flags(t *testing.T) {
 		Platform:          getproviders.Platform{OS: "aros", Arch: "riscv64"},
 	}
 
-	if code := c.Run([]string{"-v", "-version"}); code != 0 {
-		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
+	code := c.Run([]string{"-v", "-version"})
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", output.Stderr())
 	}
 
-	actual := strings.TrimSpace(ui.OutputWriter.String())
+	actual := strings.TrimSpace(output.Stdout())
 	expected := "OpenTofu v4.5.6-foo\non aros_riscv64"
 	if actual != expected {
 		t.Fatalf("wrong output\ngot: %#v\nwant: %#v", actual, expected)
@@ -99,10 +103,10 @@ func TestVersion_json(t *testing.T) {
 	td := t.TempDir()
 	t.Chdir(td)
 
-	ui := cli.NewMockUi()
+	view, done := testView(t)
 	meta := Meta{
 		WorkingDir: workdir.NewDir("."),
-		Ui:         ui,
+		View:       view,
 	}
 
 	// `tofu version -json` without prerelease
@@ -111,11 +115,13 @@ func TestVersion_json(t *testing.T) {
 		Version:  "4.5.6",
 		Platform: getproviders.Platform{OS: "aros", Arch: "riscv64"},
 	}
-	if code := c.Run([]string{"-json"}); code != 0 {
-		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
+	code := c.Run([]string{"-json"})
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", output.Stderr())
 	}
 
-	actual := strings.TrimSpace(ui.OutputWriter.String())
+	actual := strings.TrimSpace(output.Stdout())
 	expected := strings.TrimSpace(`
 {
   "terraform_version": "4.5.6",
@@ -127,8 +133,9 @@ func TestVersion_json(t *testing.T) {
 		t.Fatalf("wrong output\n%s", diff)
 	}
 
-	// flush the output from the mock ui
-	ui.OutputWriter.Reset()
+	// reset view
+	view, done = testView(t)
+	meta.View = view
 
 	// Now we'll create a fixed dependency lock file in our working directory
 	// so we can verify that the version command shows the information
@@ -157,11 +164,13 @@ func TestVersion_json(t *testing.T) {
 	if err := c.replaceLockedDependencies(context.Background(), locks); err != nil {
 		t.Fatal(err)
 	}
-	if code := c.Run([]string{"-json"}); code != 0 {
-		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
+	code = c.Run([]string{"-json"})
+	output = done(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", output.Stderr())
 	}
 
-	actual = strings.TrimSpace(ui.OutputWriter.String())
+	actual = strings.TrimSpace(output.Stdout())
 	expected = strings.TrimSpace(`
 {
   "terraform_version": "4.5.6-foo",
@@ -175,5 +184,4 @@ func TestVersion_json(t *testing.T) {
 	if diff := cmp.Diff(expected, actual); diff != "" {
 		t.Fatalf("wrong output\n%s", diff)
 	}
-
 }
