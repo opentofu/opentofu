@@ -33,6 +33,7 @@ ENHANCEMENTS:
 - `tofu login` now uses the `BROWSER` environment variable when launching a web browser on Unix platforms, as long as it's set to a single command that can accept a URL to open as its first and only argument. ([#3456](https://github.com/opentofu/opentofu/issues/3456))
 - The `s3` backend now automatically discovers and uses AWS credentials issued using [the `aws login` command](https://docs.aws.amazon.com/cli/latest/reference/login/) in AWS CLI. ([#3767](https://github.com/opentofu/opentofu/pull/3767))
 - The `azurerm` backend now supports authentication using Azure DevOps and Azure Pipelines workload identity federation. ([#3820](https://github.com/opentofu/opentofu/pull/3820))
+- The `local` backend now writes pretty-printed JSON state files, making diffs more readable when state is tracked in version control. ([#1947](https://github.com/opentofu/opentofu/issues/1947))
 
 BUG FIXES:
 

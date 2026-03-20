@@ -6,6 +6,7 @@
 package statefile
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -189,7 +190,14 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 				// Instance attributes
 				switch {
 				case isV4.AttributesRaw != nil:
-					obj.AttrsJSON = isV4.AttributesRaw
+					// Compact the raw JSON to normalize whitespace that may
+					// have been introduced by pretty-printed state files.
+					var compacted bytes.Buffer
+					if err := json.Compact(&compacted, isV4.AttributesRaw); err == nil {
+						obj.AttrsJSON = compacted.Bytes()
+					} else {
+						obj.AttrsJSON = isV4.AttributesRaw
+					}
 				case isV4.AttributesFlat != nil:
 					obj.AttrsFlat = isV4.AttributesFlat
 				default:
