@@ -1,4 +1,4 @@
-package plugin
+package state_store
 
 import (
 	"context"

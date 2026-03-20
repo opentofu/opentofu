@@ -3,7 +3,7 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package plugin
+package state_store
 
 import (
 	"context"
@@ -157,7 +157,7 @@ func (b *Backend) StateMgr(_ context.Context, name string) (statemgr.Full, error
 		lockInfo.Operation = "init"
 		lockId, err := stateMgr.Lock(context.TODO(), lockInfo)
 		if err != nil {
-			return nil, fmt.Errorf("failed to lock plugin state: %w", err)
+			return nil, fmt.Errorf("failed to lock state_store: %w", err)
 		}
 
 		// Local helper function so we can call it multiple places

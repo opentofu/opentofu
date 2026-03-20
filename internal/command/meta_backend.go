@@ -38,7 +38,7 @@ import (
 
 	backendInit "github.com/opentofu/opentofu/internal/backend/init"
 	backendLocal "github.com/opentofu/opentofu/internal/backend/local"
-	"github.com/opentofu/opentofu/internal/backend/remote-state/plugin"
+	"github.com/opentofu/opentofu/internal/backend/remote-state/state_store"
 )
 
 // BackendOpts are the options used to initialize a backend.Backend.
@@ -336,7 +336,7 @@ func (m *Meta) BackendForLocalPlan(ctx context.Context, settings plans.Backend, 
 		manager := plugins.NewProviderManager()
 
 		backendInit.Set("state_store", func(enc encryption.StateEncryption) backend.Backend {
-			b, diags := plugin.New(enc, manager, settings.StateStoreProvider, settings.StateStoreType)
+			b, diags := state_store.New(enc, manager, settings.StateStoreProvider, settings.StateStoreType)
 			if diags.HasErrors() {
 				m.View.Diagnostics(diags)
 			}

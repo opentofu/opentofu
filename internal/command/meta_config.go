@@ -22,7 +22,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
 	backendInit "github.com/opentofu/opentofu/internal/backend/init"
-	"github.com/opentofu/opentofu/internal/backend/remote-state/plugin"
+	"github.com/opentofu/opentofu/internal/backend/remote-state/state_store"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -250,7 +250,7 @@ func (m *Meta) loadBackendConfig(ctx context.Context, rootDir string) (*configs.
 		manager := plugins.NewProviderManager()
 
 		backendInit.Set("state_store", func(enc encryption.StateEncryption) backend.Backend {
-			b, diags := plugin.New(enc, manager, mod.StateStoreConfig.Provider, mod.StateStoreConfig.Type)
+			b, diags := state_store.New(enc, manager, mod.StateStoreConfig.Provider, mod.StateStoreConfig.Type)
 			if diags.HasErrors() {
 				m.View.Diagnostics(diags)
 			}
