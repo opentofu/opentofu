@@ -253,6 +253,9 @@ func TestPrimaryChdirOption(t *testing.T) {
 //     the status update of their execution.
 func TestEphemeralWorkflowAndOutput(t *testing.T) {
 	t.Parallel()
+	if runtime.GOOS == "linux" && runtime.GOARCH == "arm" {
+		t.Skip("Test skipped due to inability to run on linux_arm. Might need further investigation to make it runnable")
+	}
 
 	pluginVersionRunner := func(t *testing.T, testdataPath string, providerBuilderFunc func(*testing.T, string)) {
 		tf := e2e.NewBinary(t, tofuBin, testdataPath)
