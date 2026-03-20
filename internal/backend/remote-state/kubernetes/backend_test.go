@@ -5,6 +5,26 @@
 
 package kubernetes
 
+////////////////////////////////////////////////////////////////////////////
+// Most of the tests in this package want to interact with a real Kubernetes
+// API server.
+//
+// One way to achieve that is to run minikube: https://minikube.sigs.k8s.io/
+//
+// Starting a cluster with minikube will, by default, write a "minikube"
+// context into ~/.kube/config, and so you can set the following environment
+// variable when running the tests to use the minikube cluster:
+//    KUBE_CONFIG_PATHS=$HOME/.kube/config
+//
+// If that configuration file contains multiple "contexts" on your system,
+// you can explicitly select the one added by minikube by setting:
+//    KUBE_CTX=minikube
+//
+// As usual with acceptance tests in OpenTofu, you will also need to set
+// either TF_ACC=1 or TF_K8S_TEST=1 to confirm that you want the test suite
+// to try to connect to a Kubernetes cluster.
+////////////////////////////////////////////////////////////////////////////
+
 import (
 	"context"
 	"fmt"
