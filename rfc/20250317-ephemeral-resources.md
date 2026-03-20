@@ -222,6 +222,11 @@ Locals marked as ephemeral are available during plan and apply phase and can be 
 #### Ephemeral resource
 In contrast with the write-only arguments where only specifically tagged attributes are not stored in the state/plan file, `ephemeral` resources must not be stored in the state file and have only a reference stored in the plan file.
 
+> [!IMPORTANT]
+> Later, based on multiple arguments, was decided that ephemeral resources should not be stored in the plan at all, and instead
+> expand again the resources during the apply phase.
+> More details in [#3799](https://github.com/opentofu/opentofu/issues/3799).
+
 The ephemeral blocks are behaving similar to `data`, where it reads the indicated resource and once it's done with it, is going to close it.
 
 Ephemeral resources can be referenced only in specific contexts:
@@ -824,6 +829,11 @@ Anything else related to this type of changes, are trimmed out and must never be
 > [!NOTE] 
 > 
 > For more details please refer to [#2985](https://github.com/opentofu/opentofu/pull/2985).
+
+> [!IMPORTANT]
+> Later, based on multiple arguments, was decided that ephemeral resources should not be stored in the plan at all, and instead
+> expand again the resources during the apply phase.
+> More details in [#3799](https://github.com/opentofu/opentofu/issues/3799).
 ### Testing support
 Due to the scope size this RFC is covering, the testing support will be documented later into a different RFC, or as amendment to this one.
 
@@ -893,6 +903,15 @@ This function should also work perfectly fine with a non-ephemeral value.
 >
 > When we encounter an output in the root module that is referencing an ephemeral value, we could recommend to use `ephemeralasnull` to be able to store that information in the state.
 > This would be a warning that will come together with the error diagnostic discussed in the ephemeral outputs section.
+
+### Ephemeral values in repetition meta arguments
+Technically speaking, the usage of ephemeral values in `ephemeral` blocks should work well since the block information
+is not going to be stored in plan or state.
+But, due to the risk of exposing sensitive or ephemeral values to the logs, ephemeral values are disallowed from being used
+in the repetition meta arguments (`count`/`for_each`/`enabled`).
+
+> [!NOTE]
+> More details in [#3904](https://github.com/opentofu/opentofu/issues/3904).
 
 ## Open Questions
 
