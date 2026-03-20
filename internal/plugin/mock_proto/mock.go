@@ -123,6 +123,26 @@ func (mr *MockProviderClientMockRecorder) Configure(ctx, in any, opts ...any) *g
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Configure", reflect.TypeOf((*MockProviderClient)(nil).Configure), varargs...)
 }
 
+// GenerateResourceConfig mocks base method.
+func (m *MockProviderClient) GenerateResourceConfig(ctx context.Context, in *tfplugin5.GenerateResourceConfig_Request, opts ...grpc.CallOption) (*tfplugin5.GenerateResourceConfig_Response, error) {
+	m.ctrl.T.Helper()
+	varargs := []any{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "GenerateResourceConfig", varargs...)
+	ret0, _ := ret[0].(*tfplugin5.GenerateResourceConfig_Response)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GenerateResourceConfig indicates an expected call of GenerateResourceConfig.
+func (mr *MockProviderClientMockRecorder) GenerateResourceConfig(ctx, in any, opts ...any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]any{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GenerateResourceConfig", reflect.TypeOf((*MockProviderClient)(nil).GenerateResourceConfig), varargs...)
+}
+
 // GetFunctions mocks base method.
 func (m *MockProviderClient) GetFunctions(ctx context.Context, in *tfplugin5.GetFunctions_Request, opts ...grpc.CallOption) (*tfplugin5.GetFunctions_Response, error) {
 	m.ctrl.T.Helper()
@@ -223,6 +243,46 @@ func (mr *MockProviderClientMockRecorder) ImportResourceState(ctx, in any, opts 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ImportResourceState", reflect.TypeOf((*MockProviderClient)(nil).ImportResourceState), varargs...)
 }
 
+// InvokeAction mocks base method.
+func (m *MockProviderClient) InvokeAction(ctx context.Context, in *tfplugin5.InvokeAction_Request, opts ...grpc.CallOption) (tfplugin5.Provider_InvokeActionClient, error) {
+	m.ctrl.T.Helper()
+	varargs := []any{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "InvokeAction", varargs...)
+	ret0, _ := ret[0].(tfplugin5.Provider_InvokeActionClient)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// InvokeAction indicates an expected call of InvokeAction.
+func (mr *MockProviderClientMockRecorder) InvokeAction(ctx, in any, opts ...any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]any{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InvokeAction", reflect.TypeOf((*MockProviderClient)(nil).InvokeAction), varargs...)
+}
+
+// ListResource mocks base method.
+func (m *MockProviderClient) ListResource(ctx context.Context, in *tfplugin5.ListResource_Request, opts ...grpc.CallOption) (tfplugin5.Provider_ListResourceClient, error) {
+	m.ctrl.T.Helper()
+	varargs := []any{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "ListResource", varargs...)
+	ret0, _ := ret[0].(tfplugin5.Provider_ListResourceClient)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListResource indicates an expected call of ListResource.
+func (mr *MockProviderClientMockRecorder) ListResource(ctx, in any, opts ...any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]any{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListResource", reflect.TypeOf((*MockProviderClient)(nil).ListResource), varargs...)
+}
+
 // MoveResourceState mocks base method.
 func (m *MockProviderClient) MoveResourceState(ctx context.Context, in *tfplugin5.MoveResourceState_Request, opts ...grpc.CallOption) (*tfplugin5.MoveResourceState_Response, error) {
 	m.ctrl.T.Helper()
@@ -261,6 +321,26 @@ func (mr *MockProviderClientMockRecorder) OpenEphemeralResource(ctx, in any, opt
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]any{ctx, in}, opts...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OpenEphemeralResource", reflect.TypeOf((*MockProviderClient)(nil).OpenEphemeralResource), varargs...)
+}
+
+// PlanAction mocks base method.
+func (m *MockProviderClient) PlanAction(ctx context.Context, in *tfplugin5.PlanAction_Request, opts ...grpc.CallOption) (*tfplugin5.PlanAction_Response, error) {
+	m.ctrl.T.Helper()
+	varargs := []any{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "PlanAction", varargs...)
+	ret0, _ := ret[0].(*tfplugin5.PlanAction_Response)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// PlanAction indicates an expected call of PlanAction.
+func (mr *MockProviderClientMockRecorder) PlanAction(ctx, in any, opts ...any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]any{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PlanAction", reflect.TypeOf((*MockProviderClient)(nil).PlanAction), varargs...)
 }
 
 // PlanResourceChange mocks base method.
@@ -423,6 +503,26 @@ func (mr *MockProviderClientMockRecorder) UpgradeResourceState(ctx, in any, opts
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpgradeResourceState", reflect.TypeOf((*MockProviderClient)(nil).UpgradeResourceState), varargs...)
 }
 
+// ValidateActionConfig mocks base method.
+func (m *MockProviderClient) ValidateActionConfig(ctx context.Context, in *tfplugin5.ValidateActionConfig_Request, opts ...grpc.CallOption) (*tfplugin5.ValidateActionConfig_Response, error) {
+	m.ctrl.T.Helper()
+	varargs := []any{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "ValidateActionConfig", varargs...)
+	ret0, _ := ret[0].(*tfplugin5.ValidateActionConfig_Response)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ValidateActionConfig indicates an expected call of ValidateActionConfig.
+func (mr *MockProviderClientMockRecorder) ValidateActionConfig(ctx, in any, opts ...any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]any{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateActionConfig", reflect.TypeOf((*MockProviderClient)(nil).ValidateActionConfig), varargs...)
+}
+
 // ValidateDataSourceConfig mocks base method.
 func (m *MockProviderClient) ValidateDataSourceConfig(ctx context.Context, in *tfplugin5.ValidateDataSourceConfig_Request, opts ...grpc.CallOption) (*tfplugin5.ValidateDataSourceConfig_Response, error) {
 	m.ctrl.T.Helper()
@@ -461,6 +561,26 @@ func (mr *MockProviderClientMockRecorder) ValidateEphemeralResourceConfig(ctx, i
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]any{ctx, in}, opts...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateEphemeralResourceConfig", reflect.TypeOf((*MockProviderClient)(nil).ValidateEphemeralResourceConfig), varargs...)
+}
+
+// ValidateListResourceConfig mocks base method.
+func (m *MockProviderClient) ValidateListResourceConfig(ctx context.Context, in *tfplugin5.ValidateListResourceConfig_Request, opts ...grpc.CallOption) (*tfplugin5.ValidateListResourceConfig_Response, error) {
+	m.ctrl.T.Helper()
+	varargs := []any{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "ValidateListResourceConfig", varargs...)
+	ret0, _ := ret[0].(*tfplugin5.ValidateListResourceConfig_Response)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ValidateListResourceConfig indicates an expected call of ValidateListResourceConfig.
+func (mr *MockProviderClientMockRecorder) ValidateListResourceConfig(ctx, in any, opts ...any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]any{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateListResourceConfig", reflect.TypeOf((*MockProviderClient)(nil).ValidateListResourceConfig), varargs...)
 }
 
 // ValidateResourceTypeConfig mocks base method.

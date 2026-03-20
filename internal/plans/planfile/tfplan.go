@@ -676,12 +676,17 @@ func writeTfplan(plan *plans.Plan, w io.Writer) error {
 		return fmt.Errorf("plan does not have a backend configuration")
 	}
 
+	var stateStoreProvider string
+	if !plan.Backend.StateStoreProvider.IsZero() {
+		stateStoreProvider = plan.Backend.StateStoreProvider.String()
+	}
+
 	rawPlan.Backend = &planproto.Backend{
 		Type:               plan.Backend.Type,
 		Config:             valueToTfplan(plan.Backend.Config),
 		Workspace:          plan.Backend.Workspace,
 		StateStoreType:     plan.Backend.StateStoreType,
-		StateStoreProvider: plan.Backend.StateStoreProvider.String(),
+		StateStoreProvider: stateStoreProvider,
 	}
 
 	rawPlan.Timestamp = plan.Timestamp.Format(time.RFC3339)

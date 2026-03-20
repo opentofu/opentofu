@@ -1145,13 +1145,17 @@ func (m *Meta) backend_C_r_s(ctx context.Context, c *configs.Backend, cHash int,
 	if s == nil {
 		s = legacy.NewState()
 	}
+	var stateStoreProvider string
+	if !c.StateStoreProvider.IsZero() {
+		stateStoreProvider = c.StateStoreProvider.String()
+	}
 	s.Backend = &legacy.BackendState{
 		Type:      c.Type,
 		ConfigRaw: json.RawMessage(configJSON),
 		Hash:      uint64(cHash),
 
 		StateStoreType:     c.StateStoreType,
-		StateStoreProvider: c.StateStoreProvider.String(),
+		StateStoreProvider: stateStoreProvider,
 	}
 
 	// Verify that selected workspace exists in the backend.
@@ -1296,13 +1300,17 @@ func (m *Meta) backend_C_r_S_changed(ctx context.Context, c *configs.Backend, cH
 	if s == nil {
 		s = legacy.NewState()
 	}
+	var stateStoreProvider string
+	if !c.StateStoreProvider.IsZero() {
+		stateStoreProvider = c.StateStoreProvider.String()
+	}
 	s.Backend = &legacy.BackendState{
 		Type:      c.Type,
 		ConfigRaw: json.RawMessage(configJSON),
 		Hash:      uint64(cHash),
 
 		StateStoreType:     c.StateStoreType,
-		StateStoreProvider: c.StateStoreProvider.String(),
+		StateStoreProvider: stateStoreProvider,
 	}
 
 	// Verify that selected workspace exist. Otherwise prompt user to create one

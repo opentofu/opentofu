@@ -7,6 +7,7 @@ package execgraph
 
 import (
 	"context"
+	"iter"
 	"sync"
 
 	"github.com/zclconf/go-cty/cty"
@@ -342,5 +343,45 @@ func (m *managedResourceInstanceMockProvider) ValidateProviderConfig(context.Con
 
 // ValidateResourceConfig implements providers.Configured.
 func (m *managedResourceInstanceMockProvider) ValidateResourceConfig(context.Context, providers.ValidateResourceConfigRequest) providers.ValidateResourceConfigResponse {
+	panic("unimplemented")
+}
+
+// ValidateStateStoreConfig implements providers.Configured.
+func (m *managedResourceInstanceMockProvider) ValidateStateStoreConfig(_ context.Context, _ providers.ValidateStateStoreConfigRequest) providers.ValidateStateStoreConfigResponse {
+	panic("unimplemented")
+}
+
+// ConfigureStateStore implements providers.Configured.
+func (m *managedResourceInstanceMockProvider) ConfigureStateStore(_ context.Context, _ providers.ConfigureStateStoreRequest) providers.ConfigureStateStoreResponse {
+	panic("unimplemented")
+}
+
+// ReadStateBytes implements providers.Configured.
+func (m *managedResourceInstanceMockProvider) ReadStateBytes(_ context.Context, _ providers.ReadStateBytesRequest) iter.Seq[providers.ReadStateBytesResponse] {
+	panic("unimplemented")
+}
+
+// WriteStateBytes implements providers.Configured.
+func (m *managedResourceInstanceMockProvider) WriteStateBytes(_ context.Context, _ iter.Seq[providers.WriteStateBytesRequest]) providers.WriteStateBytesResponse {
+	panic("unimplemented")
+}
+
+// LockState implements providers.Configured.
+func (m *managedResourceInstanceMockProvider) LockState(_ context.Context, _ providers.LockStateRequest) providers.LockStateResponse {
+	panic("unimplemented")
+}
+
+// UnlockState implements providers.Configured.
+func (m *managedResourceInstanceMockProvider) UnlockState(_ context.Context, _ providers.UnlockStateRequest) providers.UnlockStateResponse {
+	panic("unimplemented")
+}
+
+// GetStates implements providers.Configured.
+func (m *managedResourceInstanceMockProvider) GetStates(_ context.Context, _ providers.GetStatesRequest) providers.GetStatesResponse {
+	panic("unimplemented")
+}
+
+// DeleteState implements providers.Configured.
+func (m *managedResourceInstanceMockProvider) DeleteState(_ context.Context, _ providers.DeleteStateRequest) providers.DeleteStateResponse {
 	panic("unimplemented")
 }
