@@ -20,6 +20,7 @@ import (
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/internal/planproto"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/version"
 )
 
@@ -260,10 +261,20 @@ func readTfplan(r io.Reader) (*plans.Plan, error) {
 		if err != nil {
 			return nil, fmt.Errorf("plan file has invalid backend configuration: %w", err)
 		}
+		var stateStoreProvider addrs.Provider
+		if rawBackend.StateStoreProvider != "" {
+			var diags tfdiags.Diagnostics
+			stateStoreProvider, diags = addrs.ParseProviderSourceString(rawBackend.StateStoreProvider)
+			if diags.HasErrors() {
+				return nil, fmt.Errorf("invalid value for state_store_provider %s: %w", rawBackend.StateStoreProvider, diags.Err())
+			}
+		}
 		plan.Backend = plans.Backend{
-			Type:      rawBackend.Type,
-			Config:    config,
-			Workspace: rawBackend.Workspace,
+			Type:               rawBackend.Type,
+			Config:             config,
+			Workspace:          rawBackend.Workspace,
+			StateStoreType:     rawBackend.StateStoreType,
+			StateStoreProvider: stateStoreProvider,
 		}
 	}
 
@@ -666,9 +677,11 @@ func writeTfplan(plan *plans.Plan, w io.Writer) error {
 	}
 
 	rawPlan.Backend = &planproto.Backend{
-		Type:      plan.Backend.Type,
-		Config:    valueToTfplan(plan.Backend.Config),
-		Workspace: plan.Backend.Workspace,
+		Type:               plan.Backend.Type,
+		Config:             valueToTfplan(plan.Backend.Config),
+		Workspace:          plan.Backend.Workspace,
+		StateStoreType:     plan.Backend.StateStoreType,
+		StateStoreProvider: plan.Backend.StateStoreProvider.String(),
 	}
 
 	rawPlan.Timestamp = plan.Timestamp.Format(time.RFC3339)

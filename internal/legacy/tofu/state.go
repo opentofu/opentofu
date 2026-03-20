@@ -777,6 +777,9 @@ type BackendState struct {
 	Type      string          `json:"type"`   // Backend type
 	ConfigRaw json.RawMessage `json:"config"` // Backend raw config
 	Hash      uint64          `json:"hash"`   // Hash of portion of configuration from config files
+
+	StateStoreType     string `json:"state_store_type"`
+	StateStoreProvider string `json:"state_store_provider"`
 }
 
 // Empty returns true if BackendState has no state.
@@ -827,7 +830,18 @@ func (s *BackendState) ForPlan(schema *configschema.Block, workspaceName string)
 	if err != nil {
 		return nil, errwrap.Wrapf("failed to decode backend config: {{err}}", err)
 	}
-	return plans.NewBackend(s.Type, configVal, schema, workspaceName)
+
+	var stateStoreProvider addrs.Provider
+
+	if s.StateStoreProvider != "" {
+		var diags tfdiags.Diagnostics
+		stateStoreProvider, diags = addrs.ParseProviderSourceString(s.StateStoreProvider)
+		if diags.HasErrors() {
+			return nil, diags.Err()
+		}
+	}
+
+	return plans.NewBackend(s.Type, configVal, schema, workspaceName, s.StateStoreType, stateStoreProvider)
 }
 
 // RemoteState is used to track the information about a remote

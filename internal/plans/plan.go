@@ -267,17 +267,22 @@ type Backend struct {
 	// but storing this explicitly allows us to return a better error message
 	// in the situation where the user has the wrong workspace selected.)
 	Workspace string
+
+	StateStoreType     string
+	StateStoreProvider addrs.Provider
 }
 
-func NewBackend(typeName string, config cty.Value, configSchema *configschema.Block, workspaceName string) (*Backend, error) {
+func NewBackend(typeName string, config cty.Value, configSchema *configschema.Block, workspaceName string, stateStoreType string, stateStoreProvider addrs.Provider) (*Backend, error) {
 	dv, err := NewDynamicValue(config, configSchema.ImpliedType())
 	if err != nil {
 		return nil, err
 	}
 
 	return &Backend{
-		Type:      typeName,
-		Config:    dv,
-		Workspace: workspaceName,
+		Type:               typeName,
+		Config:             dv,
+		Workspace:          workspaceName,
+		StateStoreType:     stateStoreType,
+		StateStoreProvider: stateStoreProvider,
 	}, nil
 }

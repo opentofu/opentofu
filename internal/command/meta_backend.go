@@ -38,6 +38,7 @@ import (
 
 	backendInit "github.com/opentofu/opentofu/internal/backend/init"
 	backendLocal "github.com/opentofu/opentofu/internal/backend/local"
+	"github.com/opentofu/opentofu/internal/backend/remote-state/plugin"
 	legacy "github.com/opentofu/opentofu/internal/legacy/tofu"
 )
 
@@ -329,6 +330,19 @@ func (m *Meta) BackendForLocalPlan(ctx context.Context, settings plans.Backend, 
 		// function for more information. This should be completely removed
 		// once the experiment is concluded.
 		tofu.SetExperimentalRuntimeAllowed(true)
+	}
+
+	if settings.Type == "state_store" {
+		plugins, _ := m.pluginLibrary()
+		manager := plugins.NewProviderManager()
+
+		backendInit.Set("state_store", func(enc encryption.StateEncryption) backend.Backend {
+			b, diags := plugin.New(enc, manager, settings.StateStoreProvider, settings.StateStoreType)
+			if diags.HasErrors() {
+				m.View.Diagnostics(diags)
+			}
+			return b
+		})
 	}
 
 	f, canonType := backendInit.Backend(settings.Type)
@@ -1135,6 +1149,9 @@ func (m *Meta) backend_C_r_s(ctx context.Context, c *configs.Backend, cHash int,
 		Type:      c.Type,
 		ConfigRaw: json.RawMessage(configJSON),
 		Hash:      uint64(cHash),
+
+		StateStoreType:     c.StateStoreType,
+		StateStoreProvider: c.StateStoreProvider.String(),
 	}
 
 	// Verify that selected workspace exists in the backend.
@@ -1283,6 +1300,9 @@ func (m *Meta) backend_C_r_S_changed(ctx context.Context, c *configs.Backend, cH
 		Type:      c.Type,
 		ConfigRaw: json.RawMessage(configJSON),
 		Hash:      uint64(cHash),
+
+		StateStoreType:     c.StateStoreType,
+		StateStoreProvider: c.StateStoreProvider.String(),
 	}
 
 	// Verify that selected workspace exist. Otherwise prompt user to create one

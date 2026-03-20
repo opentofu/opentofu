@@ -131,6 +131,8 @@ message Backend {
     string type = 1;
     DynamicValue config = 2;
     string workspace = 3;
+    string state_store_type = 4;
+    string state_store_provider = 5;
 }
 
 // Action describes the type of action planned for an object.

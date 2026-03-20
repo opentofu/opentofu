@@ -57,8 +57,10 @@ func (s *StateStoreConfig) ProviderConfigAddr() addrs.LocalProviderConfig {
 
 func (s *StateStoreConfig) ToBackendConfig() Backend {
 	return Backend{
-		Type:   "state_store",
-		Config: s.Config,
-		Eval:   s.eval,
+		Type:               "state_store",
+		Config:             s.Config,
+		Eval:               s.eval,
+		StateStoreType:     s.Type,
+		StateStoreProvider: s.Provider,
 	}
 }

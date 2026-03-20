@@ -594,12 +594,14 @@ func (x *Plan) GetTempExecutionGraph() []byte {
 
 // Backend is a description of backend configuration and other related settings.
 type Backend struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Type          string                 `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
-	Config        *DynamicValue          `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
-	Workspace     string                 `protobuf:"bytes,3,opt,name=workspace,proto3" json:"workspace,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	Type               string                 `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
+	Config             *DynamicValue          `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
+	Workspace          string                 `protobuf:"bytes,3,opt,name=workspace,proto3" json:"workspace,omitempty"`
+	StateStoreType     string                 `protobuf:"bytes,4,opt,name=state_store_type,json=stateStoreType,proto3" json:"state_store_type,omitempty"`
+	StateStoreProvider string                 `protobuf:"bytes,5,opt,name=state_store_provider,json=stateStoreProvider,proto3" json:"state_store_provider,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *Backend) Reset() {
@@ -649,6 +651,20 @@ func (x *Backend) GetConfig() *DynamicValue {
 func (x *Backend) GetWorkspace() string {
 	if x != nil {
 		return x.Workspace
+	}
+	return ""
+}
+
+func (x *Backend) GetStateStoreType() string {
+	if x != nil {
+		return x.StateStoreType
+	}
+	return ""
+}
+
+func (x *Backend) GetStateStoreProvider() string {
+	if x != nil {
+		return x.StateStoreProvider
 	}
 	return ""
 }
@@ -1401,11 +1417,13 @@ const file_planfile_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\v2\x14.tfplan.DynamicValueR\x05value:\x028\x01\x1aM\n" +
 	"\rresource_attr\x12\x1a\n" +
 	"\bresource\x18\x01 \x01(\tR\bresource\x12 \n" +
-	"\x04attr\x18\x02 \x01(\v2\f.tfplan.PathR\x04attr\"i\n" +
+	"\x04attr\x18\x02 \x01(\v2\f.tfplan.PathR\x04attr\"\xc5\x01\n" +
 	"\aBackend\x12\x12\n" +
 	"\x04type\x18\x01 \x01(\tR\x04type\x12,\n" +
 	"\x06config\x18\x02 \x01(\v2\x14.tfplan.DynamicValueR\x06config\x12\x1c\n" +
-	"\tworkspace\x18\x03 \x01(\tR\tworkspace\"\xc0\x02\n" +
+	"\tworkspace\x18\x03 \x01(\tR\tworkspace\x12(\n" +
+	"\x10state_store_type\x18\x04 \x01(\tR\x0estateStoreType\x120\n" +
+	"\x14state_store_provider\x18\x05 \x01(\tR\x12stateStoreProvider\"\xc0\x02\n" +
 	"\x06Change\x12&\n" +
 	"\x06action\x18\x01 \x01(\x0e2\x0e.tfplan.ActionR\x06action\x12,\n" +
 	"\x06values\x18\x02 \x03(\v2\x14.tfplan.DynamicValueR\x06values\x12B\n" +
