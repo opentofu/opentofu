@@ -72,52 +72,15 @@ func TestUserAgentAppendViaEnvVar(t *testing.T) {
 		})
 	}
 }
-func TestCustomUserAgentViaEnvVar(t *testing.T) {
-
-	appendUaVal := os.Getenv(appendUaEnvVar)
-	os.Unsetenv(appendUaEnvVar)
-	defer os.Setenv(appendUaEnvVar, appendUaVal)
-
-	testCases := []struct {
-		envVarValue string
-	}{
-		{" "},
-		{" \n"},
-		{"test/1"},
-		{"test/1 (comment)"},
-	}
-
-	for i, tc := range testCases {
-		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
-			t.Setenv(customUaEnvVar, tc.envVarValue)
-			givenUA := OpenTofuUserAgent("0.0.0")
-			if givenUA != tc.envVarValue {
-				t.Fatalf("Expected User-Agent '%s' does not match '%s'", tc.envVarValue, givenUA)
-			}
-		})
-	}
-}
-func TestCustomUserAgentAndAppendViaEnvVar(t *testing.T) {
-	testCases := []struct {
-		customUaValue string
-		appendUaValue string
-		expected      string
-	}{
-		{"", "", "OpenTofu/0.0.0"},
-		{"", " ", "OpenTofu/0.0.0"},
-		{"", " \n", "OpenTofu/0.0.0"},
-		{"", "testy test", "OpenTofu/0.0.0 testy test"},
-		{"opensource", "opentofu", "opensource opentofu"},
-	}
-
-	for i, tc := range testCases {
-		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
-			t.Setenv(customUaEnvVar, tc.customUaValue)
-			t.Setenv(appendUaEnvVar, tc.appendUaValue)
-			givenUA := OpenTofuUserAgent("0.0.0")
-			if givenUA != tc.expected {
-				t.Fatalf("Expected User-Agent '%s' does not match '%s'", tc.expected, givenUA)
-			}
-		})
+func TestCustomUserAgentViaEnvVarIgnored(t *testing.T) {
+	// removedCustomUAEnvVar was an undocumented variable that was removed.
+	// Verify that setting it has no effect on the User-Agent string.
+	const removedCustomUAEnvVar = "OPENTOFU_USER_AGENT"
+	t.Setenv(removedCustomUAEnvVar, "custom/agent")
+	t.Setenv(appendUaEnvVar, "")
+	expected := fmt.Sprintf("%s/%s", DefaultApplicationName, "0.0.0")
+	actual := OpenTofuUserAgent("0.0.0")
+	if actual != expected {
+		t.Fatalf("Expected User-Agent '%s' does not match '%s'", expected, actual)
 	}
 }
