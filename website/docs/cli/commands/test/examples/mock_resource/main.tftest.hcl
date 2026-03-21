@@ -19,6 +19,14 @@ mock_provider "aws" {
   }
 }
 
+mock_provider "local" {
+  mock_data "local_file" {
+    defaults = {
+      content = "my-test-bucket"
+    }
+  }
+}
+
 run "defaults_from_mock_resource_and_mock_data" {
   command = plan
 
