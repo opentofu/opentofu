@@ -517,7 +517,7 @@ A `mock_resource` / `mock_data` block affects **all instances** of the given typ
 
 :::note
 
-Defaults can only be set for **computed** attributes/blocks; configuration values cannot be changed via mocks. :contentReference[oaicite:2]{index=2}
+Defaults can only be set for **computed** attributes/blocks; configuration values cannot be changed via mocks.
 
 :::
 
@@ -533,7 +533,7 @@ These blocks consist of the following elements:
 
 :::
 
-In the example below, we test if the bucket name is correctly passed to the resource without actually creating it:
+In the example below, we use mock_resource and mock_data to provide stable defaults for computed attributes, while verifying that the mock defaults are applied correctly — all without making real provider API calls:
 
 <Tabs>
     <TabItem value={"test"} label={"main.tftest.hcl"} default>
@@ -543,7 +543,6 @@ In the example below, we test if the bucket name is correctly passed to the reso
         <CodeBlock language={"hcl"}>{MockResourceMain}</CodeBlock>
     </TabItem>
 </Tabs>
-
 
 ### The `override_resource` and `override_data` blocks
 
