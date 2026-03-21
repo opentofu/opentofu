@@ -6,6 +6,8 @@ provider "aws" {
   region = "us-east-2"
 }
 
-resource "aws_s3_bucket" "test" {
+data "aws_caller_identity" "current" {}
+
+resource "aws_s3_bucket" "demo" {
   bucket = data.local_file.bucket_name.content
 }
