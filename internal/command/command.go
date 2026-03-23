@@ -58,8 +58,6 @@ operation.
 // If your command accepts more than one arg, then change the slice bounds
 // to pass validation.
 func modulePath(args []string) (string, error) {
-	// TODO: test
-
 	if len(args) > 0 {
 		return "", fmt.Errorf("Too many command line arguments. Did you mean to use -chdir?")
 	}
