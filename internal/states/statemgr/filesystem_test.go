@@ -455,12 +455,23 @@ func TestFilesystem_prettyPrintState(t *testing.T) {
 
 	ls := NewFilesystem(statePath, encryption.StateEncryptionDisabled())
 
+	lockID, err := ls.Lock(t.Context(), NewLockInfo())
+	if err != nil {
+		t.Fatalf("failed to lock state: %s", err)
+	}
+
 	emptyState := states.NewState()
 	if err := ls.WriteState(emptyState); err != nil {
 		t.Fatalf("failed to write state: %s", err)
 	}
 	if err := ls.PersistState(t.Context(), nil); err != nil {
 		t.Fatalf("failed to persist state: %s", err)
+	}
+
+	// Unlock releases the file handle, which is required on Windows
+	// where t.TempDir cleanup cannot remove open files.
+	if err := ls.Unlock(t.Context(), lockID); err != nil {
+		t.Fatalf("failed to unlock state: %s", err)
 	}
 
 	raw, err := os.ReadFile(statePath)
