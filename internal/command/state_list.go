@@ -197,16 +197,3 @@ func (c *StateListCommand) GatherVariables(args *arguments.Vars) {
 	}
 	c.Meta.variableArgs = flags.RawFlags{Items: &items}
 }
-
-// TODO meta-refactor: remove these once all state related commands have been migrated
-const errStateLoadingState = `Error loading the state: %[1]s
-
-Please ensure that your OpenTofu state exists and that you've
-configured it properly. You can use the "-state" flag to point
-OpenTofu at another state file.`
-
-const errStateNotFound = `No state file was found!
-
-State management commands require a state file. Run this command
-in a directory where OpenTofu has been run or use the -state flag
-to point the command to a specific state location.`
