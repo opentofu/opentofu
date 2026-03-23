@@ -48,9 +48,9 @@ Usage: `tofu fmt [options] [target...]`
 
 By default, `fmt` scans the current directory for configuration files. If you
 provide a directory for the `target` argument, then `fmt` will scan that
-directory instead. If you provide a file, then `fmt` will process just that
-file. If you provide a single dash (`-`), then `fmt` will read from standard
-input (STDIN).
+directory instead (see [Directory Scanning Behavior](#directory-scanning-behavior)).
+If you provide a file, then `fmt` will process just that file. If you provide
+a single dash (`-`), then `fmt` will read from standard input (STDIN).
 
 The command-line flags are all optional. The following flags are available:
 
@@ -61,4 +61,19 @@ The command-line flags are all optional. The following flags are available:
 * `-check` - Check if the input is formatted. Exit status will be 0 if all input is properly formatted. If not, exit status will be non-zero and the command will output a list of filenames whose files are not properly formatted.
 * `-recursive` - Also process files in subdirectories. By default, only the given directory (or current directory) is processed.
 
+## Directory Scanning Behavior
 
+When `tofu fmt` scans a directory, it applies the following rules to decide
+which files to process:
+
+- **Exclusion rule**: Any file whose name starts with `.` or `~`, or whose name
+  both starts and ends with `#`, is skipped. These patterns typically indicate
+  temporary files created by text editors or other tools, and `tofu fmt` skips
+  them to avoid interfering with that software.
+
+- **Inclusion rule**: After applying the exclusion rule, only files with the
+  following extensions are processed:
+  `.tf`, `.tofu`, `.tfvars`, `.tftest.hcl`, `.tofutest.hcl`
+
+For example, a file named `.auto.tfvars` would be excluded because its name
+starts with `.`, even though it has the `.tfvars` suffix.
