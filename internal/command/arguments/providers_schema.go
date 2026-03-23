@@ -40,15 +40,6 @@ func ParseProvidersSchema(args []string) (*ProvidersSchema, func(), tfdiags.Diag
 		))
 	}
 
-	args = cmdFlags.Args()
-	if len(args) > 0 {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Too many command line arguments",
-			"Expected at most zero positional arguments.",
-		))
-	}
-
 	closer, moreDiags := schema.ViewOptions.Parse()
 	diags = diags.Append(moreDiags)
 
@@ -59,6 +50,11 @@ func ParseProvidersSchema(args []string) (*ProvidersSchema, func(), tfdiags.Diag
 			"The `tofu providers schema` command requires the `-json` flag.",
 		))
 	}
+
+	// The 'providers schema' command just forces the user to use the `-json` flag but any of the diagnostics should
+	// be printed as human format.
+	// The print of the schema will be in JSON all the time.
+	schema.ViewOptions.ViewType = ViewHuman
 
 	return schema, closer, diags
 }
