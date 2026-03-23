@@ -172,23 +172,35 @@ func (c *InitCommand) Run(rawArgs []string) int {
 		return 1
 	}
 
-	{
-		// Install backend provider if needed
-		providersOutput, providersAbort, providerDiags := c.getProviders(ctx, &configs.Config{Module: rootModEarly}, nil, args.FlagUpgrade, args.FlagPluginPath, args.FlagLockfile, view)
-		diags = diags.Append(providerDiags)
-		if providersAbort || providerDiags.HasErrors() {
-			c.showDiagnostics(diags)
+	if args.FlagGet {
+		modsOutput, modsAbort, modsDiags := c.getModules(ctx, path, args.TestsDirectory, rootModEarly, args.FlagUpgrade, view)
+		diags = diags.Append(modsDiags)
+		if modsAbort || modsDiags.HasErrors() {
+			view.Diagnostics(diags)
 			return 1
 		}
-		if providersOutput {
+		if modsOutput {
 			header = true
 		}
+	}
 
-		// If we outputted information, then we need to output a newline
-		// so that our success message is nicely spaced out from prior text.
-		if header {
-			c.Ui.Output("")
-		}
+	// With all of the modules (hopefully) installed, we can now try to load the
+	// whole configuration tree.
+	config, confDiags := c.loadConfigWithTests(ctx, path, args.TestsDirectory)
+	// We don't immediately handle confDiags here because we prefer to show
+	// shallow backend-related errors if there are any, before we complain
+	// about anything in nested modules.
+
+	// Now that we have loaded all modules, check the module tree for missing providers.
+	// TODO We IGNORE state providers here
+	providersOutput, providersAbort, providerDiags := c.getProviders(ctx, config, nil, args.FlagUpgrade, args.FlagPluginPath, args.FlagLockfile, view)
+	diags = diags.Append(providerDiags)
+	if providersAbort || providerDiags.HasErrors() {
+		view.Diagnostics(diags)
+		return 1
+	}
+	if providersOutput {
+		header = true
 	}
 
 	var enc encryption.Encryption
@@ -256,25 +268,6 @@ func (c *InitCommand) Run(rawArgs []string) int {
 		state = sMgr.State()
 	}
 
-	if args.FlagGet {
-		modsOutput, modsAbort, modsDiags := c.getModules(ctx, path, args.TestsDirectory, rootModEarly, args.FlagUpgrade, view)
-		diags = diags.Append(modsDiags)
-		if modsAbort || modsDiags.HasErrors() {
-			view.Diagnostics(diags)
-			return 1
-		}
-		if modsOutput {
-			header = true
-		}
-	}
-
-	// With all of the modules (hopefully) installed, we can now try to load the
-	// whole configuration tree.
-	config, confDiags := c.loadConfigWithTests(ctx, path, args.TestsDirectory)
-	// We don't immediately handle confDiags here because we prefer to show
-	// shallow backend-related errors if there are any, before we complain
-	// about anything in nested modules.
-
 	// Now, we can check the diagnostics from the early configuration and the
 	// backend.
 	diags = diags.Append(earlyConfDiags.StrictDeduplicateMerge(backDiags))
@@ -323,15 +316,49 @@ func (c *InitCommand) Run(rawArgs []string) int {
 		state = migratedState
 	}
 
-	// Now that we have loaded all modules, check the module tree for missing providers.
-	providersOutput, providersAbort, providerDiags := c.getProviders(ctx, config, state, args.FlagUpgrade, args.FlagPluginPath, args.FlagLockfile, view)
-	diags = diags.Append(providerDiags)
-	if providersAbort || providerDiags.HasErrors() {
-		view.Diagnostics(diags)
-		return 1
-	}
-	if providersOutput {
-		header = true
+	if state != nil {
+		// This is a stub for now.  We need to decide how to handle this scenario.
+		// We have a bit of a chicken and an egg problem. The state_store backend
+		// requires providers to be installed, but the provider installer may
+		// install additional providers based on unversioned provider state entries.
+		//
+		// This is a weird scenario, but can happen if you remove required_provider blocks
+		// or modules with required_provider blocks and then re-init before running apply.
+		//
+		// We could take the approach of installing the additional unversioned providers
+		// here, but it's persisting a janky fix that we should re-consider.
+
+		stateReqs := state.ProviderAddrs()
+
+		lockDeps, moreDiags := c.lockedDependenciesWithPredecessorRegistryShimmed()
+		diags = diags.Append(moreDiags)
+		if moreDiags.HasErrors() {
+			view.Diagnostics(diags)
+			return 1
+		}
+
+		// Check that all state providers are installed and error if not
+		for _, req := range stateReqs {
+			if req.Provider.IsLegacy() {
+				// Copy/pasted for now
+				diags = diags.Append(tfdiags.Sourceless(
+					tfdiags.Error,
+					"Invalid legacy provider address",
+					fmt.Sprintf(
+						"This configuration or its associated state refers to the unqualified provider %q.\n\nYou must complete the Terraform 0.13 upgrade process before upgrading to later versions.",
+						req.Provider.Type,
+					),
+				))
+			}
+			if lockDeps.Provider(req.Provider) == nil && !lockDeps.ProviderIsOverridden(req.Provider) {
+				// TODO better error message
+				diags = diags.Append(fmt.Errorf("Missing state provider %s, add to required_providers", req))
+			}
+		}
+		if diags.HasErrors() {
+			view.Diagnostics(diags)
+			return 1
+		}
 	}
 
 	// If we outputted information, then we need to output a newline
