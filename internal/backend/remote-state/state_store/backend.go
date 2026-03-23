@@ -23,13 +23,14 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-func New(enc encryption.StateEncryption, library plugins.Library, providerAddr addrs.Provider, stateType string) backend.Backend {
+func New(enc encryption.StateEncryption, library plugins.Library, providerAddr addrs.Provider, stateType string) (backend.Backend, tfdiags.Diagnostics) {
 	manager := library.NewProviderManager()
-	providerSchema, diags := manager.GetProviderSchema(context.TODO(), providerAddr)
+	// For this simple function, context.Background is good enough
+	providerSchema, diags := manager.GetProviderSchema(context.Background(), providerAddr)
 	if diags.HasErrors() {
-		panic(diags.Err())
+		return nil, diags
 	}
-	return &Backend{encryption: enc, manager: manager, providerAddr: providerAddr, providerSchema: providerSchema, stateType: stateType}
+	return &Backend{encryption: enc, manager: manager, providerAddr: providerAddr, providerSchema: providerSchema, stateType: stateType}, diags
 }
 
 type Backend struct {

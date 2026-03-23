@@ -498,11 +498,15 @@ func (c *InitCommand) initBackend(ctx context.Context, root *configs.Module, ext
 			view.BackendTypeAlias(backendType, canonType)
 		}
 
-		b := bf(backend.InitArgs{
+		b, bDiags := bf(backend.InitArgs{
 			// This is only used to get the schema, encryption should panic if attempted.
 			StateEncryption: nil,
 			// We handle state store separately
 		})
+		diags = diags.Append(bDiags)
+		if diags.HasErrors() {
+			return nil, true, diags
+		}
 		backendSchema := b.ConfigSchema()
 		backendConfig = root.Backend
 

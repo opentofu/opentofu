@@ -349,13 +349,18 @@ func (m *Meta) BackendForLocalPlan(ctx context.Context, settings plans.Backend, 
 		diags = diags.Append(err)
 		return nil, diags
 	}
-	b := f(backend.InitArgs{
+	b, bDiags := f(backend.InitArgs{
 		StateEncryption:    enc,
 		StateStorePlugins:  plugins,
 		StateStoreType:     settings.StateStoreType,
 		StateStoreProvider: settings.StateStoreProvider,
 	})
 	log.Printf("[TRACE] Meta.BackendForLocalPlan: instantiated backend of type %T", b)
+
+	diags = diags.Append(bDiags)
+	if diags.HasErrors() {
+		return nil, diags
+	}
 
 	schema := b.ConfigSchema()
 	configVal, err := settings.Config.Decode(schema.ImpliedType())
@@ -543,13 +548,18 @@ func (m *Meta) backendConfig(ctx context.Context, opts *BackendOpts) (*configs.B
 		diags = diags.Append(err)
 		return nil, 0, diags
 	}
-	b := bf(backend.InitArgs{
+	b, bDiags := bf(backend.InitArgs{
 		// Just using this for config/schema, don't need encryption here
 		StateEncryption:    nil,
 		StateStorePlugins:  plugins,
 		StateStoreType:     c.StateStoreType,
 		StateStoreProvider: c.StateStoreProvider,
 	})
+
+	diags = diags.Append(bDiags)
+	if diags.HasErrors() {
+		return nil, 0, diags
+	}
 
 	configSchema := b.ConfigSchema()
 	configBody := c.Config
@@ -883,12 +893,17 @@ func (m *Meta) backendFromState(ctx context.Context, enc encryption.StateEncrypt
 			return nil, diags
 		}
 	}
-	b := f(backend.InitArgs{
+	b, bDiags := f(backend.InitArgs{
 		StateEncryption:    enc,
 		StateStorePlugins:  plugins,
 		StateStoreType:     s.Backend.StateStoreType,
 		StateStoreProvider: stateStoreProvider,
 	})
+
+	diags = diags.Append(bDiags)
+	if diags.HasErrors() {
+		return nil, diags
+	}
 
 	// The configuration saved in the working directory state file is used
 	// in this case, since it will contain any additional values that
@@ -1390,12 +1405,17 @@ func (m *Meta) savedBackend(ctx context.Context, sMgr *clistate.LocalState, enc 
 			return nil, diags
 		}
 	}
-	b := f(backend.InitArgs{
+	b, bDiags := f(backend.InitArgs{
 		StateEncryption:    enc,
 		StateStorePlugins:  plugins,
 		StateStoreType:     s.Backend.StateStoreType,
 		StateStoreProvider: stateStoreProvider,
 	})
+
+	diags = diags.Append(bDiags)
+	if diags.HasErrors() {
+		return nil, diags
+	}
 
 	// The configuration saved in the working directory state file is used
 	// in this case, since it will contain any additional values that
@@ -1492,12 +1512,16 @@ func (m *Meta) backendConfigNeedsMigration(ctx context.Context, c *configs.Backe
 		// This will be caught elsewhere
 		return true
 	}
-	b := f(backend.InitArgs{
+	b, bDiags := f(backend.InitArgs{
 		StateEncryption:    nil, // We don't need encryption here as it's only used for config/schema
 		StateStorePlugins:  plugins,
 		StateStoreType:     c.StateStoreType,
 		StateStoreProvider: c.StateStoreProvider,
 	})
+	if bDiags.HasErrors() {
+		// This will be caught elsewhere
+		return true
+	}
 
 	// We use "NoneRequired" here because we're only evaluating the body written directly
 	// in the root module configuration, and we're intentionally not including any
@@ -1551,12 +1575,17 @@ func (m *Meta) backendInitFromConfig(ctx context.Context, c *configs.Backend, en
 		diags = diags.Append(err)
 		return nil, cty.NilVal, diags
 	}
-	b := f(backend.InitArgs{
+	b, bDiags := f(backend.InitArgs{
 		StateEncryption:    enc,
 		StateStorePlugins:  plugins,
 		StateStoreType:     c.StateStoreType,
 		StateStoreProvider: c.StateStoreProvider,
 	})
+
+	diags = diags.Append(bDiags)
+	if diags.HasErrors() {
+		return nil, cty.NilVal, diags
+	}
 
 	schema := b.ConfigSchema()
 	configVal, hclDiags := c.Decode(ctx, schema.NoneRequired())

@@ -20,6 +20,7 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/workdir"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -700,7 +701,7 @@ func TestMetaBackend_configuredUnchangedWithStaticEvalVars(t *testing.T) {
 	// fix to the original bug, discussed here:
 	//    https://github.com/opentofu/opentofu/issues/2118
 	t.Cleanup(
-		backendInit.RegisterTemp("_test_local", func(args backend.InitArgs) backend.Backend {
+		backendInit.RegisterTemp("_test_local", func(args backend.InitArgs) (backend.Backend, tfdiags.Diagnostics) {
 			return &backendInit.MockBackend{
 				ConfigSchemaFn: func() *configschema.Block {
 					// The following is based on a subset of the normal "local"
@@ -737,7 +738,7 @@ func TestMetaBackend_configuredUnchangedWithStaticEvalVars(t *testing.T) {
 					// local-state.tfstate file from the test fixture.
 					return statemgr.NewFilesystem("local-state.tfstate", args.StateEncryption), nil
 				},
-			}
+			}, nil
 		}),
 	)
 

@@ -72,27 +72,53 @@ func Init(services *disco.Disco) {
 	// to the following table.
 
 	backends = map[string]backend.InitFn{
-		"local":  func(args backend.InitArgs) backend.Backend { return backendLocal.New(args.StateEncryption) },
-		"remote": func(args backend.InitArgs) backend.Backend { return backendRemote.New(services, args.StateEncryption) },
+		"local": func(args backend.InitArgs) (backend.Backend, tfdiags.Diagnostics) {
+			return backendLocal.New(args.StateEncryption), nil
+		},
+		"remote": func(args backend.InitArgs) (backend.Backend, tfdiags.Diagnostics) {
+			return backendRemote.New(services, args.StateEncryption), nil
+		},
 
 		// Remote State backends.
-		"azurerm":    func(args backend.InitArgs) backend.Backend { return backendAzure.New(args.StateEncryption) },
-		"consul":     func(args backend.InitArgs) backend.Backend { return backendConsul.New(args.StateEncryption) },
-		"cos":        func(args backend.InitArgs) backend.Backend { return backendCos.New(args.StateEncryption) },
-		"gcs":        func(args backend.InitArgs) backend.Backend { return backendGCS.New(args.StateEncryption) },
-		"http":       func(args backend.InitArgs) backend.Backend { return backendHTTP.New(args.StateEncryption) },
-		"inmem":      func(args backend.InitArgs) backend.Backend { return backendInmem.New(args.StateEncryption) },
-		"kubernetes": func(args backend.InitArgs) backend.Backend { return backendKubernetes.New(args.StateEncryption) },
-		"oss":        func(args backend.InitArgs) backend.Backend { return backendOSS.New(args.StateEncryption) },
-		"pg":         func(args backend.InitArgs) backend.Backend { return backendPg.New(args.StateEncryption) },
-		"s3":         func(args backend.InitArgs) backend.Backend { return backendS3.New(args.StateEncryption) },
-		"state_store": func(args backend.InitArgs) backend.Backend {
+		"azurerm": func(args backend.InitArgs) (backend.Backend, tfdiags.Diagnostics) {
+			return backendAzure.New(args.StateEncryption), nil
+		},
+		"consul": func(args backend.InitArgs) (backend.Backend, tfdiags.Diagnostics) {
+			return backendConsul.New(args.StateEncryption), nil
+		},
+		"cos": func(args backend.InitArgs) (backend.Backend, tfdiags.Diagnostics) {
+			return backendCos.New(args.StateEncryption), nil
+		},
+		"gcs": func(args backend.InitArgs) (backend.Backend, tfdiags.Diagnostics) {
+			return backendGCS.New(args.StateEncryption), nil
+		},
+		"http": func(args backend.InitArgs) (backend.Backend, tfdiags.Diagnostics) {
+			return backendHTTP.New(args.StateEncryption), nil
+		},
+		"inmem": func(args backend.InitArgs) (backend.Backend, tfdiags.Diagnostics) {
+			return backendInmem.New(args.StateEncryption), nil
+		},
+		"kubernetes": func(args backend.InitArgs) (backend.Backend, tfdiags.Diagnostics) {
+			return backendKubernetes.New(args.StateEncryption), nil
+		},
+		"oss": func(args backend.InitArgs) (backend.Backend, tfdiags.Diagnostics) {
+			return backendOSS.New(args.StateEncryption), nil
+		},
+		"pg": func(args backend.InitArgs) (backend.Backend, tfdiags.Diagnostics) {
+			return backendPg.New(args.StateEncryption), nil
+		},
+		"s3": func(args backend.InitArgs) (backend.Backend, tfdiags.Diagnostics) {
+			return backendS3.New(args.StateEncryption), nil
+		},
+		"state_store": func(args backend.InitArgs) (backend.Backend, tfdiags.Diagnostics) {
 			return state_store.New(args.StateEncryption, args.StateStorePlugins, args.StateStoreProvider, args.StateStoreType)
 		},
 
 		// Terraform Cloud 'backend'
 		// This is an implementation detail only, used for the cloud package
-		"cloud": func(args backend.InitArgs) backend.Backend { return backendCloud.New(services, args.StateEncryption) },
+		"cloud": func(args backend.InitArgs) (backend.Backend, tfdiags.Diagnostics) {
+			return backendCloud.New(services, args.StateEncryption), nil
+		},
 	}
 	backendAliases = map[string]string{
 		// There are currently no backend aliases

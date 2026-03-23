@@ -39,7 +39,8 @@ func TestInit_backend(t *testing.T) {
 			if f == nil {
 				t.Fatalf("backend %q is not present; should be", b.RequestedName)
 			}
-			bType := reflect.TypeOf(f(backend.InitArgs{})).String()
+			be, _ := f(backend.InitArgs{})
+			bType := reflect.TypeOf(be).String()
 			if bType != b.Type {
 				t.Errorf("expected backend %q to be %q, got: %q", b.RequestedName, b.Type, bType)
 			}

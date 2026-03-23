@@ -21,6 +21,7 @@ import (
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
 )
 
@@ -126,8 +127,8 @@ type TestLocalSingleState struct {
 
 // TestNewLocalSingle is a factory for creating a TestLocalSingleState.
 // This function matches the signature required for backend/init.
-func TestNewLocalSingle(args backend.InitArgs) backend.Backend {
-	return &TestLocalSingleState{Local: New(args.StateEncryption)}
+func TestNewLocalSingle(args backend.InitArgs) (backend.Backend, tfdiags.Diagnostics) {
+	return &TestLocalSingleState{Local: New(args.StateEncryption)}, nil
 }
 
 func (b *TestLocalSingleState) Workspaces(context.Context) ([]string, error) {
@@ -156,8 +157,8 @@ type TestLocalNoDefaultState struct {
 
 // TestNewLocalNoDefault is a factory for creating a TestLocalNoDefaultState.
 // This function matches the signature required for backend/init.
-func TestNewLocalNoDefault(args backend.InitArgs) backend.Backend {
-	return &TestLocalNoDefaultState{Local: New(args.StateEncryption)}
+func TestNewLocalNoDefault(args backend.InitArgs) (backend.Backend, tfdiags.Diagnostics) {
+	return &TestLocalNoDefaultState{Local: New(args.StateEncryption)}, nil
 }
 
 func (b *TestLocalNoDefaultState) Workspaces(ctx context.Context) ([]string, error) {

@@ -534,7 +534,7 @@ func TestPlan_outBackend(t *testing.T) {
 	}
 	{
 		httpBackendInit, _ := backendinit.Backend("http")
-		httpBackend := httpBackendInit(backend.InitArgs{StateEncryption: encryption.StateEncryptionDisabled()})
+		httpBackend, _ := httpBackendInit(backend.InitArgs{StateEncryption: encryption.StateEncryptionDisabled()})
 		schema := httpBackend.ConfigSchema()
 		got, err := plan.Backend.Config.Decode(schema.ImpliedType())
 		if err != nil {

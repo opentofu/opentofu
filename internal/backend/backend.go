@@ -45,7 +45,7 @@ var (
 	// support using the default workspace, but requires a named workspace to
 	// be selected.
 	ErrDefaultWorkspaceNotSupported = errors.New("default workspace not supported\n" +
-		"You can create a new workspace with the \"workspace new\" command.")
+		`You can create a new workspace with the "workspace new" command.`)
 
 	// ErrWorkspacesNotSupported is an error returned when a caller attempts
 	// to perform an operation on a workspace other than "default" for a
@@ -64,7 +64,7 @@ type InitArgs struct {
 }
 
 // InitFn is used to initialize a new backend.
-type InitFn func(InitArgs) Backend
+type InitFn func(InitArgs) (Backend, tfdiags.Diagnostics)
 
 // Backend is the minimal interface that must be implemented to enable OpenTofu.
 type Backend interface {
