@@ -10,7 +10,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -128,7 +127,7 @@ Providers required by configuration:
 
 func testProvidersHuman(t *testing.T, call func(v Providers), wantStdout, wantStderr string) {
 	view, done := testView(t)
-	v := NewProviders(arguments.ViewOptions{ViewType: arguments.ViewHuman}, view)
+	v := NewProviders(view)
 	call(v)
 	output := done(t)
 	if diff := cmp.Diff(wantStderr, output.Stderr()); diff != "" {

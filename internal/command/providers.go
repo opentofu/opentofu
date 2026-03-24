@@ -47,7 +47,7 @@ func (c *ProvidersCommand) Run(rawArgs []string) int {
 
 	// Instantiate the view, even if there are flag errors, so that we render
 	// diagnostics according to the desired view
-	view := views.NewProviders(args.ViewOptions, c.View)
+	view := views.NewProviders(c.View)
 	// ... and initialise the Meta.Ui to wrap Meta.View into a new implementation
 	// that is able to print by using View abstraction and use the Meta.Ui
 	// to ask for the user input.

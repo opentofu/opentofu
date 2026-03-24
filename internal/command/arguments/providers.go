@@ -11,9 +11,12 @@ import (
 
 // Providers represents the command-line arguments for the providers command.
 type Providers struct {
+	// TestsDirectory indicates the path where the tests are stored
 	TestsDirectory string
 
-	Vars        *Vars
+	// Vars holds and provides information for the flags related to variables that a user can give into the process
+	Vars *Vars
+	// ViewOptions specifies which view options to use
 	ViewOptions ViewOptions
 }
 
