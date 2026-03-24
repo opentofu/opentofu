@@ -40,6 +40,7 @@ ENHANCEMENTS:
 
 BUG FIXES:
 
+* `local-exec` provisioner output is no longer suppressed when `-show-sensitive` is passed. ([#3927](https://github.com/opentofu/opentofu/issues/3927))
 - `length(module.example)` now returns the correct result for a module that has no output values when called using `count` or `for_each`. It would previously incorrectly return zero unless at least one output - A call to a module containing `check` blocks can now use `depends_on` without causing a dependency cycle error. ([#3060](https://github.com/opentofu/opentofu/issues/3060))
 value was declared inside the module. ([#3067](https://github.com/opentofu/opentofu/issues/3067))
 - `for_each` arguments in `dynamic` blocks can now call provider-defined functions. ([#3429](https://github.com/opentofu/opentofu/issues/3429))

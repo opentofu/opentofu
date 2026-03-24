@@ -12616,74 +12616,102 @@ output "out" {
 }
 
 func TestContext2Apply_provisionerSensitive(t *testing.T) {
-	m := testModule(t, "apply-provisioner-sensitive")
-	p := testProvider("aws")
-
-	pr := testProvisioner()
-	pr.ProvisionResourceFn = func(req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
-		if req.Config.ContainsMarked() {
-			t.Fatalf("unexpectedly marked config value: %#v", req.Config)
-		}
-		command := req.Config.GetAttr("command")
-		if command.IsMarked() {
-			t.Fatalf("unexpectedly marked command argument: %#v", command.Marks())
-		}
-		req.UIOutput.Output(fmt.Sprintf("Executing: %q", command.AsString()))
-		return
-	}
-	p.PlanResourceChangeFn = testDiffFn
-	p.ApplyResourceChangeFn = testApplyFn
-
-	h := new(MockHook)
-	ctx := testContext2(t, &ContextOpts{
-		Hooks: []Hook{h},
-		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
-			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		}, map[string]provisioners.Factory{
-			"shell": testProvisionerFuncFixed(pr),
-		}),
-	})
-
-	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
-		Mode: plans.NormalMode,
-		SetVariables: InputValues{
-			"password": &InputValue{
-				Value:      cty.StringVal("secret"),
-				SourceType: ValueFromCaller,
-			},
+	tests := []struct {
+		name            string
+		showSensitive   bool
+		wantSuppressed  bool
+		wantContains    string
+		wantNotContains string
+	}{
+		{
+			name:            "suppressed by default",
+			showSensitive:   false,
+			wantSuppressed:  true,
+			wantContains:    "output suppressed",
+			wantNotContains: "secret",
 		},
-	})
-	assertNoErrors(t, diags)
-
-	// "restart" provisioner
-	pr.CloseCalled = false
-
-	state, diags := ctx.Apply(context.Background(), plan, m, nil)
-	if diags.HasErrors() {
-		logDiagnostics(t, diags)
-		t.Fatal("apply failed")
+		{
+			name:            "visible with show-sensitive",
+			showSensitive:   true,
+			wantSuppressed:  false,
+			wantContains:    "Executing:",
+			wantNotContains: "output suppressed",
+		},
 	}
 
-	actual := strings.TrimSpace(state.String())
-	expected := strings.TrimSpace(testTofuApplyProvisionerSensitiveStr)
-	if actual != expected {
-		t.Fatalf("wrong result\n\ngot:\n%s\n\nwant:\n%s", actual, expected)
-	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			m := testModule(t, "apply-provisioner-sensitive")
+			p := testProvider("aws")
 
-	// Verify apply was invoked
-	if !pr.ProvisionResourceCalled {
-		t.Fatalf("provisioner was not called on apply")
-	}
+			pr := testProvisioner()
+			pr.ProvisionResourceFn = func(req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
+				if req.Config.ContainsMarked() {
+					t.Fatalf("unexpectedly marked config value: %#v", req.Config)
+				}
+				command := req.Config.GetAttr("command")
+				if command.IsMarked() {
+					t.Fatalf("unexpectedly marked command argument: %#v", command.Marks())
+				}
+				req.UIOutput.Output(fmt.Sprintf("Executing: %q", command.AsString()))
+				return
+			}
+			p.PlanResourceChangeFn = testDiffFn
+			p.ApplyResourceChangeFn = testApplyFn
 
-	// Verify output was suppressed
-	if !h.ProvisionOutputCalled {
-		t.Fatalf("ProvisionOutput hook not called")
-	}
-	if got, doNotWant := h.ProvisionOutputMessage, "secret"; strings.Contains(got, doNotWant) {
-		t.Errorf("sensitive value %q included in output:\n%s", doNotWant, got)
-	}
-	if got, want := h.ProvisionOutputMessage, "output suppressed"; !strings.Contains(got, want) {
-		t.Errorf("expected hook to be called with %q, but was:\n%s", want, got)
+			h := new(MockHook)
+			ctx := testContext2(t, &ContextOpts{
+				Hooks:         []Hook{h},
+				ShowSensitive: tc.showSensitive,
+				Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
+					addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+				}, map[string]provisioners.Factory{
+					"shell": testProvisionerFuncFixed(pr),
+				}),
+			})
+
+			plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
+				Mode: plans.NormalMode,
+				SetVariables: InputValues{
+					"password": &InputValue{
+						Value:      cty.StringVal("secret"),
+						SourceType: ValueFromCaller,
+					},
+				},
+			})
+			assertNoErrors(t, diags)
+
+			// "restart" provisioner
+			pr.CloseCalled = false
+
+			state, diags := ctx.Apply(context.Background(), plan, m, nil)
+			if diags.HasErrors() {
+				logDiagnostics(t, diags)
+				t.Fatal("apply failed")
+			}
+
+			actual := strings.TrimSpace(state.String())
+			expected := strings.TrimSpace(testTofuApplyProvisionerSensitiveStr)
+			if actual != expected {
+				t.Fatalf("wrong result\n\ngot:\n%s\n\nwant:\n%s", actual, expected)
+			}
+
+			if !pr.ProvisionResourceCalled {
+				t.Fatalf("provisioner was not called on apply")
+			}
+
+			if !h.ProvisionOutputCalled {
+				t.Fatalf("ProvisionOutput hook not called")
+			}
+
+			got := h.ProvisionOutputMessage
+			if !strings.Contains(got, tc.wantContains) {
+				t.Errorf("expected output containing %q, but got:\n%s", tc.wantContains, got)
+			}
+			if strings.Contains(got, tc.wantNotContains) {
+				t.Errorf("expected output to not contain %q, but got:\n%s", tc.wantNotContains, got)
+			}
+		})
 	}
 }
 
