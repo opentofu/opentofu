@@ -77,6 +77,7 @@ type BuiltinEvalContext struct {
 	ImportResolverValue     *ImportResolver
 	Encryption              encryption.Encryption
 	ProviderFunctionTracker ProviderFunctionMapping
+	ShowSensitiveValue      bool
 }
 
 // BuiltinEvalContext implements EvalContext
@@ -442,4 +443,8 @@ func (c *BuiltinEvalContext) ImportResolver() *ImportResolver {
 
 func (c *BuiltinEvalContext) GetEncryption() encryption.Encryption {
 	return c.Encryption
+}
+
+func (c *BuiltinEvalContext) ShowSensitive() bool {
+	return c.ShowSensitiveValue
 }

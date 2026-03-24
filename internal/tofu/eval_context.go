@@ -177,4 +177,7 @@ type EvalContext interface {
 
 	// Returns the currently configured encryption setup
 	GetEncryption() encryption.Encryption
+
+	// ShowSensitive is used to display the value of variables marked as sensitive.
+	ShowSensitive() bool
 }

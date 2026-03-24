@@ -289,6 +289,7 @@ type Meta struct {
 	stateOutPath        string
 	backupPath          string
 	parallelism         int
+	showSensitive       bool
 	stateLock           bool
 	stateLockTimeout    time.Duration
 	forceInitCopy       bool
@@ -563,6 +564,7 @@ func (m *Meta) contextOpts(ctx context.Context) (*tofu.ContextOpts, error) {
 
 	opts.UIInput = m.UIInput()
 	opts.Parallelism = m.parallelism
+	opts.ShowSensitive = m.showSensitive
 
 	// If testingOverrides are set, we'll skip the plugin discovery process
 	// and just work with what we've been given, thus allowing the tests

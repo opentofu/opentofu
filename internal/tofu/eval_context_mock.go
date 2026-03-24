@@ -351,3 +351,7 @@ func (c *MockEvalContext) InstanceExpander() *instances.Expander {
 func (c *MockEvalContext) GetEncryption() encryption.Encryption {
 	return encryption.Disabled()
 }
+
+func (c *MockEvalContext) ShowSensitive() bool {
+	return false
+}

@@ -2721,7 +2721,7 @@ func (n *NodeAbstractResourceInstance) applyProvisioners(ctx context.Context, ev
 		// provisioner logging, so we conservatively suppress all output in
 		// this case. This should not apply to connection info values, which
 		// provisioners ought not to be logging anyway.
-		if _, hasSensitive := configMarks[marks.Sensitive]; hasSensitive {
+		if _, hasSensitive := configMarks[marks.Sensitive]; hasSensitive && !evalCtx.ShowSensitive() {
 			outputFn = func(msg string) {
 				// Given that we return nil below, this will never error
 				_ = evalCtx.Hook(func(h Hook) (HookAction, error) {

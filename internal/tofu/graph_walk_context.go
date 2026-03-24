@@ -116,6 +116,7 @@ func (w *ContextGraphWalker) EvalContext() EvalContext {
 		VariableValuesLock:      &w.variableValuesLock,
 		Encryption:              w.Encryption,
 		ProviderFunctionTracker: w.ProviderFunctionTracker,
+		ShowSensitiveValue:      w.Context.showSensitive,
 	}
 
 	return ctx

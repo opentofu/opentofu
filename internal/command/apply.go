@@ -104,6 +104,7 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	// clear path to pass this value down, so we continue to mutate the Meta
 	// object state for now.
 	c.Meta.parallelism = args.Operation.Parallelism
+	c.Meta.showSensitive = args.ShowSensitive
 
 	// Prepare the backend, passing the plan file if present, and the
 	// backend-specific arguments

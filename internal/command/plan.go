@@ -73,6 +73,7 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 	// clear path to pass this value down, so we continue to mutate the Meta
 	// object state for now.
 	c.Meta.parallelism = args.Operation.Parallelism
+	c.Meta.showSensitive = args.ShowSensitive
 
 	diags = diags.Append(c.providerDevOverrideRuntimeWarnings())
 

@@ -45,6 +45,9 @@ type ContextOpts struct {
 	Encryption  encryption.Encryption
 
 	UIInput UIInput
+
+	// ShowSensitive is used to display the value of variables marked as sensitive.
+	ShowSensitive bool
 }
 
 // ContextMeta is metadata about the running context. This is information
@@ -90,7 +93,8 @@ type Context struct {
 	runContext          context.Context
 	runContextCancel    context.CancelFunc
 
-	encryption encryption.Encryption
+	encryption    encryption.Encryption
+	showSensitive bool
 }
 
 // (additional methods on Context can be found in context_*.go files.)
@@ -147,7 +151,8 @@ func NewContext(opts *ContextOpts) (*Context, tfdiags.Diagnostics) {
 		providerInputConfig: make(map[string]map[string]cty.Value),
 		sh:                  sh,
 
-		encryption: opts.Encryption,
+		encryption:    opts.Encryption,
+		showSensitive: opts.ShowSensitive,
 	}, diags
 }
 
