@@ -190,6 +190,7 @@ func TestInitProviderSourceForCLIConfigLocationWithRetries(t *testing.T) {
 	cases := map[string]struct {
 		methodType     cliconfig.ProviderInstallationLocation
 		tofurcRetries  cliconfig.ProviderInstallationMethodRetries
+		tofurcTrusted  cliconfig.ProviderInstallationMethodTrusted
 		envVars        map[string]string
 		expectedErrMsg string
 	}{
@@ -198,6 +199,7 @@ func TestInitProviderSourceForCLIConfigLocationWithRetries(t *testing.T) {
 			tofurcRetries: func() (int, bool) {
 				return 0, false
 			},
+			tofurcTrusted:  func() bool { return false },
 			envVars:        nil,
 			expectedErrMsg: "/providers/v1/test/exists_0.0.0.zip giving up after 3 attempt(s)",
 		},
@@ -206,6 +208,7 @@ func TestInitProviderSourceForCLIConfigLocationWithRetries(t *testing.T) {
 			tofurcRetries: func() (int, bool) {
 				return 0, false
 			},
+			tofurcTrusted: func() bool { return false },
 			envVars: map[string]string{
 				"TF_PROVIDER_DOWNLOAD_RETRY": "1",
 			},
@@ -216,6 +219,7 @@ func TestInitProviderSourceForCLIConfigLocationWithRetries(t *testing.T) {
 			tofurcRetries: func() (int, bool) {
 				return 0, true
 			},
+			tofurcTrusted:  func() bool { return false },
 			envVars:        nil,
 			expectedErrMsg: "/providers/v1/test/exists_0.0.0.zip giving up after 1 attempt(s)",
 		},
@@ -224,6 +228,7 @@ func TestInitProviderSourceForCLIConfigLocationWithRetries(t *testing.T) {
 			tofurcRetries: func() (int, bool) {
 				return 1, true
 			},
+			tofurcTrusted:  func() bool { return false },
 			envVars:        nil,
 			expectedErrMsg: "/providers/v1/test/exists_0.0.0.zip giving up after 2 attempt(s)",
 		},
@@ -232,6 +237,7 @@ func TestInitProviderSourceForCLIConfigLocationWithRetries(t *testing.T) {
 			tofurcRetries: func() (int, bool) {
 				return 1, true
 			},
+			tofurcTrusted: func() bool { return false },
 			envVars: map[string]string{
 				"TF_PROVIDER_DOWNLOAD_RETRY": "2",
 			},
@@ -242,6 +248,7 @@ func TestInitProviderSourceForCLIConfigLocationWithRetries(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			methodType := tt.methodType
 			retries := tt.tofurcRetries // This is what simulates the configuration of .tofurc
+			trusted := tt.tofurcTrusted // This is what simulates the configuration of .tofurc
 			for k, v := range tt.envVars {
 				t.Setenv(k, v)
 			}
@@ -253,7 +260,7 @@ func TestInitProviderSourceForCLIConfigLocationWithRetries(t *testing.T) {
 				"providers.v1": server.URL + "/providers/v1/",
 			})
 
-			providerSrc, diags := providerSourceForCLIConfigLocation(t.Context(), methodType, retries, &cliconfig.RegistryProtocolsConfig{}, disco, nil)
+			providerSrc, diags := providerSourceForCLIConfigLocation(t.Context(), methodType, retries, trusted, &cliconfig.RegistryProtocolsConfig{}, disco, nil)
 			if diags.HasErrors() {
 				t.Fatalf("unexpected error creating the provider source: %s", diags)
 			}
@@ -311,6 +318,8 @@ func TestConfigureProviderDownloadRetry(t *testing.T) {
 			// Call the function under test
 			got := providerSourceLocationConfig(func() (int, bool) {
 				return 0, false
+			}, func() bool {
+				return false
 			})
 
 			if diff := cmp.Diff(tt.expectedConfig, got); diff != "" {

@@ -303,6 +303,11 @@ func HashesMatchingPackage(loc PackageLocation, toTest []Hash) iter.Seq2[Hash, e
 // format. If PreferredHash returns a non-empty string then it will be one
 // of the hash strings in "given", and that hash is the one that must pass
 // verification in order for a package to be considered valid.
+//
+// In practice, this function is used in a variety of locations with a broader
+// goal in mind. It is used to filter out any hashes that OpenTofu does not
+// currently recognise. If this function is ever heavily modified, all call
+// sites should be checked carefully.
 func PreferredHashes(given []Hash) []Hash {
 	// For now this is just filtering for the two hash formats we support,
 	// both of which are considered equally "preferred". If we introduce
@@ -526,6 +531,11 @@ type HashDisposition struct {
 	// unless the provider developer's signing key also appears in
 	// SignedByGPGKeyIDs.
 	VerifiedLocally bool
+
+	ReportedByTrustedMirror bool
+
+	// Optional, used for filtering
+	Platform *Platform
 }
 
 // SignedByAnyGPGKeys returns true if the reciever has at least one GPG key
@@ -574,7 +584,17 @@ func MergeHashDisposition(a, b *HashDisposition) *HashDisposition {
 		}
 	}
 	ret.ReportedByRegistry = a.ReportedByRegistry || b.ReportedByRegistry
+	ret.ReportedByTrustedMirror = a.ReportedByTrustedMirror || b.ReportedByTrustedMirror
 	ret.VerifiedLocally = a.VerifiedLocally || b.VerifiedLocally
+	if a.Platform != nil {
+		ret.Platform = a.Platform
+	}
+	if b.Platform != nil {
+		if ret.Platform != nil && *ret.Platform != *b.Platform {
+			panic(fmt.Sprintf("BUG: conflicting platforms (%q != %q)", ret.Platform.String(), b.Platform.String()))
+		}
+		ret.Platform = b.Platform
+	}
 	return ret
 }
 
@@ -614,6 +634,15 @@ func (ds HashDispositions) AllGPGSigningKeysString() string {
 func (ds HashDispositions) HasAnyReportedByRegistry() bool {
 	for _, disp := range ds {
 		if disp.ReportedByRegistry {
+			return true
+		}
+	}
+	return false
+}
+
+func (ds HashDispositions) HasAnyReportedByTrustedMirror() bool {
+	for _, disp := range ds {
+		if disp.ReportedByTrustedMirror {
 			return true
 		}
 	}

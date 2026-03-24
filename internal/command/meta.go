@@ -39,7 +39,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/getmodules"
 	"github.com/opentofu/opentofu/internal/getproviders"
-	legacy "github.com/opentofu/opentofu/internal/legacy/tofu"
+	"github.com/opentofu/opentofu/internal/command/clistate"
 	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
@@ -226,7 +226,7 @@ type Meta struct {
 	configLoader *configload.Loader
 
 	// backendState is the currently active backend state
-	backendState *legacy.BackendState
+	backendState *clistate.BackendState
 
 	// Variables for the context (private)
 	variableArgs flags.RawFlags
@@ -904,18 +904,14 @@ func (m *Meta) checkRequiredVersion(ctx context.Context) tfdiags.Diagnostics {
 		return diags
 	}
 
-	config, configDiags := loader.LoadConfig(ctx, pwd, call)
+	_, configDiags := loader.LoadConfig(ctx, pwd, call)
 	if configDiags.HasErrors() {
 		diags = diags.Append(configDiags)
 		return diags
 	}
 
-	versionDiags := tofu.CheckCoreVersionRequirements(config)
-	if versionDiags.HasErrors() {
-		diags = diags.Append(versionDiags)
-		return diags
-	}
-
+	// If there were any OpenTofu-version-related errors then they would've
+	// already been detected by loader.LoadConfig above.
 	return nil
 }
 

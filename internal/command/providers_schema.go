@@ -11,7 +11,9 @@ import (
 
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/opentofu/internal/command/jsonprovider"
+	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -29,41 +31,51 @@ func (c *ProvidersSchemaCommand) Synopsis() string {
 	return "Show schemas for the providers used in the configuration"
 }
 
-func (c *ProvidersSchemaCommand) Run(args []string) int {
+func (c *ProvidersSchemaCommand) Run(rawArgs []string) int {
 	ctx := c.CommandContext()
 
-	args = c.Meta.process(args)
-	cmdFlags := c.Meta.defaultFlagSet("providers schema")
-	c.Meta.varFlagSet(cmdFlags)
-	var jsonOutput bool
-	cmdFlags.BoolVar(&jsonOutput, "json", false, "produce JSON output")
+	common, rawArgs := arguments.ParseView(rawArgs)
+	c.View.Configure(common)
 
-	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
-	if err := cmdFlags.Parse(args); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing command-line flags: %s\n", err.Error()))
+	// Propagate -no-color for legacy use of Ui. The remote backend and
+	// cloud package use this; it should be removed when/if they are
+	// migrated to views.
+	c.Meta.color = !common.NoColor
+	c.Meta.Color = c.Meta.color
+
+	args, closer, diags := arguments.ParseProvidersSchema(rawArgs)
+	defer closer()
+
+	view := views.NewProvidersSchema(args.ViewOptions, c.View)
+
+	// Configure Meta.Ui with human view type. The schema output is raw JSON written
+	// directly via streams.Println, so we must not initialise the JSON UI wrapper
+	// (which would prepend a Version payload and corrupt the output).
+	c.Meta.configureUiFromView(arguments.ViewOptions{ViewType: arguments.ViewHuman})
+
+	if diags.HasErrors() {
+		view.HelpPrompt()
+		view.Diagnostics(diags)
 		return 1
 	}
 
-	if !jsonOutput {
-		c.Ui.Error(
-			"The `tofu providers schema` command requires the `-json` flag.\n")
-		cmdFlags.Usage()
-		return 1
-	}
+	c.GatherVariables(args.Vars)
 
 	// Check for user-supplied plugin path
 	var err error
 	if c.pluginPath, err = c.loadPluginPath(); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error loading plugin path: %s", err))
+		view.Diagnostics(diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Plugins loading error",
+			fmt.Sprintf("Error loading plugin path: %s", err),
+		)))
 		return 1
 	}
-
-	var diags tfdiags.Diagnostics
 
 	enc, encDiags := c.Encryption(ctx)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
@@ -71,15 +83,15 @@ func (c *ProvidersSchemaCommand) Run(args []string) int {
 	b, backendDiags := c.Backend(ctx, nil, enc.State())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
 	// We require a local backend
 	local, ok := b.(backend.Local)
 	if !ok {
-		c.showDiagnostics(diags) // in case of any warnings in here
-		c.Ui.Error(ErrUnsupportedLocalOp)
+		view.Diagnostics(diags) // in case of any warnings in here
+		view.UnsupportedLocalOp()
 		return 1
 	}
 
@@ -89,26 +101,30 @@ func (c *ProvidersSchemaCommand) Run(args []string) int {
 	// we expect that the config dir is the cwd
 	cwd, err := os.Getwd()
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error getting cwd: %s", err))
+		view.Diagnostics(diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Error getting cwd",
+			err.Error(),
+		)))
 		return 1
 	}
 
 	// Build the operation
-	opReq := c.Operation(ctx, b, arguments.ViewOptions{ViewType: arguments.ViewJSON}, enc)
+	opReq := c.Operation(ctx, b, args.ViewOptions, enc)
 	opReq.ConfigDir = cwd
 	opReq.ConfigLoader, err = c.initConfigLoader()
 	var callDiags tfdiags.Diagnostics
 	opReq.RootCall, callDiags = c.rootModuleCall(ctx, opReq.ConfigDir)
 	diags = diags.Append(callDiags)
 	if callDiags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
 	opReq.AllowUnsetVariables = true
 	if err != nil {
 		diags = diags.Append(err)
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
@@ -116,25 +132,41 @@ func (c *ProvidersSchemaCommand) Run(args []string) int {
 	lr, _, ctxDiags := local.LocalRun(ctx, opReq)
 	diags = diags.Append(ctxDiags)
 	if ctxDiags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
 	schemas, moreDiags := lr.Core.Schemas(ctx, lr.Config, lr.InputState)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
 	jsonSchemas, err := jsonprovider.Marshal(schemas)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Failed to marshal provider schemas to json: %s", err))
+		view.Diagnostics(diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Failed to marshal provider schemas to json",
+			err.Error(),
+		)))
 		return 1
 	}
-	c.Ui.Output(string(jsonSchemas))
+
+	view.Output(string(jsonSchemas))
 
 	return 0
+}
+
+// TODO meta-refactor: move this to arguments once all commands are using the same shim logic
+func (c *ProvidersSchemaCommand) GatherVariables(args *arguments.Vars) {
+	varArgs := args.All()
+	items := make([]flags.RawFlag, len(varArgs))
+	for i := range varArgs {
+		items[i].Name = varArgs[i].Name
+		items[i].Value = varArgs[i].Value
+	}
+	c.Meta.variableArgs = flags.RawFlags{Items: &items}
 }
 
 const providersSchemaCommandHelp = `

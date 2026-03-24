@@ -162,19 +162,7 @@ func (i *ModuleInstaller) InstallModules(ctx context.Context, rootDir, testsDir 
 	var diags tfdiags.Diagnostics
 
 	rootMod, mDiags := i.loader.Parser().LoadConfigDirWithTests(rootDir, testsDir, call)
-	if rootMod == nil {
-		// We drop the diagnostics here because we only want to report module
-		// loading errors after checking the core version constraints, which we
-		// can only do if the module can be at least partially loaded.
-		return nil, diags
-	} else if vDiags := rootMod.CheckCoreVersionRequirements(nil, nil); vDiags.HasErrors() {
-		// If the core version requirements are not met, we drop any other
-		// diagnostics, as they may reflect language changes from future
-		// OpenTofu versions.
-		diags = diags.Append(vDiags)
-	} else {
-		diags = diags.Append(mDiags)
-	}
+	diags = diags.Append(mDiags)
 
 	manifest, err := modsdir.ReadManifestSnapshotForDir(i.modsDir)
 	if err != nil {
@@ -320,11 +308,6 @@ func (i *ModuleInstaller) moduleInstallWalker(_ context.Context, manifest modsdi
 						// nil indicates an unreadable module, which should never happen,
 						// so we return the full loader diagnostics here.
 						diags = diags.Extend(mDiags)
-					} else if vDiags := mod.CheckCoreVersionRequirements(req.Path, req.SourceAddr); vDiags.HasErrors() {
-						// If the core version requirements are not met, we drop any other
-						// diagnostics, as they may reflect language changes from future
-						// OpenTofu versions.
-						diags = diags.Extend(vDiags)
 					} else {
 						diags = diags.Extend(mDiags)
 					}
@@ -474,11 +457,6 @@ func (i *ModuleInstaller) installLocalModule(ctx context.Context, req *configs.M
 			Summary:  "Unreadable module directory",
 			Detail:   fmt.Sprintf("The directory %s could not be read for module %q at %s:%d.", newDir, req.Name, req.CallRange.Filename, req.CallRange.Start.Line),
 		})
-	} else if vDiags := mod.CheckCoreVersionRequirements(req.Path, req.SourceAddr); vDiags.HasErrors() {
-		// If the core version requirements are not met, we drop any other
-		// diagnostics, as they may reflect language changes from future
-		// OpenTofu versions.
-		diags = diags.Extend(vDiags)
 	} else {
 		diags = diags.Extend(mDiags)
 	}
@@ -844,11 +822,6 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 				Detail:   fmt.Sprintf("The directory %s could not be read. This is a bug in OpenTofu and should be reported.", modDir),
 			})
 		}
-	} else if vDiags := mod.CheckCoreVersionRequirements(req.Path, req.SourceAddr); vDiags.HasErrors() {
-		// If the core version requirements are not met, we drop any other
-		// diagnostics, as they may reflect language changes from future
-		// OpenTofu versions.
-		diags = diags.Extend(vDiags)
 	} else {
 		diags = diags.Extend(mDiags)
 	}
@@ -967,11 +940,6 @@ func (i *ModuleInstaller) installGoGetterModule(ctx context.Context, req *config
 				Detail:   fmt.Sprintf("The directory %s could not be read. This is a bug in OpenTofu and should be reported.", modDir),
 			})
 		}
-	} else if vDiags := mod.CheckCoreVersionRequirements(req.Path, req.SourceAddr); vDiags.HasErrors() {
-		// If the core version requirements are not met, we drop any other
-		// diagnostics, as they may reflect language changes from future
-		// OpenTofu versions.
-		diags = diags.Extend(vDiags)
 	} else {
 		diags = diags.Extend(mDiags)
 	}

@@ -8,13 +8,16 @@ package command
 import (
 	"encoding/json"
 	"fmt"
+	"iter"
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/apparentlymart/go-versions/versions"
 	"github.com/hashicorp/go-getter"
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/opentofu/internal/command/views"
@@ -154,6 +157,8 @@ func (c *ProvidersMirrorCommand) Run(rawArgs []string) int {
 	//   infrequently to update a mirror, so it doesn't need to optimize away
 	//   fetches of packages that might already be present.
 
+	computedHashes := map[addrs.Provider]map[getproviders.Platform]iter.Seq[getproviders.Hash]{}
+
 	for provider, constraints := range reqs {
 		if provider.IsBuiltIn() {
 			view.ProviderSkipped(provider.ForDisplay())
@@ -194,6 +199,7 @@ func (c *ProvidersMirrorCommand) Run(rawArgs []string) int {
 		} else {
 			view.ProviderVersionSelectedWithNoConstraints(provider.ForDisplay(), selected.String())
 		}
+		computedHashes[provider] = map[getproviders.Platform]iter.Seq[getproviders.Hash]{}
 		for _, platform := range platforms {
 			view.DownloadingPackageFor(provider.ForDisplay(), selected.String(), platform.String())
 			meta, err := source.PackageMeta(ctx, provider, selected, platform)
@@ -255,6 +261,12 @@ func (c *ProvidersMirrorCommand) Run(rawArgs []string) int {
 					))
 					continue
 				}
+				computedHashes[provider][platform] = result.HashesWithDisposition(func(d *getproviders.HashDisposition) bool {
+					// We include ReportedByTrustedMirror in the slim chance
+					// that someone has a multi stage mirror chain.
+					isTrusted := d.VerifiedLocally || d.ReportedByRegistry || d.ReportedByTrustedMirror
+					return isTrusted && d.Platform != nil && *d.Platform == platform
+				})
 				view.PackageAuthenticated(provider.ForDisplay(), selected.String(), platform.String(), result.String())
 			}
 			os.Remove(targetPath) // okay if it fails because we're going to try to rename over it next anyway
@@ -307,22 +319,34 @@ func (c *ProvidersMirrorCommand) Run(rawArgs []string) int {
 			archiveFilename := filepath.Base(string(archivePath))
 			version := meta.Version
 			platform := meta.TargetPlatform
-			hash, err := meta.Hash()
-			if err != nil {
-				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
-					"Failed to update indexes",
-					fmt.Sprintf("Failed to determine a hash value for %s v%s on %s: %s.", provider, version, platform, err),
-				))
-				continue
+			var hashes []string
+			computed, ok := computedHashes[provider][platform]
+			if ok && computed != nil {
+				for hash := range computed {
+					hashes = append(hashes, hash.String())
+				}
 			}
+			if len(hashes) == 0 {
+				// Fallback
+				hash, err := meta.Hash()
+				if err != nil {
+					diags = diags.Append(tfdiags.Sourceless(
+						tfdiags.Error,
+						"Failed to update indexes",
+						fmt.Sprintf("Failed to determine a hash value for %s v%s on %s: %s.", provider, version, platform, err),
+					))
+					continue
+				}
+				hashes = append(hashes, hash.String())
+			}
+			slices.Sort(hashes)
 			indexVersions[meta.Version.String()] = map[string]interface{}{}
 			if _, ok := indexArchives[version]; !ok {
 				indexArchives[version] = map[string]interface{}{}
 			}
 			indexArchives[version][platform.String()] = map[string]interface{}{
-				"url":    archiveFilename,         // a relative URL from the index file's URL
-				"hashes": []string{hash.String()}, // an array to allow for additional hash formats in future
+				"url":    archiveFilename, // a relative URL from the index file's URL
+				"hashes": hashes,          // an array to allow for additional hash formats in future
 			}
 		}
 		mainIndex := map[string]interface{}{

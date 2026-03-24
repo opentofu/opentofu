@@ -74,3 +74,34 @@ names and module structure have changed from previous module versions.
 OpenTofu uses that information during planning to reinterpret existing objects
 as if they had been created at the corresponding new addresses, eliminating a
 separate workflow step to replace or migrate existing objects.
+
+## Building blocks of a module
+For a well-documented module that is ready to be published, there are some parts that the authors should take care of.
+
+### Readme
+A root level README.md file should explain to users how the module should be used.
+This file will show up in the Registry Search if the license allows for it.
+
+### License
+The module should be licensed under one of
+the [supported licenses](https://github.com/opentofu/registry-ui/blob/main/licenses.json).
+If the module is not under one of these licenses, it will be findable in the [Registry Search](https://search.opentofu.org/),
+but no other data will be displayed.
+
+### Submodules
+A module can contain also submodules. To make the submodules show up in the Registry Search,
+place the submodules in the `modules/MODULENAME` directory in the module directory.
+
+Each submodule directory can contain a `README.md` file to provide more information about the submodule scope.
+
+### Examples
+Similar in structure to submodules, examples provide users with an easy way to get into using the module.
+For an example to show up in the OpenTofu Registry Search, it needs to be placed into `examples/EXAMPLENAME` folder and
+be accompanied by a `README.md` file providing more information about the example.
+
+### Testing the module
+Tests are a great way to ensure that the module stays working when community pull requests come in.
+The [`tofu test` command](../../../cli/commands/test/) has a host of tools that allow writing automated tests for
+the module.
+
+

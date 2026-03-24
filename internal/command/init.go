@@ -33,7 +33,6 @@ import (
 	"github.com/opentofu/opentofu/internal/providercache"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/opentofu/opentofu/internal/tofu"
 	"github.com/opentofu/opentofu/internal/tofumigrate"
 	"github.com/opentofu/opentofu/internal/tracing"
 	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
@@ -159,16 +158,17 @@ func (c *InitCommand) Run(rawArgs []string) int {
 
 	// Load just the root module to begin backend and module initialization
 	rootModEarly, earlyConfDiags := c.loadSingleModuleWithTests(ctx, path, args.TestsDirectory)
-
-	// There may be parsing errors in config loading but these will be shown later _after_
-	// checking for core version requirement errors. Not meeting the version requirement should
-	// be the first error displayed if that is an issue, but other operations are required
-	// before being able to check core version requirements.
-	if rootModEarly == nil {
+	if earlyConfDiags.HasErrors() {
+		// Historical note: prior to OpenTofu v1.12, we took some extraordinary
+		// effort here to return any backend-related errors in preference to
+		// config loading errors about the root module. We no longer do that
+		// and instead exit early if the root module isn't at least valid enough
+		// to load, because remote operations with the "cloud" backend isn't
+		// such an important use-case for OpenTofu as it presumably is for our
+		// predecessor and so we prefer simpler control flow here.
 		view.ConfigError()
 		diags = diags.Append(earlyConfDiags)
 		view.Diagnostics(diags)
-
 		return 1
 	}
 
@@ -248,22 +248,9 @@ func (c *InitCommand) Run(rawArgs []string) int {
 	// With all of the modules (hopefully) installed, we can now try to load the
 	// whole configuration tree.
 	config, confDiags := c.loadConfigWithTests(ctx, path, args.TestsDirectory)
-	// configDiags will be handled after the version constraint check, since an
-	// incorrect version of tofu may be producing errors for configuration
-	// constructs added in later versions.
-
-	// Before we go further, we'll check to make sure none of the modules in
-	// the configuration declare that they don't support this OpenTofu
-	// version, so we can produce a version-related error message rather than
-	// potentially-confusing downstream errors.
-	versionDiags := tofu.CheckCoreVersionRequirements(config)
-	if versionDiags.HasErrors() {
-		view.Diagnostics(versionDiags)
-		return 1
-	}
-
-	// We've passed the core version check, now we can show errors from the
-	// configuration and backend initialization.
+	// We don't immediately handle confDiags here because we prefer to show
+	// shallow backend-related errors if there are any, before we complain
+	// about anything in nested modules.
 
 	// Now, we can check the diagnostics from the early configuration and the
 	// backend.

@@ -322,23 +322,35 @@ be updated in case of any breaking changes to the services they integrate with.
 
 ## Supported Platforms
 
-Throughout the v1.x series we will continue to produce official releases for
-the following platforms, and make changes as necessary to support new
-releases of these operating systems:
+The set of platforms (operating systems and CPU architectures) commonly used
+in our community is constantly evolving in ways that are outside of our direct
+control and so we cannot guarantee to support any specific platforms for
+the entirety of the v1.x series.
 
-* macOS on x64 CPUs (`darwin_amd64`)
+However, we do intend to retain support for platforms that are in broad use
+by our community and which remain well-supported by their vendors and by the
+other software (libraries and programming languages) that OpenTofu is built and
+tested with. We intend to provide at least two minor release series of advance
+notice before ending support for any currently-supported platform, unless a more
+rapid change is forced on us by sudden changes in vendor support policies
+outside of our control.
+
+We currently consider the following platforms to be officially supported, to
+the extent that the maintainers frequently test OpenTofu on these platforms and
+aim to prioritize fixing any regressions that are reported:
+
+* macOS on Apple Silicon (`darwin_arm64`)
 * Windows on x64 CPUs (`windows_amd64`)
-* Linux on x64, 32-bit ARMv6, and 64-bit ARMv8 (`linux_amd64`, `linux_arm`, and `linux_arm64` respectively)
+* Linux on x64 and 64-bit ARM (`linux_amd64` and `linux_arm64` respectively)
 
 Over time we may require newer versions of these operating systems. For
 example, subsequent OpenTofu releases in the v1.x series might end support
 for earlier versions of macOS or Windows, or earlier Linux kernel releases.
 
 We have historically produced official releases for a number of other platforms
-as a convenience to users of those platforms, and we have no current plans to
-stop publishing them but we cannot promise ongoing releases or bug fixes for
-the other platforms throughout the v1.x series. We do not routinely test
-OpenTofu on any platforms other than those listed above.
+as a convenience to users of those platforms, but we cannot promise ongoing
+releases or bug fixes for the other platforms throughout the v1.x series. We do
+not routinely test OpenTofu on any platforms other than those listed above.
 
 We might add support for new platforms in later v1.x releases. If so, earlier
 OpenTofu releases prior to that support will not be available on those
@@ -348,6 +360,21 @@ All OpenTofu plugins, including provider plugins, are separate programs that
 have their own policies for which platforms they support. We cannot guarantee
 that all providers currently support or will continue to support the platforms
 listed above, even though OpenTofu CLI itself will support them.
+
+:::note
+An earlier version of these compatibility promises _did_ promise ongoing support
+for a specific set of platforms, including some that are no longer listed above.
+
+The original commitments had been made for OpenTofu's predecessor, adopted by
+our project as part of the fork, and represented a snapshot of platforms that
+were in wide use at the time their version of this document was drafted. The
+trends of platform usage and support then inevitably changed in the meantime,
+making those original promises seem dated.
+
+We've now relaxed the promises in this section under the "External Dependencies"
+item in [Pragmatic Exceptions](#pragmatic-exceptions) below, based on changes
+in usage we've recognized through package download metrics.
+:::
 
 ## Later Revisions to These Promises
 

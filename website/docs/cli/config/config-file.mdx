@@ -301,6 +301,28 @@ will be used for each method that it is configured with. For the methods
 with no such configuration, the environment variable will be used instead.
 :::
 
+The `network_mirror` method supports an additional argument
+`trust_all_hashes`. When set to `true`, any hashes the network mirror
+reports will be included in the lockfile, similar to how registry hashes
+are handled.
+
+:::warning
+Only set `trust_all_hashes=true` for mirrors that you have *complete trust* in
+as they can pollute the hashes for not just your machine/architecture, but all
+platforms reported.
+:::
+
+```hcl
+provider_installation {
+  network_mirror {
+    # Our trusted intranet provider mirror
+    url              = "https://example.com/"
+    include          = ["example.com/*/*"]
+    trust_all_hashes = true
+  }
+}
+```
+
 OpenTofu will try all of the specified methods whose include and exclude
 patterns match a given provider, and select the newest version available across
 all of those methods that matches the version constraint given in each

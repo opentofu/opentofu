@@ -68,6 +68,7 @@ func (p *Parser) LoadConfigDirSelective(path string, call StaticModuleCall, load
 	mod, modDiags := NewModule(primary, override, call, path, load)
 	diags = append(diags, modDiags...)
 
+	diags = finalizeModuleLoadDiagnostics(diags)
 	return mod, diags
 }
 
@@ -92,6 +93,7 @@ func (p *Parser) LoadConfigDirUneval(path string, load SelectiveLoader) (*Module
 	mod, modDiags := NewModuleUneval(primary, override, path, load)
 	diags = append(diags, modDiags...)
 
+	diags = finalizeModuleLoadDiagnostics(diags)
 	return mod, diags
 }
 
@@ -113,6 +115,7 @@ func (p *Parser) LoadConfigDirWithTests(path string, testDirectory string, call 
 	mod, modDiags := NewModuleWithTests(primary, override, tests, call, path)
 	diags = append(diags, modDiags...)
 
+	diags = finalizeModuleLoadDiagnostics(diags)
 	return mod, diags
 }
 
