@@ -11,6 +11,7 @@ import (
 
 // Version represents the command-line arguments for the version command.
 type Version struct {
+	// ViewOptions specifies which view options to use
 	ViewOptions ViewOptions
 }
 
