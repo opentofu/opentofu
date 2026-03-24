@@ -540,7 +540,7 @@ func TestEphemeralRepetitionData(t *testing.T) {
 			if err == nil {
 				t.Errorf("expected to have an error during plan but got nothing. output:\n%s", combined)
 			}
-			entriesChecker := outputEntriesChecker(expectedApplyOutput)
+			entriesChecker := outputEntriesChecker(expectedPlanOutput)
 			entriesChecker.check(t, "plan", combined)
 		}
 		{ // APPLY
