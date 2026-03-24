@@ -90,11 +90,24 @@ your OpenTofu state and will henceforth be managed by OpenTofu.
 			wantJson: []map[string]any{
 				{
 					"@level":   "error",
-					"@message": `The configured backend doesn't support this operation. The "backend" in OpenTofu defines how OpenTofu operates. The default backend performs all operations locally on your machine. Your configuration is configured to use a non-local backend. This backend doesn't support this operation.`,
+					"@message": "Error: The configured backend doesn't support this operation",
 					"@module":  "tofu.ui",
+					"diagnostic": map[string]any{
+						"detail":   `The "backend" in OpenTofu defines how OpenTofu operates. The default backend performs all operations locally on your machine. Your configuration is configured to use a non-local backend. This backend doesn't support this operation.`,
+						"severity": "error",
+						"summary":  "The configured backend doesn't support this operation",
+					},
+					"type": "diagnostic",
 				},
 			},
-			wantStderr: withNewline(errUnsupportedLocalOp),
+			wantStderr: `
+Error: The configured backend doesn't support this operation
+
+The "backend" in OpenTofu defines how OpenTofu operates. The default backend
+performs all operations locally on your machine. Your configuration is
+configured to use a non-local backend. This backend doesn't support this
+operation.
+`,
 		},
 		// Diagnostics
 		"warning": {

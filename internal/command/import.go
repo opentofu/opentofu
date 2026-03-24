@@ -104,7 +104,11 @@ func (c *ImportCommand) Run(rawArgs []string) int {
 		default:
 			what = "a resource type"
 		}
-		diags = diags.Append(fmt.Errorf("A managed resource address is required. Importing into %s is not allowed.", what))
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Invalid target resource address",
+			fmt.Sprintf("A managed resource address is required. Importing into %s is not allowed.", what),
+		))
 		view.Diagnostics(diags)
 		return 1
 	}
@@ -181,7 +185,11 @@ func (c *ImportCommand) Run(rawArgs []string) int {
 	// Check for user-supplied plugin path
 	var err error
 	if c.pluginPath, err = c.loadPluginPath(); err != nil {
-		view.Diagnostics(tfdiags.Diagnostics{}.Append(fmt.Errorf("Error loading plugin path: %s", err)))
+		view.Diagnostics(tfdiags.Diagnostics{}.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Error loading plugin path",
+			err.Error(),
+		)))
 		return 1
 	}
 
@@ -211,7 +219,11 @@ func (c *ImportCommand) Run(rawArgs []string) int {
 	opReq.ConfigDir = args.ConfigPath
 	opReq.ConfigLoader, err = c.initConfigLoader()
 	if err != nil {
-		diags = diags.Append(err)
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Error loading the configuration",
+			err.Error(),
+		))
 		view.Diagnostics(diags)
 		return 1
 	}
@@ -288,11 +300,19 @@ func (c *ImportCommand) Run(rawArgs []string) int {
 	// Persist the final state
 	log.Printf("[INFO] Writing state output to: %s", c.Meta.StateOutPath())
 	if err := state.WriteState(newState); err != nil {
-		view.Diagnostics(tfdiags.Diagnostics{}.Append(fmt.Errorf("Error writing state file: %s", err)))
+		view.Diagnostics(tfdiags.Diagnostics{}.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Error writing state file",
+			err.Error(),
+		)))
 		return 1
 	}
 	if err := state.PersistState(context.TODO(), schemas); err != nil {
-		view.Diagnostics(tfdiags.Diagnostics{}.Append(fmt.Errorf("Error writing state file: %s", err)))
+		view.Diagnostics(tfdiags.Diagnostics{}.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Error persisting the state file",
+			err.Error(),
+		)))
 		return 1
 	}
 
