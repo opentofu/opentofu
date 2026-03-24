@@ -75,8 +75,11 @@ func (g *AcyclicGraph) Root() (Vertex, error) {
 	}
 
 	if len(roots) > 1 {
-		// TODO(mitchellh): make this error message a lot better
-		return nil, fmt.Errorf("multiple roots: %#v", roots)
+		rootNames := make([]string, len(roots))
+		for i, root := range roots {
+			rootNames[i] = VertexName(root)
+		}
+		return nil, fmt.Errorf("multiple roots found: %s", strings.Join(rootNames, ", "))
 	}
 
 	if len(roots) == 0 {
