@@ -15,7 +15,6 @@ import (
 
 const (
 	appendUaEnvVar         = "TF_APPEND_USER_AGENT"
-	customUaEnvVar         = "OPENTOFU_USER_AGENT"
 	DefaultApplicationName = "OpenTofu"
 )
 
@@ -34,10 +33,6 @@ func (rt *userAgentRoundTripper) RoundTrip(req *http.Request) (*http.Response, e
 
 func OpenTofuUserAgent(version string) string {
 	ua := fmt.Sprintf("%s/%s", DefaultApplicationName, version)
-	if customUa := os.Getenv(customUaEnvVar); customUa != "" {
-		ua = customUa
-		log.Printf("[DEBUG] Using Custom User-Agent: %s", ua)
-	}
 
 	if add := os.Getenv(appendUaEnvVar); add != "" {
 		add = strings.TrimSpace(add)
