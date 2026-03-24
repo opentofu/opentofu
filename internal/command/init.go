@@ -7,7 +7,6 @@ package command
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"reflect"
@@ -15,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/svchost"
 	"github.com/posener/complete"
@@ -77,8 +77,10 @@ func (c *InitCommand) Run(rawArgs []string) int {
 
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
-		view.HelpPrompt()
-		return 1
+		if args.ViewOptions.ViewType == arguments.ViewJSON {
+			return 1
+		}
+		return cli.RunResultHelp
 	}
 
 	// FIXME: the -input flag value is needed to initialize the backend and the
@@ -96,7 +98,11 @@ func (c *InitCommand) Run(rawArgs []string) int {
 	path := c.WorkingDir.NormalizePath(c.WorkingDir.RootModuleDir())
 
 	if err := c.storePluginPath(c.pluginPath); err != nil {
-		view.Diagnostics(diags.Append(fmt.Errorf("Error saving -plugin-path values: %w", err)))
+		view.Diagnostics(diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Error saving -plugin-path values",
+			err.Error(),
+		)))
 		return 1
 	}
 
@@ -113,11 +119,23 @@ func (c *InitCommand) Run(rawArgs []string) int {
 
 		empty, err := configs.IsEmptyDir(path)
 		if err != nil {
-			view.Diagnostics(diags.Append(fmt.Errorf("Error validating destination directory: %w", err)))
+			view.Diagnostics(diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Error validating destination directory",
+				err.Error(),
+			)))
 			return 1
 		}
 		if !empty {
-			view.Diagnostics(diags.Append(errors.New(strings.TrimSpace(errInitCopyNotEmpty))))
+			view.Diagnostics(diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"The working directory already contains files",
+				`The -from-module option requires an empty directory into which a copy of 
+the referenced module will be placed.
+
+To initialize the configuration already in this working directory, omit the
+-from-module option.`,
+			)))
 			return 1
 		}
 
@@ -148,7 +166,11 @@ func (c *InitCommand) Run(rawArgs []string) int {
 	// the backend with an empty directory.
 	empty, err := configs.IsEmptyDir(path)
 	if err != nil {
-		view.Diagnostics(diags.Append(fmt.Errorf("Error checking configuration: %w", err)))
+		view.Diagnostics(diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Error checking configuration",
+			err.Error(),
+		)))
 		return 1
 	}
 	if empty {
@@ -216,17 +238,29 @@ func (c *InitCommand) Run(rawArgs []string) int {
 		c.ignoreRemoteVersionConflict(back)
 		workspace, err := c.Workspace(ctx)
 		if err != nil {
-			view.Diagnostics(diags.Append(fmt.Errorf("Error selecting workspace: %w", err)))
+			view.Diagnostics(diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Error selecting workspace",
+				err.Error(),
+			)))
 			return 1
 		}
 		sMgr, err := back.StateMgr(ctx, workspace)
 		if err != nil {
-			view.Diagnostics(diags.Append(fmt.Errorf("Error loading state: %s", err)))
+			view.Diagnostics(diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Error loading state",
+				err.Error(),
+			)))
 			return 1
 		}
 
 		if err := sMgr.RefreshState(context.TODO()); err != nil {
-			view.Diagnostics(diags.Append(fmt.Errorf("Error refreshing state: %s", err)))
+			view.Diagnostics(diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Error refreshing state",
+				err.Error(),
+			)))
 			return 1
 		}
 
@@ -747,7 +781,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 					diags = diags.Append(tfdiags.Sourceless(
 						tfdiags.Error,
 						summaryIncompatible,
-						fmt.Sprintf(errProviderVersionIncompatible, provider.String()),
+						fmt.Sprintf(`No compatible versions of provider %s were found.`, provider.String()),
 					))
 				case version.GreaterThan(closestAvailable):
 					diags = diags.Append(tfdiags.Sourceless(
@@ -946,7 +980,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 			slices.Sort(incompleteProviders)
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Warning,
-				incompleteLockFileInformationHeader,
+				`Incomplete lock file information for providers`,
 				fmt.Sprintf(
 					incompleteLockFileInformationBody,
 					strings.Join(incompleteProviders, "\n  - "),
@@ -1004,7 +1038,7 @@ func warnOnFailedImplicitProvReference(provider addrs.Provider, qualifs *getprov
 		&hcl.Diagnostic{
 			Severity: hcl.DiagWarning,
 			Subject:  ref.Ref.ToHCL().Ptr(),
-			Summary:  implicitProviderReferenceHead,
+			Summary:  `Automatically-inferred provider dependency`,
 			Detail:   details,
 		})
 }
@@ -1293,14 +1327,6 @@ func (c *InitCommand) Synopsis() string {
 	return "Prepare your working directory for other commands"
 }
 
-const errInitCopyNotEmpty = `
-The working directory already contains files. The -from-module option requires
-an empty directory into which a copy of the referenced module will be placed.
-
-To initialize the configuration already in this working directory, omit the
--from-module option.
-`
-
 // providerProtocolTooOld is a message sent to the CLI UI if the provider's
 // supported protocol versions are too old for the user's version of tofu,
 // but a newer version of the provider is compatible.
@@ -1329,13 +1355,6 @@ Consult the documentation for this provider for more information on compatibilit
 Alternatively, upgrade to the latest version of OpenTofu for compatibility with newer provider releases.
 `
 
-// No version of the provider is compatible.
-const errProviderVersionIncompatible = `No compatible versions of provider %s were found.`
-
-// incompleteLockFileInformationHeader is the summary displayed to users when
-// the lock file has only recorded local hashes.
-const incompleteLockFileInformationHeader = `Incomplete lock file information for providers`
-
 // incompleteLockFileInformationBody is the body of text displayed to users when
 // the lock file has only recorded local hashes.
 const incompleteLockFileInformationBody = `Due to your customized provider installation methods, OpenTofu was forced to calculate lock file checksums locally for the following providers:
@@ -1346,8 +1365,6 @@ The current .terraform.lock.hcl file only includes checksums for %s, so OpenTofu
 To calculate additional checksums for another platform, run:
   tofu providers lock -platform=linux_amd64
 (where linux_amd64 is the platform to generate)`
-
-const implicitProviderReferenceHead = `Automatically-inferred provider dependency`
 
 const implicitProviderReferenceBody = `Due to the prefix of the resource type name OpenTofu guessed that you intended to associate %s with a provider whose local name is "%s", but that name is not declared in this module's required_providers block. OpenTofu therefore guessed that you intended to use %s, but that provider does not exist.
 

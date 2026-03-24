@@ -521,15 +521,6 @@ func TestInitViews(t *testing.T) {
 				},
 			},
 		},
-		// Miscs
-		"help prompt": {
-			viewCall: func(init Init) {
-				init.HelpPrompt()
-			},
-			wantStdout: "",
-			wantStderr: withNewline("\nFor more help on using this command, run:\n  tofu init -help"),
-			wantJson:   []map[string]any{{}},
-		},
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {

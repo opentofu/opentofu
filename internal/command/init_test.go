@@ -21,6 +21,7 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/go-version"
+	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/opentofu/internal/command/workdir"
@@ -81,7 +82,7 @@ func TestInit_multipleArgs(t *testing.T) {
 	}
 	code := c.Run(args)
 	output := done(t)
-	if code != 1 {
+	if code != cli.RunResultHelp {
 		t.Fatalf("bad: \n%s", output.Stdout())
 	}
 }
@@ -494,7 +495,7 @@ func TestInit_backendConfigFilePowershellConfusion(t *testing.T) {
 	args := []string{"-backend-config=", "./input.config"}
 	code := c.Run(args)
 	output := done(t)
-	if code != 1 {
+	if code != cli.RunResultHelp {
 		t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, output.Stderr(), output.Stdout())
 	}
 
