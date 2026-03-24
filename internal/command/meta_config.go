@@ -273,12 +273,21 @@ func (m *Meta) installModules(ctx context.Context, rootDir, testsDir string, upg
 
 	err := os.MkdirAll(m.WorkingDir.ModulesDir(), os.ModePerm)
 	if err != nil {
-		diags = diags.Append(fmt.Errorf("failed to create local modules directory: %w", err))
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Failed to create local modules directory",
+			err.Error(),
+		))
 		return true, diags
 	}
 
 	loader, err := m.initConfigLoader()
 	if err != nil {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Failed to create the config loader",
+			err.Error(),
+		))
 		diags = diags.Append(err)
 		return true, diags
 	}
