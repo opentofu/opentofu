@@ -117,7 +117,11 @@ func (c *FmtCommand) fmt(paths []string, stdin io.Reader, stdout io.Writer, args
 
 	if len(paths) == 0 { // Assuming stdin, then.
 		if args.Write {
-			diags = diags.Append(fmt.Errorf("Option -write cannot be used when reading from stdin"))
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Invalid arguments",
+				"Option -write cannot be used when reading from stdin",
+			))
 			return diags
 		}
 		fileDiags := c.processFile("<stdin>", stdin, stdout, args)
@@ -129,7 +133,11 @@ func (c *FmtCommand) fmt(paths []string, stdin io.Reader, stdout io.Writer, args
 		path = c.Meta.WorkingDir.NormalizePath(path)
 		info, err := os.Stat(path)
 		if err != nil {
-			diags = diags.Append(fmt.Errorf("No file or directory at %s", path))
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Invalid file or directory path",
+				fmt.Sprintf("No file or directory at %s", path),
+			))
 			return diags
 		}
 		if info.IsDir() {
@@ -143,7 +151,11 @@ func (c *FmtCommand) fmt(paths []string, stdin io.Reader, stdout io.Writer, args
 					if err != nil {
 						// Open does not produce error messages that are end-user-appropriate,
 						// so we'll need to simplify here.
-						diags = diags.Append(fmt.Errorf("Failed to read file %s", path))
+						diags = diags.Append(tfdiags.Sourceless(
+							tfdiags.Error,
+							"Failed to open file",
+							fmt.Sprintf("Failed to read file %s", path),
+						))
 						continue
 					}
 
@@ -160,7 +172,11 @@ func (c *FmtCommand) fmt(paths []string, stdin io.Reader, stdout io.Writer, args
 			}
 
 			if !fmtd {
-				diags = diags.Append(fmt.Errorf("Only .tf, .tofu, .tfvars, .tftest.hcl, and .tofutest.hcl files can be processed with tofu fmt"))
+				diags = diags.Append(tfdiags.Sourceless(
+					tfdiags.Error,
+					"Invalid file extension",
+					"Only .tf, .tofu, .tfvars, .tftest.hcl, and .tofutest.hcl files can be processed with tofu fmt",
+				))
 				continue
 			}
 		}
@@ -176,7 +192,11 @@ func (c *FmtCommand) processFile(path string, r io.Reader, w io.Writer, args arg
 
 	src, err := io.ReadAll(r)
 	if err != nil {
-		diags = diags.Append(fmt.Errorf("Failed to read %s", path))
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Failed to read file",
+			fmt.Sprintf("Failed to load the content of the %q file", path),
+		))
 		return diags
 	}
 
@@ -203,18 +223,30 @@ func (c *FmtCommand) processFile(path string, r io.Reader, w io.Writer, args arg
 		if args.Write {
 			err := os.WriteFile(path, result, 0644)
 			if err != nil {
-				diags = diags.Append(fmt.Errorf("Failed to write %s", path))
+				diags = diags.Append(tfdiags.Sourceless(
+					tfdiags.Error,
+					"Writing formatted file failed",
+					fmt.Sprintf("Failed to write %s", path),
+				))
 				return diags
 			}
 		}
 		if args.Diff {
 			diff, err := bytesDiff(src, result, path)
 			if err != nil {
-				diags = diags.Append(fmt.Errorf("Failed to generate diff for %s: %w", path, err))
+				diags = diags.Append(tfdiags.Sourceless(
+					tfdiags.Error,
+					"Failed to generate diff",
+					fmt.Sprintf("Failed to generate diff for %s: %s", path, err),
+				))
 				return diags
 			}
 			if _, err := w.Write(diff); err != nil {
-				return diags.Append(err)
+				return diags.Append(tfdiags.Sourceless(
+					tfdiags.Error,
+					"Failed to write format diff",
+					err.Error(),
+				))
 			}
 		}
 	}
@@ -222,7 +254,11 @@ func (c *FmtCommand) processFile(path string, r io.Reader, w io.Writer, args arg
 	if !args.List && !args.Write && !args.Diff {
 		_, err = w.Write(result)
 		if err != nil {
-			diags = diags.Append(fmt.Errorf("Failed to write result"))
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Writing results failed",
+				fmt.Sprintf("Failed to write result: %s", err),
+			))
 		}
 	}
 
@@ -238,11 +274,19 @@ func (c *FmtCommand) processDir(path string, stdout io.Writer, args arguments.Fm
 	if err != nil {
 		switch {
 		case os.IsNotExist(err):
-			diags = diags.Append(fmt.Errorf("There is no configuration directory at %s", path))
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Invalid path",
+				fmt.Sprintf("There is no configuration directory at %s", path),
+			))
 		default:
 			// ReadDir does not produce error messages that are end-user-appropriate,
 			// so we'll need to simplify here.
-			diags = diags.Append(fmt.Errorf("Cannot read directory %s", path))
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Invalid path",
+				fmt.Sprintf("Cannot read directory %s", path),
+			))
 		}
 		return diags
 	}
@@ -271,7 +315,11 @@ func (c *FmtCommand) processDir(path string, stdout io.Writer, args arguments.Fm
 				if err != nil {
 					// Open does not produce error messages that are end-user-appropriate,
 					// so we'll need to simplify here.
-					diags = diags.Append(fmt.Errorf("Failed to read file %s", subPath))
+					diags = diags.Append(tfdiags.Sourceless(
+						tfdiags.Error,
+						"Failed to open file",
+						fmt.Sprintf("Failed to read file %s", path),
+					))
 					continue
 				}
 
