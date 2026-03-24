@@ -188,6 +188,9 @@ func (v *OperationHuman) Plan(plan *plans.Plan, schemas *tofu.Schemas) {
 	if plan.Errored {
 		opts = append(opts, plans.Errored)
 	}
+	if len(plan.TargetAddrs) > 0 {
+		opts = append(opts, plans.Targeted)
+	}
 
 	renderer.RenderHumanPlan(jplan, plan.UIMode, opts...)
 }

@@ -184,6 +184,12 @@ func (plan Plan) renderHuman(renderer Renderer, mode plans.Mode, opts ...plans.Q
 					"OpenTofu has compared your real infrastructure against your configuration and found no differences, so no changes are needed.",
 					renderer.Streams.Stdout.Columns(),
 				))
+				if checkOpts(plans.Targeted) {
+					renderer.Streams.Println(format.WordWrap(
+						"\nNote: You used the -target option, so OpenTofu only checked resources matching those targets and may have skipped others. If you expected changes to appear, verify that the addresses passed to -target are correct.",
+						renderer.Streams.Stdout.Columns(),
+					))
+				}
 			}
 		}
 	}

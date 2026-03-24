@@ -10,11 +10,12 @@ func _() {
 	var x [1]struct{}
 	_ = x[Errored-0]
 	_ = x[NoChanges-1]
+	_ = x[Targeted-2]
 }
 
-const _Quality_name = "ErroredNoChanges"
+const _Quality_name = "ErroredNoChangesTargeted"
 
-var _Quality_index = [...]uint8{0, 7, 16}
+var _Quality_index = [...]uint8{0, 7, 16, 24}
 
 func (i Quality) String() string {
 	idx := int(i) - 0
