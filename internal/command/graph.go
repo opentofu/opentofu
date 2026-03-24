@@ -171,7 +171,11 @@ func (c *GraphCommand) Run(rawArgs []string) int {
 	}
 
 	if err != nil {
-		diags = diags.Append(err)
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Error loading the configuration",
+			err.Error(),
+		))
 		view.Diagnostics(diags)
 		return 1
 	}
