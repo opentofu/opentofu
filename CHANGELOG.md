@@ -4,6 +4,7 @@ The v1.12.x release series is supported until **February 1 2027**.
 
 UPGRADE NOTES:
 
+- The `OPENTOFU_USER_AGENT` environment variable, which allowed fully overriding the default User-Agent header on all HTTP requests has been removed.
 - This is the last OpenTofu release series that will support macOS 12 Monterey. We expect that OpenTofu v1.13 will require macOS 13 Ventura or later.
 - On Unix systems OpenTofu now considers the `BROWSER` environment variable as a possible override for the default behavior for launching a web browser.
 
