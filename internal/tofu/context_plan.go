@@ -649,88 +649,6 @@ func (c *Context) prePlanVerifyMovesWithExcludeFlag(moveResults refactoring.Move
 	return diags
 }
 
-// prePlanVerifyTargetsExist checks that each -target address refers to
-// something that exists in the configuration, in the current state, or as a
-// "from" address in a pending move statement. This prevents silently doing
-// nothing when the user makes a typo in a resource address.
-func (c *Context) prePlanVerifyTargetsExist(config *configs.Config, state *states.State, moveResults refactoring.MoveResults, targets []addrs.Targetable) tfdiags.Diagnostics {
-	if len(targets) == 0 {
-		return nil
-	}
-
-	// Collect all known addressable objects from config, state, and move results.
-	var knownAddrs []addrs.Targetable
-
-	// Walk the full config tree and collect all resource and module addresses.
-	config.DeepEach(func(mc *configs.Config) {
-		for _, r := range mc.Module.ManagedResources {
-			knownAddrs = append(knownAddrs, addrs.ConfigResource{
-				Module:   mc.Path,
-				Resource: r.Addr(),
-			})
-		}
-		for _, r := range mc.Module.DataResources {
-			knownAddrs = append(knownAddrs, addrs.ConfigResource{
-				Module:   mc.Path,
-				Resource: r.Addr(),
-			})
-		}
-		for _, r := range mc.Module.EphemeralResources {
-			knownAddrs = append(knownAddrs, addrs.ConfigResource{
-				Module:   mc.Path,
-				Resource: r.Addr(),
-			})
-		}
-		// Also add child module paths so that module-level targets are valid.
-		if len(mc.Path) > 0 {
-			knownAddrs = append(knownAddrs, mc.Path)
-		}
-	})
-
-	// Collect all resource addresses from state (which may contain resources
-	// not yet present in config, e.g., orphans being destroyed).
-	if state != nil {
-		for _, ms := range state.Modules {
-			for _, rs := range ms.Resources {
-				knownAddrs = append(knownAddrs, rs.Addr)
-			}
-		}
-	}
-
-	// Collect all "from" addresses from pending move results. Users may
-	// include these in their -target set following advice from earlier
-	// "Moved resource instances excluded by targeting" errors.
-	for _, result := range moveResults.Changes.Values() {
-		knownAddrs = append(knownAddrs, result.From)
-	}
-
-	var diags tfdiags.Diagnostics
-	for _, target := range targets {
-		found := false
-		for _, knownAddr := range knownAddrs {
-			// Check both directions: target contains knownAddr (e.g., module
-			// target containing a resource), or knownAddr contains target (e.g.,
-			// a config resource containing a specific instance index target).
-			if target.TargetContains(knownAddr) || knownAddr.TargetContains(target) {
-				found = true
-				break
-			}
-		}
-		if !found {
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
-				"Target not found",
-				fmt.Sprintf(
-					"No target found matching %s; check that the resource exists and that you've entered the resource address correctly.",
-					target,
-				),
-			))
-		}
-	}
-
-	return diags
-}
-
 func (c *Context) postPlanValidateMoves(config *configs.Config, stmts []refactoring.MoveStatement, allInsts instances.Set) tfdiags.Diagnostics {
 	return refactoring.ValidateMoves(stmts, config, allInsts)
 }
@@ -861,15 +779,6 @@ func (c *Context) planWalk(ctx context.Context, config *configs.Config, prevRunS
 		// We'll return early here, because if we have any moved resource
 		// instances excluded by targeting then planning is likely to encounter
 		// strange problems that may lead to confusing error messages.
-		return nil, diags
-	}
-
-	// Validate that each -target refers to something that actually exists.
-	// We do this after applying moves so that state reflects the current
-	// addresses, and we include move-from addresses so users can follow
-	// advice from "Moved resource instances excluded by targeting" errors.
-	diags = diags.Append(c.prePlanVerifyTargetsExist(config, prevRunState, moveResults, opts.Targets))
-	if diags.HasErrors() {
 		return nil, diags
 	}
 

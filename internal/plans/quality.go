@@ -19,4 +19,9 @@ const (
 	// semantically meaningful updates to state. They can sometimes still affect
 	// the format of state if applied.
 	NoChanges
+	// Targeted plans were created with one or more -target options, which may
+	// have excluded some resources from consideration. When combined with
+	// NoChanges, this hints the user that their targets may have filtered out
+	// all changes.
+	Targeted
 )

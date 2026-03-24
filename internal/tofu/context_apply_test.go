@@ -3139,7 +3139,7 @@ func TestContext2Apply_moduleProviderAliasTargets(t *testing.T) {
 		}, nil),
 	})
 
-	_, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 		Targets: []addrs.Targetable{
 			addrs.ConfigResource{
@@ -3152,11 +3152,19 @@ func TestContext2Apply_moduleProviderAliasTargets(t *testing.T) {
 			},
 		},
 	})
-	if !diags.HasErrors() {
-		t.Fatal("expected error when targeting a non-existent resource, got none")
+	assertNoErrors(t, diags)
+
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
+	if diags.HasErrors() {
+		t.Fatalf("diags: %s", diags.Err())
 	}
-	if got, want := diags.Err().Error(), "nonexistent.thing"; !strings.Contains(got, want) {
-		t.Fatalf("expected error to mention %q, got: %s", want, got)
+
+	actual := strings.TrimSpace(state.String())
+	expected := strings.TrimSpace(`
+<no state>
+	`)
+	if actual != expected {
+		t.Fatalf("wrong result\n\ngot:\n%s\n\nwant:\n%s", actual, expected)
 	}
 }
 
