@@ -26,12 +26,22 @@ func TestUnlockViews(t *testing.T) {
 				v.LockingDisabledForBackend()
 			},
 			wantStdout: "",
-			wantStderr: withNewline("Locking is disabled for this backend"),
+			wantStderr: `
+Error: Locking disabled
+
+Locking is disabled for this backend.
+`,
 			wantJson: []map[string]any{
 				{
 					"@level":   "error",
-					"@message": "Locking is disabled for this backend",
+					"@message": "Error: Locking disabled",
 					"@module":  "tofu.ui",
+					"diagnostic": map[string]any{
+						"detail":   "Locking is disabled for this backend.",
+						"severity": "error",
+						"summary":  "Locking disabled",
+					},
+					"type": "diagnostic",
 				},
 			},
 		},
@@ -40,12 +50,22 @@ func TestUnlockViews(t *testing.T) {
 				v.CannotUnlockByAnotherProcess()
 			},
 			wantStdout: "",
-			wantStderr: withNewline("Local state cannot be unlocked by another process"),
+			wantStderr: `
+Error: State locked by another local process
+
+Local state cannot be unlocked by another process.
+`,
 			wantJson: []map[string]any{
 				{
 					"@level":   "error",
-					"@message": "Local state cannot be unlocked by another process",
+					"@message": "Error: State locked by another local process",
 					"@module":  "tofu.ui",
+					"diagnostic": map[string]any{
+						"detail":   "Local state cannot be unlocked by another process.",
+						"severity": "error",
+						"summary":  "State locked by another local process",
+					},
+					"type": "diagnostic",
 				},
 			},
 		},

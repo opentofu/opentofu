@@ -83,11 +83,11 @@ func (v *UnlockHuman) Diagnostics(diags tfdiags.Diagnostics) {
 }
 
 func (v *UnlockHuman) LockingDisabledForBackend() {
-	v.view.errorln("Locking is disabled for this backend")
+	v.Diagnostics(tfdiags.Diagnostics{diagLockingDisabledBackend})
 }
 
 func (v *UnlockHuman) CannotUnlockByAnotherProcess() {
-	v.view.errorln("Local state cannot be unlocked by another process")
+	v.Diagnostics(tfdiags.Diagnostics{diagUnlockingLocalState})
 }
 
 func (v *UnlockHuman) ForceUnlockCancelled() {
@@ -113,11 +113,11 @@ func (v *UnlockJSON) Diagnostics(diags tfdiags.Diagnostics) {
 }
 
 func (v *UnlockJSON) LockingDisabledForBackend() {
-	v.view.Error("Locking is disabled for this backend")
+	v.Diagnostics(tfdiags.Diagnostics{diagLockingDisabledBackend})
 }
 
 func (v *UnlockJSON) CannotUnlockByAnotherProcess() {
-	v.view.Error("Local state cannot be unlocked by another process")
+	v.Diagnostics(tfdiags.Diagnostics{diagUnlockingLocalState})
 }
 
 func (v *UnlockJSON) ForceUnlockCancelled() {
@@ -127,3 +127,16 @@ func (v *UnlockJSON) ForceUnlockCancelled() {
 func (v *UnlockJSON) ForceUnlockSucceeded() {
 	v.view.Info("The state has been unlocked, and OpenTofu commands should now be able to obtain a new lock on the remote state.")
 }
+
+var (
+	diagLockingDisabledBackend = tfdiags.Sourceless(
+		tfdiags.Error,
+		"Locking disabled",
+		"Locking is disabled for this backend.",
+	)
+	diagUnlockingLocalState = tfdiags.Sourceless(
+		tfdiags.Error,
+		"State locked by another local process",
+		"Local state cannot be unlocked by another process.",
+	)
+)
