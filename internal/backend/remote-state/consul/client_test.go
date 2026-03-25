@@ -280,8 +280,8 @@ func TestConsul_destroyLock(t *testing.T) {
 	defer func() { _ = srv.Stop() }()
 
 	testCases := []string{
-		fmt.Sprintf("tf-unit/%s", time.Now().String()),
-		fmt.Sprintf("tf-unit/%s/", time.Now().String()),
+		fmt.Sprintf("tf-unit/%d", time.Now().Unix()),
+		fmt.Sprintf("tf-unit/%d/", time.Now().Unix()),
 	}
 
 	testLock := func(client *RemoteClient, lockPath string) {
