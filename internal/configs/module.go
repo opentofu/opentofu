@@ -8,6 +8,7 @@ package configs
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/hashicorp/hcl/v2"
 
@@ -56,6 +57,9 @@ type Module struct {
 	Checks map[string]*Check
 
 	Tests map[string]*TestFile
+
+	// If variable const support has been detected
+	ConstEnabled bool
 
 	// IsOverridden indicates if the module is being overridden. It's used in
 	// testing framework to not call the underlying module.
@@ -232,6 +236,25 @@ func NewModuleUneval(primaryFiles, overrideFiles []*File, sourceDir string, load
 		diags = append(diags, fileDiags...)
 	}
 
+	// Determine if variable const usage is enabled
+	mod.ConstEnabled = false
+	for _, v := range mod.Variables {
+		if v.ConstSet {
+			mod.ConstEnabled = true
+			break
+		}
+	}
+	if mod.ConstEnabled {
+		// Opt into new functionality
+		log.Printf("[DEBUG] Enabling const variable support for module %s", sourceDir)
+		for _, v := range mod.Variables {
+			if !v.ConstSet {
+				// Reset default to false
+				v.Const = false
+			}
+		}
+	}
+
 	return mod, diags
 }
 
@@ -271,6 +294,23 @@ func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall, sourc
 
 	// Generate the FQN -> LocalProviderName map
 	mod.gatherProviderLocalNames()
+
+	// Ensure const variables are actually const
+	if mod.ConstEnabled {
+		var constRefs []*addrs.Reference
+		for _, variable := range mod.Variables {
+			if variable.Const {
+				constRefs = append(constRefs, &addrs.Reference{
+					Subject: addrs.InputVariable{Name: variable.Name},
+				})
+			}
+		}
+		_, vDiags := mod.StaticEvaluator.EvalContext(context.TODO(), StaticIdentifier{
+			Module: mod.StaticEvaluator.call.addr,
+			// TODO DeclRange: ,
+		}, constRefs)
+		diags = append(diags, vDiags...)
+	}
 
 	return mod, diags
 }
