@@ -272,7 +272,7 @@ func New(enc encryption.StateEncryption) backend.Backend {
 			"encryption_scope": {
 				Type:          schema.TypeString,
 				Optional:      true,
-				Description:   "Encryption scope which should be used to encrypt the blob.",
+				Description:   "Encryption scope used to encrypt the state.",
 				DefaultFunc:   schema.EnvDefaultFunc("ARM_ENCYRPTION_SCOPE", nil),
 				ConflictsWith: []string{"customer_provided_key"},
 			},
@@ -312,7 +312,11 @@ func (b *Backend) configure(ctx context.Context) error {
 	b.keyName = data.Get("key").(string)
 	b.snapshot = data.Get("snapshot").(bool)
 	b.timeout = time.Duration(data.Get("timeout_seconds").(int)) * time.Second
-	b.cpkInfo, _ = newCPKInfo(data.Get("customer_provided_key").(string))
+	cpkInfo, err := newCPKInfo(data.Get("customer_provided_key").(string))
+	if err != nil {
+		return err
+	}
+	b.cpkInfo = cpkInfo
 	b.cpkScopeInfo = newCPKScopeInfo(data.Get("encryption_scope").(string))
 
 	accessKey := data.Get("access_key").(string)
