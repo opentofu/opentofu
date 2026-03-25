@@ -8,6 +8,7 @@ package configs
 import (
 	"os"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -352,5 +353,83 @@ func TestModuleCallWithVersion(t *testing.T) {
 	}
 	if diff := cmp.Diff(wantModules, gotModules, cmpOpts); diff != "" {
 		t.Error("wrong result:\n" + diff)
+	}
+}
+
+func TestModuleCallWithSource(t *testing.T) {
+	sources := map[string]string{
+		"mod.tf": `
+module "foo" {
+  source = var.path
+}`,
+		"path.tf": `
+variable "path" {
+  type = string
+  default = "./path"
+}`,
+		"path_const.tf": `
+variable "path" {
+  type = string
+  const = true
+  default = "./path"
+}`,
+		"consternation.tf": `
+variable "consternation" {
+	const = false # opts the module in to the const checking
+}`,
+	}
+
+	parser := testParser(sources)
+
+	files := map[string]*File{}
+	for fn := range sources {
+		file, diags := parser.LoadConfigFile(fn)
+		if diags.HasErrors() {
+			t.Fatalf("unexpected errors: %s", diags.Error())
+		}
+		files[fn] = file
+	}
+
+	call := NewStaticModuleCall(nil, hcl.Range{}, func(v *Variable) (cty.Value, hcl.Diagnostics) {
+		return v.Default, nil
+	}, "<testing>", "")
+
+	cases := []struct {
+		name  string
+		files []string
+		err   string
+	}{{
+		name:  "success, pre-const",
+		files: []string{"mod.tf", "path.tf"},
+	}, {
+		name:  "success, post-const",
+		files: []string{"mod.tf", "path_const.tf"},
+	}, {
+		name:  "failure, post-const",
+		files: []string{"mod.tf", "path.tf", "consternation.tf"},
+		err:   "The variable \"path\" does not have `const = true` set and can not be used in a static context.",
+	}}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var tFiles []*File
+			for _, fn := range tc.files {
+				f, ok := files[fn]
+				if !ok {
+					t.Fatalf("not ok %s %#v", fn, files)
+				}
+				tFiles = append(tFiles, f)
+			}
+			_, diags := NewModule(tFiles, nil, call, "testdata", SelectiveLoadAll)
+			if tc.err == "" {
+				if diags.HasErrors() {
+					t.Errorf("unexpected errors creating module: %s", diags.Error())
+				}
+			} else {
+				if !strings.Contains(diags.Error(), tc.err) {
+					t.Errorf("expected %s, got %s", tc.err, diags.Error())
+				}
+			}
+		})
 	}
 }
