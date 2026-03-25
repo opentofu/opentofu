@@ -118,7 +118,7 @@ func (m *Meta) rootModuleCall(ctx context.Context, rootDir string) (configs.Stat
 		diags = diags.Append(err)
 	}
 
-	call := configs.NewStaticModuleCall(addrs.RootModule, func(variable *configs.Variable) (cty.Value, hcl.Diagnostics) {
+	call := configs.NewStaticModuleCall(addrs.RootModule, hcl.Range{}, func(variable *configs.Variable) (cty.Value, hcl.Diagnostics) {
 		name := variable.Name
 		v, ok := variables[name]
 		if !ok {

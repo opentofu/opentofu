@@ -306,8 +306,8 @@ func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall, sourc
 			}
 		}
 		_, vDiags := mod.StaticEvaluator.EvalContext(context.TODO(), StaticIdentifier{
-			Module: mod.StaticEvaluator.call.addr,
-			// TODO DeclRange: ,
+			Module:    mod.StaticEvaluator.call.addr,
+			DeclRange: mod.StaticEvaluator.call.declRange,
 		}, constRefs)
 		diags = append(diags, vDiags...)
 	}
