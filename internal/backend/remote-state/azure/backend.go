@@ -312,11 +312,14 @@ func (b *Backend) configure(ctx context.Context) error {
 	b.keyName = data.Get("key").(string)
 	b.snapshot = data.Get("snapshot").(bool)
 	b.timeout = time.Duration(data.Get("timeout_seconds").(int)) * time.Second
-	cpkInfo, err := newCPKInfo(data.Get("customer_provided_key").(string))
-	if err != nil {
-		return err
+	cpkKey := data.Get("customer_provided_key").(string)
+	if cpkKey != "" {
+		cpkInfo, err := newCPKInfo(cpkKey)
+		if err != nil {
+			return err
+		}
+		b.cpkInfo = cpkInfo
 	}
-	b.cpkInfo = cpkInfo
 	b.cpkScopeInfo = newCPKScopeInfo(data.Get("encryption_scope").(string))
 
 	accessKey := data.Get("access_key").(string)
