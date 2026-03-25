@@ -66,6 +66,14 @@ The following options apply to all of (or several of) the initialization steps:
   ["tfvars" file](../../language/values/variables.mdx#variable-definitions-tfvars-files).
   Use this option multiple times to include values from more than one file.
 
+* `-json` - Enables the [machine readable JSON UI](../../internals/machine-readable-ui.mdx) output.
+  This implies `-input=false`, so the configuration must have no unassigned
+  variable values to continue.
+
+* `-json-into=out.json` - Produces the same output as -json, but redirected to a file. This allows
+  for simultaneous capture of both human readable and machine readable logs.
+
+
 There are several other ways to set values for input variables in the root
 module, aside from the `-var` and `-var-file` options. Refer to
 [Assigning Values to Root Module Variables](../../language/values/variables.mdx#assigning-values-to-root-module-variables) for more information.
