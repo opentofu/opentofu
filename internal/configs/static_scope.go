@@ -260,6 +260,15 @@ func (s staticScopeData) GetInputVariable(_ context.Context, ident addrs.InputVa
 		})
 	}
 
+	if s.eval.cfg.ConstEnabled && !variable.Const {
+		return cty.NilVal, diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Unable to use variable in static context",
+			Detail:   fmt.Sprintf("The variable %q does not have `const = true` set and can not be used in a static context.", variable.Name),
+			Subject:  rng.ToHCL().Ptr(),
+		})
+	}
+
 	id := StaticIdentifier{
 		Module:    s.eval.call.addr,
 		Subject:   fmt.Sprintf("var.%s", variable.Name),
