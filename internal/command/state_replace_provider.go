@@ -131,7 +131,11 @@ func (c *StateReplaceProviderCommand) Run(rawArgs []string) int {
 
 	// Refresh and load state
 	if err := stateMgr.RefreshState(context.TODO()); err != nil {
-		view.Diagnostics(diags.Append(fmt.Errorf("Failed to refresh source state: %s", err)))
+		view.Diagnostics(diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Failed to refresh source state",
+			err.Error(),
+		)))
 		return 1
 	}
 
@@ -174,7 +178,11 @@ func (c *StateReplaceProviderCommand) Run(rawArgs []string) int {
 			Description: "Only 'yes' will be accepted to continue.",
 		})
 		if err != nil {
-			view.Diagnostics(diags.Append(fmt.Errorf("Error asking for approval: %s", err)))
+			view.Diagnostics(diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Error asking for approval",
+				err.Error(),
+			)))
 			return 1
 		}
 		if v != "yes" {
@@ -245,6 +253,15 @@ Options:
                           to the default files terraform.tfvars and *.auto.tfvars.
                           Use this option more than once to include more than one
                           variables file.
+
+  -json                   Produce output in a machine-readable JSON format, 
+                          suitable for use in text editor integrations and other 
+                          automated systems. Always disables color.
+
+  -json-into=out.json     Produce the same output as -json, but sent directly
+                          to the given file. This allows automation to preserve
+                          the original human-readable output streams, while
+                          capturing more detailed logs for machine analysis.
 
   -state, state-out, and -backup are legacy options supported for the local
   backend only. For more information, see the local backend's documentation.

@@ -181,7 +181,7 @@ func TestStateShow_noState(t *testing.T) {
 		t.Fatalf("bad: %d", code)
 	}
 	output := done(t)
-	if !strings.Contains(output.Stderr(), "No state file was found!") {
+	if !strings.Contains(output.Stderr(), "No state file was found") {
 		t.Fatalf("expected a no state file error, got: %s", output.Stderr())
 	}
 }
@@ -208,7 +208,7 @@ func TestStateShow_emptyState(t *testing.T) {
 		t.Fatalf("bad: %d", code)
 	}
 	output := done(t)
-	if !strings.Contains(output.Stderr(), "No instance found for the given address!") {
+	if !strings.Contains(output.Stderr(), "No instance found for the given address") {
 		t.Fatalf("expected a no instance found error, got: %s", output.Stderr())
 	}
 }
