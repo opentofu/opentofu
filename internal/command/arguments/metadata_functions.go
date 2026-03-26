@@ -39,6 +39,10 @@ func ParseMetadataFunctions(args []string) (*MetadataFunctions, func(), tfdiags.
 		return arguments, closer, diags
 	}
 
+	// The 'metadata functions' command just forces the user to use the `-json` flag but any of the diagnostics should
+	// be printed as human format. This makes it clear that the success output of this command will be in json and
+	// that it needs to be processed accordingly.
+	// The print of the functions will be in JSON all the time.
 	if arguments.ViewOptions.ViewType != ViewJSON {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
@@ -46,10 +50,7 @@ func ParseMetadataFunctions(args []string) (*MetadataFunctions, func(), tfdiags.
 			"The `tofu metadata functions` command requires the `-json` flag.",
 		))
 	}
-	// The 'metadata functions' command just forces the user to use the `-json` flag but any of the diagnostics should
-	// be printed as human format. This is make it clear that the success output of this command will be in json and
-	// that it needs to be processed accordingly.
-	// The print of the functions will be in JSON all the time.
 	arguments.ViewOptions.ViewType = ViewHuman
+	
 	return arguments, closer, diags
 }
