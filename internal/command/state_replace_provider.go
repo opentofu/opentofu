@@ -109,7 +109,7 @@ func (c *StateReplaceProviderCommand) Run(rawArgs []string) int {
 	}
 
 	// Initialize the state manager as configured
-	stateMgr, err := c.State(ctx, enc)
+	stateMgr, err := c.State(ctx, enc, view)
 	if err != nil {
 		view.StateLoadingFailure(err.Error())
 		return 1

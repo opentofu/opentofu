@@ -151,5 +151,5 @@ func (c *GetCommand) Synopsis() string {
 
 func getModules(ctx context.Context, m *Meta, path string, testsDir string, upgrade bool, view views.Get) (abort bool, diags tfdiags.Diagnostics) {
 	hooks := view.Hooks(true)
-	return m.installModules(ctx, path, testsDir, upgrade, true, hooks)
+	return m.installModules(ctx, path, testsDir, upgrade, true, hooks, view)
 }

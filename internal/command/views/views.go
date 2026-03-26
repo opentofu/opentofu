@@ -7,6 +7,13 @@ package views
 
 import "github.com/opentofu/opentofu/internal/tfdiags"
 
+// Basic represents the basic view that can perform basic printing actions
+// as showing diagnostics. This is implemented by most of the view implementations
+// and can be used as argument to allow access to the defined basic functionality.
+type Basic interface {
+	Diagnostics(diags tfdiags.Diagnostics)
+}
+
 // diagUnsupportedLocalOp is the common error message shown for operations
 // that require a backend.Local.
 var diagUnsupportedLocalOp = tfdiags.Sourceless(

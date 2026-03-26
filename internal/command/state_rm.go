@@ -81,7 +81,7 @@ func (c *StateRmCommand) Run(rawArgs []string) int {
 	}
 
 	// Get the state
-	stateMgr, err := c.State(ctx, enc)
+	stateMgr, err := c.State(ctx, enc, view)
 	if err != nil {
 		view.StateLoadingFailure(err.Error())
 		return 1

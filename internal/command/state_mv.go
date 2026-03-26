@@ -120,7 +120,7 @@ func (c *StateMvCommand) Run(rawArgs []string) int {
 	}
 
 	// Read the from state
-	stateFromMgr, err := c.State(ctx, enc)
+	stateFromMgr, err := c.State(ctx, enc, view)
 	if err != nil {
 		view.StateLoadingFailure(err.Error())
 		return 1
@@ -162,7 +162,7 @@ func (c *StateMvCommand) Run(rawArgs []string) int {
 		c.statePath = args.StateOutPath
 		c.backupPath = args.BackupPathOut
 
-		stateToMgr, err = c.State(ctx, enc)
+		stateToMgr, err = c.State(ctx, enc, view)
 		if err != nil {
 			view.StateLoadingFailure(err.Error())
 			return 1

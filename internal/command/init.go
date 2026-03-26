@@ -150,7 +150,7 @@ To initialize the configuration already in this working directory, omit the
 		))
 		defer span.End()
 
-		initDirFromModuleAbort, initDirFromModuleDiags := c.initDirFromModule(ctx, path, src, hooks)
+		initDirFromModuleAbort, initDirFromModuleDiags := c.initDirFromModule(ctx, path, src, hooks, view)
 		diags = diags.Append(initDirFromModuleDiags)
 		if initDirFromModuleAbort || initDirFromModuleDiags.HasErrors() {
 			view.Diagnostics(diags)
@@ -390,7 +390,7 @@ func (c *InitCommand) getModules(ctx context.Context, path, testsDir string, ear
 
 	hooks := view.Hooks(true)
 
-	installAbort, installDiags := c.installModules(ctx, path, testsDir, upgrade, false, hooks)
+	installAbort, installDiags := c.installModules(ctx, path, testsDir, upgrade, false, hooks, view)
 	diags = diags.Append(installDiags)
 
 	// At this point, installModules may have generated error diags or been

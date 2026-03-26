@@ -11,6 +11,8 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
@@ -34,12 +36,15 @@ func testStateBackups(t *testing.T, dir string) []string {
 func TestStateDefaultBackupExtension(t *testing.T) {
 	testCwdTemp(t)
 
+	view, done := testView(t)
+	defer done(t)
 	sm := &StateMeta{
 		Meta{
 			WorkingDir: workdir.NewDir("."),
+			View:       view,
 		},
 	}
-	s, err := sm.State(t.Context(), encryption.Disabled())
+	s, err := sm.State(t.Context(), encryption.Disabled(), views.NewState(arguments.ViewOptions{ViewType: arguments.ViewHuman}, view))
 	if err != nil {
 		t.Fatal(err)
 	}
