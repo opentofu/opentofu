@@ -166,25 +166,28 @@ func (v *WorkspaceHuman) Diagnostics(diags tfdiags.Diagnostics) {
 }
 
 func (v *WorkspaceHuman) WorkspaceAlreadyExists(name string) {
-	msg := fmt.Sprintf("Workspace %q already exists", name)
-	v.view.errorln(msg)
+	v.Diagnostics(tfdiags.Diagnostics{tfdiags.Sourceless(
+		tfdiags.Error,
+		fmt.Sprintf("Workspace %q already exists", name),
+		"A workspace having the given name already exists",
+	)})
 }
 
 func (v *WorkspaceHuman) WorkspaceDoesNotExist(name string) {
-	msg := fmt.Sprintf(`
-Workspace %q doesn't exist.
-
-You can create this workspace with the "new" subcommand 
-or include the "-or-create" flag with the "select" subcommand.`, name)
-	v.view.errorln(msg)
+	v.Diagnostics(tfdiags.Diagnostics{tfdiags.Sourceless(
+		tfdiags.Error,
+		fmt.Sprintf("Workspace %q doesn't exist", name),
+		`You can create this workspace with the "new" subcommand 
+or include the "-or-create" flag with the "select" subcommand.`,
+	)})
 }
 
 func (v *WorkspaceHuman) WorkspaceInvalidName(name string) {
-	msg := fmt.Sprintf(`
-The workspace name %q is not allowed. The name must contain only URL safe
-characters, and no path separators.
-`, name)
-	v.view.errorln(msg)
+	v.Diagnostics(tfdiags.Diagnostics{tfdiags.Sourceless(
+		tfdiags.Error,
+		"Invalid workspace name",
+		fmt.Sprintf(`The workspace name %q is not allowed. The name must contain only URL safe characters, and no path separators.`, name),
+	)})
 }
 
 func (v *WorkspaceHuman) ListWorkspaces(workspaces []string, current string) {
@@ -226,26 +229,19 @@ func (v *WorkspaceHuman) WorkspaceChanged(name string) {
 }
 
 func (v *WorkspaceHuman) WorkspaceIsOverriddenSelectError() {
-	msg := `
-The selected workspace is currently overridden using the TF_WORKSPACE
-environment variable.
-
-To select a new workspace, either update this environment variable or unset
-it and then run this command again.
-`
-	v.view.errorln(msg)
+	v.Diagnostics(tfdiags.Diagnostics{tfdiags.Sourceless(
+		tfdiags.Error,
+		"The selected workspace is overriden using the TF_WORKSPACE environment variable",
+		`To select a new workspace, either update this environment variable or unset it and then run this command again.`,
+	)})
 }
 
 func (v *WorkspaceHuman) WorkspaceIsOverriddenNewError() {
-	msg := `
-The workspace is currently overridden using the TF_WORKSPACE environment
-variable. You cannot create a new workspace when using this setting.
-
-To create a new workspace, either unset this environment variable or update it
-to match the workspace name you are trying to create, and then run this command
-again.
-`
-	v.view.errorln(msg)
+	v.Diagnostics(tfdiags.Diagnostics{tfdiags.Sourceless(
+		tfdiags.Error,
+		"The workspace is overriden using the TF_WORKSPACE environment variable",
+		`To create a new workspace, either unset this environment variable or update it to match the workspace name you are trying to create, and then run this command again.`,
+	)})
 }
 
 func (v *WorkspaceHuman) WorkspaceDeleted(name string) {
@@ -255,21 +251,19 @@ func (v *WorkspaceHuman) WorkspaceDeleted(name string) {
 }
 
 func (v *WorkspaceHuman) DeletedWorkspaceNotEmpty(name string) {
-	const msg = `WARNING: %q was non-empty.
-The resources managed by the deleted workspace may still exist,
-but are no longer manageable by OpenTofu since the state has
-been deleted.`
-	colorisedMsg := fmt.Sprintf(v.view.colorize.Color(msg), name)
-	v.view.warnln(colorisedMsg)
+	v.Diagnostics(tfdiags.Diagnostics{tfdiags.Sourceless(
+		tfdiags.Warning,
+		fmt.Sprintf("%q was non-empty", name),
+		`The resources managed by the deleted workspace may still exist, but are no longer manageable by OpenTofu since the state has been deleted.`,
+	)})
 }
 
 func (v *WorkspaceHuman) CannotDeleteCurrentWorkspace(name string) {
-	msg := fmt.Sprintf(`
-Workspace %[1]q is your active workspace.
-
-You cannot delete the currently active workspace. Please switch
-to another workspace and try again.`, name)
-	v.view.errorln(msg)
+	v.Diagnostics(tfdiags.Diagnostics{tfdiags.Sourceless(
+		tfdiags.Error,
+		fmt.Sprintf("Workspace %[1]q is your active workspace", name),
+		`You cannot delete the currently active workspace. Please switch to another workspace and try again.`,
+	)})
 }
 
 func (v *WorkspaceHuman) WorkspaceShow(name string) {
@@ -280,16 +274,13 @@ func (v *WorkspaceHuman) WarnWhenUsedAsEnvCmd(usedAsEnvCmd bool) {
 	if !usedAsEnvCmd {
 		return
 	}
-	msg := `Warning: the "tofu env" family of commands is deprecated.
+	v.Diagnostics(tfdiags.Diagnostics{tfdiags.Sourceless(
+		tfdiags.Warning,
+		`The "tofu env" family of commands is deprecated`,
+		`"Workspace" is now the preferred term for what earlier OpenTofu versions called "environment", to reduce ambiguity caused by the latter term colliding with other concepts.
 
-"Workspace" is now the preferred term for what earlier OpenTofu versions
-called "environment", to reduce ambiguity caused by the latter term colliding
-with other concepts.
-
-The "tofu workspace" commands should be used instead. "tofu env"
-will be removed in a future OpenTofu version.
-`
-	v.view.warnln(msg)
+The "tofu workspace" commands should be used instead. "tofu env" will be removed in a future OpenTofu version.`,
+	)})
 }
 
 type WorkspaceJSON struct {
@@ -343,7 +334,7 @@ func (v *WorkspaceJSON) WorkspaceDeleted(name string) {
 }
 
 func (v *WorkspaceJSON) DeletedWorkspaceNotEmpty(name string) {
-	v.view.Warn(fmt.Sprintf("WARNING: %q was non-empty. The resources managed by the deleted workspace may still exist, but are no longer manageable by OpenTofu since the state has been deleted", name))
+	v.view.Warn(fmt.Sprintf("%q was non-empty. The resources managed by the deleted workspace may still exist, but are no longer manageable by OpenTofu since the state has been deleted", name))
 }
 
 func (v *WorkspaceJSON) CannotDeleteCurrentWorkspace(name string) {

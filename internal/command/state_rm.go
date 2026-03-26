@@ -7,7 +7,6 @@ package command
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/mitchellh/cli"
@@ -82,7 +81,7 @@ func (c *StateRmCommand) Run(rawArgs []string) int {
 	}
 
 	// Get the state
-	stateMgr, err := c.State(ctx, enc)
+	stateMgr, err := c.State(ctx, enc, view)
 	if err != nil {
 		view.StateLoadingFailure(err.Error())
 		return 1
@@ -102,7 +101,11 @@ func (c *StateRmCommand) Run(rawArgs []string) int {
 	}
 
 	if err := stateMgr.RefreshState(context.TODO()); err != nil {
-		view.Diagnostics(diags.Append(fmt.Errorf("Failed to refresh state: %s", err)))
+		view.Diagnostics(diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Failed to refresh state",
+			err.Error(),
+		)))
 		return 1
 	}
 

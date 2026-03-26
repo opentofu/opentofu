@@ -31,7 +31,7 @@ func (v *GraphHuman) Diagnostics(diags tfdiags.Diagnostics) {
 }
 
 func (v *GraphHuman) ErrorUnsupportedLocalOp() {
-	v.view.errorln(errUnsupportedLocalOp)
+	v.Diagnostics(tfdiags.Diagnostics{diagUnsupportedLocalOp})
 }
 
 func (v *GraphHuman) Output(graphStr string) {

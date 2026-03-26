@@ -61,6 +61,9 @@ func (c *VersionCommand) Run(rawArgs []string) int {
 
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
+		if args.ViewOptions.ViewType == arguments.ViewJSON {
+			return 1
+		}
 		return cli.RunResultHelp
 	}
 

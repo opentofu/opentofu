@@ -80,7 +80,7 @@ func (c *RefreshCommand) Run(rawArgs []string) int {
 	enc, encDiags := c.Encryption(ctx)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 

@@ -55,6 +55,9 @@ This command also accepts the following options for tofu console:
   ["tfvars" file](/docs/language/values/variables#variable-definitions-tfvars-files).
   Use this option multiple times to include values from more than one file.
 
+- `-json-into=out.json` - Allows simultaneous capture of both human readable and
+  machine readable logs containing the results of evaluating the given expressions.
+
 There are several other ways to set values for input variables in the root
 module, aside from the `-var` and `-var-file` options. Refer to
 [Assigning Values to Root Module Variables](../../language/values/variables.mdx#assigning-values-to-root-module-variables) for more information.

@@ -196,7 +196,7 @@ func TestStateList_backendOverrideState(t *testing.T) {
 	if code != 1 {
 		t.Fatalf("bad: %d", code)
 	}
-	if !strings.Contains(output.Stderr(), "No state file was found!") {
+	if !strings.Contains(output.Stderr(), "No state file was found") {
 		t.Fatalf("expected a no state file error, got: %s", output.Stderr())
 	}
 }

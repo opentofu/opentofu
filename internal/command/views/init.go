@@ -19,7 +19,6 @@ type Init interface {
 	InitialisedFromEmptyDir()
 
 	Diagnostics(diags tfdiags.Diagnostics)
-	HelpPrompt()
 
 	ConfigError()
 	OutputNewline()
@@ -76,12 +75,6 @@ var _ Init = (InitMulti)(nil)
 func (m InitMulti) Diagnostics(diags tfdiags.Diagnostics) {
 	for _, o := range m {
 		o.Diagnostics(diags)
-	}
-}
-
-func (m InitMulti) HelpPrompt() {
-	for _, o := range m {
-		o.HelpPrompt()
 	}
 }
 
@@ -257,10 +250,6 @@ var _ Init = (*InitHuman)(nil)
 
 func (v *InitHuman) Diagnostics(diags tfdiags.Diagnostics) {
 	v.view.Diagnostics(diags)
-}
-
-func (v *InitHuman) HelpPrompt() {
-	v.view.HelpPrompt("init")
 }
 
 func (v *InitHuman) CopyFromModule(src string) {
@@ -444,8 +433,6 @@ var _ Init = (*InitJSON)(nil)
 func (v *InitJSON) Diagnostics(diags tfdiags.Diagnostics) {
 	v.view.Diagnostics(diags)
 }
-
-func (v *InitJSON) HelpPrompt() {}
 
 func (v *InitJSON) CopyFromModule(src string) {
 	v.view.Info(fmt.Sprintf("Copying configuration from %q...", src))

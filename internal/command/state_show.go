@@ -7,7 +7,6 @@ package command
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/mitchellh/cli"
@@ -58,6 +57,9 @@ func (c *StateShowCommand) Run(rawArgs []string) int {
 	c.Meta.configureUiFromView(args.ViewOptions)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
+		if args.ViewOptions.ViewType == arguments.ViewJSON {
+			return 1 // in case it's json, do not print the help of the command
+		}
 		return cli.RunResultHelp
 	}
 	c.View.SetShowSensitive(args.ShowSensitive)
@@ -69,7 +71,11 @@ func (c *StateShowCommand) Run(rawArgs []string) int {
 	// Check for user-supplied plugin path
 	var err error
 	if c.pluginPath, err = c.loadPluginPath(); err != nil {
-		view.Diagnostics(diags.Append(fmt.Errorf("Error loading plugin path: %s", err)))
+		view.Diagnostics(diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Error loading plugin path",
+			err.Error(),
+		)))
 		return 1
 	}
 
@@ -120,7 +126,11 @@ func (c *StateShowCommand) Run(rawArgs []string) int {
 
 	opReq.ConfigLoader, err = c.initConfigLoader()
 	if err != nil {
-		view.Diagnostics(diags.Append(fmt.Errorf("Error initializing config loader: %s", err)))
+		view.Diagnostics(diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Error initializing config loader",
+			err.Error(),
+		)))
 		return 1
 	}
 
@@ -141,7 +151,11 @@ func (c *StateShowCommand) Run(rawArgs []string) int {
 	// Get the state
 	env, err := c.Workspace(ctx)
 	if err != nil {
-		view.Diagnostics(diags.Append(fmt.Errorf("Error selecting workspace: %s\n", err)))
+		view.Diagnostics(diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Error selecting workspace",
+			err.Error(),
+		)))
 		return 1
 	}
 	stateMgr, err := b.StateMgr(ctx, env)
@@ -150,7 +164,11 @@ func (c *StateShowCommand) Run(rawArgs []string) int {
 		return 1
 	}
 	if err := stateMgr.RefreshState(context.TODO()); err != nil {
-		view.Diagnostics(diags.Append(fmt.Errorf("Failed to refresh state: %s", err)))
+		view.Diagnostics(diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Failed to refresh state",
+			err.Error(),
+		)))
 		return 1
 	}
 

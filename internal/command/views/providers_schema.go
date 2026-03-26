@@ -6,7 +6,6 @@
 package views
 
 import (
-	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -14,9 +13,6 @@ import (
 type ProvidersSchema interface {
 	// Diagnostics is used to render diagnostic messages out to the user.
 	Diagnostics(diags tfdiags.Diagnostics)
-
-	// HelpPrompt is used to output a message to the user that they can use the -help flag.
-	HelpPrompt()
 
 	// UnsupportedLocalOp is used to output a message to the user that the current operation is unsupported locally.
 	UnsupportedLocalOp()
@@ -26,7 +22,7 @@ type ProvidersSchema interface {
 }
 
 // NewProvidersSchema creates a new ProvidersSchema view.
-func NewProvidersSchema(opts arguments.ViewOptions, v *View) ProvidersSchema {
+func NewProvidersSchema(v *View) ProvidersSchema {
 	return &ProvidersSchemaMixed{view: v}
 }
 
@@ -38,15 +34,11 @@ func (v *ProvidersSchemaMixed) Diagnostics(diags tfdiags.Diagnostics) {
 	v.view.Diagnostics(diags)
 }
 
-func (v *ProvidersSchemaMixed) HelpPrompt() {
-	v.view.HelpPrompt("providers schema")
-}
-
 func (v *ProvidersSchemaMixed) UnsupportedLocalOp() {
-	v.view.errorln(errUnsupportedLocalOp)
+	v.view.Diagnostics(tfdiags.Diagnostics{diagUnsupportedLocalOp})
 }
 
 func (v *ProvidersSchemaMixed) Output(json string) {
 	// The provider schema output is expected to just be the raw JSON
-	v.view.streams.Println(json)
+	_, _ = v.view.streams.Println(json)
 }

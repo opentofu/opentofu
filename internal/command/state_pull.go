@@ -18,6 +18,7 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // StatePullCommand is a Command implementation that shows a single resource.
@@ -84,7 +85,11 @@ func (c *StatePullCommand) Run(rawArgs []string) int {
 	// Get the state manager for the current workspace
 	env, err := c.Workspace(ctx)
 	if err != nil {
-		view.Diagnostics(diags.Append(fmt.Errorf("Error selecting workspace: %s", err)))
+		view.Diagnostics(diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Error selecting workspace",
+			err.Error(),
+		)))
 		return 1
 	}
 	stateMgr, err := b.StateMgr(ctx, env)

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/flags"
@@ -46,17 +47,12 @@ func (c *ProvidersSchemaCommand) Run(rawArgs []string) int {
 	args, closer, diags := arguments.ParseProvidersSchema(rawArgs)
 	defer closer()
 
-	view := views.NewProvidersSchema(args.ViewOptions, c.View)
-
-	// Configure Meta.Ui with human view type. The schema output is raw JSON written
-	// directly via streams.Println, so we must not initialise the JSON UI wrapper
-	// (which would prepend a Version payload and corrupt the output).
-	c.Meta.configureUiFromView(arguments.ViewOptions{ViewType: arguments.ViewHuman})
+	view := views.NewProvidersSchema(c.View)
+	c.Meta.configureUiFromView(args.ViewOptions)
 
 	if diags.HasErrors() {
-		view.HelpPrompt()
 		view.Diagnostics(diags)
-		return 1
+		return cli.RunResultHelp
 	}
 
 	c.GatherVariables(args.Vars)
