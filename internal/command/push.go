@@ -8,6 +8,7 @@ package command
 import (
 	"strings"
 
+	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -15,14 +16,16 @@ type PushCommand struct {
 	Meta
 }
 
-func (c *PushCommand) Run(args []string) int {
+func (c *PushCommand) Run(rawArgs []string) int {
+	common, _ := arguments.ParseView(rawArgs)
+	c.View.Configure(common)
 	// This command is no longer supported, but we'll retain it just to
 	// give the user some next-steps after upgrading.
-	c.showDiagnostics(tfdiags.Sourceless(
+	c.View.Diagnostics(tfdiags.Diagnostics{tfdiags.Sourceless(
 		tfdiags.Error,
 		"Command \"tofu push\" is no longer supported",
 		"This command was used to push configuration to Terraform Enterprise legacy (v1), which has now reached end-of-life. To push configuration to a new cloud backend, use its REST API.",
-	))
+	)})
 	return 1
 }
 
