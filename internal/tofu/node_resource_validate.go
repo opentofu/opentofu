@@ -158,9 +158,42 @@ func (n *NodeValidatableResource) validateProvisioner(ctx context.Context, evalC
 		// configuration keys that are not valid for *any* communicator, catching
 		// typos early rather than waiting until we actually try to run one of
 		// the resource's provisioners.
-		_, _, connDiags := n.evaluateBlock(ctx, evalCtx, p.Connection.Config, shared.ConnectionBlockSupersetSchema)
+		connVal, _, connDiags := n.evaluateBlock(ctx, evalCtx, p.Connection.Config, shared.ConnectionBlockSupersetSchema)
 		diags = diags.Append(connDiags)
+
+		if connVal == cty.NilVal || diags.HasErrors() {
+			return diags
+		}
+
+		// Now that we have the connection config, we can check if we're using winrm and provide a deprecation warning
+		// Otherwise, we can just exit early and assume validation is complete
+		// See https://github.com/opentofu/opentofu/issues/3406 for more information
+		unmarkedConnVal, _ := connVal.UnmarkDeep()
+		typeVal := unmarkedConnVal.GetAttr("type")
+
+		if !typeVal.IsKnown() || typeVal.IsNull() || typeVal.AsString() != "winrm" {
+			return diags
+		}
+
+		// Set a default range to show in case for some reason we can't get the range for the type attribute
+		subject := p.Connection.DeclRange.Ptr()
+		// But we do want to attempt to get the range for the "type" attribute if we can, since that's what we're talking about in the diagnostic.
+		// Displaying this to end users may reduce some confusion about the location of what needs changing
+		if attrs, _ := p.Connection.Config.JustAttributes(); attrs != nil {
+			r := attrs["type"].Expr.Range()
+			subject = &r
+		}
+
+		// Now that we have the subject, we can add a diagnostic about the deprecation of the winrm connection type
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagWarning,
+			Summary:  "WinRM connection type is deprecated",
+			Detail:   "The winrm connection type is deprecated and will be removed in a future version of OpenTofu.\n\nModern Windows systems support SSH natively. Migrate your provisioners to use SSH instead.\n\nTo get started with OpenSSH on Windows, refer to https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse",
+			Subject:  subject,
+			Context:  hcl.RangeBetween(p.Connection.DeclRange, p.Connection.Config.MissingItemRange()).Ptr(),
+		})
 	}
+
 	return diags
 }
 

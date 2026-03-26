@@ -116,6 +116,89 @@ func TestNodeValidatableResource_ValidateProvisioner__warning(t *testing.T) {
 	}
 }
 
+func TestNodeValidatableResource_ValidateProvisioner_winRM_deprecated(t *testing.T) {
+	ctx := &MockEvalContext{}
+	ctx.installSimpleEval()
+	mp := &MockProvisioner{}
+	mp.GetSchemaResponse = provisioners.GetSchemaResponse{Provisioner: &configschema.Block{}}
+	ctx.ProvisionersProvisioners = plugins.NewLibrary(nil, map[string]provisioners.Factory{
+		"baz": func() (provisioners.Interface, error) { return mp, nil },
+	}).NewProvisionerManager()
+
+	stringPtr := func(s string) *string { return &s }
+
+	testCases := []struct {
+		name                string
+		config              *configs.Provisioner
+		expectedDiagSummary *string
+	}{
+		{
+			name: "winrm connection should show deprecation warning",
+			config: &configs.Provisioner{
+				Type:   "baz",
+				Config: hcl.EmptyBody(),
+				Connection: &configs.Connection{
+					Config: configs.SynthBody("", map[string]cty.Value{
+						"type": cty.StringVal("winrm"),
+						"host": cty.StringVal("localhost"),
+					}),
+				},
+			},
+			expectedDiagSummary: stringPtr("WinRM connection type is deprecated"),
+		},
+		{
+			name: "ssh connection should not show deprecation warning",
+			config: &configs.Provisioner{
+				Type:   "baz",
+				Config: hcl.EmptyBody(),
+				Connection: &configs.Connection{
+					Config: configs.SynthBody("", map[string]cty.Value{
+						"type": cty.StringVal("ssh"),
+						"host": cty.StringVal("localhost"),
+					}),
+				},
+			},
+			expectedDiagSummary: nil,
+		},
+	}
+
+	rc := &configs.Resource{
+		Mode:    addrs.ManagedResourceMode,
+		Type:    "test_foo",
+		Name:    "bar",
+		Config:  configs.SynthBody("", map[string]cty.Value{}),
+		Managed: &configs.ManagedResource{},
+	}
+
+	node := NodeValidatableResource{
+		NodeAbstractResource: &NodeAbstractResource{
+			Addr:   mustConfigResourceAddr("test_foo.bar"),
+			Config: rc,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			diags := node.validateProvisioner(t.Context(), ctx, tt.config)
+			if tt.expectedDiagSummary == nil {
+				if len(diags) != 0 {
+					t.Fatalf("unexpected warnings: %s", diags.ErrWithWarnings())
+				}
+			} else {
+				if len(diags) != 1 {
+					t.Fatalf("wrong number of diagnostics in %s; want one warning, got %d", diags.ErrWithWarnings(), len(diags))
+				}
+				got := diags[0].Description().Summary
+				want := *tt.expectedDiagSummary
+
+				if got != want {
+					t.Fatalf("wrong warning %q; want %q", got, want)
+				}
+			}
+		})
+	}
+}
+
 func TestNodeValidatableResource_ValidateProvisioner__connectionInvalid(t *testing.T) {
 	ctx := &MockEvalContext{}
 	ctx.installSimpleEval()
@@ -648,7 +731,7 @@ func TestNodeValidatableResource_ValidateResource_invalidIgnoreChangesComputed(t
 		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 			Provider: providers.Schema{Block: ms},
 			ResourceTypes: map[string]providers.Schema{
-				"test_object": providers.Schema{Block: ms},
+				"test_object": {Block: ms},
 			},
 		},
 	}
