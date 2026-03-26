@@ -8,7 +8,6 @@ package configs
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"github.com/hashicorp/hcl/v2"
 
@@ -236,22 +235,13 @@ func NewModuleUneval(primaryFiles, overrideFiles []*File, sourceDir string, load
 		diags = append(diags, fileDiags...)
 	}
 
-	// Determine if variable const usage is enabled
+	// Determine if variable const usage is enabled to match terraform's later static/const
+	// implementation
 	mod.ConstEnabled = false
 	for _, v := range mod.Variables {
 		if v.ConstSet {
 			mod.ConstEnabled = true
 			break
-		}
-	}
-	if mod.ConstEnabled {
-		// Opt into new functionality
-		log.Printf("[DEBUG] Enabling const variable support for module %s", sourceDir)
-		for _, v := range mod.Variables {
-			if !v.ConstSet {
-				// Reset default to false
-				v.Const = false
-			}
 		}
 	}
 

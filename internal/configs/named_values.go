@@ -33,6 +33,9 @@ type Variable struct {
 	Description string
 	Default     cty.Value
 
+	// Only used inside modules that have *some* variable with ConstSet.
+	// This allows us to match terraform's validation in their imitation
+	// of our static eval concept.
 	Const bool
 
 	// Type is the concrete type of the variable value.
@@ -167,11 +170,6 @@ func decodeVariableBlock(block *hcl.Block, override bool) (*Variable, hcl.Diagno
 		valDiags := gohcl.DecodeExpression(attr.Expr, nil, &v.Const)
 		diags = append(diags, valDiags...)
 		v.ConstSet = true
-	} else {
-		// Default to true for backwards compat, which is subject to change
-		// in a future language edition.
-		// This default may be overwritten if other variables specify const
-		v.Const = true
 	}
 
 	if attr, exists := content.Attributes["default"]; exists {
