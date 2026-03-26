@@ -409,19 +409,6 @@ func (m *Meta) inputForSchema(given cty.Value, schema *configschema.Block, view 
 	return cty.ObjectVal(retVals), nil
 }
 
-// configSources returns the source cache from the receiver's config loader,
-// which the caller must not modify.
-//
-// If a config loader has not yet been instantiated then no files could have
-// been loaded already, so this method returns a nil map in that case.
-func (m *Meta) configSources() map[string]*hcl.File {
-	if m.configLoader == nil {
-		return nil
-	}
-
-	return m.configLoader.Sources()
-}
-
 // registerSynthConfigSource allows commands to add synthetic additional source
 // buffers to the config loader's cache of sources (as returned by
 // configSources), which is useful when a command is directly parsing something
