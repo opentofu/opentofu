@@ -97,7 +97,7 @@ func (c *StateMvCommand) Run(rawArgs []string) int {
 	}
 
 	if len(setLegacyLocalBackendOptions) > 0 {
-		currentBackend, diags := c.backendFromConfig(ctx, &BackendOpts{}, enc.State())
+		currentBackend, diags := c.backendFromConfig(ctx, &BackendOpts{ViewOptions: args.ViewOptions}, enc.State())
 		if diags.HasErrors() {
 			view.Diagnostics(diags)
 			return 1
@@ -120,7 +120,7 @@ func (c *StateMvCommand) Run(rawArgs []string) int {
 	}
 
 	// Read the from state
-	stateFromMgr, err := c.State(ctx, enc, view)
+	stateFromMgr, err := c.State(ctx, enc, view, args.ViewOptions)
 	if err != nil {
 		view.StateLoadingFailure(err.Error())
 		return 1
@@ -162,7 +162,7 @@ func (c *StateMvCommand) Run(rawArgs []string) int {
 		c.statePath = args.StateOutPath
 		c.backupPath = args.BackupPathOut
 
-		stateToMgr, err = c.State(ctx, enc, view)
+		stateToMgr, err = c.State(ctx, enc, view, args.ViewOptions)
 		if err != nil {
 			view.StateLoadingFailure(err.Error())
 			return 1

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states"
@@ -30,7 +31,7 @@ type StateMeta struct {
 // the backend, but changes the way that backups are done. This configures
 // backups to be timestamped rather than just the original state path plus a
 // backup path.
-func (c *StateMeta) State(ctx context.Context, enc encryption.Encryption, view views.State) (statemgr.Full, error) {
+func (c *StateMeta) State(ctx context.Context, enc encryption.Encryption, view views.State, options arguments.ViewOptions) (statemgr.Full, error) {
 	var realState statemgr.Full
 	backupPath := c.backupPath
 	stateOutPath := c.statePath
@@ -64,7 +65,10 @@ func (c *StateMeta) State(ctx context.Context, enc encryption.Encryption, view v
 		}
 
 		// Get a local backend
-		localRaw, backendDiags := c.Backend(ctx, &BackendOpts{ForceLocal: true}, enc.State())
+		localRaw, backendDiags := c.Backend(ctx, &BackendOpts{
+			ForceLocal:  true,
+			ViewOptions: options,
+		}, enc.State())
 		if backendDiags.HasErrors() {
 			// This should never fail
 			panic(backendDiags.Err())

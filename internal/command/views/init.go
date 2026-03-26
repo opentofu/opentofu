@@ -27,10 +27,6 @@ type Init interface {
 
 	InitializingModules(upgrade bool)
 
-	InitializingCloudBackend()
-	InitializingBackend()
-	BackendTypeAlias(backendType, canonType string)
-
 	InitializingProviderPlugins()
 	ProviderAlreadyInstalled(provider string, version string, inCache bool)
 	BuiltInProviderAvailable(provider string)
@@ -117,24 +113,6 @@ func (m InitMulti) InitSuccessCLI(cloud bool) {
 func (m InitMulti) InitializingModules(upgrade bool) {
 	for _, o := range m {
 		o.InitializingModules(upgrade)
-	}
-}
-
-func (m InitMulti) InitializingCloudBackend() {
-	for _, o := range m {
-		o.InitializingCloudBackend()
-	}
-}
-
-func (m InitMulti) InitializingBackend() {
-	for _, o := range m {
-		o.InitializingBackend()
-	}
-}
-
-func (m InitMulti) BackendTypeAlias(backendType, canonType string) {
-	for _, o := range m {
-		o.BackendTypeAlias(backendType, canonType)
 	}
 }
 
@@ -321,18 +299,6 @@ func (v *InitHuman) InitializingModules(upgrade bool) {
 	}
 }
 
-func (v *InitHuman) InitializingCloudBackend() {
-	_, _ = v.view.streams.Println(v.view.colorize.Color("\n[reset][bold]Initializing cloud backend..."))
-}
-
-func (v *InitHuman) InitializingBackend() {
-	_, _ = v.view.streams.Println(v.view.colorize.Color("\n[reset][bold]Initializing the backend..."))
-}
-
-func (v *InitHuman) BackendTypeAlias(backendType, canonType string) {
-	_, _ = v.view.streams.Println(fmt.Sprintf("- %q is an alias for backend type %q", backendType, canonType))
-}
-
 func (v *InitHuman) InitializingProviderPlugins() {
 	_, _ = v.view.streams.Println(v.view.colorize.Color("\n[reset][bold]Initializing provider plugins..."))
 }
@@ -475,18 +441,6 @@ func (v *InitJSON) InitializingModules(upgrade bool) {
 	} else {
 		v.view.Info("Initializing modules...")
 	}
-}
-
-func (v *InitJSON) InitializingCloudBackend() {
-	v.view.Info("Initializing cloud backend...")
-}
-
-func (v *InitJSON) InitializingBackend() {
-	v.view.Info("Initializing the backend...")
-}
-
-func (v *InitJSON) BackendTypeAlias(backendType, canonType string) {
-	v.view.Info(fmt.Sprintf("%q is an alias for backend type %q", backendType, canonType))
 }
 
 func (v *InitJSON) InitializingProviderPlugins() {

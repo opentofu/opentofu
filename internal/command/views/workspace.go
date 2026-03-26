@@ -191,16 +191,8 @@ func (v *WorkspaceHuman) WorkspaceInvalidName(name string) {
 }
 
 func (v *WorkspaceHuman) ListWorkspaces(workspaces []string, current string) {
-	var out bytes.Buffer
-	for _, s := range workspaces {
-		if s == current {
-			out.WriteString("* ")
-		} else {
-			out.WriteString("  ")
-		}
-		out.WriteString(s + "\n")
-	}
-	_, _ = v.view.streams.Println(out.String())
+	buf := buildWorkspacesList(workspaces, current)
+	_, _ = v.view.streams.Println(buf.String())
 }
 
 func (v *WorkspaceHuman) WorkspaceOverwrittenByEnvVarWarn() {
@@ -350,4 +342,17 @@ func (v *WorkspaceJSON) WarnWhenUsedAsEnvCmd(usedAsEnvCmd bool) {
 		return
 	}
 	v.view.Warn("The \"tofu env\" family of commands is deprecated. Use \"tofu workspace\" instead")
+}
+
+func buildWorkspacesList(workspaces []string, current string) bytes.Buffer {
+	var ret bytes.Buffer
+	for _, s := range workspaces {
+		if s == current {
+			ret.WriteString("* ")
+		} else {
+			ret.WriteString("  ")
+		}
+		ret.WriteString(s + "\n")
+	}
+	return ret
 }

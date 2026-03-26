@@ -354,7 +354,7 @@ func (m *Meta) initDirFromModule(ctx context.Context, targetDir string, addr str
 //
 // The given value must conform to the given schema. If not, this method will
 // panic.
-func (m *Meta) inputForSchema(given cty.Value, schema *configschema.Block) (cty.Value, error) {
+func (m *Meta) inputForSchema(given cty.Value, schema *configschema.Block, view views.Basic) (cty.Value, error) {
 	if given.IsNull() || !given.IsKnown() {
 		// This is not reasonable input, but we'll tolerate it anyway and
 		// just pass it through for the caller to handle downstream.
@@ -387,7 +387,11 @@ func (m *Meta) inputForSchema(given cty.Value, schema *configschema.Block) (cty.
 			val := cty.StringVal(strVal)
 			val, err = convert.Convert(val, attrS.Type)
 			if err != nil {
-				m.showDiagnostics(fmt.Errorf("Invalid value: %w", err))
+				view.Diagnostics(tfdiags.Diagnostics{tfdiags.Sourceless(
+					tfdiags.Error,
+					"Invalid value",
+					err.Error(),
+				)})
 				continue
 			}
 

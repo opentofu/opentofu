@@ -87,7 +87,8 @@ func (c *UnlockCommand) Run(rawArgs []string) int {
 
 	// Load the backend
 	b, backendDiags := c.Backend(ctx, &BackendOpts{
-		Config: backendConfig,
+		Config:      backendConfig,
+		ViewOptions: args.ViewOptions,
 	}, enc.State())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {

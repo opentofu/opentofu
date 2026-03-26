@@ -6,7 +6,6 @@
 package command
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -38,6 +37,19 @@ type backendMigrateOpts struct {
 	sourceWorkspace      string
 	destinationWorkspace string
 	force                bool // if true, won't ask for confirmation
+}
+
+func (b *backendMigrateOpts) viewOptions() arguments.ViewOptions {
+	// Set default viewtype if none was set as the StateLocker needs to know exactly
+	// what viewType we want to have.
+	viewOptions := arguments.ViewOptions{ViewType: arguments.ViewHuman}
+	if b != nil {
+		viewOptions = b.ViewOptions
+		if viewOptions.ViewType != arguments.ViewHuman && viewOptions.ViewType != arguments.ViewJSON {
+			viewOptions.ViewType = arguments.ViewHuman
+		}
+	}
+	return viewOptions
 }
 
 // backendMigrateState handles migrating (copying) state from one backend
@@ -146,7 +158,7 @@ func (m *Meta) backendMigrateState(ctx context.Context, opts *backendMigrateOpts
 	return nil
 }
 
-//-------------------------------------------------------------------
+// -------------------------------------------------------------------
 // State Migration Scenarios
 //
 // The functions below cover handling all the various scenarios that
@@ -160,7 +172,7 @@ func (m *Meta) backendMigrateState(ctx context.Context, opts *backendMigrateOpts
 // The suffix is used to disambiguate multiple cases with the same type of
 // states.
 //
-//-------------------------------------------------------------------
+// -------------------------------------------------------------------
 
 // Multi-state to multi-state.
 func (m *Meta) backendMigrateState_S_S(ctx context.Context, opts *backendMigrateOpts) error {
@@ -347,16 +359,7 @@ func (m *Meta) backendMigrateState_s_s(ctx context.Context, opts *backendMigrate
 
 	if m.stateLock {
 		lockCtx := context.Background()
-		// Set default viewtype if none was set as the StateLocker needs to know exactly
-		// what viewType we want to have.
-		viewOptions := arguments.ViewOptions{ViewType: arguments.ViewHuman}
-		if opts != nil {
-			viewOptions = opts.ViewOptions
-			if viewOptions.ViewType != arguments.ViewHuman && viewOptions.ViewType != arguments.ViewJSON {
-				viewOptions.ViewType = arguments.ViewHuman
-			}
-		}
-		view := views.NewStateLocker(viewOptions, m.View)
+		view := views.NewStateLocker(opts.viewOptions(), m.View)
 		locker := clistate.NewLocker(m.stateLockTimeout, view)
 
 		lockerSource := locker.WithContext(lockCtx)
@@ -624,7 +627,7 @@ func (m *Meta) backendMigrateTFC(ctx context.Context, opts *backendMigrateOpts) 
 		if migrate, err := m.promptSingleToCloudSingleStateMigration(opts); err != nil {
 			return err
 		} else if !migrate {
-			return nil //skip migrating but return successfully
+			return nil // skip migrating but return successfully
 		}
 
 		return m.backendMigrateState_s_s(ctx, opts)
@@ -790,18 +793,8 @@ func (m *Meta) backendMigrateState_S_TFC(ctx context.Context, opts *backendMigra
 		return err
 	}
 
-	m.Ui.Output(m.Colorize().Color("[reset][bold]Migration complete! Your workspaces are as follows:[reset]"))
-	var out bytes.Buffer
-	for _, name := range workspaces {
-		if name == newCurrentWorkspace {
-			out.WriteString("* ")
-		} else {
-			out.WriteString("  ")
-		}
-		out.WriteString(name + "\n")
-	}
-
-	m.Ui.Output(out.String())
+	view := views.NewBackend(opts.viewOptions(), m.View)
+	view.MigrationCompleted(workspaces, newCurrentWorkspace)
 
 	return nil
 }
