@@ -40,6 +40,15 @@ func ParseProvidersSchema(args []string) (*ProvidersSchema, func(), tfdiags.Diag
 		))
 	}
 
+	args = cmdFlags.Args()
+	if len(args) > 0 {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Too many command line arguments",
+			"Expected at most zero positional arguments.",
+		))
+	}
+
 	closer, moreDiags := schema.ViewOptions.Parse()
 	diags = diags.Append(moreDiags)
 

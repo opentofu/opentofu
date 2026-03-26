@@ -44,6 +44,11 @@ func TestParseProvidersSchema_basicValidation(t *testing.T) {
 				// of this command as json
 				ps.ViewOptions.ViewType = ViewHuman
 			}),
+			wantDiags: true,
+			wantContain: []string{
+				"Too many command line arguments",
+				"Expected at most zero positional arguments.",
+			},
 		},
 		"multiple positional arguments with json": {
 			args: []string{"-json", "foo", "bar"},
@@ -52,6 +57,11 @@ func TestParseProvidersSchema_basicValidation(t *testing.T) {
 				// of this command as json
 				ps.ViewOptions.ViewType = ViewHuman
 			}),
+			wantDiags: true,
+			wantContain: []string{
+				"Too many command line arguments",
+				"Expected at most zero positional arguments.",
+			},
 		},
 	}
 
