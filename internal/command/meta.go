@@ -31,7 +31,7 @@ import (
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/backend/local"
 	"github.com/opentofu/opentofu/internal/command/arguments"
-	"github.com/opentofu/opentofu/internal/command/format"
+	"github.com/opentofu/opentofu/internal/command/clistate"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/command/webbrowser"
 	"github.com/opentofu/opentofu/internal/command/workdir"
@@ -39,7 +39,6 @@ import (
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/getmodules"
 	"github.com/opentofu/opentofu/internal/getproviders"
-	"github.com/opentofu/opentofu/internal/command/clistate"
 	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
@@ -736,75 +735,6 @@ func (m *Meta) confirm(opts *tofu.InputOpts) (bool, error) {
 		}
 	}
 	return false, nil
-}
-
-// showDiagnostics displays error and warning messages in the UI.
-//
-// "Diagnostics" here means the Diagnostics type from the tfdiag package,
-// though as a convenience this function accepts anything that could be
-// passed to the "Append" method on that type, converting it to Diagnostics
-// before displaying it.
-//
-// Internally this function uses Diagnostics.Append, and so it will panic
-// if given unsupported value types, just as Append does.
-func (m *Meta) showDiagnostics(vals ...any) {
-
-	var diags tfdiags.Diagnostics
-	diags = diags.Append(vals...)
-	diags.Sort()
-
-	if len(diags) == 0 {
-		return
-	}
-
-	outputWidth := m.ErrorColumns()
-
-	if m.consolidateWarnings {
-		diags = diags.Consolidate(1, tfdiags.Warning)
-	}
-	if m.consolidateErrors {
-		diags = diags.Consolidate(1, tfdiags.Error)
-	}
-
-	// Since warning messages are generally competing
-	if m.compactWarnings {
-		// If the user selected compact warnings and all of the diagnostics are
-		// warnings then we'll use a more compact representation of the warnings
-		// that only includes their summaries.
-		// We show full warnings if there are also errors, because a warning
-		// can sometimes serve as good context for a subsequent error.
-		useCompact := true
-		for _, diag := range diags {
-			if diag.Severity() != tfdiags.Warning {
-				useCompact = false
-				break
-			}
-		}
-		if useCompact {
-			msg := format.DiagnosticWarningsCompact(diags, m.Colorize())
-			msg = "\n" + msg + "\nTo see the full warning notes, run OpenTofu without -compact-warnings.\n"
-			m.Ui.Warn(msg)
-			return
-		}
-	}
-
-	for _, diag := range diags {
-		var msg string
-		if m.Color {
-			msg = format.Diagnostic(diag, m.configSources(), m.Colorize(), outputWidth)
-		} else {
-			msg = format.DiagnosticPlain(diag, m.configSources(), outputWidth)
-		}
-
-		switch diag.Severity() {
-		case tfdiags.Error:
-			m.Ui.Error(msg)
-		case tfdiags.Warning:
-			m.Ui.Warn(msg)
-		default:
-			m.Ui.Output(msg)
-		}
-	}
 }
 
 // WorkspaceNameEnvVar is the name of the environment variable that can be used
