@@ -93,7 +93,7 @@ func TestRenderHuman_NoChanges_Targeted(t *testing.T) {
 	plan.renderHuman(renderer, plans.NormalMode, plans.NoChanges, plans.Targeted)
 
 	got := done(t).Stdout()
-	if !strings.Contains(got, "-target") {
+	if !strings.Contains(got, "You used the -target option") {
 		t.Errorf("expected output to contain a -target hint when Targeted quality is set, got:\n%s", got)
 	}
 }
@@ -108,7 +108,7 @@ func TestRenderHuman_NoChanges_NotTargeted(t *testing.T) {
 	plan.renderHuman(renderer, plans.NormalMode, plans.NoChanges)
 
 	got := done(t).Stdout()
-	if strings.Contains(got, "-target") {
+	if strings.Contains(got, "You used the -target option") {
 		t.Errorf("expected output to NOT contain a -target hint when Targeted quality is not set, got:\n%s", got)
 	}
 }
