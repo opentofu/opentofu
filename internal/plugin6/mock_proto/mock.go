@@ -723,14 +723,14 @@ func (mr *MockProviderClientMockRecorder) ValidateResourceConfig(ctx, in any, op
 }
 
 // ValidateStateStoreConfig mocks base method.
-func (m *MockProviderClient) ValidateStateStoreConfig(ctx context.Context, in *tfplugin6.ValidateStateStore_Request, opts ...grpc.CallOption) (*tfplugin6.ValidateStateStore_Response, error) {
+func (m *MockProviderClient) ValidateStateStoreConfig(ctx context.Context, in *tfplugin6.ValidateStateStoreConfig_Request, opts ...grpc.CallOption) (*tfplugin6.ValidateStateStoreConfig_Response, error) {
 	m.ctrl.T.Helper()
 	varargs := []any{ctx, in}
 	for _, a := range opts {
 		varargs = append(varargs, a)
 	}
 	ret := m.ctrl.Call(m, "ValidateStateStoreConfig", varargs...)
-	ret0, _ := ret[0].(*tfplugin6.ValidateStateStore_Response)
+	ret0, _ := ret[0].(*tfplugin6.ValidateStateStoreConfig_Response)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
