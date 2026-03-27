@@ -366,15 +366,10 @@ func (t *pruneUnusedNodesTransformer) Transform(_ context.Context, g *Graph) err
 							return
 						}
 					}
-					// TODO ephemeral - cleanup this after review
-					// if c, ok := n.(*nodeExpandApplyableResource); ok && len(up) == 0 {
-					// 	if c.Addr.Resource.Mode == addrs.EphemeralResourceMode {
-					// 		// TODO ephemeral - do we really want to have the ephemeral nodes executed during apply if they are not referenced?
-					// 		//   or should we just allow this since are referenced?
-					// 		log.Printf("[TRACE] pruneUnusedNodes: expand node for ephemeral not pruned")
-					// 		return
-					// 	}
-					// }
+					// NOTE: Decided here to not add additional logic to skip pruning of the ephemeral resources
+					//  expansion nodes. This will remove any ephemeral resources expansion nodes that are not referenced
+					//  in any other place. Therefore, there is no need for an ephemeral to be opened during apply
+					//  if its value will not be used.
 
 				case GraphNodeProvider:
 					// Only keep providers for evaluation if they have
