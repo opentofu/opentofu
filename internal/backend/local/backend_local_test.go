@@ -15,7 +15,6 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/backend"
-	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/clistate"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/configs/configload"
@@ -40,7 +39,8 @@ func TestLocalRun(t *testing.T) {
 
 	streams, _ := terminal.StreamsForTesting(t)
 	view := views.NewView(streams)
-	stateLocker := clistate.NewLocker(0, views.NewStateLocker(arguments.ViewOptions{ViewType: arguments.ViewHuman}, view))
+	backendView := views.NewBackendHuman(view)
+	stateLocker := clistate.NewLocker(0, backendView.StateLocker())
 
 	op := &backend.Operation{
 		ConfigDir:    configDir,
@@ -70,7 +70,8 @@ func TestLocalRun_error(t *testing.T) {
 
 	streams, _ := terminal.StreamsForTesting(t)
 	view := views.NewView(streams)
-	stateLocker := clistate.NewLocker(0, views.NewStateLocker(arguments.ViewOptions{ViewType: arguments.ViewHuman}, view))
+	backendView := views.NewBackendHuman(view)
+	stateLocker := clistate.NewLocker(0, backendView.StateLocker())
 
 	op := &backend.Operation{
 		ConfigDir:    configDir,
@@ -103,7 +104,8 @@ func TestLocalRun_cloudPlan(t *testing.T) {
 
 	streams, _ := terminal.StreamsForTesting(t)
 	view := views.NewView(streams)
-	stateLocker := clistate.NewLocker(0, views.NewStateLocker(arguments.ViewOptions{ViewType: arguments.ViewHuman}, view))
+	backendView := views.NewBackendHuman(view)
+	stateLocker := clistate.NewLocker(0, backendView.StateLocker())
 
 	op := &backend.Operation{
 		ConfigDir:    configDir,
@@ -188,7 +190,8 @@ func TestLocalRun_stalePlan(t *testing.T) {
 
 	streams, _ := terminal.StreamsForTesting(t)
 	view := views.NewView(streams)
-	stateLocker := clistate.NewLocker(0, views.NewStateLocker(arguments.ViewOptions{ViewType: arguments.ViewHuman}, view))
+	backendView := views.NewBackendHuman(view)
+	stateLocker := clistate.NewLocker(0, backendView.StateLocker())
 
 	op := &backend.Operation{
 		ConfigDir:    configDir,

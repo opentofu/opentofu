@@ -195,8 +195,8 @@ func (c *ImportCommand) Run(rawArgs []string) int {
 
 	// Load the backend
 	b, backendDiags := c.Backend(ctx, &BackendOpts{
-		Config:      config.Module.Backend,
-		ViewOptions: args.ViewOptions,
+		Config: config.Module.Backend,
+		View:   view.Backend(),
 	}, enc.State())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
@@ -216,7 +216,7 @@ func (c *ImportCommand) Run(rawArgs []string) int {
 	}
 
 	// Build the operation
-	opReq := c.Operation(ctx, b, args.ViewOptions, enc)
+	opReq := c.Operation(ctx, b, view.Backend(), enc)
 	opReq.ConfigDir = args.ConfigPath
 	opReq.ConfigLoader, err = c.initConfigLoader()
 	if err != nil {

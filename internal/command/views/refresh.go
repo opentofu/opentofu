@@ -24,6 +24,10 @@ type Refresh interface {
 
 	Diagnostics(diags tfdiags.Diagnostics)
 	HelpPrompt()
+
+	// Backend returns the non-command view that contains methods to provide
+	// progress output for the backend operations.
+	Backend() Backend
 }
 
 // NewRefresh returns an initialized Refresh implementation for the given ViewType.
@@ -90,6 +94,14 @@ func (m RefreshMulti) HelpPrompt() {
 	}
 }
 
+func (m RefreshMulti) Backend() Backend {
+	ret := make([]Backend, len(m))
+	for i, v := range m {
+		ret[i] = v.Backend()
+	}
+	return BackendMulti(ret)
+}
+
 // The RefreshHuman implementation renders human-readable text logs, suitable for
 // a scrolling terminal.
 type RefreshHuman struct {
@@ -125,6 +137,12 @@ func (v *RefreshHuman) HelpPrompt() {
 	v.view.HelpPrompt("refresh")
 }
 
+func (v *RefreshHuman) Backend() Backend {
+	return &BackendHuman{
+		view: v.view,
+	}
+}
+
 // The RefreshJSON implementation renders streaming JSON logs, suitable for
 // integrating with other software.
 type RefreshJSON struct {
@@ -157,4 +175,10 @@ func (v *RefreshJSON) Diagnostics(diags tfdiags.Diagnostics) {
 }
 
 func (v *RefreshJSON) HelpPrompt() {
+}
+
+func (v *RefreshJSON) Backend() Backend {
+	return &BackendJSON{
+		view: v.view,
+	}
 }

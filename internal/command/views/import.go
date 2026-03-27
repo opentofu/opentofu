@@ -23,6 +23,10 @@ type Import interface {
 	MissingResourceConfiguration(addr addrs.AbsResourceInstance, modulePath string, resourceType string, resourceName string)
 	Success()
 	UnsupportedLocalOp()
+
+	// Backend returns the non-command view that contains methods to provide
+	// progress output for the backend operations.
+	Backend() Backend
 }
 
 // NewImport returns an initialized Import implementation for the given ViewType.
@@ -94,6 +98,14 @@ func (m ImportMulti) Operation() Operation {
 	return operation
 }
 
+func (m ImportMulti) Backend() Backend {
+	ret := make([]Backend, len(m))
+	for i, v := range m {
+		ret[i] = v.Backend()
+	}
+	return BackendMulti(ret)
+}
+
 // The ImportHuman implementation renders messages in a human-readable form.
 type ImportHuman struct {
 	view *View
@@ -156,6 +168,12 @@ func (v *ImportHuman) Operation() Operation {
 	return NewOperation(arguments.ViewHuman, v.view.runningInAutomation, v.view)
 }
 
+func (v *ImportHuman) Backend() Backend {
+	return &BackendHuman{
+		view: v.view,
+	}
+}
+
 type ImportJSON struct {
 	view *JSONView
 }
@@ -191,4 +209,10 @@ func (v *ImportJSON) Hooks() []tofu.Hook {
 
 func (v *ImportJSON) Operation() Operation {
 	return &OperationJSON{view: v.view}
+}
+
+func (v *ImportJSON) Backend() Backend {
+	return &BackendJSON{
+		view: v.view,
+	}
 }

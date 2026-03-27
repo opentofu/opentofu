@@ -75,7 +75,7 @@ func testStateLockerHuman(t *testing.T, call func(view StateLocker), wantStdout,
 func testStateLockerJson(t *testing.T, call func(view StateLocker), want []map[string]any) {
 	// New type just to assert the fields that we are interested in
 	view, done := testView(t)
-	v := &StateLockerJSON{view.streams.Stdout.File}
+	v := &StateLockerJSON{NewJSONView(view, nil)}
 	call(v)
 	output := done(t)
 	if output.Stderr() != "" {
@@ -91,7 +91,7 @@ func testStateLockerMulti(t *testing.T, call func(view StateLocker), wantStdout 
 		t.Fatalf("failed to create the file to write json content into: %s", err)
 	}
 	view, done := testView(t)
-	jsonV := &StateLockerJSON{output: jsonInto}
+	jsonV := &StateLockerJSON{NewJSONView(view, jsonInto)}
 	humanV := &StateLockerHuman{view: view}
 	v := StateLockerMulti{humanV, jsonV}
 	call(v)

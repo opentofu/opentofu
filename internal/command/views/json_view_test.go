@@ -8,7 +8,6 @@ package views
 import (
 	"encoding/json"
 	"fmt"
-	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -447,9 +446,6 @@ func testJSONViewOutputComparer(t *testing.T, output string, want []map[string]a
 	// Split log into lines, each of which should be a JSON log message
 	gotLines := strings.Split(output, "\n")
 
-	gotLines = slices.DeleteFunc(gotLines, func(s string) bool {
-		return strings.Contains(s, `"type":"version"`)
-	})
 	if len(gotLines) != len(want) {
 		t.Errorf("unexpected number of messages. got %d, want %d", len(gotLines), len(want))
 	}
@@ -480,11 +476,8 @@ func testJSONViewOutputComparer(t *testing.T, output string, want []map[string]a
 				delete(gotStruct, "@timestamp")
 
 				// Verify the timestamp format
-				_, err1 := time.Parse("2006-01-02T15:04:05.000000Z07:00", timestamp.(string))
-				// Checking different formats since some views generate timestamps in different formats (eg: StateLocker)
-				_, err2 := time.Parse(time.RFC3339, timestamp.(string))
-				if err1 != nil && err2 != nil {
-					t.Errorf("error parsing timestamp on line %d. err1: %s; err2: %s", i, err1, err2)
+				if _, err := time.Parse("2006-01-02T15:04:05.000000Z07:00", timestamp.(string)); err != nil {
+					t.Errorf("error parsing timestamp on line %d: %s", i, err)
 				}
 			}
 		}
@@ -508,6 +501,12 @@ func testJSONViewOutputEqualsFull(t *testing.T, output string, want []map[string
 // be a version message that we don't care about for most of our tests.
 func testJSONViewOutputEqualsIgnoringTimestamp(t *testing.T, output string, want []map[string]interface{}, options ...cmp.Option) {
 	t.Helper()
+
+	// Remove up to the first newline
+	index := strings.Index(output, "\n")
+	if index >= 0 {
+		output = output[index+1:]
+	}
 	testJSONViewOutputComparer(t, output, want, false, options...)
 }
 
@@ -515,5 +514,11 @@ func testJSONViewOutputEqualsIgnoringTimestamp(t *testing.T, output string, want
 // be a version message that we don't care about for most of our tests.
 func testJSONViewOutputEquals(t *testing.T, output string, want []map[string]any, options ...cmp.Option) {
 	t.Helper()
+
+	// Remove up to the first newline
+	index := strings.Index(output, "\n")
+	if index >= 0 {
+		output = output[index+1:]
+	}
 	testJSONViewOutputEqualsFull(t, output, want, options...)
 }

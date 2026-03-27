@@ -7,6 +7,7 @@ package views
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/format"
@@ -26,6 +27,10 @@ type Apply interface {
 
 	Diagnostics(diags tfdiags.Diagnostics)
 	HelpPrompt()
+
+	// Backend returns the non-command view that contains methods to provide
+	// progress output for the backend operations.
+	Backend() Backend
 }
 
 // NewApply returns an initialized Apply implementation for the given ViewType.
@@ -35,6 +40,7 @@ func NewApply(args arguments.ViewOptions, destroy bool, view *View) Apply {
 	case arguments.ViewJSON:
 		apply = &ApplyJSON{
 			view:      NewJSONView(view, nil),
+			output:    view.streams.Stdout.File,
 			destroy:   destroy,
 			countHook: &countHook{},
 		}
@@ -52,6 +58,7 @@ func NewApply(args arguments.ViewOptions, destroy bool, view *View) Apply {
 	if args.JSONInto != nil {
 		apply = ApplyMulti{apply, &ApplyJSON{
 			view:      NewJSONView(view, args.JSONInto),
+			output:    args.JSONInto,
 			destroy:   destroy,
 			countHook: &countHook{},
 		}}
@@ -101,6 +108,14 @@ func (m ApplyMulti) HelpPrompt() {
 	for _, a := range m {
 		a.HelpPrompt()
 	}
+}
+
+func (m ApplyMulti) Backend() Backend {
+	ret := make([]Backend, len(m))
+	for i, v := range m {
+		ret[i] = v.Backend()
+	}
+	return BackendMulti(ret)
 }
 
 // The ApplyHuman implementation renders human-readable text logs, suitable for
@@ -190,6 +205,12 @@ func (v *ApplyHuman) HelpPrompt() {
 	v.view.HelpPrompt(command)
 }
 
+func (v *ApplyHuman) Backend() Backend {
+	return &BackendHuman{
+		view: v.view,
+	}
+}
+
 const stateOutPathPostApply = "The state of your infrastructure has been saved to the path below. This state is required to modify and destroy your infrastructure, so keep it safe. To inspect the complete state use the `tofu show` command."
 
 // The ApplyJSON implementation renders streaming JSON logs, suitable for
@@ -200,6 +221,7 @@ type ApplyJSON struct {
 	destroy bool
 
 	countHook *countHook
+	output    *os.File
 }
 
 var _ Apply = (*ApplyJSON)(nil)
@@ -244,4 +266,10 @@ func (v *ApplyJSON) Diagnostics(diags tfdiags.Diagnostics) {
 }
 
 func (v *ApplyJSON) HelpPrompt() {
+}
+
+func (v *ApplyJSON) Backend() Backend {
+	return &BackendJSON{
+		view: v.view,
+	}
 }

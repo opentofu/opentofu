@@ -97,7 +97,7 @@ func (c *StateMvCommand) Run(rawArgs []string) int {
 	}
 
 	if len(setLegacyLocalBackendOptions) > 0 {
-		currentBackend, diags := c.backendFromConfig(ctx, &BackendOpts{ViewOptions: args.ViewOptions}, enc.State())
+		currentBackend, diags := c.backendFromConfig(ctx, &BackendOpts{View: view.Backend()}, enc.State())
 		if diags.HasErrors() {
 			view.Diagnostics(diags)
 			return 1
@@ -120,14 +120,14 @@ func (c *StateMvCommand) Run(rawArgs []string) int {
 	}
 
 	// Read the from state
-	stateFromMgr, err := c.State(ctx, enc, view, args.ViewOptions)
+	stateFromMgr, err := c.State(ctx, enc, view)
 	if err != nil {
 		view.StateLoadingFailure(err.Error())
 		return 1
 	}
 
 	if c.stateLock {
-		stateLocker := clistate.NewLocker(c.stateLockTimeout, views.NewStateLocker(args.ViewOptions, c.View))
+		stateLocker := clistate.NewLocker(c.stateLockTimeout, view.Backend().StateLocker())
 		if diags := stateLocker.Lock(stateFromMgr, "state-mv"); diags.HasErrors() {
 			view.Diagnostics(diags)
 			return 1
@@ -162,14 +162,14 @@ func (c *StateMvCommand) Run(rawArgs []string) int {
 		c.statePath = args.StateOutPath
 		c.backupPath = args.BackupPathOut
 
-		stateToMgr, err = c.State(ctx, enc, view, args.ViewOptions)
+		stateToMgr, err = c.State(ctx, enc, view)
 		if err != nil {
 			view.StateLoadingFailure(err.Error())
 			return 1
 		}
 
 		if c.stateLock {
-			stateLocker := clistate.NewLocker(c.stateLockTimeout, views.NewStateLocker(args.ViewOptions, c.View))
+			stateLocker := clistate.NewLocker(c.stateLockTimeout, view.Backend().StateLocker())
 			if diags := stateLocker.Lock(stateToMgr, "state-mv"); diags.HasErrors() {
 				view.Diagnostics(diags)
 				return 1

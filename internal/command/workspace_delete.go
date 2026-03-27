@@ -87,9 +87,10 @@ func (c *WorkspaceDeleteCommand) Run(rawArgs []string) int {
 	}
 
 	// Load the backend
+	backendView := view.Backend()
 	b, backendDiags := c.Backend(ctx, &BackendOpts{
-		Config:      backendConfig,
-		ViewOptions: args.ViewOptions,
+		Config: backendConfig,
+		View:   backendView,
 	}, enc.State())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
@@ -145,7 +146,7 @@ func (c *WorkspaceDeleteCommand) Run(rawArgs []string) int {
 
 	var stateLocker clistate.Locker
 	if args.StateLock {
-		stateLocker = clistate.NewLocker(args.StateLockTimeout, views.NewStateLocker(args.ViewOptions, c.View))
+		stateLocker = clistate.NewLocker(args.StateLockTimeout, backendView.StateLocker())
 		if diags := stateLocker.Lock(stateMgr, "state-replace-provider"); diags.HasErrors() {
 			view.Diagnostics(diags)
 			return 1

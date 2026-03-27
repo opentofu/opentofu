@@ -20,6 +20,10 @@ type Plan interface {
 
 	Diagnostics(diags tfdiags.Diagnostics)
 	HelpPrompt()
+
+	// Backend returns the non-command view that contains methods to provide
+	// progress output for the backend operations.
+	Backend() Backend
 }
 
 // NewPlan returns an initialized Plan implementation for the given ViewType.
@@ -78,6 +82,14 @@ func (m PlanMulti) HelpPrompt() {
 	}
 }
 
+func (m PlanMulti) Backend() Backend {
+	ret := make([]Backend, len(m))
+	for i, v := range m {
+		ret[i] = v.Backend()
+	}
+	return BackendMulti(ret)
+}
+
 // The PlanHuman implementation renders human-readable text logs, suitable for
 // a scrolling terminal.
 type PlanHuman struct {
@@ -104,6 +116,12 @@ func (v *PlanHuman) HelpPrompt() {
 	v.view.HelpPrompt("plan")
 }
 
+func (v *PlanHuman) Backend() Backend {
+	return &BackendHuman{
+		view: v.view,
+	}
+}
+
 // The PlanJSON implementation renders streaming JSON logs, suitable for
 // integrating with other software.
 type PlanJSON struct {
@@ -127,4 +145,10 @@ func (v *PlanJSON) Diagnostics(diags tfdiags.Diagnostics) {
 }
 
 func (v *PlanJSON) HelpPrompt() {
+}
+
+func (v *PlanJSON) Backend() Backend {
+	return &BackendJSON{
+		view: v.view,
+	}
 }
