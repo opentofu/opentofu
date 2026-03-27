@@ -243,3 +243,11 @@ func (v *View) outputHorizRule() {
 func (v *View) SetShowSensitive(showSensitive bool) {
 	v.showSensitive = showSensitive
 }
+
+// Colorize returns the [colorstring.Colorize] object within to be used in other places.
+// TODO meta-refactor: this is a temporary solution. This should not be exposed. Whoever needs to use this
+//
+//	should do it through a View implementation instead.
+func (v *View) Colorize() *colorstring.Colorize {
+	return v.colorize
+}

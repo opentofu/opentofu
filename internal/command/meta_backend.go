@@ -426,7 +426,7 @@ func (m *Meta) backendCLIOpts(ctx context.Context) (*backend.CLIOpts, error) {
 	}
 	return &backend.CLIOpts{
 		CLI:                 m.Ui,
-		CLIColor:            m.Colorize(),
+		CLIColor:            m.View.Colorize(),
 		Streams:             m.Streams,
 		StatePath:           m.statePath,
 		StateOutPath:        m.stateOutPath,
