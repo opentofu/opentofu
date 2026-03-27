@@ -62,20 +62,14 @@ type BackendOpts struct {
 
 	// ViewOptions will set console output format for the
 	// initialization operation (JSON or human-readable).
-	ViewOptions arguments.ViewOptions
+	View views.Backend
 }
 
-func (b *BackendOpts) viewOptions() arguments.ViewOptions {
-	var viewOptions arguments.ViewOptions
-	if b != nil {
-		viewOptions = b.ViewOptions
+func (b *BackendOpts) view(base *views.View) views.Backend {
+	if b != nil && b.View != nil {
+		return b.View
 	}
-	// Set default viewtype if none was set as the StateLocker needs to know exactly
-	// what viewType we want to have.
-	if viewOptions.ViewType != arguments.ViewHuman && viewOptions.ViewType != arguments.ViewJSON {
-		viewOptions.ViewType = arguments.ViewHuman
-	}
-	return viewOptions
+	return views.NewBackend(arguments.ViewOptions{ViewType: arguments.ViewHuman}, base)
 }
 
 // BackendWithRemoteTerraformVersion is a shared interface between the 'remote' and 'cloud' backends
@@ -923,8 +917,7 @@ func (m *Meta) backend_c_r_S(
 	c *configs.Backend, cHash int, sMgr *clistate.LocalState, output bool, opts *BackendOpts, enc encryption.StateEncryption) (backend.Backend, tfdiags.Diagnostics) {
 
 	var diags tfdiags.Diagnostics
-	viewOpts := opts.viewOptions()
-	view := views.NewBackend(viewOpts, m.View)
+	view := opts.view(m.View)
 
 	s := sMgr.State()
 
@@ -944,7 +937,7 @@ func (m *Meta) backend_c_r_S(
 	}
 
 	// Grab a purely local backend to get the local state if it exists
-	localB, moreDiags := m.Backend(ctx, &BackendOpts{ForceLocal: true, Init: true, ViewOptions: viewOpts}, enc)
+	localB, moreDiags := m.Backend(ctx, &BackendOpts{ForceLocal: true, Init: true, View: view}, enc)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		return nil, diags
@@ -963,7 +956,7 @@ func (m *Meta) backend_c_r_S(
 		DestinationType: "local",
 		Source:          b,
 		Destination:     localB,
-		ViewOptions:     viewOpts,
+		View:            view,
 	})
 	if err != nil {
 		diags = diags.Append(err)
@@ -994,7 +987,7 @@ func (m *Meta) backend_C_r_s(ctx context.Context, c *configs.Backend, cHash int,
 	var diags tfdiags.Diagnostics
 
 	// Grab a purely local backend to get the local state if it exists
-	localB, localBDiags := m.Backend(ctx, &BackendOpts{ForceLocal: true, Init: true, ViewOptions: opts.viewOptions()}, enc)
+	localB, localBDiags := m.Backend(ctx, &BackendOpts{ForceLocal: true, Init: true, View: opts.view(m.View)}, enc)
 	if localBDiags.HasErrors() {
 		diags = diags.Append(localBDiags)
 		return nil, diags
@@ -1034,8 +1027,7 @@ func (m *Meta) backend_C_r_s(ctx context.Context, c *configs.Backend, cHash int,
 	}
 
 	// Get the backend
-	viewOptions := opts.viewOptions()
-	view := views.NewBackend(viewOptions, m.View)
+	view := opts.view(m.View)
 	b, configVal, moreDiags := m.backendInitFromConfig(ctx, c, enc, view)
 	diags = diags.Append(moreDiags)
 	if diags.HasErrors() {
@@ -1049,7 +1041,7 @@ func (m *Meta) backend_C_r_s(ctx context.Context, c *configs.Backend, cHash int,
 			DestinationType: c.Type,
 			Source:          localB,
 			Destination:     b,
-			ViewOptions:     viewOptions,
+			View:            view,
 		})
 		if err != nil {
 			diags = diags.Append(err)
@@ -1087,8 +1079,7 @@ func (m *Meta) backend_C_r_s(ctx context.Context, c *configs.Backend, cHash int,
 	}
 
 	if m.stateLock {
-		view := views.NewStateLocker(viewOptions, m.View)
-		stateLocker := clistate.NewLocker(m.stateLockTimeout, view)
+		stateLocker := clistate.NewLocker(m.stateLockTimeout, view.StateLocker())
 		if d := stateLocker.Lock(sMgr, "backend from plan"); d != nil {
 			diags = diags.Append(fmt.Errorf("Error locking state: %s", d))
 			return nil, diags
@@ -1156,8 +1147,7 @@ func (m *Meta) backend_C_r_s(ctx context.Context, c *configs.Backend, cHash int,
 func (m *Meta) backend_C_r_S_changed(ctx context.Context, c *configs.Backend, cHash int, sMgr *clistate.LocalState, output bool, opts *BackendOpts, enc encryption.StateEncryption) (backend.Backend, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	viewOptions := opts.viewOptions()
-	view := views.NewBackend(viewOptions, m.View)
+	view := opts.view(m.View)
 
 	// Get the old state
 	s := sMgr.State()
@@ -1213,7 +1203,7 @@ func (m *Meta) backend_C_r_S_changed(ctx context.Context, c *configs.Backend, cH
 			DestinationType: c.Type,
 			Source:          oldB,
 			Destination:     b,
-			ViewOptions:     viewOptions,
+			View:            view,
 		})
 		if err != nil {
 			diags = diags.Append(err)
@@ -1221,8 +1211,7 @@ func (m *Meta) backend_C_r_S_changed(ctx context.Context, c *configs.Backend, cH
 		}
 
 		if m.stateLock {
-			view := views.NewStateLocker(viewOptions, m.View)
-			stateLocker := clistate.NewLocker(m.stateLockTimeout, view)
+			stateLocker := clistate.NewLocker(m.stateLockTimeout, view.StateLocker())
 			if d := stateLocker.Lock(sMgr, "backend from plan"); d != nil {
 				diags = diags.Append(fmt.Errorf("Error locking state: %s", d))
 				return nil, diags

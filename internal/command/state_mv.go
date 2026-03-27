@@ -97,7 +97,7 @@ func (c *StateMvCommand) Run(rawArgs []string) int {
 	}
 
 	if len(setLegacyLocalBackendOptions) > 0 {
-		currentBackend, diags := c.backendFromConfig(ctx, &BackendOpts{ViewOptions: args.ViewOptions}, enc.State())
+		currentBackend, diags := c.backendFromConfig(ctx, &BackendOpts{View: views.NewBackend(args.ViewOptions, c.View)}, enc.State())
 		if diags.HasErrors() {
 			view.Diagnostics(diags)
 			return 1

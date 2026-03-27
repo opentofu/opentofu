@@ -30,7 +30,7 @@ import (
 type backendMigrateOpts struct {
 	SourceType, DestinationType string
 	Source, Destination         backend.Backend
-	ViewOptions                 arguments.ViewOptions
+	View                        views.Backend
 
 	// Fields below are set internally when migrate is called
 
@@ -39,17 +39,11 @@ type backendMigrateOpts struct {
 	force                bool // if true, won't ask for confirmation
 }
 
-func (b *backendMigrateOpts) viewOptions() arguments.ViewOptions {
-	// Set default viewtype if none was set as the StateLocker needs to know exactly
-	// what viewType we want to have.
-	viewOptions := arguments.ViewOptions{ViewType: arguments.ViewHuman}
-	if b != nil {
-		viewOptions = b.ViewOptions
-		if viewOptions.ViewType != arguments.ViewHuman && viewOptions.ViewType != arguments.ViewJSON {
-			viewOptions.ViewType = arguments.ViewHuman
-		}
+func (b *backendMigrateOpts) view(base *views.View) views.Backend {
+	if b != nil && b.View != nil {
+		return b.View
 	}
-	return viewOptions
+	return views.NewBackend(arguments.ViewOptions{ViewType: arguments.ViewHuman}, base)
 }
 
 // backendMigrateState handles migrating (copying) state from one backend
@@ -359,7 +353,7 @@ func (m *Meta) backendMigrateState_s_s(ctx context.Context, opts *backendMigrate
 
 	if m.stateLock {
 		lockCtx := context.Background()
-		view := views.NewStateLocker(opts.viewOptions(), m.View)
+		view := opts.view(m.View).StateLocker()
 		locker := clistate.NewLocker(m.stateLockTimeout, view)
 
 		lockerSource := locker.WithContext(lockCtx)
@@ -793,7 +787,7 @@ func (m *Meta) backendMigrateState_S_TFC(ctx context.Context, opts *backendMigra
 		return err
 	}
 
-	view := views.NewBackend(opts.viewOptions(), m.View)
+	view := opts.view(m.View)
 	view.MigrationCompleted(workspaces, newCurrentWorkspace)
 
 	return nil

@@ -140,8 +140,8 @@ func (c *PlanCommand) PrepareBackend(ctx context.Context, args *arguments.State,
 
 	// Load the backend
 	be, beDiags := c.Backend(ctx, &BackendOpts{
-		Config:      backendConfig,
-		ViewOptions: viewOptions,
+		Config: backendConfig,
+		View:   views.NewBackend(viewOptions, c.View),
 	}, enc.State())
 	diags = diags.Append(beDiags)
 	if beDiags.HasErrors() {

@@ -134,8 +134,8 @@ func (c *RefreshCommand) PrepareBackend(ctx context.Context, args *arguments.Sta
 
 	// Load the backend
 	be, beDiags := c.Backend(ctx, &BackendOpts{
-		Config:      backendConfig,
-		ViewOptions: viewOptions,
+		Config: backendConfig,
+		View:   views.NewBackend(viewOptions, c.View),
 	}, enc.State())
 	diags = diags.Append(beDiags)
 	if beDiags.HasErrors() {

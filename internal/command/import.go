@@ -195,8 +195,8 @@ func (c *ImportCommand) Run(rawArgs []string) int {
 
 	// Load the backend
 	b, backendDiags := c.Backend(ctx, &BackendOpts{
-		Config:      config.Module.Backend,
-		ViewOptions: args.ViewOptions,
+		Config: config.Module.Backend,
+		View:   views.NewBackend(args.ViewOptions, c.View),
 	}, enc.State())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {

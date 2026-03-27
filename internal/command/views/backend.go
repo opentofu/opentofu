@@ -7,6 +7,7 @@ package views
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -27,6 +28,10 @@ type Backend interface {
 	BackendTypeChanged(oldBackendType string, newBackendType string)
 	BackendReconfigured()
 	MigrationCompleted(workspaces []string, currentWs string)
+
+	// StateLockerView is used to create a StateLocker view that is needed during
+	// backend operations.
+	StateLocker() StateLocker
 }
 
 // NewBackend returns an initialized Backend implementation for the given ViewType.
@@ -34,7 +39,7 @@ func NewBackend(args arguments.ViewOptions, view *View) Backend {
 	var ret Backend
 	switch args.ViewType {
 	case arguments.ViewJSON:
-		ret = &BackendJSON{view: NewJSONView(view, nil)}
+		ret = &BackendJSON{view: NewJSONView(view, nil), output: view.streams.Stdout.File}
 	case arguments.ViewHuman:
 		ret = &BackendHuman{view: view}
 	default:
@@ -42,7 +47,7 @@ func NewBackend(args arguments.ViewOptions, view *View) Backend {
 	}
 
 	if args.JSONInto != nil {
-		ret = &BackendMulti{ret, &BackendJSON{view: NewJSONView(view, args.JSONInto)}}
+		ret = &BackendMulti{ret, &BackendJSON{view: NewJSONView(view, args.JSONInto), output: args.JSONInto}}
 	}
 	return ret
 }
@@ -134,6 +139,14 @@ func (m BackendMulti) MigrationCompleted(workspaces []string, currentWs string) 
 	}
 }
 
+func (m BackendMulti) StateLocker() StateLocker {
+	ret := make([]StateLocker, len(m))
+	for i, v := range m {
+		ret[i] = v.StateLocker()
+	}
+	return StateLockerMulti(ret)
+}
+
 type BackendHuman struct {
 	view *View
 }
@@ -206,8 +219,15 @@ func (v *BackendHuman) MigrationCompleted(workspaces []string, currentWs string)
 	_, _ = v.view.streams.Println(buf.String())
 }
 
+func (v *BackendHuman) StateLocker() StateLocker {
+	return &StateLockerHuman{view: v.view}
+}
+
 type BackendJSON struct {
 	view *JSONView
+
+	// output is used only to be able to create a StateLocker
+	output *os.File
 }
 
 var _ Backend = (*BackendJSON)(nil)
@@ -269,4 +289,10 @@ func (v *BackendJSON) BackendReconfigured() {
 
 func (v *BackendJSON) MigrationCompleted(workspaces []string, currentWs string) {
 	v.view.log.Info("Migration complete", "workspaces", workspaces, "current_workspace", currentWs)
+}
+
+func (v *BackendJSON) StateLocker() StateLocker {
+	return &StateLockerJSON{
+		output: v.output,
+	}
 }

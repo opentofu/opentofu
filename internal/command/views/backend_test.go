@@ -217,6 +217,49 @@ has changed. OpenTofu will now check for existing state in the backends.
 
 `,
 		},
+		// this validates that the [Backend] and [StateLocker] are initialised correctly
+		// and both write to the same output [os.File].
+		"same output used for multiple views": {
+			viewCall: func(view Backend) {
+				view.InitializingCloudBackend()
+				slv := view.StateLocker()
+				slv.Locking()
+				slv.Unlocking()
+				view.InitializingCloudBackend()
+			},
+			wantJson: []map[string]any{
+				{
+					"@level":   "info",
+					"@message": "Initializing cloud backend...",
+					"@module":  "tofu.ui",
+				},
+				{
+					"@level":   "info",
+					"@message": "Acquiring state lock. This may take a few moments...",
+					"@module":  "tofu.ui",
+					"type":     "state_lock_acquire",
+				},
+				{
+					"@level":   "info",
+					"@message": "Releasing state lock. This may take a few moments...",
+					"@module":  "tofu.ui",
+					"type":     "state_lock_release",
+				},
+				{
+					"@level":   "info",
+					"@message": "Initializing cloud backend...",
+					"@module":  "tofu.ui",
+				},
+				{},
+			},
+			wantStdout: `
+Initializing cloud backend...
+Acquiring state lock. This may take a few moments...
+Releasing state lock. This may take a few moments...
+
+Initializing cloud backend...
+`,
+		},
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
