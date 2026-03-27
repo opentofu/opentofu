@@ -6,7 +6,7 @@
 package configs
 
 import (
-	"strings"
+	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -14,10 +14,11 @@ import (
 )
 
 type StateStoreConfig struct {
-	Type      string
-	Provider  addrs.Provider
-	Config    hcl.Body
-	DeclRange hcl.Range
+	Type          string
+	LocalProvider addrs.LocalProviderConfig
+	Provider      addrs.Provider
+	Config        hcl.Body
+	DeclRange     hcl.Range
 
 	eval *StaticEvaluator
 }
@@ -40,19 +41,39 @@ func decodeStateStoreBlock(block *hcl.Block) (*StateStoreConfig, hcl.Diagnostics
 		})
 	}
 
+	content, _, moreDiags := block.Body.PartialContent(stateStoreBlockSchema)
+	diags = diags.Extend(moreDiags)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	var prevProvider *hcl.Range
+	for _, block := range content.Blocks {
+		if block.Type == "provider" {
+			s.LocalProvider = addrs.LocalProviderConfig{LocalName: block.Labels[0]}
+			if prevProvider != nil {
+				diags = diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Duplicate provider block",
+					Detail:   fmt.Sprintf("state_store already has a provider block at %s.", prevProvider.String()),
+					Subject:  &block.DefRange,
+				})
+				continue
+			}
+			prevProvider = block.DefRange.Ptr()
+		}
+	}
+
+	if prevProvider == nil {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Missing provider block",
+			Detail:   "state_store requires a provider block in order to determine what provider should be used",
+			Subject:  block.DefRange.Ptr(),
+		})
+	}
+
 	return s, diags
-}
-
-func (s *StateStoreConfig) ProviderConfigAddr() addrs.LocalProviderConfig {
-	// From: addrs.Resource.ImpliedProvider()
-	typeName := s.Type
-	if under := strings.Index(typeName, "_"); under != -1 {
-		typeName = typeName[:under]
-	}
-
-	return addrs.LocalProviderConfig{
-		LocalName: typeName,
-	}
 }
 
 func (s *StateStoreConfig) ToBackendConfig() Backend {
@@ -63,4 +84,13 @@ func (s *StateStoreConfig) ToBackendConfig() Backend {
 		StateStoreType:     s.Type,
 		StateStoreProvider: s.Provider,
 	}
+}
+
+var stateStoreBlockSchema = &hcl.BodySchema{
+	Blocks: []hcl.BlockHeaderSchema{
+		{
+			Type:       "provider",
+			LabelNames: []string{"name"},
+		},
+	},
 }

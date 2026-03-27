@@ -329,7 +329,7 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 	}
 
 	for _, c := range file.StateStoreConfigs {
-		c.Provider = m.ImpliedProviderForUnqualifiedType(c.ProviderConfigAddr().LocalName)
+		c.Provider = m.ImpliedProviderForUnqualifiedType(c.LocalProvider.LocalName)
 
 		if m.StateStoreConfig != nil {
 			diags = append(diags, &hcl.Diagnostic{
