@@ -20,10 +20,16 @@ func TestJsonIntoStream(t *testing.T) {
 	tfInto := e2e.NewBinary(t, tofuBin, fixturePath)
 	logTimestampRe := regexp.MustCompile(`,"@timestamp":"[^"]*"`)
 	resourceIdRe := regexp.MustCompile(`[a-z0-9\-]{36}`)
+	// state_lock_acquire/release messages are emitted only when lock acquisition
+	// exceeds a timer threshold. On Windows the two runs have different latencies,
+	// causing one to emit the message and the other not to. Strip these lines so
+	// the comparison is not timing-sensitive. See: https://github.com/opentofu/opentofu/issues/3918
+	stateLockRe := regexp.MustCompile(`(?m)^[^\n]*"type":"state_lock_(?:acquire|release)"[^\n]*\n?`)
 
 	sanitize := func(s string) string {
 		s = logTimestampRe.ReplaceAllString(s, "")
 		s = resourceIdRe.ReplaceAllString(s, "<ident>")
+		s = stateLockRe.ReplaceAllString(s, "")
 		return s
 	}
 

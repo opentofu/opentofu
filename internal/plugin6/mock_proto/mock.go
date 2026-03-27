@@ -162,6 +162,26 @@ func (mr *MockProviderClientMockRecorder) DeleteState(ctx, in any, opts ...any) 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteState", reflect.TypeOf((*MockProviderClient)(nil).DeleteState), varargs...)
 }
 
+// GenerateResourceConfig mocks base method.
+func (m *MockProviderClient) GenerateResourceConfig(ctx context.Context, in *tfplugin6.GenerateResourceConfig_Request, opts ...grpc.CallOption) (*tfplugin6.GenerateResourceConfig_Response, error) {
+	m.ctrl.T.Helper()
+	varargs := []any{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "GenerateResourceConfig", varargs...)
+	ret0, _ := ret[0].(*tfplugin6.GenerateResourceConfig_Response)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GenerateResourceConfig indicates an expected call of GenerateResourceConfig.
+func (mr *MockProviderClientMockRecorder) GenerateResourceConfig(ctx, in any, opts ...any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]any{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GenerateResourceConfig", reflect.TypeOf((*MockProviderClient)(nil).GenerateResourceConfig), varargs...)
+}
+
 // GetFunctions mocks base method.
 func (m *MockProviderClient) GetFunctions(ctx context.Context, in *tfplugin6.GetFunctions_Request, opts ...grpc.CallOption) (*tfplugin6.GetFunctions_Response, error) {
 	m.ctrl.T.Helper()
@@ -703,14 +723,14 @@ func (mr *MockProviderClientMockRecorder) ValidateResourceConfig(ctx, in any, op
 }
 
 // ValidateStateStoreConfig mocks base method.
-func (m *MockProviderClient) ValidateStateStoreConfig(ctx context.Context, in *tfplugin6.ValidateStateStoreConfig_Request, opts ...grpc.CallOption) (*tfplugin6.ValidateStateStoreConfig_Response, error) {
+func (m *MockProviderClient) ValidateStateStoreConfig(ctx context.Context, in *tfplugin6.ValidateStateStore_Request, opts ...grpc.CallOption) (*tfplugin6.ValidateStateStore_Response, error) {
 	m.ctrl.T.Helper()
 	varargs := []any{ctx, in}
 	for _, a := range opts {
 		varargs = append(varargs, a)
 	}
 	ret := m.ctrl.Call(m, "ValidateStateStoreConfig", varargs...)
-	ret0, _ := ret[0].(*tfplugin6.ValidateStateStoreConfig_Response)
+	ret0, _ := ret[0].(*tfplugin6.ValidateStateStore_Response)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
