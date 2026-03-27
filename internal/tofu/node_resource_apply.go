@@ -221,6 +221,9 @@ func (n *nodeExpandApplyableResource) ephemeralInstanceSubgraph(ctx context.Cont
 		return m
 	}
 
+	// NOTE: The logic of creating a new subgraph, is also present in nodeExpandPlannableResource.
+	//  If there will be any transformes added here, we need to double check
+	//  the other similar implementation and mirror the changes there if needed.
 	// Start creating the steps
 	steps := []GraphTransformer{
 		// Expand the count or for_each (if present)
