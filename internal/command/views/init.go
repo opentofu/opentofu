@@ -29,6 +29,7 @@ type Init interface {
 	InitializingModules(upgrade bool)
 
 	InitializingCloudBackend()
+	InitializingStateStoreBackend()
 	InitializingBackend()
 	BackendTypeAlias(backendType, canonType string)
 
@@ -130,6 +131,12 @@ func (m InitMulti) InitializingModules(upgrade bool) {
 func (m InitMulti) InitializingCloudBackend() {
 	for _, o := range m {
 		o.InitializingCloudBackend()
+	}
+}
+
+func (m InitMulti) InitializingStateStoreBackend() {
+	for _, o := range m {
+		o.InitializingStateStoreBackend()
 	}
 }
 
@@ -336,6 +343,10 @@ func (v *InitHuman) InitializingCloudBackend() {
 	_, _ = v.view.streams.Println(v.view.colorize.Color("\n[reset][bold]Initializing cloud backend..."))
 }
 
+func (v *InitHuman) InitializingStateStoreBackend() {
+	_, _ = v.view.streams.Println(v.view.colorize.Color("\n[reset][bold]Initializing state_store backend..."))
+}
+
 func (v *InitHuman) InitializingBackend() {
 	_, _ = v.view.streams.Println(v.view.colorize.Color("\n[reset][bold]Initializing the backend..."))
 }
@@ -492,6 +503,10 @@ func (v *InitJSON) InitializingModules(upgrade bool) {
 
 func (v *InitJSON) InitializingCloudBackend() {
 	v.view.Info("Initializing cloud backend...")
+}
+
+func (v *InitJSON) InitializingStateStoreBackend() {
+	v.view.Info("Initializing state_store backend...")
 }
 
 func (v *InitJSON) InitializingBackend() {

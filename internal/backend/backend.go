@@ -29,6 +29,7 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/planfile"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -44,7 +45,7 @@ var (
 	// support using the default workspace, but requires a named workspace to
 	// be selected.
 	ErrDefaultWorkspaceNotSupported = errors.New("default workspace not supported\n" +
-		"You can create a new workspace with the \"workspace new\" command.")
+		`You can create a new workspace with the "workspace new" command.`)
 
 	// ErrWorkspacesNotSupported is an error returned when a caller attempts
 	// to perform an operation on a workspace other than "default" for a
@@ -55,8 +56,15 @@ var (
 	ErrWorkspacesNotSupported = errors.New("workspaces not supported")
 )
 
+type InitArgs struct {
+	StateEncryption    encryption.StateEncryption
+	StateStorePlugins  plugins.Library
+	StateStoreType     string
+	StateStoreProvider addrs.Provider
+}
+
 // InitFn is used to initialize a new backend.
-type InitFn func(encryption.StateEncryption) Backend
+type InitFn func(InitArgs) (Backend, tfdiags.Diagnostics)
 
 // Backend is the minimal interface that must be implemented to enable OpenTofu.
 type Backend interface {

@@ -15,8 +15,10 @@ import (
 	"os"
 
 	"github.com/mitchellh/copystructure"
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	tfversion "github.com/opentofu/opentofu/version"
 	"github.com/zclconf/go-cty/cty"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
@@ -61,6 +63,9 @@ type BackendState struct {
 	Type      string          `json:"type"`   // Backend type
 	ConfigRaw json.RawMessage `json:"config"` // Backend raw config
 	Hash      uint64          `json:"hash"`   // Hash of configuration from config files
+
+	StateStoreType     string `json:"state_store_type"`
+	StateStoreProvider string `json:"state_store_provider"`
 }
 
 func (b *BackendState) Empty() bool {
@@ -94,7 +99,17 @@ func (b *BackendState) ForPlan(schema *configschema.Block, workspaceName string)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode backend config: %w", err)
 	}
-	return plans.NewBackend(b.Type, configVal, schema, workspaceName)
+
+	var stateStoreProvider addrs.Provider
+	if b.StateStoreProvider != "" {
+		var diags tfdiags.Diagnostics
+		stateStoreProvider, diags = addrs.ParseProviderSourceString(b.StateStoreProvider)
+		if diags.HasErrors() {
+			return nil, diags.Err()
+		}
+	}
+
+	return plans.NewBackend(b.Type, configVal, schema, workspaceName, b.StateStoreType, stateStoreProvider)
 }
 
 var ErrNoState = errors.New("no state")

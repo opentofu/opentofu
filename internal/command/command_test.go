@@ -26,6 +26,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 
 	"github.com/opentofu/svchost"
@@ -711,7 +712,7 @@ func testBackendState(t *testing.T, s *states.State, c int) (*clistate.CLIState,
 		Eval:   configs.NewStaticEvaluator(nil, configs.RootModuleCallForTesting()),
 	}
 	httpBackendInit, _ := backendInit.Backend("http")
-	b := httpBackendInit(encryption.StateEncryptionDisabled())
+	b, _ := httpBackendInit(backend.InitArgs{StateEncryption: encryption.StateEncryptionDisabled()})
 	configSchema := b.ConfigSchema()
 	hash, _ := backendConfig.Hash(t.Context(), configSchema)
 

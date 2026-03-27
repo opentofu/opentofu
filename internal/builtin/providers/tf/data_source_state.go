@@ -225,7 +225,11 @@ func getBackend(cfg cty.Value, enc encryption.StateEncryption) (backend.Backend,
 		))
 		return nil, cty.NilVal, diags
 	}
-	b := f(enc)
+	b, bDiags := f(backend.InitArgs{StateEncryption: enc}) // TODO consider what to do if we encounter state_store here?
+	diags = diags.Append(bDiags)
+	if diags.HasErrors() {
+		return nil, cty.NilVal, diags
+	}
 
 	config := cfg.GetAttr("config")
 	if config.IsNull() {

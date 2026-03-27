@@ -388,7 +388,7 @@ service Provider {
     rpc CallFunction(CallFunction.Request) returns (CallFunction.Response);
 
     // ValidateStateStoreConfig performs configuration validation
-    rpc ValidateStateStoreConfig(ValidateStateStore.Request) returns (ValidateStateStore.Response);
+    rpc ValidateStateStoreConfig(ValidateStateStoreConfig.Request) returns (ValidateStateStoreConfig.Response);
     // ConfigureStateStore configures the state store, such as S3 connection in the context of already configured provider
     rpc ConfigureStateStore(ConfigureStateStore.Request) returns (ConfigureStateStore.Response);
 
@@ -908,7 +908,7 @@ message ValidateListResourceConfig {
     }
 }
 
-message ValidateStateStore {
+message ValidateStateStoreConfig {
     message Request {
         string type_name = 1;
         DynamicValue config = 2;
@@ -947,7 +947,7 @@ message ReadStateBytes {
         bytes bytes = 1;
         // total_length is the overall size of all of the state byte chunks that will be received
         int64 total_length = 2;
-        StateRange range = 3;
+        StateByteRange range = 3;
         repeated Diagnostic diagnostics = 4;
     }
 }
@@ -960,7 +960,7 @@ message WriteStateBytes {
         bytes bytes = 2;
         // total_length is the overall size of all of the state byte chunks that will be sent.
         int64 total_length = 3;
-        StateRange range = 4;
+        StateByteRange range = 4;
     }
     message Response {
         repeated Diagnostic diagnostics = 1;
@@ -972,7 +972,7 @@ message RequestChunkMeta {
     string state_id = 2;
 }
 
-message StateRange {
+message StateByteRange {
     // start is the starting byte index for a chunk of state byte data.
     // This index is in relation to the entire byte array that will be sent or received.
     int64 start = 1;
@@ -1010,7 +1010,7 @@ message GetStates {
 		string type_name = 1;
     }
     message Response {
-        repeated string state_id = 1;
+        repeated string state_ids = 1;
         repeated Diagnostic diagnostics = 2;
     }
 }

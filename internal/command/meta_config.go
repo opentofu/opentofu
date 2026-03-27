@@ -239,6 +239,10 @@ func (m *Meta) loadBackendConfig(ctx context.Context, rootDir string) (*configs.
 		backendConfig := mod.CloudConfig.ToBackendConfig()
 		return &backendConfig, nil
 	}
+	if mod.StateStoreConfig != nil {
+		backendConfig := mod.StateStoreConfig.ToBackendConfig()
+		return &backendConfig, nil
+	}
 
 	return mod.Backend, nil
 }

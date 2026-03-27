@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"iter"
 	"strings"
 	"time"
 
@@ -241,6 +242,38 @@ func (s simple) GetFunctions(context.Context) providers.GetFunctionsResponse {
 }
 
 func (s simple) CallFunction(_ context.Context, r providers.CallFunctionRequest) providers.CallFunctionResponse {
+	panic("Not Implemented")
+}
+
+func (s simple) ValidateStateStoreConfig(_ context.Context, _ providers.ValidateStateStoreConfigRequest) providers.ValidateStateStoreConfigResponse {
+	panic("Not Implemented")
+}
+
+func (s simple) ConfigureStateStore(_ context.Context, _ providers.ConfigureStateStoreRequest) providers.ConfigureStateStoreResponse {
+	panic("Not Implemented")
+}
+
+func (s simple) ReadStateBytes(_ context.Context, _ providers.ReadStateBytesRequest) iter.Seq[providers.ReadStateBytesResponse] {
+	panic("Not Implemented")
+}
+
+func (s simple) WriteStateBytes(_ context.Context, _ iter.Seq[providers.WriteStateBytesRequest]) providers.WriteStateBytesResponse {
+	panic("Not Implemented")
+}
+
+func (s simple) LockState(_ context.Context, _ providers.LockStateRequest) providers.LockStateResponse {
+	panic("Not Implemented")
+}
+
+func (s simple) UnlockState(_ context.Context, _ providers.UnlockStateRequest) providers.UnlockStateResponse {
+	panic("Not Implemented")
+}
+
+func (s simple) GetStates(_ context.Context, _ providers.GetStatesRequest) providers.GetStatesResponse {
+	panic("Not Implemented")
+}
+
+func (s simple) DeleteState(_ context.Context, _ providers.DeleteStateRequest) providers.DeleteStateResponse {
 	panic("Not Implemented")
 }
 

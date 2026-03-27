@@ -363,8 +363,8 @@ func TestState_validation(t *testing.T) {
 	// the validation step in isolation does not attempt to configure
 	// the backend.
 	overrideBackendFactories = map[string]backend.InitFn{
-		"failsconfigure": func(enc encryption.StateEncryption) backend.Backend {
-			return backendFailsConfigure{}
+		"failsconfigure": func(backend.InitArgs) (backend.Backend, tfdiags.Diagnostics) {
+			return backendFailsConfigure{}, nil
 		},
 	}
 	defer func() {

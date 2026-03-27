@@ -25,6 +25,9 @@ type Backend struct {
 	Config hcl.Body
 	Eval   *StaticEvaluator
 
+	StateStoreType     string
+	StateStoreProvider addrs.Provider
+
 	TypeRange hcl.Range
 	DeclRange hcl.Range
 }
@@ -81,8 +84,12 @@ func (b *Backend) Hash(ctx context.Context, schema *configschema.Block) (int, hc
 		})
 	}
 
+	ident := b.Type
+	if b.StateStoreType != "" {
+		ident += "|" + b.StateStoreType + "|" + b.StateStoreProvider.String()
+	}
 	toHash := cty.TupleVal([]cty.Value{
-		cty.StringVal(b.Type),
+		cty.StringVal(ident),
 		val,
 	})
 

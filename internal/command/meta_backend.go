@@ -23,6 +23,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/cloud"
 	"github.com/opentofu/opentofu/internal/command/arguments"
@@ -342,8 +343,24 @@ func (m *Meta) BackendForLocalPlan(ctx context.Context, settings plans.Backend, 
 		diags = diags.Append(fmt.Errorf("saved plan should use canonical backend type %q, not alias %q; this is a bug in OpenTofu", canonType, settings.Type))
 		return nil, diags
 	}
-	b := f(enc)
+
+	plugins, err := m.pluginLibrary()
+	if err != nil {
+		diags = diags.Append(err)
+		return nil, diags
+	}
+	b, bDiags := f(backend.InitArgs{
+		StateEncryption:    enc,
+		StateStorePlugins:  plugins,
+		StateStoreType:     settings.StateStoreType,
+		StateStoreProvider: settings.StateStoreProvider,
+	})
 	log.Printf("[TRACE] Meta.BackendForLocalPlan: instantiated backend of type %T", b)
+
+	diags = diags.Append(bDiags)
+	if diags.HasErrors() {
+		return nil, diags
+	}
 
 	schema := b.ConfigSchema()
 	configVal, err := settings.Config.Decode(schema.ImpliedType())
@@ -525,7 +542,24 @@ func (m *Meta) backendConfig(ctx context.Context, opts *BackendOpts) (*configs.B
 		})
 		return nil, 0, diags
 	}
-	b := bf(nil) // Just using this for config/schema, don't need encryption here
+
+	plugins, err := m.pluginLibrary()
+	if err != nil {
+		diags = diags.Append(err)
+		return nil, 0, diags
+	}
+	b, bDiags := bf(backend.InitArgs{
+		// Just using this for config/schema, don't need encryption here
+		StateEncryption:    nil,
+		StateStorePlugins:  plugins,
+		StateStoreType:     c.StateStoreType,
+		StateStoreProvider: c.StateStoreProvider,
+	})
+
+	diags = diags.Append(bDiags)
+	if diags.HasErrors() {
+		return nil, 0, diags
+	}
 
 	configSchema := b.ConfigSchema()
 	configBody := c.Config
@@ -844,7 +878,32 @@ func (m *Meta) backendFromState(ctx context.Context, enc encryption.StateEncrypt
 		diags = diags.Append(fmt.Errorf("working directory is configured for backend alias %q instead of the canonical name %q; this is a bug in OpenTofu", s.Backend.Type, canonType))
 		return nil, diags
 	}
-	b := f(enc)
+
+	plugins, err := m.pluginLibrary()
+	if err != nil {
+		diags = diags.Append(err)
+		return nil, diags
+	}
+	var stateStoreProvider addrs.Provider
+	if s.Backend.StateStoreProvider != "" {
+		var moreDiags tfdiags.Diagnostics
+		stateStoreProvider, moreDiags = addrs.ParseProviderSourceString(s.Backend.StateStoreProvider)
+		diags = diags.Append(moreDiags)
+		if diags.HasErrors() {
+			return nil, diags
+		}
+	}
+	b, bDiags := f(backend.InitArgs{
+		StateEncryption:    enc,
+		StateStorePlugins:  plugins,
+		StateStoreType:     s.Backend.StateStoreType,
+		StateStoreProvider: stateStoreProvider,
+	})
+
+	diags = diags.Append(bDiags)
+	if diags.HasErrors() {
+		return nil, diags
+	}
 
 	// The configuration saved in the working directory state file is used
 	// in this case, since it will contain any additional values that
@@ -1112,10 +1171,17 @@ func (m *Meta) backend_C_r_s(ctx context.Context, c *configs.Backend, cHash int,
 	if s == nil {
 		s = clistate.NewState()
 	}
+	var stateStoreProvider string
+	if !c.StateStoreProvider.IsZero() {
+		stateStoreProvider = c.StateStoreProvider.String()
+	}
 	s.Backend = &clistate.BackendState{
 		Type:      c.Type,
 		ConfigRaw: json.RawMessage(configJSON),
 		Hash:      uint64(cHash),
+
+		StateStoreType:     c.StateStoreType,
+		StateStoreProvider: stateStoreProvider,
 	}
 
 	// Verify that selected workspace exists in the backend.
@@ -1260,10 +1326,17 @@ func (m *Meta) backend_C_r_S_changed(ctx context.Context, c *configs.Backend, cH
 	if s == nil {
 		s = clistate.NewState()
 	}
+	var stateStoreProvider string
+	if !c.StateStoreProvider.IsZero() {
+		stateStoreProvider = c.StateStoreProvider.String()
+	}
 	s.Backend = &clistate.BackendState{
 		Type:      c.Type,
 		ConfigRaw: json.RawMessage(configJSON),
 		Hash:      uint64(cHash),
+
+		StateStoreType:     c.StateStoreType,
+		StateStoreProvider: stateStoreProvider,
 	}
 
 	// Verify that selected workspace exist. Otherwise prompt user to create one
@@ -1317,7 +1390,32 @@ func (m *Meta) savedBackend(ctx context.Context, sMgr *clistate.LocalState, enc 
 		diags = diags.Append(fmt.Errorf("working directory state uses alias %q instead of canonical backend type %q; this is a bug in OpenTofu", s.Backend.Type, canonName))
 		return nil, diags
 	}
-	b := f(enc)
+
+	plugins, err := m.pluginLibrary()
+	if err != nil {
+		diags = diags.Append(err)
+		return nil, diags
+	}
+	var stateStoreProvider addrs.Provider
+	if s.Backend.StateStoreProvider != "" {
+		var moreDiags tfdiags.Diagnostics
+		stateStoreProvider, moreDiags = addrs.ParseProviderSourceString(s.Backend.StateStoreProvider)
+		diags = diags.Append(moreDiags)
+		if diags.HasErrors() {
+			return nil, diags
+		}
+	}
+	b, bDiags := f(backend.InitArgs{
+		StateEncryption:    enc,
+		StateStorePlugins:  plugins,
+		StateStoreType:     s.Backend.StateStoreType,
+		StateStoreProvider: stateStoreProvider,
+	})
+
+	diags = diags.Append(bDiags)
+	if diags.HasErrors() {
+		return nil, diags
+	}
 
 	// The configuration saved in the working directory state file is used
 	// in this case, since it will contain any additional values that
@@ -1408,7 +1506,22 @@ func (m *Meta) backendConfigNeedsMigration(ctx context.Context, c *configs.Backe
 		log.Printf("[TRACE] backendConfigNeedsMigration: type changed from %q to %q, so migration is required", s.Type, canonType)
 		return true
 	}
-	b := f(nil) // We don't need encryption here as it's only used for config/schema
+
+	plugins, err := m.pluginLibrary()
+	if err != nil {
+		// This will be caught elsewhere
+		return true
+	}
+	b, bDiags := f(backend.InitArgs{
+		StateEncryption:    nil, // We don't need encryption here as it's only used for config/schema
+		StateStorePlugins:  plugins,
+		StateStoreType:     c.StateStoreType,
+		StateStoreProvider: c.StateStoreProvider,
+	})
+	if bDiags.HasErrors() {
+		// This will be caught elsewhere
+		return true
+	}
 
 	// We use "NoneRequired" here because we're only evaluating the body written directly
 	// in the root module configuration, and we're intentionally not including any
@@ -1456,7 +1569,23 @@ func (m *Meta) backendInitFromConfig(ctx context.Context, c *configs.Backend, en
 		diags = diags.Append(fmt.Errorf("backend configuration still contains alias type %q instead of canonical %q; this is a bug in OpenTofu", c.Type, canonType))
 		return nil, cty.NilVal, diags
 	}
-	b := f(enc)
+
+	plugins, err := m.pluginLibrary()
+	if err != nil {
+		diags = diags.Append(err)
+		return nil, cty.NilVal, diags
+	}
+	b, bDiags := f(backend.InitArgs{
+		StateEncryption:    enc,
+		StateStorePlugins:  plugins,
+		StateStoreType:     c.StateStoreType,
+		StateStoreProvider: c.StateStoreProvider,
+	})
+
+	diags = diags.Append(bDiags)
+	if diags.HasErrors() {
+		return nil, cty.NilVal, diags
+	}
 
 	schema := b.ConfigSchema()
 	configVal, hclDiags := c.Decode(ctx, schema.NoneRequired())
