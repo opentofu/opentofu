@@ -449,7 +449,7 @@ func (a *registryPackageAuthentication) AuthenticatePackage(localLocation Packag
 		return nil, err
 	}
 	if stat.Size() != platformData.PackageSize {
-		return nil, fmt.Errorf("registry response indicates a package of size %v, but recieved a package of size %v", platformData.PackageSize, stat.Size())
+		return nil, fmt.Errorf("registry response indicates a package of size %v, but received a package of size %v", platformData.PackageSize, stat.Size())
 	}
 
 	// Validate platform specific hash data

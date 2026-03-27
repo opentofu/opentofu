@@ -141,7 +141,7 @@ URL safe characters, and no path separators.
 				},
 			},
 			wantStderr: `
-Error: The selected workspace is overriden using the TF_WORKSPACE environment variable
+Error: The selected workspace is overridden using the TF_WORKSPACE environment variable
 
 To select a new workspace, either update this environment variable or unset
 it and then run this command again.
@@ -159,7 +159,7 @@ it and then run this command again.
 				},
 			},
 			wantStderr: `
-Error: The workspace is overriden using the TF_WORKSPACE environment variable
+Error: The workspace is overridden using the TF_WORKSPACE environment variable
 
 To create a new workspace, either unset this environment variable or update
 it to match the workspace name you are trying to create, and then run this
