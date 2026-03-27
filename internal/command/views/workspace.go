@@ -231,7 +231,7 @@ func (v *WorkspaceHuman) WorkspaceChanged(name string) {
 func (v *WorkspaceHuman) WorkspaceIsOverriddenSelectError() {
 	v.Diagnostics(tfdiags.Diagnostics{tfdiags.Sourceless(
 		tfdiags.Error,
-		"The selected workspace is overriden using the TF_WORKSPACE environment variable",
+		"The selected workspace is overridden using the TF_WORKSPACE environment variable",
 		`To select a new workspace, either update this environment variable or unset it and then run this command again.`,
 	)})
 }
@@ -239,7 +239,7 @@ func (v *WorkspaceHuman) WorkspaceIsOverriddenSelectError() {
 func (v *WorkspaceHuman) WorkspaceIsOverriddenNewError() {
 	v.Diagnostics(tfdiags.Diagnostics{tfdiags.Sourceless(
 		tfdiags.Error,
-		"The workspace is overriden using the TF_WORKSPACE environment variable",
+		"The workspace is overridden using the TF_WORKSPACE environment variable",
 		`To create a new workspace, either unset this environment variable or update it to match the workspace name you are trying to create, and then run this command again.`,
 	)})
 }

@@ -538,7 +538,7 @@ type HashDisposition struct {
 	Platform *Platform
 }
 
-// SignedByAnyGPGKeys returns true if the reciever has at least one GPG key
+// SignedByAnyGPGKeys returns true if the receiver has at least one GPG key
 // ID that signed an assertion that the associated hash is valid for the
 // associated provider version.
 //
@@ -658,11 +658,11 @@ func (ds HashDispositions) HasAnySignedByGPGKeys() bool {
 	return false
 }
 
-// Merge modifies the receiever to also include all of the hashes and
+// Merge modifies the receiver to also include all of the hashes and
 // associated dispositions from the given other [HashDispositions] object.
 //
 // If both collections contain the same hash then their dispositions are
-// also merged, so that the reciever is left representing the union
+// also merged, so that the receiver is left representing the union
 // of the disposition information from both collections.
 func (ds HashDispositions) Merge(other HashDispositions) {
 	for hash, disp := range other {

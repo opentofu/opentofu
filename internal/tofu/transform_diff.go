@@ -195,8 +195,8 @@ func (t *DiffTransformer) Transform(_ context.Context, g *Graph) error {
 						diags = diags.Append(tfdiags.Sourceless(
 							tfdiags.Error,
 							"Invalid planned change",
-							fmt.Sprintf("%s: wasn't able to set CBD, error occured %s", dag.VertexName(node), err.Error())))
-						log.Printf("[TRACE] DiffTransformer: %s: wasn't able to set CBD, error occured %s", addr, err.Error())
+							fmt.Sprintf("%s: wasn't able to set CBD, error occurred %s", dag.VertexName(node), err.Error())))
+						log.Printf("[TRACE] DiffTransformer: %s: wasn't able to set CBD, error occurred %s", addr, err.Error())
 						continue
 					}
 				}

@@ -97,7 +97,7 @@ func (ri *ResourceInstance) ConfigValue(ctx context.Context) (v cty.Value, diags
 		// If we don't have a valid config value then we'll stop early
 		// with an unknown value placeholder so that the external process
 		// responsible for providing the result value can assume that it
-		// will only ever recieve validated configuration values.
+		// will only ever receive validated configuration values.
 		return exprs.AsEvalError(cty.DynamicVal), diags
 	}
 

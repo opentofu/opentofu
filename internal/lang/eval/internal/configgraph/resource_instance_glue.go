@@ -21,7 +21,7 @@ import (
 // outside of this package.
 //
 // Real implementations of these methods are likely to block until some
-// side-effects have occured elsewhere, such as asking a provider to produce a
+// side-effects have occurred elsewhere, such as asking a provider to produce a
 // planned new state. If that external work depends on information coming from
 // any other part of this package's API then the implementation of that
 // MUST use the mechanisms from package grapheval in order to cooperate

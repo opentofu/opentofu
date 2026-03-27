@@ -23,7 +23,7 @@ import (
 // [DesiredResourceInstance.IsPlaceholder] returns true for these placeholder
 // objects.
 //
-// Prior state resouce instances are not represented in this package at all.
+// Prior state resource instances are not represented in this package at all.
 // The plan and apply mechanisms implemented elsewhere are responsible for
 // comparing desired resource instances with prior state resource instances
 // to determine what actions are needed, if any.
