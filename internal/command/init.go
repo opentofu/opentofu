@@ -918,6 +918,19 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 			view.WaitingForCacheLock(cacheDir)
 		},
 		ProvidersLockUpdated: func(provider addrs.Provider, version getproviders.Version, localHashes []getproviders.Hash, signedHashes []getproviders.Hash, priorHashes []getproviders.Hash) {
+			if config.Module.StateStoreConfig != nil && config.Module.StateStoreConfig.Provider == provider {
+				// TODO -input
+				// TODO migration
+				// TODO better error message / workflow
+				resp, err := c.Ui.Ask(fmt.Sprintf("Provider %s has been updated and is used by the state_store backend. Enter \"yes\" to continue.", provider))
+				if err != nil {
+					diags = diags.Append(err)
+				}
+				if resp != "yes" {
+					diags = diags.Append(fmt.Errorf("Updated provider %s not accepted for state_store, please inspect your lockfile before continuing", provider))
+				}
+			}
+
 			// We're going to use this opportunity to track if we have any
 			// "incomplete" installs of providers. An incomplete install is
 			// when we are only going to write the local hashes into our lock
