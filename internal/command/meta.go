@@ -226,14 +226,6 @@ type Meta struct {
 	variableArgs flags.RawFlags
 	input        bool
 
-	// Targets for this context (private)
-	targets     []addrs.Targetable
-	targetFlags []string
-
-	// Excludes for this context (private)
-	excludes     []addrs.Targetable
-	excludeFlags []string
-
 	// The fields below are expected to be set by the command via
 	// command line flags. See the Apply command for an example.
 	//

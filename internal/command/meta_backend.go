@@ -478,8 +478,6 @@ func (m *Meta) Operation(ctx context.Context, b backend.Backend, view views.Back
 	return &backend.Operation{
 		Encryption:      enc,
 		PlanOutBackend:  planOutBackend,
-		Targets:         m.targets,
-		Excludes:        m.excludes,
 		UIIn:            m.UIInput(),
 		UIOut:           m.Ui,
 		Workspace:       workspace,
