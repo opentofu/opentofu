@@ -1069,22 +1069,6 @@ new line`),
         # (2 unchanged attributes hidden)
     }`,
 		},
-		"open ephemeral": {
-			Action: plans.Open,
-			Mode:   addrs.EphemeralResourceMode,
-			Before: cty.ObjectVal(map[string]cty.Value{
-				"name": cty.StringVal("name"),
-			}),
-			After: cty.ObjectVal(map[string]cty.Value{
-				"name": cty.StringVal("name"),
-			}),
-			Schema: &configschema.Block{
-				Attributes: map[string]*configschema.Attribute{
-					"name": {Type: cty.String, Optional: true},
-				},
-			},
-			ExpectedOutput: ``,
-		},
 	}
 
 	runTestCases(t, testCases)

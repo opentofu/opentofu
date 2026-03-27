@@ -9,6 +9,7 @@ package simple
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -160,8 +161,8 @@ func (s simple) PlanResourceChange(_ context.Context, req providers.PlanResource
 	}
 
 	m := req.ProposedNewState.AsValueMap()
-	_, ok := m["id"]
-	if !ok {
+	idVal, ok := m["id"]
+	if !ok || idVal.IsNull() {
 		m["id"] = cty.UnknownVal(cty.String)
 	}
 
@@ -179,8 +180,8 @@ func (s simple) ApplyResourceChange(_ context.Context, req providers.ApplyResour
 	}
 
 	m := req.PlannedState.AsValueMap()
-	_, ok := m["id"]
-	if !ok {
+	idVal, ok := m["id"]
+	if !ok || !idVal.IsKnown() {
 		m["id"] = cty.StringVal(time.Now().String())
 	}
 	waitIfRequested(req.Config.AsValueMap())
@@ -204,8 +205,8 @@ func (s simple) ReadDataSource(_ context.Context, req providers.ReadDataSourceRe
 	return resp
 }
 
-func (s simple) OpenEphemeralResource(_ context.Context, request providers.OpenEphemeralResourceRequest) (resp providers.OpenEphemeralResourceResponse) {
-	m := request.Config.AsValueMap()
+func (s simple) OpenEphemeralResource(_ context.Context, req providers.OpenEphemeralResourceRequest) (resp providers.OpenEphemeralResourceResponse) {
+	m := req.Config.AsValueMap()
 	m["id"] = cty.StringVal("static-ephemeral-id")
 	if v, ok := m["value"]; ok && !v.IsNull() && strings.Contains(v.AsString(), "with-renew") {
 		t := time.Now().Add(200 * time.Millisecond)
@@ -216,18 +217,18 @@ func (s simple) OpenEphemeralResource(_ context.Context, request providers.OpenE
 	return resp
 }
 
-func (s simple) RenewEphemeralResource(_ context.Context, request providers.RenewEphemeralResourceRequest) (resp providers.RenewEphemeralResourceResponse) {
-	resp.Private = request.Private
+func (s simple) RenewEphemeralResource(_ context.Context, req providers.RenewEphemeralResourceRequest) (resp providers.RenewEphemeralResourceResponse) {
+	resp.Private = []byte(fmt.Sprintf("%s - renew", req.Private))
 	t := time.Now().Add(200 * time.Millisecond)
 	resp.RenewAt = &t
 	return resp
 }
 
-func (s simple) CloseEphemeralResource(_ context.Context, _ providers.CloseEphemeralResourceRequest) (resp providers.CloseEphemeralResourceResponse) {
+func (s simple) CloseEphemeralResource(context.Context, providers.CloseEphemeralResourceRequest) (resp providers.CloseEphemeralResourceResponse) {
 	return resp
 }
 
-func (s simple) GetFunctions(_ context.Context) providers.GetFunctionsResponse {
+func (s simple) GetFunctions(context.Context) providers.GetFunctionsResponse {
 	panic("Not Implemented")
 }
 

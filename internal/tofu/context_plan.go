@@ -386,13 +386,10 @@ func (c *Context) refreshOnlyPlan(ctx context.Context, config *configs.Config, p
 	// to refresh only, the set of resource changes should always be empty.
 	// We'll safety-check that here so we can return a clear message about it,
 	// rather than probably just generating confusing output at the UI layer.
-	// Because the ephemeral resources changes in the plan are meant to be used
-	// later to build the apply graph, those shouldn't be counted when we are
-	// doing this check.
-	if changes := plan.Changes.ActionableResources(); len(changes) != 0 {
+	if len(plan.Changes.Resources) != 0 {
 		// Some extra context in the logs in case the user reports this message
 		// as a bug, as a starting point for debugging.
-		for _, rc := range changes {
+		for _, rc := range plan.Changes.Resources {
 			if depKey := rc.DeposedKey; depKey == states.NotDeposed {
 				log.Printf("[DEBUG] Refresh-only plan includes %s change for %s", rc.Action, rc.Addr)
 			} else {

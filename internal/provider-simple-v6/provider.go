@@ -164,8 +164,8 @@ func (s simple) PlanResourceChange(_ context.Context, req providers.PlanResource
 	}
 
 	m := req.ProposedNewState.AsValueMap()
-	_, ok := m["id"]
-	if !ok {
+	idVal, ok := m["id"]
+	if !ok || idVal.IsNull() {
 		m["id"] = cty.UnknownVal(cty.String)
 	}
 
@@ -188,8 +188,8 @@ func (s simple) ApplyResourceChange(_ context.Context, req providers.ApplyResour
 	}
 
 	m := req.PlannedState.AsValueMap()
-	_, ok := m["id"]
-	if !ok {
+	idVal, ok := m["id"]
+	if !ok || !idVal.IsKnown() {
 		m["id"] = cty.StringVal(time.Now().String())
 	}
 	waitIfRequested(req.Config.AsValueMap())

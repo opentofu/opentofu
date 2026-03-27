@@ -204,6 +204,9 @@ func TestStateDeepCopyObject(t *testing.T) {
 				},
 			},
 		},
+		// NOTE: deferred is meant for ephemeral resources only but this is just to test the deep copy
+		// so doesn't really matter here
+		Deferred:            true,
 		CreateBeforeDestroy: true,
 	}
 
@@ -272,6 +275,42 @@ func TestStateDeepCopy(t *testing.T) {
 					},
 				},
 			},
+		},
+		addrs.AbsProviderConfig{
+			Provider: addrs.NewDefaultProvider("test"),
+			Module:   addrs.RootModule,
+		},
+		addrs.NoKey,
+	)
+	rootModule.SetResourceInstanceCurrent(
+		addrs.Resource{
+			Mode: addrs.EphemeralResourceMode,
+			Type: "test_ephemeral",
+			Name: "bar",
+		}.Instance(addrs.IntKey(0)),
+		&ResourceInstanceObjectSrc{
+			Status:        ObjectReady,
+			SchemaVersion: 1,
+			AttrsJSON:     []byte(`{"woozles":"confuzles"}`),
+			// Sensitive path at "woozles"
+			AttrSensitivePaths: []cty.PathValueMarks{
+				{
+					Path:  cty.Path{cty.GetAttrStep{Name: "woozles"}},
+					Marks: cty.NewValueMarks(marks.Sensitive),
+				},
+			},
+			Private: []byte("private data"),
+			Dependencies: []addrs.ConfigResource{
+				{
+					Module: addrs.RootModule,
+					Resource: addrs.Resource{
+						Mode: addrs.ManagedResourceMode,
+						Type: "test_thing",
+						Name: "baz",
+					},
+				},
+			},
+			Deferred: true,
 		},
 		addrs.AbsProviderConfig{
 			Provider: addrs.NewDefaultProvider("test"),

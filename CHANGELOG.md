@@ -63,6 +63,7 @@ value was declared inside the module. ([#3067](https://github.com/opentofu/opent
 - The `azurerm` backend's MSI authentication method now respects the provided client ID. ([#3586](https://github.com/opentofu/opentofu/issues/3586))
 - The `gcs` backend now supports a `universe_domain` option to support sovereign GCP services. ([#3758](https://github.com/opentofu/opentofu/issues/3758))
 - OpenTofu now consistently sends "null" to `key_provider "external"` programs when only encryption the key is requested. ([#3672](https://github.com/opentofu/opentofu/pull/3672))
+- Ephemeral resources are not stored in the plan anymore. ([#3897](https://github.com/opentofu/opentofu/pull/3897))
 
 ## Previous Releases
 

@@ -188,6 +188,7 @@ func (os *ResourceInstanceObjectSrc) DeepCopy() *ResourceInstanceObjectSrc {
 		Dependencies:            dependencies,
 		CreateBeforeDestroy:     os.CreateBeforeDestroy,
 		SkipDestroy:             os.SkipDestroy,
+		Deferred:                os.Deferred,
 	}
 }
 
@@ -225,6 +226,7 @@ func (o *ResourceInstanceObject) DeepCopy() *ResourceInstanceObject {
 		Dependencies:        dependencies,
 		CreateBeforeDestroy: o.CreateBeforeDestroy,
 		SkipDestroy:         o.SkipDestroy,
+		Deferred:            o.Deferred,
 	}
 }
 

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/plans/objchange"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -841,6 +842,12 @@ func (d *evaluationStateData) GetResource(ctx context.Context, addr addrs.Resour
 
 		instAddr := addr.Instance(key).Absolute(d.ModulePath)
 
+		if instAddr.Resource.Resource.Mode == addrs.EphemeralResourceMode {
+			v, ephDiags := d.getEphemeralResourceInstanceValue(schema, instAddr, instance, config)
+			diags = diags.Append(ephDiags)
+			instances[key] = v
+			continue
+		}
 		change := instMap[instAddr.String()]
 		if change != nil {
 			// Don't take any resources that are yet to be deleted into account.
@@ -912,22 +919,7 @@ func (d *evaluationStateData) GetResource(ctx context.Context, addr addrs.Resour
 		}
 
 		val := instanceObjectSrc.Value
-
-		if schema.ContainsMarks() {
-			var valMarks []cty.PathValueMarks
-			// Now that we know that the schema contains sensitive and/or ephemeral marks,
-			// Combine those marks together to ensure that the value is marked correctly but not double marked
-			val, valMarks = val.UnmarkDeepWithPaths()
-			schemaMarks := schema.ValueMarks(val, nil)
-			if schema.Ephemeral {
-				// Since we are preparing to mark the whole value as ephemeral, we want to remove any other
-				// possible downstream ephemeral marks to avoid having the same mark on multiple layers.
-				valMarks = removeEphemeralMarks(valMarks)
-			}
-			combined := combinePathValueMarks(valMarks, schemaMarks)
-			val = val.MarkWithPaths(combined)
-		}
-		instances[key] = val
+		instances[key] = markedValueBySchema(schema, val)
 	}
 
 	// ret should be populated with a valid value in all cases below
@@ -1011,6 +1003,24 @@ func (d *evaluationStateData) GetResource(ctx context.Context, addr addrs.Resour
 	}
 
 	return ret, diags
+}
+
+func markedValueBySchema(schema *configschema.Block, val cty.Value) cty.Value {
+	if !schema.ContainsMarks() {
+		return val
+	}
+	var valMarks []cty.PathValueMarks
+	// Now that we know that the schema contains sensitive and/or ephemeral marks,
+	// Combine those marks together to ensure that the value is marked correctly but not double marked
+	val, valMarks = val.UnmarkDeepWithPaths()
+	schemaMarks := schema.ValueMarks(val, nil)
+	if schema.Ephemeral {
+		// Since we are preparing to mark the whole value as ephemeral, we want to remove any other
+		// possible downstream ephemeral marks to avoid having the same mark on multiple layers.
+		valMarks = removeEphemeralMarks(valMarks)
+	}
+	combined := combinePathValueMarks(valMarks, schemaMarks)
+	return val.MarkWithPaths(combined)
 }
 
 func (d *evaluationStateData) getResourceSchema(ctx context.Context, addr addrs.Resource, providerAddr addrs.Provider) *configschema.Block {
@@ -1144,6 +1154,40 @@ func (d *evaluationStateData) GetCheckBlock(_ context.Context, addr addrs.Check,
 		Subject:  rng.ToHCL().Ptr(),
 	})
 	return cty.NilVal, diags
+}
+
+// getEphemeralResourceInstanceValue returns the value of the ephemeral instance from the state object.
+// The state object carries also a deferral information so if it was deferred, it cannot return the value
+// since such a value contains only the values from the configuration so we want to return unknown values
+// for all the other attributes.
+func (d *evaluationStateData) getEphemeralResourceInstanceValue(schema *configschema.Block, addr addrs.AbsResourceInstance, ris *states.ResourceInstance, config *configs.Resource) (cty.Value, tfdiags.Diagnostics) {
+	ty := schema.ImpliedType()
+	// During validate, ephemeral values are not opened
+	if d.Operation == walkValidate {
+		return cty.UnknownVal(ty).Mark(marks.Ephemeral), nil
+	}
+	var diags tfdiags.Diagnostics
+	v, err := ris.Current.Decode(ty)
+	if err != nil {
+		return cty.UnknownVal(ty).Mark(marks.Ephemeral), diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid resource instance data in state",
+			Detail:   fmt.Sprintf("Instance %s data could not be decoded from the state: %s.", addr, err),
+			Subject:  &config.DeclRange,
+		})
+	}
+	// If we would return cty.UnknownVal(ty), then whatever other ephemeral resources using the config
+	// values of the defered instance would be deferred too.
+	// Instead, we want to return as much information as possible for the requested ephemeral resource.
+	// But, during the encoding of the deferred value, the unknown fields are converted to nil and are not converted back
+	// because of https://github.com/opentofu/opentofu/blob/cba3902c0bf20531ee27d6c76e907fa7348b74e6/internal/states/instance_object.go#L116-L118.
+	// Therefore, we use the same function to convert null values to unknowns and keep as much of the configuration
+	// of the resource in the returned value.
+	if v.Deferred {
+		return objchange.PlannedUnknownObject(schema, v.Value).Mark(marks.Ephemeral), nil
+	}
+
+	return markedValueBySchema(schema, v.Value), nil
 }
 
 // moduleDisplayAddr returns a string describing the given module instance

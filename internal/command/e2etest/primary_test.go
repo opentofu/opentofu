@@ -254,7 +254,6 @@ func TestPrimaryChdirOption(t *testing.T) {
 func TestEphemeralWorkflowAndOutput(t *testing.T) {
 	t.Parallel()
 
-	skipIfCannotAccessNetwork(t)
 	pluginVersionRunner := func(t *testing.T, testdataPath string, providerBuilderFunc func(*testing.T, string)) {
 		tf := e2e.NewBinary(t, tofuBin, testdataPath)
 		providerBuilderFunc(t, tf.WorkDir())
@@ -278,23 +277,25 @@ plan. Resource actions are indicated with the following symbols:
 
 OpenTofu will perform the following actions:
 
-  # data.simple_resource.test_data2 will be read during apply
-  # (depends on a resource or a module with changes pending)
- <= data "simple_resource" "test_data2" {
-      + id    = (known after apply)
-      + value = "test"
-    }
-
   # simple_resource.test_res will be created
   + resource "simple_resource" "test_res" {
+      + id       = (known after apply)
       + value    = "test value"
       + value_wo = (write-only attribute)
     }
 
   # simple_resource.test_res_second_provider will be created
   + resource "simple_resource" "test_res_second_provider" {
+      + id       = (known after apply)
       + value    = "just a simple resource to ensure that the second provider it's working fine"
       + value_wo = (write-only attribute)
+    }
+
+  # module.call.data.simple_resource.deferred_data will be read during apply
+  # (depends on a resource or a module with changes pending)
+ <= data "simple_resource" "deferred_data" {
+      + id    = (known after apply)
+      + value = "hardcoded"
     }
 
 Plan: 2 to add, 0 to change, 0 to destroy.
@@ -303,12 +304,14 @@ Changes to Outputs:
   + final_output = "just a simple resource to ensure that the second provider it's working fine"`
 
 			entriesChecker := &outputEntriesChecker{phase: "plan"}
-			entriesChecker.addChecks(outputEntry{[]string{"data.simple_resource.test_data1: Reading..."}, true},
+			entriesChecker.addChecks(
+				outputEntry{[]string{"data.simple_resource.test_data1: Reading..."}, true},
 				outputEntry{[]string{"data.simple_resource.test_data1: Read complete after"}, true},
 				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[0]: Opening..."}, true},
 				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[0]: Open complete after"}, true},
 				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[1]: Opening..."}, true},
 				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[1]: Open complete after"}, true},
+				outputEntry{[]string{"module.call.ephemeral.simple_resource.deferred_ephemeral: Deferred due to unknown configuration"}, true},
 				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[0]: Closing..."}, true},
 				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[0]: Close complete after"}, true},
 				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[1]: Closing..."}, true},
@@ -330,18 +333,8 @@ Changes to Outputs:
 			idx := slices.IndexFunc(plan.Changes.Resources, func(src *plans.ResourceInstanceChangeSrc) bool {
 				return src.Addr.Resource.Resource.Mode == addrs.EphemeralResourceMode
 			})
-			if idx < 0 {
-				t.Fatalf("no ephemeral resource found in the plan file")
-			}
-			res := plan.Changes.Resources[idx]
-			if res.Before != nil {
-				t.Errorf("ephemeral resource %q from plan contains before value but it shouldn't: %s", res.Addr.String(), res.Before)
-			}
-			if res.After != nil {
-				t.Errorf("ephemeral resource %q from plan contains after value but it shouldn't: %s", res.Addr.String(), res.After)
-			}
-			if got, want := res.Action, plans.Open; got != want {
-				t.Errorf("ephemeral resource %q from plan contains wrong actions. want %q; got %q", res.Addr.String(), want, got)
+			if idx >= 0 {
+				t.Fatalf("ephemeral resource found in the plan file. expected to have no ephemeral resource")
 			}
 			// variables check
 			varDynVal, ok := plan.VariableValues["simple_input"]
@@ -415,16 +408,22 @@ Changes to Outputs:
 				t.Fatalf("failed to read local state: %s", err)
 			}
 			expectedResources := map[string]bool{
-				"data.simple_resource.test_data1":          true,
-				"data.simple_resource.test_data2":          true,
-				"simple_resource.test_res":                 true,
-				"simple_resource.test_res_second_provider": true,
-				"ephemeral.simple_resource.test_ephemeral": false,
+				"data.simple_resource.test_data1":                true,
+				"module.call.data.simple_resource.deferred_data": true,
+				"simple_resource.test_res":                       true,
+				"simple_resource.test_res_second_provider":       true,
+				"ephemeral.simple_resource.test_ephemeral":       false,
 			}
 			for res, exists := range expectedResources {
-				_, ok := state.RootModule().Resources[res]
-				if ok != exists {
-					t.Errorf("expected resource %q existence to be %t but got %t", res, exists, ok)
+				addr := mustResourceInstanceAddr(t, res)
+				mod := state.Module(addr.Module)
+				if mod == nil {
+					t.Errorf("state misses state for module %q as checking the state for %q", addr.Module, addr)
+					continue
+				}
+				resStateExists := mod.ResourceInstance(addr.Resource) != nil
+				if resStateExists != exists {
+					t.Errorf("expected resource %q existence to be %t but got %t", res, exists, resStateExists)
 				}
 			}
 
@@ -437,15 +436,17 @@ Changes to Outputs:
 				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[0]: Open complete after"}, true},
 				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[1]: Opening..."}, true},
 				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[1]: Open complete after"}, true},
-				outputEntry{[]string{"data.simple_resource.test_data2: Reading..."}, true},
-				outputEntry{[]string{"data.simple_resource.test_data2: Read complete after"}, true},
+				outputEntry{[]string{"module.call.ephemeral.simple_resource.deferred_ephemeral: Opening..."}, true},
+				outputEntry{[]string{"module.call.ephemeral.simple_resource.deferred_ephemeral: Open complete after"}, true},
+				outputEntry{[]string{"module.call.data.simple_resource.deferred_data: Reading..."}, true},
+				outputEntry{[]string{"module.call.data.simple_resource.deferred_data: Read complete after"}, true},
 				outputEntry{[]string{"simple_resource.test_res: Creating..."}, true},
 				outputEntry{[]string{"simple_resource.test_res_second_provider: Creating..."}, true},
 				outputEntry{[]string{"simple_resource.test_res_second_provider: Creation complete after"}, true},
-				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[0]: Renewing..."}, false},
-				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[0]: Renew complete after"}, false},
-				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[1]: Renewing..."}, false},
-				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[1]: Renew complete after"}, false},
+				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[0]: Renewing..."}, true},
+				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[0]: Renew complete after"}, true},
+				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[1]: Renewing..."}, true},
+				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[1]: Renew complete after"}, true},
 				outputEntry{[]string{"simple_resource.test_res: Creation complete after"}, true},
 				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[0]: Closing..."}, true},
 				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[0]: Close complete after"}, true},
@@ -605,4 +606,12 @@ func (oec *outputEntriesChecker) check(t *testing.T, contentToCheckIn string) {
 			t.Logf("%s output does not contain %s\nout:%s", oec.phase, entry.String(), contentToCheckIn)
 		}
 	}
+}
+
+func mustResourceInstanceAddr(t *testing.T, s string) addrs.AbsResourceInstance {
+	addr, diags := addrs.ParseAbsResourceInstanceStr(s)
+	if diags.HasErrors() {
+		t.Fatalf("failed to parse resource address %q: %s", s, diags.Err())
+	}
+	return addr
 }
