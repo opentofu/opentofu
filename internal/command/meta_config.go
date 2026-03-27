@@ -305,11 +305,11 @@ func (m *Meta) installModules(ctx context.Context, rootDir, testsDir string, upg
 	diags = diags.Append(moreDiags)
 
 	if ctx.Err() == context.Canceled {
-		view.Diagnostics(diags.Append(tfdiags.Sourceless(
+		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Module installation canceled",
 			"Module installation was canceled by an interrupt signal.",
-		)))
+		))
 		return true, diags
 	}
 
@@ -336,11 +336,11 @@ func (m *Meta) initDirFromModule(ctx context.Context, targetDir string, addr str
 	moreDiags := initwd.DirFromModule(ctx, loader, targetDir, m.WorkingDir.ModulesDir(), addr, m.registryClient(ctx), m.ModulePackageFetcher, hooks)
 	diags = diags.Append(moreDiags)
 	if ctx.Err() == context.Canceled {
-		view.Diagnostics(diags.Append(tfdiags.Sourceless(
+		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Module initialization canceled",
 			"Module initialization was canceled by an interrupt signal.",
-		)))
+		))
 		return true, diags
 	}
 	return false, diags
