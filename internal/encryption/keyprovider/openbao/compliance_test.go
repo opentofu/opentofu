@@ -18,6 +18,34 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider/compliancetest"
 )
 
+// By default the tests in here behave like unit tests, running against a
+// mock implementation of OpenBao.
+//
+// It's also possible to run them as acceptance tests, against a real OpenBao
+// dev server. The rest of this comment describes how to do that.
+//
+// Start OpenBao server in dev-tls mode:
+//     bao server -dev-tls
+//
+// The server process should mention "Root Token" as part of its output.
+// Set the VAULT_TOKEN environment variable to that value.
+// You will also need to set BAO_SKIP_VERIFY=1 because the dev TLS server has a
+// self-signed TLS certificate.
+//
+// Enable the "transit" secrets engine:
+//     bao secrets enable transit
+//
+// Create a transit key called "foo", with the key material generated server-side:
+//     bao write -f transit/keys/foo
+//
+// Now run the compliance tests in this package, using the real server instead
+// of the mock:
+//     TF_ACC=1 TF_ACC_BAO_KEY_NAME=foo go test ./internal/encryption/keyprovider/openbao
+//
+// (Because this suite uses mocks by default, you may wish to try the command
+// directly above _before_ you start the OpenBao server to verify that it fails,
+// and therefore prove you are not testing against the mock server.)
+
 func getBaoKeyName() string {
 	// Acceptance tests are disabled, running with mock.
 	if os.Getenv("TF_ACC") == "" {

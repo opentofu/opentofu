@@ -53,7 +53,7 @@ func TestMetadataFunctions_Diagnostics(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			testMetadataFunctionsHuman(t, tc.viewCall, tc.wantStdout, tc.wantStderr)
+			testMetadataFunctions(t, tc.viewCall, tc.wantStdout, tc.wantStderr)
 		})
 	}
 }
@@ -110,7 +110,7 @@ type functions struct {
 	Signatures    map[string]json.RawMessage `json:"function_signatures,omitempty"`
 }
 
-func testMetadataFunctionsHuman(t *testing.T, call func(v MetadataFunctions), wantStdout, wantStderr string) {
+func testMetadataFunctions(t *testing.T, call func(v MetadataFunctions), wantStdout, wantStderr string) {
 	view, done := testView(t)
 	v := NewMetadataFunctions(view)
 	call(v)

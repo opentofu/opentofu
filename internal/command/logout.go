@@ -57,6 +57,9 @@ func (c *LogoutCommand) Run(rawArgs []string) int {
 	c.Meta.configureUiFromView(args.ViewOptions)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
+		if args.ViewOptions.ViewType == arguments.ViewJSON {
+			return 1
+		}
 		return cli.RunResultHelp
 	}
 

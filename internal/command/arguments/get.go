@@ -11,10 +11,14 @@ import (
 
 // Get represents the command-line arguments for the get command.
 type Get struct {
-	Update         bool
+	// Update is the flag that can be used to upgrade the version of the modules.
+	Update bool
+	// TestsDirectory indicates the path where the tests are stored
 	TestsDirectory string
 
-	Vars        *Vars
+	// Vars holds and provides information for the flags related to variables that a user can give into the process
+	Vars *Vars
+	// ViewOptions specifies which view options to use
 	ViewOptions ViewOptions
 }
 

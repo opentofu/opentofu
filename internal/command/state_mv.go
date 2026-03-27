@@ -56,6 +56,9 @@ func (c *StateMvCommand) Run(rawArgs []string) int {
 	c.Meta.configureUiFromView(args.ViewOptions)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
+		if args.ViewOptions.ViewType == arguments.ViewJSON {
+			return 1 // in case it's json, do not print the help of the command
+		}
 		return cli.RunResultHelp
 	}
 	// TODO meta-refactor: remove these assignments once there is a clear way to propagate these to the place
@@ -117,7 +120,7 @@ func (c *StateMvCommand) Run(rawArgs []string) int {
 	}
 
 	// Read the from state
-	stateFromMgr, err := c.State(ctx, enc)
+	stateFromMgr, err := c.State(ctx, enc, view)
 	if err != nil {
 		view.StateLoadingFailure(err.Error())
 		return 1
@@ -137,7 +140,11 @@ func (c *StateMvCommand) Run(rawArgs []string) int {
 	}
 
 	if err := stateFromMgr.RefreshState(context.TODO()); err != nil {
-		view.Diagnostics(diags.Append(fmt.Errorf("Failed to refresh source state: %s", err)))
+		view.Diagnostics(diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Failed to refresh source state",
+			err.Error(),
+		)))
 		return 1
 	}
 
@@ -155,7 +162,7 @@ func (c *StateMvCommand) Run(rawArgs []string) int {
 		c.statePath = args.StateOutPath
 		c.backupPath = args.BackupPathOut
 
-		stateToMgr, err = c.State(ctx, enc)
+		stateToMgr, err = c.State(ctx, enc, view)
 		if err != nil {
 			view.StateLoadingFailure(err.Error())
 			return 1
@@ -175,7 +182,11 @@ func (c *StateMvCommand) Run(rawArgs []string) int {
 		}
 
 		if err := stateToMgr.RefreshState(context.TODO()); err != nil {
-			view.Diagnostics(diags.Append(fmt.Errorf("Failed to refresh destination state: %s", err)))
+			view.Diagnostics(diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Failed to refresh destination state",
+				err.Error(),
+			)))
 			return 1
 		}
 

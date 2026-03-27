@@ -9,7 +9,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/arguments"
@@ -221,15 +220,23 @@ func (v *StateHuman) Diagnostics(diags tfdiags.Diagnostics) {
 }
 
 func (v *StateHuman) StateNotFound() {
-	v.view.errorln(errStateNotFound)
+	v.Diagnostics(tfdiags.Diagnostics{diagErrStateNotFound})
 }
 
 func (v *StateHuman) StateLoadingFailure(baseError string) {
-	v.view.errorln(fmt.Sprintf(errStateLoadingState, baseError))
+	v.Diagnostics(tfdiags.Diagnostics{tfdiags.Sourceless(
+		tfdiags.Error,
+		errStateLoadingStateSummary,
+		fmt.Sprintf(errStateLoadingStateDescription, baseError),
+	)})
 }
 
 func (v *StateHuman) StateSavingError(baseError string) {
-	v.view.errorln(fmt.Sprintf(errStateRmPersist, baseError))
+	v.Diagnostics(tfdiags.Diagnostics{tfdiags.Sourceless(
+		tfdiags.Error,
+		errStateRmPersistHeader,
+		fmt.Sprintf(errStateRmPersistDescription, baseError),
+	)})
 }
 
 func (v *StateHuman) StateListAddr(resAddr addrs.AbsResourceInstance) {
@@ -237,7 +244,7 @@ func (v *StateHuman) StateListAddr(resAddr addrs.AbsResourceInstance) {
 }
 
 func (v *StateHuman) ErrorMovingToAlreadyExistingDst() {
-	v.view.errorln(errStateMvDstExists)
+	v.Diagnostics(tfdiags.Diagnostics{diagErrStateMvDstExists})
 }
 
 func (v *StateHuman) ResourceMoveStatus(dryRun bool, src, dest string) {
@@ -315,15 +322,19 @@ func (v *StateHuman) RemoveFinalStatus(count int) {
 }
 
 func (v *StateHuman) UnsupportedLocalOp() {
-	v.view.errorln(errUnsupportedLocalOp)
+	v.Diagnostics(tfdiags.Diagnostics{diagUnsupportedLocalOp})
 }
 
 func (v *StateHuman) AddressParsingError(resAddr string) {
-	v.view.errorln(fmt.Sprintf(errParsingAddress, resAddr))
+	v.Diagnostics(tfdiags.Diagnostics{tfdiags.Sourceless(
+		tfdiags.Error,
+		fmt.Sprintf(errParsingAddressHeader, resAddr),
+		errParsingAddressDescription,
+	)})
 }
 
 func (v *StateHuman) NoInstanceFoundError() {
-	v.view.errorln(errNoInstanceFound)
+	v.Diagnostics(tfdiags.Diagnostics{diagErrNoInstanceFound})
 }
 
 func (v *StateHuman) ShowResourceState(_ context.Context, stateFile *statefile.File, schemas *tofu.Schemas) int {
@@ -373,35 +384,23 @@ func (v *StateJSON) Diagnostics(diags tfdiags.Diagnostics) {
 }
 
 func (v *StateJSON) StateNotFound() {
-	cleanedUp := strings.ReplaceAll(
-		strings.ReplaceAll(errStateNotFound, "\n", " "),
-		"  ", " ",
-	)
-	v.view.Error(cleanedUp)
+	v.Diagnostics(tfdiags.Diagnostics{diagErrStateNotFound})
 }
 
 func (v *StateJSON) StateLoadingFailure(baseError string) {
-	cleanedUp := strings.ReplaceAll(
-		strings.ReplaceAll(errStateLoadingState, "\n", " "),
-		"  ", " ",
-	)
-	if baseError != "" && !strings.HasSuffix(baseError, ".") {
-		baseError += "."
-	}
-	msg := fmt.Sprintf(cleanedUp, baseError)
-	v.view.Error(msg)
+	v.Diagnostics(tfdiags.Diagnostics{tfdiags.Sourceless(
+		tfdiags.Error,
+		errStateLoadingStateSummary,
+		fmt.Sprintf(errStateLoadingStateDescription, baseError),
+	)})
 }
 
 func (v *StateJSON) StateSavingError(baseError string) {
-	cleanedUp := strings.ReplaceAll(
-		strings.ReplaceAll(errStateRmPersist, "\n", " "),
-		"  ", " ",
-	)
-	if baseError != "" && !strings.HasSuffix(baseError, ".") {
-		baseError += "."
-	}
-	msg := fmt.Sprintf(cleanedUp, baseError)
-	v.view.Error(msg)
+	v.Diagnostics(tfdiags.Diagnostics{tfdiags.Sourceless(
+		tfdiags.Error,
+		errStateRmPersistHeader,
+		fmt.Sprintf(errStateRmPersistDescription, baseError),
+	)})
 }
 
 func (v *StateJSON) StateListAddr(resAddr addrs.AbsResourceInstance) {
@@ -409,11 +408,7 @@ func (v *StateJSON) StateListAddr(resAddr addrs.AbsResourceInstance) {
 }
 
 func (v *StateJSON) ErrorMovingToAlreadyExistingDst() {
-	cleanedUp := strings.ReplaceAll(
-		strings.ReplaceAll(errStateMvDstExists, "\n", " "),
-		"  ", " ",
-	)
-	v.view.Error(cleanedUp)
+	v.Diagnostics(tfdiags.Diagnostics{diagErrStateMvDstExists})
 }
 
 func (v *StateJSON) ResourceMoveStatus(dryRun bool, src, dest string) {
@@ -486,27 +481,19 @@ func (v *StateJSON) RemoveFinalStatus(count int) {
 }
 
 func (v *StateJSON) UnsupportedLocalOp() {
-	v.view.Error("The configured backend doesn't support this operation. The 'backend' in OpenTofu defines how OpenTofu operates. The default backend performs all operations locally on your machine. Your configuration is configured to use a non-local backend. This backend doesn't support this operation")
+	v.Diagnostics(tfdiags.Diagnostics{diagUnsupportedLocalOp})
 }
 
 func (v *StateJSON) AddressParsingError(resAddr string) {
-	cleanedUp := strings.ReplaceAll(
-		strings.ReplaceAll(errParsingAddress, "\n", " "),
-		"  ", " ",
-	)
-	if resAddr != "" && !strings.HasSuffix(resAddr, ".") {
-		resAddr += "."
-	}
-	msg := fmt.Sprintf(cleanedUp, resAddr)
-	v.view.Error(msg)
+	v.Diagnostics(tfdiags.Diagnostics{tfdiags.Sourceless(
+		tfdiags.Error,
+		fmt.Sprintf(errParsingAddressHeader, resAddr),
+		errParsingAddressDescription,
+	)})
 }
 
 func (v *StateJSON) NoInstanceFoundError() {
-	cleanedUp := strings.ReplaceAll(
-		strings.ReplaceAll(errNoInstanceFound, "\n", " "),
-		"  ", " ",
-	)
-	v.view.Error(cleanedUp)
+	v.Diagnostics(tfdiags.Diagnostics{diagErrNoInstanceFound})
 }
 
 func (v *StateJSON) ShowResourceState(_ context.Context, stateFile *statefile.File, schemas *tofu.Schemas) int {
@@ -528,37 +515,39 @@ func (v *StateJSON) ShowResourceState(_ context.Context, stateFile *statefile.Fi
 	return 0
 }
 
-const errStateLoadingState = `Error loading the state: %[1]s
+var (
+	diagErrStateNotFound = tfdiags.Sourceless(
+		tfdiags.Error,
+		"No state file was found",
+		`State management commands require a state file. Run this command in a directory where OpenTofu has been run or use the -state flag to point the command to a specific state location.`,
+	)
+	diagErrStateMvDstExists = tfdiags.Sourceless(
+		tfdiags.Error,
+		"Destination module already exists",
+		`Please ensure your addresses and state paths are valid. No state was persisted. Your existing states are untouched.`,
+	)
+	diagErrNoInstanceFound = tfdiags.Sourceless(
+		tfdiags.Error,
+		"No instance found for the given address",
+		`This command requires that the address references one specific instance. To view the available instances, use "tofu state list". Please modify the address to reference a specific instance.`,
+	)
+)
 
-Please ensure that your OpenTofu state exists and that you've
-configured it properly. You can use the "-state" flag to point
-OpenTofu at another state file.`
+const (
+	errStateLoadingStateSummary     = "Error loading the state"
+	errStateLoadingStateDescription = `Please ensure that your OpenTofu state exists and that you've configured it properly. You can use the "-state" flag to point OpenTofu at another state file.
 
-const errStateNotFound = `No state file was found!
+Cause: %s`
+)
 
-State management commands require a state file. Run this command
-in a directory where OpenTofu has been run or use the -state flag
-to point the command to a specific state location.`
+const (
+	errStateRmPersistHeader      = `Error saving the state`
+	errStateRmPersistDescription = `The state was not saved. No items were removed from the persisted state. No backup was created since no modification occurred. Please resolve the issue above and try again.
 
-const errStateMvDstExists = `Error moving state: destination module already exists.
+Cause: %s`
+)
 
-Please ensure your addresses and state paths are valid. No
-state was persisted. Your existing states are untouched.`
-
-const errStateRmPersist = `Error saving the state: %s
-
-The state was not saved. No items were removed from the persisted
-state. No backup was created since no modification occurred. Please
-resolve the issue above and try again.`
-
-const errParsingAddress = `Error parsing instance address: %s
-
-This command requires that the address references one specific instance.
-To view the available instances, use "tofu state list". Please modify 
-the address to reference a specific instance.`
-
-const errNoInstanceFound = `No instance found for the given address!
-
-This command requires that the address references one specific instance.
-To view the available instances, use "tofu state list". Please modify 
-the address to reference a specific instance.`
+const (
+	errParsingAddressHeader      = `Error parsing instance address %q`
+	errParsingAddressDescription = `This command requires that the address references one specific instance. To view the available instances, use "tofu state list". Please modify the address to reference a specific instance.`
+)

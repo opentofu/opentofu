@@ -38,11 +38,23 @@ func TestStateViews(t *testing.T) {
 			wantJson: []map[string]any{
 				{
 					"@level":   "error",
-					"@message": "No state file was found! State management commands require a state file. Run this command in a directory where OpenTofu has been run or use the -state flag to point the command to a specific state location.",
+					"@message": "Error: No state file was found",
 					"@module":  "tofu.ui",
+					"diagnostic": map[string]any{
+						"detail":   "State management commands require a state file. Run this command in a directory where OpenTofu has been run or use the -state flag to point the command to a specific state location.",
+						"severity": "error",
+						"summary":  "No state file was found",
+					},
+					"type": "diagnostic",
 				},
 			},
-			wantStderr: withNewline("No state file was found!\n\nState management commands require a state file. Run this command\nin a directory where OpenTofu has been run or use the -state flag\nto point the command to a specific state location."),
+			wantStderr: `
+Error: No state file was found
+
+State management commands require a state file. Run this command in a
+directory where OpenTofu has been run or use the -state flag to point the
+command to a specific state location.
+`,
 		},
 		"stateLoadingFailure": {
 			viewCall: func(state State) {
@@ -51,11 +63,25 @@ func TestStateViews(t *testing.T) {
 			wantJson: []map[string]any{
 				{
 					"@level":   "error",
-					"@message": "Error loading the state: failed to read state file. Please ensure that your OpenTofu state exists and that you've configured it properly. You can use the \"-state\" flag to point OpenTofu at another state file.",
+					"@message": `Error: Error loading the state`,
 					"@module":  "tofu.ui",
+					"diagnostic": map[string]any{
+						"detail":   "Please ensure that your OpenTofu state exists and that you've configured it properly. You can use the \"-state\" flag to point OpenTofu at another state file.\n\nCause: failed to read state file",
+						"severity": "error",
+						"summary":  "Error loading the state",
+					},
+					"type": "diagnostic",
 				},
 			},
-			wantStderr: withNewline("Error loading the state: failed to read state file\n\nPlease ensure that your OpenTofu state exists and that you've\nconfigured it properly. You can use the \"-state\" flag to point\nOpenTofu at another state file."),
+			wantStderr: `
+Error: Error loading the state
+
+Please ensure that your OpenTofu state exists and that you've configured it
+properly. You can use the "-state" flag to point OpenTofu at another state
+file.
+
+Cause: failed to read state file
+`,
 		},
 		"stateSavingError": {
 			viewCall: func(state State) {
@@ -64,11 +90,25 @@ func TestStateViews(t *testing.T) {
 			wantJson: []map[string]any{
 				{
 					"@level":   "error",
-					"@message": "Error saving the state: failed to save state file. The state was not saved. No items were removed from the persisted state. No backup was created since no modification occurred. Please resolve the issue above and try again.",
+					"@message": "Error: Error saving the state",
 					"@module":  "tofu.ui",
+					"diagnostic": map[string]any{
+						"detail":   "The state was not saved. No items were removed from the persisted state. No backup was created since no modification occurred. Please resolve the issue above and try again.\n\nCause: failed to save state file",
+						"severity": "error",
+						"summary":  "Error saving the state",
+					},
+					"type": "diagnostic",
 				},
 			},
-			wantStderr: withNewline("Error saving the state: failed to save state file\n\nThe state was not saved. No items were removed from the persisted\nstate. No backup was created since no modification occurred. Please\nresolve the issue above and try again."),
+			wantStderr: `
+Error: Error saving the state
+
+The state was not saved. No items were removed from the persisted state. No
+backup was created since no modification occurred. Please resolve the issue
+above and try again.
+
+Cause: failed to save state file
+`,
 		},
 		"stateListAddr": {
 			viewCall: func(state State) {
@@ -95,11 +135,22 @@ func TestStateViews(t *testing.T) {
 			wantJson: []map[string]any{
 				{
 					"@level":   "error",
-					"@message": "Error moving state: destination module already exists. Please ensure your addresses and state paths are valid. No state was persisted. Your existing states are untouched.",
+					"@message": "Error: Destination module already exists",
 					"@module":  "tofu.ui",
+					"diagnostic": map[string]any{
+						"detail":   "Please ensure your addresses and state paths are valid. No state was persisted. Your existing states are untouched.",
+						"severity": "error",
+						"summary":  "Destination module already exists",
+					},
+					"type": "diagnostic",
 				},
 			},
-			wantStderr: withNewline("Error moving state: destination module already exists.\n\nPlease ensure your addresses and state paths are valid. No\nstate was persisted. Your existing states are untouched."),
+			wantStderr: `
+Error: Destination module already exists
+
+Please ensure your addresses and state paths are valid. No state was
+persisted. Your existing states are untouched.
+`,
 		},
 		"resourceMoveStatus with dryRun=true": {
 			viewCall: func(state State) {
@@ -342,11 +393,24 @@ Changing 1 resources:
 			wantJson: []map[string]any{
 				{
 					"@level":   "error",
-					"@message": "The configured backend doesn't support this operation. The 'backend' in OpenTofu defines how OpenTofu operates. The default backend performs all operations locally on your machine. Your configuration is configured to use a non-local backend. This backend doesn't support this operation",
+					"@message": "Error: The configured backend doesn't support this operation",
 					"@module":  "tofu.ui",
+					"diagnostic": map[string]any{
+						"detail":   `The "backend" in OpenTofu defines how OpenTofu operates. The default backend performs all operations locally on your machine. Your configuration is configured to use a non-local backend. This backend doesn't support this operation.`,
+						"severity": "error",
+						"summary":  "The configured backend doesn't support this operation",
+					},
+					"type": "diagnostic",
 				},
 			},
-			wantStderr: withNewline(errUnsupportedLocalOp),
+			wantStderr: `
+Error: The configured backend doesn't support this operation
+
+The "backend" in OpenTofu defines how OpenTofu operates. The default backend
+performs all operations locally on your machine. Your configuration is
+configured to use a non-local backend. This backend doesn't support this
+operation.
+`,
 		},
 		"addressParsingError": {
 			viewCall: func(state State) {
@@ -355,11 +419,23 @@ Changing 1 resources:
 			wantJson: []map[string]any{
 				{
 					"@level":   "error",
-					"@message": "Error parsing instance address: aws_instance.example. This command requires that the address references one specific instance. To view the available instances, use \"tofu state list\". Please modify the address to reference a specific instance.",
+					"@message": "Error: Error parsing instance address \"aws_instance.example\"",
 					"@module":  "tofu.ui",
+					"diagnostic": map[string]any{
+						"detail":   `This command requires that the address references one specific instance. To view the available instances, use "tofu state list". Please modify the address to reference a specific instance.`,
+						"severity": "error",
+						"summary":  `Error parsing instance address "aws_instance.example"`,
+					},
+					"type": "diagnostic",
 				},
 			},
-			wantStderr: withNewline("Error parsing instance address: aws_instance.example\n\nThis command requires that the address references one specific instance.\nTo view the available instances, use \"tofu state list\". Please modify \nthe address to reference a specific instance."),
+			wantStderr: `
+Error: Error parsing instance address "aws_instance.example"
+
+This command requires that the address references one specific instance. To
+view the available instances, use "tofu state list". Please modify the
+address to reference a specific instance.
+`,
 		},
 		"noInstanceFoundError": {
 			viewCall: func(state State) {
@@ -368,11 +444,23 @@ Changing 1 resources:
 			wantJson: []map[string]any{
 				{
 					"@level":   "error",
-					"@message": "No instance found for the given address! This command requires that the address references one specific instance. To view the available instances, use \"tofu state list\". Please modify the address to reference a specific instance.",
+					"@message": "Error: No instance found for the given address",
 					"@module":  "tofu.ui",
+					"diagnostic": map[string]any{
+						"detail":   `This command requires that the address references one specific instance. To view the available instances, use "tofu state list". Please modify the address to reference a specific instance.`,
+						"severity": "error",
+						"summary":  "No instance found for the given address",
+					},
+					"type": "diagnostic",
 				},
 			},
-			wantStderr: withNewline("No instance found for the given address!\n\nThis command requires that the address references one specific instance.\nTo view the available instances, use \"tofu state list\". Please modify \nthe address to reference a specific instance."),
+			wantStderr: `
+Error: No instance found for the given address
+
+This command requires that the address references one specific instance. To
+view the available instances, use "tofu state list". Please modify the
+address to reference a specific instance.
+`,
 		},
 		// ShowResourceState for success cases has its own dedicated test because in that situation the json output
 		// is in a raw format and not adhere to the way "informative" messages are shown.

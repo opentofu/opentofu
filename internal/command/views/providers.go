@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -26,13 +25,8 @@ type Providers interface {
 }
 
 // NewProviders returns an initialized Providers implementation for the given ViewType.
-func NewProviders(args arguments.ViewOptions, view *View) Providers {
-	switch args.ViewType {
-	case arguments.ViewHuman:
-		return &ProvidersHuman{view: view}
-	default:
-		panic(fmt.Sprintf("unknown view type %v", args.ViewType))
-	}
+func NewProviders(view *View) Providers {
+	return &ProvidersHuman{view: view}
 }
 
 type ProvidersHuman struct {

@@ -59,6 +59,9 @@ func (c *UnlockCommand) Run(rawArgs []string) int {
 
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
+		if args.ViewOptions.ViewType == arguments.ViewJSON {
+			return 1 // in case it's json, do not print the help of the command
+		}
 		return cli.RunResultHelp
 	}
 	c.GatherVariables(args.Vars)
@@ -175,6 +178,15 @@ Options:
                          to the default files terraform.tfvars and *.auto.tfvars.
                          Use this option more than once to include more than one
                          variables file.
+
+  -json                  Produce output in a machine-readable JSON format, 
+                         suitable for use in text editor integrations and other 
+                         automated systems. Always disables color.
+
+  -json-into=out.json    Produce the same output as -json, but sent directly
+                         to the given file. This allows automation to preserve
+                         the original human-readable output streams, while
+                         capturing more detailed logs for machine analysis.
 `
 	return strings.TrimSpace(helpText)
 }

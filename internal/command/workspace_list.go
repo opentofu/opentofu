@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/opentofu/internal/command/views"
@@ -50,7 +51,10 @@ func (c *WorkspaceListCommand) Run(rawArgs []string) int {
 	c.Meta.configureUiFromView(args.ViewOptions)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
-		return 1
+		if args.ViewOptions.ViewType == arguments.ViewJSON {
+			return 1
+		}
+		return cli.RunResultHelp
 	}
 	c.GatherVariables(args.Vars)
 

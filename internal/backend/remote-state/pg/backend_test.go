@@ -185,7 +185,7 @@ func TestBackendConfig(t *testing.T) {
 		{
 			Name: "host-in-env-vars",
 			EnvVars: map[string]string{
-				"PGHOST": "hostthatdoesnotexist",
+				"PGHOST": "hostthatdoesnotexist.invalid",
 			},
 			Config: map[string]interface{}{
 				"schema_name": fmt.Sprintf("terraform_%s", t.Name()),

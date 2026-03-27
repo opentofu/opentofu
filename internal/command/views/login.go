@@ -14,7 +14,6 @@ import (
 
 type Login interface {
 	Diagnostics(diags tfdiags.Diagnostics)
-	HelpPrompt(credentialsFile string)
 
 	UiSeparator()
 	MOTDMessage(msg string)
@@ -62,12 +61,6 @@ var _ Login = (LoginMulti)(nil)
 func (m LoginMulti) Diagnostics(diags tfdiags.Diagnostics) {
 	for _, o := range m {
 		o.Diagnostics(diags)
-	}
-}
-
-func (m LoginMulti) HelpPrompt(credentialsFile string) {
-	for _, o := range m {
-		o.HelpPrompt(credentialsFile)
 	}
 }
 
@@ -195,20 +188,6 @@ func (v *LoginHuman) Diagnostics(diags tfdiags.Diagnostics) {
 	v.view.Diagnostics(diags)
 }
 
-func (v *LoginHuman) HelpPrompt(credentialsFile string) {
-	helpText := fmt.Sprintf(`
-Usage: tofu [global options] login [hostname]
-
-  Retrieves an authentication token for the given hostname, if it supports
-  automatic login, and saves it in a credentials file in your home directory.
-
-  If not overridden by credentials helper settings in the CLI configuration,
-  the credentials will be written to the following local file:
-      %s
-`, credentialsFile)
-	_, _ = v.view.streams.Eprintln(helpText)
-}
-
 func (v *LoginHuman) UiSeparator() {
 	msg := "\n---------------------------------------------------------------------------------\n"
 	_, _ = v.view.streams.Println(msg)
@@ -321,8 +300,6 @@ var _ Login = (*LoginJSON)(nil)
 func (v *LoginJSON) Diagnostics(diags tfdiags.Diagnostics) {
 	v.view.Diagnostics(diags)
 }
-
-func (v *LoginJSON) HelpPrompt(credentialsFile string) {}
 
 func (v *LoginJSON) UiSeparator() {
 }

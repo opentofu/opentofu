@@ -55,6 +55,9 @@ func (c *GetCommand) Run(rawArgs []string) int {
 
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
+		if args.ViewOptions.ViewType == arguments.ViewJSON {
+			return 1
+		}
 		return cli.RunResultHelp
 	}
 	c.GatherVariables(args.Vars)
@@ -148,5 +151,5 @@ func (c *GetCommand) Synopsis() string {
 
 func getModules(ctx context.Context, m *Meta, path string, testsDir string, upgrade bool, view views.Get) (abort bool, diags tfdiags.Diagnostics) {
 	hooks := view.Hooks(true)
-	return m.installModules(ctx, path, testsDir, upgrade, true, hooks)
+	return m.installModules(ctx, path, testsDir, upgrade, true, hooks, view)
 }

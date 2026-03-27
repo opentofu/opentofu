@@ -23,35 +23,41 @@ func TestParseProvidersSchema_basicValidation(t *testing.T) {
 		"valid json flag": {
 			args: []string{"-json"},
 			want: providersSchemaArgsWithDefaults(func(ps *ProvidersSchema) {
-				ps.ViewOptions.ViewType = ViewJSON
+				// even though the -json flag is given, that is only to force the user to handle the successfull output
+				// of this command as json
+				ps.ViewOptions.ViewType = ViewHuman
 			}),
 		},
 		"missing json flag": {
 			args:      []string{},
 			wantDiags: true,
-			want: providersSchemaArgsWithDefaults(nil),
+			want:      providersSchemaArgsWithDefaults(nil),
 			wantContain: []string{
 				"Output only in json is allowed",
 				"The `tofu providers schema` command requires the `-json` flag.",
 			},
 		},
 		"one positional argument with json": {
-			args:      []string{"-json", "foo"},
-			wantDiags: true,
+			args: []string{"-json", "foo"},
 			want: providersSchemaArgsWithDefaults(func(ps *ProvidersSchema) {
-				ps.ViewOptions.ViewType = ViewJSON
+				// even though the -json flag is given, that is only to force the user to handle the successfull output
+				// of this command as json
+				ps.ViewOptions.ViewType = ViewHuman
 			}),
+			wantDiags: true,
 			wantContain: []string{
 				"Too many command line arguments",
 				"Expected at most zero positional arguments.",
 			},
 		},
 		"multiple positional arguments with json": {
-			args:      []string{"-json", "foo", "bar"},
-			wantDiags: true,
+			args: []string{"-json", "foo", "bar"},
 			want: providersSchemaArgsWithDefaults(func(ps *ProvidersSchema) {
-				ps.ViewOptions.ViewType = ViewJSON
+				// even though the -json flag is given, that is only to force the user to handle the successfull output
+				// of this command as json
+				ps.ViewOptions.ViewType = ViewHuman
 			}),
+			wantDiags: true,
 			wantContain: []string{
 				"Too many command line arguments",
 				"Expected at most zero positional arguments.",

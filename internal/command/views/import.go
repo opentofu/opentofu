@@ -7,7 +7,6 @@ package views
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/arguments"
@@ -146,7 +145,7 @@ your OpenTofu state and will henceforth be managed by OpenTofu.`
 }
 
 func (v *ImportHuman) UnsupportedLocalOp() {
-	v.view.errorln(errUnsupportedLocalOp)
+	v.Diagnostics(tfdiags.Diagnostics{diagUnsupportedLocalOp})
 }
 
 func (v *ImportHuman) Hooks() []tofu.Hook {
@@ -183,15 +182,7 @@ func (v *ImportJSON) Success() {
 }
 
 func (v *ImportJSON) UnsupportedLocalOp() {
-	v.view.Error(
-		strings.TrimSpace(
-			strings.ReplaceAll(
-				strings.ReplaceAll(
-					errUnsupportedLocalOp,
-					"\n", " "),
-				"  ", " "),
-		),
-	)
+	v.Diagnostics(tfdiags.Diagnostics{diagUnsupportedLocalOp})
 }
 
 func (v *ImportJSON) Hooks() []tofu.Hook {

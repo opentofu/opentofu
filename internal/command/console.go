@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/arguments"
@@ -54,9 +55,11 @@ func (c *ConsoleCommand) Run(rawArgs []string) int {
 	// to ask for the user input.
 	c.Meta.configureUiFromView(args.ViewOptions)
 	if diags.HasErrors() {
-		view.HelpPrompt()
 		view.Diagnostics(diags)
-		return 1
+		if args.ViewOptions.ViewType == arguments.ViewJSON {
+			return 1
+		}
+		return cli.RunResultHelp
 	}
 	// TODO meta-refactor: get rid of this assignment once the statePath from Meta is removed
 	c.Meta.statePath = args.StatePath
@@ -281,6 +284,11 @@ Options:
                          against the same workspace.
 
   -lock-timeout=0s       Duration to retry a state lock.
+
+  -json-into=out.json    Streams the output of the console, to the given file. 
+                         This allows automation to preserve
+                         the original human-readable output streams, while
+                         capturing more detailed logs for machine analysis.
 `
 	return strings.TrimSpace(helpText)
 }

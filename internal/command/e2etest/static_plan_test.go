@@ -120,7 +120,7 @@ func TestStaticPlanVariables(t *testing.T) {
 			run("state", "rm", "foo.bar").Failure().StderrContains(modErr)
 			run("state", "rm", stateVar, modVar, "foo.bar").Failure().StderrContains("No matching objects found.")
 			run("state", "show", "out").Failure().StderrContains(backendErr)
-			run("state", "show", stateVar, modVar, "invalid.resource").Failure().StderrContains("No instance found for the given address!")
+			run("state", "show", stateVar, modVar, "invalid.resource").Failure().StderrContains("No instance found for the given address")
 
 			// Workspace
 			run("workspace", "list").Failure().StderrContains(backendErr)

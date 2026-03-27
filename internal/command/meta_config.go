@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/convert"
 
@@ -268,17 +269,26 @@ func (m *Meta) loadHCLFile(filename string) (hcl.Body, tfdiags.Diagnostics) {
 // can then be relayed to the end-user. The uiModuleInstallHooks type in
 // this package has a reasonable implementation for displaying notifications
 // via a provided cli.Ui.
-func (m *Meta) installModules(ctx context.Context, rootDir, testsDir string, upgrade, installErrsOnly bool, hooks initwd.ModuleInstallHooks) (abort bool, diags tfdiags.Diagnostics) {
+func (m *Meta) installModules(ctx context.Context, rootDir, testsDir string, upgrade, installErrsOnly bool, hooks initwd.ModuleInstallHooks, view views.Basic) (abort bool, diags tfdiags.Diagnostics) {
 	rootDir = m.WorkingDir.NormalizePath(rootDir)
 
 	err := os.MkdirAll(m.WorkingDir.ModulesDir(), os.ModePerm)
 	if err != nil {
-		diags = diags.Append(fmt.Errorf("failed to create local modules directory: %w", err))
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Failed to create local modules directory",
+			err.Error(),
+		))
 		return true, diags
 	}
 
 	loader, err := m.initConfigLoader()
 	if err != nil {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Failed to create the config loader",
+			err.Error(),
+		))
 		diags = diags.Append(err)
 		return true, diags
 	}
@@ -295,7 +305,7 @@ func (m *Meta) installModules(ctx context.Context, rootDir, testsDir string, upg
 	diags = diags.Append(moreDiags)
 
 	if ctx.Err() == context.Canceled {
-		m.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		m.Ui.Error("Module installation was canceled by an interrupt signal.")
 		return true, diags
 	}
@@ -312,7 +322,7 @@ func (m *Meta) installModules(ctx context.Context, rootDir, testsDir string, upg
 // can then be relayed to the end-user. The uiModuleInstallHooks type in
 // this package has a reasonable implementation for displaying notifications
 // via a provided cli.Ui.
-func (m *Meta) initDirFromModule(ctx context.Context, targetDir string, addr string, hooks initwd.ModuleInstallHooks) (abort bool, diags tfdiags.Diagnostics) {
+func (m *Meta) initDirFromModule(ctx context.Context, targetDir string, addr string, hooks initwd.ModuleInstallHooks, view views.Basic) (abort bool, diags tfdiags.Diagnostics) {
 	loader, err := m.initConfigLoader()
 	if err != nil {
 		diags = diags.Append(err)
@@ -323,7 +333,7 @@ func (m *Meta) initDirFromModule(ctx context.Context, targetDir string, addr str
 	moreDiags := initwd.DirFromModule(ctx, loader, targetDir, m.WorkingDir.ModulesDir(), addr, m.registryClient(ctx), m.ModulePackageFetcher, hooks)
 	diags = diags.Append(moreDiags)
 	if ctx.Err() == context.Canceled {
-		m.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		m.Ui.Error("Module initialization was canceled by an interrupt signal.")
 		return true, diags
 	}

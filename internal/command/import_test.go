@@ -912,11 +912,11 @@ func TestImport_nonManagedResource(t *testing.T) {
 	}{
 		{
 			resAddr:        "data.test_data_source.foo",
-			expectedErrMsg: "A managed resource address is required. Importing into a data resource is not allowed.",
+			expectedErrMsg: "A managed resource address is required. Importing into a data resource",
 		},
 		{
 			resAddr:        "ephemeral.test_data_source.foo",
-			expectedErrMsg: "A managed resource address is required. Importing into an ephemeral resource is not allowed.",
+			expectedErrMsg: "A managed resource address is required. Importing into an ephemeral resource",
 		},
 	}
 	for _, tt := range cases {
@@ -931,6 +931,7 @@ func TestImport_nonManagedResource(t *testing.T) {
 			}
 
 			args := []string{
+				"-no-color",
 				"-state", statePath,
 				tt.resAddr,
 				"bar",

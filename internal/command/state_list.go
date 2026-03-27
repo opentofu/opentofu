@@ -14,6 +14,7 @@ import (
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/opentofu/internal/command/views"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/states"
@@ -51,9 +52,11 @@ func (c *StateListCommand) Run(rawArgs []string) int {
 	c.Meta.configureUiFromView(args.ViewOptions)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
+		if args.ViewOptions.ViewType == arguments.ViewJSON {
+			return 1 // in case it's json, do not print the help of the command
+		}
 		return cli.RunResultHelp
 	}
-
 	c.GatherVariables(args.Vars)
 
 	if args.StatePath != "" {
@@ -80,7 +83,11 @@ func (c *StateListCommand) Run(rawArgs []string) int {
 	// Get the state
 	env, err := c.Workspace(ctx)
 	if err != nil {
-		view.Diagnostics(diags.Append(fmt.Errorf("Error selecting workspace: %s", err)))
+		view.Diagnostics(diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Error selecting workspace",
+			err.Error(),
+		)))
 		return 1
 	}
 	stateMgr, err := b.StateMgr(ctx, env)
@@ -89,7 +96,11 @@ func (c *StateListCommand) Run(rawArgs []string) int {
 		return 1
 	}
 	if err := stateMgr.RefreshState(context.TODO()); err != nil {
-		view.Diagnostics(diags.Append(fmt.Errorf("Failed to load state: %s", err)))
+		view.Diagnostics(diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Error refreshing the state",
+			fmt.Sprintf("Failed to load state: %s", err),
+		)))
 		return 1
 	}
 

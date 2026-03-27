@@ -11,10 +11,11 @@ import (
 
 // Login represents the command-line arguments for the login command.
 type Login struct {
+	// Host represents the host that OpenTofu will try to login to
 	Host string
+	
 	// ViewOptions specifies which view options to use
 	ViewOptions ViewOptions
-
 	// Vars holds and provides information for the flags related to variables that a user can give into the process
 	Vars *Vars
 }

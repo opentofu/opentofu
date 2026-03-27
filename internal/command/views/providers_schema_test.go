@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/terminal"
 )
 
@@ -17,9 +16,7 @@ func TestNewProvidersSchema(t *testing.T) {
 
 	view := NewView(streams)
 
-	// Test NewProvidersSchema creates ProvidersSchemaMixed
-	opts := arguments.ViewOptions{ViewType: arguments.ViewJSON}
-	ps := NewProvidersSchema(opts, view)
+	ps := NewProvidersSchema(view)
 	if _, ok := ps.(*ProvidersSchemaMixed); !ok {
 		t.Errorf("Expected *ProvidersSchemaMixed, got %T", ps)
 	}
@@ -35,7 +32,7 @@ func TestProvidersSchemaMixed_UnsupportedLocalOp(t *testing.T) {
 	output := done(t)
 	stderr := output.Stderr()
 
-	if !strings.Contains(stderr, "The configured backend doesn't support this operation.") {
+	if !strings.Contains(stderr, "The configured backend doesn't support this operation") {
 		t.Errorf("Expected 'The configured backend doesn't support this operation.' in stderr, got: %s", stderr)
 	}
 	if !strings.Contains(stderr, "Your configuration") {

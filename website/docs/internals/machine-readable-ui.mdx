@@ -708,3 +708,13 @@ The `test_summary` message `test_summary` object has the following keys:
     "type": "test_summary"
 }
 ```
+
+## Raw JSON output
+Since the `-json` flag generally enables the machine-readable UI presented above, there are several commands that
+do not follow the same convention, but instead, these can optionally be used (if not strictly required) with the `-json`
+flag to write the final result in JSON format.
+
+Most of these commands, do not adhere to the strict rules of the machine-readable UI and the following should be
+expected instead:
+* Any non-success message will be printed in human format (even when the `-json` flag is specified).
+* There is at least one success json output that contains the result of a successful run of the command.

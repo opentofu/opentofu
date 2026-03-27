@@ -30,20 +30,20 @@ type MetadataFunctions interface {
 // In case of this command, the returned [MetadataFunctions] will always print the diagnostics in human format
 // and the functions in JSON format.
 func NewMetadataFunctions(view *View) MetadataFunctions {
-	return &MetadataFunctionsHuman{view: view}
+	return &MetadataFunctionsMixed{view: view}
 }
 
-type MetadataFunctionsHuman struct {
+type MetadataFunctionsMixed struct {
 	view *View
 }
 
-var _ MetadataFunctions = (*MetadataFunctionsHuman)(nil)
+var _ MetadataFunctions = (*MetadataFunctionsMixed)(nil)
 
-func (v *MetadataFunctionsHuman) Diagnostics(diags tfdiags.Diagnostics) {
+func (v *MetadataFunctionsMixed) Diagnostics(diags tfdiags.Diagnostics) {
 	v.view.Diagnostics(diags)
 }
 
-func (v *MetadataFunctionsHuman) PrintFunctions() bool {
+func (v *MetadataFunctionsMixed) PrintFunctions() bool {
 	scope := &lang.Scope{}
 	funcs := scope.Functions()
 	filteredFuncs := make(map[string]function.Function)

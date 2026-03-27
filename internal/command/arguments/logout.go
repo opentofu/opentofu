@@ -11,10 +11,11 @@ import (
 
 // Logout represents the command-line arguments for the logout command.
 type Logout struct {
+	// Host represents the host that OpenTofu will try to log out of
 	Host string
+
 	// ViewOptions specifies which view options to use
 	ViewOptions ViewOptions
-
 	// Vars holds and provides information for the flags related to variables that a user can give into the process
 	Vars *Vars
 }

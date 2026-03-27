@@ -4,7 +4,13 @@ The v1.12.x release series is supported until **February 1 2027**.
 
 UPGRADE NOTES:
 
-- The `OPENTOFU_USER_AGENT` environment variable, which allowed fully overriding the default User-Agent header on all HTTP requests has been removed.
+- The "winrm" connection type for the `remote-exec` and `file` provisioners is now deprecated. ([#3899](https://github.com/opentofu/opentofu/issues/3899))
+
+    The library ecosystem around the WinRM protocol is no longer in a healthy state, with some libraries unmaintained. Therefore we cannot continue to offer this functionality, and will phase it out over the next few release series. In OpenTofu v1.12 this connection type is still supported, but will generate a warning each time it is used. We expect that use of this connection type will begin returning an error in OpenTofu v1.13.
+
+    [Modern Windows versions now support OpenSSH](https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse), and so we suggest that anyone currently relying on WinRM should begin planning to migrate to using SSH instead.
+
+- The `OPENTOFU_USER_AGENT` environment variable, which allowed fully overriding the default User-Agent header on all HTTP requests, has been removed.
 - This is the last OpenTofu release series that will support macOS 12 Monterey. We expect that OpenTofu v1.13 will require macOS 13 Ventura or later.
 - On Unix systems OpenTofu now considers the `BROWSER` environment variable as a possible override for the default behavior for launching a web browser.
 
@@ -37,7 +43,9 @@ ENHANCEMENTS:
 - `tofu login` now uses the `BROWSER` environment variable when launching a web browser on Unix platforms, as long as it's set to a single command that can accept a URL to open as its first and only argument. ([#3456](https://github.com/opentofu/opentofu/issues/3456))
 - The `s3` backend now automatically discovers and uses AWS credentials issued using [the `aws login` command](https://docs.aws.amazon.com/cli/latest/reference/login/) in AWS CLI. ([#3767](https://github.com/opentofu/opentofu/pull/3767))
 - The `azurerm` backend now supports authentication using Azure DevOps and Azure Pipelines workload identity federation. ([#3820](https://github.com/opentofu/opentofu/pull/3820))
+- Most of the commands now prints the usage text when arguments parsing fails, prints previously legacy error messages as regular diagnostics and received support JSON output. ([#3941](https://github.com/opentofu/opentofu/pull/3941))
 - The `azurerm` backend now supports Customer-Provided Keys(CPK) as well as Customer-Managed Keys(CMK) to enable server-side encryption. ([#3886](https://github.com/opentofu/opentofu/pull/3886))
+
 
 BUG FIXES:
 
