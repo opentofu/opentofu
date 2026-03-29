@@ -103,7 +103,6 @@ type jsonVersionOnly struct {
 	Version int `json:"version"`
 }
 
-
 // ReadState reads the CLI state file format written by WriteState.
 func ReadState(src io.Reader) (*CLIState, error) {
 	if f, ok := src.(*os.File); ok && f == nil {
