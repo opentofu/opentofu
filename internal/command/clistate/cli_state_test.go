@@ -102,6 +102,40 @@ func TestReadState_UnsupportedVersion(t *testing.T) {
 	}
 }
 
+func TestReadState_ResourceStateCollision(t *testing.T) {
+	input := `{
+		"version": 4,
+		"terraform_version": "1.11.2",
+		"serial": 1,
+		"lineage": "fake-lineage-id",
+		"outputs": {},
+		"resources": []
+	}`
+	_, err := ReadState(strings.NewReader(input))
+	if err == nil {
+		t.Fatal("expected error for resource state file, got nil")
+	}
+	for _, want := range []string{
+		"resource state file",
+		"TF_DATA_DIR",
+	} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error %q should contain %q", err.Error(), want)
+		}
+	}
+}
+
+func TestReadState_ResourceStateCollision_PartialFields(t *testing.T) {
+	input := `{"version": 4, "terraform_version": "1.12.0"}`
+	_, err := ReadState(strings.NewReader(input))
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "resource state file") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
 func TestWriteState_NilState(t *testing.T) {
 	buf := &bytes.Buffer{}
 	err := WriteState(nil, buf)

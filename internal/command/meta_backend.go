@@ -594,7 +594,7 @@ func (m *Meta) backendFromConfig(ctx context.Context, opts *BackendOpts, enc enc
 	statePath := filepath.Join(m.WorkingDir.DataDir(), arguments.DefaultStateFilename)
 	sMgr := &clistate.LocalState{Path: statePath}
 	if err := sMgr.RefreshState(context.TODO()); err != nil {
-		diags = diags.Append(fmt.Errorf("Failed to load state: %w", err))
+		diags = diags.Append(fmt.Errorf("Failed to load backend configuration from %s: %w", statePath, err))
 		return nil, diags
 	}
 
@@ -811,7 +811,7 @@ func (m *Meta) backendFromState(ctx context.Context, enc encryption.StateEncrypt
 	statePath := filepath.Join(m.WorkingDir.DataDir(), arguments.DefaultStateFilename)
 	sMgr := &clistate.LocalState{Path: statePath}
 	if err := sMgr.RefreshState(context.TODO()); err != nil {
-		diags = diags.Append(fmt.Errorf("Failed to load state: %w", err))
+		diags = diags.Append(fmt.Errorf("Failed to load backend configuration from %s: %w", statePath, err))
 		return nil, diags
 	}
 	s := sMgr.State()
