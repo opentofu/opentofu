@@ -16,12 +16,14 @@ import (
 
 func TestBlockEmptyValue(t *testing.T) {
 	tests := []struct {
-		Schema *Block
-		Want   cty.Value
+		Schema  *Block
+		Empty   cty.Value
+		Unknown cty.Value
 	}{
 		{
 			&Block{},
 			cty.EmptyObjectVal,
+			cty.ObjectVal(nil),
 		},
 		{
 			&Block{
@@ -31,6 +33,9 @@ func TestBlockEmptyValue(t *testing.T) {
 			},
 			cty.ObjectVal(map[string]cty.Value{
 				"str": cty.NullVal(cty.String),
+			}),
+			cty.ObjectVal(map[string]cty.Value{
+				"str": cty.UnknownVal(cty.String),
 			}),
 		},
 		{
@@ -48,6 +53,11 @@ func TestBlockEmptyValue(t *testing.T) {
 			},
 			cty.ObjectVal(map[string]cty.Value{
 				"single": cty.NullVal(cty.Object(map[string]cty.Type{
+					"str": cty.String,
+				})),
+			}),
+			cty.ObjectVal(map[string]cty.Value{
+				"single": cty.UnknownVal(cty.Object(map[string]cty.Type{
 					"str": cty.String,
 				})),
 			}),
@@ -70,6 +80,11 @@ func TestBlockEmptyValue(t *testing.T) {
 					"str": cty.NullVal(cty.String),
 				}),
 			}),
+			cty.ObjectVal(map[string]cty.Value{
+				"group": cty.UnknownVal(cty.Object(map[string]cty.Type{
+					"str": cty.String,
+				})),
+			}),
 		},
 		{
 			&Block{
@@ -86,6 +101,11 @@ func TestBlockEmptyValue(t *testing.T) {
 			},
 			cty.ObjectVal(map[string]cty.Value{
 				"list": cty.ListValEmpty(cty.Object(map[string]cty.Type{
+					"str": cty.String,
+				})),
+			}),
+			cty.ObjectVal(map[string]cty.Value{
+				"list": cty.UnknownVal(cty.Object(map[string]cty.Type{
 					"str": cty.String,
 				})),
 			}),
@@ -106,6 +126,11 @@ func TestBlockEmptyValue(t *testing.T) {
 			cty.ObjectVal(map[string]cty.Value{
 				"list_dynamic": cty.EmptyTupleVal,
 			}),
+			cty.ObjectVal(map[string]cty.Value{
+				"list_dynamic": cty.UnknownVal(cty.Object(map[string]cty.Type{
+					"str": cty.DynamicPseudoType,
+				})),
+			}),
 		},
 		{
 			&Block{
@@ -122,6 +147,11 @@ func TestBlockEmptyValue(t *testing.T) {
 			},
 			cty.ObjectVal(map[string]cty.Value{
 				"map": cty.MapValEmpty(cty.Object(map[string]cty.Type{
+					"str": cty.String,
+				})),
+			}),
+			cty.ObjectVal(map[string]cty.Value{
+				"map": cty.UnknownVal(cty.Object(map[string]cty.Type{
 					"str": cty.String,
 				})),
 			}),
@@ -142,6 +172,11 @@ func TestBlockEmptyValue(t *testing.T) {
 			cty.ObjectVal(map[string]cty.Value{
 				"map_dynamic": cty.EmptyObjectVal,
 			}),
+			cty.ObjectVal(map[string]cty.Value{
+				"map_dynamic": cty.UnknownVal(cty.Object(map[string]cty.Type{
+					"str": cty.DynamicPseudoType,
+				})),
+			}),
 		},
 		{
 			&Block{
@@ -161,14 +196,25 @@ func TestBlockEmptyValue(t *testing.T) {
 					"str": cty.String,
 				})),
 			}),
+			cty.ObjectVal(map[string]cty.Value{
+				"set": cty.UnknownVal(cty.Object(map[string]cty.Type{
+					"str": cty.String,
+				})),
+			}),
 		},
 	}
 
 	for _, test := range tests {
-		t.Run(fmt.Sprintf("%#v", test.Schema), func(t *testing.T) {
+		t.Run(fmt.Sprintf("empty: %#v", test.Schema), func(t *testing.T) {
 			got := test.Schema.EmptyValue()
-			if !test.Want.RawEquals(got) {
-				t.Errorf("wrong result\nschema: %s\ngot: %s\nwant: %s", spew.Sdump(test.Schema), ctydebug.ValueString(got), ctydebug.ValueString(test.Want))
+			if !test.Empty.RawEquals(got) {
+				t.Errorf("wrong result\nschema: %s\ngot: %s\nwant: %s", spew.Sdump(test.Schema), ctydebug.ValueString(got), ctydebug.ValueString(test.Empty))
+			}
+		})
+		t.Run(fmt.Sprintf("unknown: %#v", test.Schema), func(t *testing.T) {
+			got := test.Schema.UnknownValue()
+			if !test.Unknown.RawEquals(got) {
+				t.Errorf("wrong result\nschema: %s\ngot: %s\nwant: %s", spew.Sdump(test.Schema), ctydebug.ValueString(got), ctydebug.ValueString(test.Unknown))
 			}
 		})
 	}
