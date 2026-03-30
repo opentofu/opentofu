@@ -41,9 +41,10 @@ func FilterOr[T any](filters ...FilterT[T]) FilterT[T] {
 
 func (b *Block) Filter(filterAttribute FilterT[*Attribute], filterBlock FilterT[*NestedBlock]) *Block {
 	ret := &Block{
-		Description:     b.Description,
-		DescriptionKind: b.DescriptionKind,
-		Deprecated:      b.Deprecated,
+		Description:        b.Description,
+		DescriptionKind:    b.DescriptionKind,
+		Deprecated:         b.Deprecated,
+		DeprecationMessage: b.DeprecationMessage,
 	}
 
 	if b.Attributes != nil {
