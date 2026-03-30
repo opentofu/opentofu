@@ -130,7 +130,11 @@ func (p *GRPCProvider) UpgradeResourceIdentity(ctx context.Context, req provider
 	}
 	resSchema, ok := providerSchema.ResourceTypes[req.TypeName]
 	if !ok || resSchema.IdentitySchema == nil {
-		resp.Diagnostics = resp.Diagnostics.Append(fmt.Errorf("no identity schema for %q", req.TypeName))
+		resp.Diagnostics = resp.Diagnostics.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"No identity schema found",
+			fmt.Sprintf("No identity schema available for resource type %q.", req.TypeName),
+		))
 		return resp
 	}
 
@@ -847,7 +851,11 @@ func (p *GRPCProvider) ImportResourceState(ctx context.Context, r providers.Impo
 	if r.Target.IsIdentityBased() {
 		resSchema, ok := schema.ResourceTypes[r.TypeName]
 		if !ok || resSchema.IdentitySchema == nil {
-			resp.Diagnostics = resp.Diagnostics.Append(fmt.Errorf("no identity schema found for resource type %q", r.TypeName))
+			resp.Diagnostics = resp.Diagnostics.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"No identity schema found",
+				fmt.Sprintf("No identity schema available for resource type %q.", r.TypeName),
+			))
 			return resp
 		}
 

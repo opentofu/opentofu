@@ -9,11 +9,10 @@ import (
 	"bytes"
 	"reflect"
 
-	"github.com/zclconf/go-cty/cty"
-	ctyjson "github.com/zclconf/go-cty/cty/json"
-
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/legacy/hcl2shim"
+	"github.com/zclconf/go-cty/cty"
+	ctyjson "github.com/zclconf/go-cty/cty/json"
 )
 
 // ResourceInstanceObjectSrc is a not-fully-decoded version of
@@ -77,7 +76,7 @@ type ResourceInstanceObjectSrc struct {
 	// When this is "true", the evaluator will return an unknown value.
 	Deferred bool
 
-	// IdentityJSON contains a JSON-encoded representation of the resourcde identity for this
+	// IdentityJSON contains a JSON-encoded representation of the resource identity for this
 	// resource instance. Similar to AttrsJSON, this is handled in JSON format because
 	// schema versions change over time.
 	IdentityJSON          []byte
