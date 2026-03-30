@@ -69,9 +69,6 @@ func (cp *contextPlugins) ResourceTypeSchema(ctx context.Context, providerAddr a
 	}
 
 	schema, version := providerSchema.SchemaForResourceType(resourceMode, resourceType)
-	if schema == nil {
-		return nil, 0, diags
-	}
 	return schema.Block, version, diags
 }
 

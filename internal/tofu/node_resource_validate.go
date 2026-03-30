@@ -446,8 +446,7 @@ func (n *NodeValidatableResource) noResourceSchemaSuggestion(providerSchema prov
 func nodeValidationAlternateBlockModeSuggestion(schema providers.ProviderSchema, mode addrs.ResourceMode, resourceType string) (addrs.ResourceMode, *configschema.Block) {
 	filterOnOtherModes := func(targetModes []addrs.ResourceMode) (addrs.ResourceMode, *configschema.Block) {
 		for _, candidateMode := range targetModes {
-			b, _ := schema.SchemaForResourceType(candidateMode, resourceType)
-			if b != nil && b.Block != nil {
+			if b, _ := schema.SchemaForResourceType(candidateMode, resourceType); b != nil {
 				return candidateMode, b.Block
 			}
 		}
