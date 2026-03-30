@@ -223,7 +223,7 @@ type Meta struct {
 	backendState *clistate.BackendState
 
 	// Variables for the context (private)
-	variableArgs flags.RawFlags
+	variableArgs []flags.RawFlag
 	input        bool
 
 	// The fields below are expected to be set by the command via

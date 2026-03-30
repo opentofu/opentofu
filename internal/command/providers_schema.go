@@ -12,7 +12,6 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/arguments"
-	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/opentofu/internal/command/jsonprovider"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -49,7 +48,7 @@ func (c *ProvidersSchemaCommand) Run(rawArgs []string) int {
 		return cli.RunResultHelp
 	}
 
-	c.GatherVariables(args.Vars)
+	c.Meta.variableArgs = args.Vars.All()
 
 	// Check for user-supplied plugin path
 	var err error
@@ -146,17 +145,6 @@ func (c *ProvidersSchemaCommand) Run(rawArgs []string) int {
 	view.Output(string(jsonSchemas))
 
 	return 0
-}
-
-// TODO meta-refactor: move this to arguments once all commands are using the same shim logic
-func (c *ProvidersSchemaCommand) GatherVariables(args *arguments.Vars) {
-	varArgs := args.All()
-	items := make([]flags.RawFlag, len(varArgs))
-	for i := range varArgs {
-		items[i].Name = varArgs[i].Name
-		items[i].Value = varArgs[i].Value
-	}
-	c.Meta.variableArgs = flags.RawFlags{Items: &items}
 }
 
 const providersSchemaCommandHelp = `

@@ -13,7 +13,6 @@ import (
 	"strings"
 
 	"github.com/mitchellh/cli"
-	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 
 	"github.com/opentofu/opentofu/internal/command/arguments"
@@ -60,7 +59,7 @@ func (c *StatePushCommand) Run(rawArgs []string) int {
 	}
 	// TODO meta-refactor: remove these assignments once we have a clear way to propagate these to the logic
 	//  that uses them
-	c.GatherVariables(args.Vars)
+	c.Meta.variableArgs = args.Vars.All()
 	c.stateLock = args.Backend.StateLock
 	c.stateLockTimeout = args.Backend.StateLockTimeout
 	c.ignoreRemoteVersion = args.Backend.IgnoreRemoteVersion
@@ -263,22 +262,4 @@ Options:
 
 func (c *StatePushCommand) Synopsis() string {
 	return "Update remote state from a local state file"
-}
-
-// TODO meta-refactor: move this to arguments once all commands are using the same shim logic
-func (c *StatePushCommand) GatherVariables(args *arguments.Vars) {
-	// FIXME the arguments package currently trivially gathers variable related
-	// arguments in a heterogeneous slice, in order to minimize the number of
-	// code paths gathering variables during the transition to this structure.
-	// Once all commands that gather variables have been converted to this
-	// structure, we could move the variable gathering code to the arguments
-	// package directly, removing this shim layer.
-
-	varArgs := args.All()
-	items := make([]flags.RawFlag, len(varArgs))
-	for i := range varArgs {
-		items[i].Name = varArgs[i].Name
-		items[i].Value = varArgs[i].Value
-	}
-	c.Meta.variableArgs = flags.RawFlags{Items: &items}
 }

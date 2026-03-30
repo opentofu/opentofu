@@ -14,3 +14,10 @@ variable "secret_snack" {
 locals {
     snack_bar = [var.snack, var.secret_snack]
 }
+
+output "foo" {
+    value = var.foo
+}
+output "snack" {
+    value = var.snack
+}

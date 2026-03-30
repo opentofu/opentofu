@@ -26,8 +26,8 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/arguments"
-
 	"github.com/opentofu/svchost"
 	"github.com/opentofu/svchost/disco"
 	"github.com/zclconf/go-cty/cty"
@@ -1225,4 +1225,102 @@ func testHangServer(t testing.TB) (server *httptest.Server, reqs <-chan *http.Re
 		server.Close()                  // stop accepting new requests and wait for existing ones to stop
 	})
 	return server, reqsCh
+}
+
+// TestVarsParsing checks that the -var/-var-file are parsed correctly and processed as expected.
+// This was wrote while doing the Meta removal refactor, before removing all the temporary
+// GatherVariables methods to ensure that the logic added to replace the removed method does
+// not alter the way variable related arguments are parsed.
+// Tested against commands with checkable outputs to validate that the right variable values reached the
+// execution context.
+func TestVarsParsing(t *testing.T) {
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("variables"), td)
+	t.Chdir(td)
+
+	p := testProvider()
+	varArgs := []string{"-var", "snack=chips", "-var-file", "all.tfvars"}
+	t.Run("console", func(t *testing.T) {
+		defer testStdinPipe(t, strings.NewReader("var.foo\nvar.snack\n"))()
+		streams, done := terminal.StreamsForTesting(t)
+		c := &ConsoleCommand{
+			Meta: Meta{
+				WorkingDir:       workdir.NewDir("."),
+				testingOverrides: metaOverridesForProvider(p),
+				View:             views.NewView(streams),
+				Streams:          streams,
+			},
+		}
+
+		args := append([]string{"-no-color"}, varArgs...)
+		code := c.Run(args)
+		output := done(t)
+		if code != 0 {
+			t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
+		}
+
+		actual := output.Stdout()
+		expected := `"from tfvars"
+"chips"
+`
+		if diff := cmp.Diff(expected, actual); diff != "" {
+			t.Errorf("variables parsed incorrectly (-want,+got):\n%s", diff)
+		}
+	})
+
+	cases := map[string]struct {
+		cmdBuilder      func(m Meta) cli.Command
+		expectedContent []string
+	}{
+		"plan": {
+			cmdBuilder: func(m Meta) cli.Command {
+				return &PlanCommand{m}
+			},
+		},
+		"apply": {
+			cmdBuilder: func(m Meta) cli.Command {
+				return &PlanCommand{m}
+			},
+		},
+		"output": {
+			cmdBuilder: func(m Meta) cli.Command {
+				return &PlanCommand{m}
+			},
+		},
+		"show": {
+			cmdBuilder: func(m Meta) cli.Command {
+				return &PlanCommand{m}
+			},
+		},
+		"refresh": {
+			cmdBuilder: func(m Meta) cli.Command {
+				return &PlanCommand{m}
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			view, done := testView(t)
+			m := Meta{
+				WorkingDir:       workdir.NewDir("."),
+				testingOverrides: metaOverridesForProvider(p),
+				View:             view,
+			}
+			c := tc.cmdBuilder(m)
+
+			args := append([]string{"-no-color"}, varArgs...)
+			code := c.Run(args)
+			output := done(t)
+			if code != 0 {
+				t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
+			}
+
+			actual := output.Stdout()
+			for _, want := range tc.expectedContent {
+				if !strings.Contains(actual, want) {
+					t.Errorf("variables parsed incorrectly. Want %q to exist in the output, but it didn't\noutput:\n%s", want, actual)
+				}
+			}
+		})
+	}
 }
