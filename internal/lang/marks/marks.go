@@ -104,6 +104,15 @@ func HasDeprecated(v cty.Value) bool {
 	return false
 }
 
+func DeprecationMark(cause DeprecationCause) any {
+	if cause.By == nil {
+		panic("TODO")
+	}
+	return deprecationMark{
+		Cause: cause,
+	}
+}
+
 // Deprecated marks a given value as deprecated with specified DeprecationCause.
 func Deprecated(v cty.Value, cause DeprecationCause) cty.Value {
 	for m := range cty.ValueMarksOfType[deprecationMark](v) {

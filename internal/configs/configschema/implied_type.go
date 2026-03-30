@@ -61,6 +61,30 @@ func (b *Block) ContainsSensitive() bool {
 	return false
 }
 
+// ContainsDeprecated returns true if any of the attributes of the receiving
+// block or any of its descendent blocks are marked as deprecated.
+//
+// Blocks themselves cannot be deprecated as a whole -- sensitivity is a
+// per-attribute idea -- but sometimes we want to include a whole object
+// decoded from a block in some UI output, and that is safe to do only if
+// none of the contained attributes are deprecated.
+func (b *Block) ContainsDeprecated() bool {
+	for _, attrS := range b.Attributes {
+		if attrS.Deprecated {
+			return true
+		}
+		if attrS.NestedType != nil && attrS.NestedType.ContainsDeprecated() {
+			return true
+		}
+	}
+	for _, blockS := range b.BlockTypes {
+		if blockS.ContainsDeprecated() {
+			return true
+		}
+	}
+	return false
+}
+
 // ContainsMarks is a wrapper around Block.ContainsSensitive which adds
 // another check for the ephemeral nature of the block.
 // The schema attributes cannot be marked as ephemeral, only the whole block
@@ -76,7 +100,7 @@ func (b *Block) ContainsMarks() bool {
 	if b.Ephemeral {
 		return true
 	}
-	return b.ContainsSensitive()
+	return b.ContainsSensitive() || b.ContainsDeprecated()
 }
 
 // ImpliedType returns the cty.Type that would result from decoding a Block's
@@ -149,6 +173,20 @@ func (o *Object) ContainsSensitive() bool {
 			return true
 		}
 		if attrS.NestedType != nil && attrS.NestedType.ContainsSensitive() {
+			return true
+		}
+	}
+	return false
+}
+
+// ContainsDeprecated returns true if any of the attributes of the receiving
+// Object are marked as deprecated.
+func (o *Object) ContainsDeprecated() bool {
+	for _, attrS := range o.Attributes {
+		if attrS.Deprecated {
+			return true
+		}
+		if attrS.NestedType != nil && attrS.NestedType.ContainsDeprecated() {
 			return true
 		}
 	}
