@@ -204,61 +204,6 @@ func (p *GRPCProvider) getProtoProviderSchema(ctx context.Context) (*proto6.GetP
 	return resp, err
 }
 
-func (p *GRPCProvider) UpgradeResourceIdentity(ctx context.Context, req providers.UpgradeResourceIdentityRequest) (resp providers.UpgradeResourceIdentityResponse) {
-	logger.Trace("GRPCProvider.v6: UpgradeResourceIdentity")
-
-	protoReq := &proto6.UpgradeResourceIdentity_Request{
-		TypeName: req.TypeName,
-		Version:  req.Version,
-		RawIdentity: &proto6.RawState{
-			Json: req.RawIdentityJSON,
-		},
-	}
-
-	protoResp, err := p.client.UpgradeResourceIdentity(ctx, protoReq)
-	if err != nil {
-		resp.Diagnostics = resp.Diagnostics.Append(grpcErr(err))
-		return resp
-	}
-	resp.Diagnostics = resp.Diagnostics.Append(convert.ProtoToDiagnostics(protoResp.Diagnostics))
-
-	if protoResp.UpgradedIdentity == nil || protoResp.UpgradedIdentity.IdentityData == nil {
-		if !resp.Diagnostics.HasErrors() {
-			resp.Diagnostics = resp.Diagnostics.Append(tfdiags.Sourceless(
-				tfdiags.Error,
-				"Provider returned no identity after upgrade",
-				fmt.Sprintf("The provider returned a nil identity for %q after UpgradeResourceIdentity without reporting an error. This is a bug in the provider.", req.TypeName),
-			))
-		}
-		return resp
-	}
-
-	// Now we need to look up the resource identity schema from the provider resource schemas.
-	providerSchema := p.GetProviderSchema(ctx)
-	if providerSchema.Diagnostics.HasErrors() {
-		resp.Diagnostics = resp.Diagnostics.Append(providerSchema.Diagnostics)
-		return resp
-	}
-	resSchema, ok := providerSchema.ResourceTypes[req.TypeName]
-	if !ok || resSchema.IdentitySchema == nil {
-		resp.Diagnostics = resp.Diagnostics.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"No identity schema found",
-			fmt.Sprintf("No identity schema available for resource type %q.", req.TypeName),
-		))
-		return resp
-	}
-
-	identity, err := decodeDynamicValue(protoResp.UpgradedIdentity.IdentityData, resSchema.IdentitySchema.ImpliedType())
-	if err != nil {
-		resp.Diagnostics = resp.Diagnostics.Append(err)
-		return resp
-	}
-	resp.UpgradedIdentity = identity
-
-	return resp
-}
-
 // getResourceIdentitySchemas should ONLY be called from GetProviderSchema, which
 // merges the identity schemas into the cached provider schema response. All other
 // callers should use resSchema.IdentitySchema from the GetProviderSchema response.
@@ -475,6 +420,61 @@ func (p *GRPCProvider) UpgradeResourceState(ctx context.Context, r providers.Upg
 	resp.UpgradedState = state
 
 	resp.Diagnostics = resp.Diagnostics.Append(validation.WriteOnlyAttributes(resSchema.Block, resp.UpgradedState, r.TypeName))
+
+	return resp
+}
+
+func (p *GRPCProvider) UpgradeResourceIdentity(ctx context.Context, req providers.UpgradeResourceIdentityRequest) (resp providers.UpgradeResourceIdentityResponse) {
+	logger.Trace("GRPCProvider.v6: UpgradeResourceIdentity")
+
+	protoReq := &proto6.UpgradeResourceIdentity_Request{
+		TypeName: req.TypeName,
+		Version:  req.Version,
+		RawIdentity: &proto6.RawState{
+			Json: req.RawIdentityJSON,
+		},
+	}
+
+	protoResp, err := p.client.UpgradeResourceIdentity(ctx, protoReq)
+	if err != nil {
+		resp.Diagnostics = resp.Diagnostics.Append(grpcErr(err))
+		return resp
+	}
+	resp.Diagnostics = resp.Diagnostics.Append(convert.ProtoToDiagnostics(protoResp.Diagnostics))
+
+	if protoResp.UpgradedIdentity == nil || protoResp.UpgradedIdentity.IdentityData == nil {
+		if !resp.Diagnostics.HasErrors() {
+			resp.Diagnostics = resp.Diagnostics.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Provider returned no identity after upgrade",
+				fmt.Sprintf("The provider returned a nil identity for %q after UpgradeResourceIdentity without reporting an error. This is a bug in the provider.", req.TypeName),
+			))
+		}
+		return resp
+	}
+
+	// Now we need to look up the resource identity schema from the provider resource schemas.
+	providerSchema := p.GetProviderSchema(ctx)
+	if providerSchema.Diagnostics.HasErrors() {
+		resp.Diagnostics = resp.Diagnostics.Append(providerSchema.Diagnostics)
+		return resp
+	}
+	resSchema, ok := providerSchema.ResourceTypes[req.TypeName]
+	if !ok || resSchema.IdentitySchema == nil {
+		resp.Diagnostics = resp.Diagnostics.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"No identity schema found",
+			fmt.Sprintf("No identity schema available for resource type %q.", req.TypeName),
+		))
+		return resp
+	}
+
+	identity, err := decodeDynamicValue(protoResp.UpgradedIdentity.IdentityData, resSchema.IdentitySchema.ImpliedType())
+	if err != nil {
+		resp.Diagnostics = resp.Diagnostics.Append(err)
+		return resp
+	}
+	resp.UpgradedIdentity = identity
 
 	return resp
 }

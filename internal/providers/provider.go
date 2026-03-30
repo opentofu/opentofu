@@ -767,3 +767,4 @@ type CallFunctionArgumentError struct {
 func (err *CallFunctionArgumentError) Error() string {
 	return err.Text
 }
+
