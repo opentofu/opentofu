@@ -33,7 +33,7 @@ func Provider(p providers.Interface) tfplugin5.ProviderServer {
 // identitySchemasFromProviderSchema derives the identity schemas from the
 // provider schema response, since identity schemas are embedded in each
 // resource type's Schema.
-func identitySchemasFromProviderSchema(schema providers.GetProviderSchemaResponse) providers.GetResourceIdentitySchemasResponse {
+func identitySchemasFromProviderSchema(schema providers.GetProviderSchemaResponse) map[string]providers.ResourceIdentitySchema {
 	identitySchemas := make(map[string]providers.ResourceIdentitySchema)
 	for typeName, s := range schema.ResourceTypes {
 		if s.IdentitySchema != nil {
@@ -43,15 +43,13 @@ func identitySchemasFromProviderSchema(schema providers.GetProviderSchemaRespons
 			}
 		}
 	}
-	return providers.GetResourceIdentitySchemasResponse{
-		IdentitySchemas: identitySchemas,
-	}
+	return identitySchemas
 }
 
 type provider struct {
 	provider        providers.Interface
 	schema          providers.GetProviderSchemaResponse
-	identitySchemas providers.GetResourceIdentitySchemasResponse
+	identitySchemas map[string]providers.ResourceIdentitySchema
 
 	tfplugin5.UnimplementedProviderServer
 }
@@ -112,12 +110,10 @@ func (p *provider) GetResourceIdentitySchemas(_ context.Context, req *tfplugin5.
 		Diagnostics:     []*tfplugin5.Diagnostic{},
 	}
 
-	for resourceIdentity, schema := range p.identitySchemas.IdentitySchemas {
+	for resourceIdentity, schema := range p.identitySchemas {
 		resp.IdentitySchemas[resourceIdentity] = convert.ResourceIdentitySchemaToProto(&schema)
 	}
 
-	// include any diagnostics from the original GetResourceIdentitySchemas call
-	resp.Diagnostics = convert.AppendProtoDiag(resp.Diagnostics, p.identitySchemas.Diagnostics)
 	return resp, nil
 }
 
@@ -267,7 +263,7 @@ func (p *provider) ReadResource(ctx context.Context, req *tfplugin5.ReadResource
 		ProviderMeta: metaVal,
 	}
 	if req.CurrentIdentity != nil && req.CurrentIdentity.IdentityData != nil {
-		if identitySchema, ok := p.identitySchemas.IdentitySchemas[req.TypeName]; ok {
+		if identitySchema, ok := p.identitySchemas[req.TypeName]; ok {
 			identityVal, err := decodeDynamicValue(req.CurrentIdentity.IdentityData, identitySchema.Body.ImpliedType())
 			if err != nil {
 				resp.Diagnostics = convert.AppendProtoDiag(resp.Diagnostics, err)
@@ -292,7 +288,7 @@ func (p *provider) ReadResource(ctx context.Context, req *tfplugin5.ReadResource
 	resp.NewState = dv
 
 	if !readResp.NewIdentity.IsNull() {
-		if identitySchema, ok := p.identitySchemas.IdentitySchemas[req.TypeName]; ok {
+		if identitySchema, ok := p.identitySchemas[req.TypeName]; ok {
 			identityDV, err := encodeDynamicValue(readResp.NewIdentity, identitySchema.Body.ImpliedType())
 			if err != nil {
 				resp.Diagnostics = convert.AppendProtoDiag(resp.Diagnostics, err)
@@ -343,7 +339,7 @@ func (p *provider) PlanResourceChange(ctx context.Context, req *tfplugin5.PlanRe
 		ProviderMeta:     metaVal,
 	}
 	if req.PriorIdentity != nil && req.PriorIdentity.IdentityData != nil {
-		if identitySchema, ok := p.identitySchemas.IdentitySchemas[req.TypeName]; ok {
+		if identitySchema, ok := p.identitySchemas[req.TypeName]; ok {
 			identityVal, err := decodeDynamicValue(req.PriorIdentity.IdentityData, identitySchema.Body.ImpliedType())
 			if err != nil {
 				resp.Diagnostics = convert.AppendProtoDiag(resp.Diagnostics, err)
@@ -372,7 +368,7 @@ func (p *provider) PlanResourceChange(ctx context.Context, req *tfplugin5.PlanRe
 	}
 
 	if !planResp.PlannedIdentity.IsNull() {
-		if identitySchema, ok := p.identitySchemas.IdentitySchemas[req.TypeName]; ok {
+		if identitySchema, ok := p.identitySchemas[req.TypeName]; ok {
 			identityDV, err := encodeDynamicValue(planResp.PlannedIdentity, identitySchema.Body.ImpliedType())
 			if err != nil {
 				resp.Diagnostics = convert.AppendProtoDiag(resp.Diagnostics, err)
@@ -423,7 +419,7 @@ func (p *provider) ApplyResourceChange(ctx context.Context, req *tfplugin5.Apply
 		ProviderMeta:   metaVal,
 	}
 	if req.PlannedIdentity != nil && req.PlannedIdentity.IdentityData != nil {
-		if identitySchema, ok := p.identitySchemas.IdentitySchemas[req.TypeName]; ok {
+		if identitySchema, ok := p.identitySchemas[req.TypeName]; ok {
 			identityVal, err := decodeDynamicValue(req.PlannedIdentity.IdentityData, identitySchema.Body.ImpliedType())
 			if err != nil {
 				resp.Diagnostics = convert.AppendProtoDiag(resp.Diagnostics, err)
@@ -448,7 +444,7 @@ func (p *provider) ApplyResourceChange(ctx context.Context, req *tfplugin5.Apply
 	}
 
 	if !applyResp.NewIdentity.IsNull() {
-		if identitySchema, ok := p.identitySchemas.IdentitySchemas[req.TypeName]; ok {
+		if identitySchema, ok := p.identitySchemas[req.TypeName]; ok {
 			identityDV, err := encodeDynamicValue(applyResp.NewIdentity, identitySchema.Body.ImpliedType())
 			if err != nil {
 				resp.Diagnostics = convert.AppendProtoDiag(resp.Diagnostics, err)
@@ -471,7 +467,7 @@ func (p *provider) ImportResourceState(ctx context.Context, req *tfplugin5.Impor
 	if req.Identity != nil {
 		// If identity isn't nil, then we need to instead import by identity
 		// We should use the schema to decode the identity value
-		identitySchema, ok := p.identitySchemas.IdentitySchemas[req.TypeName]
+		identitySchema, ok := p.identitySchemas[req.TypeName]
 		if !ok {
 			resp.Diagnostics = convert.AppendProtoDiag(resp.Diagnostics, fmt.Errorf("no identity schema found for resource type %q", req.TypeName))
 			return resp, nil
@@ -674,7 +670,7 @@ func (p *provider) UpgradeResourceIdentity(ctx context.Context, req *tfplugin5.U
 		return resp, nil
 	}
 
-	schema, ok := p.identitySchemas.IdentitySchemas[req.TypeName]
+	schema, ok := p.identitySchemas[req.TypeName]
 	if !ok {
 		resp.Diagnostics = convert.AppendProtoDiag(resp.Diagnostics, fmt.Errorf("no identity schema found for resource type %q", req.TypeName))
 		return resp, nil

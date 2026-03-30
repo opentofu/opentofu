@@ -18,10 +18,9 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/opentofu/opentofu/internal/plugin/validation"
-
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/plugin/convert"
+	"github.com/opentofu/opentofu/internal/plugin/validation"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	proto "github.com/opentofu/opentofu/internal/tfplugin5"
@@ -159,16 +158,15 @@ func (p *GRPCProvider) getProviderSchema(ctx context.Context) (resp providers.Ge
 		resp.Functions[name] = convert.ProtoToFunctionSpec(fn)
 	}
 
-	identitySchemas := p.getResourceIdentitySchemas(ctx)
-	if identitySchemas.Diagnostics.HasErrors() {
+	identitySchemas, idsDiags := p.getResourceIdentitySchemas(ctx)
+	if idsDiags.HasErrors() {
 		// Identity schemas are an optional enhancement. A provider bug in
 		// identity schemas should not prevent the provider from being used
 		// for all other operations, so we log the error and continue
 		// without identity schema support.
-		logger.Warn("failed to fetch resource identity schemas, identity-based features will be unavailable",
-			identitySchemas.Diagnostics.Err())
+		logger.Warn("failed to fetch resource identity schemas, identity-based features will be unavailable", idsDiags.Err())
 	} else {
-		for name, idSchema := range identitySchemas.IdentitySchemas {
+		for name, idSchema := range identitySchemas {
 			if resSchema, ok := resp.ResourceTypes[name]; ok {
 				resSchema.IdentitySchema = idSchema.Body
 				resSchema.IdentitySchemaVersion = idSchema.Version
@@ -208,34 +206,31 @@ func (p *GRPCProvider) getProtoProviderSchema(ctx context.Context) (*proto.GetPr
 // getResourceIdentitySchemas should ONLY be called from GetProviderSchema, which
 // merges the identity schemas into the cached provider schema response. All other
 // callers should use resSchema.IdentitySchema from the GetProviderSchema response.
-func (p *GRPCProvider) getResourceIdentitySchemas(ctx context.Context) providers.GetResourceIdentitySchemasResponse {
+func (p *GRPCProvider) getResourceIdentitySchemas(ctx context.Context) (map[string]providers.ResourceIdentitySchema, tfdiags.Diagnostics) {
 	logger.Trace("GRPCProvider: getResourceIdentitySchemas")
-	resp := providers.GetResourceIdentitySchemasResponse{
-		IdentitySchemas: make(map[string]providers.ResourceIdentitySchema),
-	}
+	var diags tfdiags.Diagnostics
 
 	protoResponse, err := p.client.GetResourceIdentitySchemas(ctx, new(proto.GetResourceIdentitySchemas_Request))
 	if err != nil {
 		// Providers that don't implement identity schemas return Unimplemented;
 		// this is expected and not an error — just return an empty response.
 		if status.Code(err) == codes.Unimplemented {
-			return resp
+			return nil, diags
 		}
-		resp.Diagnostics = resp.Diagnostics.Append(grpcErr(err))
-		return resp
+		diags = diags.Append(grpcErr(err))
+		return nil, diags
 	}
 
-	resp.Diagnostics = resp.Diagnostics.Append(convert.ProtoToDiagnostics(protoResponse.Diagnostics))
-
-	if resp.Diagnostics.HasErrors() {
-		return resp
+	diags = diags.Append(convert.ProtoToDiagnostics(protoResponse.Diagnostics))
+	if diags.HasErrors() || len(protoResponse.IdentitySchemas) == 0 {
+		return nil, diags
 	}
 
-	for resource, schema := range protoResponse.IdentitySchemas {
-		resp.IdentitySchemas[resource] = *convert.ProtoToResourceIdentitySchema(schema)
+	identitySchemas := make(map[string]providers.ResourceIdentitySchema, len(protoResponse.IdentitySchemas))
+	for resourceType, schema := range protoResponse.IdentitySchemas {
+		identitySchemas[resourceType] = *convert.ProtoToResourceIdentitySchema(schema)
 	}
-
-	return resp
+	return identitySchemas, diags
 }
 
 func (p *GRPCProvider) ValidateProviderConfig(ctx context.Context, r providers.ValidateProviderConfigRequest) (resp providers.ValidateProviderConfigResponse) {

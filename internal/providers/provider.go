@@ -192,14 +192,6 @@ type GetProviderSchemaResponse struct {
 	EphemeralResources map[string]Schema
 }
 
-// GetResourceIdentitySchemasResponse is the return type for GetResourceIdentitySchemas,
-type GetResourceIdentitySchemasResponse struct {
-	// IdentitySchemas maps the resource type name to that type's identity schema.
-	IdentitySchemas map[string]ResourceIdentitySchema
-
-	Diagnostics tfdiags.Diagnostics
-}
-
 type ResourceIdentitySchema struct {
 	// Version is the version of the identity schema. As per the comments in terraform-plugin-go,
 	// this should be a monotonically incrementing number, when OpenTofu comes across an identity stored in state
@@ -767,4 +759,3 @@ type CallFunctionArgumentError struct {
 func (err *CallFunctionArgumentError) Error() string {
 	return err.Text
 }
-
