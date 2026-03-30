@@ -7,7 +7,6 @@ package views
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/format"
@@ -40,7 +39,6 @@ func NewApply(args arguments.ViewOptions, destroy bool, view *View) Apply {
 	case arguments.ViewJSON:
 		apply = &ApplyJSON{
 			view:      NewJSONView(view, nil),
-			output:    view.streams.Stdout.File,
 			destroy:   destroy,
 			countHook: &countHook{},
 		}
@@ -58,7 +56,6 @@ func NewApply(args arguments.ViewOptions, destroy bool, view *View) Apply {
 	if args.JSONInto != nil {
 		apply = ApplyMulti{apply, &ApplyJSON{
 			view:      NewJSONView(view, args.JSONInto),
-			output:    args.JSONInto,
 			destroy:   destroy,
 			countHook: &countHook{},
 		}}
@@ -221,7 +218,6 @@ type ApplyJSON struct {
 	destroy bool
 
 	countHook *countHook
-	output    *os.File
 }
 
 var _ Apply = (*ApplyJSON)(nil)
