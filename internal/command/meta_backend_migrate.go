@@ -38,7 +38,7 @@ type backendMigrateOpts struct {
 	force                bool // if true, won't ask for confirmation
 }
 
-func (b *backendMigrateOpts) view(base *views.View) views.Backend {
+func (b *backendMigrateOpts) backendView(base *views.View) views.Backend {
 	if b != nil && b.View != nil {
 		return b.View
 	}
@@ -352,7 +352,7 @@ func (m *Meta) backendMigrateState_s_s(ctx context.Context, opts *backendMigrate
 
 	if m.stateLock {
 		lockCtx := context.Background()
-		view := opts.view(m.View).StateLocker()
+		view := opts.backendView(m.View).StateLocker()
 		locker := clistate.NewLocker(m.stateLockTimeout, view)
 
 		lockerSource := locker.WithContext(lockCtx)
@@ -786,7 +786,7 @@ func (m *Meta) backendMigrateState_S_TFC(ctx context.Context, opts *backendMigra
 		return err
 	}
 
-	view := opts.view(m.View)
+	view := opts.backendView(m.View)
 	view.MigrationCompleted(workspaces, newCurrentWorkspace)
 
 	return nil

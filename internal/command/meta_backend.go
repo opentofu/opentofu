@@ -65,7 +65,7 @@ type BackendOpts struct {
 	View views.Backend
 }
 
-func (b *BackendOpts) view(base *views.View) views.Backend {
+func (b *BackendOpts) backendView(base *views.View) views.Backend {
 	if b != nil && b.View != nil {
 		return b.View
 	}
@@ -916,7 +916,7 @@ func (m *Meta) backend_c_r_S(
 	c *configs.Backend, cHash int, sMgr *clistate.LocalState, output bool, opts *BackendOpts, enc encryption.StateEncryption) (backend.Backend, tfdiags.Diagnostics) {
 
 	var diags tfdiags.Diagnostics
-	view := opts.view(m.View)
+	view := opts.backendView(m.View)
 
 	s := sMgr.State()
 
@@ -985,7 +985,7 @@ func (m *Meta) backend_c_r_S(
 func (m *Meta) backend_C_r_s(ctx context.Context, c *configs.Backend, cHash int, sMgr *clistate.LocalState, opts *BackendOpts, enc encryption.StateEncryption) (backend.Backend, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	view := opts.view(m.View)
+	view := opts.backendView(m.View)
 	// Grab a purely local backend to get the local state if it exists
 	localB, localBDiags := m.Backend(ctx, &BackendOpts{ForceLocal: true, Init: true, View: view}, enc)
 	if localBDiags.HasErrors() {
@@ -1146,7 +1146,7 @@ func (m *Meta) backend_C_r_s(ctx context.Context, c *configs.Backend, cHash int,
 func (m *Meta) backend_C_r_S_changed(ctx context.Context, c *configs.Backend, cHash int, sMgr *clistate.LocalState, output bool, opts *BackendOpts, enc encryption.StateEncryption) (backend.Backend, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	view := opts.view(m.View)
+	view := opts.backendView(m.View)
 
 	// Get the old state
 	s := sMgr.State()
