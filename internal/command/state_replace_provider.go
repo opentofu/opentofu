@@ -117,7 +117,7 @@ func (c *StateReplaceProviderCommand) Run(rawArgs []string) int {
 
 	// Acquire lock if requested
 	if c.stateLock {
-		stateLocker := clistate.NewLocker(c.stateLockTimeout, views.NewStateLocker(args.ViewOptions, c.View))
+		stateLocker := clistate.NewLocker(c.stateLockTimeout, view.Backend().StateLocker())
 		if diags := stateLocker.Lock(stateMgr, "state-replace-provider"); diags.HasErrors() {
 			view.Diagnostics(diags)
 			return 1

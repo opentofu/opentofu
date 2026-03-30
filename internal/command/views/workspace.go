@@ -41,6 +41,10 @@ type Workspace interface {
 
 	// `tofu workspace show` specific
 	WorkspaceShow(name string)
+
+	// Backend returns the non-command view that contains methods to provide
+	// progress output for the backend operations.
+	Backend() Backend
 }
 
 // NewWorkspace returns an initialized Workspace implementation for the given ViewType.
@@ -155,6 +159,14 @@ func (m WorkspaceMulti) WarnWhenUsedAsEnvCmd(usedAsEnvCmd bool) {
 	}
 }
 
+func (m WorkspaceMulti) Backend() Backend {
+	ret := make([]Backend, len(m))
+	for i, v := range m {
+		ret[i] = v.Backend()
+	}
+	return BackendMulti(ret)
+}
+
 type WorkspaceHuman struct {
 	view *View
 }
@@ -191,16 +203,8 @@ func (v *WorkspaceHuman) WorkspaceInvalidName(name string) {
 }
 
 func (v *WorkspaceHuman) ListWorkspaces(workspaces []string, current string) {
-	var out bytes.Buffer
-	for _, s := range workspaces {
-		if s == current {
-			out.WriteString("* ")
-		} else {
-			out.WriteString("  ")
-		}
-		out.WriteString(s + "\n")
-	}
-	_, _ = v.view.streams.Println(out.String())
+	buf := buildWorkspacesList(workspaces, current)
+	_, _ = v.view.streams.Println(buf.String())
 }
 
 func (v *WorkspaceHuman) WorkspaceOverwrittenByEnvVarWarn() {
@@ -283,6 +287,12 @@ The "tofu workspace" commands should be used instead. "tofu env" will be removed
 	)})
 }
 
+func (v *WorkspaceHuman) Backend() Backend {
+	return &BackendHuman{
+		view: v.view,
+	}
+}
+
 type WorkspaceJSON struct {
 	view *JSONView
 }
@@ -350,4 +360,23 @@ func (v *WorkspaceJSON) WarnWhenUsedAsEnvCmd(usedAsEnvCmd bool) {
 		return
 	}
 	v.view.Warn("The \"tofu env\" family of commands is deprecated. Use \"tofu workspace\" instead")
+}
+
+func (v *WorkspaceJSON) Backend() Backend {
+	return &BackendJSON{
+		view: v.view,
+	}
+}
+
+func buildWorkspacesList(workspaces []string, current string) bytes.Buffer {
+	var ret bytes.Buffer
+	for _, s := range workspaces {
+		if s == current {
+			ret.WriteString("* ")
+		} else {
+			ret.WriteString("  ")
+		}
+		ret.WriteString(s + "\n")
+	}
+	return ret
 }

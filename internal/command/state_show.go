@@ -114,7 +114,7 @@ func (c *StateShowCommand) Run(rawArgs []string) int {
 	cwd := c.WorkingDir.NormalizePath(c.WorkingDir.RootModuleDir())
 
 	// Build the operation (required to get the schemas)
-	opReq := c.Operation(ctx, b, args.ViewOptions, enc)
+	opReq := c.Operation(ctx, b, view.Backend(), enc)
 	opReq.AllowUnsetVariables = true
 	opReq.ConfigDir = cwd
 	var callDiags tfdiags.Diagnostics

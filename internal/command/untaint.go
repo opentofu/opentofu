@@ -121,7 +121,7 @@ func (c *UntaintCommand) Run(rawArgs []string) int {
 	}
 
 	if c.stateLock {
-		stateLocker := clistate.NewLocker(c.stateLockTimeout, views.NewStateLocker(args.ViewOptions, c.View))
+		stateLocker := clistate.NewLocker(c.stateLockTimeout, view.Backend().StateLocker())
 		if diags := stateLocker.Lock(stateMgr, "untaint"); diags.HasErrors() {
 			view.Diagnostics(diags)
 			return 1

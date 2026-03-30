@@ -17,8 +17,6 @@ import (
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 
-	"github.com/mitchellh/cli"
-
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/backend/local"
 	"github.com/opentofu/opentofu/internal/tofu"
@@ -418,10 +416,10 @@ func TestCommand_checkRequiredVersion(t *testing.T) {
 	testCopyDir(t, testFixturePath("command-check-required-version"), td)
 	t.Chdir(td)
 
-	ui := cli.NewMockUi()
+	view, done := testView(t)
 	meta := Meta{
 		WorkingDir: workdir.NewDir("."),
-		Ui:         ui,
+		View:       view,
 	}
 
 	diags := meta.checkRequiredVersion(t.Context())
@@ -429,10 +427,11 @@ func TestCommand_checkRequiredVersion(t *testing.T) {
 		t.Fatalf("diagnostics should contain unmet version constraint, but is nil")
 	}
 
-	meta.showDiagnostics(diags)
+	view.Diagnostics(diags)
 
 	// Required version diags are correct
-	errStr := ui.ErrorWriter.String()
+	output := done(t)
+	errStr := output.Stderr()
 	if !strings.Contains(errStr, `required_version = "~> 0.9.0"`) {
 		t.Fatalf("output should point to unmet version constraint, but is:\n\n%s", errStr)
 	}

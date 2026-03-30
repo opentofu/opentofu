@@ -57,6 +57,10 @@ type State interface {
 	AddressParsingError(resAddr string)
 	NoInstanceFoundError()
 	ShowResourceState(ctx context.Context, stateFile *statefile.File, schemas *tofu.Schemas) int
+
+	// Backend returns the non-command view that contains methods to provide
+	// progress output for the backend operations.
+	Backend() Backend
 }
 
 // NewState returns an initialized State implementation for the given ViewType.
@@ -207,6 +211,14 @@ func (m StateMulti) ShowResourceState(ctx context.Context, stateFile *statefile.
 		ret = max(ret, o.ShowResourceState(ctx, stateFile, schemas))
 	}
 	return ret
+}
+
+func (m StateMulti) Backend() Backend {
+	ret := make([]Backend, len(m))
+	for i, v := range m {
+		ret[i] = v.Backend()
+	}
+	return BackendMulti(ret)
 }
 
 type StateHuman struct {
@@ -372,6 +384,12 @@ func (v *StateHuman) ShowResourceState(_ context.Context, stateFile *statefile.F
 	return 0
 }
 
+func (v *StateHuman) Backend() Backend {
+	return &BackendHuman{
+		view: v.view,
+	}
+}
+
 type StateJSON struct {
 	view   *JSONView
 	output *os.File
@@ -513,6 +531,12 @@ func (v *StateJSON) ShowResourceState(_ context.Context, stateFile *statefile.Fi
 	}
 	_, _ = fmt.Fprintln(v.output, string(rawState))
 	return 0
+}
+
+func (v *StateJSON) Backend() Backend {
+	return &BackendJSON{
+		view: v.view,
+	}
 }
 
 var (

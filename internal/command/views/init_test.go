@@ -135,45 +135,6 @@ func TestInitViews(t *testing.T) {
 			},
 			wantStdout: withNewline("Initializing modules..."),
 		},
-		"initializingCloudBackend": {
-			viewCall: func(init Init) {
-				init.InitializingCloudBackend()
-			},
-			wantJson: []map[string]any{
-				{
-					"@level":   "info",
-					"@message": "Initializing cloud backend...",
-					"@module":  "tofu.ui",
-				},
-			},
-			wantStdout: withNewline("\nInitializing cloud backend..."),
-		},
-		"initializingBackend": {
-			viewCall: func(init Init) {
-				init.InitializingBackend()
-			},
-			wantJson: []map[string]any{
-				{
-					"@level":   "info",
-					"@message": "Initializing the backend...",
-					"@module":  "tofu.ui",
-				},
-			},
-			wantStdout: withNewline("\nInitializing the backend..."),
-		},
-		"backendTypeAlias": {
-			viewCall: func(init Init) {
-				init.BackendTypeAlias("s3", "aws_s3")
-			},
-			wantJson: []map[string]any{
-				{
-					"@level":   "info",
-					"@message": "\"s3\" is an alias for backend type \"aws_s3\"",
-					"@module":  "tofu.ui",
-				},
-			},
-			wantStdout: withNewline("- \"s3\" is an alias for backend type \"aws_s3\""),
-		},
 		"initializingProviderPlugins": {
 			viewCall: func(init Init) {
 				init.InitializingProviderPlugins()

@@ -26,6 +26,10 @@ type Apply interface {
 
 	Diagnostics(diags tfdiags.Diagnostics)
 	HelpPrompt()
+
+	// Backend returns the non-command view that contains methods to provide
+	// progress output for the backend operations.
+	Backend() Backend
 }
 
 // NewApply returns an initialized Apply implementation for the given ViewType.
@@ -101,6 +105,14 @@ func (m ApplyMulti) HelpPrompt() {
 	for _, a := range m {
 		a.HelpPrompt()
 	}
+}
+
+func (m ApplyMulti) Backend() Backend {
+	ret := make([]Backend, len(m))
+	for i, v := range m {
+		ret[i] = v.Backend()
+	}
+	return BackendMulti(ret)
 }
 
 // The ApplyHuman implementation renders human-readable text logs, suitable for
@@ -190,6 +202,12 @@ func (v *ApplyHuman) HelpPrompt() {
 	v.view.HelpPrompt(command)
 }
 
+func (v *ApplyHuman) Backend() Backend {
+	return &BackendHuman{
+		view: v.view,
+	}
+}
+
 const stateOutPathPostApply = "The state of your infrastructure has been saved to the path below. This state is required to modify and destroy your infrastructure, so keep it safe. To inspect the complete state use the `tofu show` command."
 
 // The ApplyJSON implementation renders streaming JSON logs, suitable for
@@ -244,4 +262,10 @@ func (v *ApplyJSON) Diagnostics(diags tfdiags.Diagnostics) {
 }
 
 func (v *ApplyJSON) HelpPrompt() {
+}
+
+func (v *ApplyJSON) Backend() Backend {
+	return &BackendJSON{
+		view: v.view,
+	}
 }

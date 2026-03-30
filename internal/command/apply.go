@@ -107,7 +107,7 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 
 	// Prepare the backend, passing the plan file if present, and the
 	// backend-specific arguments
-	be, beDiags := c.PrepareBackend(ctx, planFile, args.State, args.ViewOptions, enc.State())
+	be, beDiags := c.PrepareBackend(ctx, planFile, args.State, view.Backend(), enc.State())
 	diags = diags.Append(beDiags)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
@@ -200,7 +200,7 @@ func (c *ApplyCommand) LoadPlanFile(path string, enc encryption.Encryption) (*pl
 	return planFile, diags
 }
 
-func (c *ApplyCommand) PrepareBackend(ctx context.Context, planFile *planfile.WrappedPlanFile, args *arguments.State, viewOptions arguments.ViewOptions, enc encryption.StateEncryption) (backend.Enhanced, tfdiags.Diagnostics) {
+func (c *ApplyCommand) PrepareBackend(ctx context.Context, planFile *planfile.WrappedPlanFile, args *arguments.State, backendView views.Backend, enc encryption.StateEncryption) (backend.Enhanced, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// FIXME: we need to apply the state arguments to the meta object here
@@ -241,8 +241,8 @@ func (c *ApplyCommand) PrepareBackend(ctx context.Context, planFile *planfile.Wr
 		}
 
 		be, beDiags = c.Backend(ctx, &BackendOpts{
-			Config:      backendConfig,
-			ViewOptions: viewOptions,
+			Config: backendConfig,
+			View:   backendView,
 		}, enc)
 	}
 
@@ -269,7 +269,7 @@ func (c *ApplyCommand) OperationRequest(
 	diags = diags.Append(c.providerDevOverrideRuntimeWarnings())
 
 	// Build the operation
-	opReq := c.Operation(ctx, be, applyArgs.ViewOptions, enc)
+	opReq := c.Operation(ctx, be, view.Backend(), enc)
 	opReq.AutoApprove = applyArgs.AutoApprove
 	opReq.SuppressForgetErrorsDuringDestroy = applyArgs.SuppressForgetErrorsDuringDestroy
 	opReq.ConfigDir = "."
