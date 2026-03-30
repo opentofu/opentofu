@@ -88,7 +88,7 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 	}
 
 	// Prepare the backend with the backend-specific arguments
-	be, beDiags := c.PrepareBackend(ctx, args.State, args.ViewOptions, enc)
+	be, beDiags := c.PrepareBackend(ctx, args.State, view, enc)
 	diags = diags.Append(beDiags)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
@@ -126,7 +126,7 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 	return op.Result.ExitStatus()
 }
 
-func (c *PlanCommand) PrepareBackend(ctx context.Context, args *arguments.State, viewOptions arguments.ViewOptions, enc encryption.Encryption) (backend.Enhanced, tfdiags.Diagnostics) {
+func (c *PlanCommand) PrepareBackend(ctx context.Context, args *arguments.State, view views.Plan, enc encryption.Encryption) (backend.Enhanced, tfdiags.Diagnostics) {
 	// FIXME: we need to apply the state arguments to the meta object here
 	// because they are later used when initializing the backend. Carving a
 	// path to pass these arguments to the functions that need them is
@@ -140,8 +140,8 @@ func (c *PlanCommand) PrepareBackend(ctx context.Context, args *arguments.State,
 
 	// Load the backend
 	be, beDiags := c.Backend(ctx, &BackendOpts{
-		Config:      backendConfig,
-		ViewOptions: viewOptions,
+		Config: backendConfig,
+		View:   view.Backend(),
 	}, enc.State())
 	diags = diags.Append(beDiags)
 	if beDiags.HasErrors() {
@@ -164,7 +164,7 @@ func (c *PlanCommand) OperationRequest(
 	var diags tfdiags.Diagnostics
 
 	// Build the operation
-	opReq := c.Operation(ctx, be, viewOptions, enc)
+	opReq := c.Operation(ctx, be, view.Backend(), enc)
 	opReq.ConfigDir = "."
 	opReq.PlanMode = args.PlanMode
 	opReq.Hooks = view.Hooks()

@@ -16,7 +16,6 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/backend"
-	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/clistate"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/configs"
@@ -196,7 +195,8 @@ func TestRemoteContextWithVars(t *testing.T) {
 			}
 
 			streams, _ := terminal.StreamsForTesting(t)
-			view := views.NewStateLocker(arguments.ViewOptions{ViewType: arguments.ViewHuman}, views.NewView(streams))
+			backendView := views.NewBackendHuman(views.NewView(streams))
+			view := backendView.StateLocker()
 
 			op := &backend.Operation{
 				ConfigDir:    configDir,
@@ -421,7 +421,8 @@ func TestRemoteVariablesDoNotOverride(t *testing.T) {
 			}
 
 			streams, _ := terminal.StreamsForTesting(t)
-			view := views.NewStateLocker(arguments.ViewOptions{ViewType: arguments.ViewHuman}, views.NewView(streams))
+			backendView := views.NewBackendHuman(views.NewView(streams))
+			view := backendView.StateLocker()
 
 			op := &backend.Operation{
 				ConfigDir:    configDir,

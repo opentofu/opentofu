@@ -134,8 +134,8 @@ func (c *GraphCommand) Run(rawArgs []string) int {
 		}
 
 		b, backendDiags = c.Backend(ctx, &BackendOpts{
-			Config:      backendConfig,
-			ViewOptions: args.ViewOptions,
+			Config: backendConfig,
+			View:   view.Backend(),
 		}, enc.State())
 		diags = diags.Append(backendDiags)
 		if backendDiags.HasErrors() {
@@ -156,7 +156,7 @@ func (c *GraphCommand) Run(rawArgs []string) int {
 	c.ignoreRemoteVersionConflict(b)
 
 	// Build the operation
-	opReq := c.Operation(ctx, b, args.ViewOptions, enc)
+	opReq := c.Operation(ctx, b, view.Backend(), enc)
 	opReq.ConfigDir = configPath
 	opReq.ConfigLoader, err = c.initConfigLoader()
 	opReq.PlanFile = planFile

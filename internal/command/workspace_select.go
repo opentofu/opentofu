@@ -85,8 +85,8 @@ func (c *WorkspaceSelectCommand) Run(rawArgs []string) int {
 
 	// Load the backend
 	b, backendDiags := c.Backend(ctx, &BackendOpts{
-		Config:      backendConfig,
-		ViewOptions: args.ViewOptions,
+		Config: backendConfig,
+		View:   view.Backend(),
 	}, enc.State())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {

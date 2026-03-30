@@ -22,6 +22,10 @@ type Providers interface {
 	Diagnostics(diags tfdiags.Diagnostics)
 	ModuleRequirements(cfg *configs.ModuleRequirements)
 	StateRequirements(stateReqs getproviders.Requirements)
+
+	// Backend returns the non-command view that contains methods to provide
+	// progress output for the backend operations.
+	Backend() Backend
 }
 
 // NewProviders returns an initialized Providers implementation for the given ViewType.
@@ -61,6 +65,12 @@ func (v *ProvidersHuman) StateRequirements(stateReqs getproviders.Requirements) 
 	_, _ = v.view.streams.Println("")
 	for _, fqn := range reqs {
 		_, _ = v.view.streams.Println(fmt.Sprintf("    provider[%s]\n", fqn.String()))
+	}
+}
+
+func (v *ProvidersHuman) Backend() Backend {
+	return &BackendHuman{
+		view: v.view,
 	}
 }
 

@@ -17,6 +17,10 @@ type Taint interface {
 	Diagnostics(diags tfdiags.Diagnostics)
 	TaintedSuccessfully(addr addrs.AbsResourceInstance)
 	UntaintedSuccessfully(addr addrs.AbsResourceInstance)
+
+	// Backend returns the non-command view that contains methods to provide
+	// progress output for the backend operations.
+	Backend() Backend
 }
 
 // NewTaint returns an initialized Taint implementation for the given ViewType.
@@ -59,6 +63,14 @@ func (m TaintMulti) UntaintedSuccessfully(addr addrs.AbsResourceInstance) {
 	}
 }
 
+func (m TaintMulti) Backend() Backend {
+	ret := make([]Backend, len(m))
+	for i, v := range m {
+		ret[i] = v.Backend()
+	}
+	return BackendMulti(ret)
+}
+
 type TaintHuman struct {
 	view *View
 }
@@ -77,6 +89,12 @@ func (v *TaintHuman) UntaintedSuccessfully(addr addrs.AbsResourceInstance) {
 	_, _ = v.view.streams.Println(fmt.Sprintf("Resource instance %s has been successfully untainted.", addr))
 }
 
+func (v *TaintHuman) Backend() Backend {
+	return &BackendHuman{
+		view: v.view,
+	}
+}
+
 type TaintJSON struct {
 	view *JSONView
 }
@@ -93,4 +111,10 @@ func (v *TaintJSON) TaintedSuccessfully(addr addrs.AbsResourceInstance) {
 
 func (v *TaintJSON) UntaintedSuccessfully(addr addrs.AbsResourceInstance) {
 	v.view.Info(fmt.Sprintf("Resource instance %s has been successfully untainted.", addr))
+}
+
+func (v *TaintJSON) Backend() Backend {
+	return &BackendJSON{
+		view: v.view,
+	}
 }

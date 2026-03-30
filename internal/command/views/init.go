@@ -44,6 +44,10 @@ type Init interface {
 	LockFileCreated()
 	LockFileChanged()
 	Hooks(showLocalDir bool) initwd.ModuleInstallHooks
+
+	// Backend returns the non-command view that contains methods to provide
+	// progress output for the backend operations.
+	Backend() Backend
 }
 
 // NewInit returns an initialized Init implementation for the given ViewType.
@@ -220,6 +224,14 @@ func (m InitMulti) Hooks(showLocalPath bool) initwd.ModuleInstallHooks {
 	return moduleInstallationHookMulti(hooks)
 }
 
+func (m InitMulti) Backend() Backend {
+	ret := make([]Backend, len(m))
+	for i, v := range m {
+		ret[i] = v.Backend()
+	}
+	return BackendMulti(ret)
+}
+
 type InitHuman struct {
 	view *View
 }
@@ -390,6 +402,12 @@ func (v *InitHuman) Hooks(showLocalPath bool) initwd.ModuleInstallHooks {
 	}
 }
 
+func (v *InitHuman) Backend() Backend {
+	return &BackendHuman{
+		view: v.view,
+	}
+}
+
 type InitJSON struct {
 	view *JSONView
 }
@@ -529,5 +547,11 @@ func (v *InitJSON) Hooks(showLocalPath bool) initwd.ModuleInstallHooks {
 	return &moduleInstallationHookJSON{
 		v:              v.view,
 		showLocalPaths: showLocalPath,
+	}
+}
+
+func (v *InitJSON) Backend() Backend {
+	return &BackendJSON{
+		view: v.view,
 	}
 }

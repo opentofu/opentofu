@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/opentofu/opentofu/internal/command/arguments"
 )
 
 func TestBackendViews(t *testing.T) {
@@ -217,6 +216,48 @@ has changed. OpenTofu will now check for existing state in the backends.
 
 `,
 		},
+		// this validates that the [Backend] and [StateLocker] are initialised correctly
+		// and both write to the same output [os.File].
+		"same output used for multiple views": {
+			viewCall: func(view Backend) {
+				view.InitializingCloudBackend()
+				slv := view.StateLocker()
+				slv.Locking()
+				slv.Unlocking()
+				view.InitializingCloudBackend()
+			},
+			wantJson: []map[string]any{
+				{
+					"@level":   "info",
+					"@message": "Initializing cloud backend...",
+					"@module":  "tofu.ui",
+				},
+				{
+					"@level":   "info",
+					"@message": "Acquiring state lock. This may take a few moments...",
+					"@module":  "tofu.ui",
+					"type":     "state_lock_acquire",
+				},
+				{
+					"@level":   "info",
+					"@message": "Releasing state lock. This may take a few moments...",
+					"@module":  "tofu.ui",
+					"type":     "state_lock_release",
+				},
+				{
+					"@level":   "info",
+					"@message": "Initializing cloud backend...",
+					"@module":  "tofu.ui",
+				},
+			},
+			wantStdout: `
+Initializing cloud backend...
+Acquiring state lock. This may take a few moments...
+Releasing state lock. This may take a few moments...
+
+Initializing cloud backend...
+`,
+		},
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -229,8 +270,8 @@ has changed. OpenTofu will now check for existing state in the backends.
 
 func testBackendHuman(t *testing.T, call func(view Backend), wantStdout, wantStderr string) {
 	view, done := testView(t)
-	initView := NewBackend(arguments.ViewOptions{ViewType: arguments.ViewHuman}, view)
-	call(initView)
+	v := NewBackendHuman(view)
+	call(v)
 	output := done(t)
 	if diff := cmp.Diff(wantStderr, output.Stderr()); diff != "" {
 		t.Errorf("invalid stderr (-want, +got):\n%s", diff)
@@ -243,8 +284,9 @@ func testBackendHuman(t *testing.T, call func(view Backend), wantStdout, wantStd
 func testBackendJson(t *testing.T, call func(view Backend), want []map[string]any) {
 	// New type just to assert the fields that we are interested in
 	view, done := testView(t)
-	initView := NewBackend(arguments.ViewOptions{ViewType: arguments.ViewJSON}, view)
-	call(initView)
+	jsonView := NewJSONView(view, nil)
+	v := &BackendJSON{view: jsonView}
+	call(v)
 	output := done(t)
 	if output.Stderr() != "" {
 		t.Errorf("expected no stderr but got:\n%s", output.Stderr())
@@ -259,8 +301,10 @@ func testBackendMulti(t *testing.T, call func(view Backend), wantStdout string, 
 		t.Fatalf("failed to create the file to write json content into: %s", err)
 	}
 	view, done := testView(t)
-	initView := NewBackend(arguments.ViewOptions{ViewType: arguments.ViewHuman, JSONInto: jsonInto}, view)
-	call(initView)
+	humanView := NewBackendHuman(view)
+	jsonView := &BackendJSON{view: NewJSONView(view, jsonInto)}
+	v := BackendMulti{humanView, jsonView}
+	call(v)
 	{
 		if err := jsonInto.Close(); err != nil {
 			t.Fatalf("failed to close the jsonInto file: %s", err)

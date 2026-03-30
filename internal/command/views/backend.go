@@ -8,7 +8,6 @@ package views
 import (
 	"fmt"
 
-	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -27,24 +26,15 @@ type Backend interface {
 	BackendTypeChanged(oldBackendType string, newBackendType string)
 	BackendReconfigured()
 	MigrationCompleted(workspaces []string, currentWs string)
+
+	StateLocker() StateLocker
 }
 
-// NewBackend returns an initialized Backend implementation for the given ViewType.
-func NewBackend(args arguments.ViewOptions, view *View) Backend {
-	var ret Backend
-	switch args.ViewType {
-	case arguments.ViewJSON:
-		ret = &BackendJSON{view: NewJSONView(view, nil)}
-	case arguments.ViewHuman:
-		ret = &BackendHuman{view: view}
-	default:
-		panic(fmt.Sprintf("unknown view type %v", args.ViewType))
-	}
-
-	if args.JSONInto != nil {
-		ret = &BackendMulti{ret, &BackendJSON{view: NewJSONView(view, args.JSONInto)}}
-	}
-	return ret
+// NewBackendHuman returns a new Backend instance that will print in human format.
+// This functions is meant to be used only for testing purposes. In actual flows,
+// Backend should be acquired from another view.
+func NewBackendHuman(view *View) Backend {
+	return &BackendHuman{view: view}
 }
 
 type BackendMulti []Backend
@@ -134,6 +124,14 @@ func (m BackendMulti) MigrationCompleted(workspaces []string, currentWs string) 
 	}
 }
 
+func (m BackendMulti) StateLocker() StateLocker {
+	ret := make([]StateLocker, len(m))
+	for i, v := range m {
+		ret[i] = v.StateLocker()
+	}
+	return StateLockerMulti(ret)
+}
+
 type BackendHuman struct {
 	view *View
 }
@@ -206,6 +204,12 @@ func (v *BackendHuman) MigrationCompleted(workspaces []string, currentWs string)
 	_, _ = v.view.streams.Println(buf.String())
 }
 
+func (v *BackendHuman) StateLocker() StateLocker {
+	return &StateLockerHuman{
+		view: v.view,
+	}
+}
+
 type BackendJSON struct {
 	view *JSONView
 }
@@ -269,4 +273,10 @@ func (v *BackendJSON) BackendReconfigured() {
 
 func (v *BackendJSON) MigrationCompleted(workspaces []string, currentWs string) {
 	v.view.log.Info("Migration complete", "workspaces", workspaces, "current_workspace", currentWs)
+}
+
+func (v *BackendJSON) StateLocker() StateLocker {
+	return &StateLockerJSON{
+		view: v.view,
+	}
 }
