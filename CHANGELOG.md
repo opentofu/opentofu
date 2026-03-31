@@ -44,6 +44,7 @@ ENHANCEMENTS:
 - The `s3` backend now automatically discovers and uses AWS credentials issued using [the `aws login` command](https://docs.aws.amazon.com/cli/latest/reference/login/) in AWS CLI. ([#3767](https://github.com/opentofu/opentofu/pull/3767))
 - The `azurerm` backend now supports authentication using Azure DevOps and Azure Pipelines workload identity federation. ([#3820](https://github.com/opentofu/opentofu/pull/3820))
 - Most of the commands now prints the usage text when arguments parsing fails, prints previously legacy error messages as regular diagnostics and received support JSON output. ([#3941](https://github.com/opentofu/opentofu/pull/3941))
+- A new `const` attribute (optional) has been added to variable blocks to declare if they are allowed to be used in static evaluation. ([#3946](https://github.com/opentofu/opentofu/pull/3946))
 
 BUG FIXES:
 
