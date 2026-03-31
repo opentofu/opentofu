@@ -13,7 +13,6 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/arguments"
-	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -62,7 +61,7 @@ func (c *ValidateCommand) Run(rawArgs []string) int {
 	}
 
 	// Inject variables from args into meta for static evaluation
-	c.GatherVariables(args.Vars)
+	c.Meta.variableArgs = args.Vars.All()
 
 	validateDiags := c.validate(ctx, dir, args.TestDirectory, args.NoTests)
 	diags = diags.Append(validateDiags)
@@ -74,23 +73,6 @@ func (c *ValidateCommand) Run(rawArgs []string) int {
 	diags = diags.Append(c.providerDevOverrideRuntimeWarnings())
 
 	return view.Results(diags)
-}
-
-func (c *ValidateCommand) GatherVariables(args *arguments.Vars) {
-	// FIXME the arguments package currently trivially gathers variable related
-	// arguments in a heterogeneous slice, in order to minimize the number of
-	// code paths gathering variables during the transition to this structure.
-	// Once all commands that gather variables have been converted to this
-	// structure, we could move the variable gathering code to the arguments
-	// package directly, removing this shim layer.
-
-	varArgs := args.All()
-	items := make([]flags.RawFlag, len(varArgs))
-	for i := range varArgs {
-		items[i].Name = varArgs[i].Name
-		items[i].Value = varArgs[i].Value
-	}
-	c.Meta.variableArgs = flags.RawFlags{Items: &items}
 }
 
 func (c *ValidateCommand) validate(ctx context.Context, dir, testDir string, noTests bool) tfdiags.Diagnostics {

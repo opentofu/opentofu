@@ -85,7 +85,7 @@ func (m *Meta) collectVariableValues() (map[string]backend.UnparsedVariableValue
 
 	// Finally we process values given explicitly on the command line, either
 	// as individual literal settings or as additional files to read.
-	for _, rawFlag := range m.variableArgs.AllItems() {
+	for _, rawFlag := range m.variableArgs {
 		switch rawFlag.Name {
 		case "-var":
 			// Value should be in the form "name=value", where value is a

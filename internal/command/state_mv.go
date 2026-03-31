@@ -11,8 +11,6 @@ import (
 	"strings"
 
 	"github.com/mitchellh/cli"
-	"github.com/opentofu/opentofu/internal/command/flags"
-
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/arguments"
@@ -62,7 +60,7 @@ func (c *StateMvCommand) Run(rawArgs []string) int {
 	c.stateLock = args.Backend.StateLock
 	c.stateLockTimeout = args.Backend.StateLockTimeout
 	c.ignoreRemoteVersion = args.Backend.IgnoreRemoteVersion
-	c.GatherVariables(args.Vars)
+	c.Meta.variableArgs = args.Vars.All()
 
 	if diags := c.Meta.checkRequiredVersion(ctx); diags != nil {
 		view.Diagnostics(diags)
@@ -608,22 +606,4 @@ Options:
 
 func (c *StateMvCommand) Synopsis() string {
 	return "Move an item in the state"
-}
-
-// TODO meta-refactor: move this to arguments once all commands are using the same shim logic
-func (c *StateMvCommand) GatherVariables(args *arguments.Vars) {
-	// FIXME the arguments package currently trivially gathers variable related
-	// arguments in a heterogeneous slice, in order to minimize the number of
-	// code paths gathering variables during the transition to this structure.
-	// Once all commands that gather variables have been converted to this
-	// structure, we could move the variable gathering code to the arguments
-	// package directly, removing this shim layer.
-
-	varArgs := args.All()
-	items := make([]flags.RawFlag, len(varArgs))
-	for i := range varArgs {
-		items[i].Name = varArgs[i].Name
-		items[i].Value = varArgs[i].Value
-	}
-	c.Meta.variableArgs = flags.RawFlags{Items: &items}
 }

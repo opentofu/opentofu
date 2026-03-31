@@ -14,7 +14,6 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/mitchellh/cli"
-	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/opentofu/internal/tracing"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -63,7 +62,6 @@ func (c *ImportCommand) Run(rawArgs []string) int {
 		return cli.RunResultHelp
 	}
 	c.configureBackendFlags(args)
-	c.GatherVariables(args.Vars)
 
 	// Parse the provided resource address.
 	traversalSrc := []byte(args.ResourceAddress)
@@ -342,24 +340,8 @@ func (c *ImportCommand) configureBackendFlags(args *arguments.Import) {
 	// operation, but there is no clear path to pass this value down, so we
 	// continue to mutate the Meta object state for now.
 	c.Meta.input = args.ViewOptions.InputEnabled
-}
 
-// TODO meta-refactor: move this to arguments once all commands are using the same shim logic
-func (c *ImportCommand) GatherVariables(args *arguments.Vars) {
-	// FIXME the arguments package currently trivially gathers variable related
-	// arguments in a heterogeneous slice, in order to minimize the number of
-	// code paths gathering variables during the transition to this structure.
-	// Once all commands that gather variables have been converted to this
-	// structure, we could move the variable gathering code to the arguments
-	// package directly, removing this shim layer.
-
-	varArgs := args.All()
-	items := make([]flags.RawFlag, len(varArgs))
-	for i := range varArgs {
-		items[i].Name = varArgs[i].Name
-		items[i].Value = varArgs[i].Value
-	}
-	c.Meta.variableArgs = flags.RawFlags{Items: &items}
+	c.Meta.variableArgs = args.Vars.All()
 }
 
 func (c *ImportCommand) Help() string {
