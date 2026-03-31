@@ -1279,22 +1279,22 @@ func TestVarsParsing(t *testing.T) {
 		},
 		"apply": {
 			cmdBuilder: func(m Meta) cli.Command {
-				return &PlanCommand{m}
+				return &ApplyCommand{Meta: m}
 			},
 		},
 		"output": {
 			cmdBuilder: func(m Meta) cli.Command {
-				return &PlanCommand{m}
+				return &OutputCommand{m}
 			},
 		},
 		"show": {
 			cmdBuilder: func(m Meta) cli.Command {
-				return &PlanCommand{m}
+				return &ShowCommand{Meta: m}
 			},
 		},
 		"refresh": {
 			cmdBuilder: func(m Meta) cli.Command {
-				return &PlanCommand{m}
+				return &RefreshCommand{m}
 			},
 		},
 	}
