@@ -334,6 +334,17 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 					}
 				}
 			}
+
+			for _, ex := range n.Config.TriggersReplacement {
+				// Validate the triggers_replacement traversals
+				refs, _ := lang.ReferencesInExpr(addrs.ParseRef, ex)
+				for _, ref := range refs {
+					remainingDiags := schemaForType.Block.StaticValidateTraversal(ref.Remaining)
+					if remainingDiags.HasErrors() {
+						diags = diags.Append(remainingDiags)
+					}
+				}
+			}
 		}
 
 		// Use unmarked value for validate request

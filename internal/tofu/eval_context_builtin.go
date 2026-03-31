@@ -264,6 +264,13 @@ func (c *BuiltinEvalContext) EvaluateReplaceTriggeredBy(ctx context.Context, exp
 		// a new empty block here.
 		ty = (&configschema.Block{}).ImpliedType()
 	} else {
+		// When a valid schema is found, we still need to validate the remaining
+		// of the traversal path, as this is not validated earlier.
+		remainingDiags := resSchema.Block.StaticValidateTraversal(ref.Remaining)
+		if remainingDiags.HasErrors() {
+			diags = diags.Append(remainingDiags)
+			return nil, false, diags
+		}
 		ty = resSchema.Block.ImpliedType()
 	}
 
