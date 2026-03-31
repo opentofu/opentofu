@@ -74,7 +74,9 @@ func (mvc MockValueComposer) ComposeBySchema(schema *configschema.Block, config 
 }
 
 /*
-composeMockValueForAttributes follows the truth table below for generating an output value, given schema and inputs:
+composeMockValueForAttributes generates a new mocked value based on the given schema and inputs.
+For write-only attributes, it always returns null value based on the attribute's schema.
+For all other attribute configurations, the generated value follows the truth table below:
 Required  Optional  Computed  Has config  Has Override  Result
 t         f         f         t           t             Error - Not Allowed to override config
 t         f         f         t           f             Config
@@ -148,7 +150,9 @@ func (mvc MockValueComposer) composeMockValueForAttributes(attrs map[string]*con
 		}
 
 		// Determine the value
-		if attr.Required {
+		if attr.WriteOnly {
+			mockAttrs[k] = cty.NullVal(attr.ImpliedType())
+		} else if attr.Required {
 			// Value from configuration only
 			if !hasConfig {
 				diags = diags.Append(tfdiags.WholeContainingBody(
