@@ -501,7 +501,7 @@ func TestGRPCProvider_PrepareProviderConfig(t *testing.T) {
 		gomock.Any(),
 	).Return(&proto.PrepareProviderConfig_Response{}, nil)
 
-	cfg := hcl2shim.HCL2ValueFromConfigValue(map[string]interface{}{"attr": "value"})
+	cfg := hcl2shim.HCL2ValueFromConfigValue(map[string]any{"attr": "value"})
 	resp := p.ValidateProviderConfig(t.Context(), providers.ValidateProviderConfigRequest{Config: cfg})
 	checkDiags(t, resp.Diagnostics)
 }
@@ -515,7 +515,7 @@ func TestGRPCProvider_ValidateResourceConfig(t *testing.T) {
 		gomock.Any(),
 	).Return(&proto.ValidateResourceTypeConfig_Response{}, nil)
 
-	cfg := hcl2shim.HCL2ValueFromConfigValue(map[string]interface{}{"attr": "value"})
+	cfg := hcl2shim.HCL2ValueFromConfigValue(map[string]any{"attr": "value"})
 	resp := p.ValidateResourceConfig(t.Context(), providers.ValidateResourceConfigRequest{
 		TypeName: "resource",
 		Config:   cfg,
@@ -532,7 +532,7 @@ func TestGRPCProvider_ValidateDataSourceConfig(t *testing.T) {
 		gomock.Any(),
 	).Return(&proto.ValidateDataSourceConfig_Response{}, nil)
 
-	cfg := hcl2shim.HCL2ValueFromConfigValue(map[string]interface{}{"attr": "value"})
+	cfg := hcl2shim.HCL2ValueFromConfigValue(map[string]any{"attr": "value"})
 	resp := p.ValidateDataResourceConfig(t.Context(), providers.ValidateDataResourceConfigRequest{
 		TypeName: "data",
 		Config:   cfg,
@@ -549,7 +549,7 @@ func TestGRPCProvider_ValidateEphemeralResourceConfig(t *testing.T) {
 		gomock.Any(),
 	).Return(&proto.ValidateEphemeralResourceConfig_Response{}, nil)
 
-	cfg := hcl2shim.HCL2ValueFromConfigValue(map[string]interface{}{"attr": "value"})
+	cfg := hcl2shim.HCL2ValueFromConfigValue(map[string]any{"attr": "value"})
 	resp := p.ValidateEphemeralConfig(t.Context(), providers.ValidateEphemeralConfigRequest{
 		TypeName: "eph",
 		Config:   cfg,
