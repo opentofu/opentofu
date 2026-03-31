@@ -3,6 +3,7 @@ package hcl2shim
 import (
 	"testing"
 
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty-debug/ctydebug"
 	"github.com/zclconf/go-cty/cty"
 
@@ -21,6 +22,7 @@ func TestComposeMockValueBySchema(t *testing.T) {
 		defaults  map[string]cty.Value
 		wantVal   cty.Value
 		wantError bool
+		wantWarn  bool
 	}{
 		"diff-props-in-root-attributes": {
 			schema: &configschema.Block{
@@ -693,9 +695,6 @@ func TestComposeMockValueBySchema(t *testing.T) {
 				"useDefaultsValue": cty.StringVal("iAmFromDefaults"),
 				"nested": cty.ObjectVal(map[string]cty.Value{
 					"useDefaultsValue": cty.StringVal("iAmFromDefaults"),
-					// even if the user provides write-only values in the overrides
-					// the write-only attributes should always generate a null value
-					"write-only": cty.StringVal("iAmFromDefaults"),
 				}),
 			},
 			wantVal: cty.ObjectVal(map[string]cty.Value{
@@ -750,6 +749,25 @@ func TestComposeMockValueBySchema(t *testing.T) {
 			},
 			wantError: true,
 		},
+		"override-of-write-only-without-config": {
+			schema: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"write-only": {
+						Type:      cty.String,
+						Optional:  true,
+						Computed:  true,
+						WriteOnly: true,
+					},
+				},
+			},
+			defaults: map[string]cty.Value{
+				"write-only": cty.StringVal("str"),
+			},
+			wantVal: cty.ObjectVal(map[string]cty.Value{
+				"write-only": cty.NullVal(cty.String),
+			}),
+			wantWarn: true,
+		},
 		"dynamically-typed-values": {
 			schema: &configschema.Block{
 				Attributes: map[string]*configschema.Attribute{
@@ -779,9 +797,24 @@ func TestComposeMockValueBySchema(t *testing.T) {
 			case !test.wantError && gotDiags.HasErrors():
 				t.Fatalf("Got unexpected error diags: %v", gotDiags.ErrWithWarnings())
 
+			case test.wantWarn && !hasWarns(gotDiags):
+				t.Fatalf("Expected warns in diags, but none returned")
+
+			case !test.wantWarn && hasWarns(gotDiags):
+				t.Fatalf("Got unexpected warn diags: %v", gotDiags.ErrWithWarnings())
+
 			case !test.wantVal.RawEquals(gotVal):
 				t.Fatalf("Wrong value\ngot: %swant: %sdiff: %s", ctydebug.ValueString(gotVal), ctydebug.ValueString(test.wantVal), ctydebug.DiffValues(test.wantVal, gotVal))
 			}
 		})
 	}
+}
+
+func hasWarns(diags tfdiags.Diagnostics) bool {
+	for _, diag := range diags {
+		if diag.Severity() == tfdiags.Warning {
+			return true
+		}
+	}
+	return false
 }
