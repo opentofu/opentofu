@@ -105,9 +105,9 @@ func TestBlockEmptyValue(t *testing.T) {
 				})),
 			}),
 			cty.ObjectVal(map[string]cty.Value{
-				"list": cty.UnknownVal(cty.Object(map[string]cty.Type{
+				"list": cty.UnknownVal(cty.List(cty.Object(map[string]cty.Type{
 					"str": cty.String,
-				})),
+				}))),
 			}),
 		},
 		{
@@ -127,9 +127,9 @@ func TestBlockEmptyValue(t *testing.T) {
 				"list_dynamic": cty.EmptyTupleVal,
 			}),
 			cty.ObjectVal(map[string]cty.Value{
-				"list_dynamic": cty.UnknownVal(cty.Object(map[string]cty.Type{
+				"list_dynamic": cty.UnknownVal(cty.List(cty.Object(map[string]cty.Type{
 					"str": cty.DynamicPseudoType,
-				})),
+				}))),
 			}),
 		},
 		{
@@ -151,9 +151,9 @@ func TestBlockEmptyValue(t *testing.T) {
 				})),
 			}),
 			cty.ObjectVal(map[string]cty.Value{
-				"map": cty.UnknownVal(cty.Object(map[string]cty.Type{
+				"map": cty.UnknownVal(cty.Map(cty.Object(map[string]cty.Type{
 					"str": cty.String,
-				})),
+				}))),
 			}),
 		},
 		{
@@ -173,9 +173,9 @@ func TestBlockEmptyValue(t *testing.T) {
 				"map_dynamic": cty.EmptyObjectVal,
 			}),
 			cty.ObjectVal(map[string]cty.Value{
-				"map_dynamic": cty.UnknownVal(cty.Object(map[string]cty.Type{
+				"map_dynamic": cty.UnknownVal(cty.Map(cty.Object(map[string]cty.Type{
 					"str": cty.DynamicPseudoType,
-				})),
+				}))),
 			}),
 		},
 		{
@@ -197,9 +197,9 @@ func TestBlockEmptyValue(t *testing.T) {
 				})),
 			}),
 			cty.ObjectVal(map[string]cty.Value{
-				"set": cty.UnknownVal(cty.Object(map[string]cty.Type{
+				"set": cty.UnknownVal(cty.Set(cty.Object(map[string]cty.Type{
 					"str": cty.String,
-				})),
+				}))),
 			}),
 		},
 	}
