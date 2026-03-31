@@ -22,7 +22,24 @@ func (b *Block) UnknownValue() cty.Value {
 		vals[name] = cty.UnknownVal(attrS.ImpliedType())
 	}
 	for name, blockS := range b.BlockTypes {
-		vals[name] = cty.UnknownVal(blockS.ImpliedType())
+		vals[name] = blockS.UnknownValue()
 	}
 	return cty.ObjectVal(vals)
+}
+
+// UnknownValue returns the "unknown value" for when there are zero nested blocks
+// present of the receiving type.
+func (b *NestedBlock) UnknownValue() cty.Value {
+	switch b.Nesting {
+	case NestingSingle, NestingGroup:
+		return cty.UnknownVal(b.Block.ImpliedType())
+	case NestingList:
+		return cty.UnknownVal(cty.List(b.Block.ImpliedType()))
+	case NestingMap:
+		return cty.UnknownVal(cty.Map(b.Block.ImpliedType()))
+	case NestingSet:
+		return cty.UnknownVal(cty.Set(b.Block.ImpliedType()))
+	default:
+		return cty.UnknownVal(cty.DynamicPseudoType)
+	}
 }

@@ -795,18 +795,19 @@ func (d *evaluationStateData) GetResource(ctx context.Context, addr addrs.Resour
 			}
 
 		default:
-			// TODO(main) should this handle Count and ForEach correctly?
-
+			if config.Count != nil || config.ForEach != nil {
+				return cty.DynamicVal, diags
+			}
 			// We should only end up here during the validate walk,
 			// since later walks should have at least partial states populated
 			// for all resources in the configuration.
-			if schema.ContainsMarks() {
+			if schema.ContainsMarks() && config.Enabled == nil {
 				val := schema.UnknownValue()
 				schemaMarks := schema.ValueMarksExt(val, nil, addr, false)
 				val = val.MarkWithPaths(schemaMarks)
 				return val, diags
 			}
-			return cty.DynamicVal, diags
+			return cty.UnknownVal(ty), diags
 		}
 	}
 
