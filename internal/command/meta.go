@@ -9,11 +9,8 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"flag"
 	"fmt"
-	"io"
 	"log"
-	"maps"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -23,7 +20,6 @@ import (
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/mitchellh/cli"
-	"github.com/mitchellh/colorstring"
 	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/svchost/disco"
 
@@ -79,7 +75,6 @@ type Meta struct {
 
 	View *views.View
 
-	Color            bool     // True if output should be colored
 	GlobalPluginDirs []string // Additional paths to search for plugins
 	Ui               cli.Ui   // Ui for output
 
@@ -231,18 +226,6 @@ type Meta struct {
 	variableArgs flags.RawFlags
 	input        bool
 
-	// Targets for this context (private)
-	targets     []addrs.Targetable
-	targetFlags []string
-
-	// Excludes for this context (private)
-	excludes     []addrs.Targetable
-	excludeFlags []string
-
-	// Internal fields
-	color bool
-	oldUi cli.Ui
-
 	// The fields below are expected to be set by the command via
 	// command line flags. See the Apply command for an example.
 	//
@@ -275,27 +258,15 @@ type Meta struct {
 	//
 	// migrateState confirms the user wishes to migrate from the prior backend
 	// configuration to a new configuration.
-	//
-	// compactWarnings (-compact-warnings) selects a more compact presentation
-	// of warnings in the output when they are not accompanied by errors.
-	//
-	// consolidateWarnings (-consolidate-warnings=false) disables consolidation
-	// of warnings in the output, printing all instances of a particular warning.
-	//
-	// consolidateErrors (-consolidate-errors=true) enables consolidation
-	// of errors in the output, printing a single instances of a particular warning.
-	statePath           string
-	stateOutPath        string
-	backupPath          string
-	parallelism         int
-	stateLock           bool
-	stateLockTimeout    time.Duration
-	forceInitCopy       bool
-	reconfigure         bool
-	migrateState        bool
-	compactWarnings     bool
-	consolidateWarnings bool
-	consolidateErrors   bool
+	statePath        string
+	stateOutPath     string
+	backupPath       string
+	parallelism      int
+	stateLock        bool
+	stateLockTimeout time.Duration
+	forceInitCopy    bool
+	reconfigure      bool
+	migrateState     bool
 
 	// Used with commands which write state to allow users to write remote
 	// state even if the remote and local OpenTofu versions don't match.
@@ -338,19 +309,6 @@ func (m *Meta) StateOutPath() string {
 	return m.stateOutPath
 }
 
-// Colorize returns the colorization structure for a command.
-func (m *Meta) Colorize() *colorstring.Colorize {
-	colors := make(map[string]string)
-	maps.Copy(colors, colorstring.DefaultColors)
-	colors["purple"] = "38;5;57"
-
-	return &colorstring.Colorize{
-		Colors:  colors,
-		Disable: !m.color,
-		Reset:   true,
-	}
-}
-
 const (
 	// InputModeEnvVar is the environment variable that, if set to "false" or
 	// "0", causes tofu commands to behave as if the `-input=false` flag was
@@ -382,7 +340,7 @@ func (m *Meta) InputMode() tofu.InputMode {
 // UIInput returns a UIInput object to be used for asking for input.
 func (m *Meta) UIInput() tofu.UIInput {
 	return &UIInput{
-		Colorize: m.Colorize(),
+		Colorize: m.View.Colorize(),
 	}
 }
 
@@ -588,99 +546,6 @@ func (m *Meta) contextOpts(ctx context.Context) (*tofu.ContextOpts, error) {
 	return &opts, err
 }
 
-// defaultFlagSet creates a default flag set for commands.
-// See also command/arguments/default.go
-func (m *Meta) defaultFlagSet(n string) *flag.FlagSet {
-	f := flag.NewFlagSet(n, flag.ContinueOnError)
-	f.SetOutput(io.Discard)
-
-	// Set the default Usage to empty
-	f.Usage = func() {}
-
-	return f
-}
-
-func (m *Meta) varFlagSet(f *flag.FlagSet) {
-	if m.variableArgs.Items == nil {
-		m.variableArgs = flags.NewRawFlags("-var")
-	}
-	varValues := m.variableArgs.Alias("-var")
-	varFiles := m.variableArgs.Alias("-var-file")
-	f.Var(varValues, "var", "variables")
-	f.Var(varFiles, "var-file", "variable file")
-}
-
-// extendedFlagSet adds custom flags that are mostly used by commands
-// that are used to run an operation like plan or apply.
-func (m *Meta) extendedFlagSet(n string) *flag.FlagSet {
-	f := m.defaultFlagSet(n)
-
-	f.BoolVar(&m.input, "input", true, "input")
-	f.Var((*flags.FlagStringSlice)(&m.targetFlags), "target", "resource to target")
-	f.Var((*flags.FlagStringSlice)(&m.excludeFlags), "exclude", "resource to exclude")
-	f.BoolVar(&m.compactWarnings, "compact-warnings", false, "use compact warnings")
-	f.BoolVar(&m.consolidateWarnings, "consolidate-warnings", true, "consolidate warnings")
-	f.BoolVar(&m.consolidateErrors, "consolidate-errors", false, "consolidate errors")
-
-	m.varFlagSet(f)
-
-	// commands that bypass locking will supply their own flag on this var,
-	// but set the initial meta value to true as a failsafe.
-	m.stateLock = true
-
-	return f
-}
-
-// process will process any -no-color entries out of the arguments. This
-// will potentially modify the args in-place. It will return the resulting
-// slice, and update the Meta and Ui.
-func (m *Meta) process(args []string) []string {
-	// We do this so that we retain the ability to technically call
-	// process multiple times, even if we have no plans to do so
-	if m.oldUi != nil {
-		m.Ui = m.oldUi
-	}
-
-	// Set colorization
-	m.color = m.Color
-	i := 0 // output index
-	for _, v := range args {
-		if v == "-no-color" {
-			m.color = false
-			m.Color = false
-		} else {
-			// copy and increment index
-			args[i] = v
-			i++
-		}
-	}
-	args = args[:i]
-
-	// Set the UI
-	m.oldUi = m.Ui
-	m.Ui = &cli.ConcurrentUi{
-		Ui: &ColorizeUi{
-			Colorize:   m.Colorize(),
-			ErrorColor: "[red]",
-			WarnColor:  "[yellow]",
-			Ui:         m.oldUi,
-		},
-	}
-
-	// Reconfigure the view. This is necessary for commands which use both
-	// views.View and cli.Ui during the migration phase.
-	if m.View != nil {
-		m.View.Configure(&arguments.View{
-			CompactWarnings:     m.compactWarnings,
-			ConsolidateWarnings: m.consolidateWarnings,
-			ConsolidateErrors:   m.consolidateErrors,
-			NoColor:             !m.Color,
-		})
-	}
-
-	return args
-}
-
 // configureUiFromView is a shim method between now and the moment when
 // the remote backend and cloud package use the new View abstraction.
 // This method does several things:
@@ -688,11 +553,6 @@ func (m *Meta) process(args []string) []string {
 //   - wraps the existing [Meta.Ui] into a new layer that uses the [views.View]
 //     to print information and the existing [Meta.Ui] to ask for use input
 func (m *Meta) configureUiFromView(options arguments.ViewOptions) {
-	// We do this so that we retain the ability to technically call
-	// process multiple times, even if we have no plans to do so
-	if m.oldUi != nil {
-		m.Ui = m.oldUi
-	}
 	// This is a workaround to be able to get rid of the [Meta.Ui] slow and steady.
 	// For the moment, this builds the Ui in the same way it's built in the main.go, but we want
 	// it added here to remove the requirement of having the Ui initialised during tests.
@@ -703,12 +563,9 @@ func (m *Meta) configureUiFromView(options arguments.ViewOptions) {
 		m.Ui = NewBasicUI()
 	}
 
-	// Backup the current Ui to be used later
-	m.oldUi = m.Ui
-
 	// Createa new ViewUi that wraps the View for printing and oldUi for user input
 	m.Ui = &cli.ConcurrentUi{
-		Ui: views.NewViewUI(options, m.View, m.oldUi),
+		Ui: views.NewViewUI(options, m.View, m.Ui),
 	}
 	// compared with Meta.process, this method does not configure the Meta.View, since that is the
 	// responsibility of the caller of this method.

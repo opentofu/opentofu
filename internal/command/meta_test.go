@@ -6,14 +6,13 @@
 package command
 
 import (
-	"fmt"
+	"flag"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 
@@ -23,69 +22,86 @@ import (
 )
 
 func TestMetaColorize(t *testing.T) {
-	var m *Meta
-	var args, args2 []string
+	t.Run("with color enabled", func(t *testing.T) {
+		view, done := testView(t)
+		defer done(t)
 
-	// Test basic, color
-	m = &Meta{
-		WorkingDir: workdir.NewDir("."),
-	}
-	m.Color = true
-	args = []string{"foo", "bar"}
-	args2 = []string{"foo", "bar"}
-	args = m.process(args)
-	if !reflect.DeepEqual(args, args2) {
-		t.Fatalf("bad: %#v", args)
-	}
-	if m.Colorize().Disable {
-		t.Fatal("should not be disabled")
-	}
+		m := &Meta{
+			WorkingDir: workdir.NewDir("."),
+			View:       view,
+		}
+		args := []string{"foo", "bar"}
+		wantArgs := []string{"foo", "bar"}
+		viewArgs, args := arguments.ParseView(args)
 
-	// Test basic, no change
-	m = &Meta{
-		WorkingDir: workdir.NewDir("."),
-	}
-	args = []string{"foo", "bar"}
-	args2 = []string{"foo", "bar"}
-	args = m.process(args)
-	if !reflect.DeepEqual(args, args2) {
-		t.Fatalf("bad: %#v", args)
-	}
-	if !m.Colorize().Disable {
-		t.Fatal("should be disabled")
-	}
+		view.Configure(viewArgs)
+		m.configureUiFromView(arguments.ViewOptions{ViewType: arguments.ViewHuman})
 
-	// Test disable #1
-	m = &Meta{
-		WorkingDir: workdir.NewDir("."),
-	}
-	m.Color = true
-	args = []string{"foo", "-no-color", "bar"}
-	args2 = []string{"foo", "bar"}
-	args = m.process(args)
-	if !reflect.DeepEqual(args, args2) {
-		t.Fatalf("bad: %#v", args)
-	}
-	if !m.Colorize().Disable {
-		t.Fatal("should be disabled")
-	}
+		if !reflect.DeepEqual(args, wantArgs) {
+			t.Fatalf("bad: %#v", args)
+		}
+		if m.View.Colorize().Disable {
+			t.Fatal("should not be disabled")
+		}
+	})
 
-	// Test disable #2
-	// Verify multiple -no-color options are removed from args slice.
-	// E.g. an additional -no-color arg could be added by TF_CLI_ARGS.
-	m = &Meta{
-		WorkingDir: workdir.NewDir("."),
-	}
-	m.Color = true
-	args = []string{"foo", "-no-color", "bar", "-no-color"}
-	args2 = []string{"foo", "bar"}
-	args = m.process(args)
-	if !reflect.DeepEqual(args, args2) {
-		t.Fatalf("bad: %#v", args)
-	}
-	if !m.Colorize().Disable {
-		t.Fatal("should be disabled")
-	}
+	// NOTE: the case that was removed from here was testing that without marking Meta.Color=true manually,
+	// and having no -no-color flag, it was **disabled** by default.
+	// When Meta was created in regular flow, the Meta.Color was set to "true".
+	// During tests, Meta.Color is false, so it needs to be configured manually as "true".
+	// This is what the test case above did before, but with the migration to the new view, the
+	// logic is flipped, where the view.colorise.disabled is by default false and when -no-color
+	// is given, it disables it.
+	// Therefore, the case above, tests exactly what it was testing before the refactor, but
+	// the test here, makes no more sense now.
+
+	t.Run("one occurrence of -no-color flag", func(t *testing.T) {
+		view, done := testView(t)
+		defer done(t)
+
+		m := &Meta{
+			WorkingDir: workdir.NewDir("."),
+			View:       view,
+		}
+		args := []string{"foo", "-no-color", "bar"}
+		args2 := []string{"foo", "bar"}
+		viewArgs, args := arguments.ParseView(args)
+
+		view.Configure(viewArgs)
+		m.configureUiFromView(arguments.ViewOptions{ViewType: arguments.ViewHuman})
+
+		if !reflect.DeepEqual(args, args2) {
+			t.Fatalf("bad: %#v", args)
+		}
+		if !m.View.Colorize().Disable {
+			t.Fatal("should be disabled")
+		}
+	})
+
+	t.Run("one occurrences of -no-color flag", func(t *testing.T) {
+		view, done := testView(t)
+		defer done(t)
+		// Test disable #2
+		// Verify multiple -no-color options are removed from args slice.
+		// E.g. an additional -no-color arg could be added by TF_CLI_ARGS.
+		m := &Meta{
+			WorkingDir: workdir.NewDir("."),
+			View:       view,
+		}
+		args := []string{"foo", "-no-color", "bar", "-no-color"}
+		args2 := []string{"foo", "bar"}
+		viewArgs, args := arguments.ParseView(args)
+
+		view.Configure(viewArgs)
+		m.configureUiFromView(arguments.ViewOptions{ViewType: arguments.ViewHuman})
+
+		if !reflect.DeepEqual(args, args2) {
+			t.Fatalf("bad: %#v", args)
+		}
+		if !m.View.Colorize().Disable {
+			t.Fatal("should be disabled")
+		}
+	})
 }
 
 func TestMetaInputMode(t *testing.T) {
@@ -95,9 +111,14 @@ func TestMetaInputMode(t *testing.T) {
 	m := &Meta{
 		WorkingDir: workdir.NewDir("."),
 	}
+	// TODO meta-refactor: these assignments are needed because the extendedFlagSet was used here before,
+	//   which had these with defaults as "true". In a future iteration, once these are not needed, we need to remove them.
+	m.input = true
+	m.stateLock = true
+
 	args := []string{}
 
-	fs := m.extendedFlagSet("foo")
+	fs := flag.NewFlagSet("foo", flag.ContinueOnError)
 	if err := fs.Parse(args); err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -114,9 +135,14 @@ func TestMetaInputMode_envVar(t *testing.T) {
 	m := &Meta{
 		WorkingDir: workdir.NewDir("."),
 	}
+	// TODO meta-refactor: these assignments are needed because the extendedFlagSet was used here before,
+	//   which had these with defaults as "true". In a future iteration, once these are not needed, we need to remove them.
+	m.input = true
+	m.stateLock = true
+
 	args := []string{}
 
-	fs := m.extendedFlagSet("foo")
+	fs := flag.NewFlagSet("foo", flag.ContinueOnError)
 	if err := fs.Parse(args); err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -148,12 +174,22 @@ func TestMetaInputMode_disable(t *testing.T) {
 	m := &Meta{
 		WorkingDir: workdir.NewDir("."),
 	}
+	// TODO meta-refactor: these assignments are needed because the extendedFlagSet was used here before,
+	//   which had these with defaults as "true". In a future iteration, once these are not needed, we need to remove them.
+	m.input = true
+	m.stateLock = true
 	args := []string{"-input=false"}
 
-	fs := m.extendedFlagSet("foo")
+	fs := flag.NewFlagSet("foo", flag.ContinueOnError)
+	var viewOpts arguments.ViewOptions
+	viewOpts.AddFlags(fs, true)
 	if err := fs.Parse(args); err != nil {
 		t.Fatalf("err: %s", err)
 	}
+	if _, diags := viewOpts.Parse(); len(diags) > 0 {
+		t.Fatalf("unexpected diagnostics: %s", diags)
+	}
+	m.input = viewOpts.InputEnabled
 
 	if m.InputMode() > 0 {
 		t.Fatalf("bad: %#v", m.InputMode())
@@ -307,106 +343,6 @@ func TestMeta_Workspace_invalidSelected(t *testing.T) {
 	}
 	if err != nil {
 		t.Errorf("Unexpected error: %s", err)
-	}
-}
-
-func TestMeta_process(t *testing.T) {
-	test = false
-	defer func() { test = true }()
-
-	// Create a temporary directory for our cwd
-	d := t.TempDir()
-	t.Chdir(d)
-
-	// At one point it was the responsibility of this process function to
-	// insert fake additional -var-file options into the command line
-	// if the automatic tfvars files were present. This is no longer the
-	// responsibility of process (it happens in collectVariableValues instead)
-	// but we're still testing with these files in place to verify that
-	// they _aren't_ being interpreted by process, since that could otherwise
-	// cause them to be added more than once and mess up the precedence order.
-	defaultVarsfile := "terraform.tfvars"
-	err := os.WriteFile(
-		filepath.Join(d, defaultVarsfile),
-		[]byte(""),
-		0644)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	fileFirstAlphabetical := "a-file.auto.tfvars"
-	err = os.WriteFile(
-		filepath.Join(d, fileFirstAlphabetical),
-		[]byte(""),
-		0644)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	fileLastAlphabetical := "z-file.auto.tfvars"
-	err = os.WriteFile(
-		filepath.Join(d, fileLastAlphabetical),
-		[]byte(""),
-		0644)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	// Regular tfvars files will not be autoloaded
-	fileIgnored := "ignored.tfvars"
-	err = os.WriteFile(
-		filepath.Join(d, fileIgnored),
-		[]byte(""),
-		0644)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-
-	tests := []struct {
-		GivenArgs    []string
-		FilteredArgs []string
-		ExtraCheck   func(*testing.T, *Meta)
-	}{
-		{
-			[]string{},
-			[]string{},
-			func(t *testing.T, m *Meta) {
-				if got, want := m.color, true; got != want {
-					t.Errorf("wrong m.color value %#v; want %#v", got, want)
-				}
-				if got, want := m.Color, true; got != want {
-					t.Errorf("wrong m.Color value %#v; want %#v", got, want)
-				}
-			},
-		},
-		{
-			[]string{"-no-color"},
-			[]string{},
-			func(t *testing.T, m *Meta) {
-				if got, want := m.color, false; got != want {
-					t.Errorf("wrong m.color value %#v; want %#v", got, want)
-				}
-				if got, want := m.Color, false; got != want {
-					t.Errorf("wrong m.Color value %#v; want %#v", got, want)
-				}
-			},
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(fmt.Sprintf("%s", test.GivenArgs), func(t *testing.T) {
-			m := &Meta{
-				WorkingDir: workdir.NewDir("."),
-			}
-			m.Color = true // this is the default also for normal use, overridden by -no-color
-			args := test.GivenArgs
-			args = m.process(args)
-
-			if !cmp.Equal(test.FilteredArgs, args) {
-				t.Errorf("wrong filtered arguments\n%s", cmp.Diff(test.FilteredArgs, args))
-			}
-
-			if test.ExtraCheck != nil {
-				test.ExtraCheck(t, m)
-			}
-		})
 	}
 }
 
