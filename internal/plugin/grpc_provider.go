@@ -43,7 +43,7 @@ var clientCapabilities = &proto.ClientCapabilities{
 	WriteOnlyAttributesAllowed: true,
 }
 
-func (p *GRPCProviderPlugin) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker, c *grpc.ClientConn) (interface{}, error) {
+func (p *GRPCProviderPlugin) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker, c *grpc.ClientConn) (any, error) {
 	return &GRPCProvider{
 		client: proto.NewProviderClient(c),
 		ctx:    ctx,
