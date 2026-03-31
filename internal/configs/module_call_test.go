@@ -373,9 +373,11 @@ variable "path" {
   const = true
   default = "./path"
 }`,
-		"consternation.tf": `
-variable "consternation" {
-	const = false # opts the module in to the const checking
+		"path_notconst.tf": `
+variable "path" {
+  type = string
+  const = false
+  default = "./path"
 }`,
 	}
 
@@ -406,7 +408,7 @@ variable "consternation" {
 		files: []string{"mod.tf", "path_const.tf"},
 	}, {
 		name:  "failure, post-const",
-		files: []string{"mod.tf", "path.tf", "consternation.tf"},
+		files: []string{"mod.tf", "path_notconst.tf"},
 		err:   "The variable \"path\" does not have `const = true` set and can not be used in a static context.",
 	}}
 

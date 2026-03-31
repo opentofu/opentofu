@@ -57,9 +57,6 @@ type Module struct {
 
 	Tests map[string]*TestFile
 
-	// If variable const support has been detected
-	ConstEnabled bool
-
 	// IsOverridden indicates if the module is being overridden. It's used in
 	// testing framework to not call the underlying module.
 	IsOverridden bool
@@ -235,16 +232,6 @@ func NewModuleUneval(primaryFiles, overrideFiles []*File, sourceDir string, load
 		diags = append(diags, fileDiags...)
 	}
 
-	// Determine if variable const usage is enabled to match terraform's later static/const
-	// implementation
-	mod.ConstEnabled = false
-	for _, v := range mod.Variables {
-		if v.ConstSet {
-			mod.ConstEnabled = true
-			break
-		}
-	}
-
 	return mod, diags
 }
 
@@ -286,21 +273,19 @@ func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall, sourc
 	mod.gatherProviderLocalNames()
 
 	// Ensure const variables are actually const
-	if mod.ConstEnabled {
-		var constRefs []*addrs.Reference
-		for _, variable := range mod.Variables {
-			if variable.Const {
-				constRefs = append(constRefs, &addrs.Reference{
-					Subject: addrs.InputVariable{Name: variable.Name},
-				})
-			}
+	var constRefs []*addrs.Reference
+	for _, variable := range mod.Variables {
+		if variable.Const {
+			constRefs = append(constRefs, &addrs.Reference{
+				Subject: addrs.InputVariable{Name: variable.Name},
+			})
 		}
-		_, vDiags := mod.StaticEvaluator.EvalContext(context.TODO(), StaticIdentifier{
-			Module:    mod.StaticEvaluator.call.addr,
-			DeclRange: mod.StaticEvaluator.call.declRange,
-		}, constRefs)
-		diags = append(diags, vDiags...)
 	}
+	_, vDiags := mod.StaticEvaluator.EvalContext(context.TODO(), StaticIdentifier{
+		Module:    mod.StaticEvaluator.call.addr,
+		DeclRange: mod.StaticEvaluator.call.declRange,
+	}, constRefs)
+	diags = append(diags, vDiags...)
 
 	return mod, diags
 }

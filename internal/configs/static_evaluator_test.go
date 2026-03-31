@@ -7,7 +7,6 @@ package configs
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/hashicorp/hcl/v2"
@@ -86,21 +85,9 @@ locals {
 resource "foo" "bar" {}
 	`
 
-	constData := `
-variable "const_compat" {
-	type = string
-	const = true
-}
-	`
-
-	parser := testParser(map[string]string{"eval.tf": testData, "const.tf": constData})
+	parser := testParser(map[string]string{"eval.tf": testData})
 
 	file, fileDiags := parser.LoadConfigFile("eval.tf")
-	if fileDiags.HasErrors() {
-		t.Fatal(fileDiags)
-	}
-
-	constFile, fileDiags := parser.LoadConfigFile("const.tf")
 	if fileDiags.HasErrors() {
 		t.Fatal(fileDiags)
 	}
@@ -188,42 +175,6 @@ variable "const_compat" {
 				}
 				if value.AsString() != local.value {
 					t.Errorf("Expected %s got %s", local.value, value.AsString())
-				}
-			})
-		}
-	})
-
-	t.Run("Const Variables", func(t *testing.T) {
-		input := map[string]cty.Value{
-			"str":          cty.StringVal("vara"),
-			"str_map":      cty.MapVal(map[string]cty.Value{"keyA": cty.StringVal("mapa")}),
-			"const_compat": cty.StringVal("compat"),
-		}
-		call := NewStaticModuleCall(nil, hcl.Range{}, func(v *Variable) (cty.Value, hcl.Diagnostics) {
-			if in, ok := input[v.Name]; ok {
-				return in, nil
-			}
-			return v.Default, nil
-		}, "<testing>", "")
-		// Including constFile here opts-in to the "const" requirement
-		mod, _ := NewModule([]*File{file, constFile}, nil, call, "dir", SelectiveLoadAll)
-		eval := NewStaticEvaluator(mod, call)
-
-		locals := []struct {
-			ident string
-			value string
-		}{
-			{"var_str_def_ref", "sane default"},
-			{"var_map_def_access", "A"},
-			{"var_str_ref", "vara"},
-			{"var_map_access", "mapa"},
-		}
-		expected := "does not have `const = true` set and can not be used in a static context."
-		for _, local := range locals {
-			t.Run(local.ident, func(t *testing.T) {
-				_, diags := eval.Evaluate(t.Context(), mod.Locals[local.ident].Expr, dummyIdentifier)
-				if !diags.HasErrors() || !strings.Contains(diags.Error(), expected) {
-					t.Errorf("Expected static usage diagnostics, got %v", diags)
 				}
 			})
 		}

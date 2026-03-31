@@ -260,7 +260,7 @@ func (s staticScopeData) GetInputVariable(_ context.Context, ident addrs.InputVa
 		})
 	}
 
-	if s.eval.cfg.ConstEnabled && !variable.Const {
+	if variable.ConstSet && !variable.Const {
 		return cty.NilVal, diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Unable to use variable in static context",
