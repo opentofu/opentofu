@@ -31,8 +31,11 @@ type Backend interface {
 }
 
 // NewBackendHuman returns a new Backend instance that will print in human format.
-// This functions is meant to be used only for testing purposes. In actual flows,
-// Backend should be acquired from another view.
+// This particular function is meant to be used only in special cases, where the
+// Backend view cannot be acquired from a command related view (eg: Apply.Backend).
+// At the moment of writing this comment, this function is meant to be used only to
+// create this view in cases where it is not initialised correctly, which are paths
+// that are only reachable from incomplete configured tests.
 func NewBackendHuman(view *View) Backend {
 	return &BackendHuman{view: view}
 }
