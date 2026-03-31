@@ -9,10 +9,6 @@ import (
 	"testing"
 )
 
-func uint64Ptr(v uint64) *uint64 {
-	return &v
-}
-
 func TestResourceInstanceObjectSrcEqual(t *testing.T) {
 	tests := map[string]struct {
 		a    *ResourceInstanceObjectSrc
@@ -31,27 +27,27 @@ func TestResourceInstanceObjectSrcEqual(t *testing.T) {
 		},
 		"identity schema version first nil": {
 			a:    &ResourceInstanceObjectSrc{Status: ObjectReady, AttrsJSON: []byte(`{"id":"foo"}`), IdentitySchemaVersion: nil},
-			b:    &ResourceInstanceObjectSrc{Status: ObjectReady, AttrsJSON: []byte(`{"id":"foo"}`), IdentitySchemaVersion: uint64Ptr(1)},
+			b:    &ResourceInstanceObjectSrc{Status: ObjectReady, AttrsJSON: []byte(`{"id":"foo"}`), IdentitySchemaVersion: new(uint64(1))},
 			want: false,
 		},
 		"identity schema version second nil": {
-			a:    &ResourceInstanceObjectSrc{Status: ObjectReady, AttrsJSON: []byte(`{"id":"foo"}`), IdentitySchemaVersion: uint64Ptr(1)},
+			a:    &ResourceInstanceObjectSrc{Status: ObjectReady, AttrsJSON: []byte(`{"id":"foo"}`), IdentitySchemaVersion: new(uint64(1))},
 			b:    &ResourceInstanceObjectSrc{Status: ObjectReady, AttrsJSON: []byte(`{"id":"foo"}`), IdentitySchemaVersion: nil},
 			want: false,
 		},
 		"identity schema version different values": {
-			a:    &ResourceInstanceObjectSrc{Status: ObjectReady, AttrsJSON: []byte(`{"id":"foo"}`), IdentitySchemaVersion: uint64Ptr(1)},
-			b:    &ResourceInstanceObjectSrc{Status: ObjectReady, AttrsJSON: []byte(`{"id":"foo"}`), IdentitySchemaVersion: uint64Ptr(2)},
+			a:    &ResourceInstanceObjectSrc{Status: ObjectReady, AttrsJSON: []byte(`{"id":"foo"}`), IdentitySchemaVersion: new(uint64(1))},
+			b:    &ResourceInstanceObjectSrc{Status: ObjectReady, AttrsJSON: []byte(`{"id":"foo"}`), IdentitySchemaVersion: new(uint64(2))},
 			want: false,
 		},
 		"identity schema version same values": {
-			a:    &ResourceInstanceObjectSrc{Status: ObjectReady, AttrsJSON: []byte(`{"id":"foo"}`), IdentitySchemaVersion: uint64Ptr(1)},
-			b:    &ResourceInstanceObjectSrc{Status: ObjectReady, AttrsJSON: []byte(`{"id":"foo"}`), IdentitySchemaVersion: uint64Ptr(1)},
+			a:    &ResourceInstanceObjectSrc{Status: ObjectReady, AttrsJSON: []byte(`{"id":"foo"}`), IdentitySchemaVersion: new(uint64(1))},
+			b:    &ResourceInstanceObjectSrc{Status: ObjectReady, AttrsJSON: []byte(`{"id":"foo"}`), IdentitySchemaVersion: new(uint64(1))},
 			want: true,
 		},
 		"same identity json different schema version": {
-			a:    &ResourceInstanceObjectSrc{Status: ObjectReady, AttrsJSON: []byte(`{"id":"foo"}`), IdentityJSON: []byte(`{"name":"bar"}`), IdentitySchemaVersion: uint64Ptr(1)},
-			b:    &ResourceInstanceObjectSrc{Status: ObjectReady, AttrsJSON: []byte(`{"id":"foo"}`), IdentityJSON: []byte(`{"name":"bar"}`), IdentitySchemaVersion: uint64Ptr(2)},
+			a:    &ResourceInstanceObjectSrc{Status: ObjectReady, AttrsJSON: []byte(`{"id":"foo"}`), IdentityJSON: []byte(`{"name":"bar"}`), IdentitySchemaVersion: new(uint64(1))},
+			b:    &ResourceInstanceObjectSrc{Status: ObjectReady, AttrsJSON: []byte(`{"id":"foo"}`), IdentityJSON: []byte(`{"name":"bar"}`), IdentitySchemaVersion: new(uint64(2))},
 			want: false,
 		},
 	}

@@ -6,6 +6,8 @@
 package states
 
 import (
+	"maps"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -61,10 +63,8 @@ func (ms *Module) DeepCopy() *Module {
 		outputValues[k] = v.DeepCopy()
 	}
 	localValues := make(map[string]cty.Value, len(ms.LocalValues))
-	for k, v := range ms.LocalValues {
-		// cty.Value is immutable, so we don't need to copy these.
-		localValues[k] = v
-	}
+	// cty.Value is immutable, so we don't need to copy these.
+	maps.Copy(localValues, ms.LocalValues)
 
 	return &Module{
 		Addr:         ms.Addr, // technically mutable, but immutable by convention
@@ -140,9 +140,7 @@ func (os *ResourceInstanceObjectSrc) DeepCopy() *ResourceInstanceObjectSrc {
 	var attrsFlat map[string]string
 	if os.AttrsFlat != nil {
 		attrsFlat = make(map[string]string, len(os.AttrsFlat))
-		for k, v := range os.AttrsFlat {
-			attrsFlat[k] = v
-		}
+		maps.Copy(attrsFlat, os.AttrsFlat)
 	}
 
 	var attrsJSON []byte

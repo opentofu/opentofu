@@ -64,10 +64,7 @@ func TestResourceInstanceObject_encode(t *testing.T) {
 	var mu sync.Mutex
 
 	for _, obj := range objs {
-		obj := obj
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			rios, err := obj.Encode(value.Type(), 0, 0)
 			if err != nil {
 				t.Errorf("unexpected error: %s", err)
@@ -75,7 +72,7 @@ func TestResourceInstanceObject_encode(t *testing.T) {
 			mu.Lock()
 			encoded = append(encoded, rios)
 			mu.Unlock()
-		}()
+		})
 	}
 	wg.Wait()
 
