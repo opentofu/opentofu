@@ -369,7 +369,8 @@ data "test_data_source" "d" {
 resource "test_resource" "b" {
   value = data.test_data_source.d.id
 }
-`})
+`,
+	})
 
 	oldDataAddr := mustResourceInstanceAddr(`module.mod["old"].data.test_data_source.d`)
 
@@ -657,7 +658,8 @@ data "test_data_source" "a" {
 		}
 	}
 }
-`})
+`,
+	})
 
 	managedAddr := mustResourceInstanceAddr(`test_resource.a`)
 	dataAddr := mustResourceInstanceAddr(`data.test_data_source.a`)
@@ -742,7 +744,6 @@ data "test_data_source" "a" {
 	if got, want := validVal, cty.True; got != want {
 		t.Errorf("wrong final valid value\ngot:  %#v\nwant: %#v", got, want)
 	}
-
 }
 
 func TestContext2Plan_managedResourceChecksOtherManagedResourceChange(t *testing.T) {
@@ -870,7 +871,8 @@ resource "test_resource" "b" {
 		}
 	}
 }
-`})
+`,
+	})
 
 	managedAddrA := mustResourceInstanceAddr(`test_resource.a`)
 	managedAddrB := mustResourceInstanceAddr(`test_resource.b`)
@@ -3367,7 +3369,7 @@ func TestContext2Plan_moduleImplicitMove(t *testing.T) {
 	// Modules are being moved implicitly to use the `enabled` field when nothing
 	// is declared on the block. Alternatively, they are implicitly being moved from
 	// using `enabled` as true or without declaring `enabled` to use count.
-	var tests = map[string]struct {
+	tests := map[string]struct {
 		name         string
 		expectedAddr addrs.AbsResourceInstance
 		prevAddr     addrs.AbsResourceInstance
@@ -4889,7 +4891,8 @@ resource "test_object" "b" {
   provider = test.other
   in = "a"
 }
-`})
+`,
+	})
 
 	testProvider := &MockProvider{
 		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
@@ -4904,7 +4907,7 @@ resource "test_object" "b" {
 				},
 			},
 			ResourceTypes: map[string]providers.Schema{
-				"test_object": providers.Schema{
+				"test_object": {
 					Block: &configschema.Block{
 						Attributes: map[string]*configschema.Attribute{
 							"in": {
@@ -5009,7 +5012,8 @@ output "out" {
     error_message = "should not block destroy"
   }
 }
-`})
+`,
+	})
 
 	p := simpleMockProvider()
 
@@ -5077,7 +5081,8 @@ resource "test_object" "a" {
 output "out" {
   value = test_object.a.test_string
 }
-`})
+`,
+	})
 
 	p := simpleMockProvider()
 
@@ -5140,12 +5145,13 @@ resource "test_object" "a" {
     new   = sensitive("ignored")
   }
 }
-`})
+`,
+	})
 
 	testProvider := &MockProvider{
 		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 			ResourceTypes: map[string]providers.Schema{
-				"test_object": providers.Schema{
+				"test_object": {
 					Block: &configschema.Block{
 						Attributes: map[string]*configschema.Attribute{
 							"map": {
@@ -5543,7 +5549,6 @@ import {
 
 	for _, configuration := range configurations {
 		t.Run(configuration.Description, func(t *testing.T) {
-
 			// Format the configuration with the import ID
 			formattedConfiguration := make(map[string]string)
 			for configFileName, configFileContent := range configuration.inlineConfiguration {
@@ -5558,10 +5563,10 @@ import {
 				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 					Provider: providers.Schema{Block: simpleTestSchema()},
 					ResourceTypes: map[string]providers.Schema{
-						"test_object": providers.Schema{Block: simpleTestSchema()},
+						"test_object": {Block: simpleTestSchema()},
 					},
 					DataSources: map[string]providers.Schema{
-						"test_object": providers.Schema{
+						"test_object": {
 							Block: &configschema.Block{
 								Attributes: map[string]*configschema.Attribute{
 									"test_string": {
@@ -5763,7 +5768,7 @@ import {
 				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 					Provider: providers.Schema{Block: providerSchema},
 					ResourceTypes: map[string]providers.Schema{
-						"test_object": providers.Schema{Block: providerSchema},
+						"test_object": {Block: providerSchema},
 					},
 				},
 			}
@@ -6009,7 +6014,7 @@ func TestContext2Plan_importWithInvalidForEach(t *testing.T) {
 	configurations := []TestConfiguration{
 		{
 			Description:   "for_each value is null",
-			expectedError: "Invalid import id argument: The import ID cannot be null",
+			expectedError: "Invalid import id argument: The import id cannot be null",
 			inlineConfiguration: map[string]string{
 				"main.tf": `
 locals {
@@ -6155,7 +6160,7 @@ import {
 		},
 		{
 			Description:   "for_each value is sensitive",
-			expectedError: "Invalid import id argument: The import ID cannot be sensitive.",
+			expectedError: "Invalid import id argument: The import id cannot be sensitive.",
 			inlineConfiguration: map[string]string{
 				"main.tf": `
 locals {
@@ -6250,7 +6255,7 @@ import {
 				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 					Provider: providers.Schema{Block: providerSchema},
 					ResourceTypes: map[string]providers.Schema{
-						"test_object": providers.Schema{Block: providerSchema},
+						"test_object": {Block: providerSchema},
 					},
 				},
 			}
@@ -6640,6 +6645,125 @@ func TestContext2Plan_importIdReference(t *testing.T) {
 	}
 }
 
+func TestContext2Plan_importWithIdentityExpression(t *testing.T) {
+	p := testProvider("test")
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+resource "test_instance" "foo" {
+}
+
+import {
+  to = test_instance.foo
+  identity = {
+    name   = "my-resource"
+    region = "us-west-2"
+  }
+}
+`,
+	})
+
+	ctx := testContext2(t, &ContextOpts{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		}, nil),
+	})
+
+	identitySchema := providers.ResourceIdentitySchema{
+		Version: 1,
+		Body: &configschema.Object{
+			Attributes: map[string]*configschema.Attribute{
+				"name":   {Type: cty.String, Required: true},
+				"region": {Type: cty.String, Required: true},
+			},
+			Nesting: configschema.NestingSingle,
+		},
+	}
+
+	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
+		ResourceTypes: map[string]providers.Schema{
+			"test_instance": {
+				Block: &configschema.Block{
+					Attributes: map[string]*configschema.Attribute{
+						"id":     {Type: cty.String, Computed: true},
+						"name":   {Type: cty.String, Optional: true},
+						"region": {Type: cty.String, Optional: true},
+					},
+				},
+				IdentitySchema:        identitySchema.Body,
+				IdentitySchemaVersion: identitySchema.Version,
+			},
+		},
+	}
+
+	// Capture the import request to verify identity was passed correctly
+	var capturedImportRequest providers.ImportResourceStateRequest
+
+	// ImportResourceState should receive the identity
+	p.ImportResourceStateFn = func(req providers.ImportResourceStateRequest) providers.ImportResourceStateResponse {
+		capturedImportRequest = req
+
+		return providers.ImportResourceStateResponse{
+			ImportedResources: []providers.ImportedResource{
+				{
+					TypeName: "test_instance",
+					State: cty.ObjectVal(map[string]cty.Value{
+						"id":     cty.StringVal("imported-123"),
+						"name":   cty.StringVal("my-resource"),
+						"region": cty.StringVal("us-west-2"),
+					}),
+				},
+			},
+		}
+	}
+
+	plan, diags := ctx.Plan(t.Context(), m, states.NewState(), &PlanOpts{})
+
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors: %s", diags.Err())
+	}
+
+	if !p.ImportResourceStateCalled {
+		t.Fatal("ImportResourceState should have been called")
+	}
+
+	if capturedImportRequest.Target.ID != "" {
+		t.Errorf("expected ID to be empty for identity-based import, got %q", capturedImportRequest.Target.ID)
+	}
+
+	if capturedImportRequest.Target.Identity.IsNull() {
+		t.Fatal("expected Identity to be set for identity-based import")
+	}
+
+	expectedIdentity := cty.ObjectVal(map[string]cty.Value{
+		"name":   cty.StringVal("my-resource"),
+		"region": cty.StringVal("us-west-2"),
+	})
+
+	if !capturedImportRequest.Target.Identity.RawEquals(expectedIdentity) {
+		t.Errorf("unexpected identity:\ngot:  %#v\nwant: %#v", capturedImportRequest.Target.Identity, expectedIdentity)
+	}
+
+	if len(plan.Changes.Resources) == 0 {
+		t.Fatal("expected import to create resource changes")
+	}
+
+	// there should be one change, and that should be the import!
+	first := plan.Changes.Resources[0]
+	if first.Importing == nil {
+		t.Fatal("expected resource change to be an import")
+	}
+
+	identityType := identitySchema.Body.ImpliedType()
+	decodedIdentity, err := first.Importing.Identity.Decode(identityType)
+	if err != nil {
+		t.Fatalf("failed to decode importing identity: %s", err)
+	}
+
+	if !decodedIdentity.RawEquals(expectedIdentity) {
+		t.Errorf("unexpected imported identity:\ngot:  %#v\nwant: %#v", decodedIdentity, expectedIdentity)
+	}
+}
+
 func TestContext2Plan_importIdFunc(t *testing.T) {
 	p := testProvider("aws")
 	m := testModule(t, "import-id-func")
@@ -6786,7 +6910,7 @@ func TestContext2Plan_importIdInvalidNull(t *testing.T) {
 	if !diags.HasErrors() {
 		t.Fatal("succeeded; want errors")
 	}
-	if got, want := diags.Err().Error(), "The import ID cannot be null"; !strings.Contains(got, want) {
+	if got, want := diags.Err().Error(), "The import id cannot be null"; !strings.Contains(got, want) {
 		t.Fatalf("wrong error:\ngot:  %s\nwant: message containing %q", got, want)
 	}
 }

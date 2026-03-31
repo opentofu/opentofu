@@ -76,7 +76,7 @@ func (h *stopHook) PostImportState(addr addrs.AbsResourceInstance, imported []pr
 	return h.hook()
 }
 
-func (h *stopHook) PrePlanImport(addr addrs.AbsResourceInstance, importID string) (HookAction, error) {
+func (h *stopHook) PrePlanImport(addr addrs.AbsResourceInstance, target providers.ImportTarget) (HookAction, error) {
 	return h.hook()
 }
 

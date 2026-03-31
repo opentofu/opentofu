@@ -177,6 +177,18 @@ func (os *ResourceInstanceObjectSrc) DeepCopy() *ResourceInstanceObjectSrc {
 		copy(dependencies, os.Dependencies)
 	}
 
+	var identityJSON []byte
+	if os.IdentityJSON != nil {
+		identityJSON = make([]byte, len(os.IdentityJSON))
+		copy(identityJSON, os.IdentityJSON)
+	}
+
+	var identitySchemaVersion *uint64
+	if os.IdentitySchemaVersion != nil {
+		v := *os.IdentitySchemaVersion
+		identitySchemaVersion = &v
+	}
+
 	return &ResourceInstanceObjectSrc{
 		Status:                  os.Status,
 		SchemaVersion:           os.SchemaVersion,
@@ -189,6 +201,8 @@ func (os *ResourceInstanceObjectSrc) DeepCopy() *ResourceInstanceObjectSrc {
 		CreateBeforeDestroy:     os.CreateBeforeDestroy,
 		SkipDestroy:             os.SkipDestroy,
 		Deferred:                os.Deferred,
+		IdentityJSON:            identityJSON,
+		IdentitySchemaVersion:   identitySchemaVersion,
 	}
 }
 
@@ -223,6 +237,7 @@ func (o *ResourceInstanceObject) DeepCopy() *ResourceInstanceObject {
 		Value:               o.Value,
 		Status:              o.Status,
 		Private:             private,
+		Identity:            o.Identity,
 		Dependencies:        dependencies,
 		CreateBeforeDestroy: o.CreateBeforeDestroy,
 		SkipDestroy:         o.SkipDestroy,

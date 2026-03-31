@@ -988,7 +988,7 @@ func (c *Context) driftedResources(ctx context.Context, config *configs.Config, 
 					))
 					continue
 				}
-				ty := schema.ImpliedType()
+				ty := schema.Block.ImpliedType()
 
 				oldObj, err := oldIS.Current.Decode(ty)
 				if err != nil {
@@ -1057,7 +1057,7 @@ func (c *Context) driftedResources(ctx context.Context, config *configs.Config, 
 					},
 				}
 
-				changeSrc, err := change.Encode(ty)
+				changeSrc, err := change.Encode(schema)
 				if err != nil {
 					diags = diags.Append(err)
 					return nil, diags

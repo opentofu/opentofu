@@ -61,6 +61,11 @@ type MockProvider struct {
 	UpgradeResourceStateRequest  providers.UpgradeResourceStateRequest
 	UpgradeResourceStateFn       func(providers.UpgradeResourceStateRequest) providers.UpgradeResourceStateResponse
 
+	UpgradeResourceIdentityCalled   bool
+	UpgradeResourceIdentityResponse *providers.UpgradeResourceIdentityResponse
+	UpgradeResourceIdentityRequest  providers.UpgradeResourceIdentityRequest
+	UpgradeResourceIdentityFn       func(providers.UpgradeResourceIdentityRequest) providers.UpgradeResourceIdentityResponse
+
 	MoveResourceStateCalled   bool
 	MoveResourceStateTypeName string
 	MoveResourceStateResponse *providers.MoveResourceStateResponse
@@ -306,12 +311,29 @@ func (p *MockProvider) UpgradeResourceState(ctx context.Context, r providers.Upg
 		resp.UpgradedState = v
 	case len(r.RawStateJSON) > 0:
 		v, err := ctyjson.Unmarshal(r.RawStateJSON, schemaType)
-
 		if err != nil {
 			resp.Diagnostics = resp.Diagnostics.Append(err)
 			return resp
 		}
 		resp.UpgradedState = v
+	}
+
+	return resp
+}
+
+func (p *MockProvider) UpgradeResourceIdentity(ctx context.Context, r providers.UpgradeResourceIdentityRequest) (resp providers.UpgradeResourceIdentityResponse) {
+	p.Lock()
+	defer p.Unlock()
+
+	p.UpgradeResourceIdentityCalled = true
+	p.UpgradeResourceIdentityRequest = r
+
+	if p.UpgradeResourceIdentityFn != nil {
+		return p.UpgradeResourceIdentityFn(r)
+	}
+
+	if p.UpgradeResourceIdentityResponse != nil {
+		return *p.UpgradeResourceIdentityResponse
 	}
 
 	return resp
@@ -357,7 +379,6 @@ func (p *MockProvider) MoveResourceState(ctx context.Context, r providers.MoveRe
 		resp.TargetState = v
 	case len(r.SourceStateJSON) > 0:
 		v, err := ctyjson.Unmarshal(r.SourceStateJSON, schemaType)
-
 		if err != nil {
 			resp.Diagnostics = resp.Diagnostics.Append(err)
 			return resp
@@ -628,6 +649,7 @@ func (p *MockProvider) ImportResourceState(ctx context.Context, r providers.Impo
 
 	return resp
 }
+
 func (p *MockProvider) ReadDataSource(ctx context.Context, r providers.ReadDataSourceRequest) (resp providers.ReadDataSourceResponse) {
 	tracing.ContextProbeReport(ctx, 0)
 	p.Lock()

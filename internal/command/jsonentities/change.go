@@ -6,7 +6,10 @@
 package jsonentities
 
 import (
+	"encoding/json"
 	"fmt"
+
+	ctyjson "github.com/zclconf/go-cty/cty/json"
 
 	"github.com/opentofu/opentofu/internal/plans"
 )
@@ -42,10 +45,41 @@ func NewResourceInstanceChange(change *plans.ResourceInstanceChangeSrc) *Resourc
 		if c.Action == ActionNoOp {
 			c.Action = ActionImport
 		}
-		c.Importing = &Importing{ID: change.Importing.ID}
+		c.Importing = newImporting(change.Importing)
 	}
 
 	return c
+}
+
+// newImporting converts a plans.ImportingSrc to an Importing struct,
+// handling the conversion of DynamicValue identity to JSON format.
+func newImporting(src *plans.ImportingSrc) *Importing {
+	// Determine if we're importing via ID or identity
+	isIdentityImport := src.ID == "" && src.Identity != nil
+	if !isIdentityImport {
+		return &Importing{ID: src.ID}
+	}
+
+	// Convert DynamicValue to JSON
+	identityType, err := src.Identity.ImpliedType()
+	if err != nil {
+		// If we can't determine the type, fall back to ID
+		return &Importing{ID: src.ID}
+	}
+
+	identityVal, err := src.Identity.Decode(identityType)
+	if err != nil {
+		// If decode fails, fall back to ID
+		return &Importing{ID: src.ID}
+	}
+
+	identityJSON, err := ctyjson.Marshal(identityVal, identityType)
+	if err != nil {
+		// If JSON marshaling fails, fall back to ID
+		return &Importing{ID: src.ID}
+	}
+
+	return &Importing{Identity: json.RawMessage(identityJSON)}
 }
 
 type ResourceInstanceChange struct {
