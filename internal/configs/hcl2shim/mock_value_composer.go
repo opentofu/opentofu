@@ -156,7 +156,7 @@ func (mvc MockValueComposer) composeMockValueForAttributes(attrs map[string]*con
 				diags = diags.Append(tfdiags.WholeContainingBody(
 					tfdiags.Warning,
 					fmt.Sprintf("Encountered override for write-only attribute `%v`", k),
-					"Override values for write-only attributes has no impact since the write-only attributes will always be null in the provider response.",
+					"Override values for write-only attributes have no impact since the write-only attributes will always be null in the provider response.",
 				))
 			}
 		} else if attr.Required {
