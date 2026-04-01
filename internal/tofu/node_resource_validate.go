@@ -335,14 +335,38 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 				}
 			}
 
-			for _, ex := range n.Config.TriggersReplacement {
-				// Validate the triggers_replacement traversals
-				refs, _ := lang.ReferencesInExpr(addrs.ParseRef, ex)
-				for _, ref := range refs {
-					remainingDiags := schemaForType.Block.StaticValidateTraversal(ref.Remaining)
-					if remainingDiags.HasErrors() {
-						diags = diags.Append(remainingDiags)
-					}
+			// Validate that attribute traversals in replace_triggered_by
+			// expressions refer to attributes that exist in the schema.
+			// We use evalReplaceTriggeredByExpr to correctly handle JSON
+			// syntax and HCL expressions.
+			for _, expr := range n.Config.TriggersReplacement {
+
+				repData := instances.RepetitionData{}
+				switch {
+				case n.Config.Count != nil:
+					repData.CountIndex = cty.UnknownVal(cty.Number)
+				case n.Config.ForEach != nil:
+					repData.EachKey = cty.UnknownVal(cty.String)
+					repData.EachValue = cty.UnknownVal(cty.DynamicPseudoType)
+				}
+
+				// Evaluate the expression with repetitionData as unknown values
+				// so we can extract the references without worrying with the whole expression.
+				ref, refDiags := evalReplaceTriggeredByExpr(expr, repData)
+				if refDiags.HasErrors() {
+					diags = diags.Append(refDiags)
+					continue
+				}
+
+				if len(ref.Remaining) == 0 {
+					continue
+				}
+
+				// Validate if rest of the reference is valid. The check above does not do that,
+				// it only checks the resource type and its primary attributes.
+				remainingDiags := schemaForType.Block.StaticValidateTraversal(ref.Remaining)
+				if remainingDiags.HasErrors() {
+					diags = diags.Append(remainingDiags)
 				}
 			}
 		}

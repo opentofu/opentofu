@@ -16,6 +16,8 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
+// evalReplaceTriggeredByExpr evaluates the replace_triggered_by expression to get the reference
+// to the resource that triggers replacement, if any.
 func evalReplaceTriggeredByExpr(expr hcl.Expression, keyData instances.RepetitionData) (*addrs.Reference, tfdiags.Diagnostics) {
 	var ref *addrs.Reference
 	var diags tfdiags.Diagnostics
