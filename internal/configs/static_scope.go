@@ -264,7 +264,7 @@ func (s staticScopeData) GetInputVariable(_ context.Context, ident addrs.InputVa
 		return cty.NilVal, diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Unable to use variable in static context",
-			Detail:   fmt.Sprintf("The variable %q does not have `const = true` set and can not be used in a static context.", variable.Name),
+			Detail:   fmt.Sprintf("The variable %q cannot be used in a static context, because it is declared as \"const = false\".", variable.Name),
 			Subject:  rng.ToHCL().Ptr(),
 		})
 	}
