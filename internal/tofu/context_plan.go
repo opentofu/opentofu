@@ -1046,14 +1046,24 @@ func (c *Context) driftedResources(ctx context.Context, config *configs.Config, 
 					action = plans.NoOp
 				}
 
+				var oldObjIdentity, newObjIdentity cty.Value
+				if oldObj != nil {
+					oldObjIdentity = oldObj.Identity
+				}
+				if newObj != nil {
+					newObjIdentity = newObj.Identity
+				}
+
 				change := &plans.ResourceInstanceChange{
 					Addr:         addr,
 					PrevRunAddr:  prevRunAddr,
 					ProviderAddr: rs.ProviderConfig,
 					Change: plans.Change{
-						Action: action,
-						Before: oldVal,
-						After:  newVal,
+						Action:         action,
+						Before:         oldVal,
+						After:          newVal,
+						BeforeIdentity: oldObjIdentity,
+						AfterIdentity:  newObjIdentity,
 					},
 				}
 
