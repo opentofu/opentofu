@@ -433,7 +433,6 @@ Plan: 1 to add, 0 to change, 0 to destroy.
 	}
 }
 
-
 func TestOperation_planNextStep(t *testing.T) {
 	testCases := map[string]struct {
 		path string

@@ -1046,7 +1046,10 @@ func (c *Context) driftedResources(ctx context.Context, config *configs.Config, 
 					action = plans.NoOp
 				}
 
-				var newObjIdentity cty.Value
+				var oldObjIdentity, newObjIdentity cty.Value
+				if oldObj != nil {
+					oldObjIdentity = oldObj.Identity
+				}
 				if newObj != nil {
 					newObjIdentity = newObj.Identity
 				}
@@ -1059,7 +1062,7 @@ func (c *Context) driftedResources(ctx context.Context, config *configs.Config, 
 						Action:         action,
 						Before:         oldVal,
 						After:          newVal,
-						BeforeIdentity: oldObj.Identity,
+						BeforeIdentity: oldObjIdentity,
 						AfterIdentity:  newObjIdentity,
 					},
 				}

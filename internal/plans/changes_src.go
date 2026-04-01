@@ -8,11 +8,10 @@ package plans
 import (
 	"fmt"
 
-	"github.com/zclconf/go-cty/cty"
-
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/zclconf/go-cty/cty"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 )
 
@@ -345,7 +344,7 @@ func (cs *ChangeSrc) Decode(schema *providers.Schema) (*Change, error) {
 		}
 	}
 
-	plannedIdentity := cty.NullVal(cty.DynamicPseudoType)
+	afterIdentity := cty.NullVal(cty.DynamicPseudoType)
 	if len(cs.AfterIdentity) > 0 {
 		var identityTy cty.Type
 		if schema != nil && schema.IdentitySchema != nil {
@@ -353,12 +352,12 @@ func (cs *ChangeSrc) Decode(schema *providers.Schema) (*Change, error) {
 		} else {
 			identityTy, err = cs.AfterIdentity.ImpliedType()
 			if err != nil {
-				return nil, fmt.Errorf("error determining planned identity type: %w", err)
+				return nil, fmt.Errorf("error determining after identity type: %w", err)
 			}
 		}
-		plannedIdentity, err = cs.AfterIdentity.Decode(identityTy)
+		afterIdentity, err = cs.AfterIdentity.Decode(identityTy)
 		if err != nil {
-			return nil, fmt.Errorf("error decoding planned identity value: %w", err)
+			return nil, fmt.Errorf("error decoding after identity value: %w", err)
 		}
 	}
 
@@ -386,6 +385,6 @@ func (cs *ChangeSrc) Decode(schema *providers.Schema) (*Change, error) {
 		Importing:       importing,
 		GeneratedConfig: cs.GeneratedConfig,
 		BeforeIdentity:  beforeIdentity,
-		AfterIdentity:   plannedIdentity,
+		AfterIdentity:   afterIdentity,
 	}, nil
 }
