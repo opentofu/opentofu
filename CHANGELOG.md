@@ -32,6 +32,7 @@ ENHANCEMENTS:
 - Resources using `replace_triggered_by` in their `lifecycle` block are now replaced when a resource they refer to is itself being replaced, whereas before this triggered only when it was being updated. ([#3714](https://github.com/opentofu/opentofu/issues/3714))
 - The `yamldecode` function now supports the "merge" tag, most commonly written as `<<` where a map key would be expected, with sequences of mappings rather than just individual mappings. ([#3607](https://github.com/opentofu/opentofu/pull/3607))
 - A new configuration block type `language` offers a more general way to define version constraints that separates OpenTofu constraints from other software. Note that module authors should delay adopting this new syntax until they are ready to require OpenTofu v1.12.0 or later, but there is an interim solution available that is backward-compatible with earlier OpenTofu versions. ([#3300](https://github.com/opentofu/opentofu/issues/3300))
+- Input variables can now be declared as `const = true` to require that the assigned value is compatible with static evaluation. ([#3946](https://github.com/opentofu/opentofu/pull/3946))
 - New CLI argument `-json-into=<outfile>` allows emitting both human-readable and machine-readable logs. ([#3606](https://github.com/opentofu/opentofu/pull/3606))
 - Provider installation now makes concurrent requests to download provider packages, which may allow `tofu init` to complete faster. ([#2729](https://github.com/opentofu/opentofu/pull/2729))
 - Provider checksum verification and schema loading are now better optimized, including no longer verifying checksums for providers that are present in the local cache but will not be used by a particular command. ([#2730](https://github.com/opentofu/opentofu/pull/2730))
@@ -44,7 +45,6 @@ ENHANCEMENTS:
 - The `s3` backend now automatically discovers and uses AWS credentials issued using [the `aws login` command](https://docs.aws.amazon.com/cli/latest/reference/login/) in AWS CLI. ([#3767](https://github.com/opentofu/opentofu/pull/3767))
 - The `azurerm` backend now supports authentication using Azure DevOps and Azure Pipelines workload identity federation. ([#3820](https://github.com/opentofu/opentofu/pull/3820))
 - Most of the commands now prints the usage text when arguments parsing fails, prints previously legacy error messages as regular diagnostics and received support JSON output. ([#3941](https://github.com/opentofu/opentofu/pull/3941))
-- Input variables can now be declared as `const = true` to require that the assigned value is compatible with static evaluation. ([#3946](https://github.com/opentofu/opentofu/pull/3946))
 
 BUG FIXES:
 
