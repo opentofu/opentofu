@@ -179,8 +179,6 @@ func ObjectValueBestGuess(obj cty.Value) (k, v string) {
 		return "", ""
 	}
 
-	// Now we know we have _some_ information, we go through the rest of the attributes and
-	// This is a bit of a Hail Mary, but it is better than nothing.
 	attributeTypes := obj.Type().AttributeTypes()
 
 	// Fetch whichever string attribute is first in the list that is not marked as unusable, and return it as the best effort description of this object.
