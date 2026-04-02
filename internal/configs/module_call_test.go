@@ -409,7 +409,7 @@ variable "path" {
 	}, {
 		name:  "failure, post-const",
 		files: []string{"mod.tf", "path_notconst.tf"},
-		err:   "The variable \"path\" does not have `const = true` set and can not be used in a static context.",
+		err:   `The variable "path" cannot be used in a static context, because it is declared as "const = false`,
 	}}
 
 	for _, tc := range cases {
