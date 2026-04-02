@@ -2479,7 +2479,7 @@ locals {
 
 	diags := ctx.Validate(context.Background(), m)
 	warn := diags.ErrWithWarnings().Error()
-	if !strings.Contains(warn, `The attribute "foo" is deprecated`) {
+	if !strings.Contains(warn, `This value is derived from aws_instance.test.foo`) {
 		t.Fatalf("expected deprecated warning, got: %q\n", warn)
 	}
 }

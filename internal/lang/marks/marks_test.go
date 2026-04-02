@@ -36,9 +36,8 @@ func TestMarkConsolidateWarnings(t *testing.T) {
 			},
 			Extra: DeprecationCause{
 				By: addrs.OutputValue{
-					Name: "output",
-				},
-				Key:     fmt.Sprintf("output%d", i),
+					Name: fmt.Sprintf("output%d", i),
+				}.String(),
 				Message: "output deprecate",
 			},
 		})
@@ -53,9 +52,8 @@ func TestMarkConsolidateWarnings(t *testing.T) {
 			},
 			Extra: DeprecationCause{
 				By: addrs.InputVariable{
-					Name: "variable",
-				},
-				Key:     fmt.Sprintf("variable%d", i),
+					Name: fmt.Sprintf("variable%d", i),
+				}.String(),
 				Message: "variable deprecate",
 			},
 		})
@@ -73,9 +71,8 @@ func TestMarkConsolidateWarnings(t *testing.T) {
 		},
 		Extra: DeprecationCause{
 			By: addrs.InputVariable{
-				Name: "variable",
-			},
-			Key:     "variable1",
+				Name: "variable1",
+			}.String(),
 			Message: "variable deprecate",
 		},
 	})
@@ -93,8 +90,7 @@ func TestMarkConsolidateWarnings(t *testing.T) {
 		Extra: DeprecationCause{
 			By: addrs.InputVariable{
 				Name: "mod1.variable",
-			},
-			Key:     "mod1.variable1",
+			}.String(),
 			Message: "variable deprecate",
 		},
 	})
@@ -143,8 +139,7 @@ func TestHasDeprecated(t *testing.T) {
 		{
 			name: "has deprecation mark",
 			input: Deprecated(cty.StringVal("test"), DeprecationCause{
-				By:      addrs.InputVariable{Name: "var1"},
-				Key:     "var1",
+				By:      addrs.InputVariable{Name: "var1"}.String(),
 				Message: "deprecated",
 			}),
 			want: true,
@@ -152,8 +147,7 @@ func TestHasDeprecated(t *testing.T) {
 		{
 			name: "mixed marks with deprecation",
 			input: Deprecated(cty.StringVal("test").Mark(Sensitive), DeprecationCause{
-				By:      addrs.InputVariable{Name: "var1"},
-				Key:     "var1",
+				By:      addrs.InputVariable{Name: "var1"}.String(),
 				Message: "deprecated",
 			}),
 			want: true,
