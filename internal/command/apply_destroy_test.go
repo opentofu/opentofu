@@ -438,6 +438,7 @@ func TestApply_destroySkipInConfigAndState(t *testing.T) {
 		},
 	}
 
+	t.Cleanup(testInputMap(t, map[string]string{"approve": "yes"}))
 	args := []string{
 		"-state", statePath,
 	}
@@ -510,6 +511,7 @@ func TestApply_destroySkipWithSuppressFlag(t *testing.T) {
 		},
 	}
 
+	t.Cleanup(testInputMap(t, map[string]string{"approve": "yes"}))
 	// with the suppress flag, the destroy should succeed even with forgotten instances
 	args := []string{
 		"-suppress-forget-errors",
@@ -568,7 +570,6 @@ func TestApply_destroySkipInStateNotInConfig(t *testing.T) {
 		)
 	})
 	statePath := testStateFile(t, originalState)
-
 	p := applyFixtureProvider()
 
 	view, done := testView(t)
@@ -581,6 +582,7 @@ func TestApply_destroySkipInStateNotInConfig(t *testing.T) {
 		},
 	}
 
+	t.Cleanup(testInputMap(t, map[string]string{"approve": "yes"}))
 	args := []string{
 		"-state", statePath,
 	}
@@ -650,6 +652,7 @@ func TestApply_destroySkipInStateOrphaned(t *testing.T) {
 			View:             view,
 		},
 	}
+	t.Cleanup(testInputMap(t, map[string]string{"approve": "yes"}))
 
 	args := []string{
 		"-state", statePath,

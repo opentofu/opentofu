@@ -1241,7 +1241,7 @@ func TestVarsParsing(t *testing.T) {
 	p := testProvider()
 	varArgs := []string{"-var", "snack=chips", "-var-file", "all.tfvars"}
 	t.Run("console", func(t *testing.T) {
-		defer testStdinPipe(t, strings.NewReader("var.foo\nvar.snack\n"))()
+		t.Cleanup(testStdinPipe(t, strings.NewReader("var.foo\nvar.snack\n")))
 		streams, done := terminal.StreamsForTesting(t)
 		c := &ConsoleCommand{
 			Meta: Meta{
@@ -1271,6 +1271,7 @@ func TestVarsParsing(t *testing.T) {
 	cases := map[string]struct {
 		cmdBuilder      func(m Meta) cli.Command
 		expectedContent []string
+		extraArgs       []string
 	}{
 		"plan": {
 			cmdBuilder: func(m Meta) cli.Command {
@@ -1281,6 +1282,7 @@ func TestVarsParsing(t *testing.T) {
 			cmdBuilder: func(m Meta) cli.Command {
 				return &ApplyCommand{Meta: m}
 			},
+			extraArgs: []string{"-auto-approve"},
 		},
 		"output": {
 			cmdBuilder: func(m Meta) cli.Command {
@@ -1309,6 +1311,7 @@ func TestVarsParsing(t *testing.T) {
 			c := tc.cmdBuilder(m)
 
 			args := append([]string{"-no-color"}, varArgs...)
+			args = append(args, tc.extraArgs...)
 			code := c.Run(args)
 			output := done(t)
 			if code != 0 {

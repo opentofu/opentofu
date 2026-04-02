@@ -2539,7 +2539,7 @@ func TestApply_concise(t *testing.T) {
 			View:             view,
 		},
 	}
-
+	t.Cleanup(testInputMap(t, map[string]string{"approve": "yes"}))
 	args := []string{"-concise"}
 	code := c.Run(args)
 	output := done(t)
