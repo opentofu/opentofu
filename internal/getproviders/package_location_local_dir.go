@@ -8,8 +8,10 @@ package getproviders
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/opentofu/opentofu/internal/copy"
 )
@@ -129,6 +131,12 @@ func (p PackageLocalDir) InstallProviderPackage(_ context.Context, meta PackageM
 	// If we get down here then symlinking failed and we need a deep copy
 	// instead. To make a copy, we first need to create the target directory,
 	// which would otherwise be a symlink.
+	warning := fmt.Sprintf("[WARN] Failed to create provider symlink: %s. Falling back to copying the package.", err)
+	if runtime.GOOS == "windows" {
+		warning += " Refer to https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/security-policy-settings/create-symbolic-links for limitations of symlink support on Windows."
+	}
+	log.Print(warning)
+
 	//nolint:mnd // magic number predates us using this linter
 	err = os.Mkdir(absNew, 0755)
 	if err != nil && os.IsExist(err) {
