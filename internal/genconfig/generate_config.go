@@ -23,6 +23,15 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
+// ensureQuotedIdentifier wraps name in quotes if it is not a valid HCL
+// identifier (e.g. it contains dots or other special characters).
+func ensureQuotedIdentifier(name string) string {
+	if !hclsyntax.ValidIdentifier(name) {
+		return string(hclwrite.TokensForValue(cty.StringVal(name)).Bytes())
+	}
+	return name
+}
+
 // GenerateResourceContents generates HCL configuration code for the provided
 // resource and state value.
 //
@@ -91,10 +100,7 @@ func writeConfigAttributes(addr addrs.AbsResourceInstance, buf *strings.Builder,
 		}
 		if attrS.Required {
 			buf.WriteString(strings.Repeat(" ", indent))
-			// Handle cases where the name should be contained in quotes
-			if !hclsyntax.ValidIdentifier(name) {
-				name = string(hclwrite.TokensForValue(cty.StringVal(name)).Bytes())
-			}
+			name = ensureQuotedIdentifier(name)
 			fmt.Fprintf(buf, "%s = ", name)
 			tok := hclwrite.TokensForValue(attrS.EmptyValue())
 			if _, err := tok.WriteTo(buf); err != nil {
@@ -109,10 +115,7 @@ func writeConfigAttributes(addr addrs.AbsResourceInstance, buf *strings.Builder,
 			writeAttrTypeConstraint(buf, attrS)
 		} else if attrS.Optional {
 			buf.WriteString(strings.Repeat(" ", indent))
-			// Handle cases where the name should be contained in quotes
-			if !hclsyntax.ValidIdentifier(name) {
-				name = string(hclwrite.TokensForValue(cty.StringVal(name)).Bytes())
-			}
+			name = ensureQuotedIdentifier(name)
 			fmt.Fprintf(buf, "%s = ", name)
 			tok := hclwrite.TokensForValue(attrS.EmptyValue())
 			if _, err := tok.WriteTo(buf); err != nil {
@@ -154,11 +157,7 @@ func writeConfigAttributesFromExisting(addr addrs.AbsResourceInstance, buf *stri
 		// Exclude computed-only attributes
 		if attrS.Required || attrS.Optional {
 			buf.WriteString(strings.Repeat(" ", indent))
-			// Handle cases where the name should be contained in quotes
-			displayName := name
-			if !hclsyntax.ValidIdentifier(name) {
-				displayName = string(hclwrite.TokensForValue(cty.StringVal(name)).Bytes())
-			}
+			displayName := ensureQuotedIdentifier(name)
 			fmt.Fprintf(buf, "%s = ", displayName)
 
 			var val cty.Value
@@ -267,10 +266,7 @@ func writeConfigNestedTypeAttribute(addr addrs.AbsResourceInstance, buf *strings
 	var diags tfdiags.Diagnostics
 
 	buf.WriteString(strings.Repeat(" ", indent))
-	// Handle cases where the name should be contained in quotes
-	if !hclsyntax.ValidIdentifier(name) {
-		name = string(hclwrite.TokensForValue(cty.StringVal(name)).Bytes())
-	}
+	name = ensureQuotedIdentifier(name)
 	fmt.Fprintf(buf, "%s = ", name)
 
 	switch schema.NestedType.Nesting {
@@ -338,11 +334,7 @@ func writeConfigBlocksFromExisting(addr addrs.AbsResourceInstance, buf *strings.
 func writeConfigNestedTypeAttributeFromExisting(addr addrs.AbsResourceInstance, buf *strings.Builder, name string, schema *configschema.Attribute, stateVal cty.Value, indent int) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
-	// Handle cases where the name should be contained in quotes
-	displayName := name
-	if !hclsyntax.ValidIdentifier(name) {
-		displayName = string(hclwrite.TokensForValue(cty.StringVal(name)).Bytes())
-	}
+	displayName := ensureQuotedIdentifier(name)
 
 	switch schema.NestedType.Nesting {
 	case configschema.NestingSingle:
@@ -436,11 +428,7 @@ func writeConfigNestedTypeAttributeFromExisting(addr addrs.AbsResourceInstance, 
 		fmt.Fprintf(buf, "%s = {\n", displayName)
 		for _, key := range keys {
 			buf.WriteString(strings.Repeat(" ", indent+2))
-			// Handle cases where the key should be contained in quotes
-			quotedKey := key
-			if !hclsyntax.ValidIdentifier(key) {
-				quotedKey = string(hclwrite.TokensForValue(cty.StringVal(key)).Bytes())
-			}
+			quotedKey := ensureQuotedIdentifier(key)
 			fmt.Fprintf(buf, "%s = {", quotedKey)
 
 			// This entire value is marked
