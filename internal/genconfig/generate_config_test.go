@@ -823,6 +823,295 @@ resource "tfcoremock_simple_resource" "example" {
 resource "tfcoremock_simple_resource" "example" {
 }`,
 		},
+		"map_nested_attribute_with_dotted_keys": {
+			schema: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"id": {
+						Type:     cty.String,
+						Computed: true,
+					},
+					"map_attr": {
+						NestedType: &configschema.Object{
+							Attributes: map[string]*configschema.Attribute{
+								"nested_value": {
+									Type:     cty.String,
+									Optional: true,
+								},
+							},
+							Nesting: configschema.NestingMap,
+						},
+						Optional: true,
+					},
+				},
+			},
+			addr: addrs.AbsResourceInstance{
+				Module: nil,
+				Resource: addrs.ResourceInstance{
+					Resource: addrs.Resource{
+						Mode: addrs.ManagedResourceMode,
+						Type: "tfcoremock_simple_resource",
+						Name: "example",
+					},
+					Key: nil,
+				},
+			},
+			provider: addrs.LocalProviderConfig{
+				LocalName: "tfcoremock",
+			},
+			value: cty.ObjectVal(map[string]cty.Value{
+				"id": cty.StringVal("ID1"),
+				"map_attr": cty.MapVal(map[string]cty.Value{
+					"my.dotted.key": cty.ObjectVal(map[string]cty.Value{
+						"nested_value": cty.StringVal("foo"),
+					}),
+					"normal_key": cty.ObjectVal(map[string]cty.Value{
+						"nested_value": cty.StringVal("bar"),
+					}),
+				}),
+			}),
+			expected: `
+resource "tfcoremock_simple_resource" "example" {
+  map_attr = {
+    "my.dotted.key" = {
+      nested_value = "foo"
+    }
+    normal_key = {
+      nested_value = "bar"
+    }
+  }
+}`,
+		},
+		"dotted_attr_name_with_state": {
+			schema: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"id": {
+						Type:     cty.String,
+						Computed: true,
+					},
+					"value.json": {
+						Type:     cty.String,
+						Optional: true,
+					},
+				},
+			},
+			addr: addrs.AbsResourceInstance{
+				Module: nil,
+				Resource: addrs.ResourceInstance{
+					Resource: addrs.Resource{
+						Mode: addrs.ManagedResourceMode,
+						Type: "tfcoremock_simple_resource",
+						Name: "example",
+					},
+					Key: nil,
+				},
+			},
+			provider: addrs.LocalProviderConfig{
+				LocalName: "tfcoremock",
+			},
+			value: cty.ObjectVal(map[string]cty.Value{
+				"id":         cty.StringVal("ID1"),
+				"value.json": cty.StringVal("hello"),
+			}),
+			expected: `
+resource "tfcoremock_simple_resource" "example" {
+  "value.json" = "hello"
+}`,
+		},
+		"dotted_nested_single_attr_name_no_state": {
+			schema: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"id": {
+						Type:     cty.String,
+						Computed: true,
+					},
+					"nested.attr": {
+						NestedType: &configschema.Object{
+							Attributes: map[string]*configschema.Attribute{
+								"inner_value": {
+									Type:     cty.String,
+									Optional: true,
+								},
+							},
+							Nesting: configschema.NestingSingle,
+						},
+						Optional: true,
+					},
+				},
+			},
+			addr: addrs.AbsResourceInstance{
+				Module: nil,
+				Resource: addrs.ResourceInstance{
+					Resource: addrs.Resource{
+						Mode: addrs.ManagedResourceMode,
+						Type: "tfcoremock_simple_resource",
+						Name: "example",
+					},
+					Key: nil,
+				},
+			},
+			provider: addrs.LocalProviderConfig{
+				LocalName: "tfcoremock",
+			},
+			value: cty.NilVal,
+			expected: `
+resource "tfcoremock_simple_resource" "example" {
+  "nested.attr" = {    # OPTIONAL object
+    inner_value = null # OPTIONAL string
+  }
+}`,
+		},
+		"dotted_nested_single_attr_name_with_state": {
+			schema: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"id": {
+						Type:     cty.String,
+						Computed: true,
+					},
+					"nested.attr": {
+						NestedType: &configschema.Object{
+							Attributes: map[string]*configschema.Attribute{
+								"inner_value": {
+									Type:     cty.String,
+									Optional: true,
+								},
+							},
+							Nesting: configschema.NestingSingle,
+						},
+						Optional: true,
+					},
+				},
+			},
+			addr: addrs.AbsResourceInstance{
+				Module: nil,
+				Resource: addrs.ResourceInstance{
+					Resource: addrs.Resource{
+						Mode: addrs.ManagedResourceMode,
+						Type: "tfcoremock_simple_resource",
+						Name: "example",
+					},
+					Key: nil,
+				},
+			},
+			provider: addrs.LocalProviderConfig{
+				LocalName: "tfcoremock",
+			},
+			value: cty.ObjectVal(map[string]cty.Value{
+				"id": cty.StringVal("ID1"),
+				"nested.attr": cty.ObjectVal(map[string]cty.Value{
+					"inner_value": cty.StringVal("hello"),
+				}),
+			}),
+			expected: `
+resource "tfcoremock_simple_resource" "example" {
+  "nested.attr" = {
+    inner_value = "hello"
+  }
+}`,
+		},
+		"dotted_nested_list_attr_name_with_state": {
+			schema: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"id": {
+						Type:     cty.String,
+						Computed: true,
+					},
+					"nested.list": {
+						NestedType: &configschema.Object{
+							Attributes: map[string]*configschema.Attribute{
+								"inner_value": {
+									Type:     cty.String,
+									Optional: true,
+								},
+							},
+							Nesting: configschema.NestingList,
+						},
+						Optional: true,
+					},
+				},
+			},
+			addr: addrs.AbsResourceInstance{
+				Module: nil,
+				Resource: addrs.ResourceInstance{
+					Resource: addrs.Resource{
+						Mode: addrs.ManagedResourceMode,
+						Type: "tfcoremock_simple_resource",
+						Name: "example",
+					},
+					Key: nil,
+				},
+			},
+			provider: addrs.LocalProviderConfig{
+				LocalName: "tfcoremock",
+			},
+			value: cty.ObjectVal(map[string]cty.Value{
+				"id": cty.StringVal("ID1"),
+				"nested.list": cty.ListVal([]cty.Value{
+					cty.ObjectVal(map[string]cty.Value{
+						"inner_value": cty.StringVal("hello"),
+					}),
+				}),
+			}),
+			expected: `
+resource "tfcoremock_simple_resource" "example" {
+  "nested.list" = [
+    {
+      inner_value = "hello"
+    },
+  ]
+}`,
+		},
+		"dotted_nested_map_attr_name_with_state": {
+			schema: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"id": {
+						Type:     cty.String,
+						Computed: true,
+					},
+					"nested.map": {
+						NestedType: &configschema.Object{
+							Attributes: map[string]*configschema.Attribute{
+								"inner_value": {
+									Type:     cty.String,
+									Optional: true,
+								},
+							},
+							Nesting: configschema.NestingMap,
+						},
+						Optional: true,
+					},
+				},
+			},
+			addr: addrs.AbsResourceInstance{
+				Module: nil,
+				Resource: addrs.ResourceInstance{
+					Resource: addrs.Resource{
+						Mode: addrs.ManagedResourceMode,
+						Type: "tfcoremock_simple_resource",
+						Name: "example",
+					},
+					Key: nil,
+				},
+			},
+			provider: addrs.LocalProviderConfig{
+				LocalName: "tfcoremock",
+			},
+			value: cty.ObjectVal(map[string]cty.Value{
+				"id": cty.StringVal("ID1"),
+				"nested.map": cty.MapVal(map[string]cty.Value{
+					"normal_key": cty.ObjectVal(map[string]cty.Value{
+						"inner_value": cty.StringVal("hello"),
+					}),
+				}),
+			}),
+			expected: `
+resource "tfcoremock_simple_resource" "example" {
+  "nested.map" = {
+    normal_key = {
+      inner_value = "hello"
+    }
+  }
+}`,
+		},
 	}
 	for name, tc := range tcs {
 		t.Run(name, func(t *testing.T) {
