@@ -12,8 +12,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/mitchellh/colorstring"
-	"github.com/zclconf/go-cty/cty"
-
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/jsonformat/differ"
 	"github.com/opentofu/opentofu/internal/command/jsonformat/structured"
@@ -27,6 +25,7 @@ import (
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/terminal"
 	"github.com/opentofu/opentofu/internal/tofu"
+	"github.com/zclconf/go-cty/cty"
 )
 
 func TestRenderHuman_EmptyPlan(t *testing.T) {
@@ -138,6 +137,109 @@ func TestRenderHuman_Imports(t *testing.T) {
 OpenTofu will perform the following actions:
 
   # test_resource.resource will be imported
+  # (imported from "1D5F5E9E-F2E5-401B-9ED5-692A215AC67E")
+    resource "test_resource" "resource" {
+        id    = "1D5F5E9E-F2E5-401B-9ED5-692A215AC67E"
+        value = "Hello, World!"
+    }
+
+Plan: 1 to import, 0 to add, 0 to change, 0 to destroy.
+`,
+		},
+		"simple_import_with_identity": {
+			plan: Plan{
+				ResourceChanges: []jsonplan.ResourceChange{
+					{
+						Address:      "test_resource.resource",
+						Mode:         "managed",
+						Type:         "test_resource",
+						Name:         "resource",
+						ProviderName: "test",
+						Change: jsonplan.Change{
+							Actions: []string{"no-op"},
+							Before: marshalJson(t, map[string]any{
+								"id":    "1D5F5E9E-F2E5-401B-9ED5-692A215AC67E",
+								"value": "Hello, World!",
+							}),
+							After: marshalJson(t, map[string]any{
+								"id":    "1D5F5E9E-F2E5-401B-9ED5-692A215AC67E",
+								"value": "Hello, World!",
+							}),
+							Importing: &jsonplan.Importing{
+								Identity: marshalJson(t, map[string]any{
+									"name": "my-resource",
+								}),
+							},
+						},
+					},
+				},
+			},
+			output: `
+OpenTofu will perform the following actions:
+
+  # test_resource.resource will be imported
+  # imported using resource identity: {
+  #   "name": "my-resource"
+  # }
+    resource "test_resource" "resource" {
+        id    = "1D5F5E9E-F2E5-401B-9ED5-692A215AC67E"
+        value = "Hello, World!"
+    }
+
+Plan: 1 to import, 0 to add, 0 to change, 0 to destroy.
+`,
+		},
+		"import_with_complex_identity": {
+			plan: Plan{
+				ResourceChanges: []jsonplan.ResourceChange{
+					{
+						Address:      "test_resource.resource",
+						Mode:         "managed",
+						Type:         "test_resource",
+						Name:         "resource",
+						ProviderName: "test",
+						Change: jsonplan.Change{
+							Actions: []string{"no-op"},
+							Before: marshalJson(t, map[string]any{
+								"id":    "1D5F5E9E-F2E5-401B-9ED5-692A215AC67E",
+								"value": "Hello, World!",
+							}),
+							After: marshalJson(t, map[string]any{
+								"id":    "1D5F5E9E-F2E5-401B-9ED5-692A215AC67E",
+								"value": "Hello, World!",
+							}),
+							Importing: &jsonplan.Importing{
+								// The identity here contains a map, slice, and nested properties
+								Identity: marshalJson(t, map[string]any{
+									"project_id": "my-project-123",
+									"region":     "us-east-1",
+									"tags": map[string]any{
+										"env":   "production",
+										"owner": "platform-team",
+									},
+									"scopes": []string{"read", "write"},
+								}),
+							},
+						},
+					},
+				},
+			},
+			output: `
+OpenTofu will perform the following actions:
+
+  # test_resource.resource will be imported
+  # imported using resource identity: {
+  #   "project_id": "my-project-123",
+  #   "region": "us-east-1",
+  #   "scopes": [
+  #     "read",
+  #     "write"
+  #   ],
+  #   "tags": {
+  #     "env": "production",
+  #     "owner": "platform-team"
+  #   }
+  # }
     resource "test_resource" "resource" {
         id    = "1D5F5E9E-F2E5-401B-9ED5-692A215AC67E"
         value = "Hello, World!"
@@ -181,6 +283,7 @@ OpenTofu will perform the following actions:
 
   # test_resource.resource will be imported
   # (config will be generated)
+  # (imported from "1D5F5E9E-F2E5-401B-9ED5-692A215AC67E")
     resource "test_resource" "resource" {
         id    = "1D5F5E9E-F2E5-401B-9ED5-692A215AC67E"
         value = "Hello, World!"
@@ -350,6 +453,53 @@ OpenTofu will perform the following actions:
 
   # test_resource.resource will be updated in-place
   # (will be imported first)
+  ~ resource "test_resource" "resource" {
+        id    = "1D5F5E9E-F2E5-401B-9ED5-692A215AC67E"
+      ~ value = "Hello, World!" -> "Hello, Universe!"
+    }
+
+Plan: 1 to import, 0 to add, 1 to change, 0 to destroy.
+`,
+		},
+		"import_and_update_with_identity": {
+			plan: Plan{
+				ResourceChanges: []jsonplan.ResourceChange{
+					{
+						Address:      "test_resource.resource",
+						Mode:         "managed",
+						Type:         "test_resource",
+						Name:         "resource",
+						ProviderName: "test",
+						Change: jsonplan.Change{
+							Actions: []string{"update"},
+							Before: marshalJson(t, map[string]interface{}{
+								"id":    "1D5F5E9E-F2E5-401B-9ED5-692A215AC67E",
+								"value": "Hello, World!",
+							}),
+							After: marshalJson(t, map[string]interface{}{
+								"id":    "1D5F5E9E-F2E5-401B-9ED5-692A215AC67E",
+								"value": "Hello, Universe!",
+							}),
+							Importing: &jsonplan.Importing{
+								Identity: marshalJson(t, map[string]interface{}{
+									"name": "my-resource-identity-name",
+								}),
+							},
+						},
+					},
+				},
+			},
+			output: `
+OpenTofu used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
+  ~ update in-place (current -> planned)
+
+OpenTofu will perform the following actions:
+
+  # test_resource.resource will be updated in-place
+  # imported using resource identity: {
+  #   "name": "my-resource-identity-name"
+  # }
   ~ resource "test_resource" "resource" {
         id    = "1D5F5E9E-F2E5-401B-9ED5-692A215AC67E"
       ~ value = "Hello, World!" -> "Hello, Universe!"
@@ -4440,7 +4590,8 @@ func TestResourceChange_nestedMap(t *testing.T) {
 			}),
 			AfterValMarks: []cty.PathValueMarks{
 				{
-					Path: cty.Path{cty.GetAttrStep{Name: "disks"},
+					Path: cty.Path{
+						cty.GetAttrStep{Name: "disks"},
 						cty.IndexStep{Key: cty.StringVal("disk_a")},
 						cty.GetAttrStep{Name: "mount_point"},
 					},
@@ -7526,7 +7677,7 @@ func outputChange(name string, before, after cty.Value, sensitive bool) *plans.O
 
 // A basic test schema using a configurable NestingMode for one (NestedType) attribute and one block
 func testSchema(nesting configschema.NestingMode) *configschema.Block {
-	var diskKey = "disks"
+	diskKey := "disks"
 	if nesting == configschema.NestingSingle {
 		diskKey = "disk"
 	}
@@ -7629,7 +7780,7 @@ func testSchemaMultipleBlocks(nesting configschema.NestingMode) *configschema.Bl
 
 // similar to testSchema with the addition of a "new_field" block
 func testSchemaPlus(nesting configschema.NestingMode) *configschema.Block {
-	var diskKey = "disks"
+	diskKey := "disks"
 	if nesting == configschema.NestingSingle {
 		diskKey = "disk"
 	}
