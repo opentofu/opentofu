@@ -292,21 +292,25 @@ func TestCloud_PrepareConfigWithEnvVars(t *testing.T) {
 				"TF_WORKSPACE": "qux",
 			},
 		},
-		"with TF_WORKSPACE value outside of the tags set": {
-			// see https://github.com/opentofu/opentofu/issues/814 for context
+		"with TF_WORKSPACE value different than the workspace name in config": {
+			// This test case has been introduced initially in
+			// https://github.com/opentofu/opentofu/pull/867.
+			// Later, during investigations done for https://github.com/opentofu/opentofu/issues/1787,
+			// the implementation and the error message was changed but this test case was never updated as part
+			// of the work in https://github.com/opentofu/opentofu/pull/1930
 			config: cty.ObjectVal(map[string]cty.Value{
 				"hostname":     cty.StringVal("foo"),
 				"organization": cty.StringVal("bar"),
 				"workspaces": cty.ObjectVal(map[string]cty.Value{
-					"name":    cty.NullVal(cty.String),
+					"name":    cty.StringVal("not-quxx"),
 					"project": cty.NullVal(cty.String),
-					"tags":    cty.SetVal([]cty.Value{cty.StringVal("baz"), cty.StringVal("qux")}),
+					"tags":    cty.NullVal(cty.Set(cty.String)),
 				}),
 			}),
 			vars: map[string]string{
 				"TF_WORKSPACE": "quxx",
 			},
-			expectedErr: `Invalid workspaces configuration: The workspace defined using the environment variable "TF_WORKSPACE" does not belong to "tags".`,
+			expectedErr: `Invalid workspaces configuration: The workspace defined using the environment variable "TF_WORKSPACE" is not consistent with the workspace "name" in the configuration.`,
 		},
 		"with workspace block w/o attributes, TF_WORKSPACE defined": {
 			config: cty.ObjectVal(map[string]cty.Value{
@@ -348,10 +352,11 @@ func TestCloud_PrepareConfigWithEnvVars(t *testing.T) {
 
 func TestCloud_config(t *testing.T) {
 	cases := map[string]struct {
-		config  cty.Value
-		confErr string
-		valErr  string
-		envVars map[string]string
+		config            cty.Value
+		confErr           string
+		valErr            string
+		envVars           map[string]string
+		workspaceToCreate string
 	}{
 		"with_a_non_tfe_host": {
 			config: cty.ObjectVal(map[string]cty.Value{
@@ -442,11 +447,13 @@ func TestCloud_config(t *testing.T) {
 			config: cty.NullVal(cty.EmptyObject),
 		},
 		"with_tags_and_TF_WORKSPACE_env_var_not_matching_tags": { //TODO: once we have proper e2e backend testing we should also add the opposite test - with_tags_and_TF_WORKSPACE_env_var_matching_tags
+			workspaceToCreate: "my-workspace",
 			config: cty.ObjectVal(map[string]cty.Value{
-				"hostname":     cty.NullVal(cty.String),
+				"hostname":     cty.StringVal("localhost"),
 				"organization": cty.StringVal("opentofu"),
-				"token":        cty.NullVal(cty.String),
+				"token":        cty.StringVal("token"),
 				"workspaces": cty.ObjectVal(map[string]cty.Value{
+					"name": cty.NullVal(cty.String),
 					"tags": cty.SetVal(
 						[]cty.Value{
 							cty.StringVal("billing"),
@@ -458,7 +465,7 @@ func TestCloud_config(t *testing.T) {
 			envVars: map[string]string{
 				"TF_WORKSPACE": "my-workspace",
 			},
-			confErr: `OpenTofu failed to find workspace my-workspace with the tags specified in your configuration`,
+			confErr: `OpenTofu failed to find workspace "my-workspace" with the tags specified in your configuration`,
 		},
 	}
 
@@ -471,6 +478,15 @@ func TestCloud_config(t *testing.T) {
 			b, cleanup := testUnconfiguredBackend(t)
 			t.Cleanup(cleanup)
 
+			// workspaceToCreate is a hack that helps with "mocking" existing organization workspaces.
+			if tc.workspaceToCreate != "" {
+				_, err := b.client.Workspaces.Create(t.Context(), b.organization, tfe.WorkspaceCreateOptions{
+					Name: new(tc.workspaceToCreate),
+				})
+				if err != nil {
+					t.Fatalf("failed to create the requested workspace: %s", err)
+				}
+			}
 			// Validate
 			_, valDiags := b.PrepareConfig(tc.config)
 			if (valDiags.Err() != nil || tc.valErr != "") &&

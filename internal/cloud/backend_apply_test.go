@@ -166,9 +166,11 @@ func TestCloud_applyJSONBasic(t *testing.T) {
 	outp := close(t)
 	gotOut := outp.Stdout()
 
-	if !strings.Contains(gotOut, "1 to add, 0 to change, 0 to destroy") {
-		t.Fatalf("expected plan summary in output: %s", gotOut)
-	}
+	// This has been added in terraform#32504 but seems that this test was not executed, because in the same PR
+	// it was added the logic to skip logs of type jsonformat.LogChangeSummary (see Cloud.renderPlanLogs).
+	//if !strings.Contains(gotOut, "1 to add, 0 to change, 0 to destroy") {
+	//	t.Fatalf("expected plan summary in output: %s", gotOut)
+	//}
 	if !strings.Contains(gotOut, "1 added, 0 changed, 0 destroyed") {
 		t.Fatalf("expected apply summary in output: %s", gotOut)
 	}
@@ -242,9 +244,11 @@ func TestCloud_applyJSONWithOutputs(t *testing.T) {
         }
     }`
 
-	if !strings.Contains(gotOut, "1 to add, 0 to change, 0 to destroy") {
-		t.Fatalf("expected plan summary in output: %s", gotOut)
-	}
+	// This has been added in terraform#32504 but seems that this test was not executed, because in the same PR
+	// it was added the logic to skip logs of type jsonformat.LogChangeSummary (see Cloud.renderPlanLogs).
+	//if !strings.Contains(gotOut, "1 to add, 0 to change, 0 to destroy") {
+	//	t.Fatalf("expected plan summary in output: %s", gotOut)
+	//}
 	if !strings.Contains(gotOut, "1 added, 0 changed, 0 destroyed") {
 		t.Fatalf("expected apply summary in output: %s", gotOut)
 	}
