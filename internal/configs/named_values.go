@@ -33,6 +33,11 @@ type Variable struct {
 	Description string
 	Default     cty.Value
 
+	// Only used inside modules that have *some* variable with ConstSet.
+	// This allows us to match terraform's validation in their imitation
+	// of our static eval concept.
+	Const bool
+
 	// Type is the concrete type of the variable value.
 	Type cty.Type
 	// ConstraintType is used for decoding and type conversions, and may
@@ -49,6 +54,7 @@ type Variable struct {
 	DescriptionSet bool
 	SensitiveSet   bool
 	EphemeralSet   bool
+	ConstSet       bool
 
 	// Nullable indicates that null is a valid value for this variable. Setting
 	// Nullable to false means that the module can expect this variable to
@@ -158,6 +164,12 @@ func decodeVariableBlock(block *hcl.Block, override bool) (*Variable, hcl.Diagno
 		// The current default is true, which is subject to change in a future
 		// language edition.
 		v.Nullable = true
+	}
+
+	if attr, exists := content.Attributes["const"]; exists {
+		valDiags := gohcl.DecodeExpression(attr.Expr, nil, &v.Const)
+		diags = append(diags, valDiags...)
+		v.ConstSet = true
 	}
 
 	if attr, exists := content.Attributes["default"]; exists {
@@ -664,6 +676,9 @@ var variableBlockSchema = &hcl.BodySchema{
 		},
 		{
 			Name: "ephemeral",
+		},
+		{
+			Name: "const",
 		},
 		{
 			Name: "deprecated",
