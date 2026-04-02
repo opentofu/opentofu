@@ -10,6 +10,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/marks"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -20,6 +21,10 @@ func copyAndExtendPath(path cty.Path, nextSteps ...cty.PathStep) cty.Path {
 	copy(newPath, path)
 	newPath = append(newPath, nextSteps...)
 	return newPath
+}
+
+func deprecatedBy(by addrs.Referenceable, path cty.Path) string {
+	return by.String() + tfdiags.FormatCtyPath(path)
 }
 
 // ValueMarks returns a set of path value marks for a given value and path,
@@ -39,8 +44,7 @@ func (b *Block) ValueMarks(val cty.Value, path cty.Path, by addrs.Referenceable,
 	}
 	if b.Deprecated {
 		blockMarks = append(blockMarks, marks.DeprecationMark(marks.DeprecationCause{
-			By:                 by,
-			Key:                fmt.Sprintf("%s\n%s\n%s", by, path, b.DeprecationMessage),
+			By:                 deprecatedBy(by, path),
 			Message:            b.DeprecationMessage,
 			IsFromRemoteModule: isFromRemote,
 		}))
@@ -60,9 +64,9 @@ func (b *Block) ValueMarks(val cty.Value, path cty.Path, by addrs.Referenceable,
 			attrMarks = append(attrMarks, marks.Sensitive)
 		}
 		if attrS.Deprecated {
+			attrPath := copyAndExtendPath(path, cty.GetAttrStep{Name: name})
 			attrMarks = append(attrMarks, marks.DeprecationMark(marks.DeprecationCause{
-				By:                 by,
-				Key:                fmt.Sprintf("%s\n%s\n%s\n%s", by, name, path, attrS.DeprecationMessage),
+				By:                 deprecatedBy(by, attrPath),
 				Message:            attrS.DeprecationMessage,
 				IsFromRemoteModule: isFromRemote,
 			}))
@@ -162,8 +166,7 @@ func (o *Object) ValueMarks(val cty.Value, path cty.Path, by addrs.Referenceable
 			if attrS.Deprecated {
 				// If the entire attribute is sensitive, mark it so
 				attrMarks = append(attrMarks, marks.DeprecationMark(marks.DeprecationCause{
-					By:                 by,
-					Key:                fmt.Sprintf("%s\n%s\n%s\n%s", by, name, path, attrS.DeprecationMessage),
+					By:                 deprecatedBy(by, attrPath),
 					Message:            attrS.DeprecationMessage,
 					IsFromRemoteModule: isFromRemote,
 				}))
@@ -200,8 +203,7 @@ func (o *Object) ValueMarks(val cty.Value, path cty.Path, by addrs.Referenceable
 				if attrS.Deprecated {
 					// If the entire attribute is sensitive, mark it so
 					attrMarks = append(attrMarks, marks.DeprecationMark(marks.DeprecationCause{
-						By:                 by,
-						Key:                fmt.Sprintf("%s\n%s\n%s\n%s", by, name, path, attrS.DeprecationMessage),
+						By:                 deprecatedBy(by, attrPath),
 						Message:            attrS.DeprecationMessage,
 						IsFromRemoteModule: isFromRemote,
 					}))

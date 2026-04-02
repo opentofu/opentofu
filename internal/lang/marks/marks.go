@@ -69,11 +69,11 @@ const TypeType = valueMark("TypeType")
 
 var (
 	_ diagnosticExtraDeprecationCause = DeprecationCause{}
+	_ tfdiags.Keyable                 = DeprecationCause{}
 )
 
 type DeprecationCause struct {
-	By      addrs.Referenceable
-	Key     string
+	By      string
 	Message string
 
 	// IsFromRemoteModule indicates if the cause of deprecation is coming from a remotely
@@ -84,7 +84,7 @@ type DeprecationCause struct {
 
 // ExtraInfoKey returns the key used for consolidation of deprecation diagnostics.
 func (dc DeprecationCause) ExtraInfoKey() string {
-	return dc.Key
+	return dc.By
 }
 
 type deprecationMark struct {
@@ -105,9 +105,6 @@ func HasDeprecated(v cty.Value) bool {
 }
 
 func DeprecationMark(cause DeprecationCause) any {
-	if cause.By == nil {
-		panic("TODO")
-	}
 	return deprecationMark{
 		Cause: cause,
 	}
@@ -116,7 +113,7 @@ func DeprecationMark(cause DeprecationCause) any {
 // Deprecated marks a given value as deprecated with specified DeprecationCause.
 func Deprecated(v cty.Value, cause DeprecationCause) cty.Value {
 	for m := range cty.ValueMarksOfType[deprecationMark](v) {
-		if addrs.Equivalent(m.Cause.By, cause.By) {
+		if m.Cause.ExtraInfoKey() == cause.ExtraInfoKey() {
 			// Already marked as deprecated for this cause.
 			return v
 		}
@@ -138,12 +135,8 @@ func DeprecatedOutput(v cty.Value, addr addrs.AbsOutputValue, msg string, isFrom
 	_, callOutAddr := addr.ModuleCallOutput()
 	return Deprecated(v, DeprecationCause{
 		IsFromRemoteModule: isFromRemoteModule,
-		By:                 callOutAddr,
-		// Used to identify the output on the consolidation diagnostics and
-		// make sure they are consolidated correctly. We use:
-		// output value + deprecated message as the key
-		Key:     fmt.Sprintf("%s\n%s", addr.OutputValue.Name, msg),
-		Message: msg,
+		By:                 callOutAddr.String(),
+		Message:            msg,
 	})
 }
 
@@ -169,10 +162,11 @@ func ExtractDeprecationDiagnosticsWithBody(val cty.Value, body hcl.Body) (cty.Va
 		diag := tfdiags.AttributeValue(
 			tfdiags.Warning,
 			"Value derived from a deprecated source",
-			fmt.Sprintf("This value is derived from %v, which is deprecated with the following message:\n\n%s", cause.By, cause.Message),
+			fmt.Sprintf("This value is derived from %s, which is deprecated with the following message:\n\n%s", cause.By, cause.Message),
 			path,
 		)
 		diags = diags.Append(tfdiags.Override(diag, tfdiags.Warning, func() tfdiags.DiagnosticExtraWrapper {
+			println(cause.By)
 			return &deprecatedOutputDiagnosticExtra{
 				Cause: cause,
 			}
@@ -206,10 +200,11 @@ func ExtractDeprecatedDiagnosticsWithExpr(val cty.Value, expr hcl.Expression) (c
 			source += "'s attribute " + attr
 		}
 		cause := dm.Cause
+		println(cause.By)
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity:   hcl.DiagWarning,
 			Summary:    "Value derived from a deprecated source",
-			Detail:     fmt.Sprintf("%s is derived from %v, which is deprecated with the following message:\n\n%s", source, cause.By, cause.Message),
+			Detail:     fmt.Sprintf("%s is derived from %s, which is deprecated with the following message:\n\n%s", source, cause.By, cause.Message),
 			Subject:    expr.Range().Ptr(),
 			Expression: expr,
 			Extra:      cause,

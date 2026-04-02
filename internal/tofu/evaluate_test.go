@@ -691,7 +691,12 @@ func TestEvaluatorGetResource_Ephemeral(t *testing.T) {
 	}{
 		"no state": {
 			states.NewState().SyncWrapper(),
-			cty.DynamicVal.Mark(marks.Ephemeral),
+			cty.ObjectVal(map[string]cty.Value{
+				"id":          cty.UnknownVal(cty.String),
+				"value":       cty.UnknownVal(cty.String),
+				"name":        cty.UnknownVal(cty.String),
+				"nesting_map": cty.UnknownVal(cty.Set(cty.Object(map[string]cty.Type{"foo": cty.String}))),
+			}).Mark(marks.Ephemeral),
 		},
 		"with state": {
 			states.BuildState(func(state *states.SyncState) {
