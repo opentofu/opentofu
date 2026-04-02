@@ -25,10 +25,7 @@ func copyAndExtendPath(path cty.Path, nextSteps ...cty.PathStep) cty.Path {
 // ValueMarks returns a set of path value marks for a given value and path,
 // based on the sensitive flag for each attribute within the schema. Nested
 // blocks are descended (if present in the given value).
-func (b *Block) ValueMarks(val cty.Value, path cty.Path) []cty.PathValueMarks {
-	return b.ValueMarksExt(val, path, nil, false)
-}
-func (b *Block) ValueMarksExt(val cty.Value, path cty.Path, by addrs.Referenceable, isFromRemote bool) []cty.PathValueMarks {
+func (b *Block) ValueMarks(val cty.Value, path cty.Path, by addrs.Referenceable, isFromRemote bool) []cty.PathValueMarks {
 	var pvm []cty.PathValueMarks
 
 	var blockMarks []any
@@ -97,7 +94,7 @@ func (b *Block) ValueMarksExt(val cty.Value, path cty.Path, by addrs.Referenceab
 		// Create a copy of the path, with this step added, to add to our PathValueMarks slice
 		attrPath := copyAndExtendPath(path, cty.GetAttrStep{Name: name})
 
-		pvm = append(pvm, attrS.NestedType.ValueMarksExt(val.GetAttr(name), attrPath, by, isFromRemote)...)
+		pvm = append(pvm, attrS.NestedType.ValueMarks(val.GetAttr(name), attrPath, by, isFromRemote)...)
 	}
 
 	// Extract marks for nested blocks
@@ -117,14 +114,14 @@ func (b *Block) ValueMarksExt(val cty.Value, path cty.Path, by addrs.Referenceab
 
 		switch blockS.Nesting {
 		case NestingSingle, NestingGroup:
-			pvm = append(pvm, blockS.Block.ValueMarksExt(blockV, blockPath, by, isFromRemote)...)
+			pvm = append(pvm, blockS.Block.ValueMarks(blockV, blockPath, by, isFromRemote)...)
 		case NestingList, NestingMap, NestingSet:
 			for it := blockV.ElementIterator(); it.Next(); {
 				idx, blockEV := it.Element()
 				// Create a copy of the path, with this block instance's index
 				// step added, to add to our PathValueMarks slice
 				blockInstancePath := copyAndExtendPath(blockPath, cty.IndexStep{Key: idx})
-				morePaths := blockS.Block.ValueMarksExt(blockEV, blockInstancePath, by, isFromRemote)
+				morePaths := blockS.Block.ValueMarks(blockEV, blockInstancePath, by, isFromRemote)
 				pvm = append(pvm, morePaths...)
 			}
 		default:
@@ -137,10 +134,7 @@ func (b *Block) ValueMarksExt(val cty.Value, path cty.Path, by addrs.Referenceab
 // ValueMarks returns a set of path value marks for a given value and path,
 // based on the sensitive flag for each attribute within the nested attribute.
 // Attributes with nested types are descended (if present in the given value).
-func (o *Object) ValueMarks(val cty.Value, path cty.Path) []cty.PathValueMarks {
-	return o.ValueMarksExt(val, path, nil, false)
-}
-func (o *Object) ValueMarksExt(val cty.Value, path cty.Path, by addrs.Referenceable, isFromRemote bool) []cty.PathValueMarks {
+func (o *Object) ValueMarks(val cty.Value, path cty.Path, by addrs.Referenceable, isFromRemote bool) []cty.PathValueMarks {
 	var pvm []cty.PathValueMarks
 
 	if val.IsNull() || !val.IsKnown() {
@@ -182,7 +176,7 @@ func (o *Object) ValueMarksExt(val cty.Value, path cty.Path, by addrs.Referencea
 			} else {
 				// The attribute has a nested type which contains sensitive
 				// attributes, so recurse
-				pvm = append(pvm, attrS.NestedType.ValueMarksExt(val.GetAttr(name), attrPath, by, isFromRemote)...)
+				pvm = append(pvm, attrS.NestedType.ValueMarks(val.GetAttr(name), attrPath, by, isFromRemote)...)
 			}
 		case NestingList, NestingMap, NestingSet:
 			// For nested attribute types which have a non-single nesting mode,
@@ -220,7 +214,7 @@ func (o *Object) ValueMarksExt(val cty.Value, path cty.Path, by addrs.Referencea
 				} else {
 					// The attribute has a nested type which contains sensitive
 					// attributes, so recurse
-					pvm = append(pvm, attrS.NestedType.ValueMarksExt(attrV, attrPath, by, isFromRemote)...)
+					pvm = append(pvm, attrS.NestedType.ValueMarks(attrV, attrPath, by, isFromRemote)...)
 				}
 			}
 		default:

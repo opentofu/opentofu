@@ -8,6 +8,7 @@ package configschema
 import (
 	"testing"
 
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -236,7 +237,7 @@ func TestBlockValueMarks(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			got := tc.given.MarkWithPaths(tc.schema.ValueMarks(tc.given, nil))
+			got := tc.given.MarkWithPaths(tc.schema.ValueMarks(tc.given, nil, addrs.Resource{}, false))
 			if !got.RawEquals(tc.expect) {
 				t.Fatalf("\nexpected: %#v\ngot:      %#v\n", tc.expect, got)
 			}
