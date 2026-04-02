@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-tfe"
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/command/views"
 )
 
 // IntegrationOutputWriter is an interface used to write output tailored for
@@ -36,9 +36,8 @@ type IntegrationContext struct {
 
 // integrationCLIOutput implements IntegrationOutputWriter
 type integrationCLIOutput struct {
-	CLI       cli.Ui
-	Colorizer Colorer
-	started   time.Time
+	View    views.BackendRemote
+	started time.Time
 }
 
 var _ IntegrationOutputWriter = (*integrationCLIOutput)(nil) // Compile time check
@@ -66,9 +65,8 @@ func (s *IntegrationContext) Poll(backoffMinInterval float64, backoffMaxInterval
 // output
 func (s *IntegrationContext) BeginOutput(name string) IntegrationOutputWriter {
 	var result IntegrationOutputWriter = &integrationCLIOutput{
-		CLI:       s.B.CLI,
-		Colorizer: s.B.Colorize(),
-		started:   time.Now(),
+		View:    s.B.View,
+		started: time.Now(),
 	}
 
 	result.Output("\n[bold]" + name + ":\n")
@@ -78,27 +76,17 @@ func (s *IntegrationContext) BeginOutput(name string) IntegrationOutputWriter {
 
 // End writes the termination output for the integration
 func (s *integrationCLIOutput) End() {
-	if s.CLI == nil {
-		return
-	}
-
-	s.CLI.Output("\n------------------------------------------------------------------------\n")
+	s.View.Output("\n------------------------------------------------------------------------\n", false)
 }
 
 // Output writes a string after colorizing it using any [colorstrings](https://github.com/mitchellh/colorstring) it contains
 func (s *integrationCLIOutput) Output(str string) {
-	if s.CLI == nil {
-		return
-	}
-	s.CLI.Output(s.Colorizer.Color(str))
+	s.View.Output(str, true)
 }
 
 // SubOutput writes a string prefixed by a "│ " after colorizing it using any [colorstrings](https://github.com/mitchellh/colorstring) it contains
 func (s *integrationCLIOutput) SubOutput(str string) {
-	if s.CLI == nil {
-		return
-	}
-	s.CLI.Output(s.Colorizer.Color(fmt.Sprintf("[reset]│ %s", str)))
+	s.View.Output(fmt.Sprintf("[reset]│ %s", str), true)
 }
 
 // OutputElapsed writes a string followed by the amount of time that has elapsed since calling BeginOutput.
@@ -109,9 +97,6 @@ func (s *integrationCLIOutput) SubOutput(str string) {
 // 13 tasks still pending, 0 passed, 0 failed ...       (19s elapsed)
 // 13 tasks still pending, 0 passed, 0 failed ...       (33s elapsed)
 func (s *integrationCLIOutput) OutputElapsed(message string, maxMessage int) {
-	if s.CLI == nil {
-		return
-	}
 	elapsed := time.Since(s.started).Truncate(1 * time.Second)
-	s.CLI.Output(fmt.Sprintf("%-"+strconv.FormatInt(int64(maxMessage), 10)+"s", message) + s.Colorizer.Color(fmt.Sprintf("[dim](%s elapsed)", elapsed)))
+	s.View.Output(fmt.Sprintf("%-"+strconv.FormatInt(int64(maxMessage), 10)+"s[dim](%s elapsed)", message, elapsed), true)
 }

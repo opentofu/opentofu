@@ -118,13 +118,7 @@ func (b *Cloud) opPlan(ctx, stopCtx, cancelCtx context.Context, op *backend.Oper
 }
 
 func (b *Cloud) plan(ctx, stopCtx, cancelCtx context.Context, op *backend.Operation, w *tfe.Workspace) (*tfe.Run, error) {
-	if b.CLI != nil {
-		header := planDefaultHeader
-		if op.Type == backend.OperationTypeApply || op.Type == backend.OperationTypeRefresh {
-			header = applyDefaultHeader
-		}
-		b.CLI.Output(b.Colorize().Color(strings.TrimSpace(header) + "\n"))
-	}
+	b.View.OperationHeader(op.Type == backend.OperationTypeApply || op.Type == backend.OperationTypeRefresh, false)
 
 	// Plan-only means they ran tofu plan without -out.
 	provisional := op.PlanOutPath != ""
@@ -164,18 +158,7 @@ func (b *Cloud) plan(ctx, stopCtx, cancelCtx context.Context, op *backend.Operat
 		// produce an explicit message about it to be transparent about what
 		// we are doing and why.
 		if w.WorkingDirectory != "" && filepath.Base(configDir) != w.WorkingDirectory {
-			if b.CLI != nil {
-				b.CLI.Output(fmt.Sprintf(strings.TrimSpace(`
-The remote workspace is configured to work with configuration at
-%s relative to the target repository.
-
-OpenTofu will upload the contents of the following directory,
-excluding files or directories as defined by a .terraformignore file
-at %s/.terraformignore (if it is present),
-in order to capture the filesystem context the remote workspace expects:
-    %s
-`), w.WorkingDirectory, configDir, configDir) + "\n")
-			}
+			b.View.RemoteWorkspaceInRelativeDirectory(w.WorkingDirectory, configDir)
 		}
 
 	} else {
@@ -311,9 +294,7 @@ in order to capture the filesystem context the remote workspace expects:
 				}
 
 				if r.Status == tfe.RunPending && r.Actions.IsCancelable {
-					if b.CLI != nil {
-						b.CLI.Output(b.Colorize().Color(strings.TrimSpace(lockTimeoutErr)))
-					}
+					b.View.LockTimeoutError()
 
 					// We abuse the auto approve flag to indicate that we do not
 					// want to ask if the remote operation should be canceled.
@@ -332,10 +313,8 @@ in order to capture the filesystem context the remote workspace expects:
 		}()
 	}
 
-	if b.CLI != nil {
-		b.CLI.Output(b.Colorize().Color(strings.TrimSpace(fmt.Sprintf(
-			runHeader, b.hostname, b.organization, op.Workspace, r.ID)) + "\n"))
-	}
+	b.View.Output(strings.TrimSpace(fmt.Sprintf(
+		runHeader, b.hostname, b.organization, op.Workspace, r.ID))+"\n", true)
 
 	// Render any warnings that were raised during run creation
 	if err := b.renderRunWarnings(stopCtx, b.client, r.ID); err != nil {
@@ -443,51 +422,46 @@ func (b *Cloud) renderPlanLogs(ctx context.Context, op *backend.Operation, run *
 		return err
 	}
 
-	if b.CLI != nil {
-		reader := bufio.NewReaderSize(logs, 64*1024)
+	reader := bufio.NewReaderSize(logs, 64*1024)
 
-		for next := true; next; {
-			var l, line []byte
-			var err error
+	for next := true; next; {
+		var l, line []byte
+		var err error
 
-			for isPrefix := true; isPrefix; {
-				l, isPrefix, err = reader.ReadLine()
-				if err != nil {
-					if err != io.EOF {
-						return generalError("Failed to read logs", err)
-					}
-					next = false
+		for isPrefix := true; isPrefix; {
+			l, isPrefix, err = reader.ReadLine()
+			if err != nil {
+				if err != io.EOF {
+					return generalError("Failed to read logs", err)
 				}
-
-				line = append(line, l...)
+				next = false
 			}
 
-			if next || len(line) > 0 {
-				log := &jsonformat.JSONLog{}
-				if err := json.Unmarshal(line, log); err != nil {
-					// If we can not parse the line as JSON, we will simply
-					// print the line. This maintains backwards compatibility for
-					// users who do not wish to enable structured output in their
-					// workspace.
-					b.CLI.Output(string(line))
-					continue
-				}
+			line = append(line, l...)
+		}
 
-				// We will ignore plan output, change summary or outputs logs
-				// during the plan phase.
-				if log.Type == jsonformat.LogOutputs ||
-					log.Type == jsonformat.LogChangeSummary ||
-					log.Type == jsonformat.LogPlannedChange {
-					continue
-				}
+		if next || len(line) > 0 {
+			log := &jsonformat.JSONLog{}
+			if err := json.Unmarshal(line, log); err != nil {
+				// If we can not parse the line as JSON, we will simply
+				// print the line. This maintains backwards compatibility for
+				// users who do not wish to enable structured output in their
+				// workspace.
+				b.View.Output(string(line), false)
+				continue
+			}
 
-				if b.renderer != nil {
-					// Otherwise, we will print the log
-					err := b.renderer.RenderLog(log)
-					if err != nil {
-						return err
-					}
-				}
+			// We will ignore plan output, change summary or outputs logs
+			// during the plan phase.
+			if log.Type == jsonformat.LogOutputs ||
+				log.Type == jsonformat.LogChangeSummary ||
+				log.Type == jsonformat.LogPlannedChange {
+				continue
+			}
+
+			// Otherwise, we will print the log
+			if err := b.View.RenderLog(log); err != nil {
+				return err
 			}
 		}
 	}
@@ -544,7 +518,7 @@ func (b *Cloud) renderPlanLogs(ctx context.Context, op *backend.Operation, run *
 	// enabled. Otherwise we risk duplicate plan output since plan output may also be
 	// shown in the streamed logs.
 	if shouldRenderPlan && renderSRO {
-		b.renderer.RenderHumanPlan(*redactedPlan, op.PlanMode)
+		b.View.RenderHumanPlan(*redactedPlan, op.PlanMode)
 	}
 
 	return nil
@@ -586,7 +560,7 @@ func maybeWriteGeneratedConfig(plan *jsonformat.Plan, out string) (diags tfdiags
 // that supports enabling SRO for CLI-driven runs. The plan output will have
 // already been rendered when the logs were read if this wasn't the case.
 func (b *Cloud) shouldRenderStructuredRunOutput(run *tfe.Run) (bool, error) {
-	if b.renderer == nil || !run.Workspace.StructuredRunOutputEnabled {
+	if !run.Workspace.StructuredRunOutputEnabled {
 		return false, nil
 	}
 
@@ -631,20 +605,7 @@ func shouldGenerateConfig(out string, run *tfe.Run) bool {
 		run.Plan.GeneratedConfiguration && len(out) > 0
 }
 
-const planDefaultHeader = `
-[reset][yellow]Running plan in cloud backend. Output will stream here. Pressing Ctrl-C
-will stop streaming the logs, but will not stop the plan running remotely.[reset]
-
-Preparing the remote plan...
-`
-
 const runHeader = `
 [reset][yellow]To view this run in a browser, visit:
 https://%s/app/%s/%s/runs/%s[reset]
-`
-
-// The newline in this error is to make it look good in the CLI!
-const lockTimeoutErr = `
-[reset][red]Lock timeout exceeded, sending interrupt to cancel the remote operation.
-[reset]
 `

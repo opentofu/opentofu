@@ -7,14 +7,15 @@ package cloud
 
 import (
 	"context"
+	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/hashicorp/go-tfe"
+	"github.com/opentofu/opentofu/internal/command/views"
 )
 
 type testIntegrationOutput struct {
-	ctx    *IntegrationContext
 	output *strings.Builder
 	t      *testing.T
 }
@@ -26,15 +27,20 @@ func (s *testIntegrationOutput) End() {
 }
 
 func (s *testIntegrationOutput) SubOutput(str string) {
-	s.output.WriteString(s.ctx.B.Colorize().Color("[reset]│ "+str) + "\n")
+	s.output.WriteString(removeColoriseMarks(str) + "\n")
 }
 
 func (s *testIntegrationOutput) Output(str string) {
-	s.output.WriteString(s.ctx.B.Colorize().Color("[reset]│ ") + str + "\n")
+	s.output.WriteString(removeColoriseMarks(str) + "\n")
 }
 
 func (s *testIntegrationOutput) OutputElapsed(message string, maxMessage int) {
 	s.output.WriteString("PENDING MESSAGE: " + message)
+}
+
+func removeColoriseMarks(in string) string {
+	re := regexp.MustCompile(`\[.*?\]`)
+	return string(re.ReplaceAll([]byte(in), []byte("")))
 }
 
 func newMockIntegrationContext(b *Cloud, t *testing.T) (*IntegrationContext, *testIntegrationOutput) {
@@ -61,7 +67,8 @@ func newMockIntegrationContext(b *Cloud, t *testing.T) (*IntegrationContext, *te
 		t.Fatalf("error creating pending run: %v", err)
 	}
 
-	op, done := testOperationPlan(t, "./testdata/plan")
+	op, view, done := testOperationPlan(t, "./testdata/plan")
+	b.View = views.NewBackendRemote(view)
 	defer done(t)
 
 	integrationContext := &IntegrationContext{
@@ -73,7 +80,6 @@ func newMockIntegrationContext(b *Cloud, t *testing.T) (*IntegrationContext, *te
 	}
 
 	return integrationContext, &testIntegrationOutput{
-		ctx:    integrationContext,
 		output: &strings.Builder{},
 		t:      t,
 	}
@@ -150,27 +156,29 @@ func TestCloud_runTasksWithTaskResults(t *testing.T) {
 		},
 	}
 
-	for _, c := range cases {
-		c.writer.output.Reset()
-		trs := taskResultSummarizer{
-			cloud: b,
-		}
-		err := c.context.Poll(0, 0, func(i int) (bool, error) {
-			cont, _, _ := trs.Summarize(c.context, c.writer, c.taskStage())
-			if cont {
-				return true, nil
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			c.writer.output.Reset()
+			trs := taskResultSummarizer{
+				cloud: b,
 			}
-
-			output := c.writer.output.String()
-			for _, expected := range c.expectedOutputs {
-				if !strings.Contains(output, expected) {
-					t.Fatalf("Expected output to contain '%s' but it was:\n\n%s", expected, output)
+			err := c.context.Poll(0, 0, func(i int) (bool, error) {
+				cont, _, _ := trs.Summarize(c.context, c.writer, c.taskStage())
+				if cont {
+					return true, nil
 				}
+
+				output := c.writer.output.String()
+				for _, expected := range c.expectedOutputs {
+					if !strings.Contains(output, expected) {
+						t.Fatalf("Wrong output:\n\n%s\n\nExpected to contain:\n\n%s", output, expected)
+					}
+				}
+				return false, nil
+			})
+			if err != nil {
+				t.Fatalf("Error while polling: %v", err)
 			}
-			return false, nil
 		})
-		if err != nil {
-			t.Fatalf("Error while polling: %v", err)
-		}
 	}
 }
