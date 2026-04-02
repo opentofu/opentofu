@@ -12,8 +12,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/mitchellh/colorstring"
-	"github.com/zclconf/go-cty/cty"
-
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/jsonformat/differ"
 	"github.com/opentofu/opentofu/internal/command/jsonformat/structured"
@@ -27,6 +25,7 @@ import (
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/terminal"
 	"github.com/opentofu/opentofu/internal/tofu"
+	"github.com/zclconf/go-cty/cty"
 )
 
 func TestRenderHuman_EmptyPlan(t *testing.T) {
@@ -158,16 +157,16 @@ Plan: 1 to import, 0 to add, 0 to change, 0 to destroy.
 						ProviderName: "test",
 						Change: jsonplan.Change{
 							Actions: []string{"no-op"},
-							Before: marshalJson(t, map[string]interface{}{
+							Before: marshalJson(t, map[string]any{
 								"id":    "1D5F5E9E-F2E5-401B-9ED5-692A215AC67E",
 								"value": "Hello, World!",
 							}),
-							After: marshalJson(t, map[string]interface{}{
+							After: marshalJson(t, map[string]any{
 								"id":    "1D5F5E9E-F2E5-401B-9ED5-692A215AC67E",
 								"value": "Hello, World!",
 							}),
 							Importing: &jsonplan.Importing{
-								Identity: marshalJson(t, map[string]interface{}{
+								Identity: marshalJson(t, map[string]any{
 									"name": "my-resource",
 								}),
 							},
@@ -181,6 +180,65 @@ OpenTofu will perform the following actions:
   # test_resource.resource will be imported
   # imported using resource identity: {
   #   "name": "my-resource"
+  # }
+    resource "test_resource" "resource" {
+        id    = "1D5F5E9E-F2E5-401B-9ED5-692A215AC67E"
+        value = "Hello, World!"
+    }
+
+Plan: 1 to import, 0 to add, 0 to change, 0 to destroy.
+`,
+		},
+		"import_with_complex_identity": {
+			plan: Plan{
+				ResourceChanges: []jsonplan.ResourceChange{
+					{
+						Address:      "test_resource.resource",
+						Mode:         "managed",
+						Type:         "test_resource",
+						Name:         "resource",
+						ProviderName: "test",
+						Change: jsonplan.Change{
+							Actions: []string{"no-op"},
+							Before: marshalJson(t, map[string]any{
+								"id":    "1D5F5E9E-F2E5-401B-9ED5-692A215AC67E",
+								"value": "Hello, World!",
+							}),
+							After: marshalJson(t, map[string]any{
+								"id":    "1D5F5E9E-F2E5-401B-9ED5-692A215AC67E",
+								"value": "Hello, World!",
+							}),
+							Importing: &jsonplan.Importing{
+								// The identity here contains a map, slice, and nested properties
+								Identity: marshalJson(t, map[string]any{
+									"project_id": "my-project-123",
+									"region":     "us-east-1",
+									"tags": map[string]any{
+										"env":   "production",
+										"owner": "platform-team",
+									},
+									"scopes": []string{"read", "write"},
+								}),
+							},
+						},
+					},
+				},
+			},
+			output: `
+OpenTofu will perform the following actions:
+
+  # test_resource.resource will be imported
+  # imported using resource identity: {
+  #   "project_id": "my-project-123",
+  #   "region": "us-east-1",
+  #   "scopes": [
+  #     "read",
+  #     "write"
+  #   ],
+  #   "tags": {
+  #     "env": "production",
+  #     "owner": "platform-team"
+  #   }
   # }
     resource "test_resource" "resource" {
         id    = "1D5F5E9E-F2E5-401B-9ED5-692A215AC67E"
