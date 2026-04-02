@@ -458,6 +458,10 @@ func testGetClientOptions(t *testing.T) ([]option.ClientOption, error) {
 	if !json.Valid([]byte(contents)) {
 		return nil, fmt.Errorf("the string provided in credentials is neither valid json nor a valid file path")
 	}
+	//nolint:staticcheck // [option.WithCredentialsJSON] is deprecated
+	// upstream, but we're waiting to see how the hashicorp/google provider
+	// reacts to that deprecation so we can then mimic their strategy as
+	// closely as possible.
 	credOptions = append(credOptions, option.WithCredentialsJSON([]byte(contents)))
 	opts = append(opts, credOptions...)
 	opts = append(opts, option.WithUserAgent(httpclient.OpenTofuUserAgent(version.Version)))
