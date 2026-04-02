@@ -227,7 +227,7 @@ func (b *Remote) opApply(ctx context.Context, stopCtx, cancelCtx context.Context
 		return r, diags.Err()
 	}
 
-	mustConfirm := (op.UIIn != nil && op.UIOut != nil) && !op.AutoApprove
+	mustConfirm := op.UIIn != nil && !op.AutoApprove
 
 	if !w.AutoApply {
 		if mustConfirm {
@@ -259,9 +259,7 @@ func (b *Remote) opApply(ctx context.Context, stopCtx, cancelCtx context.Context
 	// If we don't need to ask for confirmation, insert a blank
 	// line to separate the outputs.
 	if w.AutoApply || !mustConfirm {
-		if b.CLI != nil {
-			b.CLI.Output("")
-		}
+		b.View.Output("", false)
 	}
 
 	r, err = b.waitForRun(stopCtx, cancelCtx, op, "apply", r, w)
@@ -275,41 +273,31 @@ func (b *Remote) opApply(ctx context.Context, stopCtx, cancelCtx context.Context
 	}
 	reader := bufio.NewReaderSize(logs, 64*1024)
 
-	if b.CLI != nil {
-		skip := 0
-		for next := true; next; {
-			var l, line []byte
+	skip := 0
+	for next := true; next; {
+		var l, line []byte
 
-			for isPrefix := true; isPrefix; {
-				l, isPrefix, err = reader.ReadLine()
-				if err != nil {
-					if err != io.EOF {
-						return r, generalError("Failed to read logs", err)
-					}
-					next = false
+		for isPrefix := true; isPrefix; {
+			l, isPrefix, err = reader.ReadLine()
+			if err != nil {
+				if err != io.EOF {
+					return r, generalError("Failed to read logs", err)
 				}
-				line = append(line, l...)
+				next = false
 			}
+			line = append(line, l...)
+		}
 
-			// Skip the first 3 lines to prevent duplicate output.
-			if skip < 3 {
-				skip++
-				continue
-			}
+		// Skip the first 3 lines to prevent duplicate output.
+		if skip < 3 {
+			skip++
+			continue
+		}
 
-			if next || len(line) > 0 {
-				b.CLI.Output(b.Colorize().Color(string(line)))
-			}
+		if next || len(line) > 0 {
+			b.View.Output(string(line), true)
 		}
 	}
 
 	return r, nil
 }
-
-const applyDefaultHeader = `
-[reset][yellow]Running apply in the remote backend. Output will stream here. Pressing Ctrl-C
-will cancel the remote apply if it's still pending. If the apply started it
-will stop streaming the logs, but will not stop the apply running remotely.[reset]
-
-Preparing the remote apply...
-`

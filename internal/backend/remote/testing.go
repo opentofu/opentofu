@@ -16,7 +16,6 @@ import (
 	"time"
 
 	tfe "github.com/hashicorp/go-tfe"
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/svchost"
 	"github.com/opentofu/svchost/disco"
 	"github.com/opentofu/svchost/svcauth"
@@ -146,7 +145,6 @@ func testBackend(t *testing.T, obj cty.Value) (*Remote, func()) {
 	mc := cloud.NewMockClient()
 
 	// Replace the services we use with our mock services.
-	b.CLI = cli.NewMockUi()
 	b.client.Applies = mc.Applies
 	b.client.ConfigurationVersions = mc.ConfigurationVersions
 	b.client.CostEstimates = mc.CostEstimates

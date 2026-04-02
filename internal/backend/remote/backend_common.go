@@ -70,19 +70,19 @@ func (b *Remote) waitForRun(stopCtx, cancelCtx context.Context, op *backend.Oper
 
 		// Return if the run is no longer pending.
 		if r.Status != tfe.RunPending && r.Status != tfe.RunConfirmed {
-			if i == 0 && opType == "plan" && b.CLI != nil {
-				b.CLI.Output(b.Colorize().Color(fmt.Sprintf("Waiting for the %s to start...\n", opType)))
+			if i == 0 && opType == "plan" {
+				b.View.Output(fmt.Sprintf("Waiting for the %s to start...\n", opType), true)
 			}
-			if i > 0 && b.CLI != nil {
+			if i > 0 {
 				// Insert a blank line to separate the outputs.
-				b.CLI.Output("")
+				b.View.Output("", false)
 			}
 			return r, nil
 		}
 
 		// Check if 30 seconds have passed since the last update.
 		current := time.Now()
-		if b.CLI != nil && (i == 0 || current.Sub(updated).Seconds() > 30) {
+		if i == 0 || current.Sub(updated).Seconds() > 30 {
 			updated = current
 			position := 0
 			elapsed := ""
@@ -107,8 +107,7 @@ func (b *Remote) waitForRun(stopCtx, cancelCtx context.Context, op *backend.Oper
 					return r, generalError("Failed to retrieve current run", err)
 				}
 				if cr.Status == tfe.RunPending {
-					b.CLI.Output(b.Colorize().Color(
-						"Waiting for the manually locked workspace to be unlocked..." + elapsed))
+					b.View.WaitingForTheManuallyLockedWorkspace(elapsed)
 					continue
 				}
 			}
@@ -162,11 +161,7 @@ func (b *Remote) waitForRun(stopCtx, cancelCtx context.Context, op *backend.Oper
 				}
 
 				if position > 0 {
-					b.CLI.Output(b.Colorize().Color(fmt.Sprintf(
-						"Waiting for %d run(s) to finish before being queued...%s",
-						position,
-						elapsed,
-					)))
+					b.View.WaitingForRuns(position, elapsed)
 					continue
 				}
 			}
@@ -201,16 +196,11 @@ func (b *Remote) waitForRun(stopCtx, cancelCtx context.Context, op *backend.Oper
 				if err != nil {
 					return r, generalError("Failed to retrieve capacity", err)
 				}
-				b.CLI.Output(b.Colorize().Color(fmt.Sprintf(
-					"Waiting for %d queued run(s) to finish before starting...%s",
-					position-c.Running,
-					elapsed,
-				)))
+				b.View.WaitingForQueuedRuns(position-c.Running, elapsed)
 				continue
 			}
 
-			b.CLI.Output(b.Colorize().Color(fmt.Sprintf(
-				"Waiting for the %s to start...%s", opType, elapsed)))
+			b.View.WaitingForOperationToStart(opType, elapsed)
 		}
 	}
 }
@@ -286,8 +276,8 @@ func (b *Remote) costEstimate(stopCtx, cancelCtx context.Context, op *backend.Op
 
 		// checking if i == 0 so as to avoid printing this starting horizontal-rule
 		// every retry, and that it only prints it on the first (i=0) attempt.
-		if b.CLI != nil && i == 0 {
-			b.CLI.Output("\n------------------------------------------------------------------------\n")
+		if i == 0 {
+			b.View.Output("\n------------------------------------------------------------------------\n", false)
 		}
 
 		switch ce.Status {
@@ -304,21 +294,19 @@ func (b *Remote) costEstimate(stopCtx, cancelCtx context.Context, op *backend.Op
 
 			deltaRepr := strings.Replace(ce.DeltaMonthlyCost, "-", "", 1)
 
-			if b.CLI != nil {
-				b.CLI.Output(b.Colorize().Color(msgPrefix + ":\n"))
-				b.CLI.Output(b.Colorize().Color(fmt.Sprintf("Resources: %d of %d estimated", ce.MatchedResourcesCount, ce.ResourcesCount)))
-				b.CLI.Output(b.Colorize().Color(fmt.Sprintf("           $%s/mo %s$%s", ce.ProposedMonthlyCost, sign, deltaRepr)))
+			b.View.Output(msgPrefix+":\n", true)
+			b.View.Output(fmt.Sprintf("Resources: %d of %d estimated", ce.MatchedResourcesCount, ce.ResourcesCount), true)
+			b.View.Output(fmt.Sprintf("           $%s/mo %s$%s", ce.ProposedMonthlyCost, sign, deltaRepr), true)
 
-				if len(r.PolicyChecks) == 0 && r.HasChanges && op.Type == backend.OperationTypeApply {
-					b.CLI.Output("\n------------------------------------------------------------------------")
-				}
+			if len(r.PolicyChecks) == 0 && r.HasChanges && op.Type == backend.OperationTypeApply {
+				b.View.Output("\n------------------------------------------------------------------------", false)
 			}
 
 			return nil
 		case tfe.CostEstimatePending, tfe.CostEstimateQueued:
 			// Check if 30 seconds have passed since the last update.
 			current := time.Now()
-			if b.CLI != nil && (i == 0 || current.Sub(updated).Seconds() > 30) {
+			if i == 0 || current.Sub(updated).Seconds() > 30 {
 				updated = current
 				elapsed := ""
 
@@ -327,18 +315,18 @@ func (b *Remote) costEstimate(stopCtx, cancelCtx context.Context, op *backend.Op
 					elapsed = fmt.Sprintf(
 						" (%s elapsed)", current.Sub(started).Truncate(30*time.Second))
 				}
-				b.CLI.Output(b.Colorize().Color(msgPrefix + ":\n"))
-				b.CLI.Output(b.Colorize().Color("Waiting for cost estimate to complete..." + elapsed + "\n"))
+				b.View.Output(msgPrefix+":\n", true)
+				b.View.Output("Waiting for cost estimate to complete..."+elapsed+"\n", true)
 			}
 			continue
 		case tfe.CostEstimateSkippedDueToTargeting:
-			b.CLI.Output(b.Colorize().Color(msgPrefix + ":\n"))
-			b.CLI.Output("Not available for this plan, because it was created with the -target option.")
-			b.CLI.Output("\n------------------------------------------------------------------------")
+			b.View.Output(msgPrefix+":\n", true)
+			b.View.Output("Not available for this plan, because it was created with the -target option.", false)
+			b.View.Output("\n------------------------------------------------------------------------", false)
 			return nil
 		case tfe.CostEstimateErrored:
-			b.CLI.Output(msgPrefix + " errored.\n")
-			b.CLI.Output("\n------------------------------------------------------------------------")
+			b.View.Output(msgPrefix+" errored.\n", false)
+			b.View.Output("\n------------------------------------------------------------------------", false)
 			return nil
 		case tfe.CostEstimateCanceled:
 			return fmt.Errorf("%s canceled.", msgPrefix)
@@ -349,9 +337,7 @@ func (b *Remote) costEstimate(stopCtx, cancelCtx context.Context, op *backend.Op
 }
 
 func (b *Remote) checkPolicy(stopCtx, cancelCtx context.Context, op *backend.Operation, r *tfe.Run) error {
-	if b.CLI != nil {
-		b.CLI.Output("\n------------------------------------------------------------------------\n")
-	}
+	b.View.Output("\n------------------------------------------------------------------------\n", false)
 	for i, pc := range r.PolicyChecks {
 		// Read the policy check logs. This is a blocking call that will only
 		// return once the policy check is complete.
@@ -386,35 +372,31 @@ func (b *Remote) checkPolicy(stopCtx, cancelCtx context.Context, op *backend.Ope
 			msgPrefix = fmt.Sprintf("Unknown policy check (%s)", pc.Scope)
 		}
 
-		if b.CLI != nil {
-			b.CLI.Output(b.Colorize().Color(msgPrefix + ":\n"))
-		}
+		b.View.Output(msgPrefix+":\n", true)
 
-		if b.CLI != nil {
-			for next := true; next; {
-				var l, line []byte
+		for next := true; next; {
+			var l, line []byte
 
-				for isPrefix := true; isPrefix; {
-					l, isPrefix, err = reader.ReadLine()
-					if err != nil {
-						if err != io.EOF {
-							return generalError("Failed to read logs", err)
-						}
-						next = false
+			for isPrefix := true; isPrefix; {
+				l, isPrefix, err = reader.ReadLine()
+				if err != nil {
+					if err != io.EOF {
+						return generalError("Failed to read logs", err)
 					}
-					line = append(line, l...)
+					next = false
 				}
+				line = append(line, l...)
+			}
 
-				if next || len(line) > 0 {
-					b.CLI.Output(b.Colorize().Color(string(line)))
-				}
+			if next || len(line) > 0 {
+				b.View.Output(string(line), true)
 			}
 		}
 
 		switch pc.Status {
 		case tfe.PolicyPasses:
-			if (r.HasChanges && op.Type == backend.OperationTypeApply || i < len(r.PolicyChecks)-1) && b.CLI != nil {
-				b.CLI.Output("\n------------------------------------------------------------------------")
+			if r.HasChanges && op.Type == backend.OperationTypeApply || i < len(r.PolicyChecks)-1 {
+				b.View.Output("\n------------------------------------------------------------------------", false)
 			}
 			continue
 		case tfe.PolicyErrored:
@@ -424,7 +406,7 @@ func (b *Remote) checkPolicy(stopCtx, cancelCtx context.Context, op *backend.Ope
 		case tfe.PolicySoftFailed:
 			runUrl := fmt.Sprintf(runHeader, b.hostname, b.organization, op.Workspace, r.ID)
 
-			if op.Type == backend.OperationTypePlan || op.UIOut == nil || op.UIIn == nil ||
+			if op.Type == backend.OperationTypePlan || op.UIIn == nil ||
 				!pc.Actions.IsOverridable || !pc.Permissions.CanOverride {
 				return fmt.Errorf("%s soft failed.\n%s", msgPrefix, runUrl)
 			}
@@ -449,13 +431,11 @@ func (b *Remote) checkPolicy(stopCtx, cancelCtx context.Context, op *backend.Ope
 						return generalError(fmt.Sprintf("Failed to override policy check.\n%s", runUrl), err)
 					}
 				} else {
-					b.CLI.Output(fmt.Sprintf("The run needs to be manually overridden or discarded.\n%s\n", runUrl))
+					b.View.Output(fmt.Sprintf("The run needs to be manually overridden or discarded.\n%s\n", runUrl), false)
 				}
 			}
 
-			if b.CLI != nil {
-				b.CLI.Output("------------------------------------------------------------------------")
-			}
+			b.View.Output("------------------------------------------------------------------------", false)
 		default:
 			return fmt.Errorf("Unknown or unexpected policy state: %s", pc.Status)
 		}
@@ -511,10 +491,7 @@ func (b *Remote) confirm(stopCtx context.Context, op *backend.Operation, opts *t
 				}
 
 				if err != nil {
-					if b.CLI != nil {
-						b.CLI.Output(b.Colorize().Color(
-							fmt.Sprintf("[reset][yellow]%s[reset]", err.Error())))
-					}
+					b.View.Output(fmt.Sprintf("[reset][yellow]%s[reset]", err.Error()), true)
 
 					if err == errRunDiscarded {
 						err = errApplyDiscarded

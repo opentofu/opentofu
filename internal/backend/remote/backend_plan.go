@@ -194,13 +194,7 @@ func (b *Remote) opPlan(ctx, stopCtx, cancelCtx context.Context, op *backend.Ope
 }
 
 func (b *Remote) plan(stopCtx, cancelCtx context.Context, op *backend.Operation, w *tfe.Workspace) (*tfe.Run, error) {
-	if b.CLI != nil {
-		header := planDefaultHeader
-		if op.Type == backend.OperationTypeApply {
-			header = applyDefaultHeader
-		}
-		b.CLI.Output(b.Colorize().Color(strings.TrimSpace(header) + "\n"))
-	}
+	b.View.OperationHeader(op.Type == backend.OperationTypeApply, true)
 
 	configOptions := tfe.ConfigurationVersionCreateOptions{
 		AutoQueueRuns: tfe.Bool(false),
@@ -235,18 +229,7 @@ func (b *Remote) plan(stopCtx, cancelCtx context.Context, op *backend.Operation,
 		// produce an explicit message about it to be transparent about what
 		// we are doing and why.
 		if w.WorkingDirectory != "" && filepath.Base(configDir) != w.WorkingDirectory {
-			if b.CLI != nil {
-				b.CLI.Output(fmt.Sprintf(strings.TrimSpace(`
-The remote workspace is configured to work with configuration at
-%s relative to the target repository.
-
-OpenTofu will upload the contents of the following directory,
-excluding files or directories as defined by a .terraformignore file
-at %s/.terraformignore (if it is present),
-in order to capture the filesystem context the remote workspace expects:
-    %s
-`), w.WorkingDirectory, configDir, configDir) + "\n")
-			}
+			b.View.RemoteWorkspaceInRelativeDirectory(w.WorkingDirectory, configDir)
 		}
 
 	} else {
@@ -360,9 +343,7 @@ in order to capture the filesystem context the remote workspace expects:
 				}
 
 				if r.Status == tfe.RunPending && r.Actions.IsCancelable {
-					if b.CLI != nil {
-						b.CLI.Output(b.Colorize().Color(strings.TrimSpace(lockTimeoutErr)))
-					}
+					b.View.LockTimeoutError()
 
 					// We abuse the auto approve flag to indicate that we do not
 					// want to ask if the remote operation should be canceled.
@@ -381,10 +362,7 @@ in order to capture the filesystem context the remote workspace expects:
 		}()
 	}
 
-	if b.CLI != nil {
-		b.CLI.Output(b.Colorize().Color(strings.TrimSpace(fmt.Sprintf(
-			runHeader, b.hostname, b.organization, op.Workspace, r.ID)) + "\n"))
-	}
+	b.View.Output(strings.TrimSpace(fmt.Sprintf(runHeader, b.hostname, b.organization, op.Workspace, r.ID))+"\n", true)
 
 	r, err = b.waitForRun(stopCtx, cancelCtx, op, "plan", r, w)
 	if err != nil {
@@ -397,24 +375,22 @@ in order to capture the filesystem context the remote workspace expects:
 	}
 	reader := bufio.NewReaderSize(logs, 64*1024)
 
-	if b.CLI != nil {
-		for next := true; next; {
-			var l, line []byte
+	for next := true; next; {
+		var l, line []byte
 
-			for isPrefix := true; isPrefix; {
-				l, isPrefix, err = reader.ReadLine()
-				if err != nil {
-					if err != io.EOF {
-						return r, generalError("Failed to read logs", err)
-					}
-					next = false
+		for isPrefix := true; isPrefix; {
+			l, isPrefix, err = reader.ReadLine()
+			if err != nil {
+				if err != io.EOF {
+					return r, generalError("Failed to read logs", err)
 				}
-				line = append(line, l...)
+				next = false
 			}
+			line = append(line, l...)
+		}
 
-			if next || len(line) > 0 {
-				b.CLI.Output(b.Colorize().Color(string(line)))
-			}
+		if next || len(line) > 0 {
+			b.View.Output(string(line), true)
 		}
 	}
 
@@ -449,20 +425,7 @@ in order to capture the filesystem context the remote workspace expects:
 	return r, nil
 }
 
-const planDefaultHeader = `
-[reset][yellow]Running plan in the remote backend. Output will stream here. Pressing Ctrl-C
-will stop streaming the logs, but will not stop the plan running remotely.[reset]
-
-Preparing the remote plan...
-`
-
 const runHeader = `
 [reset][yellow]To view this run in a browser, visit:
 https://%s/app/%s/%s/runs/%s[reset]
-`
-
-// The newline in this error is to make it look good in the CLI!
-const lockTimeoutErr = `
-[reset][red]Lock timeout exceeded, sending interrupt to cancel the remote operation.
-[reset]
 `

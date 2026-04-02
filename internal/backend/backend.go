@@ -314,8 +314,7 @@ type Operation struct {
 	View views.Operation
 
 	// Input/output/control options.
-	UIIn  tofu.UIInput
-	UIOut tofu.UIOutput
+	UIIn tofu.UIInput
 
 	// StateLocker is used to lock the state while providing UI feedback to the
 	// user. This will be replaced by the Backend to update the context.
