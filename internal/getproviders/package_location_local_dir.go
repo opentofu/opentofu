@@ -131,10 +131,11 @@ func (p PackageLocalDir) InstallProviderPackage(_ context.Context, meta PackageM
 	// If we get down here then symlinking failed and we need a deep copy
 	// instead. To make a copy, we first need to create the target directory,
 	// which would otherwise be a symlink.
-	log.Printf("[WARN] Unable to create provider symlink: %s. Falling back to making a copy.", err)
+	warning := fmt.Sprintf("[WARN] Failed to create provider symlink: %s. Falling back to copying the package.", err)
 	if runtime.GOOS == "windows" {
-		log.Print("[WARN] In certain circumstances, the operating system or your organization may prevent this as a policy. See https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/security-policy-settings/create-symbolic-links for more details")
+		warning += " Refer to https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/security-policy-settings/create-symbolic-links for limitations of symlink support on Windows."
 	}
+	log.Print(warning)
 
 	//nolint:mnd // magic number predates us using this linter
 	err = os.Mkdir(absNew, 0755)
