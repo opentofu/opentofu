@@ -803,7 +803,7 @@ func (d *evaluationStateData) GetResource(ctx context.Context, addr addrs.Resour
 			// for all resources in the configuration.
 			if schema.ContainsMarks() && config.Enabled == nil {
 				val := schema.UnknownValue()
-				schemaMarks := schema.ValueMarksExt(val, nil, addr, false)
+				schemaMarks := schema.ValueMarks(val, nil, addr, false)
 				val = val.MarkWithPaths(schemaMarks)
 				return val, diags
 			}
@@ -888,7 +888,7 @@ func (d *evaluationStateData) GetResource(ctx context.Context, addr addrs.Resour
 				}
 				// Now that we know that the schema contains sensitive and/or ephemeral marks,
 				// Combine those marks together to ensure that the value is marked correctly but not double marked
-				schemaMarks := schema.ValueMarksExt(val, nil, addr, false)
+				schemaMarks := schema.ValueMarks(val, nil, addr, false)
 				afterMarks = combinePathValueMarks(afterMarks, schemaMarks)
 			}
 
@@ -1005,7 +1005,7 @@ func markedValueBySchema(addr addrs.Resource, schema *configschema.Block, val ct
 	// Now that we know that the schema contains sensitive and/or ephemeral marks,
 	// Combine those marks together to ensure that the value is marked correctly but not double marked
 	val, valMarks = val.UnmarkDeepWithPaths()
-	schemaMarks := schema.ValueMarksExt(val, nil, addr, false)
+	schemaMarks := schema.ValueMarks(val, nil, addr, false)
 	if schema.Ephemeral {
 		// Since we are preparing to mark the whole value as ephemeral, we want to remove any other
 		// possible downstream ephemeral marks to avoid having the same mark on multiple layers.
