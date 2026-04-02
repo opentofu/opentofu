@@ -25,11 +25,16 @@ func TestJsonIntoStream(t *testing.T) {
 	// causing one to emit the message and the other not to. Strip these lines so
 	// the comparison is not timing-sensitive. See: https://github.com/opentofu/opentofu/issues/3918
 	stateLockRe := regexp.MustCompile(`(?m)^[^\n]*"type":"state_lock_(?:acquire|release)"[^\n]*\n?`)
+	// Elapsed durations can be flaky due to timing differences between the two runs, so let's remove those
+	elapsedSecondsRe := regexp.MustCompile(`"elapsed_seconds":\d+`)
+	afterDurationRe := regexp.MustCompile(`after \d+s`)
 
 	sanitize := func(s string) string {
 		s = logTimestampRe.ReplaceAllString(s, "")
 		s = resourceIdRe.ReplaceAllString(s, "<ident>")
 		s = stateLockRe.ReplaceAllString(s, "")
+		s = elapsedSecondsRe.ReplaceAllString(s, `"elapsed_seconds":0`)
+		s = afterDurationRe.ReplaceAllString(s, "after 0s")
 		return s
 	}
 
