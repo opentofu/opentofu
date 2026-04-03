@@ -6,6 +6,7 @@ BUG FIXES:
 * Running `tofu apply -refresh-only` with a configuration that contains ephemeral resources does not fail anymore because the refresh produced changes ([#3776](https://github.com/opentofu/opentofu/issues/3776))
 * Fixed `tofu init` crashing when a module `version` uses a variable and the module is referenced from a test file. ([#3686](https://github.com/opentofu/opentofu/issues/3686))
 * Fixed provider-defined functions in `import` block `id` expressions causing "BUG: Uninitialized function provider" error. ([#3803](https://github.com/opentofu/opentofu/issues/3803))
+* `tofu test` no longer fails during cleanup when using a mocked version of a resource type with write-only attributes. ([#3964](https://github.com/opentofu/opentofu/issues/3964))
 
 ## 1.11.5
 
