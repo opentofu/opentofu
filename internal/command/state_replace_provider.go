@@ -11,8 +11,6 @@ import (
 	"strings"
 
 	"github.com/mitchellh/cli"
-	"github.com/opentofu/opentofu/internal/command/flags"
-
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/clistate"
@@ -39,13 +37,6 @@ func (c *StateReplaceProviderCommand) Run(rawArgs []string) int {
 	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
 	c.View.DiagsWithNewline()
 
-	// Propagate -no-color for legacy use of Ui. The remote backend and
-	// cloud package use this; it should be removed when/if they are
-	// migrated to views.
-	// We need this down the road for the confirmation
-	c.Meta.color = !common.NoColor
-	c.Meta.Color = c.Meta.color
-
 	// Parse and validate flags
 	args, closer, diags := arguments.ParseReplaceProvider(rawArgs)
 	defer closer()
@@ -71,7 +62,7 @@ func (c *StateReplaceProviderCommand) Run(rawArgs []string) int {
 	c.stateLock = args.Backend.StateLock
 	c.stateLockTimeout = args.Backend.StateLockTimeout
 	c.ignoreRemoteVersion = args.Backend.IgnoreRemoteVersion
-	c.GatherVariables(args.Vars)
+	c.Meta.variableArgs = args.Vars.All()
 
 	if diags := c.Meta.checkRequiredVersion(ctx); diags != nil {
 		view.Diagnostics(diags)
@@ -109,7 +100,7 @@ func (c *StateReplaceProviderCommand) Run(rawArgs []string) int {
 	}
 
 	// Initialize the state manager as configured
-	stateMgr, err := c.State(ctx, enc)
+	stateMgr, err := c.State(ctx, enc, view)
 	if err != nil {
 		view.StateLoadingFailure(err.Error())
 		return 1
@@ -117,7 +108,7 @@ func (c *StateReplaceProviderCommand) Run(rawArgs []string) int {
 
 	// Acquire lock if requested
 	if c.stateLock {
-		stateLocker := clistate.NewLocker(c.stateLockTimeout, views.NewStateLocker(args.ViewOptions, c.View))
+		stateLocker := clistate.NewLocker(c.stateLockTimeout, view.Backend().StateLocker())
 		if diags := stateLocker.Lock(stateMgr, "state-replace-provider"); diags.HasErrors() {
 			view.Diagnostics(diags)
 			return 1
@@ -131,7 +122,11 @@ func (c *StateReplaceProviderCommand) Run(rawArgs []string) int {
 
 	// Refresh and load state
 	if err := stateMgr.RefreshState(context.TODO()); err != nil {
-		view.Diagnostics(diags.Append(fmt.Errorf("Failed to refresh source state: %s", err)))
+		view.Diagnostics(diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Failed to refresh source state",
+			err.Error(),
+		)))
 		return 1
 	}
 
@@ -174,7 +169,11 @@ func (c *StateReplaceProviderCommand) Run(rawArgs []string) int {
 			Description: "Only 'yes' will be accepted to continue.",
 		})
 		if err != nil {
-			view.Diagnostics(diags.Append(fmt.Errorf("Error asking for approval: %s", err)))
+			view.Diagnostics(diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Error asking for approval",
+				err.Error(),
+			)))
 			return 1
 		}
 		if v != "yes" {
@@ -246,6 +245,15 @@ Options:
                           Use this option more than once to include more than one
                           variables file.
 
+  -json                   Produce output in a machine-readable JSON format, 
+                          suitable for use in text editor integrations and other 
+                          automated systems. Always disables color.
+
+  -json-into=out.json     Produce the same output as -json, but sent directly
+                          to the given file. This allows automation to preserve
+                          the original human-readable output streams, while
+                          capturing more detailed logs for machine analysis.
+
   -state, state-out, and -backup are legacy options supported for the local
   backend only. For more information, see the local backend's documentation.
 
@@ -255,22 +263,4 @@ Options:
 
 func (c *StateReplaceProviderCommand) Synopsis() string {
 	return "Replace provider in the state"
-}
-
-// TODO meta-refactor: move this to arguments once all commands are using the same shim logic
-func (c *StateReplaceProviderCommand) GatherVariables(args *arguments.Vars) {
-	// FIXME the arguments package currently trivially gathers variable related
-	// arguments in a heterogeneous slice, in order to minimize the number of
-	// code paths gathering variables during the transition to this structure.
-	// Once all commands that gather variables have been converted to this
-	// structure, we could move the variable gathering code to the arguments
-	// package directly, removing this shim layer.
-
-	varArgs := args.All()
-	items := make([]flags.RawFlag, len(varArgs))
-	for i := range varArgs {
-		items[i].Name = varArgs[i].Name
-		items[i].Value = varArgs[i].Value
-	}
-	c.Meta.variableArgs = flags.RawFlags{Items: &items}
 }

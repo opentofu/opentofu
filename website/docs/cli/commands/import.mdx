@@ -81,6 +81,13 @@ The command-line flags are all optional. The following flags are available:
   the working directory. This flag can be used multiple times. This is only
   useful with the `-config` flag.
 
+* `-json` - Enables the [machine readable JSON UI](../../internals/machine-readable-ui.mdx) output.
+  This implies `-input=false`, so the configuration must have no unassigned
+  variable values to continue.
+
+* `-json-into=out.json` - Produces the same output as -json, but redirected to a file. This allows
+  for simultaneous capture of both human readable and machine readable logs.
+
 For configurations using the [`cloud` backend](../../cli/cloud/index.mdx) or the [`remote` backend](../../language/settings/backends/remote.mdx)
 only, `tofu import`
 also accepts the option

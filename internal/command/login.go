@@ -10,7 +10,6 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -22,6 +21,7 @@ import (
 	"strings"
 
 	tfe "github.com/hashicorp/go-tfe"
+	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/tracing"
@@ -64,12 +64,6 @@ func (c *LoginCommand) Run(rawArgs []string) int {
 	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
 	c.View.DiagsWithNewline()
 
-	// Propagate -no-color for legacy use of Ui. The remote backend and
-	// cloud package use this; it should be removed when/if they are
-	// migrated to views.
-	c.Meta.color = !common.NoColor
-	c.Meta.Color = c.Meta.color
-
 	// Parse and validate flags
 	args, closer, diags := arguments.ParseLogin(rawArgs)
 	defer closer()
@@ -83,8 +77,10 @@ func (c *LoginCommand) Run(rawArgs []string) int {
 	c.Meta.configureUiFromView(args.ViewOptions)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
-		view.HelpPrompt(c.credentialsFileForHelp())
-		return 1
+		if args.ViewOptions.ViewType == arguments.ViewJSON {
+			return 1
+		}
+		return cli.RunResultHelp
 	}
 
 	// FIXME: the -input flag value is needed to initialize the backend and the
@@ -378,7 +374,11 @@ func (c *LoginCommand) interactiveGetTokenByCode(ctx context.Context, hostname s
 	confirm, confirmDiags := c.interactiveContextConsent(ctx, hostname, disco.OAuthAuthzCodeGrant, credsCtx, view)
 	diags = diags.Append(confirmDiags)
 	if !confirm {
-		diags = diags.Append(errors.New("Login cancelled"))
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Login cancelled",
+			"Login process cancelled because it was not confirmed",
+		))
 		return nil, diags
 	}
 
@@ -569,7 +569,11 @@ func (c *LoginCommand) interactiveGetTokenByPassword(ctx context.Context, hostna
 	confirm, confirmDiags := c.interactiveContextConsent(ctx, hostname, disco.OAuthOwnerPasswordGrant, credsCtx, view)
 	diags = diags.Append(confirmDiags)
 	if !confirm {
-		diags = diags.Append(errors.New("Login cancelled"))
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Login cancelled",
+			"Login process cancelled because it was not confirmed",
+		))
 		return nil, diags
 	}
 
@@ -581,7 +585,11 @@ func (c *LoginCommand) interactiveGetTokenByPassword(ctx context.Context, hostna
 		Query: fmt.Sprintf("Username for %s:", hostname.ForDisplay()),
 	})
 	if err != nil {
-		diags = diags.Append(fmt.Errorf("Failed to request username: %w", err))
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Failed to request username",
+			err.Error(),
+		))
 		return nil, diags
 	}
 	password, err := c.UIInput().Input(ctx, &tofu.InputOpts{
@@ -590,7 +598,11 @@ func (c *LoginCommand) interactiveGetTokenByPassword(ctx context.Context, hostna
 		Secret: true,
 	})
 	if err != nil {
-		diags = diags.Append(fmt.Errorf("Failed to request password: %w", err))
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Failed to request password",
+			err.Error(),
+		))
 		return nil, diags
 	}
 
@@ -621,7 +633,11 @@ func (c *LoginCommand) interactiveGetTokenByUI(ctx context.Context, hostname svc
 	confirm, confirmDiags := c.interactiveContextConsent(ctx, hostname, disco.OAuthGrantType(""), credsCtx, view)
 	diags = diags.Append(confirmDiags)
 	if !confirm {
-		diags = diags.Append(errors.New("Login cancelled"))
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Login cancelled",
+			"Login process cancelled because it was not confirmed",
+		))
 		return "", diags
 	}
 
@@ -672,7 +688,11 @@ func (c *LoginCommand) interactiveGetTokenByUI(ctx context.Context, hostname svc
 		Secret: true,
 	})
 	if err != nil {
-		diags := diags.Append(fmt.Errorf("Failed to retrieve token: %w", err))
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Failed to retrieve token",
+			err.Error(),
+		))
 		return "", diags
 	}
 
@@ -689,15 +709,27 @@ func (c *LoginCommand) interactiveGetTokenByUI(ctx context.Context, hostname svc
 
 	client, err := tfe.NewClient(cfg)
 	if err != nil {
-		diags = diags.Append(fmt.Errorf("Failed to create API client: %w", err))
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Failed to create API client",
+			err.Error(),
+		))
 		return "", diags
 	}
 	user, err := client.Users.ReadCurrent(ctx)
 	if err == tfe.ErrUnauthorized {
-		diags = diags.Append(fmt.Errorf("Token is invalid: %w", err))
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Token is invalid",
+			err.Error(),
+		))
 		return "", diags
 	} else if err != nil {
-		diags = diags.Append(fmt.Errorf("Failed to retrieve user account details: %w", err))
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Failed to retrieve user account details",
+			err.Error(),
+		))
 		return "", diags
 	}
 	view.RetrievedTokenForUser(user.Username)
@@ -737,7 +769,11 @@ func (c *LoginCommand) interactiveContextConsent(ctx context.Context, hostname s
 	if err != nil {
 		// Should not happen because this command checks that input is enabled
 		// before we get to this point.
-		diags = diags.Append(err)
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Error collecting user prompt",
+			err.Error(),
+		))
 		return false, diags
 	}
 

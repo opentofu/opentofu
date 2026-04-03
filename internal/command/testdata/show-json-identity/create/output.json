@@ -1,0 +1,69 @@
+{
+  "format_version": "1.2",
+  "planned_values": {
+    "root_module": {
+      "resources": [
+        {
+          "address": "test_instance.test",
+          "mode": "managed",
+          "type": "test_instance",
+          "name": "test",
+          "provider_name": "registry.opentofu.org/hashicorp/test",
+          "schema_version": 0,
+          "values": {
+            "ami": "new-ami"
+          },
+          "sensitive_values": {}
+        }
+      ]
+    }
+  },
+  "resource_changes": [
+    {
+      "address": "test_instance.test",
+      "mode": "managed",
+      "type": "test_instance",
+      "name": "test",
+      "provider_name": "registry.opentofu.org/hashicorp/test",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "ami": "new-ami"
+        },
+        "after_unknown": {
+          "id": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {}
+      }
+    }
+  ],
+  "configuration": {
+    "provider_config": {
+      "test": {
+        "name": "test",
+        "full_name": "registry.opentofu.org/hashicorp/test"
+      }
+    },
+    "root_module": {
+      "resources": [
+        {
+          "address": "test_instance.test",
+          "mode": "managed",
+          "type": "test_instance",
+          "name": "test",
+          "provider_config_key": "test",
+          "schema_version": 0,
+          "expressions": {
+            "ami": {
+              "constant_value": "new-ami"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

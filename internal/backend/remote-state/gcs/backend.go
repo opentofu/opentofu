@@ -178,6 +178,10 @@ func (b *Backend) configure(ctx context.Context) error {
 			return fmt.Errorf("the string provided in credentials is neither valid json nor a valid file path")
 		}
 
+		//nolint:staticcheck // [option.WithCredentialsJSON] is deprecated
+		// upstream, but we're waiting to see how the hashicorp/google provider
+		// reacts to that deprecation so we can then mimic their strategy as
+		// closely as possible.
 		credOptions = append(credOptions, option.WithCredentialsJSON([]byte(contents)))
 	}
 

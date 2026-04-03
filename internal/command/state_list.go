@@ -12,8 +12,8 @@ import (
 
 	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/arguments"
-	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/opentofu/internal/command/views"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/states"
@@ -32,12 +32,6 @@ func (c *StateListCommand) Run(rawArgs []string) int {
 	common, rawArgs := arguments.ParseView(rawArgs)
 	c.View.Configure(common)
 
-	// Propagate -no-color for legacy use of Ui. The remote backend and
-	// cloud package use this; it should be removed when/if they are
-	// migrated to views.
-	c.Meta.color = !common.NoColor
-	c.Meta.Color = c.Meta.color
-
 	// Parse and validate flags
 	args, closer, diags := arguments.ParseStateList(rawArgs)
 	defer closer()
@@ -51,10 +45,12 @@ func (c *StateListCommand) Run(rawArgs []string) int {
 	c.Meta.configureUiFromView(args.ViewOptions)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
+		if args.ViewOptions.ViewType == arguments.ViewJSON {
+			return 1 // in case it's json, do not print the help of the command
+		}
 		return cli.RunResultHelp
 	}
-
-	c.GatherVariables(args.Vars)
+	c.Meta.variableArgs = args.Vars.All()
 
 	if args.StatePath != "" {
 		c.Meta.statePath = args.StatePath
@@ -80,7 +76,11 @@ func (c *StateListCommand) Run(rawArgs []string) int {
 	// Get the state
 	env, err := c.Workspace(ctx)
 	if err != nil {
-		view.Diagnostics(diags.Append(fmt.Errorf("Error selecting workspace: %s", err)))
+		view.Diagnostics(diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Error selecting workspace",
+			err.Error(),
+		)))
 		return 1
 	}
 	stateMgr, err := b.StateMgr(ctx, env)
@@ -89,7 +89,11 @@ func (c *StateListCommand) Run(rawArgs []string) int {
 		return 1
 	}
 	if err := stateMgr.RefreshState(context.TODO()); err != nil {
-		view.Diagnostics(diags.Append(fmt.Errorf("Failed to load state: %s", err)))
+		view.Diagnostics(diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Error refreshing the state",
+			fmt.Sprintf("Failed to load state: %s", err),
+		)))
 		return 1
 	}
 
@@ -179,34 +183,3 @@ Options:
 func (c *StateListCommand) Synopsis() string {
 	return "List resources in the state"
 }
-
-// TODO meta-refactor: move this to arguments once all commands are using the same shim logic
-func (c *StateListCommand) GatherVariables(args *arguments.Vars) {
-	// FIXME the arguments package currently trivially gathers variable related
-	// arguments in a heterogeneous slice, in order to minimize the number of
-	// code paths gathering variables during the transition to this structure.
-	// Once all commands that gather variables have been converted to this
-	// structure, we could move the variable gathering code to the arguments
-	// package directly, removing this shim layer.
-
-	varArgs := args.All()
-	items := make([]flags.RawFlag, len(varArgs))
-	for i := range varArgs {
-		items[i].Name = varArgs[i].Name
-		items[i].Value = varArgs[i].Value
-	}
-	c.Meta.variableArgs = flags.RawFlags{Items: &items}
-}
-
-// TODO meta-refactor: remove these once all state related commands have been migrated
-const errStateLoadingState = `Error loading the state: %[1]s
-
-Please ensure that your OpenTofu state exists and that you've
-configured it properly. You can use the "-state" flag to point
-OpenTofu at another state file.`
-
-const errStateNotFound = `No state file was found!
-
-State management commands require a state file. Run this command
-in a directory where OpenTofu has been run or use the -state flag
-to point the command to a specific state location.`

@@ -1,0 +1,25 @@
+---
+description: >-
+  The 'tofu metadata functions' command displays the OpenTofu functions available
+  in the OpenTofu evaluation context
+---
+
+# Command: metadata functions
+
+Prints out a json representation of the available function signatures.
+
+## Usage
+
+`tofu [global options] metadata functions -json`
+
+This command has one required flag:
+
+* `-json` - Prints the available function signatures in json format.
+  This command follows the [raw json specification](../../internals/machine-readable-ui.mdx#raw-json-output).
+
+## Example
+
+```shellsession
+$ tofu metadata functions -json
+{"format_version":"1.0","function_signatures":{"abs":{"description":"`abs` returns...}}
+```

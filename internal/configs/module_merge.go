@@ -72,6 +72,10 @@ func (v *Variable) merge(ov *Variable) hcl.Diagnostics {
 		v.Nullable = ov.Nullable
 		v.NullableSet = ov.NullableSet
 	}
+	if ov.ConstSet {
+		v.Const = ov.Const
+		v.ConstSet = ov.ConstSet
+	}
 
 	// If the override file overrode type without default or vice-versa then
 	// it may have created an invalid situation, which we'll catch now by

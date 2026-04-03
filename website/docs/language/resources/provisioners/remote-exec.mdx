@@ -11,10 +11,8 @@ description: >-
 
 The `remote-exec` provisioner invokes a script on a remote resource after it
 is created. This can be used to run a configuration management tool, bootstrap
-into a cluster, etc. To invoke a local process, see the `local-exec`
-[provisioner](../../../language/resources/provisioners/local-exec.mdx) instead. The `remote-exec`
-provisioner requires a [connection](../../../language/resources/provisioners/connection.mdx)
-and supports both `ssh` and `winrm`.
+into a cluster, etc. To run a program locally, use the the `local-exec`
+[provisioner](../../../language/resources/provisioners/local-exec.mdx) instead.
 
 :::warning Important
 Use provisioners as a last resort. There are better alternatives for most situations. Refer to
@@ -60,6 +58,9 @@ The following arguments are supported:
 * `scripts` - This is a list of paths (relative or absolute) to local scripts
   that will be copied to the remote resource and then executed. They are executed
   in the order they are provided. This cannot be provided with `inline` or `script`.
+
+This provisioner runs scripts on a remote system, so you must also include a
+[`connection` block](./connection.mdx) to describe how to connect.
 
 :::note
 Since `inline` is implemented by concatenating commands into a script, [`on_failure`](../../../language/resources/provisioners/syntax.mdx#failure-behavior) applies only to the final command in the list. In particular, with `on_failure = fail` (the default behaviour) earlier commands will be allowed to fail, and later commands will also execute. If this behaviour is not desired, consider using `"set -o errexit"` as the first command.

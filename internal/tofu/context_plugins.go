@@ -69,7 +69,10 @@ func (cp *contextPlugins) ResourceTypeSchema(ctx context.Context, providerAddr a
 	}
 
 	schema, version := providerSchema.SchemaForResourceType(resourceMode, resourceType)
-	return schema, version, diags
+	if schema == nil {
+		return nil, 0, diags
+	}
+	return schema.Block, version, diags
 }
 
 // ProvisionerSchema uses a temporary instance of the provisioner with the

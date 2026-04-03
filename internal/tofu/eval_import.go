@@ -19,93 +19,117 @@ import (
 	"github.com/zclconf/go-cty/cty/gocty"
 )
 
-func evaluateImportIdExpression(expr hcl.Expression, evalCtx EvalContext, keyData instances.RepetitionData) (string, tfdiags.Diagnostics) {
-	return evaluateImportIdExpressionInner(expr, evalCtx, keyData, false)
-}
-
-// Checks for any potential issues in the import id expression, allowing unknowns as this is part
-// of the validate phase
-func validateImportIdExpression(expr hcl.Expression, evalCtx EvalContext, keyData instances.RepetitionData) tfdiags.Diagnostics {
-	_, diags := evaluateImportIdExpressionInner(expr, evalCtx, keyData, true)
-	return diags
-}
-
-// This should not be used directly, use one of the wrapping methods above
-// Note: When allowUnknown is true, it may return "" as the import id. This is safe as the result is discarded in the validate
-// function above
-func evaluateImportIdExpressionInner(expr hcl.Expression, evalCtx EvalContext, keyData instances.RepetitionData, allowUnknown bool) (string, tfdiags.Diagnostics) {
+// evaluateImportExpression is a generic function that evaluates an import expression (id or identity)
+// and performs common validation checks. It returns the evaluated cty.Value.
+// When allowUnknown is true, unknown values are permitted (used during validation phase).
+func evaluateImportExpression(
+	ctx context.Context,
+	expr hcl.Expression,
+	evalCtx EvalContext,
+	keyData instances.RepetitionData,
+	wantType cty.Type,
+	fieldName string,
+	allowUnknown bool,
+) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	if expr == nil {
-		return "", diags.Append(&hcl.Diagnostic{
+		return cty.NilVal, diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
-			Summary:  "Invalid import id argument",
-			Detail:   "The import ID cannot be null.",
+			Summary:  fmt.Sprintf("Invalid import %s argument", fieldName),
+			Detail:   fmt.Sprintf("The import %s cannot be null.", fieldName),
 			Subject:  nil,
 		})
 	}
 
-	// evaluate the import ID and take into consideration the for_each key (if exists)
-	importIdVal, evalDiags := evaluateExprWithRepetitionData(context.TODO(), evalCtx, expr, cty.String, keyData)
+	// evaluate the import expression and take into consideration the for_each key (if exists)
+	val, evalDiags := evaluateExprWithRepetitionData(ctx, evalCtx, expr, wantType, keyData)
 	diags = diags.Append(evalDiags)
 
+	if diags.HasErrors() {
+		return cty.NilVal, diags
+	}
+
+	if val.IsNull() {
+		return cty.NilVal, diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  fmt.Sprintf("Invalid import %s argument", fieldName),
+			Detail:   fmt.Sprintf("The import %s cannot be null.", fieldName),
+			Subject:  expr.Range().Ptr(),
+		})
+	}
+
+	if !val.IsWhollyKnown() {
+		if allowUnknown {
+			return cty.NilVal, diags
+		}
+		return cty.NilVal, diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  fmt.Sprintf("Invalid import %s argument", fieldName),
+			Detail:   fmt.Sprintf(`The import block "%s" argument depends on resource attributes that cannot be determined until apply, so OpenTofu cannot plan to import this resource.`, fieldName),
+			Subject:  expr.Range().Ptr(),
+			Extra:    evalchecks.DiagnosticCausedByUnknown(true),
+		})
+	}
+
+	if marks.Contains(val, marks.Sensitive) {
+		return cty.NilVal, diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  fmt.Sprintf("Invalid import %s argument", fieldName),
+			Detail:   fmt.Sprintf("The import %s cannot be sensitive.", fieldName),
+			Subject:  expr.Range().Ptr(),
+		})
+	}
+
+	if marks.Contains(val, marks.Ephemeral) {
+		return cty.NilVal, diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  fmt.Sprintf("Invalid import %s argument", fieldName),
+			Detail:   fmt.Sprintf("The import %s cannot be ephemeral.", fieldName),
+			Subject:  expr.Range().Ptr(),
+		})
+	}
+
+	return val, diags
+}
+
+func evaluateImportIdExpression(ctx context.Context, expr hcl.Expression, evalCtx EvalContext, keyData instances.RepetitionData) (string, tfdiags.Diagnostics) {
+	val, diags := evaluateImportExpression(ctx, expr, evalCtx, keyData, cty.String, "id", false)
 	if diags.HasErrors() {
 		return "", diags
 	}
 
-	if importIdVal.IsNull() {
-		return "", diags.Append(&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Invalid import id argument",
-			Detail:   "The import ID cannot be null.",
-			Subject:  expr.Range().Ptr(),
-		})
-	}
-
-	if importIdVal.HasMark(marks.Sensitive) {
-		return "", diags.Append(&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Invalid import id argument",
-			Detail:   "The import ID cannot be sensitive.",
-			Subject:  expr.Range().Ptr(),
-		})
-	}
-	if importIdVal.HasMark(marks.Ephemeral) {
-		return "", diags.Append(&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Invalid import id argument",
-			Detail:   "The import ID cannot be ephemeral.",
-			Subject:  expr.Range().Ptr(),
-		})
-	}
-
-	if !importIdVal.IsKnown() {
-		if allowUnknown {
-			return "", diags
-		}
-		return "", diags.Append(&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Invalid import id argument",
-			Detail:   `The import block "id" argument depends on resource attributes that cannot be determined until apply, so OpenTofu cannot plan to import this resource.`, // FIXME and what should I do about that?
-			Subject:  expr.Range().Ptr(),
-			//	Expression:
-			//	EvalContext:
-			Extra: evalchecks.DiagnosticCausedByUnknown(true),
-		})
-	}
-
 	var importId string
-	err := gocty.FromCtyValue(importIdVal, &importId)
+	err := gocty.FromCtyValue(val, &importId)
 	if err != nil {
 		return "", diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
-			Summary:  "Invalid import id argument",
+			Summary:  "Invalid import ID argument",
 			Detail:   fmt.Sprintf("The import ID value is unsuitable: %s.", err),
 			Subject:  expr.Range().Ptr(),
 		})
 	}
 
 	return importId, diags
+}
+
+func evaluateImportIdentityExpression(ctx context.Context, expr hcl.Expression, evalCtx EvalContext, keyData instances.RepetitionData, wantType cty.Type) (cty.Value, tfdiags.Diagnostics) {
+	val, diags := evaluateImportExpression(ctx, expr, evalCtx, keyData, wantType, "identity", false)
+	return val, diags
+}
+
+// validateImportIdExpression checks for any potential issues in the import id expression,
+// allowing unknowns as this is part of the validate phase
+func validateImportIdExpression(ctx context.Context, expr hcl.Expression, evalCtx EvalContext, keyData instances.RepetitionData) tfdiags.Diagnostics {
+	_, diags := evaluateImportExpression(ctx, expr, evalCtx, keyData, cty.String, "id", true)
+	return diags
+}
+
+// validateImportIdentityExpression checks for any potential issues in the import identity expression,
+// allowing unknowns as this is part of the validate phase
+func validateImportIdentityExpression(ctx context.Context, expr hcl.Expression, evalCtx EvalContext, keyData instances.RepetitionData, wantType cty.Type) tfdiags.Diagnostics {
+	_, diags := evaluateImportExpression(ctx, expr, evalCtx, keyData, wantType, "identity", true)
+	return diags
 }
 
 // evaluateExprWithRepetitionData takes the given HCL expression and evaluates
@@ -123,8 +147,8 @@ func evaluateExprWithRepetitionData(ctx context.Context, evalCtx EvalContext, ex
 // The implementation is inspired by config.AbsTraversalForImportToExpr, but this time we can evaluate the expression
 // in the indexes of expressions. If we encounter a hclsyntax.IndexExpr, we can evaluate the Key expression and create
 // an Index Traversal, adding it to the Traverser
-func evaluateImportAddress(evalCtx EvalContext, expr hcl.Expression, keyData instances.RepetitionData) (addrs.AbsResourceInstance, tfdiags.Diagnostics) {
-	traversal, diags := traversalForImportExpr(evalCtx, expr, keyData)
+func evaluateImportAddress(ctx context.Context, evalCtx EvalContext, expr hcl.Expression, keyData instances.RepetitionData) (addrs.AbsResourceInstance, tfdiags.Diagnostics) {
+	traversal, diags := traversalForImportExpr(ctx, evalCtx, expr, keyData)
 	if diags.HasErrors() {
 		return addrs.AbsResourceInstance{}, diags
 	}
@@ -132,21 +156,21 @@ func evaluateImportAddress(evalCtx EvalContext, expr hcl.Expression, keyData ins
 	return addrs.ParseAbsResourceInstance(traversal)
 }
 
-func traversalForImportExpr(evalCtx EvalContext, expr hcl.Expression, keyData instances.RepetitionData) (hcl.Traversal, tfdiags.Diagnostics) {
+func traversalForImportExpr(ctx context.Context, evalCtx EvalContext, expr hcl.Expression, keyData instances.RepetitionData) (hcl.Traversal, tfdiags.Diagnostics) {
 	var traversal hcl.Traversal
 	var diags tfdiags.Diagnostics
 
 	switch e := expr.(type) {
 	case *hclsyntax.IndexExpr:
-		t, d := traversalForImportExpr(evalCtx, e.Collection, keyData)
+		t, d := traversalForImportExpr(ctx, evalCtx, e.Collection, keyData)
 		diags = diags.Append(d)
 		traversal = append(traversal, t...)
 
-		tIndex, dIndex := parseImportIndexKeyExpr(evalCtx, e.Key, keyData)
+		tIndex, dIndex := parseImportIndexKeyExpr(ctx, evalCtx, e.Key, keyData)
 		diags = diags.Append(dIndex)
 		traversal = append(traversal, tIndex)
 	case *hclsyntax.RelativeTraversalExpr:
-		t, d := traversalForImportExpr(evalCtx, e.Source, keyData)
+		t, d := traversalForImportExpr(ctx, evalCtx, e.Source, keyData)
 		diags = diags.Append(d)
 		traversal = append(traversal, t...)
 		traversal = append(traversal, e.Traversal...)
@@ -169,13 +193,13 @@ func traversalForImportExpr(evalCtx EvalContext, expr hcl.Expression, keyData in
 // import target address, into a traversal of type hcl.TraverseIndex.
 // After evaluation, the expression must be known, not null, not sensitive, and must be a string (for_each) or a number
 // (count)
-func parseImportIndexKeyExpr(evalCtx EvalContext, expr hcl.Expression, keyData instances.RepetitionData) (hcl.TraverseIndex, tfdiags.Diagnostics) {
+func parseImportIndexKeyExpr(ctx context.Context, evalCtx EvalContext, expr hcl.Expression, keyData instances.RepetitionData) (hcl.TraverseIndex, tfdiags.Diagnostics) {
 	idx := hcl.TraverseIndex{
 		SrcRange: expr.Range(),
 	}
 
 	// evaluate and take into consideration the for_each key (if exists)
-	val, diags := evaluateExprWithRepetitionData(context.TODO(), evalCtx, expr, cty.DynamicPseudoType, keyData)
+	val, diags := evaluateExprWithRepetitionData(ctx, evalCtx, expr, cty.DynamicPseudoType, keyData)
 	if diags.HasErrors() {
 		return idx, diags
 	}

@@ -140,8 +140,8 @@ const (
 	replaceDestroyThenCreate
 )
 
-// ChangeAction returns the [plans.Action] corresponding to the reciever,
-// or panics if the reciever is [replaceAnyOrder] because that value represents
+// ChangeAction returns the [plans.Action] corresponding to the receiver,
+// or panics if the receiver is [replaceAnyOrder] because that value represents
 // that we haven't yet decided which action to use.
 //
 // This should typically be used only on values taken from the result of a

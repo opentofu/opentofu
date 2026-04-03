@@ -149,6 +149,9 @@ type Change struct {
 	// might change in the future. However, not all Importing changes will
 	// contain generated config.
 	GeneratedConfig string `json:"generated_config,omitempty"`
+
+	BeforeIdentity json.RawMessage `json:"before_identity,omitempty"`
+	AfterIdentity  json.RawMessage `json:"after_identity,omitempty"`
 }
 
 // Importing is a nested object for the resource import metadata.
@@ -156,6 +159,9 @@ type Importing struct {
 	// The original ID of this resource used to target it as part of planned
 	// import operation.
 	ID string `json:"id,omitempty"`
+
+	// The identity of this resource used to target it
+	Identity json.RawMessage `json:"identity,omitempty"`
 }
 
 type Output struct {
@@ -410,11 +416,11 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 			rc.ChangeSrc.Before = nil
 			rc.ChangeSrc.After = nil
 		}
-		dataSource := addr.Resource.Resource.Mode == addrs.DataResourceMode
+		isDataSource := addr.Resource.Resource.Mode == addrs.DataResourceMode
 		// We create "delete" actions for data resources so we can clean up
 		// their entries in state, but this is an implementation detail that
 		// users shouldn't see.
-		if dataSource && rc.Action == plans.Delete {
+		if isDataSource && rc.Action == plans.Delete {
 			continue
 		}
 
@@ -427,7 +433,7 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 			return nil, fmt.Errorf("no schema found for %s (in provider %s)", r.Address, rc.ProviderAddr.Provider)
 		}
 
-		changeV, err := rc.Decode(schema.ImpliedType())
+		changeV, err := rc.Decode(schema)
 		if err != nil {
 			return nil, err
 		}
@@ -446,8 +452,8 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 				return nil, err
 			}
 			valMarks := rc.BeforeValMarks
-			if schema.ContainsMarks() {
-				valMarks = append(valMarks, schema.ValueMarks(changeV.Before, nil)...)
+			if schema.Block.ContainsMarks() {
+				valMarks = append(valMarks, schema.Block.ValueMarks(changeV.Before, nil)...)
 			}
 			if err := ensureEphemeralMarksAreValid(addr, valMarks); err != nil {
 				return nil, err
@@ -478,8 +484,8 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 				afterUnknown = unknownAsBool(changeV.After)
 			}
 			valMarks := rc.AfterValMarks
-			if schema.ContainsMarks() {
-				valMarks = append(valMarks, schema.ValueMarks(changeV.After, nil)...)
+			if schema.Block.ContainsMarks() {
+				valMarks = append(valMarks, schema.Block.ValueMarks(changeV.After, nil)...)
 			}
 			if err := ensureEphemeralMarksAreValid(addr, valMarks); err != nil {
 				return nil, err
@@ -502,7 +508,35 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 
 		var importing *Importing
 		if rc.Importing != nil {
-			importing = &Importing{ID: rc.Importing.ID}
+			importing = &Importing{}
+			if rc.Importing.ID != "" {
+				importing.ID = rc.Importing.ID
+			} else if rc.Importing.Identity != nil && schema.IdentitySchema != nil {
+				identity, err := rc.Importing.Identity.Decode(schema.IdentitySchema.ImpliedType())
+				if err != nil {
+					return nil, err
+				}
+
+				identityJSON, err := ctyjson.Marshal(identity, identity.Type())
+				if err != nil {
+					return nil, err
+				}
+				importing.Identity = identityJSON
+			}
+		}
+
+		var beforeIdentity, afterIdentity []byte
+		if changeV.BeforeIdentity != cty.NilVal && !changeV.BeforeIdentity.IsNull() {
+			beforeIdentity, err = ctyjson.Marshal(changeV.BeforeIdentity, changeV.BeforeIdentity.Type())
+			if err != nil {
+				return nil, err
+			}
+		}
+		if changeV.AfterIdentity != cty.NilVal && !changeV.AfterIdentity.IsNull() {
+			afterIdentity, err = ctyjson.Marshal(changeV.AfterIdentity, changeV.AfterIdentity.Type())
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		r.Change = Change{
@@ -515,6 +549,8 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 			ReplacePaths:    replacePaths,
 			Importing:       importing,
 			GeneratedConfig: rc.GeneratedConfig,
+			BeforeIdentity:  json.RawMessage(beforeIdentity),
+			AfterIdentity:   json.RawMessage(afterIdentity),
 		}
 
 		if rc.DeposedKey != states.NotDeposed {
@@ -910,8 +946,6 @@ func actionString(action string) []string {
 		return []string{"delete", "create"}
 	case "Forget":
 		return []string{"forget"}
-	case "Open":
-		return []string{"open"}
 	default:
 		return []string{action}
 	}
@@ -947,8 +981,6 @@ func UnmarshalActions(actions []string) plans.Action {
 			return plans.NoOp
 		case "forget":
 			return plans.Forget
-		case "open":
-			return plans.Open
 		}
 	}
 

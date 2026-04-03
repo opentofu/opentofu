@@ -12,7 +12,6 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/arguments"
-	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/dag"
 	"github.com/opentofu/opentofu/internal/plans"
@@ -36,12 +35,6 @@ func (c *GraphCommand) Run(rawArgs []string) int {
 	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
 	c.View.DiagsWithNewline()
 
-	// Propagate -no-color for legacy use of Ui. The remote backend and
-	// cloud package use this; it should be removed when/if they are
-	// migrated to views.
-	c.Meta.color = !common.NoColor
-	c.Meta.Color = c.Meta.color
-
 	// Parse and validate flags
 	args, closer, diags := arguments.ParseGraph(rawArgs)
 	defer closer()
@@ -57,7 +50,7 @@ func (c *GraphCommand) Run(rawArgs []string) int {
 		view.Diagnostics(diags)
 		return cli.RunResultHelp
 	}
-	c.GatherVariables(args.Vars)
+	c.Meta.variableArgs = args.Vars.All()
 
 	// This gets the current directory as full path.
 	configPath := c.WorkingDir.NormalizePath(c.WorkingDir.RootModuleDir())
@@ -135,6 +128,7 @@ func (c *GraphCommand) Run(rawArgs []string) int {
 
 		b, backendDiags = c.Backend(ctx, &BackendOpts{
 			Config: backendConfig,
+			View:   view.Backend(),
 		}, enc.State())
 		diags = diags.Append(backendDiags)
 		if backendDiags.HasErrors() {
@@ -155,7 +149,7 @@ func (c *GraphCommand) Run(rawArgs []string) int {
 	c.ignoreRemoteVersionConflict(b)
 
 	// Build the operation
-	opReq := c.Operation(ctx, b, args.ViewOptions, enc)
+	opReq := c.Operation(ctx, b, view.Backend(), enc)
 	opReq.ConfigDir = configPath
 	opReq.ConfigLoader, err = c.initConfigLoader()
 	opReq.PlanFile = planFile
@@ -171,7 +165,11 @@ func (c *GraphCommand) Run(rawArgs []string) int {
 	}
 
 	if err != nil {
-		diags = diags.Append(err)
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Error loading the configuration",
+			err.Error(),
+		))
 		view.Diagnostics(diags)
 		return 1
 	}
@@ -308,22 +306,4 @@ Options:
 
 func (c *GraphCommand) Synopsis() string {
 	return "Generate a Graphviz graph of the steps in an operation"
-}
-
-// TODO meta-refactor: move this to arguments once all commands are using the same shim logic
-func (c *GraphCommand) GatherVariables(args *arguments.Vars) {
-	// FIXME the arguments package currently trivially gathers variable related
-	// arguments in a heterogeneous slice, in order to minimize the number of
-	// code paths gathering variables during the transition to this structure.
-	// Once all commands that gather variables have been converted to this
-	// structure, we could move the variable gathering code to the arguments
-	// package directly, removing this shim layer.
-
-	varArgs := args.All()
-	items := make([]flags.RawFlag, len(varArgs))
-	for i := range varArgs {
-		items[i].Name = varArgs[i].Name
-		items[i].Value = varArgs[i].Value
-	}
-	c.Meta.variableArgs = flags.RawFlags{Items: &items}
 }

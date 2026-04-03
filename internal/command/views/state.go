@@ -6,13 +6,19 @@
 package views
 
 import (
+	"context"
 	"fmt"
-	"strings"
+	"os"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/command/jsonformat"
+	"github.com/opentofu/opentofu/internal/command/jsonprovider"
+	"github.com/opentofu/opentofu/internal/command/jsonstate"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 type State interface {
@@ -45,6 +51,16 @@ type State interface {
 	ResourceRemoveStatus(dryRun bool, target string)
 	DryRunRemovedStatus(removed int)
 	RemoveFinalStatus(count int)
+
+	// `tofu state show` specific
+	UnsupportedLocalOp()
+	AddressParsingError(resAddr string)
+	NoInstanceFoundError()
+	ShowResourceState(ctx context.Context, stateFile *statefile.File, schemas *tofu.Schemas) int
+
+	// Backend returns the non-command view that contains methods to provide
+	// progress output for the backend operations.
+	Backend() Backend
 }
 
 // NewState returns an initialized State implementation for the given ViewType.
@@ -52,7 +68,7 @@ func NewState(args arguments.ViewOptions, view *View) State {
 	var ret State
 	switch args.ViewType {
 	case arguments.ViewJSON:
-		ret = &StateJSON{view: NewJSONView(view, nil)}
+		ret = &StateJSON{view: NewJSONView(view, nil), output: view.streams.Stdout.File}
 	case arguments.ViewHuman:
 		ret = &StateHuman{view: view}
 	default:
@@ -60,7 +76,7 @@ func NewState(args arguments.ViewOptions, view *View) State {
 	}
 
 	if args.JSONInto != nil {
-		ret = &StateMulti{ret, &StateJSON{view: NewJSONView(view, args.JSONInto)}}
+		ret = &StateMulti{ret, &StateJSON{view: NewJSONView(view, args.JSONInto), output: args.JSONInto}}
 	}
 	return ret
 }
@@ -171,6 +187,40 @@ func (m StateMulti) RemoveFinalStatus(count int) {
 	}
 }
 
+func (m StateMulti) UnsupportedLocalOp() {
+	for _, o := range m {
+		o.UnsupportedLocalOp()
+	}
+}
+
+func (m StateMulti) AddressParsingError(resAddr string) {
+	for _, o := range m {
+		o.AddressParsingError(resAddr)
+	}
+}
+
+func (m StateMulti) NoInstanceFoundError() {
+	for _, o := range m {
+		o.NoInstanceFoundError()
+	}
+}
+
+func (m StateMulti) ShowResourceState(ctx context.Context, stateFile *statefile.File, schemas *tofu.Schemas) int {
+	var ret int
+	for _, o := range m {
+		ret = max(ret, o.ShowResourceState(ctx, stateFile, schemas))
+	}
+	return ret
+}
+
+func (m StateMulti) Backend() Backend {
+	ret := make([]Backend, len(m))
+	for i, v := range m {
+		ret[i] = v.Backend()
+	}
+	return BackendMulti(ret)
+}
+
 type StateHuman struct {
 	view *View
 }
@@ -182,15 +232,23 @@ func (v *StateHuman) Diagnostics(diags tfdiags.Diagnostics) {
 }
 
 func (v *StateHuman) StateNotFound() {
-	v.view.errorln(errStateNotFound)
+	v.Diagnostics(tfdiags.Diagnostics{diagErrStateNotFound})
 }
 
 func (v *StateHuman) StateLoadingFailure(baseError string) {
-	v.view.errorln(fmt.Sprintf(errStateLoadingState, baseError))
+	v.Diagnostics(tfdiags.Diagnostics{tfdiags.Sourceless(
+		tfdiags.Error,
+		errStateLoadingStateSummary,
+		fmt.Sprintf(errStateLoadingStateDescription, baseError),
+	)})
 }
 
 func (v *StateHuman) StateSavingError(baseError string) {
-	v.view.errorln(fmt.Sprintf(errStateRmPersist, baseError))
+	v.Diagnostics(tfdiags.Diagnostics{tfdiags.Sourceless(
+		tfdiags.Error,
+		errStateRmPersistHeader,
+		fmt.Sprintf(errStateRmPersistDescription, baseError),
+	)})
 }
 
 func (v *StateHuman) StateListAddr(resAddr addrs.AbsResourceInstance) {
@@ -198,7 +256,7 @@ func (v *StateHuman) StateListAddr(resAddr addrs.AbsResourceInstance) {
 }
 
 func (v *StateHuman) ErrorMovingToAlreadyExistingDst() {
-	v.view.errorln(errStateMvDstExists)
+	v.Diagnostics(tfdiags.Diagnostics{diagErrStateMvDstExists})
 }
 
 func (v *StateHuman) ResourceMoveStatus(dryRun bool, src, dest string) {
@@ -275,8 +333,66 @@ func (v *StateHuman) RemoveFinalStatus(count int) {
 	_, _ = v.view.streams.Println(fmt.Sprintf("Successfully removed %d resource instance(s).", count))
 }
 
+func (v *StateHuman) UnsupportedLocalOp() {
+	v.Diagnostics(tfdiags.Diagnostics{diagUnsupportedLocalOp})
+}
+
+func (v *StateHuman) AddressParsingError(resAddr string) {
+	v.Diagnostics(tfdiags.Diagnostics{tfdiags.Sourceless(
+		tfdiags.Error,
+		fmt.Sprintf(errParsingAddressHeader, resAddr),
+		errParsingAddressDescription,
+	)})
+}
+
+func (v *StateHuman) NoInstanceFoundError() {
+	v.Diagnostics(tfdiags.Diagnostics{diagErrNoInstanceFound})
+}
+
+func (v *StateHuman) ShowResourceState(_ context.Context, stateFile *statefile.File, schemas *tofu.Schemas) int {
+	renderer := jsonformat.Renderer{
+		Colorize:            v.view.colorize,
+		Streams:             v.view.streams,
+		RunningInAutomation: v.view.runningInAutomation,
+		ShowSensitive:       v.view.showSensitive,
+	}
+
+	if stateFile == nil {
+		_, _ = v.view.streams.Println("No state.")
+		return 0
+	}
+
+	root, outputs, err := jsonstate.MarshalForRenderer(stateFile, schemas)
+	if err != nil {
+		v.Diagnostics(tfdiags.Diagnostics{}.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Failed to marshal state to json",
+			fmt.Sprintf("Error while marshalling state to json: %s", err),
+		)))
+		return 1
+	}
+
+	jstate := jsonformat.State{
+		StateFormatVersion:    jsonstate.FormatVersion,
+		ProviderFormatVersion: jsonprovider.FormatVersion,
+		RootModule:            root,
+		RootModuleOutputs:     outputs,
+		ProviderSchemas:       jsonprovider.MarshalForRenderer(schemas),
+	}
+
+	renderer.RenderHumanState(jstate)
+	return 0
+}
+
+func (v *StateHuman) Backend() Backend {
+	return &BackendHuman{
+		view: v.view,
+	}
+}
+
 type StateJSON struct {
-	view *JSONView
+	view   *JSONView
+	output *os.File
 }
 
 var _ State = (*StateJSON)(nil)
@@ -286,35 +402,23 @@ func (v *StateJSON) Diagnostics(diags tfdiags.Diagnostics) {
 }
 
 func (v *StateJSON) StateNotFound() {
-	cleanedUp := strings.ReplaceAll(
-		strings.ReplaceAll(errStateNotFound, "\n", " "),
-		"  ", " ",
-	)
-	v.view.Error(cleanedUp)
+	v.Diagnostics(tfdiags.Diagnostics{diagErrStateNotFound})
 }
 
 func (v *StateJSON) StateLoadingFailure(baseError string) {
-	cleanedUp := strings.ReplaceAll(
-		strings.ReplaceAll(errStateLoadingState, "\n", " "),
-		"  ", " ",
-	)
-	if baseError != "" && !strings.HasSuffix(baseError, ".") {
-		baseError += "."
-	}
-	msg := fmt.Sprintf(cleanedUp, baseError)
-	v.view.Error(msg)
+	v.Diagnostics(tfdiags.Diagnostics{tfdiags.Sourceless(
+		tfdiags.Error,
+		errStateLoadingStateSummary,
+		fmt.Sprintf(errStateLoadingStateDescription, baseError),
+	)})
 }
 
 func (v *StateJSON) StateSavingError(baseError string) {
-	cleanedUp := strings.ReplaceAll(
-		strings.ReplaceAll(errStateRmPersist, "\n", " "),
-		"  ", " ",
-	)
-	if baseError != "" && !strings.HasSuffix(baseError, ".") {
-		baseError += "."
-	}
-	msg := fmt.Sprintf(cleanedUp, baseError)
-	v.view.Error(msg)
+	v.Diagnostics(tfdiags.Diagnostics{tfdiags.Sourceless(
+		tfdiags.Error,
+		errStateRmPersistHeader,
+		fmt.Sprintf(errStateRmPersistDescription, baseError),
+	)})
 }
 
 func (v *StateJSON) StateListAddr(resAddr addrs.AbsResourceInstance) {
@@ -322,11 +426,7 @@ func (v *StateJSON) StateListAddr(resAddr addrs.AbsResourceInstance) {
 }
 
 func (v *StateJSON) ErrorMovingToAlreadyExistingDst() {
-	cleanedUp := strings.ReplaceAll(
-		strings.ReplaceAll(errStateMvDstExists, "\n", " "),
-		"  ", " ",
-	)
-	v.view.Error(cleanedUp)
+	v.Diagnostics(tfdiags.Diagnostics{diagErrStateMvDstExists})
 }
 
 func (v *StateJSON) ResourceMoveStatus(dryRun bool, src, dest string) {
@@ -398,25 +498,80 @@ func (v *StateJSON) RemoveFinalStatus(count int) {
 	v.view.Info(fmt.Sprintf("Successfully removed %d resource instance(s)", count))
 }
 
-const errStateLoadingState = `Error loading the state: %[1]s
+func (v *StateJSON) UnsupportedLocalOp() {
+	v.Diagnostics(tfdiags.Diagnostics{diagUnsupportedLocalOp})
+}
 
-Please ensure that your OpenTofu state exists and that you've
-configured it properly. You can use the "-state" flag to point
-OpenTofu at another state file.`
+func (v *StateJSON) AddressParsingError(resAddr string) {
+	v.Diagnostics(tfdiags.Diagnostics{tfdiags.Sourceless(
+		tfdiags.Error,
+		fmt.Sprintf(errParsingAddressHeader, resAddr),
+		errParsingAddressDescription,
+	)})
+}
 
-const errStateNotFound = `No state file was found!
+func (v *StateJSON) NoInstanceFoundError() {
+	v.Diagnostics(tfdiags.Diagnostics{diagErrNoInstanceFound})
+}
 
-State management commands require a state file. Run this command
-in a directory where OpenTofu has been run or use the -state flag
-to point the command to a specific state location.`
+func (v *StateJSON) ShowResourceState(_ context.Context, stateFile *statefile.File, schemas *tofu.Schemas) int {
+	if stateFile == nil {
+		v.view.Info("no state")
+		return 0
+	}
 
-const errStateMvDstExists = `Error moving state: destination module already exists.
+	rawState, err := jsonstate.Marshal(stateFile, schemas)
+	if err != nil {
+		v.Diagnostics(tfdiags.Diagnostics{}.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Failed to marshal state to json",
+			fmt.Sprintf("Error while marshalling state to json: %s", err),
+		)))
+		return 1
+	}
+	_, _ = fmt.Fprintln(v.output, string(rawState))
+	return 0
+}
 
-Please ensure your addresses and state paths are valid. No
-state was persisted. Your existing states are untouched.`
+func (v *StateJSON) Backend() Backend {
+	return &BackendJSON{
+		view: v.view,
+	}
+}
 
-const errStateRmPersist = `Error saving the state: %s
+var (
+	diagErrStateNotFound = tfdiags.Sourceless(
+		tfdiags.Error,
+		"No state file was found",
+		`State management commands require a state file. Run this command in a directory where OpenTofu has been run or use the -state flag to point the command to a specific state location.`,
+	)
+	diagErrStateMvDstExists = tfdiags.Sourceless(
+		tfdiags.Error,
+		"Destination module already exists",
+		`Please ensure your addresses and state paths are valid. No state was persisted. Your existing states are untouched.`,
+	)
+	diagErrNoInstanceFound = tfdiags.Sourceless(
+		tfdiags.Error,
+		"No instance found for the given address",
+		`This command requires that the address references one specific instance. To view the available instances, use "tofu state list". Please modify the address to reference a specific instance.`,
+	)
+)
 
-The state was not saved. No items were removed from the persisted
-state. No backup was created since no modification occurred. Please
-resolve the issue above and try again.`
+const (
+	errStateLoadingStateSummary     = "Error loading the state"
+	errStateLoadingStateDescription = `Please ensure that your OpenTofu state exists and that you've configured it properly. You can use the "-state" flag to point OpenTofu at another state file.
+
+Cause: %s`
+)
+
+const (
+	errStateRmPersistHeader      = `Error saving the state`
+	errStateRmPersistDescription = `The state was not saved. No items were removed from the persisted state. No backup was created since no modification occurred. Please resolve the issue above and try again.
+
+Cause: %s`
+)
+
+const (
+	errParsingAddressHeader      = `Error parsing instance address %q`
+	errParsingAddressDescription = `This command requires that the address references one specific instance. To view the available instances, use "tofu state list". Please modify the address to reference a specific instance.`
+)

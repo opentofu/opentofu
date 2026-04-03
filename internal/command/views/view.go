@@ -6,7 +6,6 @@
 package views
 
 import (
-	"fmt"
 	"maps"
 
 	"github.com/hashicorp/hcl/v2"
@@ -140,9 +139,6 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 	// Filter the deprecation warnings based on the cli arg.
 	// For safety and performance reasons, we are filtering the deprecation related diagnostics only when
 	// the filtering level is not tofu.DeprecationWarningLevelAll.
-	// This filtering is implemented only in here, and not in meta.go#showDiagnostics because there are meant to be
-	// shown only during apply and plan phases. These 2 phases are using this implementation to interact with the user
-	// while meta.go#showDiagnostics is used by other commands that are not meant to show the deprecation diagnostics.
 	if v.ModuleDeprecationWarnLvl != tofu.DeprecationWarningLevelAll {
 		var newDiags tfdiags.Diagnostics
 		for _, diag := range diags {
@@ -248,26 +244,10 @@ func (v *View) SetShowSensitive(showSensitive bool) {
 	v.showSensitive = showSensitive
 }
 
-// error is an unexported method that can be used by other views to send to stderr the given message fully colored in
-// [View#errorColor].
-// This adds a new line after the message.
-func (v *View) errorln(message string) {
-	_, _ = v.streams.Eprintln(v.colorMessage(message, v.errorColor))
-}
-
-// warnln is an unexported method that can be used by other views to send to stdout the given message fully colored in
-// [View#warnColor].
-// This adds a new line after the message.
-func (v *View) warnln(message string) {
-	// Warning messages are meant to go to stdout as pointed out here: https://github.com/opentofu/opentofu/commit/0c3bb316ea56aacf5108883d1a269a53744fdd43
-	_, _ = v.streams.Println(v.colorMessage(message, v.warnColor))
-}
-
-// colorMessage is a utility method to easily color the whole given message in one color.
-func (v *View) colorMessage(message string, color string) string {
-	if color == "" {
-		return message
-	}
-
-	return v.colorize.Color(fmt.Sprintf("%s%s", color, message))
+// Colorize returns the [colorstring.Colorize] object within to be used in other places.
+// TODO meta-refactor: this is a temporary solution. This should not be exposed. Whoever needs to use this
+//
+//	should do it through a View implementation instead.
+func (v *View) Colorize() *colorstring.Colorize {
+	return v.colorize
 }

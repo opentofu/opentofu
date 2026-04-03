@@ -65,6 +65,10 @@ The following arguments are supported:
   
 * `quiet` - (Optional) If set to `true`, OpenTofu will not print the command to be executed to stdout, and will instead print "Suppressed by quiet=true". Note that the output of the command will still be printed in any case.
 
+`local-exec` does not directly interact with any remote systems, so a
+[`connection` block](./connection.mdx) is not required and will be silently
+ignored if present.
+
 ### Interpreter Examples
 
 ```hcl

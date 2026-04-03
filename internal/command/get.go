@@ -11,7 +11,6 @@ import (
 
 	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/arguments"
-	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tracing"
@@ -35,12 +34,6 @@ func (c *GetCommand) Run(rawArgs []string) int {
 	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
 	c.View.DiagsWithNewline()
 
-	// Propagate -no-color for legacy use of Ui. The remote backend and
-	// cloud package use this; it should be removed when/if they are
-	// migrated to views.
-	c.Meta.color = !common.NoColor
-	c.Meta.Color = c.Meta.color
-
 	// Parse and validate flags
 	args, closer, diags := arguments.ParseGet(rawArgs)
 	defer closer()
@@ -55,9 +48,12 @@ func (c *GetCommand) Run(rawArgs []string) int {
 
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
+		if args.ViewOptions.ViewType == arguments.ViewJSON {
+			return 1
+		}
 		return cli.RunResultHelp
 	}
-	c.GatherVariables(args.Vars)
+	c.Meta.variableArgs = args.Vars.All()
 
 	// Initialization can be aborted by interruption signals
 	ctx, done := c.InterruptibleContext(ctx)
@@ -73,24 +69,6 @@ func (c *GetCommand) Run(rawArgs []string) int {
 	}
 
 	return 0
-}
-
-// TODO meta-refactor: move this to arguments once all commands are using the same shim logic
-func (c *GetCommand) GatherVariables(args *arguments.Vars) {
-	// FIXME the arguments package currently trivially gathers variable related
-	// arguments in a heterogeneous slice, in order to minimize the number of
-	// code paths gathering variables during the transition to this structure.
-	// Once all commands that gather variables have been converted to this
-	// structure, we could move the variable gathering code to the arguments
-	// package directly, removing this shim layer.
-
-	varArgs := args.All()
-	items := make([]flags.RawFlag, len(varArgs))
-	for i := range varArgs {
-		items[i].Name = varArgs[i].Name
-		items[i].Value = varArgs[i].Value
-	}
-	c.Meta.variableArgs = flags.RawFlags{Items: &items}
 }
 
 func (c *GetCommand) Help() string {
@@ -148,5 +126,5 @@ func (c *GetCommand) Synopsis() string {
 
 func getModules(ctx context.Context, m *Meta, path string, testsDir string, upgrade bool, view views.Get) (abort bool, diags tfdiags.Diagnostics) {
 	hooks := view.Hooks(true)
-	return m.installModules(ctx, path, testsDir, upgrade, true, hooks)
+	return m.installModules(ctx, path, testsDir, upgrade, true, hooks, view)
 }

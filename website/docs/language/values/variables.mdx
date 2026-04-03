@@ -86,6 +86,7 @@ OpenTofu CLI defines the following optional arguments for variable declarations:
 * [`ephemeral`][inpage-ephemeral] - Limits the usage of the variable to ephemeral contexts.
 * [`nullable`][inpage-nullable] - Specify if the variable can be `null` within the module.
 * [`deprecated`][inpage-deprecated] - Mark the variable as deprecated to warn callers about migration.
+* [`const`][inpage-const] - Value must be constant (evaluated without state).
 
 ### Default values
 
@@ -346,7 +347,7 @@ instructions on how to migrate away from usage of this variable. Here is an exam
 configuration:
 
 ```hcl
-variable "example" {
+variable "examle" {
   type       = string
   deprecated = "'examle' variable must no longer be used due to a typo, use 'example' instead"
 }
@@ -372,6 +373,33 @@ a deprecated variable, they will be shown together. In order to see them individ
 `-consolidation-warnings=false` can be used. For more details, check its description
 in the command options for [plan](../../cli/commands/plan.mdx#other-options) and
 [apply](../../cli/commands/apply.mdx#apply-options).
+
+### Marking variable as constant
+
+[inpage-const]: #marking-variable-as-const
+
+The `const = true` argument in a variable block indicates that it's value must be computed
+without access to state. This also ensures that it is able to be used as a constant value during evaluation
+of [module sources](../../language/modules/sources.mdx#support-for-variable-and-local-evaluation) and 
+[backends](../../language/settings/backends/configuration.mdx).
+
+The inverse `const = false` prevents a variable from being used in any of the above evaluation context and
+explicitly declares it "not constant", regardless of the value or expression provided.
+
+If unspecified, OpenTofu inspects the configuration to determine if the expression or value provided for a variable
+may be used as a constant.
+
+```hcl
+variable "dependency_version" {
+  type  = string
+  const = true
+}
+
+module "my_mod" {
+  source = "my-module-source"
+  version = var.dependency_version
+}
+```
 
 ## Using Input Variable Values
 

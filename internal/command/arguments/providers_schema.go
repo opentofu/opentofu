@@ -60,5 +60,10 @@ func ParseProvidersSchema(args []string) (*ProvidersSchema, func(), tfdiags.Diag
 		))
 	}
 
+	// The 'providers schema' command just forces the user to use the `-json` flag but any of the diagnostics should
+	// be printed as human format.
+	// The print of the schema will be in JSON all the time.
+	schema.ViewOptions.ViewType = ViewHuman
+
 	return schema, closer, diags
 }

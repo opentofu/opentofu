@@ -262,14 +262,6 @@ func TestLoginViews(t *testing.T) {
 			},
 			wantStdout: "If login is successful, OpenTofu will store the token in plain text in\nthe following file for use by subsequent commands:\n    /home/user/.terraform.d/credentials.tfrc.json\n\n",
 		},
-		"helpPrompt": {
-			viewCall: func(login Login) {
-				login.HelpPrompt("/home/user/.terraform.d/credentials.tfrc.json")
-			},
-			wantJson:   []map[string]any{{}},
-			wantStdout: "",
-			wantStderr: "\nUsage: tofu [global options] login [hostname]\n\n  Retrieves an authentication token for the given hostname, if it supports\n  automatic login, and saves it in a credentials file in your home directory.\n\n  If not overridden by credentials helper settings in the CLI configuration,\n  the credentials will be written to the following local file:\n      /home/user/.terraform.d/credentials.tfrc.json\n\n",
-		},
 		// Diagnostics
 		"warning": {
 			viewCall: func(login Login) {

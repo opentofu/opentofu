@@ -10,6 +10,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/gocty"
@@ -80,7 +81,20 @@ func EvaluateCountExpressionValue(expr hcl.Expression, ctx EvaluateFunc) (cty.Va
 
 	// Unmark the count value, sensitive values are allowed in count but not for_each,
 	// as using it here will not disclose the sensitive value
-	countVal, _ = countVal.Unmark()
+	countVal, valMarks := countVal.Unmark()
+
+	// We do not allow ephemeral values in the count value
+	if _, ok := valMarks[marks.Ephemeral]; ok {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity:   hcl.DiagError,
+			Summary:    "Invalid count argument",
+			Detail:     "Ephemeral values, or values derived from ephemeral values, cannot be used as count arguments. If used, the ephemeral value could be exposed as a resource instance key.",
+			Subject:    expr.Range().Ptr(),
+			Expression: expr,
+			Extra:      DiagnosticCausedByConfidentialValues(true),
+		})
+		return nullCount, diags
+	}
 
 	switch {
 	case countVal.IsNull():

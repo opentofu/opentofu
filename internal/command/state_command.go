@@ -17,7 +17,7 @@ type StateCommand struct {
 	StateMeta
 }
 
-func (c *StateCommand) Run(args []string) int {
+func (c *StateCommand) Run(_ []string) int {
 	return cli.RunResultHelp
 }
 

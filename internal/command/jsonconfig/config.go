@@ -563,7 +563,7 @@ func marshalResources(resources map[string]*configs.Resource, schemas *tofu.Sche
 				return nil, fmt.Errorf("no schema found for %s (in provider %s)", v.Addr().String(), v.Provider)
 			}
 			r.SchemaVersion = &schemaVer
-			r.Expressions = marshalExpressions(v.Config, schema)
+			r.Expressions = marshalExpressions(v.Config, schema.Block)
 		}
 
 		// Managed is populated only for Mode = addrs.ManagedResourceMode

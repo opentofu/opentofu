@@ -144,7 +144,7 @@ enum Action {
     DELETE_THEN_CREATE = 6;
     CREATE_THEN_DELETE = 7;
     FORGET = 8;
-    OPEN = 9;
+    reserved 9; // OPEN removed during #3799
     FORGET_THEN_CREATE = 10;
 }
 
@@ -183,6 +183,16 @@ message Change {
     // GeneratedConfig contains any configuration that was generated as part of
     // the change, as an HCL string.
     string generated_config = 6;
+
+    // BeforeIdentity is the identity value from the known state of the resource instance
+    // before the plan is executed.
+    // Only relevant for managed resources, not outputs.
+    DynamicValue before_identity = 7;
+
+    // AfterIdentity is the identity value returned by the provider during
+    // planning. This is used to pass identity data through to the apply phase.
+    // Only relevant for managed resources, not outputs.
+    DynamicValue after_identity = 8;
 }
 
 // ResourceInstanceActionReason sometimes provides some additional user-facing
@@ -350,4 +360,7 @@ message Path {
 message Importing {
     // The original ID of the resource.
     string id = 1;
+
+    // The Identity that we are importing, this is mutually exclusive with the id field
+    DynamicValue identity = 2;
 }

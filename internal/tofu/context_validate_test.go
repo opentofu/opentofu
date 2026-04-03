@@ -2803,3 +2803,137 @@ func TestContext2Validate_importIntoUnexistingResourceBlock(t *testing.T) {
 		t.Fatalf("unexpected errors\n%s", diags.Err().Error())
 	}
 }
+
+func TestContext2Validate_replaceTriggeredByInvalidAttribute(t *testing.T) {
+	p := testProvider("test")
+	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+		ResourceTypes: map[string]*configschema.Block{
+			"test_instance": {
+				Attributes: map[string]*configschema.Attribute{
+					"id": {
+						Type:     cty.String,
+						Computed: true,
+					},
+					"value": {
+						Type:     cty.String,
+						Optional: true,
+					},
+				},
+			},
+		},
+	})
+
+	tests := map[string]struct {
+		config    string
+		wantError bool
+	}{
+		"valid attribute reference": {
+			config: `
+resource "test_instance" "a" {
+  value = "hello"
+}
+
+resource "test_instance" "b" {
+  lifecycle {
+    replace_triggered_by = [test_instance.a.value]
+  }
+}
+`,
+			wantError: false,
+		},
+		"valid resource reference without attribute": {
+			config: `
+resource "test_instance" "a" {
+  value = "hello"
+}
+
+resource "test_instance" "b" {
+  lifecycle {
+    replace_triggered_by = [test_instance.a]
+  }
+}
+`,
+			wantError: false,
+		},
+		"invalid nested attribute reference": {
+			config: `
+resource "test_instance" "a" {
+  value = "hello"
+}
+
+resource "test_instance" "b" {
+  lifecycle {
+    replace_triggered_by = [test_instance.a.foo.bar.baz]
+  }
+}
+`,
+			wantError: true,
+		},
+		"invalid single attribute reference": {
+			config: `
+resource "test_instance" "a" {
+  value = "hello"
+}
+
+resource "test_instance" "b" {
+  lifecycle {
+    replace_triggered_by = [test_instance.a.nonexistent]
+  }
+}
+`,
+			wantError: true,
+		},
+		"valid indexed attribute reference": {
+			config: `
+resource "test_instance" "a" {
+  count = 2
+  value = "hello"
+}
+
+resource "test_instance" "b" {
+  lifecycle {
+    replace_triggered_by = [test_instance.a[0].value]
+  }
+}
+`,
+			wantError: false,
+		},
+		"invalid indexed attribute reference": {
+			config: `
+resource "test_instance" "a" {
+  count = 2
+  value = "hello"
+}
+
+resource "test_instance" "b" {
+  lifecycle {
+    replace_triggered_by = [test_instance.a[0].nonexistent]
+  }
+}
+`,
+			wantError: true,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			m := testModuleInline(t, map[string]string{
+				"main.tf": tc.config,
+			})
+
+			c := testContext2(t, &ContextOpts{
+				Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
+					addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+				}, nil),
+			})
+
+			diags := c.Validate(context.Background(), m)
+			if tc.wantError && !diags.HasErrors() {
+				t.Fatal("succeeded; want error")
+			}
+			if !tc.wantError && diags.HasErrors() {
+				t.Fatalf("unexpected error: %s", diags.Err())
+			}
+		})
+	}
+}

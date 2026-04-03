@@ -8,8 +8,7 @@ description: >-
 # File Provisioner
 
 The `file` provisioner copies files or directories from the machine
-running OpenTofu to the newly created resource. The `file` provisioner
-supports both `ssh` and `winrm` type [connections](../../../language/resources/provisioners/connection.mdx).
+running OpenTofu to the newly created resource.
 
 :::warning Important
 Use provisioners as a last resort. There are better alternatives for most situations. Refer to
@@ -69,6 +68,9 @@ The following arguments are supported:
 * `destination` - (Required) The destination path to write to on the remote
   system. See [Destination Paths](#destination-paths) below for more
   information.
+
+This provisioner copies files to a remote system, so you must also include a
+[`connection` block](./connection.mdx) to describe how to connect.
 
 ## Destination Paths
 

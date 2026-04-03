@@ -19,7 +19,6 @@ type Init interface {
 	InitialisedFromEmptyDir()
 
 	Diagnostics(diags tfdiags.Diagnostics)
-	HelpPrompt()
 
 	ConfigError()
 	OutputNewline()
@@ -27,10 +26,6 @@ type Init interface {
 	InitSuccessCLI(cloud bool)
 
 	InitializingModules(upgrade bool)
-
-	InitializingCloudBackend()
-	InitializingBackend()
-	BackendTypeAlias(backendType, canonType string)
 
 	InitializingProviderPlugins()
 	ProviderAlreadyInstalled(provider string, version string, inCache bool)
@@ -49,6 +44,10 @@ type Init interface {
 	LockFileCreated()
 	LockFileChanged()
 	Hooks(showLocalDir bool) initwd.ModuleInstallHooks
+
+	// Backend returns the non-command view that contains methods to provide
+	// progress output for the backend operations.
+	Backend() Backend
 }
 
 // NewInit returns an initialized Init implementation for the given ViewType.
@@ -76,12 +75,6 @@ var _ Init = (InitMulti)(nil)
 func (m InitMulti) Diagnostics(diags tfdiags.Diagnostics) {
 	for _, o := range m {
 		o.Diagnostics(diags)
-	}
-}
-
-func (m InitMulti) HelpPrompt() {
-	for _, o := range m {
-		o.HelpPrompt()
 	}
 }
 
@@ -124,24 +117,6 @@ func (m InitMulti) InitSuccessCLI(cloud bool) {
 func (m InitMulti) InitializingModules(upgrade bool) {
 	for _, o := range m {
 		o.InitializingModules(upgrade)
-	}
-}
-
-func (m InitMulti) InitializingCloudBackend() {
-	for _, o := range m {
-		o.InitializingCloudBackend()
-	}
-}
-
-func (m InitMulti) InitializingBackend() {
-	for _, o := range m {
-		o.InitializingBackend()
-	}
-}
-
-func (m InitMulti) BackendTypeAlias(backendType, canonType string) {
-	for _, o := range m {
-		o.BackendTypeAlias(backendType, canonType)
 	}
 }
 
@@ -249,6 +224,14 @@ func (m InitMulti) Hooks(showLocalPath bool) initwd.ModuleInstallHooks {
 	return moduleInstallationHookMulti(hooks)
 }
 
+func (m InitMulti) Backend() Backend {
+	ret := make([]Backend, len(m))
+	for i, v := range m {
+		ret[i] = v.Backend()
+	}
+	return BackendMulti(ret)
+}
+
 type InitHuman struct {
 	view *View
 }
@@ -257,10 +240,6 @@ var _ Init = (*InitHuman)(nil)
 
 func (v *InitHuman) Diagnostics(diags tfdiags.Diagnostics) {
 	v.view.Diagnostics(diags)
-}
-
-func (v *InitHuman) HelpPrompt() {
-	v.view.HelpPrompt("init")
 }
 
 func (v *InitHuman) CopyFromModule(src string) {
@@ -330,18 +309,6 @@ func (v *InitHuman) InitializingModules(upgrade bool) {
 	} else {
 		_, _ = v.view.streams.Println(v.view.colorize.Color("[reset][bold]Initializing modules..."))
 	}
-}
-
-func (v *InitHuman) InitializingCloudBackend() {
-	_, _ = v.view.streams.Println(v.view.colorize.Color("\n[reset][bold]Initializing cloud backend..."))
-}
-
-func (v *InitHuman) InitializingBackend() {
-	_, _ = v.view.streams.Println(v.view.colorize.Color("\n[reset][bold]Initializing the backend..."))
-}
-
-func (v *InitHuman) BackendTypeAlias(backendType, canonType string) {
-	_, _ = v.view.streams.Println(fmt.Sprintf("- %q is an alias for backend type %q", backendType, canonType))
 }
 
 func (v *InitHuman) InitializingProviderPlugins() {
@@ -435,6 +402,12 @@ func (v *InitHuman) Hooks(showLocalPath bool) initwd.ModuleInstallHooks {
 	}
 }
 
+func (v *InitHuman) Backend() Backend {
+	return &BackendHuman{
+		view: v.view,
+	}
+}
+
 type InitJSON struct {
 	view *JSONView
 }
@@ -444,8 +417,6 @@ var _ Init = (*InitJSON)(nil)
 func (v *InitJSON) Diagnostics(diags tfdiags.Diagnostics) {
 	v.view.Diagnostics(diags)
 }
-
-func (v *InitJSON) HelpPrompt() {}
 
 func (v *InitJSON) CopyFromModule(src string) {
 	v.view.Info(fmt.Sprintf("Copying configuration from %q...", src))
@@ -488,18 +459,6 @@ func (v *InitJSON) InitializingModules(upgrade bool) {
 	} else {
 		v.view.Info("Initializing modules...")
 	}
-}
-
-func (v *InitJSON) InitializingCloudBackend() {
-	v.view.Info("Initializing cloud backend...")
-}
-
-func (v *InitJSON) InitializingBackend() {
-	v.view.Info("Initializing the backend...")
-}
-
-func (v *InitJSON) BackendTypeAlias(backendType, canonType string) {
-	v.view.Info(fmt.Sprintf("%q is an alias for backend type %q", backendType, canonType))
 }
 
 func (v *InitJSON) InitializingProviderPlugins() {
@@ -588,5 +547,11 @@ func (v *InitJSON) Hooks(showLocalPath bool) initwd.ModuleInstallHooks {
 	return &moduleInstallationHookJSON{
 		v:              v.view,
 		showLocalPaths: showLocalPath,
+	}
+}
+
+func (v *InitJSON) Backend() Backend {
+	return &BackendJSON{
+		view: v.view,
 	}
 }

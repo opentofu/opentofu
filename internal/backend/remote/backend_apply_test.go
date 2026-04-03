@@ -49,7 +49,8 @@ func testOperationApplyWithTimeout(t *testing.T, configDir string, timeout time.
 
 	streams, done := terminal.StreamsForTesting(t)
 	view := views.NewView(streams)
-	stateLockerView := views.NewStateLocker(arguments.ViewOptions{ViewType: arguments.ViewHuman}, view)
+	backendView := views.NewBackendHuman(views.NewView(streams))
+	stateLockerView := backendView.StateLocker()
 	operationView := views.NewOperation(arguments.ViewHuman, false, view)
 
 	// Many of our tests use an overridden "null" provider that's just in-memory

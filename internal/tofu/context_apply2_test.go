@@ -1243,6 +1243,193 @@ resource "test_resource" "c" {
 	})
 }
 
+func TestContext2Apply_ephemeralResourceLifecycleConditions(t *testing.T) {
+	const cfgTpl = `
+variable "boop" {
+  type = string
+}
+
+resource "test_resource" "a" {
+	value = var.boop
+}
+
+ephemeral "test_resource" "b" {
+  value = test_resource.a.output
+  lifecycle {
+    %s {
+      condition     = test_resource.a.output != ""
+      error_message = "Output must not be blank."
+    }
+  }
+}
+
+resource "test_resource" "c" {
+  value_wo = ephemeral.test_resource.b.output
+}`
+	postconditionConfig := map[string]string{
+		"main.tf": fmt.Sprintf(cfgTpl, "postcondition"),
+	}
+	preconditionConfig := map[string]string{
+		"main.tf": fmt.Sprintf(cfgTpl, "precondition"),
+	}
+
+	tests := map[string]struct {
+		moduleConfig     map[string]string
+		inputValue       string
+		expectError      bool
+		expectedErrorMsg string
+		expectedStatus   checks.Status
+	}{
+		"postcondition pass": {
+			moduleConfig:   postconditionConfig,
+			inputValue:     "boop",
+			expectError:    false,
+			expectedStatus: checks.StatusPass,
+		},
+		"postcondition fail": {
+			moduleConfig:     postconditionConfig,
+			inputValue:       "boop-new",
+			expectError:      true,
+			expectedErrorMsg: "Resource postcondition failed: Output must not be blank.",
+			expectedStatus:   checks.StatusFail,
+		},
+		"precondition pass": {
+			moduleConfig:   preconditionConfig,
+			inputValue:     "boop",
+			expectError:    false,
+			expectedStatus: checks.StatusPass,
+		},
+		"precondition fail": {
+			moduleConfig:     preconditionConfig,
+			inputValue:       "boop-new",
+			expectError:      true,
+			expectedErrorMsg: "Resource precondition failed: Output must not be blank.",
+			expectedStatus:   checks.StatusFail,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			m := testModuleInline(t, tc.moduleConfig)
+
+			p := testProvider("test")
+			p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+				ResourceTypes: map[string]*configschema.Block{
+					"test_resource": {
+						Attributes: map[string]*configschema.Attribute{
+							"value": {
+								Type:     cty.String,
+								Optional: true,
+							},
+							"value_wo": {
+								Type:      cty.String,
+								WriteOnly: true,
+								Optional:  true,
+							},
+							"output": {
+								Type:     cty.String,
+								Computed: true,
+							},
+						},
+					},
+				},
+				EphemeralTypes: map[string]*configschema.Block{
+					"test_resource": {
+						Attributes: map[string]*configschema.Attribute{
+							"value": {
+								Type:     cty.String,
+								Required: true,
+							},
+							"output": {
+								Type:     cty.String,
+								Computed: true,
+							},
+						},
+					},
+				},
+			})
+			p.PlanResourceChangeFn = func(req providers.PlanResourceChangeRequest) (resp providers.PlanResourceChangeResponse) {
+				m := req.ProposedNewState.AsValueMap()
+				m["output"] = cty.UnknownVal(cty.String)
+
+				resp.PlannedState = cty.ObjectVal(m)
+				resp.LegacyTypeSystem = true
+				return resp
+			}
+			p.ApplyResourceChangeFn = func(req providers.ApplyResourceChangeRequest) (resp providers.ApplyResourceChangeResponse) {
+				m := req.PlannedState.AsValueMap()
+				v, ok := m["value"]
+				if !ok || v.IsNull() {
+					v = m["value_wo"]
+				}
+				outputVal := fmt.Sprintf("new-%s", v.AsString())
+				if v.AsString() == "boop-new" {
+					outputVal = ""
+				}
+				m["output"] = cty.StringVal(outputVal)
+
+				resp.NewState = cty.ObjectVal(m)
+				return resp
+			}
+			p.OpenEphemeralResourceFn = func(req providers.OpenEphemeralResourceRequest) (resp providers.OpenEphemeralResourceResponse) {
+				m := req.Config.AsValueMap()
+				m["output"] = cty.StringVal("generated-" + m["value"].AsString())
+
+				resp.Result = cty.ObjectVal(m)
+				return resp
+			}
+			ctx := testContext2(t, &ContextOpts{
+				Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
+					addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+				}, nil),
+			})
+
+			plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
+				Mode: plans.NormalMode,
+				SetVariables: InputValues{
+					"boop": &InputValue{
+						Value:      cty.StringVal(tc.inputValue),
+						SourceType: ValueFromCLIArg,
+					},
+				},
+			})
+			assertNoErrors(t, diags)
+			if len(plan.Changes.Resources) != 2 {
+				t.Fatalf("unexpected plan changes: %#v", plan.Changes)
+			}
+
+			state, diags := ctx.Apply(context.Background(), plan, m, nil)
+			if tc.expectError {
+				if !diags.HasErrors() {
+					t.Fatal("succeeded; want errors")
+				}
+				if got, want := diags.Err().Error(), tc.expectedErrorMsg; got != want {
+					t.Fatalf("wrong error:\ngot:  %s\nwant: %q", got, want)
+				}
+			} else {
+				assertNoErrors(t, diags)
+			}
+
+			wantChecks := []struct {
+				addr   addrs.ConfigResource
+				status checks.Status
+			}{
+				{
+					addr:   mustAbsResourceAddr("ephemeral.test_resource.b").Config(),
+					status: tc.expectedStatus,
+				},
+			}
+
+			for _, tc := range wantChecks {
+				got := state.CheckResults.ConfigResults.Get(tc.addr)
+				if got.Status != tc.status {
+					t.Errorf("for %s expected status %s but got %s", tc.addr, tc.status, got.Status)
+				}
+			}
+		})
+	}
+}
+
 func TestContext2Apply_outputValuePrecondition(t *testing.T) {
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
@@ -5748,84 +5935,131 @@ check "http_check" {
 // TestContext2Apply_ephemeralResourcesLifecycleCheck is checking the hook calls
 // and the state to be sure that the expected information is there.
 func TestContext2Apply_ephemeralResourcesLifecycleCheck(t *testing.T) {
-	m := testModuleInline(t, map[string]string{
-		`main.tf`: `
+	addr := mustAbsResourceAddr("ephemeral.test_ephemeral_resource.a")
+	cases := map[string]struct {
+		cfg               *configs.Config
+		expectedHookCalls []*testHookCall
+		expectedState     *states.Resource
+	}{
+		"ephemeral is referenced by nothing else": {
+			cfg: testModuleInline(t, map[string]string{
+				`main.tf`: `
 ephemeral "test_ephemeral_resource" "a" {
 }
 `,
-	})
-
-	provider := testProvider("test")
-	provider.OpenEphemeralResourceResponse = &providers.OpenEphemeralResourceResponse{
-		Result: cty.ObjectVal(map[string]cty.Value{
-			"id":     cty.StringVal("id val"),
-			"secret": cty.StringVal("val"),
-			"input":  cty.NullVal(cty.String),
-		}),
-	}
-
-	ps := map[addrs.Provider]providers.Factory{
-		addrs.NewDefaultProvider("test"): testProviderFuncFixed(provider),
-	}
-
-	h := &testHook{}
-	apply := func(t *testing.T, m *configs.Config, prevState *states.State) (*states.State, tfdiags.Diagnostics) {
-		ctx := testContext2(t, &ContextOpts{
-			Plugins: plugins.NewLibrary(ps, nil),
-			Hooks:   []Hook{h},
-		})
-
-		plan, diags := ctx.Plan(context.Background(), m, prevState, &PlanOpts{
-			Mode: plans.NormalMode,
-		})
-		if diags.HasErrors() {
-			return nil, diags
-		}
-
-		return ctx.Apply(context.Background(), plan, m, nil)
-	}
-
-	newState, diags := apply(t, m, states.NewState())
-	if diags.HasErrors() {
-		t.Fatal(diags.Err())
-	}
-
-	addr := mustAbsResourceAddr("ephemeral.test_ephemeral_resource.a")
-	gotRes := newState.Resource(addr)
-	wantRes := &states.Resource{
-		Addr: addr,
-		Instances: map[addrs.InstanceKey]*states.ResourceInstance{
-			addrs.NoKey: {
-				Current: &states.ResourceInstanceObjectSrc{
-					AttrsJSON:          []byte(`{"id":"id val","input":null,"secret":"val"}`),
-					Status:             states.ObjectReady,
-					AttrSensitivePaths: []cty.PathValueMarks{},
-					Dependencies:       []addrs.ConfigResource{},
-				},
-				Deposed: map[states.DeposedKey]*states.ResourceInstanceObjectSrc{},
+			}),
+			expectedState: nil,
+			expectedHookCalls: []*testHookCall{
+				// When the ephemeral resource is not referenced by other constructs, the apply graph removes it.
+				// Therefore, we expect only the actions from the plan phase.
+				{Action: "PreOpen", InstanceID: addr.String()},
+				{Action: "PostOpen", InstanceID: addr.String()},
+				{Action: "PreClose", InstanceID: addr.String()},
+				{Action: "PostClose", InstanceID: addr.String()},
 			},
 		},
-		ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		"ephemeral is referenced by another resource": {
+			cfg: testModuleInline(t, map[string]string{
+				`main.tf`: `
+ephemeral "test_ephemeral_resource" "a" {
+}
+module "call" {
+	source = "./mod"
+	test = ephemeral.test_ephemeral_resource.a.secret
+}
+`,
+				`mod/main.tf`: `
+variable "test" {
+}
+resource "test_instance" "a" {
+	value_wo = var.test
+}
+`,
+			}),
+			expectedState: &states.Resource{
+				Addr: addr,
+				Instances: map[addrs.InstanceKey]*states.ResourceInstance{
+					addrs.NoKey: {
+						Current: &states.ResourceInstanceObjectSrc{
+							AttrsJSON:          []byte(`{"id":"id val","input":null,"secret":"val"}`),
+							Status:             states.ObjectReady,
+							AttrSensitivePaths: []cty.PathValueMarks{},
+							Dependencies:       []addrs.ConfigResource{},
+						},
+						Deposed: map[states.DeposedKey]*states.ResourceInstanceObjectSrc{},
+					},
+				},
+				ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+			},
+			expectedHookCalls: []*testHookCall{
+				// Because ephemeral is referenced by another resource, now we expect to have multiple
+				// events for Open and Closing of the ephemeral: a pair of open/close for the planning
+				// and one pair for the applying.
+				{Action: "PreOpen", InstanceID: addr.String()},
+				{Action: "PostOpen", InstanceID: addr.String()},
+				{Action: "PreDiff", InstanceID: "module.call.test_instance.a"},
+				{Action: "PostDiff", InstanceID: "module.call.test_instance.a"},
+				{Action: "PreClose", InstanceID: addr.String()},
+				{Action: "PostClose", InstanceID: addr.String()},
+				{Action: "PreOpen", InstanceID: addr.String()},
+				{Action: "PostOpen", InstanceID: addr.String()},
+				{Action: "PreDiff", InstanceID: "module.call.test_instance.a"},
+				{Action: "PostDiff", InstanceID: "module.call.test_instance.a"},
+				{Action: "PreApply", InstanceID: "module.call.test_instance.a"},
+				{Action: "PostApply", InstanceID: "module.call.test_instance.a"},
+				{Action: "PostStateUpdate"},
+				{Action: "PreClose", InstanceID: addr.String()},
+				{Action: "PostClose", InstanceID: addr.String()},
+			},
+		},
 	}
-	if diff := cmp.Diff(wantRes, gotRes); diff != "" {
-		t.Errorf("unexpected ephemeral resource content in the state:\n%s", diff)
-	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			m := tc.cfg
 
-	if got, want := len(h.Calls), 8; got != want {
-		t.Fatalf("want %d hook calls but got %d", want, got)
-	}
-	wantCalls := []*testHookCall{
-		{Action: "PreOpen", InstanceID: addr.String()},
-		{Action: "PostOpen", InstanceID: addr.String()},
-		{Action: "PreClose", InstanceID: addr.String()},
-		{Action: "PostClose", InstanceID: addr.String()},
-		{Action: "PreOpen", InstanceID: addr.String()},
-		{Action: "PostOpen", InstanceID: addr.String()},
-		{Action: "PreClose", InstanceID: addr.String()},
-		{Action: "PostClose", InstanceID: addr.String()},
-	}
-	if diff := cmp.Diff(wantCalls, h.Calls); diff != "" {
-		t.Fatalf("unexpected hook calls:\n%s", diff)
+			provider := testProvider("test")
+			provider.OpenEphemeralResourceResponse = &providers.OpenEphemeralResourceResponse{
+				Result: cty.ObjectVal(map[string]cty.Value{
+					"id":     cty.StringVal("id val"),
+					"secret": cty.StringVal("val"),
+					"input":  cty.NullVal(cty.String),
+				}),
+			}
+
+			ps := map[addrs.Provider]providers.Factory{
+				addrs.NewDefaultProvider("test"): testProviderFuncFixed(provider),
+			}
+
+			h := &testHook{}
+			apply := func(t *testing.T, m *configs.Config, prevState *states.State) (*states.State, tfdiags.Diagnostics) {
+				ctx := testContext2(t, &ContextOpts{
+					Plugins: plugins.NewLibrary(ps, nil),
+					Hooks:   []Hook{h},
+				})
+
+				plan, diags := ctx.Plan(context.Background(), m, prevState, &PlanOpts{
+					Mode: plans.NormalMode,
+				})
+				if diags.HasErrors() {
+					return nil, diags
+				}
+
+				return ctx.Apply(context.Background(), plan, m, nil)
+			}
+
+			newState, diags := apply(t, m, states.NewState())
+			if diags.HasErrors() {
+				t.Fatal(diags.Err())
+			}
+
+			gotRes := newState.Resource(addr)
+			if diff := cmp.Diff(tc.expectedState, gotRes); diff != "" {
+				t.Errorf("unexpected ephemeral resource content in the state (-want,+got):\n%s", diff)
+			}
+			if diff := cmp.Diff(tc.expectedHookCalls, h.Calls); diff != "" {
+				t.Errorf("unexpected hook calls (-want,+got):\n%s", diff)
+			}
+		})
 	}
 }
 

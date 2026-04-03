@@ -253,8 +253,10 @@ func TestPrimaryChdirOption(t *testing.T) {
 //     the status update of their execution.
 func TestEphemeralWorkflowAndOutput(t *testing.T) {
 	t.Parallel()
+	if runtime.GOOS == "linux" && runtime.GOARCH == "arm" {
+		t.Skip("Test skipped due to inability to run on linux_arm. Might need further investigation to make it runnable")
+	}
 
-	skipIfCannotAccessNetwork(t)
 	pluginVersionRunner := func(t *testing.T, testdataPath string, providerBuilderFunc func(*testing.T, string)) {
 		tf := e2e.NewBinary(t, tofuBin, testdataPath)
 		providerBuilderFunc(t, tf.WorkDir())
@@ -278,23 +280,25 @@ plan. Resource actions are indicated with the following symbols:
 
 OpenTofu will perform the following actions:
 
-  # data.simple_resource.test_data2 will be read during apply
-  # (depends on a resource or a module with changes pending)
- <= data "simple_resource" "test_data2" {
-      + id    = (known after apply)
-      + value = "test"
-    }
-
   # simple_resource.test_res will be created
   + resource "simple_resource" "test_res" {
+      + id       = (known after apply)
       + value    = "test value"
       + value_wo = (write-only attribute)
     }
 
   # simple_resource.test_res_second_provider will be created
   + resource "simple_resource" "test_res_second_provider" {
+      + id       = (known after apply)
       + value    = "just a simple resource to ensure that the second provider it's working fine"
       + value_wo = (write-only attribute)
+    }
+
+  # module.call.data.simple_resource.deferred_data will be read during apply
+  # (depends on a resource or a module with changes pending)
+ <= data "simple_resource" "deferred_data" {
+      + id    = (known after apply)
+      + value = "hardcoded"
     }
 
 Plan: 2 to add, 0 to change, 0 to destroy.
@@ -302,25 +306,26 @@ Plan: 2 to add, 0 to change, 0 to destroy.
 Changes to Outputs:
   + final_output = "just a simple resource to ensure that the second provider it's working fine"`
 
-			entriesChecker := &outputEntriesChecker{phase: "plan"}
-			entriesChecker.addChecks(outputEntry{[]string{"data.simple_resource.test_data1: Reading..."}, true},
-				outputEntry{[]string{"data.simple_resource.test_data1: Read complete after"}, true},
-				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[0]: Opening..."}, true},
-				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[0]: Open complete after"}, true},
-				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[1]: Opening..."}, true},
-				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[1]: Open complete after"}, true},
-				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[0]: Closing..."}, true},
-				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[0]: Close complete after"}, true},
-				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[1]: Closing..."}, true},
-				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[1]: Close complete after"}, true},
-			)
+			checker := outputEntriesChecker{
+				outputCheckContains{[]string{"data.simple_resource.test_data1: Reading..."}, true},
+				outputCheckContains{[]string{"data.simple_resource.test_data1: Read complete after"}, true},
+				outputCheckContains{[]string{"ephemeral.simple_resource.test_ephemeral[0]: Opening..."}, true},
+				outputCheckContains{[]string{"ephemeral.simple_resource.test_ephemeral[0]: Open complete after"}, true},
+				outputCheckContains{[]string{"ephemeral.simple_resource.test_ephemeral[1]: Opening..."}, true},
+				outputCheckContains{[]string{"ephemeral.simple_resource.test_ephemeral[1]: Open complete after"}, true},
+				outputCheckContains{[]string{"module.call.ephemeral.simple_resource.deferred_ephemeral: Deferred due to unknown configuration"}, true},
+				outputCheckContains{[]string{"ephemeral.simple_resource.test_ephemeral[0]: Closing..."}, true},
+				outputCheckContains{[]string{"ephemeral.simple_resource.test_ephemeral[0]: Close complete after"}, true},
+				outputCheckContains{[]string{"ephemeral.simple_resource.test_ephemeral[1]: Closing..."}, true},
+				outputCheckContains{[]string{"ephemeral.simple_resource.test_ephemeral[1]: Close complete after"}, true},
+			}
 			out := stripAnsi(stdout)
 
 			if !strings.Contains(out, expectedChangesOutput) {
 				t.Errorf("wrong plan output:\nstdout:%s\nstderr:%s", stdout, stderr)
 				t.Log(cmp.Diff(out, expectedChangesOutput))
 			}
-			entriesChecker.check(t, out)
+			checker.check(t, "plan", out)
 
 			// assert plan file content
 			plan, err := tf.Plan("tfplan")
@@ -330,18 +335,8 @@ Changes to Outputs:
 			idx := slices.IndexFunc(plan.Changes.Resources, func(src *plans.ResourceInstanceChangeSrc) bool {
 				return src.Addr.Resource.Resource.Mode == addrs.EphemeralResourceMode
 			})
-			if idx < 0 {
-				t.Fatalf("no ephemeral resource found in the plan file")
-			}
-			res := plan.Changes.Resources[idx]
-			if res.Before != nil {
-				t.Errorf("ephemeral resource %q from plan contains before value but it shouldn't: %s", res.Addr.String(), res.Before)
-			}
-			if res.After != nil {
-				t.Errorf("ephemeral resource %q from plan contains after value but it shouldn't: %s", res.Addr.String(), res.After)
-			}
-			if got, want := res.Action, plans.Open; got != want {
-				t.Errorf("ephemeral resource %q from plan contains wrong actions. want %q; got %q", res.Addr.String(), want, got)
+			if idx >= 0 {
+				t.Fatalf("ephemeral resource found in the plan file. expected to have no ephemeral resource")
 			}
 			// variables check
 			varDynVal, ok := plan.VariableValues["simple_input"]
@@ -415,59 +410,66 @@ Changes to Outputs:
 				t.Fatalf("failed to read local state: %s", err)
 			}
 			expectedResources := map[string]bool{
-				"data.simple_resource.test_data1":          true,
-				"data.simple_resource.test_data2":          true,
-				"simple_resource.test_res":                 true,
-				"simple_resource.test_res_second_provider": true,
-				"ephemeral.simple_resource.test_ephemeral": false,
+				"data.simple_resource.test_data1":                true,
+				"module.call.data.simple_resource.deferred_data": true,
+				"simple_resource.test_res":                       true,
+				"simple_resource.test_res_second_provider":       true,
+				"ephemeral.simple_resource.test_ephemeral":       false,
 			}
 			for res, exists := range expectedResources {
-				_, ok := state.RootModule().Resources[res]
-				if ok != exists {
-					t.Errorf("expected resource %q existence to be %t but got %t", res, exists, ok)
+				addr := mustResourceInstanceAddr(t, res)
+				mod := state.Module(addr.Module)
+				if mod == nil {
+					t.Errorf("state misses state for module %q as checking the state for %q", addr.Module, addr)
+					continue
+				}
+				resStateExists := mod.ResourceInstance(addr.Resource) != nil
+				if resStateExists != exists {
+					t.Errorf("expected resource %q existence to be %t but got %t", res, exists, resStateExists)
 				}
 			}
 
 			expectedChangesOutput := `Apply complete! Resources: 2 added, 0 changed, 0 destroyed.`
 			// NOTE: the non-required ones are dependent on the performance of the platform that this test is running on.
 			// In CI, if we would make this as required, this test might be flaky.
-			entriesChecker := outputEntriesChecker{phase: "apply"}
-			entriesChecker.addChecks(
-				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[0]: Opening..."}, true},
-				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[0]: Open complete after"}, true},
-				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[1]: Opening..."}, true},
-				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[1]: Open complete after"}, true},
-				outputEntry{[]string{"data.simple_resource.test_data2: Reading..."}, true},
-				outputEntry{[]string{"data.simple_resource.test_data2: Read complete after"}, true},
-				outputEntry{[]string{"simple_resource.test_res: Creating..."}, true},
-				outputEntry{[]string{"simple_resource.test_res_second_provider: Creating..."}, true},
-				outputEntry{[]string{"simple_resource.test_res_second_provider: Creation complete after"}, true},
-				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[0]: Renewing..."}, false},
-				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[0]: Renew complete after"}, false},
-				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[1]: Renewing..."}, false},
-				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[1]: Renew complete after"}, false},
-				outputEntry{[]string{"simple_resource.test_res: Creation complete after"}, true},
-				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[0]: Closing..."}, true},
-				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[0]: Close complete after"}, true},
-				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[1]: Closing..."}, true},
-				outputEntry{[]string{"simple_resource.test_res: Provisioning with 'local-exec'..."}, true},
-				outputEntry{[]string{
+			checker := outputEntriesChecker{
+				outputCheckContains{[]string{"ephemeral.simple_resource.test_ephemeral[0]: Opening..."}, true},
+				outputCheckContains{[]string{"ephemeral.simple_resource.test_ephemeral[0]: Open complete after"}, true},
+				outputCheckContains{[]string{"ephemeral.simple_resource.test_ephemeral[1]: Opening..."}, true},
+				outputCheckContains{[]string{"ephemeral.simple_resource.test_ephemeral[1]: Open complete after"}, true},
+				outputCheckContains{[]string{"module.call.ephemeral.simple_resource.deferred_ephemeral: Opening..."}, true},
+				outputCheckContains{[]string{"module.call.ephemeral.simple_resource.deferred_ephemeral: Open complete after"}, true},
+				outputCheckContains{[]string{"module.call.data.simple_resource.deferred_data: Reading..."}, true},
+				outputCheckContains{[]string{"module.call.data.simple_resource.deferred_data: Read complete after"}, true},
+				outputCheckContains{[]string{"simple_resource.test_res: Creating..."}, true},
+				outputCheckContains{[]string{"simple_resource.test_res_second_provider: Creating..."}, true},
+				outputCheckContains{[]string{"simple_resource.test_res_second_provider: Creation complete after"}, true},
+				outputCheckContains{[]string{"ephemeral.simple_resource.test_ephemeral[0]: Renewing..."}, true},
+				outputCheckContains{[]string{"ephemeral.simple_resource.test_ephemeral[0]: Renew complete after"}, true},
+				outputCheckContains{[]string{"ephemeral.simple_resource.test_ephemeral[1]: Renewing..."}, true},
+				outputCheckContains{[]string{"ephemeral.simple_resource.test_ephemeral[1]: Renew complete after"}, true},
+				outputCheckContains{[]string{"simple_resource.test_res: Creation complete after"}, true},
+				outputCheckContains{[]string{"ephemeral.simple_resource.test_ephemeral[0]: Closing..."}, true},
+				outputCheckContains{[]string{"ephemeral.simple_resource.test_ephemeral[0]: Close complete after"}, true},
+				outputCheckContains{[]string{"ephemeral.simple_resource.test_ephemeral[1]: Closing..."}, true},
+				outputCheckContains{[]string{"simple_resource.test_res: Provisioning with 'local-exec'..."}, true},
+				outputCheckContains{[]string{
 					`simple_resource.test_res (local-exec): Executing: ["/bin/sh" "-c" "echo \"visible test value\""]`,
 					`simple_resource.test_res (local-exec): Executing: ["cmd" "/C" "echo \"visible test value\""]`,
 				}, true},
-				outputEntry{[]string{
+				outputCheckContains{[]string{
 					`simple_resource.test_res (local-exec): visible test value`,
 					`simple_resource.test_res (local-exec): \"visible test value\"`,
 				}, true},
-				outputEntry{[]string{"simple_resource.test_res (local-exec): (output suppressed due to ephemeral value in config)"}, true},
-			)
+				outputCheckContains{[]string{"simple_resource.test_res (local-exec): (output suppressed due to ephemeral value in config)"}, true},
+			}
 			out := stripAnsi(stdout)
 
 			if !strings.Contains(out, expectedChangesOutput) {
 				t.Errorf("wrong apply output:\nstdout:%s\nstderr%s", stdout, stderr)
 				t.Log(cmp.Diff(out, expectedChangesOutput))
 			}
-			entriesChecker.check(t, out)
+			checker.check(t, "apply", out)
 		}
 		{ // DESTROY
 			stdout, stderr, err := tf.Run("destroy", `-var=simple_input=plan_val`, `-var=ephemeral_input=ephemeral_val`, "-auto-approve")
@@ -510,6 +512,158 @@ Changes to Outputs:
 			pluginVersionRunner(t, "testdata/ephemeral-workflow", tt.protoBinBuilder)
 		})
 	}
+}
+
+func TestEphemeralRepetitionData(t *testing.T) {
+	t.Parallel()
+
+	tf := e2e.NewBinary(t, tofuBin, "testdata/ephemeral-repetition")
+	buildSimpleProvider(t, "6", tf.WorkDir(), "simple")
+	exec := func(
+		t *testing.T,
+		chdir string,
+		expectDestroyError bool,
+		expectedPlanOutput []outputCheck,
+		expectedApplyOutput []outputCheck,
+		expectedDestroyOutput []outputCheck,
+	) {
+		{ // INIT
+			_, stderr, err := tf.Run("-chdir="+chdir, "init", "-plugin-dir=../cache")
+			if err != nil {
+				t.Fatalf("unexpected init error: %s\nstderr:\n%s", err, stderr)
+			}
+		}
+
+		{ // PLAN
+			stdout, stderr, err := tf.Run("-chdir="+chdir, "plan")
+			combined := fmt.Sprintf("%s\n\n%s", stripAnsi(stdout), stripAnsi(stderr))
+			if err == nil {
+				t.Errorf("expected to have an error during plan but got nothing. output:\n%s", combined)
+			}
+			entriesChecker := outputEntriesChecker(expectedPlanOutput)
+			entriesChecker.check(t, "plan", combined)
+		}
+		{ // APPLY
+			stdout, stderr, err := tf.Run("-chdir="+chdir, "apply", "-auto-approve")
+			combined := fmt.Sprintf("%s\n\n%s", stripAnsi(stdout), stripAnsi(stderr))
+			if err == nil {
+				t.Errorf("expected to have an error during apply but got nothing. output:\n%s", combined)
+			}
+			entriesChecker := outputEntriesChecker(expectedApplyOutput)
+			entriesChecker.check(t, "apply", combined)
+		}
+		{ // DESTROY
+			stdout, stderr, err := tf.Run("-chdir="+chdir, "destroy", "-auto-approve")
+			combined := fmt.Sprintf("%s\n\n%s", stripAnsi(stdout), stripAnsi(stderr))
+			if !expectDestroyError && err != nil {
+				t.Errorf("expected to have no error during destroy. got %q instead. output:\n%s", err, combined)
+			} else if expectDestroyError && err == nil {
+				t.Errorf("expected to have an error during destroy. got null instead. output:\n%s", combined)
+			}
+			entriesChecker := outputEntriesChecker(expectedDestroyOutput)
+			entriesChecker.check(t, "destroy", combined)
+		}
+	}
+	cases := map[string]struct {
+		chdir                 string
+		expectDestroyError    bool
+		expectedPlanOutput    []outputCheck
+		expectedApplyOutput   []outputCheck
+		expectedDestroyOutput []outputCheck
+	}{
+		"lifecycle.enabled": {
+			chdir:              "enabled",
+			expectDestroyError: false,
+			expectedPlanOutput: []outputCheck{
+				outputCheckDoesNotContain{`ephemeral.simple_resource.res: Opening...`, true},
+				outputCheckDoesNotContain{`ephemeral.simple_resource.res: Open complete after`, true},
+				outputCheckDoesNotContain{`ephemeral.simple_resource.res: Closing...`, true},
+				outputCheckDoesNotContain{`ephemeral.simple_resource.res: Close complete after`, true},
+				outputCheckContains{[]string{"Error: Invalid enabled argument"}, true},
+				outputCheckContains{[]string{`on main.tf line 20, in data "simple_resource" "res"`}, true},
+				outputCheckContains{[]string{`on main.tf line 27, in resource "simple_resource" "res"`}, true},
+				outputCheckContains{[]string{`on main.tf line 34, in ephemeral "simple_resource" "res"`}, true},
+				outputCheckContains{[]string{`ephemeral "simple_resource" "res"`}, true},
+			},
+			expectedApplyOutput: []outputCheck{
+				outputCheckDoesNotContain{`ephemeral.simple_resource.res: Opening...`, true},
+				outputCheckDoesNotContain{`ephemeral.simple_resource.res: Open complete after`, true},
+				outputCheckDoesNotContain{`ephemeral.simple_resource.res: Closing...`, true},
+				outputCheckDoesNotContain{`ephemeral.simple_resource.res: Close complete after`, true},
+				outputCheckContains{[]string{"Error: Invalid enabled argument"}, true},
+				outputCheckContains{[]string{`on main.tf line 20, in data "simple_resource" "res"`}, true},
+				outputCheckContains{[]string{`on main.tf line 27, in resource "simple_resource" "res"`}, true},
+				outputCheckContains{[]string{`on main.tf line 34, in ephemeral "simple_resource" "res"`}, true},
+				outputCheckContains{[]string{`ephemeral "simple_resource" "res"`}, true},
+			},
+			expectedDestroyOutput: []outputCheck{
+				outputCheckContains{[]string{`No changes. No objects need to be destroyed.`}, true},
+			},
+		},
+		"count": {
+			chdir:              "count",
+			expectDestroyError: true,
+			expectedPlanOutput: []outputCheck{
+				outputCheckContains{[]string{"Error: Invalid count argument"}, true},
+				outputCheckContains{[]string{`on main.tf line 18, in data "simple_resource" "res"`}, true},
+				outputCheckContains{[]string{`on main.tf line 23, in resource "simple_resource" "res"`}, true},
+				outputCheckContains{[]string{`on main.tf line 28, in ephemeral "simple_resource" "res"`}, true},
+				outputCheckDoesNotContain{`ephemeral.simple_resource.res: Opening...`, true},
+			},
+			expectedApplyOutput: []outputCheck{
+				outputCheckContains{[]string{"Error: Invalid count argument"}, true},
+				outputCheckContains{[]string{`on main.tf line 18, in data "simple_resource" "res"`}, true},
+				outputCheckContains{[]string{`on main.tf line 23, in resource "simple_resource" "res"`}, true},
+				outputCheckContains{[]string{`on main.tf line 28, in ephemeral "simple_resource" "res"`}, true},
+				outputCheckDoesNotContain{`ephemeral.simple_resource.res: Opening...`, true},
+			},
+			expectedDestroyOutput: []outputCheck{
+				outputCheckContains{[]string{"Error: Invalid count argument"}, true},
+				outputCheckContains{[]string{`on main.tf line 18, in data "simple_resource" "res"`}, true},
+				outputCheckContains{[]string{`on main.tf line 23, in resource "simple_resource" "res"`}, true},
+				outputCheckContains{[]string{`on main.tf line 28, in ephemeral "simple_resource" "res"`}, true},
+				outputCheckDoesNotContain{`ephemeral.simple_resource.res: Opening...`, true},
+			},
+		},
+		"for_each": {
+			chdir:              "for_each",
+			expectDestroyError: true,
+			expectedPlanOutput: []outputCheck{
+				outputCheckContains{[]string{"Error: Invalid for_each argument"}, true},
+				outputCheckContains{[]string{`on main.tf line 19, in data "simple_resource" "res"`}, true},
+				outputCheckContains{[]string{`on main.tf line 24, in resource "simple_resource" "res"`}, true},
+				outputCheckContains{[]string{`on main.tf line 29, in ephemeral "simple_resource" "res"`}, true},
+				outputCheckDoesNotContain{`ephemeral.simple_resource.res: Opening...`, true},
+			},
+			expectedApplyOutput: []outputCheck{
+				outputCheckContains{[]string{"Error: Invalid for_each argument"}, true},
+				outputCheckContains{[]string{`on main.tf line 19, in data "simple_resource" "res"`}, true},
+				outputCheckContains{[]string{`on main.tf line 24, in resource "simple_resource" "res"`}, true},
+				outputCheckContains{[]string{`on main.tf line 29, in ephemeral "simple_resource" "res"`}, true},
+				outputCheckDoesNotContain{`ephemeral.simple_resource.res: Opening...`, true},
+			},
+			expectedDestroyOutput: []outputCheck{
+				outputCheckContains{[]string{"Error: Invalid for_each argument"}, true},
+				outputCheckContains{[]string{`on main.tf line 19, in data "simple_resource" "res"`}, true},
+				outputCheckContains{[]string{`on main.tf line 24, in resource "simple_resource" "res"`}, true},
+				outputCheckContains{[]string{`on main.tf line 29, in ephemeral "simple_resource" "res"`}, true},
+				outputCheckDoesNotContain{`ephemeral.simple_resource.res: Opening...`, true},
+			},
+		},
+	}
+	for name, tt := range cases {
+		t.Run(name, func(t *testing.T) {
+			exec(
+				t,
+				tt.chdir,
+				tt.expectDestroyError,
+				tt.expectedPlanOutput,
+				tt.expectedApplyOutput,
+				tt.expectedDestroyOutput,
+			)
+		})
+	}
+
 }
 
 // This function builds and moves to a directory called "cache" inside the workdir,
@@ -565,44 +719,62 @@ func buildSimpleProvider(t *testing.T, version string, workdir string, buildOutN
 	}
 }
 
-type outputEntry struct {
+type outputCheckContains struct {
 	variants []string
-	required bool
+	strict   bool
 }
 
-func (oe outputEntry) in(out string) bool {
+func (oe outputCheckContains) check(t *testing.T, hint, in string) {
 	for _, v := range oe.variants {
-		if strings.Contains(out, v) {
-			return true
+		if strings.Contains(in, v) {
+			return
 		}
 	}
-	return false
+	if oe.strict {
+		t.Errorf("[%s] output does not contain required content %s\nout:%s", hint, oe.String(), in)
+	} else {
+		// We don't want to fail the test for outputs that are performance and time dependent
+		// as the renew status updates
+		t.Logf("[%s] output does not contain %s\nout:%s", hint, oe.String(), in)
+	}
 }
 
-func (oe outputEntry) String() string {
+func (oe outputCheckContains) String() string {
 	return `"` + strings.Join(oe.variants, `" OR "`) + `"`
 }
 
-type outputEntriesChecker struct {
-	entries []outputEntry
-	phase   string
+type outputCheckDoesNotContain struct {
+	token  string
+	strict bool
 }
 
-func (oec *outputEntriesChecker) addChecks(entries ...outputEntry) {
-	oec.entries = append(oec.entries, entries...)
-}
-
-func (oec *outputEntriesChecker) check(t *testing.T, contentToCheckIn string) {
-	for _, entry := range oec.entries {
-		if entry.in(contentToCheckIn) {
-			continue
-		}
-		if entry.required {
-			t.Errorf("%s output does not contain required content %s\nout:%s", oec.phase, entry.String(), contentToCheckIn)
-		} else {
-			// We don't want to fail the test for outputs that are performance and time dependent
-			// as the renew status updates
-			t.Logf("%s output does not contain %s\nout:%s", oec.phase, entry.String(), contentToCheckIn)
-		}
+func (oe outputCheckDoesNotContain) check(t *testing.T, hint, in string) {
+	if !strings.Contains(in, oe.token) {
+		return
 	}
+	if oe.strict {
+		t.Errorf("[%s] output contains %q but it shouldn't\nout:%s", hint, oe.token, in)
+	} else {
+		t.Logf("[%s] output contains %q but it shouldn't\nout:%s", hint, oe.token, in)
+	}
+}
+
+type outputCheck interface {
+	check(t *testing.T, hint, target string)
+}
+
+type outputEntriesChecker []outputCheck
+
+func (oec outputEntriesChecker) check(t *testing.T, phase string, contentToCheckIn string) {
+	for _, entry := range oec {
+		entry.check(t, phase, contentToCheckIn)
+	}
+}
+
+func mustResourceInstanceAddr(t *testing.T, s string) addrs.AbsResourceInstance {
+	addr, diags := addrs.ParseAbsResourceInstanceStr(s)
+	if diags.HasErrors() {
+		t.Fatalf("failed to parse resource address %q: %s", s, diags.Err())
+	}
+	return addr
 }

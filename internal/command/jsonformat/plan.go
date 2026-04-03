@@ -44,7 +44,7 @@ func (plan Plan) getSchema(change jsonplan.ResourceChange) *jsonprovider.Schema 
 	case jsonstate.DataResourceMode:
 		return plan.ProviderSchemas[change.ProviderName].DataSourceSchemas[change.Type]
 	case jsonstate.EphemeralResourceMode:
-		return plan.ProviderSchemas[change.ProviderName].EphemeralResourceSchemas[change.Type]
+		panic(fmt.Errorf("ephemeral resources are not meant to be stored in the plan file but schema for ephemeral %s.%s has been requested", change.Type, change.Name))
 	default:
 		panic("found unrecognized resource mode: " + change.Mode)
 	}
@@ -419,7 +419,6 @@ func resourceChangeComment(resource jsonplan.ResourceChange, action plans.Action
 	}
 
 	var printedMoved bool
-	var printedImported bool
 
 	switch action {
 	case plans.Create:
@@ -565,7 +564,6 @@ func resourceChangeComment(resource jsonplan.ResourceChange, action plans.Action
 			if len(resource.Change.GeneratedConfig) > 0 {
 				buf.WriteString("\n  #[reset] (config will be generated)")
 			}
-			printedImported = true
 			break
 		}
 		fallthrough
@@ -578,7 +576,7 @@ func resourceChangeComment(resource jsonplan.ResourceChange, action plans.Action
 	if len(resource.PreviousAddress) > 0 && resource.PreviousAddress != resource.Address && !printedMoved {
 		buf.WriteString(fmt.Sprintf("  # [reset](moved from %s)\n", resource.PreviousAddress))
 	}
-	if resource.Change.Importing != nil && !printedImported {
+	if resource.Change.Importing != nil {
 		// We want to make this as forward compatible as possible, and we know
 		// the ID may be removed from the Importing metadata in favour of
 		// something else.
@@ -587,9 +585,19 @@ func resourceChangeComment(resource jsonplan.ResourceChange, action plans.Action
 		// as an empty string
 		if len(resource.Change.Importing.ID) > 0 {
 			buf.WriteString(fmt.Sprintf("  # [reset](imported from \"%s\")\n", resource.Change.Importing.ID))
+		} else if len(resource.Change.Importing.Identity) > 0 {
+			// We want to render the identity here in it's json format for now, in the future we should reconsider how this is rendered by for now this is good enough
+			var jsonOut bytes.Buffer
+			err := json.Indent(&jsonOut, []byte(resource.Change.Importing.Identity), "  # ", "  ")
+			if err != nil {
+				// If we fail to indent the JSON for any reason, we should still render the raw identity string,
+				// as it's better than rendering nothing at all and this is just an extra detail for the user
+				buf.WriteString(fmt.Sprintf("  # [reset]imported using resource identity \"%s\"\n", resource.Change.Importing.Identity))
+			} else {
+				// If we successfully indented the JSON, we should render it in a more human friendly way with new lines and indentation
+				buf.WriteString(fmt.Sprintf("  # [reset]imported using resource identity: %s\n", jsonOut.String()))
+			}
 		} else {
-			// This means we're trying to render a plan from a future version
-			// and we didn't get given the ID. So we'll do our best.
 			buf.WriteString("  # [reset](will be imported first)\n")
 		}
 	}
@@ -626,8 +634,6 @@ func actionDescription(action plans.Action) string {
 		return " [cyan]<=[reset] read (data resources)"
 	case plans.Forget:
 		return "  [red].[reset] forget"
-	case plans.Open:
-		panic("ephemeral changes are not meant to be printed")
 
 	default:
 		panic(fmt.Sprintf("unrecognized change type: %s", action.String()))

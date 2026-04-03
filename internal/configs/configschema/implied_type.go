@@ -88,7 +88,7 @@ func (b *Block) ContainsMarks() bool {
 // cause this method to fall back on defaults and assumptions.
 func (a *Attribute) ImpliedType() cty.Type {
 	if a.NestedType != nil {
-		return a.NestedType.specType().WithoutOptionalAttributesDeep()
+		return a.NestedType.SpecType().WithoutOptionalAttributesDeep()
 	}
 	return a.Type
 }
@@ -101,12 +101,12 @@ func (a *Attribute) ImpliedType() cty.Type {
 // using the InternalValidate method to detect any inconsistencies that would
 // cause this method to fall back on defaults and assumptions.
 func (o *Object) ImpliedType() cty.Type {
-	return o.specType().WithoutOptionalAttributesDeep()
+	return o.SpecType().WithoutOptionalAttributesDeep()
 }
 
-// specType returns the cty.Type used for decoding a NestedType Attribute using
+// SpecType returns the cty.Type used for decoding a NestedType Attribute using
 // the receiving block schema.
-func (o *Object) specType() cty.Type {
+func (o *Object) SpecType() cty.Type {
 	if o == nil {
 		return cty.EmptyObject
 	}
@@ -114,7 +114,7 @@ func (o *Object) specType() cty.Type {
 	attrTys := make(map[string]cty.Type, len(o.Attributes))
 	for name, attrS := range o.Attributes {
 		if attrS.NestedType != nil {
-			attrTys[name] = attrS.NestedType.specType()
+			attrTys[name] = attrS.NestedType.SpecType()
 		} else {
 			attrTys[name] = attrS.Type
 		}

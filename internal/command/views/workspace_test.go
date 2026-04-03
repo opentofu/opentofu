@@ -32,7 +32,11 @@ func TestWorkspaceViews(t *testing.T) {
 					"@module":  "tofu.ui",
 				},
 			},
-			wantStderr: withNewline(`Workspace "test-workspace" already exists`),
+			wantStderr: `
+Error: Workspace "test-workspace" already exists
+
+A workspace having the given name already exists
+`,
 		},
 		"workspace_does_not_exist": {
 			viewCall: func(workspace Workspace) {
@@ -45,7 +49,12 @@ func TestWorkspaceViews(t *testing.T) {
 					"@module":  "tofu.ui",
 				},
 			},
-			wantStderr: withNewline("\nWorkspace \"missing-workspace\" doesn't exist.\n\nYou can create this workspace with the \"new\" subcommand \nor include the \"-or-create\" flag with the \"select\" subcommand."),
+			wantStderr: `
+Error: Workspace "missing-workspace" doesn't exist
+
+You can create this workspace with the "new" subcommand 
+or include the "-or-create" flag with the "select" subcommand.
+`,
 		},
 		"workspace_invalid_name": {
 			viewCall: func(workspace Workspace) {
@@ -58,7 +67,12 @@ func TestWorkspaceViews(t *testing.T) {
 					"@module":  "tofu.ui",
 				},
 			},
-			wantStderr: withNewline("\nThe workspace name \"invalid/name\" is not allowed. The name must contain only URL safe\ncharacters, and no path separators.\n"),
+			wantStderr: `
+Error: Invalid workspace name
+
+The workspace name "invalid/name" is not allowed. The name must contain only
+URL safe characters, and no path separators.
+`,
 		},
 		"list_workspaces": {
 			viewCall: func(workspace Workspace) {
@@ -126,7 +140,12 @@ func TestWorkspaceViews(t *testing.T) {
 					"@module":  "tofu.ui",
 				},
 			},
-			wantStderr: withNewline("\nThe selected workspace is currently overridden using the TF_WORKSPACE\nenvironment variable.\n\nTo select a new workspace, either update this environment variable or unset\nit and then run this command again.\n"),
+			wantStderr: `
+Error: The selected workspace is overridden using the TF_WORKSPACE environment variable
+
+To select a new workspace, either update this environment variable or unset
+it and then run this command again.
+`,
 		},
 		"workspace_is_overridden_new_error": {
 			viewCall: func(workspace Workspace) {
@@ -139,7 +158,13 @@ func TestWorkspaceViews(t *testing.T) {
 					"@module":  "tofu.ui",
 				},
 			},
-			wantStderr: withNewline("\nThe workspace is currently overridden using the TF_WORKSPACE environment\nvariable. You cannot create a new workspace when using this setting.\n\nTo create a new workspace, either unset this environment variable or update it\nto match the workspace name you are trying to create, and then run this command\nagain.\n"),
+			wantStderr: `
+Error: The workspace is overridden using the TF_WORKSPACE environment variable
+
+To create a new workspace, either unset this environment variable or update
+it to match the workspace name you are trying to create, and then run this
+command again.
+`,
 		},
 		"workspace_deleted": {
 			viewCall: func(workspace Workspace) {
@@ -161,11 +186,16 @@ func TestWorkspaceViews(t *testing.T) {
 			wantJson: []map[string]any{
 				{
 					"@level":   "warn",
-					"@message": `WARNING: "workspace-with-resources" was non-empty. The resources managed by the deleted workspace may still exist, but are no longer manageable by OpenTofu since the state has been deleted`,
+					"@message": `"workspace-with-resources" was non-empty. The resources managed by the deleted workspace may still exist, but are no longer manageable by OpenTofu since the state has been deleted`,
 					"@module":  "tofu.ui",
 				},
 			},
-			wantStdout: withNewline("WARNING: \"workspace-with-resources\" was non-empty.\nThe resources managed by the deleted workspace may still exist,\nbut are no longer manageable by OpenTofu since the state has\nbeen deleted."),
+			wantStdout: `
+Warning: "workspace-with-resources" was non-empty
+
+The resources managed by the deleted workspace may still exist, but are no
+longer manageable by OpenTofu since the state has been deleted.
+`,
 		},
 		"cannot_delete_current_workspace": {
 			viewCall: func(workspace Workspace) {
@@ -178,7 +208,12 @@ func TestWorkspaceViews(t *testing.T) {
 					"@module":  "tofu.ui",
 				},
 			},
-			wantStderr: withNewline("\nWorkspace \"current-workspace\" is your active workspace.\n\nYou cannot delete the currently active workspace. Please switch\nto another workspace and try again."),
+			wantStderr: `
+Error: Workspace "current-workspace" is your active workspace
+
+You cannot delete the currently active workspace. Please switch to another
+workspace and try again.
+`,
 		},
 		"workspace_show": {
 			viewCall: func(workspace Workspace) {
@@ -204,7 +239,16 @@ func TestWorkspaceViews(t *testing.T) {
 					"@module":  "tofu.ui",
 				},
 			},
-			wantStdout: withNewline("Warning: the \"tofu env\" family of commands is deprecated.\n\n\"Workspace\" is now the preferred term for what earlier OpenTofu versions\ncalled \"environment\", to reduce ambiguity caused by the latter term colliding\nwith other concepts.\n\nThe \"tofu workspace\" commands should be used instead. \"tofu env\"\nwill be removed in a future OpenTofu version.\n"),
+			wantStdout: `
+Warning: The "tofu env" family of commands is deprecated
+
+"Workspace" is now the preferred term for what earlier OpenTofu versions
+called "environment", to reduce ambiguity caused by the latter term colliding
+with other concepts.
+
+The "tofu workspace" commands should be used instead. "tofu env" will be
+removed in a future OpenTofu version.
+`,
 		},
 		"warn_when_used_as_env_cmd_false": {
 			viewCall: func(workspace Workspace) {

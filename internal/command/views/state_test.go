@@ -6,23 +6,30 @@
 package views
 
 import (
+	"context"
 	"os"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 	regaddr "github.com/opentofu/registry-address/v2"
+	"github.com/zclconf/go-cty/cty"
 )
 
 func TestStateViews(t *testing.T) {
 	tests := map[string]struct {
-		viewCall   func(state State)
-		wantJson   []map[string]any
-		wantStdout string
-		wantStderr string
+		viewCall        func(state State)
+		wantJson        []map[string]any
+		wantStdout      string
+		wantStderr      string
+		ignoreTimestamp bool
 	}{
 		"stateNotFound": {
 			viewCall: func(state State) {
@@ -31,11 +38,23 @@ func TestStateViews(t *testing.T) {
 			wantJson: []map[string]any{
 				{
 					"@level":   "error",
-					"@message": "No state file was found! State management commands require a state file. Run this command in a directory where OpenTofu has been run or use the -state flag to point the command to a specific state location.",
+					"@message": "Error: No state file was found",
 					"@module":  "tofu.ui",
+					"diagnostic": map[string]any{
+						"detail":   "State management commands require a state file. Run this command in a directory where OpenTofu has been run or use the -state flag to point the command to a specific state location.",
+						"severity": "error",
+						"summary":  "No state file was found",
+					},
+					"type": "diagnostic",
 				},
 			},
-			wantStderr: withNewline("No state file was found!\n\nState management commands require a state file. Run this command\nin a directory where OpenTofu has been run or use the -state flag\nto point the command to a specific state location."),
+			wantStderr: `
+Error: No state file was found
+
+State management commands require a state file. Run this command in a
+directory where OpenTofu has been run or use the -state flag to point the
+command to a specific state location.
+`,
 		},
 		"stateLoadingFailure": {
 			viewCall: func(state State) {
@@ -44,11 +63,25 @@ func TestStateViews(t *testing.T) {
 			wantJson: []map[string]any{
 				{
 					"@level":   "error",
-					"@message": "Error loading the state: failed to read state file. Please ensure that your OpenTofu state exists and that you've configured it properly. You can use the \"-state\" flag to point OpenTofu at another state file.",
+					"@message": `Error: Error loading the state`,
 					"@module":  "tofu.ui",
+					"diagnostic": map[string]any{
+						"detail":   "Please ensure that your OpenTofu state exists and that you've configured it properly. You can use the \"-state\" flag to point OpenTofu at another state file.\n\nCause: failed to read state file",
+						"severity": "error",
+						"summary":  "Error loading the state",
+					},
+					"type": "diagnostic",
 				},
 			},
-			wantStderr: withNewline("Error loading the state: failed to read state file\n\nPlease ensure that your OpenTofu state exists and that you've\nconfigured it properly. You can use the \"-state\" flag to point\nOpenTofu at another state file."),
+			wantStderr: `
+Error: Error loading the state
+
+Please ensure that your OpenTofu state exists and that you've configured it
+properly. You can use the "-state" flag to point OpenTofu at another state
+file.
+
+Cause: failed to read state file
+`,
 		},
 		"stateSavingError": {
 			viewCall: func(state State) {
@@ -57,11 +90,25 @@ func TestStateViews(t *testing.T) {
 			wantJson: []map[string]any{
 				{
 					"@level":   "error",
-					"@message": "Error saving the state: failed to save state file. The state was not saved. No items were removed from the persisted state. No backup was created since no modification occurred. Please resolve the issue above and try again.",
+					"@message": "Error: Error saving the state",
 					"@module":  "tofu.ui",
+					"diagnostic": map[string]any{
+						"detail":   "The state was not saved. No items were removed from the persisted state. No backup was created since no modification occurred. Please resolve the issue above and try again.\n\nCause: failed to save state file",
+						"severity": "error",
+						"summary":  "Error saving the state",
+					},
+					"type": "diagnostic",
 				},
 			},
-			wantStderr: withNewline("Error saving the state: failed to save state file\n\nThe state was not saved. No items were removed from the persisted\nstate. No backup was created since no modification occurred. Please\nresolve the issue above and try again."),
+			wantStderr: `
+Error: Error saving the state
+
+The state was not saved. No items were removed from the persisted state. No
+backup was created since no modification occurred. Please resolve the issue
+above and try again.
+
+Cause: failed to save state file
+`,
 		},
 		"stateListAddr": {
 			viewCall: func(state State) {
@@ -88,11 +135,22 @@ func TestStateViews(t *testing.T) {
 			wantJson: []map[string]any{
 				{
 					"@level":   "error",
-					"@message": "Error moving state: destination module already exists. Please ensure your addresses and state paths are valid. No state was persisted. Your existing states are untouched.",
+					"@message": "Error: Destination module already exists",
 					"@module":  "tofu.ui",
+					"diagnostic": map[string]any{
+						"detail":   "Please ensure your addresses and state paths are valid. No state was persisted. Your existing states are untouched.",
+						"severity": "error",
+						"summary":  "Destination module already exists",
+					},
+					"type": "diagnostic",
 				},
 			},
-			wantStderr: withNewline("Error moving state: destination module already exists.\n\nPlease ensure your addresses and state paths are valid. No\nstate was persisted. Your existing states are untouched."),
+			wantStderr: `
+Error: Destination module already exists
+
+Please ensure your addresses and state paths are valid. No state was
+persisted. Your existing states are untouched.
+`,
 		},
 		"resourceMoveStatus with dryRun=true": {
 			viewCall: func(state State) {
@@ -328,6 +386,175 @@ Changing 1 resources:
 			},
 			wantStdout: withNewline("Successfully removed 2 resource instance(s)."),
 		},
+		"unsupportedLocalOp": {
+			viewCall: func(state State) {
+				state.UnsupportedLocalOp()
+			},
+			wantJson: []map[string]any{
+				{
+					"@level":   "error",
+					"@message": "Error: The configured backend doesn't support this operation",
+					"@module":  "tofu.ui",
+					"diagnostic": map[string]any{
+						"detail":   `The "backend" in OpenTofu defines how OpenTofu operates. The default backend performs all operations locally on your machine. Your configuration is configured to use a non-local backend. This backend doesn't support this operation.`,
+						"severity": "error",
+						"summary":  "The configured backend doesn't support this operation",
+					},
+					"type": "diagnostic",
+				},
+			},
+			wantStderr: `
+Error: The configured backend doesn't support this operation
+
+The "backend" in OpenTofu defines how OpenTofu operates. The default backend
+performs all operations locally on your machine. Your configuration is
+configured to use a non-local backend. This backend doesn't support this
+operation.
+`,
+		},
+		"addressParsingError": {
+			viewCall: func(state State) {
+				state.AddressParsingError("aws_instance.example")
+			},
+			wantJson: []map[string]any{
+				{
+					"@level":   "error",
+					"@message": "Error: Error parsing instance address \"aws_instance.example\"",
+					"@module":  "tofu.ui",
+					"diagnostic": map[string]any{
+						"detail":   `This command requires that the address references one specific instance. To view the available instances, use "tofu state list". Please modify the address to reference a specific instance.`,
+						"severity": "error",
+						"summary":  `Error parsing instance address "aws_instance.example"`,
+					},
+					"type": "diagnostic",
+				},
+			},
+			wantStderr: `
+Error: Error parsing instance address "aws_instance.example"
+
+This command requires that the address references one specific instance. To
+view the available instances, use "tofu state list". Please modify the
+address to reference a specific instance.
+`,
+		},
+		"noInstanceFoundError": {
+			viewCall: func(state State) {
+				state.NoInstanceFoundError()
+			},
+			wantJson: []map[string]any{
+				{
+					"@level":   "error",
+					"@message": "Error: No instance found for the given address",
+					"@module":  "tofu.ui",
+					"diagnostic": map[string]any{
+						"detail":   `This command requires that the address references one specific instance. To view the available instances, use "tofu state list". Please modify the address to reference a specific instance.`,
+						"severity": "error",
+						"summary":  "No instance found for the given address",
+					},
+					"type": "diagnostic",
+				},
+			},
+			wantStderr: `
+Error: No instance found for the given address
+
+This command requires that the address references one specific instance. To
+view the available instances, use "tofu state list". Please modify the
+address to reference a specific instance.
+`,
+		},
+		// ShowResourceState for success cases has its own dedicated test because in that situation the json output
+		// is in a raw format and not adhere to the way "informative" messages are shown.
+		"showResourceState with nil state": {
+			viewCall: func(state State) {
+				state.ShowResourceState(context.Background(), nil, nil)
+			},
+			wantStdout: withNewline("No state."),
+			wantStderr: "",
+			wantJson: []map[string]any{
+				{
+					"@level":   "info",
+					"@message": "no state",
+					"@module":  "tofu.ui",
+				},
+			},
+		},
+		"showResourceState with proper state": {
+			ignoreTimestamp: true,
+			viewCall: func(state State) {
+				stateFile := states.BuildState(func(s *states.SyncState) {
+					s.SetResourceInstanceCurrent(
+						addrs.Resource{
+							Mode: addrs.ManagedResourceMode,
+							Type: "test_resource",
+							Name: "foo",
+						}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
+						&states.ResourceInstanceObjectSrc{
+							AttrsJSON: []byte(`{"id":"bar","foo":"value"}`),
+							Status:    states.ObjectReady,
+						},
+						addrs.AbsProviderConfig{
+							Provider: addrs.NewDefaultProvider("test"),
+							Module:   addrs.RootModule,
+						},
+						addrs.NoKey,
+					)
+				})
+				resState := statefile.New(stateFile, "", 0)
+				schema := tofu.Schemas{
+					Providers: map[addrs.Provider]providers.ProviderSchema{
+						addrs.NewDefaultProvider("test"): {
+							ResourceTypes: map[string]providers.Schema{
+								"test_resource": {
+									Block: &configschema.Block{
+										Attributes: map[string]*configschema.Attribute{
+											"id": {
+												Type:     cty.String,
+												Computed: true,
+											},
+											"foo": {
+												Type: cty.String,
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				}
+				state.ShowResourceState(context.Background(), resState, &schema)
+			},
+			wantStdout: withNewline(`# test_resource.foo:
+resource "test_resource" "foo" {
+    foo = "value"
+    id  = "bar"
+}`),
+			wantStderr: "",
+			wantJson: []map[string]any{
+				{
+					"format_version":    "1.0",
+					"terraform_version": "1.12.0",
+					"values": map[string]any{
+						"root_module": map[string]any{
+							"resources": []any{
+								map[string]any{
+									"address":        "test_resource.foo",
+									"mode":           "managed",
+									"type":           "test_resource",
+									"name":           "foo",
+									"provider_name":  "registry.opentofu.org/hashicorp/test",
+									"schema_version": float64(0),
+									"values": map[string]any{
+										"foo": "value",
+										"id":  "bar",
+									},
+									"sensitive_values": map[string]any{},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 		// Diagnostics
 		"warning": {
 			viewCall: func(state State) {
@@ -414,8 +641,8 @@ Changing 1 resources:
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			testStateHuman(t, tc.viewCall, tc.wantStdout, tc.wantStderr)
-			testStateJson(t, tc.viewCall, tc.wantJson)
-			testStateMulti(t, tc.viewCall, tc.wantStdout, tc.wantStderr, tc.wantJson)
+			testStateJson(t, tc.viewCall, tc.wantJson, !tc.ignoreTimestamp)
+			testStateMulti(t, tc.viewCall, tc.wantStdout, tc.wantStderr, tc.wantJson, !tc.ignoreTimestamp)
 		})
 	}
 }
@@ -433,7 +660,7 @@ func testStateHuman(t *testing.T, call func(state State), wantStdout, wantStderr
 	}
 }
 
-func testStateJson(t *testing.T, call func(state State), want []map[string]interface{}) {
+func testStateJson(t *testing.T, call func(state State), want []map[string]interface{}, withTimestamp bool) {
 	view, done := testView(t)
 	stateView := NewState(arguments.ViewOptions{ViewType: arguments.ViewJSON}, view)
 	call(stateView)
@@ -442,10 +669,14 @@ func testStateJson(t *testing.T, call func(state State), want []map[string]inter
 		t.Errorf("expected no stderr but got:\n%s", output.Stderr())
 	}
 
-	testJSONViewOutputEquals(t, output.Stdout(), want)
+	if withTimestamp {
+		testJSONViewOutputEquals(t, output.Stdout(), want)
+		return
+	}
+	testJSONViewOutputEqualsIgnoringTimestamp(t, output.Stdout(), want)
 }
 
-func testStateMulti(t *testing.T, call func(state State), wantStdout string, wantStderr string, want []map[string]interface{}) {
+func testStateMulti(t *testing.T, call func(state State), wantStdout string, wantStderr string, want []map[string]interface{}, withTimestamp bool) {
 	jsonInto, err := os.CreateTemp(t.TempDir(), "json-into-*")
 	if err != nil {
 		t.Fatalf("failed to create the file to write json content into: %s", err)
@@ -462,7 +693,11 @@ func testStateMulti(t *testing.T, call func(state State), wantStdout string, wan
 		if err != nil {
 			t.Fatalf("failed to read the file content with the json output: %s", err)
 		}
-		testJSONViewOutputEquals(t, string(fileContent), want)
+		if withTimestamp {
+			testJSONViewOutputEquals(t, string(fileContent), want)
+			return
+		}
+		testJSONViewOutputEqualsIgnoringTimestamp(t, string(fileContent), want)
 	}
 	{
 		// check the human output

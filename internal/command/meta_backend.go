@@ -62,7 +62,14 @@ type BackendOpts struct {
 
 	// ViewOptions will set console output format for the
 	// initialization operation (JSON or human-readable).
-	ViewOptions arguments.ViewOptions
+	View views.Backend
+}
+
+func (b *BackendOpts) backendView(base *views.View) views.Backend {
+	if b != nil && b.View != nil {
+		return b.View
+	}
+	return views.NewBackendHuman(base)
 }
 
 // BackendWithRemoteTerraformVersion is a shared interface between the 'remote' and 'cloud' backends
@@ -419,7 +426,7 @@ func (m *Meta) backendCLIOpts(ctx context.Context) (*backend.CLIOpts, error) {
 	}
 	return &backend.CLIOpts{
 		CLI:                 m.Ui,
-		CLIColor:            m.Colorize(),
+		CLIColor:            m.View.Colorize(),
 		Streams:             m.Streams,
 		StatePath:           m.statePath,
 		StateOutPath:        m.stateOutPath,
@@ -435,7 +442,7 @@ func (m *Meta) backendCLIOpts(ctx context.Context) (*backend.CLIOpts, error) {
 // This prepares the operation. After calling this, the caller is expected
 // to modify fields of the operation such as Sequence to specify what will
 // be called.
-func (m *Meta) Operation(ctx context.Context, b backend.Backend, vt arguments.ViewOptions, enc encryption.Encryption) *backend.Operation {
+func (m *Meta) Operation(ctx context.Context, b backend.Backend, view views.Backend, enc encryption.Encryption) *backend.Operation {
 	schema := b.ConfigSchema()
 	workspace, err := m.Workspace(ctx)
 	if err != nil {
@@ -455,8 +462,7 @@ func (m *Meta) Operation(ctx context.Context, b backend.Backend, vt arguments.Vi
 
 	stateLocker := clistate.NewNoopLocker()
 	if m.stateLock {
-		view := views.NewStateLocker(vt, m.View)
-		stateLocker = clistate.NewLocker(m.stateLockTimeout, view)
+		stateLocker = clistate.NewLocker(m.stateLockTimeout, view.StateLocker())
 	}
 
 	depLocks, diags := m.lockedDependencies()
@@ -472,8 +478,6 @@ func (m *Meta) Operation(ctx context.Context, b backend.Backend, vt arguments.Vi
 	return &backend.Operation{
 		Encryption:      enc,
 		PlanOutBackend:  planOutBackend,
-		Targets:         m.targets,
-		Excludes:        m.excludes,
 		UIIn:            m.UIInput(),
 		UIOut:           m.Ui,
 		Workspace:       workspace,
@@ -910,16 +914,7 @@ func (m *Meta) backend_c_r_S(
 	c *configs.Backend, cHash int, sMgr *clistate.LocalState, output bool, opts *BackendOpts, enc encryption.StateEncryption) (backend.Backend, tfdiags.Diagnostics) {
 
 	var diags tfdiags.Diagnostics
-
-	var viewOptions arguments.ViewOptions
-	if opts != nil {
-		viewOptions = opts.ViewOptions
-	}
-	// Set default viewtype if none was set as the StateLocker needs to know exactly
-	// what viewType we want to have.
-	if viewOptions.ViewType != arguments.ViewHuman && viewOptions.ViewType != arguments.ViewJSON {
-		viewOptions.ViewType = arguments.ViewHuman
-	}
+	view := opts.backendView(m.View)
 
 	s := sMgr.State()
 
@@ -933,13 +928,13 @@ func (m *Meta) backend_c_r_S(
 	backendType := s.Backend.Type
 
 	if cloudMode == cloud.ConfigMigrationOut {
-		m.Ui.Output("Migrating from cloud backend to local state.")
+		view.MigratingFromCloudToLocal()
 	} else {
-		m.Ui.Output(fmt.Sprintf(strings.TrimSpace(outputBackendMigrateLocal), s.Backend.Type))
+		view.UnconfiguringBackendType(s.Backend.Type)
 	}
 
 	// Grab a purely local backend to get the local state if it exists
-	localB, moreDiags := m.Backend(ctx, &BackendOpts{ForceLocal: true, Init: true}, enc)
+	localB, moreDiags := m.Backend(ctx, &BackendOpts{ForceLocal: true, Init: true, View: view}, enc)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		return nil, diags
@@ -958,7 +953,7 @@ func (m *Meta) backend_c_r_S(
 		DestinationType: "local",
 		Source:          b,
 		Destination:     localB,
-		ViewOptions:     viewOptions,
+		View:            view,
 	})
 	if err != nil {
 		diags = diags.Append(err)
@@ -977,9 +972,7 @@ func (m *Meta) backend_c_r_S(
 	}
 
 	if output {
-		m.Ui.Output(m.Colorize().Color(fmt.Sprintf(
-			"[reset][green]\n\n"+
-				strings.TrimSpace(successBackendUnset), backendType)))
+		view.BackendTypeUnset(backendType)
 	}
 
 	// Return no backend
@@ -990,18 +983,9 @@ func (m *Meta) backend_c_r_S(
 func (m *Meta) backend_C_r_s(ctx context.Context, c *configs.Backend, cHash int, sMgr *clistate.LocalState, opts *BackendOpts, enc encryption.StateEncryption) (backend.Backend, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	// Set default viewtype if none was set as the StateLocker needs to know exactly
-	// what viewType we want to have.
-	viewOptions := arguments.ViewOptions{ViewType: arguments.ViewHuman}
-	if opts != nil {
-		viewOptions = opts.ViewOptions
-		if viewOptions.ViewType != arguments.ViewHuman && viewOptions.ViewType != arguments.ViewJSON {
-			viewOptions.ViewType = arguments.ViewHuman
-		}
-	}
-
+	view := opts.backendView(m.View)
 	// Grab a purely local backend to get the local state if it exists
-	localB, localBDiags := m.Backend(ctx, &BackendOpts{ForceLocal: true, Init: true}, enc)
+	localB, localBDiags := m.Backend(ctx, &BackendOpts{ForceLocal: true, Init: true, View: view}, enc)
 	if localBDiags.HasErrors() {
 		diags = diags.Append(localBDiags)
 		return nil, diags
@@ -1041,7 +1025,7 @@ func (m *Meta) backend_C_r_s(ctx context.Context, c *configs.Backend, cHash int,
 	}
 
 	// Get the backend
-	b, configVal, moreDiags := m.backendInitFromConfig(ctx, c, enc)
+	b, configVal, moreDiags := m.backendInitFromConfig(ctx, c, enc, view)
 	diags = diags.Append(moreDiags)
 	if diags.HasErrors() {
 		return nil, diags
@@ -1054,7 +1038,7 @@ func (m *Meta) backend_C_r_s(ctx context.Context, c *configs.Backend, cHash int,
 			DestinationType: c.Type,
 			Source:          localB,
 			Destination:     b,
-			ViewOptions:     viewOptions,
+			View:            view,
 		})
 		if err != nil {
 			diags = diags.Append(err)
@@ -1092,8 +1076,7 @@ func (m *Meta) backend_C_r_s(ctx context.Context, c *configs.Backend, cHash int,
 	}
 
 	if m.stateLock {
-		view := views.NewStateLocker(viewOptions, m.View)
-		stateLocker := clistate.NewLocker(m.stateLockTimeout, view)
+		stateLocker := clistate.NewLocker(m.stateLockTimeout, view.StateLocker())
 		if d := stateLocker.Lock(sMgr, "backend from plan"); d != nil {
 			diags = diags.Append(fmt.Errorf("Error locking state: %s", d))
 			return nil, diags
@@ -1151,8 +1134,7 @@ func (m *Meta) backend_C_r_s(ctx context.Context, c *configs.Backend, cHash int,
 	// By now the backend is successfully configured.  If using Terraform Cloud, the success
 	// message is handled as part of the final init message
 	if _, ok := b.(*cloud.Cloud); !ok {
-		m.Ui.Output(m.Colorize().Color(fmt.Sprintf(
-			"[reset][green]\n"+strings.TrimSpace(successBackendSet), s.Backend.Type)))
+		view.BackendTypeSet(s.Backend.Type)
 	}
 
 	return b, diags
@@ -1162,15 +1144,7 @@ func (m *Meta) backend_C_r_s(ctx context.Context, c *configs.Backend, cHash int,
 func (m *Meta) backend_C_r_S_changed(ctx context.Context, c *configs.Backend, cHash int, sMgr *clistate.LocalState, output bool, opts *BackendOpts, enc encryption.StateEncryption) (backend.Backend, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	var viewOptions arguments.ViewOptions
-	if opts != nil {
-		viewOptions = opts.ViewOptions
-	}
-	// Set default viewtype if none was set as the StateLocker needs to know exactly
-	// what viewType we want to have.
-	if viewOptions.ViewType != arguments.ViewHuman && viewOptions.ViewType != arguments.ViewJSON {
-		viewOptions.ViewType = arguments.ViewHuman
-	}
+	view := opts.backendView(m.View)
 
 	// Get the old state
 	s := sMgr.State()
@@ -1185,27 +1159,22 @@ func (m *Meta) backend_C_r_S_changed(ctx context.Context, c *configs.Backend, cH
 		// Notify the user
 		switch cloudMode {
 		case cloud.ConfigChangeInPlace:
-			m.Ui.Output("Cloud backend configuration has changed.")
+			view.CloudBackendUpdated()
 		case cloud.ConfigMigrationIn:
-			m.Ui.Output(fmt.Sprintf("Migrating from backend %q to cloud backend.", s.Backend.Type))
+			view.MigratingLocalTypeToCloud(s.Backend.Type)
 		case cloud.ConfigMigrationOut:
-			m.Ui.Output(fmt.Sprintf("Migrating from cloud backend to backend %q.", c.Type))
+			view.MigratingCloudToLocalType(c.Type)
 		default:
 			if s.Backend.Type != c.Type {
-				output := fmt.Sprintf(outputBackendMigrateChange, s.Backend.Type, c.Type)
-				m.Ui.Output(m.Colorize().Color(fmt.Sprintf(
-					"[reset]%s\n",
-					strings.TrimSpace(output))))
+				view.BackendTypeChanged(s.Backend.Type, c.Type)
 			} else {
-				m.Ui.Output(m.Colorize().Color(fmt.Sprintf(
-					"[reset]%s\n",
-					strings.TrimSpace(outputBackendReconfigure))))
+				view.BackendReconfigured()
 			}
 		}
 	}
 
 	// Get the backend
-	b, configVal, moreDiags := m.backendInitFromConfig(ctx, c, enc)
+	b, configVal, moreDiags := m.backendInitFromConfig(ctx, c, enc, view)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		return nil, diags
@@ -1231,7 +1200,7 @@ func (m *Meta) backend_C_r_S_changed(ctx context.Context, c *configs.Backend, cH
 			DestinationType: c.Type,
 			Source:          oldB,
 			Destination:     b,
-			ViewOptions:     viewOptions,
+			View:            view,
 		})
 		if err != nil {
 			diags = diags.Append(err)
@@ -1239,8 +1208,7 @@ func (m *Meta) backend_C_r_S_changed(ctx context.Context, c *configs.Backend, cH
 		}
 
 		if m.stateLock {
-			view := views.NewStateLocker(viewOptions, m.View)
-			stateLocker := clistate.NewLocker(m.stateLockTimeout, view)
+			stateLocker := clistate.NewLocker(m.stateLockTimeout, view.StateLocker())
 			if d := stateLocker.Lock(sMgr, "backend from plan"); d != nil {
 				diags = diags.Append(fmt.Errorf("Error locking state: %s", d))
 				return nil, diags
@@ -1287,8 +1255,7 @@ func (m *Meta) backend_C_r_S_changed(ctx context.Context, c *configs.Backend, cH
 		// By now the backend is successfully configured.  If using Terraform Cloud, the success
 		// message is handled as part of the final init message
 		if _, ok := b.(*cloud.Cloud); !ok {
-			m.Ui.Output(m.Colorize().Color(fmt.Sprintf(
-				"[reset][green]\n"+strings.TrimSpace(successBackendSet), s.Backend.Type)))
+			view.BackendTypeSet(s.Backend.Type)
 		}
 	}
 
@@ -1440,7 +1407,7 @@ func (m *Meta) backendConfigNeedsMigration(ctx context.Context, c *configs.Backe
 	return true
 }
 
-func (m *Meta) backendInitFromConfig(ctx context.Context, c *configs.Backend, enc encryption.StateEncryption) (backend.Backend, cty.Value, tfdiags.Diagnostics) {
+func (m *Meta) backendInitFromConfig(ctx context.Context, c *configs.Backend, enc encryption.StateEncryption, view views.Backend) (backend.Backend, cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// Get the backend
@@ -1476,7 +1443,7 @@ func (m *Meta) backendInitFromConfig(ctx context.Context, c *configs.Backend, en
 	// TODO: test
 	if m.Input() {
 		var err error
-		configVal, err = m.inputForSchema(configVal, schema)
+		configVal, err = m.inputForSchema(configVal, schema, view)
 		if err != nil {
 			diags = diags.Append(fmt.Errorf("Error asking for input to configure backend %q: %w", canonType, err))
 		}
@@ -1712,21 +1679,6 @@ are usually due to simple file permission errors. Please look at the error
 above, resolve it, and try again.
 `
 
-const outputBackendMigrateChange = `
-OpenTofu detected that the backend type changed from %q to %q.
-`
-
-const outputBackendMigrateLocal = `
-OpenTofu has detected you're unconfiguring your previously set %q backend.
-`
-
-const outputBackendReconfigure = `
-[reset][bold]Backend configuration changed![reset]
-
-OpenTofu has detected that the configuration specified for the backend
-has changed. OpenTofu will now check for existing state in the backends.
-`
-
 const inputCloudInitCreateWorkspace = `
 There are no workspaces with the configured tags (%s)
 in your cloud backend organization. To finish initializing, OpenTofu needs at
@@ -1734,15 +1686,6 @@ least one workspace available.
 
 OpenTofu can create a properly tagged workspace for you now. Please enter a
 name to create a new cloud backend workspace.
-`
-
-const successBackendUnset = `
-Successfully unset the backend %q. OpenTofu will now operate locally.
-`
-
-const successBackendSet = `
-Successfully configured the backend %q! OpenTofu will automatically
-use this backend unless the backend configuration changes.
 `
 
 var migrateOrReconfigDiag = tfdiags.Sourceless(

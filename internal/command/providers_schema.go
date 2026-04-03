@@ -9,9 +9,9 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/arguments"
-	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/opentofu/internal/command/jsonprovider"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -37,29 +37,18 @@ func (c *ProvidersSchemaCommand) Run(rawArgs []string) int {
 	common, rawArgs := arguments.ParseView(rawArgs)
 	c.View.Configure(common)
 
-	// Propagate -no-color for legacy use of Ui. The remote backend and
-	// cloud package use this; it should be removed when/if they are
-	// migrated to views.
-	c.Meta.color = !common.NoColor
-	c.Meta.Color = c.Meta.color
-
 	args, closer, diags := arguments.ParseProvidersSchema(rawArgs)
 	defer closer()
 
-	view := views.NewProvidersSchema(args.ViewOptions, c.View)
-
-	// Configure Meta.Ui with human view type. The schema output is raw JSON written
-	// directly via streams.Println, so we must not initialise the JSON UI wrapper
-	// (which would prepend a Version payload and corrupt the output).
-	c.Meta.configureUiFromView(arguments.ViewOptions{ViewType: arguments.ViewHuman})
+	view := views.NewProvidersSchema(c.View)
+	c.Meta.configureUiFromView(args.ViewOptions)
 
 	if diags.HasErrors() {
-		view.HelpPrompt()
 		view.Diagnostics(diags)
-		return 1
+		return cli.RunResultHelp
 	}
 
-	c.GatherVariables(args.Vars)
+	c.Meta.variableArgs = args.Vars.All()
 
 	// Check for user-supplied plugin path
 	var err error
@@ -110,7 +99,7 @@ func (c *ProvidersSchemaCommand) Run(rawArgs []string) int {
 	}
 
 	// Build the operation
-	opReq := c.Operation(ctx, b, args.ViewOptions, enc)
+	opReq := c.Operation(ctx, b, view.Backend(), enc)
 	opReq.ConfigDir = cwd
 	opReq.ConfigLoader, err = c.initConfigLoader()
 	var callDiags tfdiags.Diagnostics
@@ -156,17 +145,6 @@ func (c *ProvidersSchemaCommand) Run(rawArgs []string) int {
 	view.Output(string(jsonSchemas))
 
 	return 0
-}
-
-// TODO meta-refactor: move this to arguments once all commands are using the same shim logic
-func (c *ProvidersSchemaCommand) GatherVariables(args *arguments.Vars) {
-	varArgs := args.All()
-	items := make([]flags.RawFlag, len(varArgs))
-	for i := range varArgs {
-		items[i].Name = varArgs[i].Name
-		items[i].Value = varArgs[i].Value
-	}
-	c.Meta.variableArgs = flags.RawFlags{Items: &items}
 }
 
 const providersSchemaCommandHelp = `

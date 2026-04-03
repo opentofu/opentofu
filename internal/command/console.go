@@ -11,10 +11,10 @@ import (
 	"os"
 	"strings"
 
+	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/arguments"
-	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/repl"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -36,12 +36,6 @@ func (c *ConsoleCommand) Run(rawArgs []string) int {
 	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
 	c.View.DiagsWithNewline()
 
-	// Propagate -no-color for legacy use of Ui. The remote backend and
-	// cloud package use this; it should be removed when/if they are
-	// migrated to views.
-	c.Meta.color = !common.NoColor
-	c.Meta.Color = c.Meta.color
-
 	// Parse and validate flags
 	args, closer, diags := arguments.ParseConsole(rawArgs)
 	defer closer()
@@ -54,9 +48,11 @@ func (c *ConsoleCommand) Run(rawArgs []string) int {
 	// to ask for the user input.
 	c.Meta.configureUiFromView(args.ViewOptions)
 	if diags.HasErrors() {
-		view.HelpPrompt()
 		view.Diagnostics(diags)
-		return 1
+		if args.ViewOptions.ViewType == arguments.ViewJSON {
+			return 1
+		}
+		return cli.RunResultHelp
 	}
 	// TODO meta-refactor: get rid of this assignment once the statePath from Meta is removed
 	c.Meta.statePath = args.StatePath
@@ -74,7 +70,7 @@ func (c *ConsoleCommand) Run(rawArgs []string) int {
 	// and left for the command to configure flags for this if needed.
 	c.Meta.stateLock = true
 
-	c.GatherVariables(args.Vars)
+	c.Meta.variableArgs = args.Vars.All()
 
 	configPath := c.WorkingDir.NormalizePath(c.WorkingDir.RootModuleDir())
 
@@ -107,6 +103,7 @@ func (c *ConsoleCommand) Run(rawArgs []string) int {
 	// Load the backend
 	b, backendDiags := c.Backend(ctx, &BackendOpts{
 		Config: backendConfig,
+		View:   view.Backend(),
 	}, enc.State())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
@@ -126,7 +123,7 @@ func (c *ConsoleCommand) Run(rawArgs []string) int {
 	c.ignoreRemoteVersionConflict(b)
 
 	// Build the operation
-	opReq := c.Operation(ctx, b, args.ViewOptions, enc)
+	opReq := c.Operation(ctx, b, view.Backend(), enc)
 	opReq.ConfigDir = configPath
 	opReq.ConfigLoader, err = c.initConfigLoader()
 	opReq.AllowUnsetVariables = true // we'll just evaluate them as unknown
@@ -281,28 +278,15 @@ Options:
                          against the same workspace.
 
   -lock-timeout=0s       Duration to retry a state lock.
+
+  -json-into=out.json    Streams the output of the console, to the given file. 
+                         This allows automation to preserve
+                         the original human-readable output streams, while
+                         capturing more detailed logs for machine analysis.
 `
 	return strings.TrimSpace(helpText)
 }
 
 func (c *ConsoleCommand) Synopsis() string {
 	return "Try OpenTofu expressions at an interactive command prompt"
-}
-
-// TODO meta-refactor: move this to arguments once all commands are using the same shim logic
-func (c *ConsoleCommand) GatherVariables(args *arguments.Vars) {
-	// FIXME the arguments package currently trivially gathers variable related
-	// arguments in a heterogeneous slice, in order to minimize the number of
-	// code paths gathering variables during the transition to this structure.
-	// Once all commands that gather variables have been converted to this
-	// structure, we could move the variable gathering code to the arguments
-	// package directly, removing this shim layer.
-
-	varArgs := args.All()
-	items := make([]flags.RawFlag, len(varArgs))
-	for i := range varArgs {
-		items[i].Name = varArgs[i].Name
-		items[i].Value = varArgs[i].Value
-	}
-	c.Meta.variableArgs = flags.RawFlags{Items: &items}
 }

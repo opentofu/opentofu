@@ -89,7 +89,6 @@ const (
 	Action_DELETE_THEN_CREATE Action = 6
 	Action_CREATE_THEN_DELETE Action = 7
 	Action_FORGET             Action = 8
-	Action_OPEN               Action = 9
 	Action_FORGET_THEN_CREATE Action = 10
 )
 
@@ -104,7 +103,6 @@ var (
 		6:  "DELETE_THEN_CREATE",
 		7:  "CREATE_THEN_DELETE",
 		8:  "FORGET",
-		9:  "OPEN",
 		10: "FORGET_THEN_CREATE",
 	}
 	Action_value = map[string]int32{
@@ -116,7 +114,6 @@ var (
 		"DELETE_THEN_CREATE": 6,
 		"CREATE_THEN_DELETE": 7,
 		"FORGET":             8,
-		"OPEN":               9,
 		"FORGET_THEN_CREATE": 10,
 	}
 )
@@ -684,8 +681,16 @@ type Change struct {
 	// GeneratedConfig contains any configuration that was generated as part of
 	// the change, as an HCL string.
 	GeneratedConfig string `protobuf:"bytes,6,opt,name=generated_config,json=generatedConfig,proto3" json:"generated_config,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// BeforeIdentity is the identity value from the known state of the resource instance
+	// before the plan is executed.
+	// Only relevant for managed resources, not outputs.
+	BeforeIdentity *DynamicValue `protobuf:"bytes,7,opt,name=before_identity,json=beforeIdentity,proto3" json:"before_identity,omitempty"`
+	// AfterIdentity is the identity value returned by the provider during
+	// planning. This is used to pass identity data through to the apply phase.
+	// Only relevant for managed resources, not outputs.
+	AfterIdentity *DynamicValue `protobuf:"bytes,8,opt,name=after_identity,json=afterIdentity,proto3" json:"after_identity,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Change) Reset() {
@@ -758,6 +763,20 @@ func (x *Change) GetGeneratedConfig() string {
 		return x.GeneratedConfig
 	}
 	return ""
+}
+
+func (x *Change) GetBeforeIdentity() *DynamicValue {
+	if x != nil {
+		return x.BeforeIdentity
+	}
+	return nil
+}
+
+func (x *Change) GetAfterIdentity() *DynamicValue {
+	if x != nil {
+		return x.AfterIdentity
+	}
+	return nil
 }
 
 type ResourceInstanceChange struct {
@@ -1133,7 +1152,9 @@ func (x *Path) GetSteps() []*Path_Step {
 type Importing struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The original ID of the resource.
-	Id            string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// The Identity that we are importing, this is mutually exclusive with the id field
+	Identity      *DynamicValue `protobuf:"bytes,2,opt,name=identity,proto3" json:"identity,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1173,6 +1194,13 @@ func (x *Importing) GetId() string {
 		return x.Id
 	}
 	return ""
+}
+
+func (x *Importing) GetIdentity() *DynamicValue {
+	if x != nil {
+		return x.Identity
+	}
+	return nil
 }
 
 type PlanResourceAttr struct {
@@ -1405,14 +1433,16 @@ const file_planfile_proto_rawDesc = "" +
 	"\aBackend\x12\x12\n" +
 	"\x04type\x18\x01 \x01(\tR\x04type\x12,\n" +
 	"\x06config\x18\x02 \x01(\v2\x14.tfplan.DynamicValueR\x06config\x12\x1c\n" +
-	"\tworkspace\x18\x03 \x01(\tR\tworkspace\"\xc0\x02\n" +
+	"\tworkspace\x18\x03 \x01(\tR\tworkspace\"\xbc\x03\n" +
 	"\x06Change\x12&\n" +
 	"\x06action\x18\x01 \x01(\x0e2\x0e.tfplan.ActionR\x06action\x12,\n" +
 	"\x06values\x18\x02 \x03(\v2\x14.tfplan.DynamicValueR\x06values\x12B\n" +
 	"\x16before_sensitive_paths\x18\x03 \x03(\v2\f.tfplan.PathR\x14beforeSensitivePaths\x12@\n" +
 	"\x15after_sensitive_paths\x18\x04 \x03(\v2\f.tfplan.PathR\x13afterSensitivePaths\x12/\n" +
 	"\timporting\x18\x05 \x01(\v2\x11.tfplan.ImportingR\timporting\x12)\n" +
-	"\x10generated_config\x18\x06 \x01(\tR\x0fgeneratedConfig\"\xd3\x02\n" +
+	"\x10generated_config\x18\x06 \x01(\tR\x0fgeneratedConfig\x12=\n" +
+	"\x0fbefore_identity\x18\a \x01(\v2\x14.tfplan.DynamicValueR\x0ebeforeIdentity\x12;\n" +
+	"\x0eafter_identity\x18\b \x01(\v2\x14.tfplan.DynamicValueR\rafterIdentity\"\xd3\x02\n" +
 	"\x16ResourceInstanceChange\x12\x12\n" +
 	"\x04addr\x18\r \x01(\tR\x04addr\x12\"\n" +
 	"\rprev_run_addr\x18\x0e \x01(\tR\vprevRunAddr\x12\x1f\n" +
@@ -1460,14 +1490,15 @@ const file_planfile_proto_rawDesc = "" +
 	"\velement_key\x18\x02 \x01(\v2\x14.tfplan.DynamicValueH\x00R\n" +
 	"elementKeyB\n" +
 	"\n" +
-	"\bselector\"\x1b\n" +
+	"\bselector\"M\n" +
 	"\tImporting\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id*1\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x120\n" +
+	"\bidentity\x18\x02 \x01(\v2\x14.tfplan.DynamicValueR\bidentity*1\n" +
 	"\x04Mode\x12\n" +
 	"\n" +
 	"\x06NORMAL\x10\x00\x12\v\n" +
 	"\aDESTROY\x10\x01\x12\x10\n" +
-	"\fREFRESH_ONLY\x10\x02*\x9e\x01\n" +
+	"\fREFRESH_ONLY\x10\x02*\x9a\x01\n" +
 	"\x06Action\x12\b\n" +
 	"\x04NOOP\x10\x00\x12\n" +
 	"\n" +
@@ -1480,10 +1511,9 @@ const file_planfile_proto_rawDesc = "" +
 	"\x12DELETE_THEN_CREATE\x10\x06\x12\x16\n" +
 	"\x12CREATE_THEN_DELETE\x10\a\x12\n" +
 	"\n" +
-	"\x06FORGET\x10\b\x12\b\n" +
-	"\x04OPEN\x10\t\x12\x16\n" +
+	"\x06FORGET\x10\b\x12\x16\n" +
 	"\x12FORGET_THEN_CREATE\x10\n" +
-	"*\xc9\x04\n" +
+	"\"\x04\b\t\x10\t*\xc9\x04\n" +
 	"\x1cResourceInstanceActionReason\x12\b\n" +
 	"\x04NONE\x10\x00\x12\x1b\n" +
 	"\x17REPLACE_BECAUSE_TAINTED\x10\x01\x12\x16\n" +
@@ -1553,23 +1583,26 @@ var file_planfile_proto_depIdxs = []int32{
 	12, // 11: tfplan.Change.before_sensitive_paths:type_name -> tfplan.Path
 	12, // 12: tfplan.Change.after_sensitive_paths:type_name -> tfplan.Path
 	13, // 13: tfplan.Change.importing:type_name -> tfplan.Importing
-	7,  // 14: tfplan.ResourceInstanceChange.change:type_name -> tfplan.Change
-	12, // 15: tfplan.ResourceInstanceChange.required_replace:type_name -> tfplan.Path
-	2,  // 16: tfplan.ResourceInstanceChange.action_reason:type_name -> tfplan.ResourceInstanceActionReason
-	7,  // 17: tfplan.OutputChange.change:type_name -> tfplan.Change
-	4,  // 18: tfplan.CheckResults.kind:type_name -> tfplan.CheckResults.ObjectKind
-	3,  // 19: tfplan.CheckResults.status:type_name -> tfplan.CheckResults.Status
-	16, // 20: tfplan.CheckResults.objects:type_name -> tfplan.CheckResults.ObjectResult
-	17, // 21: tfplan.Path.steps:type_name -> tfplan.Path.Step
-	11, // 22: tfplan.Plan.VariablesEntry.value:type_name -> tfplan.DynamicValue
-	12, // 23: tfplan.Plan.resource_attr.attr:type_name -> tfplan.Path
-	3,  // 24: tfplan.CheckResults.ObjectResult.status:type_name -> tfplan.CheckResults.Status
-	11, // 25: tfplan.Path.Step.element_key:type_name -> tfplan.DynamicValue
-	26, // [26:26] is the sub-list for method output_type
-	26, // [26:26] is the sub-list for method input_type
-	26, // [26:26] is the sub-list for extension type_name
-	26, // [26:26] is the sub-list for extension extendee
-	0,  // [0:26] is the sub-list for field type_name
+	11, // 14: tfplan.Change.before_identity:type_name -> tfplan.DynamicValue
+	11, // 15: tfplan.Change.after_identity:type_name -> tfplan.DynamicValue
+	7,  // 16: tfplan.ResourceInstanceChange.change:type_name -> tfplan.Change
+	12, // 17: tfplan.ResourceInstanceChange.required_replace:type_name -> tfplan.Path
+	2,  // 18: tfplan.ResourceInstanceChange.action_reason:type_name -> tfplan.ResourceInstanceActionReason
+	7,  // 19: tfplan.OutputChange.change:type_name -> tfplan.Change
+	4,  // 20: tfplan.CheckResults.kind:type_name -> tfplan.CheckResults.ObjectKind
+	3,  // 21: tfplan.CheckResults.status:type_name -> tfplan.CheckResults.Status
+	16, // 22: tfplan.CheckResults.objects:type_name -> tfplan.CheckResults.ObjectResult
+	17, // 23: tfplan.Path.steps:type_name -> tfplan.Path.Step
+	11, // 24: tfplan.Importing.identity:type_name -> tfplan.DynamicValue
+	11, // 25: tfplan.Plan.VariablesEntry.value:type_name -> tfplan.DynamicValue
+	12, // 26: tfplan.Plan.resource_attr.attr:type_name -> tfplan.Path
+	3,  // 27: tfplan.CheckResults.ObjectResult.status:type_name -> tfplan.CheckResults.Status
+	11, // 28: tfplan.Path.Step.element_key:type_name -> tfplan.DynamicValue
+	29, // [29:29] is the sub-list for method output_type
+	29, // [29:29] is the sub-list for method input_type
+	29, // [29:29] is the sub-list for extension type_name
+	29, // [29:29] is the sub-list for extension extendee
+	0,  // [0:29] is the sub-list for field type_name
 }
 
 func init() { file_planfile_proto_init() }

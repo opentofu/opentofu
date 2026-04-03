@@ -19,7 +19,6 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/arguments"
-	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/opentofu/internal/command/views"
 
 	"github.com/opentofu/opentofu/internal/getproviders"
@@ -47,12 +46,6 @@ func (c *ProvidersMirrorCommand) Run(rawArgs []string) int {
 	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
 	c.View.DiagsWithNewline()
 
-	// Propagate -no-color for legacy use of Ui. The remote backend and
-	// cloud package use this; it should be removed when/if they are
-	// migrated to views.
-	c.Meta.color = !common.NoColor
-	c.Meta.Color = c.Meta.color
-
 	// Parse and validate flags
 	args, closer, diags := arguments.ParseProvidersMirror(rawArgs)
 	defer closer()
@@ -72,7 +65,7 @@ func (c *ProvidersMirrorCommand) Run(rawArgs []string) int {
 		}
 		return cli.RunResultHelp
 	}
-	c.GatherVariables(args.Vars)
+	c.Meta.variableArgs = args.Vars.All()
 
 	outputDir := args.Directory
 
@@ -447,22 +440,4 @@ Options:
                       the original human-readable output streams, while
                       capturing more detailed logs for machine analysis.
 `
-}
-
-// TODO meta-refactor: move this to arguments once all commands are using the same shim logic
-func (c *ProvidersMirrorCommand) GatherVariables(args *arguments.Vars) {
-	// FIXME the arguments package currently trivially gathers variable related
-	// arguments in a heterogeneous slice, in order to minimize the number of
-	// code paths gathering variables during the transition to this structure.
-	// Once all commands that gather variables have been converted to this
-	// structure, we could move the variable gathering code to the arguments
-	// package directly, removing this shim layer.
-
-	varArgs := args.All()
-	items := make([]flags.RawFlag, len(varArgs))
-	for i := range varArgs {
-		items[i].Name = varArgs[i].Name
-		items[i].Value = varArgs[i].Value
-	}
-	c.Meta.variableArgs = flags.RawFlags{Items: &items}
 }

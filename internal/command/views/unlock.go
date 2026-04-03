@@ -18,6 +18,10 @@ type Unlock interface {
 	CannotUnlockByAnotherProcess()
 	ForceUnlockCancelled()
 	ForceUnlockSucceeded()
+
+	// Backend returns the non-command view that contains methods to provide
+	// progress output for the backend operations.
+	Backend() Backend
 }
 
 // NewUnlock returns an initialized Unlock implementation for the given ViewType.
@@ -72,6 +76,14 @@ func (m UnlockMulti) ForceUnlockSucceeded() {
 	}
 }
 
+func (m UnlockMulti) Backend() Backend {
+	ret := make([]Backend, len(m))
+	for i, v := range m {
+		ret[i] = v.Backend()
+	}
+	return BackendMulti(ret)
+}
+
 type UnlockHuman struct {
 	view *View
 }
@@ -83,11 +95,11 @@ func (v *UnlockHuman) Diagnostics(diags tfdiags.Diagnostics) {
 }
 
 func (v *UnlockHuman) LockingDisabledForBackend() {
-	v.view.errorln("Locking is disabled for this backend")
+	v.Diagnostics(tfdiags.Diagnostics{diagLockingDisabledBackend})
 }
 
 func (v *UnlockHuman) CannotUnlockByAnotherProcess() {
-	v.view.errorln("Local state cannot be unlocked by another process")
+	v.Diagnostics(tfdiags.Diagnostics{diagUnlockingLocalState})
 }
 
 func (v *UnlockHuman) ForceUnlockCancelled() {
@@ -102,6 +114,12 @@ obtain a new lock on the remote state.`
 	_, _ = v.view.streams.Println(v.view.colorize.Color(outputUnlockSuccess))
 }
 
+func (v *UnlockHuman) Backend() Backend {
+	return &BackendHuman{
+		view: v.view,
+	}
+}
+
 type UnlockJSON struct {
 	view *JSONView
 }
@@ -113,11 +131,11 @@ func (v *UnlockJSON) Diagnostics(diags tfdiags.Diagnostics) {
 }
 
 func (v *UnlockJSON) LockingDisabledForBackend() {
-	v.view.Error("Locking is disabled for this backend")
+	v.Diagnostics(tfdiags.Diagnostics{diagLockingDisabledBackend})
 }
 
 func (v *UnlockJSON) CannotUnlockByAnotherProcess() {
-	v.view.Error("Local state cannot be unlocked by another process")
+	v.Diagnostics(tfdiags.Diagnostics{diagUnlockingLocalState})
 }
 
 func (v *UnlockJSON) ForceUnlockCancelled() {
@@ -127,3 +145,22 @@ func (v *UnlockJSON) ForceUnlockCancelled() {
 func (v *UnlockJSON) ForceUnlockSucceeded() {
 	v.view.Info("The state has been unlocked, and OpenTofu commands should now be able to obtain a new lock on the remote state.")
 }
+
+func (v *UnlockJSON) Backend() Backend {
+	return &BackendJSON{
+		view: v.view,
+	}
+}
+
+var (
+	diagLockingDisabledBackend = tfdiags.Sourceless(
+		tfdiags.Error,
+		"Locking disabled",
+		"Locking is disabled for this backend.",
+	)
+	diagUnlockingLocalState = tfdiags.Sourceless(
+		tfdiags.Error,
+		"State locked by another local process",
+		"Local state cannot be unlocked by another process.",
+	)
+)

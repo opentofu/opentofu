@@ -26,7 +26,10 @@ func TestParseMetadataFunctions_basicValidation(t *testing.T) {
 		"json flag": {
 			args: []string{"-json"},
 			want: metadataFunctionsArgsWithDefaults(func(args *MetadataFunctions) {
-				args.ViewOptions.ViewType = ViewJSON
+				// The -json flag is just to validate that the user understands that the output will be in json.
+				// While parsing the arguments, we revert back to human format to be sure that the diagnostics
+				// are printed in human format
+				args.ViewOptions.ViewType = ViewHuman
 			}),
 		},
 		"invalid flag": {

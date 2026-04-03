@@ -15,7 +15,6 @@ import (
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
-	"github.com/opentofu/opentofu/internal/terminal"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -55,12 +54,12 @@ func TestStateShow(t *testing.T) {
 		},
 	}
 
-	streams, done := terminal.StreamsForTesting(t)
+	view, done := testView(t)
 	c := &StateShowCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Streams:          streams,
+			View:             view,
 		},
 	}
 
@@ -135,12 +134,12 @@ func TestStateShow_multi(t *testing.T) {
 		},
 	}
 
-	streams, done := terminal.StreamsForTesting(t)
+	view, done := testView(t)
 	c := &StateShowCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Streams:          streams,
+			View:             view,
 		},
 	}
 
@@ -166,12 +165,12 @@ func TestStateShow_noState(t *testing.T) {
 	testCwdTemp(t)
 
 	p := testProvider()
-	streams, done := terminal.StreamsForTesting(t)
+	view, done := testView(t)
 	c := &StateShowCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Streams:          streams,
+			View:             view,
 		},
 	}
 
@@ -182,7 +181,7 @@ func TestStateShow_noState(t *testing.T) {
 		t.Fatalf("bad: %d", code)
 	}
 	output := done(t)
-	if !strings.Contains(output.Stderr(), "No state file was found!") {
+	if !strings.Contains(output.Stderr(), "No state file was found") {
 		t.Fatalf("expected a no state file error, got: %s", output.Stderr())
 	}
 }
@@ -192,12 +191,12 @@ func TestStateShow_emptyState(t *testing.T) {
 	statePath := testStateFile(t, state)
 
 	p := testProvider()
-	streams, done := terminal.StreamsForTesting(t)
+	view, done := testView(t)
 	c := &StateShowCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Streams:          streams,
+			View:             view,
 		},
 	}
 
@@ -209,7 +208,7 @@ func TestStateShow_emptyState(t *testing.T) {
 		t.Fatalf("bad: %d", code)
 	}
 	output := done(t)
-	if !strings.Contains(output.Stderr(), "No instance found for the given address!") {
+	if !strings.Contains(output.Stderr(), "No instance found for the given address") {
 		t.Fatalf("expected a no instance found error, got: %s", output.Stderr())
 	}
 }
@@ -250,7 +249,7 @@ func TestStateShow_configured_provider(t *testing.T) {
 		},
 	}
 
-	streams, done := terminal.StreamsForTesting(t)
+	view, done := testView(t)
 	c := &StateShowCommand{
 		Meta: Meta{
 			WorkingDir: workdir.NewDir("."),
@@ -259,7 +258,7 @@ func TestStateShow_configured_provider(t *testing.T) {
 					addrs.NewDefaultProvider("test-beta"): providers.FactoryFixed(p),
 				},
 			},
-			Streams: streams,
+			View: view,
 		},
 	}
 
@@ -288,12 +287,12 @@ func TestStateShow_withoutShowSensitiveArg(t *testing.T) {
 	p := testProvider()
 	p.GetProviderSchemaResponse = providerWithSensitiveValueForStateShow()
 
-	streams, done := terminal.StreamsForTesting(t)
+	view, done := testView(t)
 	c := &StateShowCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Streams:          streams,
+			View:             view,
 		},
 	}
 
@@ -326,12 +325,12 @@ func TestStateShow_showSensitiveArg(t *testing.T) {
 	p := testProvider()
 	p.GetProviderSchemaResponse = providerWithSensitiveValueForStateShow()
 
-	streams, done := terminal.StreamsForTesting(t)
+	view, done := testView(t)
 	c := &StateShowCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Streams:          streams,
+			View:             view,
 		},
 	}
 

@@ -325,6 +325,12 @@ func (m *managedResourceInstanceMockProvider) UpgradeResourceState(context.Conte
 	panic("unimplemented")
 }
 
+
+// UpgradeResourceIdentity implements providers.Configured.
+func (m *managedResourceInstanceMockProvider) UpgradeResourceIdentity(context.Context, providers.UpgradeResourceIdentityRequest) providers.UpgradeResourceIdentityResponse {
+	panic("unimplemented")
+}
+
 // ValidateDataResourceConfig implements providers.Configured.
 func (m *managedResourceInstanceMockProvider) ValidateDataResourceConfig(context.Context, providers.ValidateDataResourceConfigRequest) providers.ValidateDataResourceConfigResponse {
 	panic("unimplemented")

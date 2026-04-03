@@ -156,14 +156,20 @@ func OpenEphemeralResourceInstance(
 		// We have two exit paths that should take the same route
 		func() {
 			for {
-				// Select on nil chan will block until other case close or done
-				var renewAtTimer chan time.Time
-				if renewAt != nil {
-					time.After(time.Until(*renewAt))
+				// This is necessary to block on the select statement in 2 cases:
+				//  - if renewAt == nil, then the renewal process is disabled and we
+				//    want to wait for the close call or ctx.Done() so we return a nil
+				//    chan that will block the select statement for the other cases
+				//  - if renewAt != nil, we want to execute the renewal at the given interval
+				//    so we return a channel that will trigger after the given interval
+				waitForRenewal := func() <-chan time.Time {
+					if renewAt != nil {
+						return time.After(time.Until(*renewAt))
+					}
+					return nil
 				}
-
 				select {
-				case <-renewAtTimer:
+				case <-waitForRenewal():
 					if hooks.PreRenew != nil {
 						hooks.PreRenew(addr)
 					}
@@ -174,9 +180,9 @@ func OpenEphemeralResourceInstance(
 					}
 					renewResp := provider.RenewEphemeralResource(ctx, renewReq)
 					diags = diags.Append(renewResp.Diagnostics)
+
 					// TODO consider what happens if renew fails, do we still want to update private?
 					renewAt = renewResp.RenewAt
-
 					if hooks.PostRenew != nil {
 						hooks.PostRenew(addr, diags)
 					}
@@ -225,7 +231,7 @@ func OpenEphemeralResourceInstance(
 				Severity: hcl.DiagError,
 				Summary:  "Closing ephemeral resource timed out",
 				Detail:   fmt.Sprintf("The ephemeral resource %q timed out on closing after %s", addr.String(), timeout),
-				//TODO Subject:  n.Config.DeclRange.Ptr(),
+				// TODO Subject:  n.Config.DeclRange.Ptr(),
 			})
 		}
 	}

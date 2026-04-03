@@ -158,9 +158,42 @@ func (n *NodeValidatableResource) validateProvisioner(ctx context.Context, evalC
 		// configuration keys that are not valid for *any* communicator, catching
 		// typos early rather than waiting until we actually try to run one of
 		// the resource's provisioners.
-		_, _, connDiags := n.evaluateBlock(ctx, evalCtx, p.Connection.Config, shared.ConnectionBlockSupersetSchema)
+		connVal, _, connDiags := n.evaluateBlock(ctx, evalCtx, p.Connection.Config, shared.ConnectionBlockSupersetSchema)
 		diags = diags.Append(connDiags)
+
+		if connVal == cty.NilVal || diags.HasErrors() {
+			return diags
+		}
+
+		// Now that we have the connection config, we can check if we're using winrm and provide a deprecation warning
+		// Otherwise, we can just exit early and assume validation is complete
+		// See https://github.com/opentofu/opentofu/issues/3406 for more information
+		unmarkedConnVal, _ := connVal.UnmarkDeep()
+		typeVal := unmarkedConnVal.GetAttr("type")
+
+		if !typeVal.IsKnown() || typeVal.IsNull() || typeVal.AsString() != "winrm" {
+			return diags
+		}
+
+		// Set a default range to show in case for some reason we can't get the range for the type attribute
+		subject := p.Connection.DeclRange.Ptr()
+		// But we do want to attempt to get the range for the "type" attribute if we can, since that's what we're talking about in the diagnostic.
+		// Displaying this to end users may reduce some confusion about the location of what needs changing
+		if attrs, _ := p.Connection.Config.JustAttributes(); attrs != nil {
+			r := attrs["type"].Expr.Range()
+			subject = &r
+		}
+
+		// Now that we have the subject, we can add a diagnostic about the deprecation of the winrm connection type
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagWarning,
+			Summary:  "WinRM connection type is deprecated",
+			Detail:   "The winrm connection type is deprecated and will be removed in a future version of OpenTofu.\n\nModern Windows systems support SSH natively. Migrate your provisioners to use SSH instead.\n\nTo get started with OpenSSH on Windows, refer to https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse",
+			Subject:  subject,
+			Context:  hcl.RangeBetween(p.Connection.DeclRange, p.Connection.Config.MissingItemRange()).Ptr(),
+		})
 	}
+
 	return diags
 }
 
@@ -252,8 +285,8 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 	// in the provider abstraction.
 	switch n.Config.Mode {
 	case addrs.ManagedResourceMode:
-		schema, _ := providerSchema.SchemaForResourceType(n.Config.Mode, n.Config.Type)
-		if schema == nil {
+		schemaForType, _ := providerSchema.SchemaForResourceType(n.Config.Mode, n.Config.Type)
+		if schemaForType == nil {
 			suggestion := n.noResourceSchemaSuggestion(providerSchema)
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
@@ -264,7 +297,7 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 			return diags
 		}
 
-		configVal, _, valDiags := evalCtx.EvaluateBlock(ctx, n.Config.Config, schema, nil, keyData)
+		configVal, _, valDiags := evalCtx.EvaluateBlock(ctx, n.Config.Config, schemaForType.Block, nil, keyData)
 		diags = diags.Append(valDiags.InConfigBody(n.Config.Config, n.Addr.String()))
 		if valDiags.HasErrors() {
 			return diags
@@ -273,7 +306,7 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 		if n.Config.Managed != nil { // can be nil only in tests with poorly-configured mocks
 			for _, traversal := range n.Config.Managed.IgnoreChanges {
 				// validate the ignore_changes traversals apply.
-				moreDiags := schema.StaticValidateTraversal(traversal)
+				moreDiags := schemaForType.Block.StaticValidateTraversal(traversal)
 				diags = diags.Append(moreDiags)
 
 				// ignore_changes cannot be used for Computed attributes,
@@ -284,7 +317,7 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 				if !diags.HasErrors() {
 					path := traversalToPath(traversal)
 
-					attrSchema := schema.AttributeByPath(path)
+					attrSchema := schemaForType.Block.AttributeByPath(path)
 
 					if attrSchema != nil && !attrSchema.Optional && attrSchema.Computed {
 						// ignore_changes uses absolute traversal syntax in config despite
@@ -301,6 +334,41 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 					}
 				}
 			}
+
+			// Validate that attribute traversals in replace_triggered_by
+			// expressions refer to attributes that exist in the schema.
+			// We use evalReplaceTriggeredByExpr to correctly handle JSON
+			// syntax and HCL expressions.
+			for _, expr := range n.Config.TriggersReplacement {
+
+				repData := instances.RepetitionData{}
+				switch {
+				case n.Config.Count != nil:
+					repData.CountIndex = cty.UnknownVal(cty.Number)
+				case n.Config.ForEach != nil:
+					repData.EachKey = cty.UnknownVal(cty.String)
+					repData.EachValue = cty.UnknownVal(cty.DynamicPseudoType)
+				}
+
+				// Evaluate the expression with repetitionData as unknown values
+				// so we can extract the references without worrying with the whole expression.
+				ref, refDiags := evalReplaceTriggeredByExpr(expr, repData)
+				if refDiags.HasErrors() {
+					diags = diags.Append(refDiags)
+					continue
+				}
+
+				if len(ref.Remaining) == 0 {
+					continue
+				}
+
+				// Validate if rest of the reference is valid. The check above does not do that,
+				// it only checks the resource type and its primary attributes.
+				remainingDiags := schemaForType.Block.StaticValidateTraversal(ref.Remaining)
+				if remainingDiags.HasErrors() {
+					diags = diags.Append(remainingDiags)
+				}
+			}
 		}
 
 		// Use unmarked value for validate request
@@ -314,8 +382,8 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 		diags = diags.Append(resp.Diagnostics.InConfigBody(n.Config.Config, n.Addr.String()))
 
 	case addrs.DataResourceMode:
-		schema, _ := providerSchema.SchemaForResourceType(n.Config.Mode, n.Config.Type)
-		if schema == nil {
+		schemaForType, _ := providerSchema.SchemaForResourceType(n.Config.Mode, n.Config.Type)
+		if schemaForType == nil {
 			suggestion := n.noResourceSchemaSuggestion(providerSchema)
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
@@ -325,8 +393,7 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 			})
 			return diags
 		}
-
-		configVal, _, valDiags := evalCtx.EvaluateBlock(ctx, n.Config.Config, schema, nil, keyData)
+		configVal, _, valDiags := evalCtx.EvaluateBlock(ctx, n.Config.Config, schemaForType.Block, nil, keyData)
 		diags = diags.Append(valDiags.InConfigBody(n.Config.Config, n.Addr.String()))
 		if valDiags.HasErrors() {
 			return diags
@@ -354,7 +421,7 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 			return diags
 		}
 
-		configVal, _, valDiags := evalCtx.EvaluateBlock(ctx, n.Config.Config, schema, nil, keyData)
+		configVal, _, valDiags := evalCtx.EvaluateBlock(ctx, n.Config.Config, schema.Block, nil, keyData)
 		diags = diags.Append(valDiags)
 		if valDiags.HasErrors() {
 			return diags
@@ -415,7 +482,7 @@ func nodeValidationAlternateBlockModeSuggestion(schema providers.ProviderSchema,
 	filterOnOtherModes := func(targetModes []addrs.ResourceMode) (addrs.ResourceMode, *configschema.Block) {
 		for _, candidateMode := range targetModes {
 			if b, _ := schema.SchemaForResourceType(candidateMode, resourceType); b != nil {
-				return candidateMode, b
+				return candidateMode, b.Block
 			}
 		}
 		return addrs.InvalidResourceMode, nil

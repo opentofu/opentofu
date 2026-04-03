@@ -288,7 +288,7 @@ func TestDockerCLIStyleAuthFileSearchLocations(t *testing.T) {
 				"/home/example/.dockercfg",
 			},
 		},
-		"linux with XDG basedir enviroment variables": {
+		"linux with XDG basedir environment variables": {
 			fakeConfigDiscoveryEnvironment{
 				osName:   "linux",
 				homePath: "/home/example",

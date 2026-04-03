@@ -23,8 +23,10 @@ import (
 	"github.com/opentofu/opentofu/version"
 )
 
-const tfplanFormatVersion = 3
-const tfplanFilename = "tfplan"
+const (
+	tfplanFormatVersion = 3
+	tfplanFilename      = "tfplan"
+)
 
 // ---------------------------------------------------------------------------
 // This file deals with the internal structure of the "tfplan" sub-file within
@@ -431,8 +433,6 @@ func changeFromTfplan(rawChange *planproto.Change) (*plans.ChangeSrc, error) {
 		ret.Action = plans.DeleteThenCreate
 		beforeIdx = 0
 		afterIdx = 1
-	case planproto.Action_OPEN:
-		ret.Action = plans.Open
 	default:
 		return nil, fmt.Errorf("invalid change action %s", rawChange.Action)
 	}
@@ -468,8 +468,32 @@ func changeFromTfplan(rawChange *planproto.Change) (*plans.ChangeSrc, error) {
 		ret.Importing = &plans.ImportingSrc{
 			ID: rawChange.Importing.Id,
 		}
+
+		if rawChange.Importing.Identity != nil {
+			identity, err := valueFromTfplan(rawChange.Importing.Identity)
+			if err != nil {
+				return nil, fmt.Errorf("invalid importing identity value: %w", err)
+			}
+			ret.Importing.Identity = identity
+		}
 	}
 	ret.GeneratedConfig = rawChange.GeneratedConfig
+
+	if rawChange.BeforeIdentity != nil {
+		beforeIdentity, err := valueFromTfplan(rawChange.BeforeIdentity)
+		if err != nil {
+			return nil, fmt.Errorf("invalid before identity value: %w", err)
+		}
+		ret.BeforeIdentity = beforeIdentity
+	}
+
+	if rawChange.AfterIdentity != nil {
+		plannedIdentity, err := valueFromTfplan(rawChange.AfterIdentity)
+		if err != nil {
+			return nil, fmt.Errorf("invalid planned identity value: %w", err)
+		}
+		ret.AfterIdentity = plannedIdentity
+	}
 
 	sensitive := cty.NewValueMarks(marks.Sensitive)
 	beforeValMarks, err := pathValueMarksFromTfplan(rawChange.BeforeSensitivePaths, sensitive)
@@ -834,8 +858,19 @@ func changeToTfplan(change *plans.ChangeSrc) (*planproto.Change, error) {
 			Id: change.Importing.ID,
 		}
 
+		if len(change.Importing.Identity) > 0 {
+			ret.Importing.Identity = valueToTfplan(change.Importing.Identity)
+		}
 	}
 	ret.GeneratedConfig = change.GeneratedConfig
+
+	if len(change.BeforeIdentity) > 0 {
+		ret.BeforeIdentity = valueToTfplan(change.BeforeIdentity)
+	}
+
+	if len(change.AfterIdentity) > 0 {
+		ret.AfterIdentity = valueToTfplan(change.AfterIdentity)
+	}
 
 	switch change.Action {
 	case plans.NoOp:
@@ -862,15 +897,6 @@ func changeToTfplan(change *plans.ChangeSrc) (*planproto.Change, error) {
 	case plans.CreateThenDelete:
 		ret.Action = planproto.Action_CREATE_THEN_DELETE
 		ret.Values = []*planproto.DynamicValue{before, after}
-	case plans.Open:
-		ret.Action = planproto.Action_OPEN
-		// We need to write ephemeral resources to the plan file to be able to build
-		// the apply graph on `tofu apply <planfile>`.
-		// The DiffTransformer needs the changes from the plan to be able to generate
-		// executable resource instance graph nodes so we are adding the ephemeral resources too.
-		// Even though we are writing these, the actual values of the ephemeral *must not*
-		// be written to the plan so set nothing here.
-		ret.Values = []*planproto.DynamicValue{}
 	default:
 		return nil, fmt.Errorf("invalid change action %s", change.Action)
 	}

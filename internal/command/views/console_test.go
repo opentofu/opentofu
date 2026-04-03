@@ -28,19 +28,24 @@ func TestConsoleViews(t *testing.T) {
 			wantJson: []map[string]any{
 				{
 					"@level":   "error",
-					"@message": "The configured backend doesn't support this operation. The 'backend' in OpenTofu defines how OpenTofu operates. The default backend performs all operations locally on your machine. Your configuration is configured to use a non-local backend. This backend doesn't support this operation",
+					"@message": "Error: The configured backend doesn't support this operation",
 					"@module":  "tofu.ui",
+					"diagnostic": map[string]any{
+						"detail":   `The "backend" in OpenTofu defines how OpenTofu operates. The default backend performs all operations locally on your machine. Your configuration is configured to use a non-local backend. This backend doesn't support this operation.`,
+						"severity": "error",
+						"summary":  "The configured backend doesn't support this operation",
+					},
+					"type": "diagnostic",
 				},
 			},
-			wantStderr: withNewline("The configured backend doesn't support this operation.\n\nThe \"backend\" in OpenTofu defines how OpenTofu operates. The default\nbackend performs all operations locally on your machine. Your configuration\nis configured to use a non-local backend. This backend doesn't support this\noperation.\n"),
-		},
-		"helpPrompt": {
-			viewCall: func(console Console) {
-				console.HelpPrompt()
-			},
-			wantJson:   []map[string]any{{}},
-			wantStdout: "",
-			wantStderr: withNewline("\nUsage: tofu [global options] console [options]\n\n  Starts an interactive console for experimenting with OpenTofu\n  interpolations.\n\n  This will open an interactive console that you can use to type\n  interpolations into and inspect their values. This command loads the\n  current state. This lets you explore and test interpolations before\n  using them in future configurations.\n\n  This command will never modify your state.\n\nOptions:\n\n  -compact-warnings      If OpenTofu produces any warnings that are not\n                         accompanied by errors, show them in a more compact\n                         form that includes only the summary messages.\n\n  -consolidate-warnings  If OpenTofu produces any warnings, no consolidation\n                         will be performed. All locations, for all warnings\n                         will be listed. Enabled by default.\n\n  -consolidate-errors    If OpenTofu produces any errors, no consolidation\n                         will be performed. All locations, for all errors\n                         will be listed. Disabled by default\n\n  -state=path            Legacy option for the local backend only. See the local\n                         backend's documentation for more information.\n\n  -var 'foo=bar'         Set a variable in the OpenTofu configuration. This\n                         flag can be set multiple times.\n\n  -var-file=foo          Set variables in the OpenTofu configuration from\n                         a file. If \"terraform.tfvars\" or any \".auto.tfvars\"\n                         files are present, they will be automatically loaded.\n\n  -json-into=out.json    All the evaluation results returned back to the user\n                         are streamed in json format in the given file.\n\n"),
+			wantStderr: `
+Error: The configured backend doesn't support this operation
+
+The "backend" in OpenTofu defines how OpenTofu operates. The default backend
+performs all operations locally on your machine. Your configuration is
+configured to use a non-local backend. This backend doesn't support this
+operation.
+`,
 		},
 		// Diagnostics
 		"warning": {

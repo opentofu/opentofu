@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
@@ -29,7 +30,7 @@ type StateMeta struct {
 // the backend, but changes the way that backups are done. This configures
 // backups to be timestamped rather than just the original state path plus a
 // backup path.
-func (c *StateMeta) State(ctx context.Context, enc encryption.Encryption) (statemgr.Full, error) {
+func (c *StateMeta) State(ctx context.Context, enc encryption.Encryption, view views.State) (statemgr.Full, error) {
 	var realState statemgr.Full
 	backupPath := c.backupPath
 	stateOutPath := c.statePath
@@ -51,7 +52,7 @@ func (c *StateMeta) State(ctx context.Context, enc encryption.Encryption) (state
 
 		// Check remote OpenTofu version is compatible
 		remoteVersionDiags := c.remoteVersionCheck(b, workspace)
-		c.showDiagnostics(remoteVersionDiags)
+		view.Diagnostics(remoteVersionDiags)
 		if remoteVersionDiags.HasErrors() {
 			return nil, fmt.Errorf("Error checking remote OpenTofu version")
 		}
@@ -63,7 +64,10 @@ func (c *StateMeta) State(ctx context.Context, enc encryption.Encryption) (state
 		}
 
 		// Get a local backend
-		localRaw, backendDiags := c.Backend(ctx, &BackendOpts{ForceLocal: true}, enc.State())
+		localRaw, backendDiags := c.Backend(ctx, &BackendOpts{
+			ForceLocal: true,
+			View:       view.Backend(),
+		}, enc.State())
 		if backendDiags.HasErrors() {
 			// This should never fail
 			panic(backendDiags.Err())

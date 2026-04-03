@@ -272,6 +272,21 @@ func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall, sourc
 	// Generate the FQN -> LocalProviderName map
 	mod.gatherProviderLocalNames()
 
+	// Ensure const variables are actually const
+	var constRefs []*addrs.Reference
+	for _, variable := range mod.Variables {
+		if variable.Const {
+			constRefs = append(constRefs, &addrs.Reference{
+				Subject: addrs.InputVariable{Name: variable.Name},
+			})
+		}
+	}
+	_, vDiags := mod.StaticEvaluator.EvalContext(context.TODO(), StaticIdentifier{
+		Module:    mod.StaticEvaluator.call.addr,
+		DeclRange: mod.StaticEvaluator.call.declRange,
+	}, constRefs)
+	diags = append(diags, vDiags...)
+
 	return mod, diags
 }
 

@@ -8,10 +8,9 @@ package views
 import (
 	"fmt"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
-
-	"strings"
 
 	"github.com/zclconf/go-cty/cty"
 
@@ -526,7 +525,6 @@ func TestPreRefresh(t *testing.T) {
 	})
 
 	action, err := h.PreRefresh(addr, states.CurrentGen, priorState)
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -558,7 +556,6 @@ func TestPreRefresh_noID(t *testing.T) {
 	})
 
 	action, err := h.PreRefresh(addr, states.CurrentGen, priorState)
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -585,7 +582,6 @@ func TestPreImportState(t *testing.T) {
 	}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance)
 
 	action, err := h.PreImportState(addr, "test")
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -633,7 +629,6 @@ func TestPostImportState(t *testing.T) {
 	}
 
 	action, err := h.PostImportState(addr, imported)
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -648,6 +643,217 @@ func TestPostImportState(t *testing.T) {
 `
 	if got := result.Stdout(); got != want {
 		t.Fatalf("unexpected output\n got: %q\nwant: %q", got, want)
+	}
+}
+
+func mustNewDynamicValue(t *testing.T, val cty.Value, ty cty.Type) plans.DynamicValue {
+	t.Helper()
+	dv, err := plans.NewDynamicValue(val, ty)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return dv
+}
+
+func TestPreApplyImport(t *testing.T) {
+	addr := addrs.Resource{
+		Mode: addrs.ManagedResourceMode,
+		Type: "test_instance",
+		Name: "foo",
+	}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance)
+
+	testCases := []struct {
+		name      string
+		importing plans.ImportingSrc
+		want      string
+	}{
+		{
+			name: "importing by id",
+			importing: plans.ImportingSrc{
+				ID: "test",
+			},
+			want: "test_instance.foo: Importing... [id=test]\n",
+		},
+		{
+			name: "importing by identity with id field",
+			importing: plans.ImportingSrc{
+				Identity: mustNewDynamicValue(t,
+					cty.ObjectVal(map[string]cty.Value{
+						"id": cty.StringVal("test"),
+					}),
+					cty.Object(map[string]cty.Type{
+						"id": cty.String,
+					}),
+				),
+			},
+			want: "test_instance.foo: Importing... [id=test]\n",
+		},
+		{
+			name: "importing by identity no string fields",
+			importing: plans.ImportingSrc{
+				Identity: mustNewDynamicValue(t,
+					cty.ObjectVal(map[string]cty.Value{
+						"id": cty.NumberIntVal(123),
+					}),
+					cty.Object(map[string]cty.Type{
+						"id": cty.Number,
+					}),
+				),
+			},
+			want: "test_instance.foo: Importing...\n",
+		},
+		{
+			name: "importing by identity with one string field",
+			importing: plans.ImportingSrc{
+				Identity: mustNewDynamicValue(t,
+					cty.ObjectVal(map[string]cty.Value{
+						"bucket": cty.StringVal("my-bucket"),
+					}),
+					cty.Object(map[string]cty.Type{
+						"bucket": cty.String,
+					}),
+				),
+			},
+			want: "test_instance.foo: Importing... [bucket=my-bucket]\n",
+		},
+		{
+			name: "importing by identity with multiple string fields (not id or name or tags) should select first field",
+			importing: plans.ImportingSrc{
+				Identity: mustNewDynamicValue(t,
+					cty.ObjectVal(map[string]cty.Value{
+						"bucket": cty.StringVal("my-bucket"),
+						"region": cty.StringVal("us-west-1"),
+					}),
+					cty.Object(map[string]cty.Type{
+						"bucket": cty.String,
+						"region": cty.String,
+					}),
+				),
+			},
+			want: "test_instance.foo: Importing... [bucket=my-bucket]\n",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			streams, done := terminal.StreamsForTesting(t)
+			view := NewView(streams)
+			h := NewUiHook(view)
+
+			action, err := h.PreApplyImport(addr, tc.importing)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if action != tofu.HookActionContinue {
+				t.Fatalf("Expected hook to continue, given: %#v", action)
+			}
+			result := done(t)
+
+			if got := result.Stdout(); got != tc.want {
+				t.Fatalf("unexpected output\n got: %q\nwant: %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestPostApplyImport(t *testing.T) {
+	addr := addrs.Resource{
+		Mode: addrs.ManagedResourceMode,
+		Type: "test_instance",
+		Name: "foo",
+	}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance)
+
+	testCases := []struct {
+		name      string
+		importing plans.ImportingSrc
+		want      string
+	}{
+		{
+			name: "importing by id",
+			importing: plans.ImportingSrc{
+				ID: "test",
+			},
+			want: "test_instance.foo: Import complete [id=test]\n",
+		},
+		{
+			name: "importing by identity with id field",
+			importing: plans.ImportingSrc{
+				Identity: mustNewDynamicValue(t,
+					cty.ObjectVal(map[string]cty.Value{
+						"id": cty.StringVal("test"),
+					}),
+					cty.Object(map[string]cty.Type{
+						"id": cty.String,
+					}),
+				),
+			},
+			want: "test_instance.foo: Import complete [id=test]\n",
+		},
+		{
+			name: "importing by identity no string fields",
+			importing: plans.ImportingSrc{
+				Identity: mustNewDynamicValue(t,
+					cty.ObjectVal(map[string]cty.Value{
+						"id": cty.NumberIntVal(123),
+					}),
+					cty.Object(map[string]cty.Type{
+						"id": cty.Number,
+					}),
+				),
+			},
+			want: "test_instance.foo: Import complete\n",
+		},
+		{
+			name: "importing by identity with one string field",
+			importing: plans.ImportingSrc{
+				Identity: mustNewDynamicValue(t,
+					cty.ObjectVal(map[string]cty.Value{
+						"bucket": cty.StringVal("my-bucket"),
+					}),
+					cty.Object(map[string]cty.Type{
+						"bucket": cty.String,
+					}),
+				),
+			},
+			want: "test_instance.foo: Import complete [bucket=my-bucket]\n",
+		},
+		{
+			name: "importing by identity with multiple string fields (not id or name or tags) should select first field",
+			importing: plans.ImportingSrc{
+				Identity: mustNewDynamicValue(t,
+					cty.ObjectVal(map[string]cty.Value{
+						"bucket": cty.StringVal("my-bucket"),
+						"region": cty.StringVal("us-west-1"),
+					}),
+					cty.Object(map[string]cty.Type{
+						"bucket": cty.String,
+						"region": cty.String,
+					}),
+				),
+			},
+			want: "test_instance.foo: Import complete [bucket=my-bucket]\n",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			streams, done := terminal.StreamsForTesting(t)
+			view := NewView(streams)
+			h := NewUiHook(view)
+
+			action, err := h.PostApplyImport(addr, tc.importing)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if action != tofu.HookActionContinue {
+				t.Fatalf("Expected hook to continue, given: %#v", action)
+			}
+			result := done(t)
+
+			if got := result.Stdout(); got != tc.want {
+				t.Fatalf("unexpected output\n got: %q\nwant: %q", got, tc.want)
+			}
+		})
 	}
 }
 
