@@ -642,7 +642,7 @@ func TestEvaluatorGetResource_changes(t *testing.T) {
 }
 
 func TestEvaluatorGetResource_Ephemeral(t *testing.T) {
-	rc := &configs.Resource{
+	rc := configs.Resource{
 		Mode: addrs.EphemeralResourceMode,
 		Type: "test_resource",
 		Name: "foo",
@@ -652,6 +652,18 @@ func TestEvaluatorGetResource_Ephemeral(t *testing.T) {
 		}),
 		Provider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`).Provider,
 	}
+	rcWithCount := configs.Resource{
+		Mode: addrs.EphemeralResourceMode,
+		Type: "test_resource",
+		Name: "foo",
+		Config: configs.SynthBody("", map[string]cty.Value{
+			"secret_name": cty.StringVal("foo"),
+			"name":        cty.StringVal("bar"),
+		}),
+		Count:    hcl.StaticExpr(cty.NumberIntVal(1), hcl.Range{}),
+		Provider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`).Provider,
+	}
+
 	ephemeralSchema := providers.Schema{
 		Block: &configschema.Block{
 			Attributes: map[string]*configschema.Attribute{
@@ -686,17 +698,24 @@ func TestEvaluatorGetResource_Ephemeral(t *testing.T) {
 		},
 	}
 	tests := map[string]struct {
-		state *states.SyncState
-		want  cty.Value
+		state  *states.SyncState
+		resCfg configs.Resource
+		want   cty.Value
 	}{
 		"no state": {
 			states.NewState().SyncWrapper(),
+			rc,
 			cty.ObjectVal(map[string]cty.Value{
 				"id":          cty.UnknownVal(cty.String),
 				"value":       cty.UnknownVal(cty.String),
 				"name":        cty.UnknownVal(cty.String),
 				"nesting_map": cty.UnknownVal(cty.Set(cty.Object(map[string]cty.Type{"foo": cty.String}))),
 			}).Mark(marks.Ephemeral),
+		},
+		"no state and for_each": {
+			states.NewState().SyncWrapper(),
+			rcWithCount,
+			cty.DynamicVal.Mark(marks.Ephemeral),
 		},
 		"with state": {
 			states.BuildState(func(state *states.SyncState) {
@@ -713,6 +732,7 @@ func TestEvaluatorGetResource_Ephemeral(t *testing.T) {
 					addrs.NoKey,
 				)
 			}).SyncWrapper(),
+			rc,
 			cty.ObjectVal(map[string]cty.Value{
 				"id":    cty.StringVal("foo"),
 				"value": cty.StringVal("tacos"),
@@ -743,6 +763,7 @@ func TestEvaluatorGetResource_Ephemeral(t *testing.T) {
 					addrs.NoKey,
 				)
 			}).SyncWrapper(),
+			rc,
 			cty.ObjectVal(map[string]cty.Value{
 				"id":          cty.UnknownVal(cty.String),
 				"value":       cty.UnknownVal(cty.String),
@@ -765,6 +786,7 @@ func TestEvaluatorGetResource_Ephemeral(t *testing.T) {
 					addrs.NoKey,
 				)
 			}).SyncWrapper(),
+			rc,
 			cty.ObjectVal(map[string]cty.Value{
 				"id":    cty.StringVal("foo"),
 				"value": cty.StringVal("tacos"),
@@ -793,7 +815,7 @@ func TestEvaluatorGetResource_Ephemeral(t *testing.T) {
 				Config: &configs.Config{
 					Module: &configs.Module{
 						EphemeralResources: map[string]*configs.Resource{
-							rc.Addr().String(): rc,
+							rc.Addr().String(): &tt.resCfg,
 						},
 					},
 				},
