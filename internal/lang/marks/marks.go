@@ -159,10 +159,16 @@ func ExtractDeprecationDiagnosticsWithBody(val cty.Value, body hcl.Body) (cty.Va
 			return nil, nil // no changes to non-deprecation marks
 		}
 		cause := dm.Cause
+		var msg string
+		if cause.Message == "" {
+			msg = fmt.Sprintf("This value is derived from %s, which is deprecated.", cause.By)
+		} else {
+			msg = fmt.Sprintf("This value is derived from %s, which is deprecated with the following message:\n\n%s", cause.By, cause.Message)
+		}
 		diag := tfdiags.AttributeValue(
 			tfdiags.Warning,
 			"Value derived from a deprecated source",
-			fmt.Sprintf("This value is derived from %s, which is deprecated with the following message:\n\n%s", cause.By, cause.Message),
+			msg,
 			path,
 		)
 		diags = diags.Append(tfdiags.Override(diag, tfdiags.Warning, func() tfdiags.DiagnosticExtraWrapper {
@@ -199,10 +205,16 @@ func ExtractDeprecatedDiagnosticsWithExpr(val cty.Value, expr hcl.Expression) (c
 			source += "'s attribute " + attr
 		}
 		cause := dm.Cause
+		var msg string
+		if cause.Message == "" {
+			msg = fmt.Sprintf("%s is derived from %s, which is deprecated.", source, cause.By)
+		} else {
+			msg = fmt.Sprintf("%s is derived from %s, which is deprecated with the following message:\n\n%s", source, cause.By, cause.Message)
+		}
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity:   hcl.DiagWarning,
 			Summary:    "Value derived from a deprecated source",
-			Detail:     fmt.Sprintf("%s is derived from %s, which is deprecated with the following message:\n\n%s", source, cause.By, cause.Message),
+			Detail:     msg,
 			Subject:    expr.Range().Ptr(),
 			Expression: expr,
 			Extra:      cause,
