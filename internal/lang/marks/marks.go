@@ -73,18 +73,17 @@ var (
 )
 
 type DeprecationCause struct {
-	By      string
+	Module  string
+	Subject string
 	Message string
-
-	// IsFromRemoteModule indicates if the cause of deprecation is coming from a remotely
-	// imported module relative to the root module.
-	// This is useful when the user wants to control the type of deprecation warnings OpenTofu will show.
-	IsFromRemoteModule bool
 }
 
 // ExtraInfoKey returns the key used for consolidation of deprecation diagnostics.
 func (dc DeprecationCause) ExtraInfoKey() string {
-	return dc.By
+	if dc.Module == "" {
+		return dc.Subject
+	}
+	return dc.Module + "." + dc.Subject
 }
 
 type deprecationMark struct {
@@ -104,9 +103,13 @@ func HasDeprecated(v cty.Value) bool {
 	return false
 }
 
-func DeprecationMark(cause DeprecationCause) any {
+func DeprecationMark(module addrs.Module, subject string, message string) any {
 	return deprecationMark{
-		Cause: cause,
+		Cause: DeprecationCause{
+			Module:  module.String(), // This sucks, but it's a hashable / map key
+			Subject: subject,
+			Message: message,
+		},
 	}
 }
 
@@ -125,18 +128,18 @@ func Deprecated(v cty.Value, cause DeprecationCause) cty.Value {
 
 // DeprecatedOutput marks a given values as deprecated constructing a DeprecationCause
 // from module output specific data.
-func DeprecatedOutput(v cty.Value, addr addrs.AbsOutputValue, msg string, isFromRemoteModule bool) cty.Value {
+func DeprecatedOutput(v cty.Value, addr addrs.AbsOutputValue, msg string) cty.Value {
 	if addr.Module.IsRoot() {
 		// Marking a root output as deprecated has no impact.
 		// We hit this case when using the test framework on a module however.
 		// This is requried as the ModuleCallOutput() below will panic on the root module.
 		return v
 	}
-	_, callOutAddr := addr.ModuleCallOutput()
+	//_, callOutAddr := addr.ModuleCallOutput()
 	return Deprecated(v, DeprecationCause{
-		IsFromRemoteModule: isFromRemoteModule,
-		By:                 callOutAddr.String(),
-		Message:            msg,
+		Module:  addr.Module.Module().String(),
+		Subject: addr.OutputValue.String(), //callOutAddr.String(),
+		Message: msg,
 	})
 }
 
@@ -161,9 +164,9 @@ func ExtractDeprecationDiagnosticsWithBody(val cty.Value, body hcl.Body) (cty.Va
 		cause := dm.Cause
 		var msg string
 		if cause.Message == "" {
-			msg = fmt.Sprintf("This value is derived from %s, which is deprecated.", cause.By)
+			msg = fmt.Sprintf("This value is derived from %s, which is deprecated.", cause.ExtraInfoKey())
 		} else {
-			msg = fmt.Sprintf("This value is derived from %s, which is deprecated with the following message:\n\n%s", cause.By, cause.Message)
+			msg = fmt.Sprintf("This value is derived from %s, which is deprecated with the following message:\n\n%s", cause.ExtraInfoKey(), cause.Message)
 		}
 		diag := tfdiags.AttributeValue(
 			tfdiags.Warning,
@@ -207,9 +210,9 @@ func ExtractDeprecatedDiagnosticsWithExpr(val cty.Value, expr hcl.Expression) (c
 		cause := dm.Cause
 		var msg string
 		if cause.Message == "" {
-			msg = fmt.Sprintf("%s is derived from %s, which is deprecated.", source, cause.By)
+			msg = fmt.Sprintf("%s is derived from %s, which is deprecated.", source, cause.ExtraInfoKey())
 		} else {
-			msg = fmt.Sprintf("%s is derived from %s, which is deprecated with the following message:\n\n%s", source, cause.By, cause.Message)
+			msg = fmt.Sprintf("%s is derived from %s, which is deprecated with the following message:\n\n%s", source, cause.ExtraInfoKey(), cause.Message)
 		}
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity:   hcl.DiagWarning,

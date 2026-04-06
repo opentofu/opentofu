@@ -16,7 +16,6 @@ import (
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/terminal"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // TestNewView it's just a sanity check to be sure that we have it initialized as expected.
@@ -121,10 +120,10 @@ func TestView_Configure(t *testing.T) {
 		"module deprecation warning level": {
 
 			viewArgs: &arguments.View{
-				ModuleDeprecationWarnLvl: tofu.DeprecationWarningLevelLocal,
+				ModuleDeprecationWarnLvl: arguments.DeprecationWarningLevelLocal,
 			},
 			validate: func(t *testing.T, v *View) {
-				if v.ModuleDeprecationWarnLvl != tofu.DeprecationWarningLevelLocal {
+				if v.ModuleDeprecationWarnLvl != arguments.DeprecationWarningLevelLocal {
 					t.Errorf("expected ModuleDeprecationWarnLvl to be Local, got %v", v.ModuleDeprecationWarnLvl)
 				}
 			},

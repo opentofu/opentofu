@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 func TestParseView(t *testing.T) {
@@ -80,22 +79,22 @@ func TestParseView(t *testing.T) {
 		},
 		"show all deprecation warnings": {
 			[]string{"-deprecation=module:all"},
-			&View{ModuleDeprecationWarnLvl: tofu.DeprecationWarningLevelAll, ConsolidateWarnings: true},
+			&View{ModuleDeprecationWarnLvl: DeprecationWarningLevelAll, ConsolidateWarnings: true},
 			[]string{},
 		},
 		"show only local deprecation warnings": {
 			[]string{"-deprecation=module:local"},
-			&View{ModuleDeprecationWarnLvl: tofu.DeprecationWarningLevelLocal, ConsolidateWarnings: true},
+			&View{ModuleDeprecationWarnLvl: DeprecationWarningLevelLocal, ConsolidateWarnings: true},
 			[]string{},
 		},
 		"show no deprecation warnings": {
 			[]string{"-deprecation=module:none"},
-			&View{ModuleDeprecationWarnLvl: tofu.DeprecationWarningLevelNone, ConsolidateWarnings: true},
+			&View{ModuleDeprecationWarnLvl: DeprecationWarningLevelNone, ConsolidateWarnings: true},
 			[]string{},
 		},
 		"deprecation used with other yet non-existing namespaces is returning those in the unparsed args": {
 			[]string{"-deprecation=othernamespace:arg", "-deprecation=module:none", "-deprecation=backend:arg"},
-			&View{ModuleDeprecationWarnLvl: tofu.DeprecationWarningLevelNone, ConsolidateWarnings: true},
+			&View{ModuleDeprecationWarnLvl: DeprecationWarningLevelNone, ConsolidateWarnings: true},
 			[]string{"-deprecation=othernamespace:arg", "-deprecation=backend:arg"},
 		},
 	}

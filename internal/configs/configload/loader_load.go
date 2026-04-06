@@ -51,6 +51,8 @@ func (l *Loader) loadConfig(ctx context.Context, rootMod *configs.Module, diags 
 	cfg, cDiags := configs.BuildConfig(ctx, rootMod, configs.ModuleWalkerFunc(l.moduleWalkerLoad))
 	diags = append(diags, cDiags...)
 
+	l.lastLoadedRoot = cfg
+
 	return cfg, diags
 }
 

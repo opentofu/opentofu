@@ -10,11 +10,11 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/mitchellh/colorstring"
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/format"
 	"github.com/opentofu/opentofu/internal/terminal"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // View is the base layer for command views, encapsulating a set of I/O
@@ -40,7 +40,7 @@ type View struct {
 	concise bool
 
 	// ModuleDeprecationWarnLvl is used to filter out deprecation warnings for outputs and variables as requested by the user.
-	ModuleDeprecationWarnLvl tofu.DeprecationWarningLevel
+	ModuleDeprecationWarnLvl arguments.DeprecationWarningLevel
 
 	// showSensitive is used to display the value of variables marked as sensitive.
 	showSensitive bool
@@ -54,6 +54,8 @@ type View struct {
 	// will be dereferenced as late as possible when rendering diagnostics in
 	// order to access the config loader cache.
 	configSources func() map[string]*hcl.File
+
+	isRemoteModuleSource func(addrs.Module) bool
 }
 
 // Initialize a View with the given streams, a disabled colorize object, and a
@@ -66,7 +68,8 @@ func NewView(streams *terminal.Streams) *View {
 			Disable: true,
 			Reset:   true,
 		},
-		configSources: func() map[string]*hcl.File { return nil },
+		configSources:        func() map[string]*hcl.File { return nil },
+		isRemoteModuleSource: func(addrs.Module) bool { return false },
 		diagsPrinter: func(severity tfdiags.Severity, msg string) {
 			if severity == tfdiags.Error {
 				_, _ = streams.Eprint(msg)
@@ -123,6 +126,10 @@ func (v *View) SetConfigSources(cb func() map[string]*hcl.File) {
 	v.configSources = cb
 }
 
+func (v *View) SetIsRemoteModuleSource(cb func(addrs.Module) bool) {
+	v.isRemoteModuleSource = cb
+}
+
 // Diagnostics renders a set of warnings and errors in human-readable form.
 // Warnings are printed to stdout, and errors to stderr.
 func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
@@ -134,9 +141,9 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 
 	// Filter the deprecation warnings based on the cli arg.
 	var newDiags tfdiags.Diagnostics
-	seen := tofu.DeprecationDiagnosticAllowedSeen{}
+	seen := DeprecationDiagnosticAllowedSeen{}
 	for _, diag := range diags {
-		if !tofu.DeprecationDiagnosticAllowed(v.ModuleDeprecationWarnLvl, diag, seen) {
+		if !v.DeprecationDiagnosticAllowed(diag, seen) {
 			continue
 		}
 		newDiags = append(newDiags, diag)

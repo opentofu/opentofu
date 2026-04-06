@@ -7,8 +7,6 @@ package arguments
 
 import (
 	"strings"
-
-	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // View represents the global command-line arguments which configure the view.
@@ -29,7 +27,7 @@ type View struct {
 	Concise bool
 
 	// ModuleDeprecationWarnLvl is used to filter out deprecation warnings for outputs and variables as requested by the user.
-	ModuleDeprecationWarnLvl tofu.DeprecationWarningLevel
+	ModuleDeprecationWarnLvl DeprecationWarningLevel
 
 	// ShowSensitive is used to display the value of variables marked as sensitive.
 	ShowSensitive bool
@@ -48,7 +46,7 @@ func ParseView(args []string) (*View, []string) {
 	i := 0
 	for _, v := range args {
 		if prefix := "-deprecation=module:"; strings.HasPrefix(v, prefix) {
-			common.ModuleDeprecationWarnLvl = tofu.ParseDeprecatedWarningLevel(strings.ReplaceAll(v, prefix, ""))
+			common.ModuleDeprecationWarnLvl = ParseDeprecatedWarningLevel(strings.ReplaceAll(v, prefix, ""))
 			continue // continue to ensure that the counter is not incremented
 		}
 		switch v {
