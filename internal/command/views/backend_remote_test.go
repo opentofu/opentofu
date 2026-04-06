@@ -108,7 +108,7 @@ change this later in the workspace settings.
 			viewCall: func(view BackendRemote) {
 				view.ApplySavedHeader()
 			},
-			wantStdout: `Running apply in the cloud backend. Output will stream here. Pressing Ctrl-C
+			wantStdout: `Running apply in cloud backend. Output will stream here. Pressing Ctrl-C
 will stop streaming the logs, but will not stop the apply running remotely.
 
 Preparing the remote apply...
@@ -238,7 +238,7 @@ Preparing the remote plan...
 			viewCall: func(view BackendRemote) {
 				view.OperationHeader(true, false)
 			},
-			wantStdout: `Running apply in the cloud backend. Output will stream here. Pressing Ctrl-C
+			wantStdout: `Running apply in cloud backend. Output will stream here. Pressing Ctrl-C
 will cancel the remote apply if it's still pending. If the apply started it
 will stop streaming the logs, but will not stop the apply running remotely.
 
@@ -250,7 +250,7 @@ Preparing the remote apply...
 			viewCall: func(view BackendRemote) {
 				view.OperationHeader(false, false)
 			},
-			wantStdout: `Running plan in the cloud backend. Output will stream here. Pressing Ctrl-C
+			wantStdout: `Running plan in cloud backend. Output will stream here. Pressing Ctrl-C
 will stop streaming the logs, but will not stop the plan running remotely.
 
 Preparing the remote plan...

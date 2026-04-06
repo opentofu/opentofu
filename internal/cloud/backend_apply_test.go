@@ -103,7 +103,7 @@ func TestCloud_applyBasic(t *testing.T) {
 	}
 
 	output := voutput.Stdout()
-	if !strings.Contains(output, "Running apply in the cloud backend") {
+	if !strings.Contains(output, "Running apply in cloud backend") {
 		t.Fatalf("expected TFC header in output: %s", output)
 	}
 	if !strings.Contains(output, "1 to add, 0 to change, 0 to destroy") {
@@ -698,7 +698,7 @@ func TestCloud_applyWithRequiredVariables(t *testing.T) {
 
 	voutput := done(t)
 	output := voutput.Stdout()
-	if !strings.Contains(output, "Running apply in the cloud backend") {
+	if !strings.Contains(output, "Running apply in cloud backend") {
 		t.Fatalf("unexpected TFC header in output: %s", output)
 	}
 }
@@ -850,7 +850,7 @@ func TestCloud_applyAutoApprove(t *testing.T) {
 	}
 
 	output := voutput.Stdout()
-	if !strings.Contains(output, "Running apply in the cloud backend") {
+	if !strings.Contains(output, "Running apply in cloud backend") {
 		t.Fatalf("expected TFC header in output: %s", output)
 	}
 	if !strings.Contains(output, "1 to add, 0 to change, 0 to destroy") {
@@ -919,7 +919,7 @@ func TestCloud_applyApprovedExternally(t *testing.T) {
 	}
 
 	output := voutput.Stdout()
-	if !strings.Contains(output, "Running apply in the cloud backend") {
+	if !strings.Contains(output, "Running apply in cloud backend") {
 		t.Fatalf("expected TFC header in output: %s", output)
 	}
 	if !strings.Contains(output, "1 to add, 0 to change, 0 to destroy") {
@@ -992,7 +992,7 @@ func TestCloud_applyDiscardedExternally(t *testing.T) {
 	}
 
 	output := voutput.Stdout()
-	if !strings.Contains(output, "Running apply in the cloud backend") {
+	if !strings.Contains(output, "Running apply in cloud backend") {
 		t.Fatalf("expected TFC header in output: %s", output)
 	}
 	if !strings.Contains(output, "1 to add, 0 to change, 0 to destroy") {
@@ -1060,7 +1060,7 @@ func TestCloud_applyWithAutoApprove(t *testing.T) {
 	}
 
 	output := voutput.Stdout()
-	if !strings.Contains(output, "Running apply in the cloud backend") {
+	if !strings.Contains(output, "Running apply in cloud backend") {
 		t.Fatalf("expected TFC header in output: %s", output)
 	}
 	if !strings.Contains(output, "1 to add, 0 to change, 0 to destroy") {
@@ -1110,7 +1110,7 @@ func TestCloud_applyForceLocal(t *testing.T) {
 	}
 
 	output := voutput.Stdout()
-	if strings.Contains(output, "Running apply in the cloud backend") {
+	if strings.Contains(output, "Running apply in cloud backend") {
 		t.Fatalf("unexpected TFC header in output: %s", output)
 	}
 	if !strings.Contains(output, "1 to add, 0 to change, 0 to destroy") {
@@ -1169,7 +1169,7 @@ func TestCloud_applyWorkspaceWithoutOperations(t *testing.T) {
 	}
 
 	output := voutput.Stdout()
-	if strings.Contains(output, "Running apply in the cloud backend") {
+	if strings.Contains(output, "Running apply in cloud backend") {
 		t.Fatalf("unexpected TFC header in output: %s", output)
 	}
 	if !strings.Contains(output, "1 to add, 0 to change, 0 to destroy") {
@@ -1239,7 +1239,7 @@ func TestCloud_applyLockTimeout(t *testing.T) {
 
 	voutput := done(t)
 	output := voutput.Stdout()
-	if !strings.Contains(output, "Running apply in the cloud backend") {
+	if !strings.Contains(output, "Running apply in cloud backend") {
 		t.Fatalf("expected TFC header in output: %s", output)
 	}
 	if !strings.Contains(output, "Lock timeout exceeded") {
@@ -1287,7 +1287,7 @@ func TestCloud_applyDestroy(t *testing.T) {
 	}
 
 	output := voutput.Stdout()
-	if !strings.Contains(output, "Running apply in the cloud backend") {
+	if !strings.Contains(output, "Running apply in cloud backend") {
 		t.Fatalf("expected TFC header in output: %s", output)
 	}
 	if !strings.Contains(output, "0 to add, 0 to change, 1 to destroy") {
@@ -1445,7 +1445,7 @@ func TestCloud_applyPolicyPass(t *testing.T) {
 	}
 
 	output := voutput.Stdout()
-	if !strings.Contains(output, "Running apply in the cloud backend") {
+	if !strings.Contains(output, "Running apply in cloud backend") {
 		t.Fatalf("expected TFC header in output: %s", output)
 	}
 	if !strings.Contains(output, "1 to add, 0 to change, 0 to destroy") {
@@ -1497,7 +1497,7 @@ func TestCloud_applyPolicyHardFail(t *testing.T) {
 	}
 
 	output := voutput.Stdout()
-	if !strings.Contains(output, "Running apply in the cloud backend") {
+	if !strings.Contains(output, "Running apply in cloud backend") {
 		t.Fatalf("expected TFC header in output: %s", output)
 	}
 	if !strings.Contains(output, "1 to add, 0 to change, 0 to destroy") {
@@ -1546,7 +1546,7 @@ func TestCloud_applyPolicySoftFail(t *testing.T) {
 	}
 
 	output := voutput.Stdout()
-	if !strings.Contains(output, "Running apply in the cloud backend") {
+	if !strings.Contains(output, "Running apply in cloud backend") {
 		t.Fatalf("expected TFC header in output: %s", output)
 	}
 	if !strings.Contains(output, "1 to add, 0 to change, 0 to destroy") {
@@ -1693,7 +1693,7 @@ func TestCloud_applyPolicySoftFailAutoApprove(t *testing.T) {
 	}
 
 	output := voutput.Stdout()
-	if !strings.Contains(output, "Running apply in the cloud backend") {
+	if !strings.Contains(output, "Running apply in cloud backend") {
 		t.Fatalf("expected TFC header in output: %s", output)
 	}
 	if !strings.Contains(output, "1 to add, 0 to change, 0 to destroy") {
@@ -1884,7 +1884,7 @@ func TestCloud_applyVersionCheck(t *testing.T) {
 					t.Fatalf("operation failed: %s", voutput.Stderr())
 				}
 				output := voutput.Stdout()
-				hasRemote := strings.Contains(output, "Running apply in the cloud backend")
+				hasRemote := strings.Contains(output, "Running apply in cloud backend")
 				hasSummary := strings.Contains(output, "1 added, 0 changed, 0 destroyed")
 				hasResources := run.State.HasManagedResourceInstanceObjects()
 				if !tc.forceLocal && !isLocalExecutionMode(tc.executionMode) {

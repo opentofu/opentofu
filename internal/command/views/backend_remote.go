@@ -125,7 +125,7 @@ change this later in the workspace settings.[reset]`
 }
 
 func (v *BackendRemoteHuman) ApplySavedHeader() {
-	const applySavedHeader = `[reset][yellow]Running apply in the cloud backend. Output will stream here. Pressing Ctrl-C
+	const applySavedHeader = `[reset][yellow]Running apply in cloud backend. Output will stream here. Pressing Ctrl-C
 will stop streaming the logs, but will not stop the apply running remotely.[reset]
 
 Preparing the remote apply...
@@ -184,12 +184,12 @@ func (v *BackendRemoteHuman) WaitingForQueuedRuns(noOfRuns int, elapsedHint stri
 
 func (v *BackendRemoteHuman) OperationHeader(isApply bool, isRemote bool) {
 	const (
-		planDefaultHeader = `[reset][yellow]Running plan in the %s backend. Output will stream here. Pressing Ctrl-C
+		planDefaultHeader = `[reset][yellow]Running plan in %s backend. Output will stream here. Pressing Ctrl-C
 will stop streaming the logs, but will not stop the plan running remotely.[reset]
 
 Preparing the remote plan...
 `
-		applyDefaultHeader = `[reset][yellow]Running apply in the %s backend. Output will stream here. Pressing Ctrl-C
+		applyDefaultHeader = `[reset][yellow]Running apply in %s backend. Output will stream here. Pressing Ctrl-C
 will cancel the remote apply if it's still pending. If the apply started it
 will stop streaming the logs, but will not stop the apply running remotely.[reset]
 
@@ -197,11 +197,18 @@ Preparing the remote apply...
 `
 	)
 
+	backend := remoteBackendType(isRemote)
+	// In order to avoid changing the output of the Cloud backend to match exactly the output of the Remote backend,
+	// we added this workaround to be sure that the message that was printed before introducing this View implemmentation
+	// remains the same.
+	if isRemote {
+		backend = "the " + backend
+	}
 	if isApply {
-		_, _ = v.view.streams.Println(v.view.colorize.Color(fmt.Sprintf(applyDefaultHeader, remoteBackendType(isRemote))))
+		_, _ = v.view.streams.Println(v.view.colorize.Color(fmt.Sprintf(applyDefaultHeader, backend)))
 		return
 	}
-	_, _ = v.view.streams.Println(v.view.colorize.Color(fmt.Sprintf(planDefaultHeader, remoteBackendType(isRemote))))
+	_, _ = v.view.streams.Println(v.view.colorize.Color(fmt.Sprintf(planDefaultHeader, backend)))
 }
 
 func remoteBackendType(isRemote bool) string {
