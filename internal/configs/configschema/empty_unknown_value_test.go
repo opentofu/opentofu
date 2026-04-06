@@ -14,7 +14,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-func TestBlockEmptyValue(t *testing.T) {
+func TestBlockEmptyAndUnknownValue(t *testing.T) {
 	tests := []struct {
 		Schema  *Block
 		Empty   cty.Value

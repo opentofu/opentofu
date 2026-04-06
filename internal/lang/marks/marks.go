@@ -166,7 +166,6 @@ func ExtractDeprecationDiagnosticsWithBody(val cty.Value, body hcl.Body) (cty.Va
 			path,
 		)
 		diags = diags.Append(tfdiags.Override(diag, tfdiags.Warning, func() tfdiags.DiagnosticExtraWrapper {
-			println(cause.By)
 			return &deprecatedOutputDiagnosticExtra{
 				Cause: cause,
 			}
@@ -200,7 +199,6 @@ func ExtractDeprecatedDiagnosticsWithExpr(val cty.Value, expr hcl.Expression) (c
 			source += "'s attribute " + attr
 		}
 		cause := dm.Cause
-		println(cause.By)
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity:   hcl.DiagWarning,
 			Summary:    "Value derived from a deprecated source",

@@ -146,7 +146,7 @@ func (o *Object) ValueMarks(val cty.Value, path cty.Path, by addrs.Referenceable
 	}
 
 	for name, attrS := range o.Attributes {
-		// Skip attributes which can never produce sensitive path value marks
+		// Skip attributes which can never produce sensitive or deprecate path value marks
 		cantProduceSensitive := !attrS.Sensitive && (attrS.NestedType == nil || !attrS.NestedType.ContainsSensitive())
 		cantProduceDeprecated := !attrS.Deprecated && (attrS.NestedType == nil || !attrS.NestedType.ContainsDeprecated())
 		if cantProduceSensitive && cantProduceDeprecated {
@@ -164,7 +164,7 @@ func (o *Object) ValueMarks(val cty.Value, path cty.Path, by addrs.Referenceable
 				attrMarks = append(attrMarks, marks.Sensitive)
 			}
 			if attrS.Deprecated {
-				// If the entire attribute is sensitive, mark it so
+				// If the entire attribute is deprecated, mark it so
 				attrMarks = append(attrMarks, marks.DeprecationMark(marks.DeprecationCause{
 					By:                 deprecatedBy(by, attrPath),
 					Message:            attrS.DeprecationMessage,
@@ -201,7 +201,7 @@ func (o *Object) ValueMarks(val cty.Value, path cty.Path, by addrs.Referenceable
 					attrMarks = append(attrMarks, marks.Sensitive)
 				}
 				if attrS.Deprecated {
-					// If the entire attribute is sensitive, mark it so
+					// If the entire attribute is deprecated, mark it so
 					attrMarks = append(attrMarks, marks.DeprecationMark(marks.DeprecationCause{
 						By:                 deprecatedBy(by, attrPath),
 						Message:            attrS.DeprecationMessage,
