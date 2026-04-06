@@ -23,14 +23,14 @@ func copyAndExtendPath(path cty.Path, nextSteps ...cty.PathStep) cty.Path {
 	return newPath
 }
 
-func deprecatedBy(by addrs.Referenceable, path cty.Path) string {
-	return by.String() + tfdiags.FormatCtyPath(path)
+func deprecatedBy(symbol addrs.Referenceable, path cty.Path) string {
+	return symbol.String() + tfdiags.FormatCtyPath(path)
 }
 
 // ValueMarks returns a set of path value marks for a given value and path,
 // based on the sensitive flag for each attribute within the schema. Nested
 // blocks are descended (if present in the given value).
-func (b *Block) ValueMarks(val cty.Value, path cty.Path, by addrs.Referenceable, isFromRemote bool) []cty.PathValueMarks {
+func (b *Block) ValueMarks(val cty.Value, path cty.Path, symbol addrs.Referenceable, isFromRemote bool) []cty.PathValueMarks {
 	var pvm []cty.PathValueMarks
 
 	var blockMarks []any
@@ -44,7 +44,7 @@ func (b *Block) ValueMarks(val cty.Value, path cty.Path, by addrs.Referenceable,
 	}
 	if b.Deprecated {
 		blockMarks = append(blockMarks, marks.DeprecationMark(marks.DeprecationCause{
-			By:                 deprecatedBy(by, path),
+			By:                 deprecatedBy(symbol, path),
 			Message:            b.DeprecationMessage,
 			IsFromRemoteModule: isFromRemote,
 		}))
@@ -66,7 +66,7 @@ func (b *Block) ValueMarks(val cty.Value, path cty.Path, by addrs.Referenceable,
 		if attrS.Deprecated {
 			attrPath := copyAndExtendPath(path, cty.GetAttrStep{Name: name})
 			attrMarks = append(attrMarks, marks.DeprecationMark(marks.DeprecationCause{
-				By:                 deprecatedBy(by, attrPath),
+				By:                 deprecatedBy(symbol, attrPath),
 				Message:            attrS.DeprecationMessage,
 				IsFromRemoteModule: isFromRemote,
 			}))
@@ -98,7 +98,7 @@ func (b *Block) ValueMarks(val cty.Value, path cty.Path, by addrs.Referenceable,
 		// Create a copy of the path, with this step added, to add to our PathValueMarks slice
 		attrPath := copyAndExtendPath(path, cty.GetAttrStep{Name: name})
 
-		pvm = append(pvm, attrS.NestedType.ValueMarks(val.GetAttr(name), attrPath, by, isFromRemote)...)
+		pvm = append(pvm, attrS.NestedType.ValueMarks(val.GetAttr(name), attrPath, symbol, isFromRemote)...)
 	}
 
 	// Extract marks for nested blocks
@@ -118,14 +118,14 @@ func (b *Block) ValueMarks(val cty.Value, path cty.Path, by addrs.Referenceable,
 
 		switch blockS.Nesting {
 		case NestingSingle, NestingGroup:
-			pvm = append(pvm, blockS.Block.ValueMarks(blockV, blockPath, by, isFromRemote)...)
+			pvm = append(pvm, blockS.Block.ValueMarks(blockV, blockPath, symbol, isFromRemote)...)
 		case NestingList, NestingMap, NestingSet:
 			for it := blockV.ElementIterator(); it.Next(); {
 				idx, blockEV := it.Element()
 				// Create a copy of the path, with this block instance's index
 				// step added, to add to our PathValueMarks slice
 				blockInstancePath := copyAndExtendPath(blockPath, cty.IndexStep{Key: idx})
-				morePaths := blockS.Block.ValueMarks(blockEV, blockInstancePath, by, isFromRemote)
+				morePaths := blockS.Block.ValueMarks(blockEV, blockInstancePath, symbol, isFromRemote)
 				pvm = append(pvm, morePaths...)
 			}
 		default:
@@ -138,7 +138,7 @@ func (b *Block) ValueMarks(val cty.Value, path cty.Path, by addrs.Referenceable,
 // ValueMarks returns a set of path value marks for a given value and path,
 // based on the sensitive flag for each attribute within the nested attribute.
 // Attributes with nested types are descended (if present in the given value).
-func (o *Object) ValueMarks(val cty.Value, path cty.Path, by addrs.Referenceable, isFromRemote bool) []cty.PathValueMarks {
+func (o *Object) ValueMarks(val cty.Value, path cty.Path, symbol addrs.Referenceable, isFromRemote bool) []cty.PathValueMarks {
 	var pvm []cty.PathValueMarks
 
 	if val.IsNull() || !val.IsKnown() {
@@ -166,7 +166,7 @@ func (o *Object) ValueMarks(val cty.Value, path cty.Path, by addrs.Referenceable
 			if attrS.Deprecated {
 				// If the entire attribute is deprecated, mark it so
 				attrMarks = append(attrMarks, marks.DeprecationMark(marks.DeprecationCause{
-					By:                 deprecatedBy(by, attrPath),
+					By:                 deprecatedBy(symbol, attrPath),
 					Message:            attrS.DeprecationMessage,
 					IsFromRemoteModule: isFromRemote,
 				}))
@@ -179,7 +179,7 @@ func (o *Object) ValueMarks(val cty.Value, path cty.Path, by addrs.Referenceable
 			} else {
 				// The attribute has a nested type which contains sensitive
 				// attributes, so recurse
-				pvm = append(pvm, attrS.NestedType.ValueMarks(val.GetAttr(name), attrPath, by, isFromRemote)...)
+				pvm = append(pvm, attrS.NestedType.ValueMarks(val.GetAttr(name), attrPath, symbol, isFromRemote)...)
 			}
 		case NestingList, NestingMap, NestingSet:
 			// For nested attribute types which have a non-single nesting mode,
@@ -203,7 +203,7 @@ func (o *Object) ValueMarks(val cty.Value, path cty.Path, by addrs.Referenceable
 				if attrS.Deprecated {
 					// If the entire attribute is deprecated, mark it so
 					attrMarks = append(attrMarks, marks.DeprecationMark(marks.DeprecationCause{
-						By:                 deprecatedBy(by, attrPath),
+						By:                 deprecatedBy(symbol, attrPath),
 						Message:            attrS.DeprecationMessage,
 						IsFromRemoteModule: isFromRemote,
 					}))
@@ -216,7 +216,7 @@ func (o *Object) ValueMarks(val cty.Value, path cty.Path, by addrs.Referenceable
 				} else {
 					// The attribute has a nested type which contains sensitive
 					// attributes, so recurse
-					pvm = append(pvm, attrS.NestedType.ValueMarks(attrV, attrPath, by, isFromRemote)...)
+					pvm = append(pvm, attrS.NestedType.ValueMarks(attrV, attrPath, symbol, isFromRemote)...)
 				}
 			}
 		default:
