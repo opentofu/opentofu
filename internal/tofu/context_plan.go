@@ -22,7 +22,6 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang/globalref"
-	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
@@ -1017,7 +1016,7 @@ func (c *Context) driftedResources(ctx context.Context, config *configs.Config, 
 				var oldVal, newVal cty.Value
 				oldVal = oldObj.Value
 				if newObj != nil {
-					newVal = marks.RemoveDeepDeprecated(newObj.Value)
+					newVal = newObj.Value
 				} else {
 					newVal = cty.NullVal(ty)
 				}
