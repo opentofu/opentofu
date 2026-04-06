@@ -442,22 +442,24 @@ func (b *Remote) token() (string, error) {
 // retryLogHook is invoked each time a request is retried allowing the
 // backend to log any connection issues to prevent data loss.
 func (b *Remote) retryLogHook(attemptNum int, resp *http.Response) {
-	// Ignore the first retry to make sure any delayed output will
-	// be written to the console before we start logging retries.
-	//
-	// The retry logic in the TFE client will retry both rate limited
-	// requests and server errors, but in the remote backend we only
-	// care about server errors so we ignore rate limit (429) errors.
-	if attemptNum == 0 || (resp != nil && resp.StatusCode == 429) {
-		// Reset the last retry time.
-		b.lastRetry = time.Now()
-		return
-	}
+	if b.View != nil {
+		// Ignore the first retry to make sure any delayed output will
+		// be written to the console before we start logging retries.
+		//
+		// The retry logic in the TFE client will retry both rate limited
+		// requests and server errors, but in the remote backend we only
+		// care about server errors so we ignore rate limit (429) errors.
+		if attemptNum == 0 || (resp != nil && resp.StatusCode == 429) {
+			// Reset the last retry time.
+			b.lastRetry = time.Now()
+			return
+		}
 
-	if attemptNum == 1 {
-		b.View.InitialRetryError(true)
-	} else {
-		b.View.RepeatedRetryError(time.Since(b.lastRetry).Round(time.Second))
+		if attemptNum == 1 {
+			b.View.InitialRetryError(true)
+		} else {
+			b.View.RepeatedRetryError(time.Since(b.lastRetry).Round(time.Second))
+		}
 	}
 }
 
@@ -800,12 +802,16 @@ func (b *Remote) cancel(cancelCtx context.Context, op *backend.Operation, r *tfe
 				return generalError("Failed asking to cancel", err)
 			}
 			if v != "yes" {
-				b.View.OperationNotCancelled()
+				if b.View != nil {
+					b.View.OperationNotCancelled()
+				}
 				return nil
 			}
 		} else {
-			// Insert a blank line to separate the outputs.
-			b.View.Output("", false)
+			if b.View != nil {
+				// Insert a blank line to separate the outputs.
+				b.View.Output("", false)
+			}
 		}
 
 		// Try to cancel the remote operation.
@@ -813,7 +819,9 @@ func (b *Remote) cancel(cancelCtx context.Context, op *backend.Operation, r *tfe
 		if err != nil {
 			return generalError("Failed to cancel run", err)
 		}
-		b.View.OperationCancelled()
+		if b.View != nil {
+			b.View.OperationCancelled()
+		}
 	}
 
 	return nil

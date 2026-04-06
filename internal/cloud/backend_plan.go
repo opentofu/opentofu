@@ -118,7 +118,9 @@ func (b *Cloud) opPlan(ctx, stopCtx, cancelCtx context.Context, op *backend.Oper
 }
 
 func (b *Cloud) plan(ctx, stopCtx, cancelCtx context.Context, op *backend.Operation, w *tfe.Workspace) (*tfe.Run, error) {
-	b.View.OperationHeader(op.Type == backend.OperationTypeApply || op.Type == backend.OperationTypeRefresh, false)
+	if b.View != nil {
+		b.View.OperationHeader(op.Type == backend.OperationTypeApply || op.Type == backend.OperationTypeRefresh, false)
+	}
 
 	// Plan-only means they ran tofu plan without -out.
 	provisional := op.PlanOutPath != ""
@@ -158,7 +160,9 @@ func (b *Cloud) plan(ctx, stopCtx, cancelCtx context.Context, op *backend.Operat
 		// produce an explicit message about it to be transparent about what
 		// we are doing and why.
 		if w.WorkingDirectory != "" && filepath.Base(configDir) != w.WorkingDirectory {
-			b.View.RemoteWorkspaceInRelativeDirectory(w.WorkingDirectory, configDir)
+			if b.View != nil {
+				b.View.RemoteWorkspaceInRelativeDirectory(w.WorkingDirectory, configDir)
+			}
 		}
 
 	} else {
@@ -294,7 +298,9 @@ func (b *Cloud) plan(ctx, stopCtx, cancelCtx context.Context, op *backend.Operat
 				}
 
 				if r.Status == tfe.RunPending && r.Actions.IsCancelable {
-					b.View.LockTimeoutError()
+					if b.View != nil {
+						b.View.LockTimeoutError()
+					}
 
 					// We abuse the auto approve flag to indicate that we do not
 					// want to ask if the remote operation should be canceled.
@@ -313,8 +319,10 @@ func (b *Cloud) plan(ctx, stopCtx, cancelCtx context.Context, op *backend.Operat
 		}()
 	}
 
-	b.View.Output(strings.TrimSpace(fmt.Sprintf(
-		runHeader, b.hostname, b.organization, op.Workspace, r.ID))+"\n", true)
+	if b.View != nil {
+		b.View.Output(strings.TrimSpace(fmt.Sprintf(
+			runHeader, b.hostname, b.organization, op.Workspace, r.ID))+"\n", true)
+	}
 
 	// Render any warnings that were raised during run creation
 	if err := b.renderRunWarnings(stopCtx, b.client, r.ID); err != nil {
@@ -422,46 +430,48 @@ func (b *Cloud) renderPlanLogs(ctx context.Context, op *backend.Operation, run *
 		return err
 	}
 
-	reader := bufio.NewReaderSize(logs, 64*1024)
+	if b.View != nil {
+		reader := bufio.NewReaderSize(logs, 64*1024)
 
-	for next := true; next; {
-		var l, line []byte
-		var err error
+		for next := true; next; {
+			var l, line []byte
+			var err error
 
-		for isPrefix := true; isPrefix; {
-			l, isPrefix, err = reader.ReadLine()
-			if err != nil {
-				if err != io.EOF {
-					return generalError("Failed to read logs", err)
+			for isPrefix := true; isPrefix; {
+				l, isPrefix, err = reader.ReadLine()
+				if err != nil {
+					if err != io.EOF {
+						return generalError("Failed to read logs", err)
+					}
+					next = false
 				}
-				next = false
+
+				line = append(line, l...)
 			}
 
-			line = append(line, l...)
-		}
+			if next || len(line) > 0 {
+				log := &jsonformat.JSONLog{}
+				if err := json.Unmarshal(line, log); err != nil {
+					// If we can not parse the line as JSON, we will simply
+					// print the line. This maintains backwards compatibility for
+					// users who do not wish to enable structured output in their
+					// workspace.
+					b.View.Output(string(line), false)
+					continue
+				}
 
-		if next || len(line) > 0 {
-			log := &jsonformat.JSONLog{}
-			if err := json.Unmarshal(line, log); err != nil {
-				// If we can not parse the line as JSON, we will simply
-				// print the line. This maintains backwards compatibility for
-				// users who do not wish to enable structured output in their
-				// workspace.
-				b.View.Output(string(line), false)
-				continue
-			}
+				// We will ignore plan output, change summary or outputs logs
+				// during the plan phase.
+				if log.Type == jsonformat.LogOutputs ||
+					log.Type == jsonformat.LogChangeSummary ||
+					log.Type == jsonformat.LogPlannedChange {
+					continue
+				}
 
-			// We will ignore plan output, change summary or outputs logs
-			// during the plan phase.
-			if log.Type == jsonformat.LogOutputs ||
-				log.Type == jsonformat.LogChangeSummary ||
-				log.Type == jsonformat.LogPlannedChange {
-				continue
-			}
-
-			// Otherwise, we will print the log
-			if err := b.View.RenderLog(log); err != nil {
-				return err
+				// Otherwise, we will print the log
+				if err := b.View.RenderLog(log); err != nil {
+					return err
+				}
 			}
 		}
 	}

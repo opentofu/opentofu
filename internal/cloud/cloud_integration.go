@@ -76,16 +76,26 @@ func (s *IntegrationContext) BeginOutput(name string) IntegrationOutputWriter {
 
 // End writes the termination output for the integration
 func (s *integrationCLIOutput) End() {
+	if s.View == nil {
+		return
+	}
+
 	s.View.Output("\n------------------------------------------------------------------------\n", false)
 }
 
 // Output writes a string after colorizing it using any [colorstrings](https://github.com/mitchellh/colorstring) it contains
 func (s *integrationCLIOutput) Output(str string) {
+	if s.View == nil {
+		return
+	}
 	s.View.Output(str, true)
 }
 
 // SubOutput writes a string prefixed by a "│ " after colorizing it using any [colorstrings](https://github.com/mitchellh/colorstring) it contains
 func (s *integrationCLIOutput) SubOutput(str string) {
+	if s.View == nil {
+		return
+	}
 	s.View.Output(fmt.Sprintf("[reset]│ %s", str), true)
 }
 
@@ -97,6 +107,9 @@ func (s *integrationCLIOutput) SubOutput(str string) {
 // 13 tasks still pending, 0 passed, 0 failed ...       (19s elapsed)
 // 13 tasks still pending, 0 passed, 0 failed ...       (33s elapsed)
 func (s *integrationCLIOutput) OutputElapsed(message string, maxMessage int) {
+	if s.View == nil {
+		return
+	}
 	elapsed := time.Since(s.started).Truncate(1 * time.Second)
 	s.View.Output(fmt.Sprintf("%-"+strconv.FormatInt(int64(maxMessage), 10)+"s[dim](%s elapsed)", message, elapsed), true)
 }

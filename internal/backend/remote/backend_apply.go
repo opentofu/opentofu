@@ -227,7 +227,7 @@ func (b *Remote) opApply(ctx context.Context, stopCtx, cancelCtx context.Context
 		return r, diags.Err()
 	}
 
-	mustConfirm := op.UIIn != nil && !op.AutoApprove
+	mustConfirm := (op.UIIn != nil && op.View != nil) && !op.AutoApprove
 
 	if !w.AutoApply {
 		if mustConfirm {
@@ -259,7 +259,9 @@ func (b *Remote) opApply(ctx context.Context, stopCtx, cancelCtx context.Context
 	// If we don't need to ask for confirmation, insert a blank
 	// line to separate the outputs.
 	if w.AutoApply || !mustConfirm {
-		b.View.Output("", false)
+		if b.View != nil {
+			b.View.Output("", false)
+		}
 	}
 
 	r, err = b.waitForRun(stopCtx, cancelCtx, op, "apply", r, w)
@@ -273,29 +275,31 @@ func (b *Remote) opApply(ctx context.Context, stopCtx, cancelCtx context.Context
 	}
 	reader := bufio.NewReaderSize(logs, 64*1024)
 
-	skip := 0
-	for next := true; next; {
-		var l, line []byte
+	if b.View != nil {
+		skip := 0
+		for next := true; next; {
+			var l, line []byte
 
-		for isPrefix := true; isPrefix; {
-			l, isPrefix, err = reader.ReadLine()
-			if err != nil {
-				if err != io.EOF {
-					return r, generalError("Failed to read logs", err)
+			for isPrefix := true; isPrefix; {
+				l, isPrefix, err = reader.ReadLine()
+				if err != nil {
+					if err != io.EOF {
+						return r, generalError("Failed to read logs", err)
+					}
+					next = false
 				}
-				next = false
+				line = append(line, l...)
 			}
-			line = append(line, l...)
-		}
 
-		// Skip the first 3 lines to prevent duplicate output.
-		if skip < 3 {
-			skip++
-			continue
-		}
+			// Skip the first 3 lines to prevent duplicate output.
+			if skip < 3 {
+				skip++
+				continue
+			}
 
-		if next || len(line) > 0 {
-			b.View.Output(string(line), true)
+			if next || len(line) > 0 {
+				b.View.Output(string(line), true)
+			}
 		}
 	}
 

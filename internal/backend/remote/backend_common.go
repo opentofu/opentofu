@@ -70,10 +70,10 @@ func (b *Remote) waitForRun(stopCtx, cancelCtx context.Context, op *backend.Oper
 
 		// Return if the run is no longer pending.
 		if r.Status != tfe.RunPending && r.Status != tfe.RunConfirmed {
-			if i == 0 && opType == "plan" {
+			if i == 0 && opType == "plan" && b.View != nil {
 				b.View.Output(fmt.Sprintf("Waiting for the %s to start...\n", opType), true)
 			}
-			if i > 0 {
+			if i > 0 && b.View != nil {
 				// Insert a blank line to separate the outputs.
 				b.View.Output("", false)
 			}
@@ -82,7 +82,7 @@ func (b *Remote) waitForRun(stopCtx, cancelCtx context.Context, op *backend.Oper
 
 		// Check if 30 seconds have passed since the last update.
 		current := time.Now()
-		if i == 0 || current.Sub(updated).Seconds() > 30 {
+		if b.View != nil && (i == 0 || current.Sub(updated).Seconds() > 30) {
 			updated = current
 			position := 0
 			elapsed := ""
@@ -276,7 +276,7 @@ func (b *Remote) costEstimate(stopCtx, cancelCtx context.Context, op *backend.Op
 
 		// checking if i == 0 so as to avoid printing this starting horizontal-rule
 		// every retry, and that it only prints it on the first (i=0) attempt.
-		if i == 0 {
+		if b.View != nil && i == 0 {
 			b.View.Output("\n------------------------------------------------------------------------\n", false)
 		}
 
@@ -294,19 +294,21 @@ func (b *Remote) costEstimate(stopCtx, cancelCtx context.Context, op *backend.Op
 
 			deltaRepr := strings.Replace(ce.DeltaMonthlyCost, "-", "", 1)
 
-			b.View.Output(msgPrefix+":\n", true)
-			b.View.Output(fmt.Sprintf("Resources: %d of %d estimated", ce.MatchedResourcesCount, ce.ResourcesCount), true)
-			b.View.Output(fmt.Sprintf("           $%s/mo %s$%s", ce.ProposedMonthlyCost, sign, deltaRepr), true)
+			if b.View != nil {
+				b.View.Output(msgPrefix+":\n", true)
+				b.View.Output(fmt.Sprintf("Resources: %d of %d estimated", ce.MatchedResourcesCount, ce.ResourcesCount), true)
+				b.View.Output(fmt.Sprintf("           $%s/mo %s$%s", ce.ProposedMonthlyCost, sign, deltaRepr), true)
 
-			if len(r.PolicyChecks) == 0 && r.HasChanges && op.Type == backend.OperationTypeApply {
-				b.View.Output("\n------------------------------------------------------------------------", false)
+				if len(r.PolicyChecks) == 0 && r.HasChanges && op.Type == backend.OperationTypeApply {
+					b.View.Output("\n------------------------------------------------------------------------", false)
+				}
 			}
 
 			return nil
 		case tfe.CostEstimatePending, tfe.CostEstimateQueued:
 			// Check if 30 seconds have passed since the last update.
 			current := time.Now()
-			if i == 0 || current.Sub(updated).Seconds() > 30 {
+			if b.View != nil && (i == 0 || current.Sub(updated).Seconds() > 30) {
 				updated = current
 				elapsed := ""
 
@@ -337,7 +339,9 @@ func (b *Remote) costEstimate(stopCtx, cancelCtx context.Context, op *backend.Op
 }
 
 func (b *Remote) checkPolicy(stopCtx, cancelCtx context.Context, op *backend.Operation, r *tfe.Run) error {
-	b.View.Output("\n------------------------------------------------------------------------\n", false)
+	if b.View != nil {
+		b.View.Output("\n------------------------------------------------------------------------\n", false)
+	}
 	for i, pc := range r.PolicyChecks {
 		// Read the policy check logs. This is a blocking call that will only
 		// return once the policy check is complete.
@@ -372,30 +376,34 @@ func (b *Remote) checkPolicy(stopCtx, cancelCtx context.Context, op *backend.Ope
 			msgPrefix = fmt.Sprintf("Unknown policy check (%s)", pc.Scope)
 		}
 
-		b.View.Output(msgPrefix+":\n", true)
+		if b.View != nil {
+			b.View.Output(msgPrefix+":\n", true)
+		}
 
-		for next := true; next; {
-			var l, line []byte
+		if b.View != nil {
+			for next := true; next; {
+				var l, line []byte
 
-			for isPrefix := true; isPrefix; {
-				l, isPrefix, err = reader.ReadLine()
-				if err != nil {
-					if err != io.EOF {
-						return generalError("Failed to read logs", err)
+				for isPrefix := true; isPrefix; {
+					l, isPrefix, err = reader.ReadLine()
+					if err != nil {
+						if err != io.EOF {
+							return generalError("Failed to read logs", err)
+						}
+						next = false
 					}
-					next = false
+					line = append(line, l...)
 				}
-				line = append(line, l...)
-			}
 
-			if next || len(line) > 0 {
-				b.View.Output(string(line), true)
+				if next || len(line) > 0 {
+					b.View.Output(string(line), true)
+				}
 			}
 		}
 
 		switch pc.Status {
 		case tfe.PolicyPasses:
-			if r.HasChanges && op.Type == backend.OperationTypeApply || i < len(r.PolicyChecks)-1 {
+			if (r.HasChanges && op.Type == backend.OperationTypeApply || i < len(r.PolicyChecks)-1) && b.View != nil {
 				b.View.Output("\n------------------------------------------------------------------------", false)
 			}
 			continue
@@ -406,7 +414,7 @@ func (b *Remote) checkPolicy(stopCtx, cancelCtx context.Context, op *backend.Ope
 		case tfe.PolicySoftFailed:
 			runUrl := fmt.Sprintf(runHeader, b.hostname, b.organization, op.Workspace, r.ID)
 
-			if op.Type == backend.OperationTypePlan || op.UIIn == nil ||
+			if op.Type == backend.OperationTypePlan || op.View == nil || op.UIIn == nil ||
 				!pc.Actions.IsOverridable || !pc.Permissions.CanOverride {
 				return fmt.Errorf("%s soft failed.\n%s", msgPrefix, runUrl)
 			}
@@ -435,7 +443,9 @@ func (b *Remote) checkPolicy(stopCtx, cancelCtx context.Context, op *backend.Ope
 				}
 			}
 
-			b.View.Output("------------------------------------------------------------------------", false)
+			if b.View != nil {
+				b.View.Output("------------------------------------------------------------------------", false)
+			}
 		default:
 			return fmt.Errorf("Unknown or unexpected policy state: %s", pc.Status)
 		}
@@ -491,7 +501,9 @@ func (b *Remote) confirm(stopCtx context.Context, op *backend.Operation, opts *t
 				}
 
 				if err != nil {
-					b.View.Output(fmt.Sprintf("[reset][yellow]%s[reset]", err.Error()), true)
+					if b.View != nil {
+						b.View.Output(fmt.Sprintf("[reset][yellow]%s[reset]", err.Error()), true)
+					}
 
 					if err == errRunDiscarded {
 						err = errApplyDiscarded

@@ -539,22 +539,24 @@ func (b *Cloud) cliConfigToken() (string, error) {
 // retryLogHook is invoked each time a request is retried allowing the
 // backend to log any connection issues to prevent data loss.
 func (b *Cloud) retryLogHook(attemptNum int, resp *http.Response) {
-	// Ignore the first retry to make sure any delayed output will
-	// be written to the console before we start logging retries.
-	//
-	// The retry logic in the TFE client will retry both rate limited
-	// requests and server errors, but in the cloud backend we only
-	// care about server errors so we ignore rate limit (429) errors.
-	if attemptNum == 0 || (resp != nil && resp.StatusCode == 429) {
-		// Reset the last retry time.
-		b.lastRetry = time.Now()
-		return
-	}
+	if b.View != nil {
+		// Ignore the first retry to make sure any delayed output will
+		// be written to the console before we start logging retries.
+		//
+		// The retry logic in the TFE client will retry both rate limited
+		// requests and server errors, but in the cloud backend we only
+		// care about server errors so we ignore rate limit (429) errors.
+		if attemptNum == 0 || (resp != nil && resp.StatusCode == 429) {
+			// Reset the last retry time.
+			b.lastRetry = time.Now()
+			return
+		}
 
-	if attemptNum == 1 {
-		b.View.InitialRetryError(false)
-	} else {
-		b.View.RepeatedRetryError(time.Since(b.lastRetry).Round(time.Second))
+		if attemptNum == 1 {
+			b.View.InitialRetryError(false)
+		} else {
+			b.View.RepeatedRetryError(time.Since(b.lastRetry).Round(time.Second))
+		}
 	}
 }
 
@@ -744,7 +746,9 @@ func (b *Cloud) StateMgr(ctx context.Context, name string) (statemgr.Full, error
 			// issue was that the version wasn't available since that's probably what
 			// happened.
 			log.Printf("[TRACE] cloud: Attempted to select version %s for cloud backend workspace; unavailable, so %s will be used instead.", tfversion.String(), workspace.TerraformVersion)
-			b.View.UnavailableVersionInBackend(tfversion.String(), workspace.TerraformVersion)
+			if b.View != nil {
+				b.View.UnavailableVersionInBackend(tfversion.String(), workspace.TerraformVersion)
+			}
 		}
 	}
 
@@ -815,7 +819,9 @@ func (b *Cloud) Operation(ctx context.Context, op *backend.Operation) (*backend.
 		// The `tofu refresh` command has been deprecated in favor of `tofu apply -refresh-state`.
 		// Rather than respond with an error telling the user to run the other command we can just run
 		// that command instead. We will tell the user what we are doing, and then do it.
-		b.View.PreRefresh()
+		if b.View != nil {
+			b.View.PreRefresh()
+		}
 		op.PlanMode = plans.RefreshOnlyMode
 		op.PlanRefresh = true
 		op.AutoApprove = true
@@ -912,12 +918,16 @@ func (b *Cloud) cancel(cancelCtx context.Context, op *backend.Operation, r *tfe.
 				return generalError("Failed asking to cancel", err)
 			}
 			if v != "yes" {
-				b.View.OperationNotCancelled()
+				if b.View != nil {
+					b.View.OperationNotCancelled()
+				}
 				return nil
 			}
 		} else {
-			// Insert a blank line to separate the outputs.
-			b.View.Output("", false)
+			if b.View != nil {
+				// Insert a blank line to separate the outputs.
+				b.View.Output("", false)
+			}
 		}
 
 		// Try to cancel the remote operation.
@@ -925,7 +935,9 @@ func (b *Cloud) cancel(cancelCtx context.Context, op *backend.Operation, r *tfe.
 		if err != nil {
 			return generalError("Failed to cancel run", err)
 		}
-		b.View.OperationCancelled()
+		if b.View != nil {
+			b.View.OperationCancelled()
+		}
 	}
 
 	return nil

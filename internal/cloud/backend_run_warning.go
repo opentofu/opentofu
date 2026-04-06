@@ -18,6 +18,10 @@ const (
 )
 
 func (b *Cloud) renderRunWarnings(ctx context.Context, client *tfe.Client, runId string) error {
+	if b.View == nil {
+		return nil
+	}
+
 	result, err := client.RunEvents.List(ctx, runId, nil)
 	if err != nil {
 		return err

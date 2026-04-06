@@ -130,9 +130,11 @@ func (b *Cloud) opApply(ctx, stopCtx, cancelCtx context.Context, op *backend.Ope
 		}
 
 		// Since we're not calling plan(), we need to print a run header ourselves:
-		b.View.ApplySavedHeader()
-		b.View.Output(strings.TrimSpace(fmt.Sprintf(
-			runHeader, b.hostname, b.organization, r.Workspace.Name, r.ID))+"\n", true)
+		if b.View != nil {
+			b.View.ApplySavedHeader()
+			b.View.Output(strings.TrimSpace(fmt.Sprintf(
+				runHeader, b.hostname, b.organization, r.Workspace.Name, r.ID))+"\n", true)
+		}
 	} else {
 		log.Printf("[TRACE] Running new cloud plan for apply")
 		// Run the plan phase.
@@ -160,7 +162,7 @@ func (b *Cloud) opApply(ctx, stopCtx, cancelCtx context.Context, op *backend.Ope
 			return r, nil
 		}
 
-		mustConfirm := op.UIIn != nil && !op.AutoApprove
+		mustConfirm := (op.UIIn != nil && op.View != nil) && !op.AutoApprove
 
 		if mustConfirm && b.input {
 			opts := &tofu.InputOpts{Id: "approve"}
@@ -184,7 +186,9 @@ func (b *Cloud) opApply(ctx, stopCtx, cancelCtx context.Context, op *backend.Ope
 		} else {
 			// If we don't need to ask for confirmation, insert a blank
 			// line to separate the outputs.
-			b.View.Output("", false)
+			if b.View != nil {
+				b.View.Output("", false)
+			}
 		}
 	}
 
@@ -227,46 +231,48 @@ func (b *Cloud) renderApplyLogs(ctx context.Context, run *tfe.Run) error {
 		return err
 	}
 
-	reader := bufio.NewReaderSize(logs, 64*1024)
-	skip := 0
+	if b.View != nil {
+		reader := bufio.NewReaderSize(logs, 64*1024)
+		skip := 0
 
-	for next := true; next; {
-		var l, line []byte
-		var err error
+		for next := true; next; {
+			var l, line []byte
+			var err error
 
-		for isPrefix := true; isPrefix; {
-			l, isPrefix, err = reader.ReadLine()
-			if err != nil {
-				if err != io.EOF {
-					return generalError("Failed to read logs", err)
+			for isPrefix := true; isPrefix; {
+				l, isPrefix, err = reader.ReadLine()
+				if err != nil {
+					if err != io.EOF {
+						return generalError("Failed to read logs", err)
+					}
+					next = false
 				}
-				next = false
+
+				line = append(line, l...)
 			}
 
-			line = append(line, l...)
-		}
-
-		// Apply logs show the same Terraform info logs as shown in the plan logs
-		// (which contain version and os/arch information), we therefore skip to prevent duplicate output.
-		if skip < 3 {
-			skip++
-			continue
-		}
-
-		if next || len(line) > 0 {
-			log := &jsonformat.JSONLog{}
-			if err := json.Unmarshal(line, log); err != nil {
-				// If we can not parse the line as JSON, we will simply
-				// print the line. This maintains backwards compatibility for
-				// users who do not wish to enable structured output in their
-				// workspace.
-				b.View.Output(string(line), false)
+			// Apply logs show the same Terraform info logs as shown in the plan logs
+			// (which contain version and os/arch information), we therefore skip to prevent duplicate output.
+			if skip < 3 {
+				skip++
 				continue
 			}
 
-			// Otherwise, we will print the log
-			if err := b.View.RenderLog(log); err != nil {
-				return err
+			if next || len(line) > 0 {
+				log := &jsonformat.JSONLog{}
+				if err := json.Unmarshal(line, log); err != nil {
+					// If we can not parse the line as JSON, we will simply
+					// print the line. This maintains backwards compatibility for
+					// users who do not wish to enable structured output in their
+					// workspace.
+					b.View.Output(string(line), false)
+					continue
+				}
+
+				// Otherwise, we will print the log
+				if err := b.View.RenderLog(log); err != nil {
+					return err
+				}
 			}
 		}
 	}

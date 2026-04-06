@@ -194,7 +194,9 @@ func (b *Remote) opPlan(ctx, stopCtx, cancelCtx context.Context, op *backend.Ope
 }
 
 func (b *Remote) plan(stopCtx, cancelCtx context.Context, op *backend.Operation, w *tfe.Workspace) (*tfe.Run, error) {
-	b.View.OperationHeader(op.Type == backend.OperationTypeApply, true)
+	if b.View != nil {
+		b.View.OperationHeader(op.Type == backend.OperationTypeApply, true)
+	}
 
 	configOptions := tfe.ConfigurationVersionCreateOptions{
 		AutoQueueRuns: tfe.Bool(false),
@@ -229,7 +231,9 @@ func (b *Remote) plan(stopCtx, cancelCtx context.Context, op *backend.Operation,
 		// produce an explicit message about it to be transparent about what
 		// we are doing and why.
 		if w.WorkingDirectory != "" && filepath.Base(configDir) != w.WorkingDirectory {
-			b.View.RemoteWorkspaceInRelativeDirectory(w.WorkingDirectory, configDir)
+			if b.View != nil {
+				b.View.RemoteWorkspaceInRelativeDirectory(w.WorkingDirectory, configDir)
+			}
 		}
 
 	} else {
@@ -343,7 +347,9 @@ func (b *Remote) plan(stopCtx, cancelCtx context.Context, op *backend.Operation,
 				}
 
 				if r.Status == tfe.RunPending && r.Actions.IsCancelable {
-					b.View.LockTimeoutError()
+					if b.View != nil {
+						b.View.LockTimeoutError()
+					}
 
 					// We abuse the auto approve flag to indicate that we do not
 					// want to ask if the remote operation should be canceled.
@@ -362,7 +368,9 @@ func (b *Remote) plan(stopCtx, cancelCtx context.Context, op *backend.Operation,
 		}()
 	}
 
-	b.View.Output(strings.TrimSpace(fmt.Sprintf(runHeader, b.hostname, b.organization, op.Workspace, r.ID))+"\n", true)
+	if b.View != nil {
+		b.View.Output(strings.TrimSpace(fmt.Sprintf(runHeader, b.hostname, b.organization, op.Workspace, r.ID))+"\n", true)
+	}
 
 	r, err = b.waitForRun(stopCtx, cancelCtx, op, "plan", r, w)
 	if err != nil {
@@ -375,22 +383,24 @@ func (b *Remote) plan(stopCtx, cancelCtx context.Context, op *backend.Operation,
 	}
 	reader := bufio.NewReaderSize(logs, 64*1024)
 
-	for next := true; next; {
-		var l, line []byte
+	if b.View != nil {
+		for next := true; next; {
+			var l, line []byte
 
-		for isPrefix := true; isPrefix; {
-			l, isPrefix, err = reader.ReadLine()
-			if err != nil {
-				if err != io.EOF {
-					return r, generalError("Failed to read logs", err)
+			for isPrefix := true; isPrefix; {
+				l, isPrefix, err = reader.ReadLine()
+				if err != nil {
+					if err != io.EOF {
+						return r, generalError("Failed to read logs", err)
+					}
+					next = false
 				}
-				next = false
+				line = append(line, l...)
 			}
-			line = append(line, l...)
-		}
 
-		if next || len(line) > 0 {
-			b.View.Output(string(line), true)
+			if next || len(line) > 0 {
+				b.View.Output(string(line), true)
+			}
 		}
 	}
 
