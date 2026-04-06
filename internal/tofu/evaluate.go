@@ -796,7 +796,11 @@ func (d *evaluationStateData) GetResource(ctx context.Context, addr addrs.Resour
 
 		default:
 			if config.Count != nil || config.ForEach != nil {
-				return cty.DynamicVal, diags
+				val := cty.DynamicVal
+				if schema.Ephemeral {
+					val = val.Mark(marks.Ephemeral)
+				}
+				return val, diags
 			}
 			// We should only end up here during the validate walk,
 			// since later walks should have at least partial states populated
