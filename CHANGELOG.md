@@ -26,6 +26,7 @@ UPGRADE NOTES:
 
 ENHANCEMENTS:
 
+- The provisioner plugin interface now threads `context.Context` through to provisioner implementations, preparing for future observability features such as trace context propagation. ([#3936](https://github.com/opentofu/opentofu/issues/3936))
 - A `prevent_destroy` argument in the `lifecycle` block for managed resources can now refer to other symbols in the same module, such as to the module's input variables. ([#3474](https://github.com/opentofu/opentofu/issues/3474), [#3507](https://github.com/opentofu/opentofu/issues/3507))
 - New `lifecycle` meta-argument `destroy`: when set to `false` OpenTofu will plan to just remove the affected object from state without asking the provider to destroy it first, similar to `destroy = false` in `removed` blocks. ([#3409](https://github.com/opentofu/opentofu/pull/3409))
 - Comparing an object or other complex-typed value to `null` using the `==` operator now returns a sensitive boolean result only if the object as a whole is sensitive, and not when the object merely contains a sensitive value nested inside one of its attributes. This means that comparisons to null can now be used in parts of the configuration where sensitive values are not allowed, such as in the `enabled` meta-argument on resources and modules. ([#3793](https://github.com/opentofu/opentofu/pull/3793))
