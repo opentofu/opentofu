@@ -290,19 +290,18 @@ The caller of the module will receive a warning if the deprecated output is refe
 their configuration:
 
 ```
-╷
-│ Warning: Value derived from a deprecated source
-│ 
-│   on main.tf line 45, in locals:
-│   45:   a = module.mod.examle
-│ 
-│ This value is derived from module.mod.examle, which is deprecated with the following message:
-│ 
-│ 'examle' output must no longer be used due to a typo, use 'example' instead
+Warning: Value derived from a deprecated source
+
+  on main.tf line 45, in locals:
+  45:   a = module.mod.examle
+
+This value is derived from module.mod.examle, which is deprecated with the following message:
+
+'examle' output must no longer be used due to a typo, use 'example' instead
 ```
 
 Deprecation warnings can be filtered or disabled by using the `-deprecation` CLI argument.
-By default, deprecated module variables will be consolidated by their output value and the deprecation
-message. In order to see them individually, `-consolidation-warnings=false` can be used.
+By default, deprecated module outputs will be consolidated by the output address. In
+order to see them individually, `-consolidation-warnings=false` can be used.
 For more details, check its description in the command options for
 [plan](../../cli/commands/plan.mdx#other-options) and [apply](../../cli/commands/apply.mdx#apply-options).
