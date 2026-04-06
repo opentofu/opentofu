@@ -260,8 +260,8 @@ Additional documentation is available for [write-only attributes](../ephemeralit
 
 ## Deprecation of blocks and attributes
 
-Over time, provider authors may need to change the structure of resources provided. Ideally, they will mark attributes and blocks as deprecated before removing them completely. This notifies consumers of the deprecated
-fields, providing time to migrate. OpenTofu utilizes the provider's schema to track usage of any deprecated attributes or blocks and will produce a clear warning.
+Over time, provider authors may need to change the schema of some of their resource types. Ideally they will mark attributes and blocks as deprecated before removing them completely. This notifies consumers of the deprecated
+features, providing time to migrate. OpenTofu produces a warning each time it finds a reference to a deprecated provider feature.
 
 
 ```hcl
