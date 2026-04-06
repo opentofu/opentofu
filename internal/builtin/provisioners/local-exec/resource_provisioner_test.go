@@ -6,7 +6,6 @@
 package localexec
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"runtime"
@@ -33,7 +32,7 @@ func TestResourceProvider_Apply(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	resp := p.ProvisionResource(context.Background(), provisioners.ProvisionResourceRequest{
+	resp := p.ProvisionResource(t.Context(), provisioners.ProvisionResourceRequest{
 		Config:   c,
 		UIOutput: output,
 	})
@@ -80,7 +79,7 @@ func TestResourceProvider_stop(t *testing.T) {
 	var provisionerResp atomic.Pointer[provisioners.ProvisionResourceResponse]
 	go func() {
 		defer close(doneCh)
-		resp := p.ProvisionResource(context.Background(), provisioners.ProvisionResourceRequest{
+		resp := p.ProvisionResource(t.Context(), provisioners.ProvisionResourceRequest{
 			Config:   c,
 			UIOutput: output,
 		})
@@ -141,7 +140,7 @@ func TestResourceProvider_ApplyCustomInterpreter(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	resp := p.ProvisionResource(context.Background(), provisioners.ProvisionResourceRequest{
+	resp := p.ProvisionResource(t.Context(), provisioners.ProvisionResourceRequest{
 		Config:   c,
 		UIOutput: output,
 	})
@@ -181,7 +180,7 @@ func TestResourceProvider_ApplyCustomWorkingDirectory(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	resp := p.ProvisionResource(context.Background(), provisioners.ProvisionResourceRequest{
+	resp := p.ProvisionResource(t.Context(), provisioners.ProvisionResourceRequest{
 		Config:   c,
 		UIOutput: output,
 	})
@@ -225,7 +224,7 @@ func TestResourceProvider_ApplyCustomEnv(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	resp := p.ProvisionResource(context.Background(), provisioners.ProvisionResourceRequest{
+	resp := p.ProvisionResource(t.Context(), provisioners.ProvisionResourceRequest{
 		Config:   c,
 		UIOutput: output,
 	})
@@ -285,7 +284,7 @@ func TestResourceProvider_ApplyNullCommand(t *testing.T) {
 		"quiet":       cty.NullVal(cty.Bool),
 	})
 
-	resp := p.ProvisionResource(context.Background(), provisioners.ProvisionResourceRequest{
+	resp := p.ProvisionResource(t.Context(), provisioners.ProvisionResourceRequest{
 		Config:   cfg,
 		UIOutput: output,
 	})
@@ -332,7 +331,7 @@ func TestResourceProvisioner_nullsInOptionals(t *testing.T) {
 			}
 
 			// verifying there are no panics
-			p.ProvisionResource(context.Background(), provisioners.ProvisionResourceRequest{
+			p.ProvisionResource(t.Context(), provisioners.ProvisionResourceRequest{
 				Config:   cfg,
 				UIOutput: output,
 			})

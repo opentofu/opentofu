@@ -6,7 +6,6 @@
 package file
 
 import (
-	"context"
 	"strings"
 	"testing"
 
@@ -114,7 +113,7 @@ func TestResourceProvisioner_StopClose(t *testing.T) {
 
 func TestResourceProvisioner_connectionRequired(t *testing.T) {
 	p := New()
-	resp := p.ProvisionResource(context.Background(), provisioners.ProvisionResourceRequest{})
+	resp := p.ProvisionResource(t.Context(), provisioners.ProvisionResourceRequest{})
 	if !resp.Diagnostics.HasErrors() {
 		t.Fatal("expected error")
 	}
@@ -156,7 +155,7 @@ func TestResourceProvider_ApplyNullDestination(t *testing.T) {
 		"host": cty.StringVal("localhost"),
 	})
 
-	resp := p.ProvisionResource(context.Background(), provisioners.ProvisionResourceRequest{
+	resp := p.ProvisionResource(t.Context(), provisioners.ProvisionResourceRequest{
 		Config:     cfg,
 		Connection: conn,
 	})
@@ -177,7 +176,7 @@ func TestResourceProvisioner_nullSrcVars(t *testing.T) {
 		"destination": cty.StringVal("/tmp/bar"),
 	})
 	p := New()
-	resp := p.ProvisionResource(context.Background(), provisioners.ProvisionResourceRequest{
+	resp := p.ProvisionResource(t.Context(), provisioners.ProvisionResourceRequest{
 		Connection: conn,
 		Config:     config,
 	})
