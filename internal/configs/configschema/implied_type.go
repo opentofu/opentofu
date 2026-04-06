@@ -63,11 +63,6 @@ func (b *Block) ContainsSensitive() bool {
 
 // ContainsDeprecated returns true if any of the attributes of the receiving
 // block or any of its descendent blocks are marked as deprecated.
-//
-// Blocks themselves cannot be deprecated as a whole -- sensitivity is a
-// per-attribute idea -- but sometimes we want to include a whole object
-// decoded from a block in some UI output, and that is safe to do only if
-// none of the contained attributes are deprecated.
 func (b *Block) ContainsDeprecated() bool {
 	for _, attrS := range b.Attributes {
 		if attrS.Deprecated {
