@@ -807,7 +807,7 @@ func (d *evaluationStateData) GetResource(ctx context.Context, addr addrs.Resour
 			// for all resources in the configuration.
 			if schema.ContainsMarks() && config.Enabled == nil {
 				val := schema.UnknownValue()
-				schemaMarks := schema.ValueMarks(val, nil, addr, false)
+				schemaMarks := schema.ValueMarks(val, nil, addr, moduleConfig.IsRemoteModule())
 				val = val.MarkWithPaths(schemaMarks)
 				return val, diags
 			}
@@ -839,7 +839,7 @@ func (d *evaluationStateData) GetResource(ctx context.Context, addr addrs.Resour
 		instAddr := addr.Instance(key).Absolute(d.ModulePath)
 
 		if instAddr.Resource.Resource.Mode == addrs.EphemeralResourceMode {
-			v, ephDiags := d.getEphemeralResourceInstanceValue(schema, instAddr, instance, config)
+			v, ephDiags := d.getEphemeralResourceInstanceValue(schema, instAddr, instance, config, moduleConfig)
 			diags = diags.Append(ephDiags)
 			instances[key] = v
 			continue
@@ -892,7 +892,7 @@ func (d *evaluationStateData) GetResource(ctx context.Context, addr addrs.Resour
 				}
 				// Now that we know that the schema contains sensitive and/or ephemeral marks,
 				// Combine those marks together to ensure that the value is marked correctly but not double marked
-				schemaMarks := schema.ValueMarks(val, nil, addr, false)
+				schemaMarks := schema.ValueMarks(val, nil, addr, moduleConfig.IsRemoteModule())
 				afterMarks = combinePathValueMarks(afterMarks, schemaMarks)
 			}
 
@@ -915,7 +915,7 @@ func (d *evaluationStateData) GetResource(ctx context.Context, addr addrs.Resour
 		}
 
 		val := instanceObjectSrc.Value
-		instances[key] = markedValueBySchema(addr, schema, val)
+		instances[key] = markedValueBySchema(addr, moduleConfig, schema, val)
 	}
 
 	// ret should be populated with a valid value in all cases below
@@ -1001,7 +1001,7 @@ func (d *evaluationStateData) GetResource(ctx context.Context, addr addrs.Resour
 	return ret, diags
 }
 
-func markedValueBySchema(addr addrs.Resource, schema *configschema.Block, val cty.Value) cty.Value {
+func markedValueBySchema(addr addrs.Resource, moduleConfig *configs.Config, schema *configschema.Block, val cty.Value) cty.Value {
 	if !schema.ContainsMarks() {
 		return val
 	}
@@ -1009,7 +1009,7 @@ func markedValueBySchema(addr addrs.Resource, schema *configschema.Block, val ct
 	// Now that we know that the schema contains sensitive and/or ephemeral marks,
 	// Combine those marks together to ensure that the value is marked correctly but not double marked
 	val, valMarks = val.UnmarkDeepWithPaths()
-	schemaMarks := schema.ValueMarks(val, nil, addr, false)
+	schemaMarks := schema.ValueMarks(val, nil, addr, moduleConfig.IsRemoteModule())
 	if schema.Ephemeral {
 		// Since we are preparing to mark the whole value as ephemeral, we want to remove any other
 		// possible downstream ephemeral marks to avoid having the same mark on multiple layers.
@@ -1156,7 +1156,7 @@ func (d *evaluationStateData) GetCheckBlock(_ context.Context, addr addrs.Check,
 // The state object carries also a deferral information so if it was deferred, it cannot return the value
 // since such a value contains only the values from the configuration so we want to return unknown values
 // for all the other attributes.
-func (d *evaluationStateData) getEphemeralResourceInstanceValue(schema *configschema.Block, addr addrs.AbsResourceInstance, ris *states.ResourceInstance, config *configs.Resource) (cty.Value, tfdiags.Diagnostics) {
+func (d *evaluationStateData) getEphemeralResourceInstanceValue(schema *configschema.Block, addr addrs.AbsResourceInstance, ris *states.ResourceInstance, config *configs.Resource, moduleConfig *configs.Config) (cty.Value, tfdiags.Diagnostics) {
 	ty := schema.ImpliedType()
 	// During validate, ephemeral values are not opened
 	if d.Operation == walkValidate {
@@ -1183,7 +1183,7 @@ func (d *evaluationStateData) getEphemeralResourceInstanceValue(schema *configsc
 		return objchange.PlannedUnknownObject(schema, v.Value).Mark(marks.Ephemeral), nil
 	}
 
-	return markedValueBySchema(addr.Resource.Resource, schema, v.Value), nil
+	return markedValueBySchema(addr.Resource.Resource, moduleConfig, schema, v.Value), nil
 }
 
 // moduleDisplayAddr returns a string describing the given module instance
