@@ -150,7 +150,7 @@ func (o *Object) ValueMarks(val cty.Value, path cty.Path, symbol addrs.Reference
 	for name, attrS := range o.Attributes {
 		// Skip attributes which can never produce sensitive or deprecate path value marks
 		cantProduceSensitive := !attrS.Sensitive && (attrS.NestedType == nil || !attrS.NestedType.ContainsSensitive())
-		cantProduceDeprecated := !attrS.Deprecated && (attrS.NestedType == nil || !attrS.NestedType.ContainsDeprecated()) && symbol != nil
+		cantProduceDeprecated := !attrS.Deprecated && (attrS.NestedType == nil || !attrS.NestedType.ContainsDeprecated()) || symbol == nil
 		if cantProduceSensitive && cantProduceDeprecated {
 			continue
 		}
