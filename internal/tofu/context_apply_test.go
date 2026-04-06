@@ -2100,7 +2100,7 @@ func TestContext2Apply_cancelProvisioner(t *testing.T) {
 	})
 
 	prStopped := make(chan struct{})
-	pr.ProvisionResourceFn = func(req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
+	pr.ProvisionResourceFn = func(_ context.Context, req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
 		// Start the stop process
 		go ctx.Stop()
 
@@ -4340,7 +4340,7 @@ func TestContext2Apply_Provisioner_compute(t *testing.T) {
 	pr := testProvisioner()
 	p.PlanResourceChangeFn = testDiffFn
 	p.ApplyResourceChangeFn = testApplyFn
-	pr.ProvisionResourceFn = func(req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
+	pr.ProvisionResourceFn = func(_ context.Context, req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
 
 		val := req.Config.GetAttr("command").AsString()
 		if val != "computed_value" {
@@ -4472,7 +4472,7 @@ func TestContext2Apply_provisionerFail(t *testing.T) {
 	p.PlanResourceChangeFn = testDiffFn
 	p.ApplyResourceChangeFn = testApplyFn
 	pr := testProvisioner()
-	pr.ProvisionResourceFn = func(req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
+	pr.ProvisionResourceFn = func(_ context.Context, req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
 		resp.Diagnostics = resp.Diagnostics.Append(fmt.Errorf("EXPLOSION"))
 		return
 	}
@@ -4506,7 +4506,7 @@ func TestContext2Apply_provisionerFail_createBeforeDestroy(t *testing.T) {
 	pr := testProvisioner()
 	p.PlanResourceChangeFn = testDiffFn
 	p.ApplyResourceChangeFn = testApplyFn
-	pr.ProvisionResourceFn = func(req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
+	pr.ProvisionResourceFn = func(_ context.Context, req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
 		resp.Diagnostics = resp.Diagnostics.Append(fmt.Errorf("EXPLOSION"))
 		return
 	}
@@ -4858,7 +4858,7 @@ func TestContext2Apply_provisionerFailContinue(t *testing.T) {
 	p.PlanResourceChangeFn = testDiffFn
 	p.ApplyResourceChangeFn = testApplyFn
 
-	pr.ProvisionResourceFn = func(req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
+	pr.ProvisionResourceFn = func(_ context.Context, req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
 		resp.Diagnostics = resp.Diagnostics.Append(fmt.Errorf("provisioner error"))
 		return
 	}
@@ -4901,7 +4901,7 @@ func TestContext2Apply_provisionerFailContinueHook(t *testing.T) {
 	p := testProvider("aws")
 	pr := testProvisioner()
 	p.PlanResourceChangeFn = testDiffFn
-	pr.ProvisionResourceFn = func(req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
+	pr.ProvisionResourceFn = func(_ context.Context, req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
 		resp.Diagnostics = resp.Diagnostics.Append(fmt.Errorf("provisioner error"))
 		return
 	}
@@ -4935,7 +4935,7 @@ func TestContext2Apply_provisionerDestroy(t *testing.T) {
 	p := testProvider("aws")
 	pr := testProvisioner()
 	p.PlanResourceChangeFn = testDiffFn
-	pr.ProvisionResourceFn = func(req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
+	pr.ProvisionResourceFn = func(_ context.Context, req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
 		val := req.Config.GetAttr("command").AsString()
 		if val != "destroy a bar" {
 			t.Fatalf("bad value for foo: %q", val)
@@ -4986,7 +4986,7 @@ func TestContext2Apply_provisionerDestroyFail(t *testing.T) {
 	p := testProvider("aws")
 	pr := testProvisioner()
 	p.PlanResourceChangeFn = testDiffFn
-	pr.ProvisionResourceFn = func(req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
+	pr.ProvisionResourceFn = func(_ context.Context, req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
 		resp.Diagnostics = resp.Diagnostics.Append(fmt.Errorf("provisioner error"))
 		return
 	}
@@ -5042,7 +5042,7 @@ func TestContext2Apply_provisionerDestroyFailContinue(t *testing.T) {
 
 	var l sync.Mutex
 	var calls []string
-	pr.ProvisionResourceFn = func(req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
+	pr.ProvisionResourceFn = func(_ context.Context, req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
 		val := req.Config.GetAttr("command")
 		if val.IsNull() {
 			t.Fatalf("bad value for foo: %#v", val)
@@ -5109,7 +5109,7 @@ func TestContext2Apply_provisionerDestroyFailContinueFail(t *testing.T) {
 
 	var l sync.Mutex
 	var calls []string
-	pr.ProvisionResourceFn = func(req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
+	pr.ProvisionResourceFn = func(_ context.Context, req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
 		val := req.Config.GetAttr("command")
 		if val.IsNull() {
 			t.Fatalf("bad value for foo: %#v", val)
@@ -5178,7 +5178,7 @@ func TestContext2Apply_provisionerDestroyTainted(t *testing.T) {
 	p.ApplyResourceChangeFn = testApplyFn
 
 	destroyCalled := false
-	pr.ProvisionResourceFn = func(req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
+	pr.ProvisionResourceFn = func(_ context.Context, req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
 		expected := "create a b"
 		val := req.Config.GetAttr("command")
 		if val.AsString() != expected {
@@ -5251,7 +5251,7 @@ func TestContext2Apply_provisionerResourceRef(t *testing.T) {
 	p.ApplyResourceChangeFn = testApplyFn
 
 	pr := testProvisioner()
-	pr.ProvisionResourceFn = func(req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
+	pr.ProvisionResourceFn = func(_ context.Context, req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
 		val := req.Config.GetAttr("command")
 		if val.AsString() != "2" {
 			t.Fatalf("bad value for command: %#v", val)
@@ -5294,7 +5294,7 @@ func TestContext2Apply_provisionerSelfRef(t *testing.T) {
 	pr := testProvisioner()
 	p.PlanResourceChangeFn = testDiffFn
 	p.ApplyResourceChangeFn = testApplyFn
-	pr.ProvisionResourceFn = func(req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
+	pr.ProvisionResourceFn = func(_ context.Context, req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
 		val := req.Config.GetAttr("command")
 		if val.AsString() != "bar" {
 			t.Fatalf("bad value for command: %#v", val)
@@ -5340,7 +5340,7 @@ func TestContext2Apply_provisionerMultiSelfRef(t *testing.T) {
 	pr := testProvisioner()
 	p.PlanResourceChangeFn = testDiffFn
 	p.ApplyResourceChangeFn = testApplyFn
-	pr.ProvisionResourceFn = func(req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
+	pr.ProvisionResourceFn = func(_ context.Context, req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
 		lock.Lock()
 		defer lock.Unlock()
 
@@ -5397,7 +5397,7 @@ func TestContext2Apply_provisionerMultiSelfRefSingle(t *testing.T) {
 	pr := testProvisioner()
 	p.PlanResourceChangeFn = testDiffFn
 	p.ApplyResourceChangeFn = testApplyFn
-	pr.ProvisionResourceFn = func(req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
+	pr.ProvisionResourceFn = func(_ context.Context, req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
 		lock.Lock()
 		defer lock.Unlock()
 
@@ -5450,7 +5450,7 @@ func TestContext2Apply_provisionerExplicitSelfRef(t *testing.T) {
 	p := testProvider("aws")
 	pr := testProvisioner()
 	p.PlanResourceChangeFn = testDiffFn
-	pr.ProvisionResourceFn = func(req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
+	pr.ProvisionResourceFn = func(_ context.Context, req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
 		val := req.Config.GetAttr("command")
 		if val.IsNull() || val.AsString() != "bar" {
 			t.Fatalf("bad value for command: %#v", val)
@@ -5516,7 +5516,7 @@ func TestContext2Apply_provisionerForEachSelfRef(t *testing.T) {
 	pr := testProvisioner()
 	p.PlanResourceChangeFn = testDiffFn
 
-	pr.ProvisionResourceFn = func(req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
+	pr.ProvisionResourceFn = func(_ context.Context, req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
 		val := req.Config.GetAttr("command")
 		if val.IsNull() {
 			t.Fatalf("bad value for command: %#v", val)
@@ -10000,7 +10000,7 @@ func TestContext2Apply_plannedConnectionRefs(t *testing.T) {
 
 	provisionerFactory := func() (provisioners.Interface, error) {
 		pr := testProvisioner()
-		pr.ProvisionResourceFn = func(req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
+		pr.ProvisionResourceFn = func(_ context.Context, req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
 			host := req.Connection.GetAttr("host")
 			if host.IsNull() || !host.IsKnown() {
 				resp.Diagnostics = resp.Diagnostics.Append(fmt.Errorf("invalid host value: %#v", host))
@@ -12620,7 +12620,7 @@ func TestContext2Apply_provisionerSensitive(t *testing.T) {
 	p := testProvider("aws")
 
 	pr := testProvisioner()
-	pr.ProvisionResourceFn = func(req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
+	pr.ProvisionResourceFn = func(_ context.Context, req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
 		if req.Config.ContainsMarked() {
 			t.Fatalf("unexpectedly marked config value: %#v", req.Config)
 		}

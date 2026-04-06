@@ -6,6 +6,8 @@
 package provisioners
 
 import (
+	"context"
+
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
@@ -24,7 +26,7 @@ type Interface interface {
 	// ProvisionResource blocks until the execution is complete.
 	// If the returned diagnostics contain any errors, the resource will be
 	// left in a tainted state.
-	ProvisionResource(ProvisionResourceRequest) ProvisionResourceResponse
+	ProvisionResource(ctx context.Context, req ProvisionResourceRequest) ProvisionResourceResponse
 
 	// Stop is called to interrupt the provisioner.
 	//

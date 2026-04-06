@@ -276,7 +276,7 @@ func TestResourceProvisioner_StopClose(t *testing.T) {
 
 func TestResourceProvisioner_connectionRequired(t *testing.T) {
 	p := New()
-	resp := p.ProvisionResource(provisioners.ProvisionResourceRequest{})
+	resp := p.ProvisionResource(context.Background(), provisioners.ProvisionResourceRequest{})
 	if !resp.Diagnostics.HasErrors() {
 		t.Fatal("expected error")
 	}
@@ -322,7 +322,7 @@ func TestResourceProvisioner_nullsInOptionals(t *testing.T) {
 			}
 
 			// verifying there are no panics
-			p.ProvisionResource(provisioners.ProvisionResourceRequest{
+			p.ProvisionResource(context.Background(), provisioners.ProvisionResourceRequest{
 				Config:   cfg,
 				UIOutput: output,
 			})
