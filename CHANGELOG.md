@@ -71,6 +71,7 @@ value was declared inside the module. ([#3067](https://github.com/opentofu/opent
 - OpenTofu now consistently sends "null" to `key_provider "external"` programs when only encryption the key is requested. ([#3672](https://github.com/opentofu/opentofu/pull/3672))
 - Ephemeral resources are not stored in the plan anymore. ([#3897](https://github.com/opentofu/opentofu/pull/3897))
 - `count` cannot use ephemeral values ([#3924](https://github.com/opentofu/opentofu/pull/3924))
+-  Powershell support over ssh in the `remote-exec` provisioner has been fixed. ([#3998](https://github.com/opentofu/opentofu/pull/3998))
 
 ## Previous Releases
 

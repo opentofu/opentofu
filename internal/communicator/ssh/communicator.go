@@ -896,7 +896,8 @@ func quoteShell(args []string, targetPlatform string) (string, error) {
 		return shquot.POSIXShell(args), nil
 	}
 	if targetPlatform == TargetPlatformWindows {
-		return shquot.WindowsArgv(args), nil
+		cmd, cmdArgs := shquot.WindowsArgvSplit(args)
+		return fmt.Sprintf("%s %s", cmd, cmdArgs), nil
 	}
 
 	return "", fmt.Errorf("Cannot quote shell command, target platform unknown: %s", targetPlatform)

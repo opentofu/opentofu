@@ -176,6 +176,17 @@ func TestNew_InvalidHost(t *testing.T) {
 	}
 }
 
+func TestPowershellQuote(t *testing.T) {
+	out, err := quoteShell([]string{"scp", "-vt", "C:/Windows/Temp/opentofu_%RAND%.ps1"}, TargetPlatformWindows)
+	if err != nil {
+		t.Fatal("should have quoted command without issue")
+	}
+	expectedOut := `scp -vt C:/Windows/Temp/opentofu_%RAND%.ps1`
+	if out != expectedOut {
+		t.Fatalf("expected %s, but got %s", expectedOut, out)
+	}
+}
+
 func TestNew_PublicKeyAsCertificate(t *testing.T) {
 	// This test ensures that we correctly identify and reject a public key
 	// in the "certificate" argument, which historically caused a panic
