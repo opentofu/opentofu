@@ -228,7 +228,7 @@ func TestStaticValidateTraversal(t *testing.T) {
 		},
 		{
 			`obj.deprecated`,
-			``, // Now handled in the evaluator
+			``, // Handled dynamically in the evaluator, not statically
 		},
 	}
 

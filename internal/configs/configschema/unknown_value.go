@@ -14,8 +14,7 @@ import (
 // the unknown values of the block's attributes and nested block types.
 //
 // In other words, it returns the value that would be returned if an unknown
-// block were decoded against the receiving schema, assuming that no required
-// attribute or block constraints were honored.
+// block were decoded against the receiving schema.
 func (b *Block) UnknownValue() cty.Value {
 	vals := make(map[string]cty.Value)
 	for name, attrS := range b.Attributes {
