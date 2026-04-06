@@ -268,7 +268,26 @@ func (s *Filesystem) persistState(schemas *tofu.Schemas) error {
 	}
 
 	log.Printf("[TRACE] statemgr.Filesystem: writing snapshot at %s", s.path)
-	if err := statefile.Write(s.file, s.stateFileOut, s.encryption); err != nil {
+
+	// Write state into a buffer first so we can pretty-print the JSON before
+	// writing to disk. Pretty-printed state files produce much more readable
+	// diffs for users who track state in version control systems.
+	// See https://github.com/opentofu/opentofu/issues/1947
+	var buf bytes.Buffer
+	if err := statefile.Write(s.file, &buf, s.encryption); err != nil {
+		return err
+	}
+
+	raw := buf.Bytes()
+	var indented bytes.Buffer
+	if err := json.Indent(&indented, raw, "", "  "); err == nil {
+		indented.WriteByte('\n')
+		raw = indented.Bytes()
+	} else {
+		log.Printf("[TRACE] statemgr.Filesystem: failed to pretty-print state JSON, writing compact form: %s", err)
+	}
+
+	if _, err := s.stateFileOut.Write(raw); err != nil {
 		return err
 	}
 
