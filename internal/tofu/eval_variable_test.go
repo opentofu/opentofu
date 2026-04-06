@@ -1546,10 +1546,9 @@ func TestEvalVariableValidations_deprecationDiagnostics(t *testing.T) {
 	}
 
 	tests := map[string]struct {
-		varAddr    addrs.AbsInputVariableInstance
-		varCfg     *configs.Variable
-		expr       hcl.Expression
-		fromRemote bool
+		varAddr addrs.AbsInputVariableInstance
+		varCfg  *configs.Variable
+		expr    hcl.Expression
 
 		expectedDiags tfdiags.Diagnostics
 	}{
@@ -1566,21 +1565,18 @@ func TestEvalVariableValidations_deprecationDiagnostics(t *testing.T) {
 				),
 				Subject: cfg.Module.ModuleCalls["foo-call"].Source.Range().Ptr(),
 			}),
-			fromRemote: false,
 		},
 		"local-mod-called-from-root-with-no-var": {
 			varAddr:       addrs.InputVariable{Name: "foo"}.Absolute(addrs.RootModuleInstance.Child("foo-call-no-var", nil)),
 			varCfg:        cfg.Children["foo-call-no-var"].Module.Variables["foo"],
 			expr:          nil,
 			expectedDiags: tfdiags.Diagnostics{},
-			fromRemote:    false,
 		},
 		"local-mod-called-from-root-with-null-var": {
 			varAddr:       addrs.InputVariable{Name: "foo"}.Absolute(addrs.RootModuleInstance.Child("foo-call-null", nil)),
 			varCfg:        cfg.Children["foo-call-null"].Module.Variables["foo"],
 			expr:          nil,
 			expectedDiags: tfdiags.Diagnostics{},
-			fromRemote:    false,
 		},
 		"local-mod-called-from-direct-child": {
 			varAddr: addrs.InputVariable{Name: "bar"}.Absolute(addrs.RootModuleInstance.Child("foo-call", nil).Child("bar-call", nil)),
@@ -1595,7 +1591,6 @@ func TestEvalVariableValidations_deprecationDiagnostics(t *testing.T) {
 				),
 				Subject: cfg.Children["foo-call"].Module.ModuleCalls["bar-call"].Source.Range().Ptr(),
 			}),
-			fromRemote: false,
 		},
 	}
 	for name, tt := range tests {
@@ -1611,7 +1606,7 @@ func TestEvalVariableValidations_deprecationDiagnostics(t *testing.T) {
 			}
 
 			expr := tt.expr
-			gotDiags := evalVariableDeprecation(varAddr, tt.varCfg, expr, ctx, tt.fromRemote)
+			gotDiags := evalVariableDeprecation(varAddr, tt.varCfg, expr, ctx)
 
 			if gotLen, expectedLen := len(gotDiags), len(tt.expectedDiags); gotLen != expectedLen {
 				t.Fatalf("expected %d diagnostics; got %d", expectedLen, gotLen)
