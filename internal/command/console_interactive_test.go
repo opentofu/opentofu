@@ -102,7 +102,6 @@ func TestConsole_multiline_interactive(t *testing.T) {
 					WorkingDir:       workdir.NewDir("."),
 					testingOverrides: metaOverridesForProvider(p),
 					View:             view,
-					Streams:          streams,
 				},
 			}
 			code := c.Run(nil)

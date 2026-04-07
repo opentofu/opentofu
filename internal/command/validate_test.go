@@ -16,7 +16,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/zclconf/go-cty/cty"
 
@@ -301,7 +300,6 @@ func TestValidateWithInvalidTestModule(t *testing.T) {
 
 	streams, done := terminal.StreamsForTesting(t)
 	view := views.NewView(streams)
-	ui := new(cli.MockUi)
 
 	provider := testing_command.NewProvider(nil)
 
@@ -313,9 +311,7 @@ func TestValidateWithInvalidTestModule(t *testing.T) {
 	meta := Meta{
 		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: metaOverridesForProvider(provider.Provider),
-		Ui:               ui,
 		View:             view,
-		Streams:          streams,
 		ProviderSource:   providerSource,
 	}
 
@@ -323,10 +319,15 @@ func TestValidateWithInvalidTestModule(t *testing.T) {
 		Meta: meta,
 	}
 
-	if code := init.Run(nil); code != 0 {
-		t.Fatalf("expected status code 0 but got %d: %s", code, ui.ErrorWriter)
+	code := init.Run(nil)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("expected status code 0 but got %d: %s", code, output.Stderr())
 	}
 
+	streams, done = terminal.StreamsForTesting(t)
+	view = views.NewView(streams)
+	meta.View = view
 	c := &ValidateCommand{
 		Meta: meta,
 	}
@@ -334,8 +335,8 @@ func TestValidateWithInvalidTestModule(t *testing.T) {
 	var args []string
 	args = append(args, "-no-color")
 
-	code := c.Run(args)
-	output := done(t)
+	code = c.Run(args)
+	output = done(t)
 
 	if code != 1 {
 		t.Fatalf("Should have failed: %d\n\n%s", code, output.Stderr())

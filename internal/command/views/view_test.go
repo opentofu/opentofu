@@ -32,12 +32,6 @@ func TestNewView(t *testing.T) {
 	if !view.colorize.Disable {
 		t.Error("expected colorize to be disabled by default")
 	}
-	if view.errorColor != "[red]" {
-		t.Errorf("expected errorColor to be [red], got %s", view.errorColor)
-	}
-	if view.warnColor != "[yellow]" {
-		t.Errorf("expected warnColor to be [yellow], got %s", view.warnColor)
-	}
 	if view.configSources == nil {
 		t.Error("expected configSources to be initialized")
 	}

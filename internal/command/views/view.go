@@ -21,10 +21,8 @@ import (
 // streams, a colorize implementation, and implementing a human friendly view
 // for diagnostics.
 type View struct {
-	streams    *terminal.Streams
-	colorize   *colorstring.Colorize
-	errorColor string
-	warnColor  string
+	streams  *terminal.Streams
+	colorize *colorstring.Colorize
 
 	compactWarnings     bool
 	consolidateWarnings bool
@@ -68,8 +66,6 @@ func NewView(streams *terminal.Streams) *View {
 			Disable: true,
 			Reset:   true,
 		},
-		errorColor:    "[red]",
-		warnColor:     "[yellow]",
 		configSources: func() map[string]*hcl.File { return nil },
 		diagsPrinter: func(severity tfdiags.Severity, msg string) {
 			if severity == tfdiags.Error {
@@ -250,4 +246,9 @@ func (v *View) SetShowSensitive(showSensitive bool) {
 //	should do it through a View implementation instead.
 func (v *View) Colorize() *colorstring.Colorize {
 	return v.colorize
+}
+
+// StdinPiped returns true if the input is piped.
+func (v *View) StdinPiped() bool {
+	return !v.streams.Stdin.IsTerminal()
 }

@@ -39,7 +39,6 @@ import (
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/opentofu/opentofu/internal/states"
-	"github.com/opentofu/opentofu/internal/terminal"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
 )
@@ -63,15 +62,6 @@ type Meta struct {
 	// in here, but we're not there yet and so there are also some methods on
 	// Meta which directly read and modify paths inside the data directory.
 	WorkingDir *workdir.Dir
-
-	// Streams tracks the raw Stdout, Stderr, and Stdin handles along with
-	// some basic metadata about them, such as whether each is connected to
-	// a terminal, how wide the possible terminal is, etc.
-	//
-	// For historical reasons this might not be set in unit test code, and
-	// so functions working with this field must check if it's nil and
-	// do some default behavior instead if so, rather than panicking.
-	Streams *terminal.Streams
 
 	View *views.View
 
@@ -342,44 +332,6 @@ func (m *Meta) UIInput() tofu.UIInput {
 	return &UIInput{
 		Colorize: m.View.Colorize(),
 	}
-}
-
-// OutputColumns returns the number of columns that normal (non-error) UI
-// output should be wrapped to fill.
-//
-// This is the column count to use if you'll be printing your message via
-// the Output or Info methods of m.Ui.
-func (m *Meta) OutputColumns() int {
-	if m.Streams == nil {
-		// A default for unit tests that don't populate Meta fully.
-		return 78
-	}
-	return m.Streams.Stdout.Columns()
-}
-
-// ErrorColumns returns the number of columns that error UI output should be
-// wrapped to fill.
-//
-// This is the column count to use if you'll be printing your message via
-// the Error or Warn methods of m.Ui.
-func (m *Meta) ErrorColumns() int {
-	if m.Streams == nil {
-		// A default for unit tests that don't populate Meta fully.
-		return 78
-	}
-	return m.Streams.Stderr.Columns()
-}
-
-// StdinPiped returns true if the input is piped.
-func (m *Meta) StdinPiped() bool {
-	if m.Streams == nil {
-		// If we don't have m.Streams populated then we're presumably in a unit
-		// test that doesn't properly populate Meta, so we'll just say the
-		// output _isn't_ piped because that's the common case and so most likely
-		// to be useful to a unit test.
-		return false
-	}
-	return !m.Streams.Stdin.IsTerminal()
 }
 
 // InterruptibleContext returns a context.Context that will be cancelled

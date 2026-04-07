@@ -12,7 +12,6 @@ import (
 	"testing"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/zclconf/go-cty/cty"
 
@@ -163,16 +162,12 @@ func TestApply_destroyApproveNo(t *testing.T) {
 		"approve": "no",
 	})()
 
-	// Do not use the NewMockUi initializer here, as we want to delay
-	// the call to init until after setting up the input mocks
-	ui := new(cli.MockUi)
 	view, done := testView(t)
 	c := &ApplyCommand{
 		Destroy: true,
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
 			View:             view,
 		},
 	}
@@ -233,16 +228,12 @@ func TestApply_destroyApproveYes(t *testing.T) {
 		"approve": "yes",
 	})()
 
-	// Do not use the NewMockUi initializer here, as we want to delay
-	// the call to init until after setting up the input mocks
-	ui := new(cli.MockUi)
 	view, done := testView(t)
 	c := &ApplyCommand{
 		Destroy: true,
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
 			View:             view,
 		},
 	}

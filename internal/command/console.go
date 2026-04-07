@@ -199,7 +199,7 @@ func (c *ConsoleCommand) Run(rawArgs []string) int {
 	}
 
 	// Determine if stdin is a pipe. If so, we evaluate directly.
-	if c.StdinPiped() {
+	if c.View.StdinPiped() {
 		return c.modePiped(session, view)
 	}
 
