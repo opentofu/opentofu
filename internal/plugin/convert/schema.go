@@ -41,7 +41,7 @@ func ConfigSchemaToProto(b *configschema.Block) *proto.Schema_Block {
 			Required:           a.Required,
 			Sensitive:          a.Sensitive,
 			Deprecated:         a.Deprecated,
-			DeprecationMessage: b.DeprecationMessage,
+			DeprecationMessage: a.DeprecationMessage,
 			WriteOnly:          a.WriteOnly,
 		}
 
