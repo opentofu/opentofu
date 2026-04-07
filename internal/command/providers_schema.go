@@ -41,8 +41,6 @@ func (c *ProvidersSchemaCommand) Run(rawArgs []string) int {
 	defer closer()
 
 	view := views.NewProvidersSchema(c.View)
-	c.Meta.configureUiFromView(args.ViewOptions)
-
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
 		return cli.RunResultHelp

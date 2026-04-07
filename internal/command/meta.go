@@ -19,7 +19,6 @@ import (
 
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/go-retryablehttp"
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/svchost/disco"
 
@@ -66,7 +65,6 @@ type Meta struct {
 	View *views.View
 
 	GlobalPluginDirs []string // Additional paths to search for plugins
-	Ui               cli.Ui   // Ui for output
 
 	// Services provides access to remote endpoint information for
 	// 'tofu-native' services running at a specific user-facing hostname.
@@ -496,31 +494,6 @@ func (m *Meta) contextOpts(ctx context.Context) (*tofu.ContextOpts, error) {
 	}
 
 	return &opts, err
-}
-
-// configureUiFromView is a shim method between now and the moment when
-// the remote backend and cloud package use the new View abstraction.
-// This method does several things:
-//   - creates a new [NewBasicUI] if [Meta.Ui] is nil (needed for testing, see below)
-//   - wraps the existing [Meta.Ui] into a new layer that uses the [views.View]
-//     to print information and the existing [Meta.Ui] to ask for use input
-func (m *Meta) configureUiFromView(options arguments.ViewOptions) {
-	// This is a workaround to be able to get rid of the [Meta.Ui] slow and steady.
-	// For the moment, this builds the Ui in the same way it's built in the main.go, but we want
-	// it added here to remove the requirement of having the Ui initialised during tests.
-	// The highlight here is that the "printing" is done through the [Meta.View] and
-	// this Ui instance is used only to ask for user input.
-	// Therefore, tests can initialise only the View and check the output from there.
-	if m.Ui == nil {
-		m.Ui = NewBasicUI()
-	}
-
-	// Createa new ViewUi that wraps the View for printing and oldUi for user input
-	m.Ui = &cli.ConcurrentUi{
-		Ui: views.NewViewUI(options, m.View, m.Ui),
-	}
-	// compared with Meta.process, this method does not configure the Meta.View, since that is the
-	// responsibility of the caller of this method.
 }
 
 // confirm asks a yes/no confirmation.

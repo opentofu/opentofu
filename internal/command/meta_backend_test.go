@@ -2132,8 +2132,6 @@ func testMetaBackend(t *testing.T) *Meta {
 	m.input = true
 	m.stateLock = true
 
-	m.configureUiFromView(arguments.ViewOptions{ViewType: arguments.ViewHuman})
-
 	// metaBackend tests are verifying migrate actions
 	m.migrateState = true
 	m.WorkingDir = workdir.NewDir(".")

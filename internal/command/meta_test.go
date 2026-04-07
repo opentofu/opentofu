@@ -9,7 +9,6 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -20,89 +19,6 @@ import (
 	"github.com/opentofu/opentofu/internal/backend/local"
 	"github.com/opentofu/opentofu/internal/tofu"
 )
-
-func TestMetaColorize(t *testing.T) {
-	t.Run("with color enabled", func(t *testing.T) {
-		view, done := testView(t)
-		defer done(t)
-
-		m := &Meta{
-			WorkingDir: workdir.NewDir("."),
-			View:       view,
-		}
-		args := []string{"foo", "bar"}
-		wantArgs := []string{"foo", "bar"}
-		viewArgs, args := arguments.ParseView(args)
-
-		view.Configure(viewArgs)
-		m.configureUiFromView(arguments.ViewOptions{ViewType: arguments.ViewHuman})
-
-		if !reflect.DeepEqual(args, wantArgs) {
-			t.Fatalf("bad: %#v", args)
-		}
-		if m.View.Colorize().Disable {
-			t.Fatal("should not be disabled")
-		}
-	})
-
-	// NOTE: the case that was removed from here was testing that without marking Meta.Color=true manually,
-	// and having no -no-color flag, it was **disabled** by default.
-	// When Meta was created in regular flow, the Meta.Color was set to "true".
-	// During tests, Meta.Color is false, so it needs to be configured manually as "true".
-	// This is what the test case above did before, but with the migration to the new view, the
-	// logic is flipped, where the view.colorise.disabled is by default false and when -no-color
-	// is given, it disables it.
-	// Therefore, the case above, tests exactly what it was testing before the refactor, but
-	// the test here, makes no more sense now.
-
-	t.Run("one occurrence of -no-color flag", func(t *testing.T) {
-		view, done := testView(t)
-		defer done(t)
-
-		m := &Meta{
-			WorkingDir: workdir.NewDir("."),
-			View:       view,
-		}
-		args := []string{"foo", "-no-color", "bar"}
-		args2 := []string{"foo", "bar"}
-		viewArgs, args := arguments.ParseView(args)
-
-		view.Configure(viewArgs)
-		m.configureUiFromView(arguments.ViewOptions{ViewType: arguments.ViewHuman})
-
-		if !reflect.DeepEqual(args, args2) {
-			t.Fatalf("bad: %#v", args)
-		}
-		if !m.View.Colorize().Disable {
-			t.Fatal("should be disabled")
-		}
-	})
-
-	t.Run("one occurrences of -no-color flag", func(t *testing.T) {
-		view, done := testView(t)
-		defer done(t)
-		// Test disable #2
-		// Verify multiple -no-color options are removed from args slice.
-		// E.g. an additional -no-color arg could be added by TF_CLI_ARGS.
-		m := &Meta{
-			WorkingDir: workdir.NewDir("."),
-			View:       view,
-		}
-		args := []string{"foo", "-no-color", "bar", "-no-color"}
-		args2 := []string{"foo", "bar"}
-		viewArgs, args := arguments.ParseView(args)
-
-		view.Configure(viewArgs)
-		m.configureUiFromView(arguments.ViewOptions{ViewType: arguments.ViewHuman})
-
-		if !reflect.DeepEqual(args, args2) {
-			t.Fatalf("bad: %#v", args)
-		}
-		if !m.View.Colorize().Disable {
-			t.Fatal("should be disabled")
-		}
-	})
-}
 
 func TestMetaInputMode(t *testing.T) {
 	test = false
