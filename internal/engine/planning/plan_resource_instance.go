@@ -336,7 +336,7 @@ func (b *resourceInstanceObjectsBuilder) Put(obj *resourceInstanceObject) {
 // This function panics if there have been multiple calls for the same provider
 // instance. The caller must not modify the given set or anything reachable
 // through it after calling this function, because it becomes part of the
-// internal state of the reciever.
+// internal state of the receiver.
 func (b *resourceInstanceObjectsBuilder) PutProviderInstanceDependencies(addr addrs.AbsProviderInstanceCorrect, deps addrs.Set[addrs.AbsResourceInstance]) {
 	b.mu.Lock()
 	defer b.mu.Unlock()

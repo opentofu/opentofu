@@ -38,14 +38,16 @@ type StaticModuleVariables func(v *Variable) (cty.Value, hcl.Diagnostics)
 // StaticModuleCall contains the information required to call a given module
 type StaticModuleCall struct {
 	addr      addrs.Module
+	declRange hcl.Range
 	vars      StaticModuleVariables
 	rootPath  string
 	workspace string
 }
 
-func NewStaticModuleCall(addr addrs.Module, vars StaticModuleVariables, rootPath string, workspace string) StaticModuleCall {
+func NewStaticModuleCall(addr addrs.Module, declRange hcl.Range, vars StaticModuleVariables, rootPath string, workspace string) StaticModuleCall {
 	return StaticModuleCall{
 		addr:      addr,
+		declRange: declRange,
 		vars:      vars,
 		rootPath:  rootPath,
 		workspace: workspace,
@@ -59,6 +61,7 @@ func (s StaticModuleCall) Variables() StaticModuleVariables {
 func (s StaticModuleCall) WithVariables(vars StaticModuleVariables) StaticModuleCall {
 	return StaticModuleCall{
 		addr:      s.addr,
+		declRange: s.declRange,
 		vars:      vars,
 		rootPath:  s.rootPath,
 		workspace: s.workspace,
@@ -67,7 +70,7 @@ func (s StaticModuleCall) WithVariables(vars StaticModuleVariables) StaticModule
 
 // only used in testing
 func RootModuleCallForTesting() StaticModuleCall {
-	return NewStaticModuleCall(addrs.RootModule, func(_ *Variable) (cty.Value, hcl.Diagnostics) {
+	return NewStaticModuleCall(addrs.RootModule, hcl.Range{}, func(_ *Variable) (cty.Value, hcl.Diagnostics) {
 		panic("Variables have not been configured for this test!")
 	}, "<testing>", "")
 }

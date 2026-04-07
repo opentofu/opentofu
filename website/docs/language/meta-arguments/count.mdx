@@ -127,3 +127,12 @@ _index_ instead of the string values in the list. If an element was removed from
 the middle of the list, every instance _after_ that element would see its
 `subnet_id` value change, resulting in more remote object changes than intended.
 Using `for_each` gives the same flexibility without the extra churn.
+
+## Usage of ephemeral values
+
+As `count` allows usage of expressions, if such an expression contains a reference
+to an ephemeral value, the whole resulted value to be used for the `count` meta-argument
+will be ephemeral too.
+Usage of such values in `resource`, `data` and `ephemeral` blocks will raise an error.
+
+This is needed to be sure that OpenTofu stores no ephemeral information in the plan or the state.

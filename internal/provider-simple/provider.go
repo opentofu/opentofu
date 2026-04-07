@@ -9,6 +9,7 @@ package simple
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -34,6 +35,16 @@ func Provider() providers.Interface {
 					"value": {
 						Optional: true,
 						Type:     cty.String,
+					},
+				},
+			},
+			IdentitySchemaVersion: 1,
+			IdentitySchema: &configschema.Object{
+				Nesting: configschema.NestingSingle,
+				Attributes: map[string]*configschema.Attribute{
+					"id": {
+						Type:     cty.String,
+						Required: true,
 					},
 				},
 			},
@@ -101,6 +112,7 @@ func (s simple) GetProviderSchema(_ context.Context) providers.GetProviderSchema
 	return s.schema
 }
 
+
 func (s simple) ValidateProviderConfig(_ context.Context, req providers.ValidateProviderConfigRequest) (resp providers.ValidateProviderConfigResponse) {
 	return resp
 }
@@ -128,6 +140,7 @@ func (s simple) MoveResourceState(_ context.Context, req providers.MoveResourceS
 	resp.TargetPrivate = req.SourcePrivate
 	return resp
 }
+
 func (s simple) UpgradeResourceState(_ context.Context, req providers.UpgradeResourceStateRequest) providers.UpgradeResourceStateResponse {
 	var resp providers.UpgradeResourceStateResponse
 	ty := s.schema.ResourceTypes[req.TypeName].Block.ImpliedType()
@@ -135,6 +148,10 @@ func (s simple) UpgradeResourceState(_ context.Context, req providers.UpgradeRes
 	resp.Diagnostics = resp.Diagnostics.Append(err)
 	resp.UpgradedState = val
 	return resp
+}
+
+func (s simple) UpgradeResourceIdentity(context.Context, providers.UpgradeResourceIdentityRequest) providers.UpgradeResourceIdentityResponse {
+	return providers.UpgradeResourceIdentityResponse{}
 }
 
 func (s simple) ConfigureProvider(context.Context, providers.ConfigureProviderRequest) (resp providers.ConfigureProviderResponse) {
@@ -160,8 +177,8 @@ func (s simple) PlanResourceChange(_ context.Context, req providers.PlanResource
 	}
 
 	m := req.ProposedNewState.AsValueMap()
-	_, ok := m["id"]
-	if !ok {
+	idVal, ok := m["id"]
+	if !ok || idVal.IsNull() {
 		m["id"] = cty.UnknownVal(cty.String)
 	}
 
@@ -179,8 +196,8 @@ func (s simple) ApplyResourceChange(_ context.Context, req providers.ApplyResour
 	}
 
 	m := req.PlannedState.AsValueMap()
-	_, ok := m["id"]
-	if !ok {
+	idVal, ok := m["id"]
+	if !ok || !idVal.IsKnown() {
 		m["id"] = cty.StringVal(time.Now().String())
 	}
 	waitIfRequested(req.Config.AsValueMap())
@@ -204,8 +221,8 @@ func (s simple) ReadDataSource(_ context.Context, req providers.ReadDataSourceRe
 	return resp
 }
 
-func (s simple) OpenEphemeralResource(_ context.Context, request providers.OpenEphemeralResourceRequest) (resp providers.OpenEphemeralResourceResponse) {
-	m := request.Config.AsValueMap()
+func (s simple) OpenEphemeralResource(_ context.Context, req providers.OpenEphemeralResourceRequest) (resp providers.OpenEphemeralResourceResponse) {
+	m := req.Config.AsValueMap()
 	m["id"] = cty.StringVal("static-ephemeral-id")
 	if v, ok := m["value"]; ok && !v.IsNull() && strings.Contains(v.AsString(), "with-renew") {
 		t := time.Now().Add(200 * time.Millisecond)
@@ -216,18 +233,18 @@ func (s simple) OpenEphemeralResource(_ context.Context, request providers.OpenE
 	return resp
 }
 
-func (s simple) RenewEphemeralResource(_ context.Context, request providers.RenewEphemeralResourceRequest) (resp providers.RenewEphemeralResourceResponse) {
-	resp.Private = request.Private
+func (s simple) RenewEphemeralResource(_ context.Context, req providers.RenewEphemeralResourceRequest) (resp providers.RenewEphemeralResourceResponse) {
+	resp.Private = []byte(fmt.Sprintf("%s - renew", req.Private))
 	t := time.Now().Add(200 * time.Millisecond)
 	resp.RenewAt = &t
 	return resp
 }
 
-func (s simple) CloseEphemeralResource(_ context.Context, _ providers.CloseEphemeralResourceRequest) (resp providers.CloseEphemeralResourceResponse) {
+func (s simple) CloseEphemeralResource(context.Context, providers.CloseEphemeralResourceRequest) (resp providers.CloseEphemeralResourceResponse) {
 	return resp
 }
 
-func (s simple) GetFunctions(_ context.Context) providers.GetFunctionsResponse {
+func (s simple) GetFunctions(context.Context) providers.GetFunctionsResponse {
 	panic("Not Implemented")
 }
 

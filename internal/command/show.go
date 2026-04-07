@@ -16,7 +16,6 @@ import (
 	"github.com/opentofu/opentofu/internal/cloud"
 	"github.com/opentofu/opentofu/internal/cloud/cloudplan"
 	"github.com/opentofu/opentofu/internal/command/arguments"
-	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/encryption"
@@ -97,7 +96,7 @@ func (c *ShowCommand) Run(rawArgs []string) int {
 	}
 
 	// Inject variables from args into meta for static evaluation
-	c.GatherVariables(args.Vars)
+	c.Meta.variableArgs = args.Vars.All()
 
 	// Load the encryption configuration
 	enc, encDiags := c.Encryption(ctx)
@@ -166,23 +165,6 @@ Other options:
 
 func (c *ShowCommand) Synopsis() string {
 	return "Show the current state or a saved plan"
-}
-
-func (c *ShowCommand) GatherVariables(args *arguments.Vars) {
-	// FIXME the arguments package currently trivially gathers variable related
-	// arguments in a heterogeneous slice, in order to minimize the number of
-	// code paths gathering variables during the transition to this structure.
-	// Once all commands that gather variables have been converted to this
-	// structure, we could move the variable gathering code to the arguments
-	// package directly, removing this shim layer.
-
-	varArgs := args.All()
-	items := make([]flags.RawFlag, len(varArgs))
-	for i := range varArgs {
-		items[i].Name = varArgs[i].Name
-		items[i].Value = varArgs[i].Value
-	}
-	c.Meta.variableArgs = flags.RawFlags{Items: &items}
 }
 
 type showRenderFunc func(view views.Show) int

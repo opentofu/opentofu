@@ -12,7 +12,6 @@ import (
 
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/arguments"
-	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/plans/planfile"
@@ -36,12 +35,6 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	// Parse and apply global view arguments
 	common, rawArgs := arguments.ParseView(rawArgs)
 	c.View.Configure(common)
-
-	// Propagate -no-color for legacy use of Ui.  The remote backend and
-	// cloud package use this; it should be removed when/if they are
-	// migrated to views.
-	c.Meta.color = !common.NoColor
-	c.Meta.Color = c.Meta.color
 
 	// Parse and validate flags
 	var args *arguments.Apply
@@ -75,7 +68,7 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	}
 
 	// Inject variables from args into meta for static evaluation
-	c.GatherVariables(args.Vars)
+	c.Meta.variableArgs = args.Vars.All()
 
 	// Load the encryption configuration
 	enc, encDiags := c.Encryption(ctx)
@@ -107,7 +100,7 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 
 	// Prepare the backend, passing the plan file if present, and the
 	// backend-specific arguments
-	be, beDiags := c.PrepareBackend(ctx, planFile, args.State, args.ViewOptions, enc.State())
+	be, beDiags := c.PrepareBackend(ctx, planFile, args.State, view.Backend(), enc.State())
 	diags = diags.Append(beDiags)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
@@ -200,7 +193,7 @@ func (c *ApplyCommand) LoadPlanFile(path string, enc encryption.Encryption) (*pl
 	return planFile, diags
 }
 
-func (c *ApplyCommand) PrepareBackend(ctx context.Context, planFile *planfile.WrappedPlanFile, args *arguments.State, viewOptions arguments.ViewOptions, enc encryption.StateEncryption) (backend.Enhanced, tfdiags.Diagnostics) {
+func (c *ApplyCommand) PrepareBackend(ctx context.Context, planFile *planfile.WrappedPlanFile, args *arguments.State, backendView views.Backend, enc encryption.StateEncryption) (backend.Enhanced, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// FIXME: we need to apply the state arguments to the meta object here
@@ -241,8 +234,8 @@ func (c *ApplyCommand) PrepareBackend(ctx context.Context, planFile *planfile.Wr
 		}
 
 		be, beDiags = c.Backend(ctx, &BackendOpts{
-			Config:      backendConfig,
-			ViewOptions: viewOptions,
+			Config: backendConfig,
+			View:   backendView,
 		}, enc)
 	}
 
@@ -269,7 +262,7 @@ func (c *ApplyCommand) OperationRequest(
 	diags = diags.Append(c.providerDevOverrideRuntimeWarnings())
 
 	// Build the operation
-	opReq := c.Operation(ctx, be, applyArgs.ViewOptions, enc)
+	opReq := c.Operation(ctx, be, view.Backend(), enc)
 	opReq.AutoApprove = applyArgs.AutoApprove
 	opReq.SuppressForgetErrorsDuringDestroy = applyArgs.SuppressForgetErrorsDuringDestroy
 	opReq.ConfigDir = "."
@@ -291,23 +284,6 @@ func (c *ApplyCommand) OperationRequest(
 	}
 
 	return opReq, diags
-}
-
-func (c *ApplyCommand) GatherVariables(args *arguments.Vars) {
-	// FIXME the arguments package currently trivially gathers variable related
-	// arguments in a heterogeneous slice, in order to minimize the number of
-	// code paths gathering variables during the transition to this structure.
-	// Once all commands that gather variables have been converted to this
-	// structure, we could move the variable gathering code to the arguments
-	// package directly, removing this shim layer.
-
-	varArgs := args.All()
-	items := make([]flags.RawFlag, len(varArgs))
-	for i := range varArgs {
-		items[i].Name = varArgs[i].Name
-		items[i].Value = varArgs[i].Value
-	}
-	c.Meta.variableArgs = flags.RawFlags{Items: &items}
 }
 
 func (c *ApplyCommand) Help() string {

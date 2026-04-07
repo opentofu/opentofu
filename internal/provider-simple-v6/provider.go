@@ -38,6 +38,16 @@ func Provider() providers.Interface {
 					},
 				},
 			},
+			IdentitySchemaVersion: 1,
+			IdentitySchema: &configschema.Object{
+				Nesting: configschema.NestingSingle,
+				Attributes: map[string]*configschema.Attribute{
+					"id": {
+						Type:     cty.String,
+						Required: true,
+					},
+				},
+			},
 		}
 		if withWoField {
 			ret.Block.Attributes["value_wo"] = &configschema.Attribute{
@@ -102,6 +112,7 @@ func (s simple) GetProviderSchema(_ context.Context) providers.GetProviderSchema
 	return s.schema
 }
 
+
 func (s simple) ValidateProviderConfig(_ context.Context, req providers.ValidateProviderConfigRequest) (resp providers.ValidateProviderConfigResponse) {
 	return resp
 }
@@ -129,6 +140,7 @@ func (s simple) MoveResourceState(_ context.Context, req providers.MoveResourceS
 	resp.TargetPrivate = req.SourcePrivate
 	return resp
 }
+
 func (s simple) UpgradeResourceState(_ context.Context, req providers.UpgradeResourceStateRequest) providers.UpgradeResourceStateResponse {
 	var resp providers.UpgradeResourceStateResponse
 	ty := s.schema.ResourceTypes[req.TypeName].Block.ImpliedType()
@@ -136,6 +148,10 @@ func (s simple) UpgradeResourceState(_ context.Context, req providers.UpgradeRes
 	resp.Diagnostics = resp.Diagnostics.Append(err)
 	resp.UpgradedState = val
 	return resp
+}
+
+func (s simple) UpgradeResourceIdentity(context.Context, providers.UpgradeResourceIdentityRequest) providers.UpgradeResourceIdentityResponse {
+	return providers.UpgradeResourceIdentityResponse{}
 }
 
 func (s simple) ConfigureProvider(context.Context, providers.ConfigureProviderRequest) (resp providers.ConfigureProviderResponse) {
@@ -164,8 +180,8 @@ func (s simple) PlanResourceChange(_ context.Context, req providers.PlanResource
 	}
 
 	m := req.ProposedNewState.AsValueMap()
-	_, ok := m["id"]
-	if !ok {
+	idVal, ok := m["id"]
+	if !ok || idVal.IsNull() {
 		m["id"] = cty.UnknownVal(cty.String)
 	}
 
@@ -188,8 +204,8 @@ func (s simple) ApplyResourceChange(_ context.Context, req providers.ApplyResour
 	}
 
 	m := req.PlannedState.AsValueMap()
-	_, ok := m["id"]
-	if !ok {
+	idVal, ok := m["id"]
+	if !ok || !idVal.IsKnown() {
 		m["id"] = cty.StringVal(time.Now().String())
 	}
 	waitIfRequested(req.Config.AsValueMap())

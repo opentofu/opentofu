@@ -9,7 +9,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/terminal"
@@ -18,8 +17,8 @@ import (
 func TestUnlock(t *testing.T) {
 	streams, _ := terminal.StreamsForTesting(t)
 	view := views.NewView(streams)
-
-	l := NewLocker(0, views.NewStateLocker(arguments.ViewOptions{ViewType: arguments.ViewHuman}, view))
+	backendView := views.NewBackendHuman(view)
+	l := NewLocker(0, backendView.StateLocker())
 	l.Lock(statemgr.NewUnlockErrorFull(nil, nil), "test-lock")
 
 	diags := l.Unlock()
@@ -41,7 +40,8 @@ func TestUnlockWithCancelledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	l := NewLocker(0, views.NewStateLocker(arguments.ViewOptions{ViewType: arguments.ViewHuman}, view))
+	backendView := views.NewBackendHuman(view)
+	l := NewLocker(0, backendView.StateLocker())
 	l = l.WithContext(ctx)
 
 	mgr := statemgr.NewFullFake(nil, nil)

@@ -178,7 +178,7 @@ func TestStaticScope_GetInputVariable(t *testing.T) {
 		}
 
 		call := NewStaticModuleCall(
-			addrs.RootModule,
+			addrs.RootModule, hcl.Range{},
 			func(v *Variable) (cty.Value, hcl.Diagnostics) {
 				return tests[v.Name].callerVal, nil
 			},
@@ -228,7 +228,7 @@ func TestStaticScope_GetInputVariable(t *testing.T) {
 		})
 
 		call := NewStaticModuleCall(
-			addrs.RootModule,
+			addrs.RootModule, hcl.Range{},
 			func(v *Variable) (cty.Value, hcl.Diagnostics) {
 				return cty.StringVal("not a list"), nil
 			},
@@ -266,7 +266,7 @@ func TestStaticScope_GetInputVariable(t *testing.T) {
 		})
 
 		call := NewStaticModuleCall(
-			addrs.RootModule,
+			addrs.RootModule, hcl.Range{},
 			func(v *Variable) (cty.Value, hcl.Diagnostics) {
 				return cty.NullVal(cty.String), nil
 			},
@@ -306,7 +306,7 @@ func TestStaticScope_GetLocalValue(t *testing.T) {
 		})
 
 		call := NewStaticModuleCall(
-			addrs.RootModule,
+			addrs.RootModule, hcl.Range{},
 			func(v *Variable) (cty.Value, hcl.Diagnostics) {
 				var diags tfdiags.Diagnostics
 				diags = diags.Append(fmt.Errorf("no variables here"))
@@ -337,7 +337,7 @@ func TestStaticScope_GetLocalValue(t *testing.T) {
 		})
 
 		call := NewStaticModuleCall(
-			addrs.RootModule,
+			addrs.RootModule, hcl.Range{},
 			func(v *Variable) (cty.Value, hcl.Diagnostics) {
 				var diags tfdiags.Diagnostics
 				diags = diags.Append(fmt.Errorf("no variables here"))

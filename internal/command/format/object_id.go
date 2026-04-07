@@ -6,6 +6,9 @@
 package format
 
 import (
+	"maps"
+	"slices"
+
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -156,4 +159,48 @@ func ObjectValueIDOrName(obj cty.Value) (k, v string) {
 	}
 	k, v = ObjectValueName(obj)
 	return
+}
+
+// ObjectValueBestGuess is a wrapper around ObjectValueIDOrName that attempts to extract the best possible human-friendly
+// string value for an object by first trying the ID and Name heuristics, and then falling back to any other string attribute if those fail.
+// This is intended to be used in cases where we want to display some sort of human-friendly context about an object,
+// but we don't have a specific expectation about which attribute will be the most useful for that purpose.
+//
+// Just as with the functions it wraps, it may return two empty strings if no suitable attribute can be found for a given object.
+func ObjectValueBestGuess(obj cty.Value) (k, v string) {
+	// First,attempt to fetch it from id or name attributes, which are the most likely to be unique and human-friendly, respectively.
+	k, v = ObjectValueIDOrName(obj)
+	if k != "" {
+		return
+	}
+
+	// If we cant get anything, just return "", "" to indicate that we have no useful information about this object.
+	if obj.IsNull() || !obj.IsKnown() {
+		return "", ""
+	}
+
+	attributeTypes := obj.Type().AttributeTypes()
+
+	// Fetch whichever string attribute is first in the list that is not marked as unusable, and return it as the best effort description of this object.
+	// We iterate over the attributes in sorted order to ensure that we get a deterministic result, even if the underlying map iteration order is not deterministic.
+	for _, k := range slices.Sorted(maps.Keys(attributeTypes)) {
+		// We specifically only want strings
+		if attributeTypes[k] != cty.String {
+			continue
+		}
+
+		v := obj.GetAttr(k)
+		if v.IsNull() || !v.IsKnown() || isValueMarkedUnusable(v) {
+			continue
+		}
+		v, _ = v.Unmark()
+
+		if v.IsKnown() && !v.IsNull() {
+			return k, v.AsString()
+		}
+	}
+
+	// If we got here, then we have no useful information about this object, so we return "", "" to indicate that the
+	// caller should skip printing this information, or attempt another way
+	return "", ""
 }

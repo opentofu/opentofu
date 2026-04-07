@@ -92,7 +92,6 @@ func initCommands(
 		Streams:    streams,
 		View:       views.NewView(streams).SetRunningInAutomation(inAutomation),
 
-		Color:            true,
 		GlobalPluginDirs: globalPluginDirs(),
 		Ui:               Ui,
 

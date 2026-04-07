@@ -5,9 +5,11 @@ variable "fully_overridden" {
   deprecated = "b_override deprecated"
   type = string
   ephemeral = false
+  const = false
 }
 
 variable "partially_overridden" {
   default = "b_override partial"
   deprecated = "b_override deprecated"
+  const = false
 }

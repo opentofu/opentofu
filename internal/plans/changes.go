@@ -9,6 +9,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 )
 
@@ -48,13 +49,6 @@ func BuildChanges(cb func(sync *ChangesSync)) *Changes {
 
 func (c *Changes) Empty() bool {
 	for _, res := range c.Resources {
-		// We ignore Open actions which are specific to ephemeral resources.
-		// A configuration containing ephemeral resources will always have changes planned,
-		// but if there is no other change recorded, there is no need for a prompt
-		// on the user.
-		if res.Action == Open {
-			continue
-		}
 		if res.Action != NoOp || res.Moved() {
 			return false
 		}
@@ -73,23 +67,6 @@ func (c *Changes) Empty() bool {
 	return true
 }
 
-// ActionableResources returns all the [Changes.Resources] that are changes that would actually
-// update the resources.
-// This method's main purpose is to exclude from [Changes.Resources] the changes that are
-// in the plan strictly for building the graph and are not going to change the resource state.
-// In case of [Open] actions, these are needed to build the required ephemeral nodes
-// in [DiffTransformer].
-func (c *Changes) ActionableResources() []*ResourceInstanceChangeSrc {
-	var ret []*ResourceInstanceChangeSrc
-	for _, r := range c.Resources {
-		if r.Action == Open {
-			continue
-		}
-		ret = append(ret, r)
-	}
-	return ret
-}
-
 // ResourceInstance returns the planned change for the current object of the
 // resource instance of the given address, if any. Returns nil if no change is
 // planned.
@@ -101,7 +78,6 @@ func (c *Changes) ResourceInstance(addr addrs.AbsResourceInstance) *ResourceInst
 	}
 
 	return nil
-
 }
 
 // InstancesForAbsResource returns the planned change for the current objects
@@ -218,6 +194,9 @@ func (c *Changes) SyncWrapper() *ChangesSync {
 
 // ResourceInstanceChange describes a change to a particular resource instance
 // object.
+// Note for developers: If you are adding new properties for this, ensure that the
+// Simplify() method is updated to copy those properties when it creates new simplified changes.
+// otherwise there could be data loss
 type ResourceInstanceChange struct {
 	// Addr is the absolute address of the resource instance that the change
 	// will apply to.
@@ -287,8 +266,8 @@ type ResourceInstanceChange struct {
 // Encode produces a variant of the receiver that has its change values
 // serialized so it can be written to a plan file. Pass the implied type of the
 // corresponding resource type schema for correct operation.
-func (rc *ResourceInstanceChange) Encode(ty cty.Type) (*ResourceInstanceChangeSrc, error) {
-	cs, err := rc.Change.Encode(ty)
+func (rc *ResourceInstanceChange) Encode(schema *providers.Schema) (*ResourceInstanceChangeSrc, error) {
+	cs, err := rc.Change.Encode(schema)
 	if err != nil {
 		return nil, err
 	}
@@ -348,6 +327,8 @@ func (rc *ResourceInstanceChange) Simplify(destroying bool) *ResourceInstanceCha
 					After:           cty.NullVal(rc.Before.Type()),
 					Importing:       rc.Importing,
 					GeneratedConfig: rc.GeneratedConfig,
+					BeforeIdentity:  rc.BeforeIdentity,
+					AfterIdentity:   cty.NullVal(rc.AfterIdentity.Type()),
 				},
 			}
 		default:
@@ -362,6 +343,8 @@ func (rc *ResourceInstanceChange) Simplify(destroying bool) *ResourceInstanceCha
 					After:           rc.Before,
 					Importing:       rc.Importing,
 					GeneratedConfig: rc.GeneratedConfig,
+					BeforeIdentity:  rc.BeforeIdentity,
+					AfterIdentity:   rc.AfterIdentity,
 				},
 			}
 		}
@@ -379,6 +362,8 @@ func (rc *ResourceInstanceChange) Simplify(destroying bool) *ResourceInstanceCha
 					After:           rc.Before,
 					Importing:       rc.Importing,
 					GeneratedConfig: rc.GeneratedConfig,
+					BeforeIdentity:  rc.BeforeIdentity,
+					AfterIdentity:   rc.AfterIdentity,
 				},
 			}
 		case CreateThenDelete, DeleteThenCreate, ForgetThenCreate:
@@ -393,6 +378,8 @@ func (rc *ResourceInstanceChange) Simplify(destroying bool) *ResourceInstanceCha
 					After:           rc.After,
 					Importing:       rc.Importing,
 					GeneratedConfig: rc.GeneratedConfig,
+					BeforeIdentity:  cty.NullVal(rc.BeforeIdentity.Type()),
+					AfterIdentity:   rc.AfterIdentity,
 				},
 			}
 		}
@@ -540,7 +527,7 @@ type OutputChange struct {
 // Encode produces a variant of the receiver that has its change values
 // serialized so it can be written to a plan file.
 func (oc *OutputChange) Encode() (*OutputChangeSrc, error) {
-	cs, err := oc.Change.Encode(cty.DynamicPseudoType)
+	cs, err := oc.Change.Encode(nil) // we don't have schemas here, so just pass through nil
 	if err != nil {
 		return nil, err
 	}
@@ -559,6 +546,10 @@ func (oc *OutputChange) Encode() (*OutputChangeSrc, error) {
 type Importing struct {
 	// ID is the original ID of the imported resource.
 	ID string
+
+	// Identity is an alterate identity value for the imported resource.
+	// Mutually exclusive with ID.
+	Identity cty.Value
 }
 
 // Change describes a single change with a given action.
@@ -594,6 +585,16 @@ type Change struct {
 	// should be true. However, not all Importing changes contain generated
 	// config.
 	GeneratedConfig string
+
+	// BeforeIdentity is the identity value from the known state of the resource instance
+	// before the plan is executed.
+	// Only relevant for managed resources, not outputs.
+	BeforeIdentity cty.Value
+
+	// AfterIdentity is the identity value returned by the provider during
+	// planning. This is used to pass identity data through to the apply phase.
+	// Only relevant for managed resources, not outputs.
+	AfterIdentity cty.Value
 }
 
 // Encode produces a variant of the receiver that has its change values
@@ -604,7 +605,16 @@ type Change struct {
 // Where a Change is embedded in some other struct, it's generally better
 // to call the corresponding Encode method of that struct rather than working
 // directly with its embedded Change.
-func (c *Change) Encode(ty cty.Type) (*ChangeSrc, error) {
+func (c *Change) Encode(schema *providers.Schema) (*ChangeSrc, error) {
+	var ty cty.Type
+
+	if schema == nil {
+		// we've been passed a nil set of schema, we should use a dynamic type here
+		ty = cty.DynamicPseudoType
+	} else {
+		ty = schema.Block.ImpliedType()
+	}
+
 	// Storing unmarked values so that we can encode unmarked values
 	// and save the PathValueMarks for re-marking the values later
 	var beforeVM, afterVM []cty.PathValueMarks
@@ -629,7 +639,46 @@ func (c *Change) Encode(ty cty.Type) (*ChangeSrc, error) {
 
 	var importing *ImportingSrc
 	if c.Importing != nil {
-		importing = &ImportingSrc{ID: c.Importing.ID}
+		var idVal DynamicValue
+
+		// Only encode identity if it's present and schema has IdentitySchema
+		if c.Importing.Identity != cty.NilVal && !c.Importing.Identity.IsNull() && schema != nil && schema.IdentitySchema != nil {
+			identityType := schema.IdentitySchema.ImpliedType()
+			id, dvErr := NewDynamicValue(c.Importing.Identity, identityType)
+			if dvErr != nil {
+				return nil, dvErr
+			}
+			idVal = id
+		}
+
+		importing = &ImportingSrc{
+			ID:       c.Importing.ID,
+			Identity: idVal,
+		}
+	}
+
+	var beforeIdentityDV DynamicValue
+	if c.BeforeIdentity != cty.NilVal && !c.BeforeIdentity.IsNull() {
+		identityTy := c.BeforeIdentity.Type()
+		if schema != nil && schema.IdentitySchema != nil {
+			identityTy = schema.IdentitySchema.ImpliedType()
+		}
+		beforeIdentityDV, err = NewDynamicValue(c.BeforeIdentity, identityTy)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	var afterIdentityDV DynamicValue
+	if c.AfterIdentity != cty.NilVal && !c.AfterIdentity.IsNull() {
+		identityTy := c.AfterIdentity.Type()
+		if schema != nil && schema.IdentitySchema != nil {
+			identityTy = schema.IdentitySchema.ImpliedType()
+		}
+		afterIdentityDV, err = NewDynamicValue(c.AfterIdentity, identityTy)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &ChangeSrc{
@@ -640,5 +689,7 @@ func (c *Change) Encode(ty cty.Type) (*ChangeSrc, error) {
 		AfterValMarks:   afterVM,
 		Importing:       importing,
 		GeneratedConfig: c.GeneratedConfig,
+		BeforeIdentity:  beforeIdentityDV,
+		AfterIdentity:   afterIdentityDV,
 	}, nil
 }

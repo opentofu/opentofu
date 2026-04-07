@@ -1,0 +1,124 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.12.0-dev",
+  "variables": {
+    "test_var": {
+      "value": "updated"
+    }
+  },
+  "planned_values": {
+    "root_module": {
+      "resources": [
+        {
+          "address": "test_instance.test",
+          "mode": "managed",
+          "type": "test_instance",
+          "name": "test",
+          "provider_name": "registry.opentofu.org/hashicorp/test",
+          "schema_version": 0,
+          "values": {
+            "ami": "updated",
+            "id": "myid"
+          },
+          "sensitive_values": {},
+          "identity": {
+            "id": "myid"
+          },
+          "identity_schema_version": 0
+        }
+      ]
+    }
+  },
+  "resource_changes": [
+    {
+      "address": "test_instance.test",
+      "mode": "managed",
+      "type": "test_instance",
+      "name": "test",
+      "provider_name": "registry.opentofu.org/hashicorp/test",
+      "change": {
+        "actions": [
+          "update"
+        ],
+        "before": {
+          "ami": "old-ami",
+          "id": "myid"
+        },
+        "after": {
+          "ami": "updated",
+          "id": "myid"
+        },
+        "after_unknown": {},
+        "before_sensitive": {},
+        "after_sensitive": {},
+        "before_identity": {
+          "id": "myid"
+        },
+        "after_identity": {
+          "id": "myid"
+        }
+      }
+    }
+  ],
+  "prior_state": {
+    "format_version": "1.0",
+    "terraform_version": "1.12.0",
+    "values": {
+      "root_module": {
+        "resources": [
+          {
+            "address": "test_instance.test",
+            "mode": "managed",
+            "type": "test_instance",
+            "name": "test",
+            "provider_name": "registry.opentofu.org/hashicorp/test",
+            "schema_version": 0,
+            "values": {
+              "ami": "old-ami",
+              "id": "myid"
+            },
+            "sensitive_values": {},
+            "identity": {
+              "id": "myid"
+            },
+            "identity_schema_version": 0
+          }
+        ]
+      }
+    }
+  },
+  "configuration": {
+    "provider_config": {
+      "test": {
+        "name": "test",
+        "full_name": "registry.opentofu.org/hashicorp/test"
+      }
+    },
+    "root_module": {
+      "resources": [
+        {
+          "address": "test_instance.test",
+          "mode": "managed",
+          "type": "test_instance",
+          "name": "test",
+          "provider_config_key": "test",
+          "expressions": {
+            "ami": {
+              "references": [
+                "var.test_var"
+              ]
+            }
+          },
+          "schema_version": 0
+        }
+      ],
+      "variables": {
+        "test_var": {
+          "default": "updated"
+        }
+      }
+    }
+  },
+  "timestamp": "2026-02-18T14:12:44Z",
+  "errored": false
+}

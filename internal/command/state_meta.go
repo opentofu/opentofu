@@ -64,7 +64,10 @@ func (c *StateMeta) State(ctx context.Context, enc encryption.Encryption, view v
 		}
 
 		// Get a local backend
-		localRaw, backendDiags := c.Backend(ctx, &BackendOpts{ForceLocal: true}, enc.State())
+		localRaw, backendDiags := c.Backend(ctx, &BackendOpts{
+			ForceLocal: true,
+			View:       view.Backend(),
+		}, enc.State())
 		if backendDiags.HasErrors() {
 			// This should never fail
 			panic(backendDiags.Err())

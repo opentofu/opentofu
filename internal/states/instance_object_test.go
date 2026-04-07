@@ -64,18 +64,15 @@ func TestResourceInstanceObject_encode(t *testing.T) {
 	var mu sync.Mutex
 
 	for _, obj := range objs {
-		obj := obj
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			rios, err := obj.Encode(value.Type(), 0)
+		wg.Go(func() {
+			rios, err := obj.Encode(value.Type(), 0, 0)
 			if err != nil {
 				t.Errorf("unexpected error: %s", err)
 			}
 			mu.Lock()
 			encoded = append(encoded, rios)
 			mu.Unlock()
-		}()
+		})
 	}
 	wg.Wait()
 
@@ -142,7 +139,7 @@ func TestResourceInstanceObject_encode_sensitivity(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		encoded, err := test.inputObj.Encode(test.inputObj.Value.Type(), 0)
+		encoded, err := test.inputObj.Encode(test.inputObj.Value.Type(), 0, 0)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}

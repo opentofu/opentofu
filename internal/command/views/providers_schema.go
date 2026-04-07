@@ -19,6 +19,10 @@ type ProvidersSchema interface {
 
 	// Output is used to display the final JSON output of the providers schema map.
 	Output(json string)
+
+	// Backend returns the non-command view that contains methods to provide
+	// progress output for the backend operations.
+	Backend() Backend
 }
 
 // NewProvidersSchema creates a new ProvidersSchema view.
@@ -41,4 +45,10 @@ func (v *ProvidersSchemaMixed) UnsupportedLocalOp() {
 func (v *ProvidersSchemaMixed) Output(json string) {
 	// The provider schema output is expected to just be the raw JSON
 	_, _ = v.view.streams.Println(json)
+}
+
+func (v *ProvidersSchemaMixed) Backend() Backend {
+	return &BackendHuman{
+		view: v.view,
+	}
 }

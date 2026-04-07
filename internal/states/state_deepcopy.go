@@ -6,6 +6,8 @@
 package states
 
 import (
+	"maps"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -60,17 +62,14 @@ func (ms *Module) DeepCopy() *Module {
 	for k, v := range ms.OutputValues {
 		outputValues[k] = v.DeepCopy()
 	}
-	localValues := make(map[string]cty.Value, len(ms.LocalValues))
-	for k, v := range ms.LocalValues {
-		// cty.Value is immutable, so we don't need to copy these.
-		localValues[k] = v
-	}
 
 	return &Module{
 		Addr:         ms.Addr, // technically mutable, but immutable by convention
 		Resources:    resources,
 		OutputValues: outputValues,
-		LocalValues:  localValues,
+
+		// [cty.Value] is immutable, so a shallow copy is okay for local values.
+		LocalValues: maps.Clone(ms.LocalValues),
 	}
 }
 
@@ -140,9 +139,7 @@ func (os *ResourceInstanceObjectSrc) DeepCopy() *ResourceInstanceObjectSrc {
 	var attrsFlat map[string]string
 	if os.AttrsFlat != nil {
 		attrsFlat = make(map[string]string, len(os.AttrsFlat))
-		for k, v := range os.AttrsFlat {
-			attrsFlat[k] = v
-		}
+		maps.Copy(attrsFlat, os.AttrsFlat)
 	}
 
 	var attrsJSON []byte
@@ -177,6 +174,18 @@ func (os *ResourceInstanceObjectSrc) DeepCopy() *ResourceInstanceObjectSrc {
 		copy(dependencies, os.Dependencies)
 	}
 
+	var identityJSON []byte
+	if os.IdentityJSON != nil {
+		identityJSON = make([]byte, len(os.IdentityJSON))
+		copy(identityJSON, os.IdentityJSON)
+	}
+
+	var identitySchemaVersion *uint64
+	if os.IdentitySchemaVersion != nil {
+		v := *os.IdentitySchemaVersion
+		identitySchemaVersion = &v
+	}
+
 	return &ResourceInstanceObjectSrc{
 		Status:                  os.Status,
 		SchemaVersion:           os.SchemaVersion,
@@ -188,6 +197,9 @@ func (os *ResourceInstanceObjectSrc) DeepCopy() *ResourceInstanceObjectSrc {
 		Dependencies:            dependencies,
 		CreateBeforeDestroy:     os.CreateBeforeDestroy,
 		SkipDestroy:             os.SkipDestroy,
+		Deferred:                os.Deferred,
+		IdentityJSON:            identityJSON,
+		IdentitySchemaVersion:   identitySchemaVersion,
 	}
 }
 
@@ -222,9 +234,11 @@ func (o *ResourceInstanceObject) DeepCopy() *ResourceInstanceObject {
 		Value:               o.Value,
 		Status:              o.Status,
 		Private:             private,
+		Identity:            o.Identity,
 		Dependencies:        dependencies,
 		CreateBeforeDestroy: o.CreateBeforeDestroy,
 		SkipDestroy:         o.SkipDestroy,
+		Deferred:            o.Deferred,
 	}
 }
 

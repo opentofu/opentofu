@@ -369,7 +369,8 @@ data "test_data_source" "d" {
 resource "test_resource" "b" {
   value = data.test_data_source.d.id
 }
-`})
+`,
+	})
 
 	oldDataAddr := mustResourceInstanceAddr(`module.mod["old"].data.test_data_source.d`)
 
@@ -657,7 +658,8 @@ data "test_data_source" "a" {
 		}
 	}
 }
-`})
+`,
+	})
 
 	managedAddr := mustResourceInstanceAddr(`test_resource.a`)
 	dataAddr := mustResourceInstanceAddr(`data.test_data_source.a`)
@@ -742,7 +744,6 @@ data "test_data_source" "a" {
 	if got, want := validVal, cty.True; got != want {
 		t.Errorf("wrong final valid value\ngot:  %#v\nwant: %#v", got, want)
 	}
-
 }
 
 func TestContext2Plan_managedResourceChecksOtherManagedResourceChange(t *testing.T) {
@@ -870,7 +871,8 @@ resource "test_resource" "b" {
 		}
 	}
 }
-`})
+`,
+	})
 
 	managedAddrA := mustResourceInstanceAddr(`test_resource.a`)
 	managedAddrB := mustResourceInstanceAddr(`test_resource.b`)
@@ -2685,94 +2687,6 @@ func TestContext2Plan_refreshOnlyMode(t *testing.T) {
 	}
 }
 
-func TestContext2Plan_refreshOnlyMode_ephemeral(t *testing.T) {
-	addr := mustResourceInstanceAddr("ephemeral.test_object.a")
-
-	// The configuration, the prior state, and the refresh result intentionally
-	// have different values for "test_string" so we can observe that the
-	// refresh took effect but the configuration change wasn't considered.
-	m := testModuleInline(t, map[string]string{
-		"main.tf": `
-			ephemeral "test_object" "a" {
-				arg = "after"
-			}
-		`,
-	})
-	state := states.NewState()
-
-	p := simpleMockProvider()
-	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
-		Provider: providers.Schema{Block: simpleTestSchema()},
-		EphemeralResources: map[string]providers.Schema{
-			"test_object": {
-				Block: &configschema.Block{
-					Attributes: map[string]*configschema.Attribute{
-						"arg": {Type: cty.String, Optional: true},
-					},
-				},
-			},
-		},
-	}
-	p.OpenEphemeralResourceFn = func(req providers.OpenEphemeralResourceRequest) providers.OpenEphemeralResourceResponse {
-		newVal, err := cty.Transform(req.Config, func(path cty.Path, v cty.Value) (cty.Value, error) {
-			if len(path) == 1 && path[0] == (cty.GetAttrStep{Name: "arg"}) {
-				return cty.StringVal("current"), nil
-			}
-			return v, nil
-		})
-		if err != nil {
-			// shouldn't get here
-			t.Fatalf("OpenResourceFn transform failed")
-			return providers.OpenEphemeralResourceResponse{}
-		}
-		return providers.OpenEphemeralResourceResponse{
-			Result: newVal,
-		}
-	}
-
-	ctx := testContext2(t, &ContextOpts{
-		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
-			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		}, nil),
-	})
-
-	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
-		Mode: plans.RefreshOnlyMode,
-	})
-	if diags.HasErrors() {
-		t.Fatalf("unexpected errors\n%s", diags.Err().Error())
-	}
-
-	if !p.OpenEphemeralResourceCalled {
-		t.Errorf("Provider's OpenEphemeralResource wasn't called; should've been")
-	}
-
-	if got, want := len(plan.Changes.Resources), 1; got != want {
-		t.Fatalf("expected to have exactly %d resource but got %d", want, got)
-	}
-	if gotResAddr := plan.Changes.Resources[0].Addr; !gotResAddr.Equal(addr) {
-		t.Errorf("plan contains one resource and that's NOT an ephemeral as expected; instead, got %s", gotResAddr)
-	}
-	if got, want := len(plan.Changes.ActionableResources()), 0; got != want {
-		t.Errorf(
-			"changes.ActionableResources() returned more than %d resources, meaning that didn't exclude ephemeral resources. Instead returned %d\nChanges:\n%s",
-			want,
-			got,
-			spew.Sdump(plan.Changes.Resources),
-		)
-	}
-
-	if instState := plan.PlannedState.ResourceInstance(addr); instState == nil {
-		t.Errorf("%s has no planned state, but it should have since it's needed to build the apply graph correctly", addr)
-	} else {
-		want := `{"arg":"current"}`
-		got := string(instState.Current.AttrsJSON)
-		if diff := cmp.Diff(want, got); diff != "" {
-			t.Fatalf("unexpected attributes for the planned ephemeral:\n%s", diff)
-		}
-	}
-}
-
 func TestContext2Plan_refreshOnlyMode_deposed(t *testing.T) {
 	addr := mustResourceInstanceAddr("test_object.a")
 	deposedKey := states.DeposedKey("byebye")
@@ -3455,7 +3369,7 @@ func TestContext2Plan_moduleImplicitMove(t *testing.T) {
 	// Modules are being moved implicitly to use the `enabled` field when nothing
 	// is declared on the block. Alternatively, they are implicitly being moved from
 	// using `enabled` as true or without declaring `enabled` to use count.
-	var tests = map[string]struct {
+	tests := map[string]struct {
 		name         string
 		expectedAddr addrs.AbsResourceInstance
 		prevAddr     addrs.AbsResourceInstance
@@ -4977,7 +4891,8 @@ resource "test_object" "b" {
   provider = test.other
   in = "a"
 }
-`})
+`,
+	})
 
 	testProvider := &MockProvider{
 		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
@@ -4992,7 +4907,7 @@ resource "test_object" "b" {
 				},
 			},
 			ResourceTypes: map[string]providers.Schema{
-				"test_object": providers.Schema{
+				"test_object": {
 					Block: &configschema.Block{
 						Attributes: map[string]*configschema.Attribute{
 							"in": {
@@ -5097,7 +5012,8 @@ output "out" {
     error_message = "should not block destroy"
   }
 }
-`})
+`,
+	})
 
 	p := simpleMockProvider()
 
@@ -5165,7 +5081,8 @@ resource "test_object" "a" {
 output "out" {
   value = test_object.a.test_string
 }
-`})
+`,
+	})
 
 	p := simpleMockProvider()
 
@@ -5228,12 +5145,13 @@ resource "test_object" "a" {
     new   = sensitive("ignored")
   }
 }
-`})
+`,
+	})
 
 	testProvider := &MockProvider{
 		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 			ResourceTypes: map[string]providers.Schema{
-				"test_object": providers.Schema{
+				"test_object": {
 					Block: &configschema.Block{
 						Attributes: map[string]*configschema.Attribute{
 							"map": {
@@ -5631,7 +5549,6 @@ import {
 
 	for _, configuration := range configurations {
 		t.Run(configuration.Description, func(t *testing.T) {
-
 			// Format the configuration with the import ID
 			formattedConfiguration := make(map[string]string)
 			for configFileName, configFileContent := range configuration.inlineConfiguration {
@@ -5646,10 +5563,10 @@ import {
 				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 					Provider: providers.Schema{Block: simpleTestSchema()},
 					ResourceTypes: map[string]providers.Schema{
-						"test_object": providers.Schema{Block: simpleTestSchema()},
+						"test_object": {Block: simpleTestSchema()},
 					},
 					DataSources: map[string]providers.Schema{
-						"test_object": providers.Schema{
+						"test_object": {
 							Block: &configschema.Block{
 								Attributes: map[string]*configschema.Attribute{
 									"test_string": {
@@ -5851,7 +5768,7 @@ import {
 				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 					Provider: providers.Schema{Block: providerSchema},
 					ResourceTypes: map[string]providers.Schema{
-						"test_object": providers.Schema{Block: providerSchema},
+						"test_object": {Block: providerSchema},
 					},
 				},
 			}
@@ -6097,7 +6014,7 @@ func TestContext2Plan_importWithInvalidForEach(t *testing.T) {
 	configurations := []TestConfiguration{
 		{
 			Description:   "for_each value is null",
-			expectedError: "Invalid import id argument: The import ID cannot be null",
+			expectedError: "Invalid import id argument: The import id cannot be null",
 			inlineConfiguration: map[string]string{
 				"main.tf": `
 locals {
@@ -6243,7 +6160,7 @@ import {
 		},
 		{
 			Description:   "for_each value is sensitive",
-			expectedError: "Invalid import id argument: The import ID cannot be sensitive.",
+			expectedError: "Invalid import id argument: The import id cannot be sensitive.",
 			inlineConfiguration: map[string]string{
 				"main.tf": `
 locals {
@@ -6338,7 +6255,7 @@ import {
 				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 					Provider: providers.Schema{Block: providerSchema},
 					ResourceTypes: map[string]providers.Schema{
-						"test_object": providers.Schema{Block: providerSchema},
+						"test_object": {Block: providerSchema},
 					},
 				},
 			}
@@ -6728,6 +6645,125 @@ func TestContext2Plan_importIdReference(t *testing.T) {
 	}
 }
 
+func TestContext2Plan_importWithIdentityExpression(t *testing.T) {
+	p := testProvider("test")
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+resource "test_instance" "foo" {
+}
+
+import {
+  to = test_instance.foo
+  identity = {
+    name   = "my-resource"
+    region = "us-west-2"
+  }
+}
+`,
+	})
+
+	ctx := testContext2(t, &ContextOpts{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		}, nil),
+	})
+
+	identitySchema := providers.ResourceIdentitySchema{
+		Version: 1,
+		Body: &configschema.Object{
+			Attributes: map[string]*configschema.Attribute{
+				"name":   {Type: cty.String, Required: true},
+				"region": {Type: cty.String, Required: true},
+			},
+			Nesting: configschema.NestingSingle,
+		},
+	}
+
+	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
+		ResourceTypes: map[string]providers.Schema{
+			"test_instance": {
+				Block: &configschema.Block{
+					Attributes: map[string]*configschema.Attribute{
+						"id":     {Type: cty.String, Computed: true},
+						"name":   {Type: cty.String, Optional: true},
+						"region": {Type: cty.String, Optional: true},
+					},
+				},
+				IdentitySchema:        identitySchema.Body,
+				IdentitySchemaVersion: identitySchema.Version,
+			},
+		},
+	}
+
+	// Capture the import request to verify identity was passed correctly
+	var capturedImportRequest providers.ImportResourceStateRequest
+
+	// ImportResourceState should receive the identity
+	p.ImportResourceStateFn = func(req providers.ImportResourceStateRequest) providers.ImportResourceStateResponse {
+		capturedImportRequest = req
+
+		return providers.ImportResourceStateResponse{
+			ImportedResources: []providers.ImportedResource{
+				{
+					TypeName: "test_instance",
+					State: cty.ObjectVal(map[string]cty.Value{
+						"id":     cty.StringVal("imported-123"),
+						"name":   cty.StringVal("my-resource"),
+						"region": cty.StringVal("us-west-2"),
+					}),
+				},
+			},
+		}
+	}
+
+	plan, diags := ctx.Plan(t.Context(), m, states.NewState(), &PlanOpts{})
+
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors: %s", diags.Err())
+	}
+
+	if !p.ImportResourceStateCalled {
+		t.Fatal("ImportResourceState should have been called")
+	}
+
+	if capturedImportRequest.Target.ID != "" {
+		t.Errorf("expected ID to be empty for identity-based import, got %q", capturedImportRequest.Target.ID)
+	}
+
+	if capturedImportRequest.Target.Identity.IsNull() {
+		t.Fatal("expected Identity to be set for identity-based import")
+	}
+
+	expectedIdentity := cty.ObjectVal(map[string]cty.Value{
+		"name":   cty.StringVal("my-resource"),
+		"region": cty.StringVal("us-west-2"),
+	})
+
+	if !capturedImportRequest.Target.Identity.RawEquals(expectedIdentity) {
+		t.Errorf("unexpected identity:\ngot:  %#v\nwant: %#v", capturedImportRequest.Target.Identity, expectedIdentity)
+	}
+
+	if len(plan.Changes.Resources) == 0 {
+		t.Fatal("expected import to create resource changes")
+	}
+
+	// there should be one change, and that should be the import!
+	first := plan.Changes.Resources[0]
+	if first.Importing == nil {
+		t.Fatal("expected resource change to be an import")
+	}
+
+	identityType := identitySchema.Body.ImpliedType()
+	decodedIdentity, err := first.Importing.Identity.Decode(identityType)
+	if err != nil {
+		t.Fatalf("failed to decode importing identity: %s", err)
+	}
+
+	if !decodedIdentity.RawEquals(expectedIdentity) {
+		t.Errorf("unexpected imported identity:\ngot:  %#v\nwant: %#v", decodedIdentity, expectedIdentity)
+	}
+}
+
 func TestContext2Plan_importIdFunc(t *testing.T) {
 	p := testProvider("aws")
 	m := testModule(t, "import-id-func")
@@ -6874,7 +6910,7 @@ func TestContext2Plan_importIdInvalidNull(t *testing.T) {
 	if !diags.HasErrors() {
 		t.Fatal("succeeded; want errors")
 	}
-	if got, want := diags.Err().Error(), "The import ID cannot be null"; !strings.Contains(got, want) {
+	if got, want := diags.Err().Error(), "The import id cannot be null"; !strings.Contains(got, want) {
 		t.Fatalf("wrong error:\ngot:  %s\nwant: message containing %q", got, want)
 	}
 }
@@ -8872,16 +8908,17 @@ func TestContext2Plan_insufficient_block(t *testing.T) {
 }
 
 // Ensure that running plan on a configuration with ephemeral resources,
-// the generated plan contains the expected changes
-func TestContext2Plan_ephemeralResourceChangesGenerated(t *testing.T) {
+// the plan contains no changes for the ephemerals.
+// This test has been repurposed during #3799.
+func TestContext2Plan_noEphemeralResourceChangesGenerated(t *testing.T) {
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 ephemeral "test_ephemeral_resource" "a" {
 }
 `,
 	})
-	testProvider := testProvider("test")
-	testProvider.OpenEphemeralResourceResponse = &providers.OpenEphemeralResourceResponse{
+	p := testProvider("test")
+	p.OpenEphemeralResourceResponse = &providers.OpenEphemeralResourceResponse{
 		Result: cty.ObjectVal(map[string]cty.Value{
 			"id":     cty.StringVal("id val"),
 			"secret": cty.StringVal("val"),
@@ -8893,49 +8930,24 @@ ephemeral "test_ephemeral_resource" "a" {
 
 	ctx := testContext2(t, &ContextOpts{
 		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
-			addrs.NewDefaultProvider("test"): testProviderFuncFixed(testProvider),
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
 		}, nil),
 	})
 
-	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
-	if diags.HasErrors() {
-		t.Fatalf("unexpected plan error: %s", diags)
-	}
-	if plan.Changes == nil {
-		t.Fatalf("expected to have some changes but got none")
-	}
-	if got, want := len(plan.Changes.Resources), 1; got != want {
-		t.Fatalf("expected to have %d changes but got %d", want, got)
-	}
-	got := plan.Changes.Resources[0]
-	addr := mustResourceInstanceAddr("ephemeral.test_ephemeral_resource.a")
-	schema := testProvider.ProviderSchema().EphemeralTypes[addr.Resource.Resource.Type]
-	objTy := schema.ImpliedType()
-	priorVal := cty.NullVal(objTy)
-	beforeVal, err := plans.NewDynamicValue(priorVal, objTy)
-	if err != nil {
-		t.Fatalf("unexpected error creating before val: %s", err)
-	}
-	afterVal, err := plans.NewDynamicValue(cty.ObjectVal(map[string]cty.Value{
-		"id":     cty.StringVal("id val"),
-		"secret": cty.StringVal("val"),
-		"input":  cty.NullVal(cty.String),
-	}), objTy)
-	if err != nil {
-		t.Fatalf("unexpected error creating after val: %s", err)
-	}
-	want := &plans.ResourceInstanceChangeSrc{
-		Addr:         addr,
-		PrevRunAddr:  addr,
-		ProviderAddr: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
-		ChangeSrc: plans.ChangeSrc{
-			Action: plans.Open,
-			Before: beforeVal,
-			After:  afterVal,
-		},
-	}
-	if diff := cmp.Diff(want, got); diff != "" {
-		t.Fatalf("unexpected diff in the ephemeral resource recorded change:\n%s", diff)
+	for _, mode := range []plans.Mode{plans.NormalMode, plans.RefreshOnlyMode} {
+		t.Run(mode.String(), func(t *testing.T) {
+			plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{Mode: mode})
+			if diags.HasErrors() {
+				t.Fatalf("unexpected plan error: %s", diags)
+			}
+			if !p.OpenEphemeralResourceCalled {
+				t.Errorf("Provider's OpenEphemeralResource wasn't called; should've been")
+			}
+			defer func() { p.OpenEphemeralResourceCalled = false }()
+			if got, want := len(plan.Changes.Resources), 0; got != want {
+				t.Fatalf("expected to have %d changes but got %d", want, got)
+			}
+		})
 	}
 }
 

@@ -78,7 +78,7 @@ func TestParserLoadConfigDirSuccess(t *testing.T) {
 				"mod/" + name: string(src),
 			})
 
-			_, diags := parser.LoadConfigDir("mod", NewStaticModuleCall(addrs.RootModule,
+			_, diags := parser.LoadConfigDir("mod", NewStaticModuleCall(addrs.RootModule, hcl.Range{},
 				func(v *Variable) (cty.Value, hcl.Diagnostics) {
 					if !v.Required() {
 						// Allow defaults in this test

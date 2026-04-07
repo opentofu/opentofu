@@ -16,11 +16,13 @@ import (
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/zclconf/go-cty/cty"
 )
 
 type graphNodeImportState struct {
 	Addr                addrs.AbsResourceInstance // Addr is the resource address to import into
 	ID                  string                    // ID is the ID to import as
+	Identity            cty.Value                 // Identity is an alternative to ID for providers to use for importing
 	ResolvedProvider    ResolvedProvider          // provider node address after resolution
 	ResolvedProviderKey addrs.InstanceKey         // resolved from ResolvedProviderKeyExpr+ResolvedProviderKeyPath in method Execute
 
@@ -119,7 +121,10 @@ func (n *graphNodeImportState) Execute(ctx context.Context, evalCtx EvalContext,
 
 	resp := provider.ImportResourceState(ctx, providers.ImportResourceStateRequest{
 		TypeName: n.Addr.Resource.Resource.Type,
-		ID:       n.ID,
+		Target: providers.ImportTarget{
+			ID:       n.ID,
+			Identity: n.Identity,
+		},
 	})
 	diags = diags.Append(resp.Diagnostics)
 	if diags.HasErrors() {
@@ -275,8 +280,8 @@ func (n *graphNodeImportStateSub) Execute(ctx context.Context, evalCtx EvalConte
 			"Cannot import non-existent remote object",
 			fmt.Sprintf(
 				"While attempting to import an existing object to %q, "+
-					"the provider detected that no object exists with the given id. "+
-					"Only pre-existing objects can be imported; check that the id "+
+					"the provider detected that no object exists with the given id or identity. "+
+					"Only pre-existing objects can be imported; check that the id or identity "+
 					"is correct and that it is associated with the provider's "+
 					"configured region or endpoint, or use \"tofu apply\" to "+
 					"create a new remote object for this resource.",

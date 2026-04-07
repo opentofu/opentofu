@@ -87,7 +87,7 @@ func (o overriddenDiagnostic) ExtraInfo() interface{} {
 // delegates to its own ElaborateFromConfigBody implementation and then re-wraps
 // the result with the same overrides.
 //
-// Otherwise, the reciever is returned unchanged.
+// Otherwise, the receiver is returned unchanged.
 func (o overriddenDiagnostic) ElaborateFromConfigBody(body hcl.Body, addr string) Diagnostic {
 	innerContextual, ok := o.original.(contextualFromConfigBody)
 	if !ok {

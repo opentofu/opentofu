@@ -118,7 +118,7 @@ func (m *Meta) rootModuleCall(ctx context.Context, rootDir string) (configs.Stat
 		diags = diags.Append(err)
 	}
 
-	call := configs.NewStaticModuleCall(addrs.RootModule, func(variable *configs.Variable) (cty.Value, hcl.Diagnostics) {
+	call := configs.NewStaticModuleCall(addrs.RootModule, hcl.Range{}, func(variable *configs.Variable) (cty.Value, hcl.Diagnostics) {
 		name := variable.Name
 		v, ok := variables[name]
 		if !ok {
@@ -305,8 +305,11 @@ func (m *Meta) installModules(ctx context.Context, rootDir, testsDir string, upg
 	diags = diags.Append(moreDiags)
 
 	if ctx.Err() == context.Canceled {
-		view.Diagnostics(diags)
-		m.Ui.Error("Module installation was canceled by an interrupt signal.")
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Module installation canceled",
+			"Module installation was canceled by an interrupt signal.",
+		))
 		return true, diags
 	}
 
@@ -333,8 +336,11 @@ func (m *Meta) initDirFromModule(ctx context.Context, targetDir string, addr str
 	moreDiags := initwd.DirFromModule(ctx, loader, targetDir, m.WorkingDir.ModulesDir(), addr, m.registryClient(ctx), m.ModulePackageFetcher, hooks)
 	diags = diags.Append(moreDiags)
 	if ctx.Err() == context.Canceled {
-		view.Diagnostics(diags)
-		m.Ui.Error("Module initialization was canceled by an interrupt signal.")
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Module initialization canceled",
+			"Module initialization was canceled by an interrupt signal.",
+		))
 		return true, diags
 	}
 	return false, diags
@@ -354,7 +360,7 @@ func (m *Meta) initDirFromModule(ctx context.Context, targetDir string, addr str
 //
 // The given value must conform to the given schema. If not, this method will
 // panic.
-func (m *Meta) inputForSchema(given cty.Value, schema *configschema.Block) (cty.Value, error) {
+func (m *Meta) inputForSchema(given cty.Value, schema *configschema.Block, view views.Basic) (cty.Value, error) {
 	if given.IsNull() || !given.IsKnown() {
 		// This is not reasonable input, but we'll tolerate it anyway and
 		// just pass it through for the caller to handle downstream.
@@ -387,7 +393,11 @@ func (m *Meta) inputForSchema(given cty.Value, schema *configschema.Block) (cty.
 			val := cty.StringVal(strVal)
 			val, err = convert.Convert(val, attrS.Type)
 			if err != nil {
-				m.showDiagnostics(fmt.Errorf("Invalid value: %w", err))
+				view.Diagnostics(tfdiags.Diagnostics{tfdiags.Sourceless(
+					tfdiags.Error,
+					"Invalid value",
+					err.Error(),
+				)})
 				continue
 			}
 
@@ -397,19 +407,6 @@ func (m *Meta) inputForSchema(given cty.Value, schema *configschema.Block) (cty.
 	}
 
 	return cty.ObjectVal(retVals), nil
-}
-
-// configSources returns the source cache from the receiver's config loader,
-// which the caller must not modify.
-//
-// If a config loader has not yet been instantiated then no files could have
-// been loaded already, so this method returns a nil map in that case.
-func (m *Meta) configSources() map[string]*hcl.File {
-	if m.configLoader == nil {
-		return nil
-	}
-
-	return m.configLoader.Sources()
 }
 
 // registerSynthConfigSource allows commands to add synthetic additional source

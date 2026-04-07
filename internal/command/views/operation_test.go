@@ -82,7 +82,6 @@ func TestOperation_emergencyDumpState(t *testing.T) {
 }
 
 func TestOperation_planNoChanges(t *testing.T) {
-
 	tests := map[string]struct {
 		plan     func(schemas *tofu.Schemas) *plans.Plan
 		wantText string
@@ -126,7 +125,7 @@ func TestOperation_planNoChanges(t *testing.T) {
 					addr.Resource.Resource.Mode,
 					addr.Resource.Resource.Type,
 				)
-				ty := schema.ImpliedType()
+				ty := schema.Block.ImpliedType()
 				rc := &plans.ResourceInstanceChange{
 					Addr:        addr,
 					PrevRunAddr: addr,
@@ -142,7 +141,7 @@ func TestOperation_planNoChanges(t *testing.T) {
 						}),
 					},
 				}
-				rcs, err := rc.Encode(ty)
+				rcs, err := rc.Encode(schema)
 				if err != nil {
 					panic(err)
 				}
@@ -167,7 +166,7 @@ func TestOperation_planNoChanges(t *testing.T) {
 					addr.Resource.Resource.Mode,
 					addr.Resource.Resource.Type,
 				)
-				ty := schema.ImpliedType()
+				ty := schema.Block.ImpliedType()
 				rc := &plans.ResourceInstanceChange{
 					Addr:        addr,
 					PrevRunAddr: addr,
@@ -183,7 +182,7 @@ func TestOperation_planNoChanges(t *testing.T) {
 						}),
 					},
 				}
-				rcs, err := rc.Encode(ty)
+				rcs, err := rc.Encode(schema)
 				if err != nil {
 					panic(err)
 				}
@@ -214,7 +213,7 @@ func TestOperation_planNoChanges(t *testing.T) {
 					addr.Resource.Resource.Mode,
 					addr.Resource.Resource.Type,
 				)
-				ty := schema.ImpliedType()
+				ty := schema.Block.ImpliedType()
 				rc := &plans.ResourceInstanceChange{
 					Addr:        addr,
 					PrevRunAddr: addr,
@@ -230,7 +229,7 @@ func TestOperation_planNoChanges(t *testing.T) {
 						}),
 					},
 				}
-				rcs, err := rc.Encode(ty)
+				rcs, err := rc.Encode(schema)
 				if err != nil {
 					panic(err)
 				}
@@ -260,7 +259,6 @@ func TestOperation_planNoChanges(t *testing.T) {
 					addr.Resource.Resource.Mode,
 					addr.Resource.Resource.Type,
 				)
-				ty := schema.ImpliedType()
 				rc := &plans.ResourceInstanceChange{
 					Addr:        addr,
 					PrevRunAddr: addrPrev,
@@ -279,7 +277,7 @@ func TestOperation_planNoChanges(t *testing.T) {
 						}),
 					},
 				}
-				rcs, err := rc.Encode(ty)
+				rcs, err := rc.Encode(schema)
 				if err != nil {
 					panic(err)
 				}
@@ -435,34 +433,6 @@ Plan: 1 to add, 0 to change, 0 to destroy.
 	}
 }
 
-func TestOperation_planWithEphemeral(t *testing.T) {
-	streams, done := terminal.StreamsForTesting(t)
-	v := NewOperation(arguments.ViewHuman, true, NewView(streams))
-
-	plan := testPlanWithEphemeral(t)
-	schemas := testSchemas()
-	v.Plan(plan, schemas)
-
-	want := `
-OpenTofu used the selected providers to generate the following execution
-plan. Resource actions are indicated with the following symbols:
-  + create
-
-OpenTofu will perform the following actions:
-
-  # test_resource.foo will be created
-  + resource "test_resource" "foo" {
-      + foo = "bar"
-      + id  = (known after apply)
-    }
-
-Plan: 1 to add, 0 to change, 0 to destroy.
-`
-
-	if got := done(t).Stdout(); got != want {
-		t.Errorf("unexpected output\ngot:\n%s\nwant:\n%s", got, want)
-	}
-}
 func TestOperation_planNextStep(t *testing.T) {
 	testCases := map[string]struct {
 		path string

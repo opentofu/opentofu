@@ -92,7 +92,6 @@ func marshalPlannedOutputs(changes *plans.Changes) (map[string]Output, error) {
 	}
 
 	return ret, nil
-
 }
 
 func marshalPlannedValues(changes *plans.Changes, schemas *tofu.Schemas) (Module, error) {
@@ -206,7 +205,7 @@ func marshalPlanResources(changeMap map[string]*plans.ResourceInstanceChangeSrc,
 		case addrs.DataResourceMode:
 			resource.Mode = "data"
 		case addrs.EphemeralResourceMode:
-			resource.Mode = "ephemeral"
+			return ret, fmt.Errorf("ephemeral resource %q detected in the plan. This is an error in OpenTofu", r.Addr.String())
 		default:
 			return nil, fmt.Errorf("resource %s has an unsupported mode %s",
 				r.Addr.String(),
@@ -223,7 +222,7 @@ func marshalPlanResources(changeMap map[string]*plans.ResourceInstanceChangeSrc,
 			return nil, fmt.Errorf("no schema found for %s", r.Addr.String())
 		}
 		resource.SchemaVersion = schemaVer
-		changeV, err := r.Decode(schema.ImpliedType())
+		changeV, err := r.Decode(schema)
 		if err != nil {
 			return nil, err
 		}
@@ -239,10 +238,10 @@ func marshalPlanResources(changeMap map[string]*plans.ResourceInstanceChangeSrc,
 
 		if changeV.After != cty.NilVal {
 			if changeV.After.IsWhollyKnown() {
-				resource.AttributeValues = marshalAttributeValues(changeV.After, schema)
+				resource.AttributeValues = marshalAttributeValues(changeV.After, schema.Block)
 			} else {
 				knowns := omitUnknowns(changeV.After)
-				resource.AttributeValues = marshalAttributeValues(knowns, schema)
+				resource.AttributeValues = marshalAttributeValues(knowns, schema.Block)
 			}
 		}
 
@@ -252,6 +251,16 @@ func marshalPlanResources(changeMap map[string]*plans.ResourceInstanceChangeSrc,
 			return nil, err
 		}
 		resource.SensitiveValues = v
+
+		if changeV.AfterIdentity != cty.NilVal && !changeV.AfterIdentity.IsNull() {
+			identityJSON, err := ctyjson.Marshal(changeV.AfterIdentity, changeV.AfterIdentity.Type())
+			if err != nil {
+				return nil, err
+			}
+			resource.Identity = identityJSON
+			idSchemaVersion := uint64(schema.IdentitySchemaVersion)
+			resource.IdentitySchemaVersion = &idSchemaVersion
+		}
 
 		ret = append(ret, resource)
 	}
@@ -272,7 +281,6 @@ func marshalPlanModules(
 	moduleMap map[string][]addrs.ModuleInstance,
 	moduleResourceMap map[string][]addrs.AbsResourceInstance,
 ) ([]Module, error) {
-
 	var ret []Module
 
 	for _, child := range childModules {

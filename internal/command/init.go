@@ -57,12 +57,6 @@ func (c *InitCommand) Run(rawArgs []string) int {
 	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
 	c.View.DiagsWithNewline()
 
-	// Propagate -no-color for legacy use of Ui. The remote backend and
-	// cloud package use this; it should be removed when/if they are
-	// migrated to views.
-	c.Meta.color = !common.NoColor
-	c.Meta.Color = c.Meta.color
-
 	// Parse and validate flags
 	args, closer, diags := arguments.ParseInit(rawArgs)
 	defer closer()
@@ -92,7 +86,7 @@ func (c *InitCommand) Run(rawArgs []string) int {
 	if len(args.FlagPluginPath) > 0 {
 		c.pluginPath = args.FlagPluginPath
 	}
-	c.GatherVariables(args.Vars)
+	c.Meta.variableArgs = args.Vars.All()
 
 	// This gets the current directory as full path.
 	path := c.WorkingDir.NormalizePath(c.WorkingDir.RootModuleDir())
@@ -218,9 +212,9 @@ To initialize the configuration already in this working directory, omit the
 
 	switch {
 	case args.FlagCloud && rootModEarly.CloudConfig != nil:
-		back, backendOutput, backDiags = c.initCloud(ctx, rootModEarly, args.FlagConfigExtra, enc, view)
+		back, backendOutput, backDiags = c.initCloud(ctx, rootModEarly, args.FlagConfigExtra, enc, view.Backend())
 	case args.FlagBackend:
-		back, backendOutput, backDiags = c.initBackend(ctx, rootModEarly, args.FlagConfigExtra, enc, view)
+		back, backendOutput, backDiags = c.initBackend(ctx, rootModEarly, args.FlagConfigExtra, enc, view.Backend())
 	default:
 		// load the previously-stored backend config
 		back, backDiags = c.Meta.backendFromState(ctx, enc.State())
@@ -413,11 +407,10 @@ func (c *InitCommand) getModules(ctx context.Context, path, testsDir string, ear
 	return true, installAbort, diags
 }
 
-func (c *InitCommand) initCloud(ctx context.Context, root *configs.Module, extraConfig flags.RawFlags, enc encryption.Encryption, view views.Init) (be backend.Backend, output bool, diags tfdiags.Diagnostics) {
+func (c *InitCommand) initCloud(ctx context.Context, root *configs.Module, extraConfig flags.RawFlags, enc encryption.Encryption, view views.Backend) (be backend.Backend, output bool, diags tfdiags.Diagnostics) {
 	ctx, span := tracing.Tracer().Start(ctx, "Cloud backend init")
 	_ = ctx // prevent staticcheck from complaining to avoid a maintenance hazard of having the wrong ctx in scope here
 	defer span.End()
-
 	view.InitializingCloudBackend()
 
 	if len(extraConfig.AllItems()) != 0 {
@@ -434,6 +427,7 @@ func (c *InitCommand) initCloud(ctx context.Context, root *configs.Module, extra
 	opts := &BackendOpts{
 		Config: &backendConfig,
 		Init:   true,
+		View:   view,
 	}
 
 	back, backDiags := c.Backend(ctx, opts, enc.State())
@@ -441,11 +435,10 @@ func (c *InitCommand) initCloud(ctx context.Context, root *configs.Module, extra
 	return back, true, diags
 }
 
-func (c *InitCommand) initBackend(ctx context.Context, root *configs.Module, extraConfig flags.RawFlags, enc encryption.Encryption, view views.Init) (be backend.Backend, output bool, diags tfdiags.Diagnostics) {
+func (c *InitCommand) initBackend(ctx context.Context, root *configs.Module, extraConfig flags.RawFlags, enc encryption.Encryption, view views.Backend) (be backend.Backend, output bool, diags tfdiags.Diagnostics) {
 	ctx, span := tracing.Tracer().Start(ctx, "Backend init")
 	_ = ctx // prevent staticcheck from complaining to avoid a maintenance hazard of having the wrong ctx in scope here
 	defer span.End()
-
 	view.InitializingBackend()
 
 	var backendConfig *configs.Backend
@@ -520,6 +513,7 @@ the backend configuration is present and valid.
 		Config:         backendConfig,
 		ConfigOverride: backendConfigOverride,
 		Init:           true,
+		View:           view,
 	}
 
 	back, backDiags := c.Backend(ctx, opts, enc.State())
@@ -1150,24 +1144,6 @@ func (c *InitCommand) backendConfigOverrideBody(flags flags.RawFlags, schema *co
 
 func (c *InitCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictDirs("")
-}
-
-// TODO meta-refactor: move this to arguments once all commands are using the same shim logic
-func (c *InitCommand) GatherVariables(args *arguments.Vars) {
-	// FIXME the arguments package currently trivially gathers variable related
-	// arguments in a heterogeneous slice, in order to minimize the number of
-	// code paths gathering variables during the transition to this structure.
-	// Once all commands that gather variables have been converted to this
-	// structure, we could move the variable gathering code to the arguments
-	// package directly, removing this shim layer.
-
-	varArgs := args.All()
-	items := make([]flags.RawFlag, len(varArgs))
-	for i := range varArgs {
-		items[i].Name = varArgs[i].Name
-		items[i].Value = varArgs[i].Value
-	}
-	c.Meta.variableArgs = flags.RawFlags{Items: &items}
 }
 
 // configureBackendFlags is a temporary shim until we move the backend migration logic away from the Meta fields.

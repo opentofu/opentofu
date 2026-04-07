@@ -538,7 +538,7 @@ func TestRegistryPackageAuthentication(t *testing.T) {
 				PackageSize: 295,
 			},
 		},
-		err: `registry response indicates a package of size 295, but recieved a package of size 294`,
+		err: `registry response indicates a package of size 295, but received a package of size 294`,
 	}, {
 		name:     "incorrect_platform_hash",
 		location: location,

@@ -69,6 +69,7 @@ The JSON output format consists of the following objects and sub-objects:
 - [Providers Schema Representation](#providers-schema-representation) - the top-level object returned by `tofu providers schema -json`
 - [Schema Representation](#schema-representation) - a sub-object of providers, resources, and data sources that describes their schema
 - [Block Representation](#block-representation) - a sub-object of schemas that describes attributes and nested blocks
+- [Resource Identity Schema Representation](#resource-identity-schema-representation) - a sub-object describing a resource type's identity schema
 
 ## Providers Schema Representation
 
@@ -93,6 +94,13 @@ The JSON output format consists of the following objects and sub-objects:
       // data source's schema
       "data_source_schemas": {
         "example_datasource_name": <schema-representation>,
+      },
+
+      // "resource_identity_schemas" map the resource type name to the
+      // resource's identity schema, if it supports identity-based import.
+      // Only resource types that define an identity schema are included.
+      "resource_identity_schemas": {
+        "example_resource_name": <resource-identity-schema-representation>
       }
     },
     "example_provider_two": { … }
@@ -188,5 +196,39 @@ A block representation contains "attributes" and "block_types" (which represent 
     "min_items": 1,
     "max_items": 3
   }
+}
+```
+
+## Resource Identity Schema Representation
+
+A resource identity schema representation describes the attributes that uniquely identify a resource instance, used for identity-based import. Only resource types that support identity-based import have an entry in `resource_identity_schemas`.
+
+```javascript
+{
+  // "version" is the version of the identity schema. OpenTofu uses this to
+  // detect when stored identity data needs to be upgraded via the provider.
+  "version": uint64,
+
+  // "attributes" describes the attributes that together form the identity of
+  // a resource instance. Keys in this map are the attribute names.
+  "attributes": {
+    "example_attribute_name": {
+      // "type" is a representation of a type specification
+      // that the attribute's value must conform to.
+      "type": "string",
+
+      // "description" is an English-language description of
+      // the purpose and usage of the attribute.
+      "description": "string",
+
+      // "required_for_import", if set to true, specifies that this
+      // attribute must be provided when performing an identity-based import.
+      "required_for_import": bool,
+
+      // "optional_for_import", if set to true, specifies that this
+      // attribute may optionally be provided when performing an identity-based import.
+      "optional_for_import": bool
+    },
+  },
 }
 ```

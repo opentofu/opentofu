@@ -3,6 +3,7 @@ package hcl2shim
 import (
 	"testing"
 
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty-debug/ctydebug"
 	"github.com/zclconf/go-cty/cty"
 
@@ -21,6 +22,7 @@ func TestComposeMockValueBySchema(t *testing.T) {
 		defaults  map[string]cty.Value
 		wantVal   cty.Value
 		wantError bool
+		wantWarn  bool
 	}{
 		"diff-props-in-root-attributes": {
 			schema: &configschema.Block{
@@ -74,20 +76,39 @@ func TestComposeMockValueBySchema(t *testing.T) {
 						Computed:  true,
 						Sensitive: true,
 					},
+					"write-only-required": {
+						Type:      cty.String,
+						Required:  true,
+						Optional:  false,
+						Computed:  false,
+						Sensitive: true,
+						WriteOnly: true,
+					},
+					"write-only-computed": {
+						Type:      cty.String,
+						Required:  false,
+						Optional:  false,
+						Computed:  true,
+						Sensitive: true,
+						WriteOnly: true,
+					},
 				},
 			},
 			config: cty.ObjectVal(map[string]cty.Value{
-				"required-only":      cty.StringVal("required"),
-				"sensitive-required": cty.StringVal("sensitive"),
+				"required-only":       cty.StringVal("required"),
+				"sensitive-required":  cty.StringVal("sensitive"),
+				"write-only-required": cty.StringVal("write-only-value"),
 			}),
 			wantVal: cty.ObjectVal(map[string]cty.Value{
-				"required-only":      cty.StringVal("required"),
-				"optional":           cty.NullVal(cty.String),
-				"optional-computed":  cty.StringVal("6zQu0"),
-				"computed-only":      cty.StringVal("l3INvNSQT"),
-				"sensitive-optional": cty.NullVal(cty.String),
-				"sensitive-required": cty.StringVal("sensitive"),
-				"sensitive-computed": cty.StringVal("xNmGyAVmNkB4"),
+				"required-only":       cty.StringVal("required"),
+				"optional":            cty.NullVal(cty.String),
+				"optional-computed":   cty.StringVal("6zQu0"),
+				"computed-only":       cty.StringVal("l3INvNSQT"),
+				"sensitive-optional":  cty.NullVal(cty.String),
+				"sensitive-required":  cty.StringVal("sensitive"),
+				"sensitive-computed":  cty.StringVal("xNmGyAVmNkB4"),
+				"write-only-required": cty.NullVal(cty.String),
+				"write-only-computed": cty.NullVal(cty.String),
 			}),
 		},
 		"diff-props-in-single-block-attributes": {
@@ -146,6 +167,22 @@ func TestComposeMockValueBySchema(t *testing.T) {
 									Computed:  true,
 									Sensitive: true,
 								},
+								"write-only-required": {
+									Type:      cty.String,
+									Required:  true,
+									Optional:  false,
+									Computed:  false,
+									Sensitive: true,
+									WriteOnly: true,
+								},
+								"write-only-computed": {
+									Type:      cty.String,
+									Required:  false,
+									Optional:  false,
+									Computed:  true,
+									Sensitive: true,
+									WriteOnly: true,
+								},
 							},
 						},
 					},
@@ -153,19 +190,22 @@ func TestComposeMockValueBySchema(t *testing.T) {
 			},
 			config: cty.ObjectVal(map[string]cty.Value{
 				"nested": cty.ObjectVal(map[string]cty.Value{
-					"required-only":      cty.StringVal("required"),
-					"sensitive-required": cty.StringVal("sensitive"),
+					"required-only":       cty.StringVal("required"),
+					"sensitive-required":  cty.StringVal("sensitive"),
+					"write-only-required": cty.StringVal("write-only-value"),
 				}),
 			}),
 			wantVal: cty.ObjectVal(map[string]cty.Value{
 				"nested": cty.ObjectVal(map[string]cty.Value{
-					"required-only":      cty.StringVal("required"),
-					"optional":           cty.NullVal(cty.String),
-					"optional-computed":  cty.StringVal("6zQu0"),
-					"computed-only":      cty.StringVal("l3INvNSQT"),
-					"sensitive-optional": cty.NullVal(cty.String),
-					"sensitive-required": cty.StringVal("sensitive"),
-					"sensitive-computed": cty.StringVal("xNmGyAVmNkB4"),
+					"required-only":       cty.StringVal("required"),
+					"optional":            cty.NullVal(cty.String),
+					"optional-computed":   cty.StringVal("6zQu0"),
+					"computed-only":       cty.StringVal("l3INvNSQT"),
+					"sensitive-optional":  cty.NullVal(cty.String),
+					"sensitive-required":  cty.StringVal("sensitive"),
+					"sensitive-computed":  cty.StringVal("xNmGyAVmNkB4"),
+					"write-only-required": cty.NullVal(cty.String),
+					"write-only-computed": cty.NullVal(cty.String),
 				}),
 			}),
 		},
@@ -180,6 +220,11 @@ func TestComposeMockValueBySchema(t *testing.T) {
 									Type:     cty.Number,
 									Computed: true,
 								},
+								"write-only": {
+									Type:      cty.String,
+									Computed:  true,
+									WriteOnly: true,
+								},
 							},
 						},
 						Optional: true,
@@ -191,7 +236,8 @@ func TestComposeMockValueBySchema(t *testing.T) {
 			}),
 			wantVal: cty.ObjectVal(map[string]cty.Value{
 				"nested": cty.NullVal(cty.Object(map[string]cty.Type{
-					"attr": cty.Number,
+					"attr":       cty.Number,
+					"write-only": cty.String,
 				})),
 			}),
 		},
@@ -228,6 +274,11 @@ func TestComposeMockValueBySchema(t *testing.T) {
 									Type:     cty.Number,
 									Computed: true,
 								},
+								"write-only": {
+									Type:      cty.String,
+									Computed:  true,
+									WriteOnly: true,
+								},
 							},
 						},
 						Optional: true,
@@ -239,7 +290,8 @@ func TestComposeMockValueBySchema(t *testing.T) {
 			}),
 			wantVal: cty.ObjectVal(map[string]cty.Value{
 				"nested": cty.NullVal(cty.List(cty.Object(map[string]cty.Type{
-					"attr": cty.Number,
+					"attr":       cty.Number,
+					"write-only": cty.String,
 				}))),
 			}),
 		},
@@ -254,6 +306,11 @@ func TestComposeMockValueBySchema(t *testing.T) {
 									Type:     cty.Number,
 									Computed: true,
 								},
+								"write-only": {
+									Type:      cty.String,
+									Computed:  true,
+									WriteOnly: true,
+								},
 							},
 						},
 						Optional: true,
@@ -265,7 +322,8 @@ func TestComposeMockValueBySchema(t *testing.T) {
 			}),
 			wantVal: cty.ObjectVal(map[string]cty.Value{
 				"nested": cty.NullVal(cty.Map(cty.Object(map[string]cty.Type{
-					"attr": cty.Number,
+					"attr":       cty.Number,
+					"write-only": cty.String,
 				}))),
 			}),
 		},
@@ -280,6 +338,11 @@ func TestComposeMockValueBySchema(t *testing.T) {
 									Type:     cty.Number,
 									Computed: true,
 								},
+								"write-only": {
+									Type:      cty.String,
+									Computed:  true,
+									WriteOnly: true,
+								},
 							},
 						},
 						Optional: true,
@@ -291,7 +354,8 @@ func TestComposeMockValueBySchema(t *testing.T) {
 			}),
 			wantVal: cty.ObjectVal(map[string]cty.Value{
 				"nested": cty.NullVal(cty.Set(cty.Object(map[string]cty.Type{
-					"attr": cty.Number,
+					"attr":       cty.Number,
+					"write-only": cty.String,
 				}))),
 			}),
 		},
@@ -306,6 +370,11 @@ func TestComposeMockValueBySchema(t *testing.T) {
 									Type:     cty.Number,
 									Computed: true,
 								},
+								"write-only": {
+									Type:      cty.String,
+									Computed:  true,
+									WriteOnly: true,
+								},
 							},
 						},
 					},
@@ -316,7 +385,8 @@ func TestComposeMockValueBySchema(t *testing.T) {
 			}),
 			wantVal: cty.ObjectVal(map[string]cty.Value{
 				"nested": cty.ObjectVal(map[string]cty.Value{
-					"field": cty.NumberIntVal(0),
+					"field":      cty.NumberIntVal(0),
+					"write-only": cty.NullVal(cty.String),
 				}),
 			}),
 		},
@@ -339,6 +409,11 @@ func TestComposeMockValueBySchema(t *testing.T) {
 									Type:     cty.String,
 									Computed: true,
 								},
+								"write-only": {
+									Type:      cty.String,
+									Computed:  true,
+									WriteOnly: true,
+								},
 							},
 						},
 					},
@@ -350,9 +425,10 @@ func TestComposeMockValueBySchema(t *testing.T) {
 			wantVal: cty.ObjectVal(map[string]cty.Value{
 				"nested": cty.ListVal([]cty.Value{
 					cty.ObjectVal(map[string]cty.Value{
-						"num":  cty.NumberIntVal(0),
-						"str1": cty.StringVal("l3INvNSQT"),
-						"str2": cty.StringVal("6zQu0"),
+						"num":        cty.NumberIntVal(0),
+						"str1":       cty.StringVal("l3INvNSQT"),
+						"str2":       cty.StringVal("6zQu0"),
+						"write-only": cty.NullVal(cty.String),
 					}),
 				}),
 			}),
@@ -376,6 +452,11 @@ func TestComposeMockValueBySchema(t *testing.T) {
 									Type:     cty.String,
 									Computed: true,
 								},
+								"write-only": {
+									Type:      cty.String,
+									Computed:  true,
+									WriteOnly: true,
+								},
 							},
 						},
 					},
@@ -387,9 +468,10 @@ func TestComposeMockValueBySchema(t *testing.T) {
 			wantVal: cty.ObjectVal(map[string]cty.Value{
 				"nested": cty.SetVal([]cty.Value{
 					cty.ObjectVal(map[string]cty.Value{
-						"num":  cty.NumberIntVal(0),
-						"str1": cty.StringVal("l3INvNSQT"),
-						"str2": cty.StringVal("6zQu0"),
+						"num":        cty.NumberIntVal(0),
+						"str1":       cty.StringVal("l3INvNSQT"),
+						"str2":       cty.StringVal("6zQu0"),
+						"write-only": cty.NullVal(cty.String),
 					}),
 				}),
 			}),
@@ -413,6 +495,11 @@ func TestComposeMockValueBySchema(t *testing.T) {
 									Type:     cty.String,
 									Computed: true,
 								},
+								"write-only": {
+									Type:      cty.String,
+									Computed:  true,
+									WriteOnly: true,
+								},
 							},
 						},
 					},
@@ -426,9 +513,10 @@ func TestComposeMockValueBySchema(t *testing.T) {
 			wantVal: cty.ObjectVal(map[string]cty.Value{
 				"nested": cty.MapVal(map[string]cty.Value{
 					"somelabel": cty.ObjectVal(map[string]cty.Value{
-						"num":  cty.NumberIntVal(0),
-						"str1": cty.StringVal("l3INvNSQT"),
-						"str2": cty.StringVal("6zQu0"),
+						"num":        cty.NumberIntVal(0),
+						"str1":       cty.StringVal("l3INvNSQT"),
+						"str2":       cty.StringVal("6zQu0"),
+						"write-only": cty.NullVal(cty.String),
 					}),
 				}),
 			}),
@@ -504,6 +592,12 @@ func TestComposeMockValueBySchema(t *testing.T) {
 									Computed: true,
 									Optional: true,
 								},
+								"write-only": {
+									Type:      cty.String,
+									Computed:  true,
+									Optional:  true,
+									WriteOnly: true,
+								},
 							},
 						},
 					},
@@ -532,7 +626,8 @@ func TestComposeMockValueBySchema(t *testing.T) {
 							"fieldNum": cty.NumberIntVal(0),
 							"fieldStr": cty.StringVal("ionwj3qrsh4xyC9"),
 						}),
-						"list": cty.ListValEmpty(cty.String),
+						"list":       cty.ListValEmpty(cty.String),
+						"write-only": cty.NullVal(cty.String),
 					}),
 				}),
 			}),
@@ -576,6 +671,12 @@ func TestComposeMockValueBySchema(t *testing.T) {
 									Computed: true,
 									Optional: true,
 								},
+								"write-only": {
+									Type:      cty.String,
+									Computed:  true,
+									Optional:  true,
+									WriteOnly: true,
+								},
 							},
 						},
 					},
@@ -588,6 +689,7 @@ func TestComposeMockValueBySchema(t *testing.T) {
 						"useConfigValue": cty.StringVal("iAmFromConfig"),
 					}),
 				}),
+				"write-only": cty.StringVal("iAmFromConfig"),
 			}),
 			defaults: map[string]cty.Value{
 				"useDefaultsValue": cty.StringVal("iAmFromDefaults"),
@@ -604,6 +706,7 @@ func TestComposeMockValueBySchema(t *testing.T) {
 						"useConfigValue":    cty.StringVal("iAmFromConfig"),
 						"useDefaultsValue":  cty.StringVal("iAmFromDefaults"),
 						"generateMockValue": cty.StringVal("6zQu0"),
+						"write-only":        cty.NullVal(cty.String),
 					}),
 				}),
 			}),
@@ -646,6 +749,25 @@ func TestComposeMockValueBySchema(t *testing.T) {
 			},
 			wantError: true,
 		},
+		"override-of-write-only-without-config": {
+			schema: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"write-only": {
+						Type:      cty.String,
+						Optional:  true,
+						Computed:  true,
+						WriteOnly: true,
+					},
+				},
+			},
+			defaults: map[string]cty.Value{
+				"write-only": cty.StringVal("str"),
+			},
+			wantVal: cty.ObjectVal(map[string]cty.Value{
+				"write-only": cty.NullVal(cty.String),
+			}),
+			wantWarn: true,
+		},
 		"dynamically-typed-values": {
 			schema: &configschema.Block{
 				Attributes: map[string]*configschema.Attribute{
@@ -675,9 +797,24 @@ func TestComposeMockValueBySchema(t *testing.T) {
 			case !test.wantError && gotDiags.HasErrors():
 				t.Fatalf("Got unexpected error diags: %v", gotDiags.ErrWithWarnings())
 
+			case test.wantWarn && !hasWarns(gotDiags):
+				t.Fatalf("Expected warns in diags, but none returned")
+
+			case !test.wantWarn && hasWarns(gotDiags):
+				t.Fatalf("Got unexpected warn diags: %v", gotDiags.ErrWithWarnings())
+
 			case !test.wantVal.RawEquals(gotVal):
 				t.Fatalf("Wrong value\ngot: %swant: %sdiff: %s", ctydebug.ValueString(gotVal), ctydebug.ValueString(test.wantVal), ctydebug.DiffValues(test.wantVal, gotVal))
 			}
 		})
 	}
+}
+
+func hasWarns(diags tfdiags.Diagnostics) bool {
+	for _, diag := range diags {
+		if diag.Severity() == tfdiags.Warning {
+			return true
+		}
+	}
+	return false
 }

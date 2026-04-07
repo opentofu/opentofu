@@ -41,22 +41,6 @@ func TestChangesEmpty(t *testing.T) {
 							Action: Update,
 						},
 					},
-					// but an ephemeral resources will not impact the "emptiness" of the plan
-					{
-						Addr: addrs.Resource{
-							Mode: addrs.EphemeralResourceMode,
-							Type: "test_thing",
-							Name: "woot",
-						}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
-						PrevRunAddr: addrs.Resource{
-							Mode: addrs.EphemeralResourceMode,
-							Type: "test_thing",
-							Name: "woot",
-						}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
-						ChangeSrc: ChangeSrc{
-							Action: Open,
-						},
-					},
 				},
 			},
 			false,
@@ -135,28 +119,6 @@ func TestChangesEmpty(t *testing.T) {
 			},
 			true,
 		},
-		"ephemeral resource change": {
-			&Changes{
-				Resources: []*ResourceInstanceChangeSrc{
-					{
-						Addr: addrs.Resource{
-							Mode: addrs.EphemeralResourceMode,
-							Type: "test_thing",
-							Name: "woot",
-						}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
-						PrevRunAddr: addrs.Resource{
-							Mode: addrs.EphemeralResourceMode,
-							Type: "test_thing",
-							Name: "woot",
-						}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
-						ChangeSrc: ChangeSrc{
-							Action: Open,
-						},
-					},
-				},
-			},
-			true,
-		},
 	}
 
 	for name, tc := range testCases {
@@ -184,12 +146,12 @@ func TestChangeEncodeSensitive(t *testing.T) {
 				After:  v,
 			}
 
-			encoded, err := change.Encode(v.Type())
+			encoded, err := change.Encode(nil)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			decoded, err := encoded.Decode(v.Type())
+			decoded, err := encoded.Decode(nil)
 			if err != nil {
 				t.Fatal(err)
 			}

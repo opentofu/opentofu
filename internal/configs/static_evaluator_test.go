@@ -149,7 +149,7 @@ resource "foo" "bar" {}
 			"str":     cty.StringVal("vara"),
 			"str_map": cty.MapVal(map[string]cty.Value{"keyA": cty.StringVal("mapa")}),
 		}
-		call := NewStaticModuleCall(nil, func(v *Variable) (cty.Value, hcl.Diagnostics) {
+		call := NewStaticModuleCall(nil, hcl.Range{}, func(v *Variable) (cty.Value, hcl.Diagnostics) {
 			if in, ok := input[v.Name]; ok {
 				return in, nil
 			}
@@ -230,7 +230,7 @@ resource "foo" "bar" {}
 	})
 
 	t.Run("Dependency chain", func(t *testing.T) {
-		call := NewStaticModuleCall(nil, func(v *Variable) (cty.Value, hcl.Diagnostics) {
+		call := NewStaticModuleCall(nil, hcl.Range{}, func(v *Variable) (cty.Value, hcl.Diagnostics) {
 			return cty.DynamicVal, hcl.Diagnostics{&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Variable value not provided",
@@ -272,7 +272,7 @@ resource "foo" "bar" {}
 	})
 
 	t.Run("Workspace", func(t *testing.T) {
-		call := NewStaticModuleCall(nil, nil, "<testing>", "my-workspace")
+		call := NewStaticModuleCall(nil, hcl.Range{}, nil, "<testing>", "my-workspace")
 		mod, _ := NewModule([]*File{file}, nil, call, "dir", SelectiveLoadAll)
 		eval := NewStaticEvaluator(mod, call)
 

@@ -6,6 +6,7 @@
 package statemgr
 
 import (
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -443,6 +444,57 @@ func TestFilesystem_GetRootOutputValues(t *testing.T) {
 
 	if len(outputs) != 2 {
 		t.Errorf("Expected %d outputs, but received %d", 2, len(outputs))
+	}
+}
+
+func TestFilesystem_prettyPrintState(t *testing.T) {
+	defer testOverrideVersion(t, "1.2.3")()
+
+	workDir := t.TempDir()
+	statePath := filepath.Join(workDir, "terraform.tfstate")
+
+	ls := NewFilesystem(statePath, encryption.StateEncryptionDisabled())
+
+	lockID, err := ls.Lock(t.Context(), NewLockInfo())
+	if err != nil {
+		t.Fatalf("failed to lock state: %s", err)
+	}
+
+	emptyState := states.NewState()
+	if err := ls.WriteState(emptyState); err != nil {
+		t.Fatalf("failed to write state: %s", err)
+	}
+	if err := ls.PersistState(t.Context(), nil); err != nil {
+		t.Fatalf("failed to persist state: %s", err)
+	}
+
+	// Unlock releases the file handle, which is required on Windows
+	// where t.TempDir cleanup cannot remove open files.
+	if err := ls.Unlock(t.Context(), lockID); err != nil {
+		t.Fatalf("failed to unlock state: %s", err)
+	}
+
+	raw, err := os.ReadFile(statePath)
+	if err != nil {
+		t.Fatalf("failed to read state file: %s", err)
+	}
+
+	content := string(raw)
+
+	if !strings.Contains(content, "\n") {
+		t.Fatal("state file is a single line; expected pretty-printed JSON with newlines")
+	}
+
+	if !strings.Contains(content, "  ") {
+		t.Fatal("state file does not contain 2-space indentation; expected pretty-printed JSON")
+	}
+
+	if !json.Valid(raw) {
+		t.Fatal("state file is not valid JSON")
+	}
+
+	if content[len(content)-1] != '\n' {
+		t.Fatal("state file does not end with a trailing newline")
 	}
 }
 

@@ -17,7 +17,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/opentofu/internal/lang"
 
 	"github.com/hashicorp/hcl/v2"
@@ -143,8 +142,7 @@ func (c *TestCommand) Run(rawArgs []string) int {
 
 	// Users can also specify variables via the command line, so we'll parse
 	// all that here.
-	items := args.Vars.All()
-	c.variableArgs = flags.RawFlags{Items: &items}
+	c.variableArgs = args.Vars.All()
 
 	variables, variableDiags := c.collectVariableValuesWithTests(args.TestDirectory)
 	diags = diags.Append(variableDiags)

@@ -216,7 +216,7 @@ func buildPlanChanges(
 			continue // can't encode a change without a schema
 		}
 
-		changeSrc, err := change.Encode(schema.Block.ImpliedType())
+		changeSrc, err := change.Encode(schema)
 		if err != nil {
 			// TODO: Make this a proper diagnostic, since this can potentially
 			// be user-facing if the provider returned something that's somehow
