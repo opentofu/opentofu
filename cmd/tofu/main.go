@@ -58,7 +58,7 @@ func realMain() int {
 	if err != nil {
 		// We print directly to os.Stderr as the old Ui was doing.
 		// The only place we do this is here, since after this the printing will be handled by the view.
-		_, _ = fmt.Fprintln(os.Stderr, fmt.Sprintf("Failed to configure the terminal: %s", err))
+		_, _ = fmt.Fprintf(os.Stderr, "Failed to configure the terminal: %s\n", err)
 		return 1
 	}
 
