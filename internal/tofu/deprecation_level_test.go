@@ -198,11 +198,18 @@ func TestDeprecationDiagnosticAllowed(t *testing.T) {
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			if got, want := DeprecationDiagnosticAllowed(tt.lvl, tt.diag[0]), tt.want; got != want {
+			seen := DeprecationDiagnosticAllowedSeen{}
+			if got, want := DeprecationDiagnosticAllowed(tt.lvl, tt.diag[0], seen), tt.want; got != want {
 				if want {
 					t.Fatalf("expected diagnostic to be allowed but it is not")
 				} else {
 					t.Fatalf("expected diagnostic to not be allowed but it is")
+				}
+			}
+
+			if tt.lvl != DeprecationWarningLevelNone {
+				if got := DeprecationDiagnosticAllowed(tt.lvl, tt.diag[0], seen); got == true {
+					t.Fatalf("expected duplicate diagnostic to be ignored")
 				}
 			}
 		})

@@ -48,8 +48,6 @@ found no differences, so no changes are needed.
 │ 
 │ Variable "input" is marked as deprecated with the following message:
 │ this is local deprecated
-│ 
-│ (and one more similar warning elsewhere)
 ╵
 ╷
 │ Warning: Variable marked as deprecated by the module author
@@ -59,8 +57,6 @@ found no differences, so no changes are needed.
 │ 
 │ Variable "input2" is marked as deprecated with the following message:
 │ this is local deprecated2
-│ 
-│ (and one more similar warning elsewhere)
 ╵
 ╷
 │ Warning: Value derived from a deprecated source
@@ -72,8 +68,6 @@ found no differences, so no changes are needed.
 │ the following message:
 │ 
 │ output deprecated
-│ 
-│ (and one more similar warning elsewhere)
 ╵
 ╷
 │ Warning: Value derived from a deprecated source
@@ -85,8 +79,6 @@ found no differences, so no changes are needed.
 │ the following message:
 │ 
 │ output deprecated
-│ 
-│ (and one more similar warning elsewhere)
 ╵
 ╷
 │ Warning: Value derived from a deprecated source

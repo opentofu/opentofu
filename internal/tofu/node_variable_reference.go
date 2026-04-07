@@ -158,6 +158,8 @@ func (n *nodeVariableReferenceInstance) Execute(ctx context.Context, evalCtx Eva
 	log.Printf("[TRACE] nodeVariableReferenceInstance: evaluating %s", n.Addr)
 	diags := evalVariableValidations(ctx, n.Addr, n.Config, n.Expr, evalCtx)
 
+	diags = diags.Append(evalVariableDeprecation(n.Addr, n.Config, n.Expr, evalCtx, n.VariableFromRemoteModule))
+
 	if op == walkValidate {
 		var filtered tfdiags.Diagnostics
 		// Validate may contain unknown values, we can ignore that until plan/apply
@@ -167,9 +169,6 @@ func (n *nodeVariableReferenceInstance) Execute(ctx context.Context, evalCtx Eva
 			}
 		}
 		return filtered
-	} else {
-		// do not run this during the "validate" phase to ensure that the diagnostics are not duplicated
-		diags = diags.Append(evalVariableDeprecation(n.Addr, n.Config, n.Expr, evalCtx, n.VariableFromRemoteModule))
 	}
 
 	return diags
