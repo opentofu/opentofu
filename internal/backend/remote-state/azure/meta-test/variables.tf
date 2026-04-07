@@ -10,6 +10,12 @@ variable "use_aks_workload_identity" {
   description = "Set this to generate the kubernetes infrastructure and managed service identity authorizations required to run the AKS workload identity tests."
 }
 
+variable "use_cmk" {
+  type        = bool
+  default     = false
+  description = "Set this to generate the infrastructure required to run the CMK tests."
+}
+
 variable "location" {
   default     = "centralus"
   type        = string

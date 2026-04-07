@@ -98,6 +98,24 @@ Copying and pasting this into the shell will authenticate into the newly-created
 
 In order to tear down Kubernetes cluster infrastructure, while keeping the rest of the credentials and setup, simply run the `tofu apply` without the `use_aks_workload_identity=true` variable.
 
+### Customer Managed Keys
+
+By default, the Key Vault, encryption key, and encryption scope required for CMK testing are not set up by this workspace. In order to set those up, you need an extra variable:
+
+```bash
+$ tofu apply -show-sensitive -var 'use_cmk=true' -var 'location=centralus'
+```
+
+The location variable is optional; the default has been provided here. After running this, the CMK environment variables will be available. You can get them under `cmk_env_vars`.
+
+```bash
+$ tofu output cmk_env_vars -show-sensitive
+```
+
+Copy and paste these into the command line to provide the secrets for the CMK backend tests.
+
+In order to tear down CMK infrastructure, while keeping the rest of the credentials and setup, simply run `tofu apply` without the `use_cmk=true` variable.
+
 ### Cleanup
 
 Simply run

@@ -47,6 +47,7 @@ ENHANCEMENTS:
 - The `s3` backend now automatically discovers and uses AWS credentials issued using [the `aws login` command](https://docs.aws.amazon.com/cli/latest/reference/login/) in AWS CLI. ([#3767](https://github.com/opentofu/opentofu/pull/3767))
 - The `azurerm` backend now supports authentication using Azure DevOps and Azure Pipelines workload identity federation. ([#3820](https://github.com/opentofu/opentofu/pull/3820))
 - The `local` backend now writes pretty-printed JSON state files, making diffs more readable when state is tracked in version control. ([#1947](https://github.com/opentofu/opentofu/issues/1947))
+- The `azurerm` backend now supports Customer-Provided Keys(CPK) as well as Customer-Managed Keys(CMK) to enable server-side encryption. ([#3886](https://github.com/opentofu/opentofu/pull/3886))
 
 BUG FIXES:
 

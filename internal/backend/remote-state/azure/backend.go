@@ -17,6 +17,7 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/legacy/helper/schema"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/blob"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/container"
 )
 
@@ -251,6 +252,30 @@ func New(enc encryption.StateEncryption) backend.Backend {
 				Description: "Set to true if you want to use the Azure CLI to authenticate to Azure. Defaults to true.",
 				DefaultFunc: schema.EnvDefaultFunc("ARM_USE_CLI", true),
 			},
+
+			"customer_provided_key": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Sensitive:   true,
+				Description: "Base64 encoded AES-256 key for Customer Provided encryption.",
+				DefaultFunc: schema.EnvDefaultFunc("ARM_CUSTOMER_PROVIDED_KEY", nil),
+				ValidateFunc: func(v any, _ string) ([]string, []error) {
+					_, err := newCPKInfo(v.(string))
+					if err != nil {
+						return nil, []error{err}
+					}
+					return nil, nil
+				},
+				ConflictsWith: []string{"encryption_scope"},
+			},
+
+			"encryption_scope": {
+				Type:          schema.TypeString,
+				Optional:      true,
+				Description:   "Encryption scope used to encrypt the state.",
+				DefaultFunc:   schema.EnvDefaultFunc("ARM_ENCYRPTION_SCOPE", nil),
+				ConflictsWith: []string{"customer_provided_key"},
+			},
 		},
 	}
 
@@ -272,6 +297,8 @@ type Backend struct {
 	keyName       string
 	snapshot      bool
 	timeout       time.Duration
+	cpkInfo       *blob.CPKInfo
+	cpkScopeInfo  *blob.CPKScopeInfo
 }
 
 func (b *Backend) configure(ctx context.Context) error {
@@ -285,6 +312,12 @@ func (b *Backend) configure(ctx context.Context) error {
 	b.keyName = data.Get("key").(string)
 	b.snapshot = data.Get("snapshot").(bool)
 	b.timeout = time.Duration(data.Get("timeout_seconds").(int)) * time.Second
+	cpkInfo, err := newCPKInfo(data.Get("customer_provided_key").(string))
+	if err != nil {
+		return err
+	}
+	b.cpkInfo = cpkInfo
+	b.cpkScopeInfo = newCPKScopeInfo(data.Get("encryption_scope").(string))
 
 	accessKey := data.Get("access_key").(string)
 	sasToken := data.Get("sas_token").(string)

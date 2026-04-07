@@ -281,3 +281,109 @@ Please set TF_AZURE_TEST_CLIENT_ID and TF_AZURE_TEST_CLIENT_SECRET, either manua
 
 	remote.TestRemoteLocks(t, s1.(*remote.State).Client, s2.(*remote.State).Client)
 }
+
+func TestAccRemoteClientCPK(t *testing.T) {
+	testAccAzureBackend(t)
+	rs := acctest.RandString(4)
+	res := testResourceNames(rs, "testState")
+	cpkKey := testCPKKey(t)
+
+	authMethod, err := auth.GetAuthMethod(t.Context(), testAuthConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	authCred, err := authMethod.Construct(t.Context(), testAuthConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resourceGroupClient, _, err := createTestResources(t, &res, authCred)
+
+	t.Cleanup(func() {
+		destroyTestResources(t, resourceGroupClient, res)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b1 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]any{
+		"storage_account_name":  res.storageAccountName,
+		"container_name":        res.storageContainerName,
+		"key":                   res.storageKeyName,
+		"resource_group_name":   res.resourceGroup,
+		"customer_provided_key": cpkKey,
+	})).(*Backend)
+
+	s1, err := b1.StateMgr(t.Context(), backend.DefaultStateName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	remote.TestClient(t, s1.(*remote.State).Client)
+
+	b2 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]any{
+		"storage_account_name":  res.storageAccountName,
+		"container_name":        res.storageContainerName,
+		"key":                   res.storageKeyName,
+		"resource_group_name":   res.resourceGroup,
+		"customer_provided_key": cpkKey,
+	})).(*Backend)
+
+	s2, err := b2.StateMgr(t.Context(), backend.DefaultStateName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	remote.TestRemoteLocks(t, s1.(*remote.State).Client, s2.(*remote.State).Client)
+
+}
+
+// Note: This test does NOT create it's own infrastructure. Please refer to the meta-test folder for resource creation.
+func TestAccRemoteClientCMK(t *testing.T) {
+	testAccAzureBackend(t)
+
+	storageAccountName := os.Getenv("TF_AZURE_TEST_STORAGE_ACCOUNT_NAME")
+	resourceGroupName := os.Getenv("TF_AZURE_TEST_RESOURCE_GROUP_NAME")
+	containerName := os.Getenv("TF_AZURE_TEST_CONTAINER_NAME")
+	encryptionScope := os.Getenv("TF_AZURE_TEST_ENCRYPTION_SCOPE")
+
+	if storageAccountName == "" || resourceGroupName == "" || containerName == "" || encryptionScope == "" {
+		t.Skip(`
+CMK testing requires pre-provisioned infrastructure.
+Please set the following environment variables using the meta-test/cmk folder:
+  TF_AZURE_TEST_STORAGE_ACCOUNT_NAME
+  TF_AZURE_TEST_RESOURCE_GROUP_NAME
+  TF_AZURE_TEST_CONTAINER_NAME
+  TF_AZURE_TEST_ENCRYPTION_SCOPE`)
+	}
+
+	b1 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]any{
+		"storage_account_name": storageAccountName,
+		"container_name":       containerName,
+		"key":                  "testState",
+		"resource_group_name":  resourceGroupName,
+		"encryption_scope":     encryptionScope,
+	})).(*Backend)
+
+	s1, err := b1.StateMgr(t.Context(), backend.DefaultStateName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	remote.TestClient(t, s1.(*remote.State).Client)
+
+	b2 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]any{
+		"storage_account_name": storageAccountName,
+		"container_name":       containerName,
+		"key":                  "testState",
+		"resource_group_name":  resourceGroupName,
+		"encryption_scope":     encryptionScope,
+	})).(*Backend)
+
+	s2, err := b2.StateMgr(t.Context(), backend.DefaultStateName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	remote.TestRemoteLocks(t, s1.(*remote.State).Client, s2.(*remote.State).Client)
+}
