@@ -7,6 +7,7 @@ package views
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -31,12 +32,6 @@ func TestNewView(t *testing.T) {
 	}
 	if !view.colorize.Disable {
 		t.Error("expected colorize to be disabled by default")
-	}
-	if view.errorColor != "[red]" {
-		t.Errorf("expected errorColor to be [red], got %s", view.errorColor)
-	}
-	if view.warnColor != "[yellow]" {
-		t.Errorf("expected warnColor to be [yellow], got %s", view.warnColor)
 	}
 	if view.configSources == nil {
 		t.Error("expected configSources to be initialized")
@@ -439,4 +434,64 @@ func TestView_HelpPrompt(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestViewColorize was moved from meta_test and renamed from TestMetaColorize.
+// This was moved as is to keep the same testing patterns but in the context of the
+// views package.
+func TestViewColorize(t *testing.T) {
+	t.Run("with color enabled", func(t *testing.T) {
+		view, done := testView(t)
+		defer done(t)
+
+		args := []string{"foo", "bar"}
+		wantArgs := []string{"foo", "bar"}
+		viewArgs, args := arguments.ParseView(args)
+
+		view.Configure(viewArgs)
+
+		if !reflect.DeepEqual(args, wantArgs) {
+			t.Fatalf("bad: %#v", args)
+		}
+		if view.Colorize().Disable {
+			t.Fatal("should not be disabled")
+		}
+	})
+
+	t.Run("one occurrence of -no-color flag", func(t *testing.T) {
+		view, done := testView(t)
+		defer done(t)
+
+		args := []string{"foo", "-no-color", "bar"}
+		args2 := []string{"foo", "bar"}
+		viewArgs, args := arguments.ParseView(args)
+
+		view.Configure(viewArgs)
+		if !reflect.DeepEqual(args, args2) {
+			t.Fatalf("bad: %#v", args)
+		}
+		if !view.Colorize().Disable {
+			t.Fatal("should be disabled")
+		}
+	})
+
+	t.Run("one occurrences of -no-color flag", func(t *testing.T) {
+		view, done := testView(t)
+		defer done(t)
+		// Test disable #2
+		// Verify multiple -no-color options are removed from args slice.
+		// E.g. an additional -no-color arg could be added by TF_CLI_ARGS.
+		args := []string{"foo", "-no-color", "bar", "-no-color"}
+		args2 := []string{"foo", "bar"}
+		viewArgs, args := arguments.ParseView(args)
+
+		view.Configure(viewArgs)
+
+		if !reflect.DeepEqual(args, args2) {
+			t.Fatalf("bad: %#v", args)
+		}
+		if !view.Colorize().Disable {
+			t.Fatal("should be disabled")
+		}
+	})
 }

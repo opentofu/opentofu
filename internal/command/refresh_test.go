@@ -17,7 +17,6 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/zclconf/go-cty/cty"
 
@@ -515,13 +514,11 @@ func TestRefresh_varsUnset(t *testing.T) {
 	statePath := testStateFile(t, state)
 
 	p := testProvider()
-	ui := new(cli.MockUi)
 	view, done := testView(t)
 	c := &RefreshCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
 			View:             view,
 		},
 	}

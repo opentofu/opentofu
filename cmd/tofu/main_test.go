@@ -14,7 +14,6 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
-	"github.com/opentofu/opentofu/internal/command"
 )
 
 func TestMain_cliArgsFromEnv(t *testing.T) {
@@ -289,23 +288,6 @@ func (c *testCommandCLI) Run(args []string) int {
 
 func (c *testCommandCLI) Synopsis() string { return "" }
 func (c *testCommandCLI) Help() string     { return "" }
-
-func TestWarnOutput(t *testing.T) {
-	mock := cli.NewMockUi()
-	wrapped := command.NewWrappedUi(mock)
-	wrapped.Warn("WARNING")
-
-	stderr := mock.ErrorWriter.String()
-	stdout := mock.OutputWriter.String()
-
-	if stderr != "" {
-		t.Fatalf("unexpected stderr: %q", stderr)
-	}
-
-	if stdout != "WARNING\n" {
-		t.Fatalf("unexpected stdout: %q\n", stdout)
-	}
-}
 
 func TestMkConfigDir_new(t *testing.T) {
 	tmpConfigDir := filepath.Join(t.TempDir(), ".terraform.d")

@@ -22,13 +22,11 @@ import (
 	"github.com/hashicorp/go-plugin"
 	"github.com/mattn/go-shellwords"
 	"github.com/mitchellh/cli"
-	"github.com/mitchellh/colorstring"
-	"github.com/opentofu/opentofu/internal/command"
+	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/cliconfig"
-	"github.com/opentofu/opentofu/internal/command/format"
 	"github.com/opentofu/opentofu/internal/didyoumean"
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/terminal"
@@ -48,16 +46,40 @@ const (
 	EnvCPUProfile = "TOFU_CPU_PROFILE"
 )
 
-func init() {
-	Ui = command.NewBasicUI()
-}
-
 func main() {
 	os.Exit(realMain())
 }
 
 func realMain() int {
 	defer logging.PanicHandler()
+
+	// First, we want to create the view to print diagnostics and errors.
+	streams, err := terminal.Init()
+	if err != nil {
+		// We print directly to os.Stderr as the old Ui was doing.
+		// The only place we do this is here, since after this the printing will be handled by the view.
+		_, _ = fmt.Fprintf(os.Stderr, "Failed to configure the terminal: %s\n", err)
+		return 1
+	}
+
+	if streams.Stdout.IsTerminal() {
+		log.Printf("[TRACE] Stdout is a terminal of width %d", streams.Stdout.Columns())
+	} else {
+		log.Printf("[TRACE] Stdout is not a terminal")
+	}
+	if streams.Stderr.IsTerminal() {
+		log.Printf("[TRACE] Stderr is a terminal of width %d", streams.Stderr.Columns())
+	} else {
+		log.Printf("[TRACE] Stderr is not a terminal")
+	}
+	if streams.Stdin.IsTerminal() {
+		log.Printf("[TRACE] Stdin is a terminal")
+	} else {
+		log.Printf("[TRACE] Stdin is not a terminal")
+	}
+
+	view := views.NewView(streams)
+	rv := views.NewRoot(view)
 
 	// Create a go CPU profile if requested
 	// This is more intense and potentially disruptive compared to OpenTelementry tracing and does not integrate with providers
@@ -66,17 +88,17 @@ func realMain() int {
 	if cpuProfile := os.Getenv(EnvCPUProfile); cpuProfile != "" {
 		cpuProfileOut, err := os.Create(cpuProfile)
 		if err != nil {
-			Ui.Error(fmt.Sprintf("Could not open cpu profile output: %s", err))
+			rv.Error(fmt.Sprintf("Could not open cpu profile output: %s", err))
 			return 1
 		}
 		defer func() {
 			err := cpuProfileOut.Close()
 			if err != nil {
-				Ui.Error(fmt.Sprintf("Could not close cpu profile: %s", err))
+				rv.Error(fmt.Sprintf("Could not close cpu profile: %s", err))
 			}
 		}()
 		if err := pprof.StartCPUProfile(cpuProfileOut); err != nil {
-			Ui.Error(fmt.Sprintf("Could not start cpu profile: %s", err))
+			rv.Error(fmt.Sprintf("Could not start cpu profile: %s", err))
 			return 1
 		}
 		defer pprof.StopCPUProfile()
@@ -87,8 +109,8 @@ func realMain() int {
 		// openTelemetryInit can only fail if OpenTofu was run with an
 		// explicit environment variable to enable telemetry collection,
 		// so in typical use we cannot get here.
-		Ui.Error(fmt.Sprintf("Could not initialize telemetry: %s", err))
-		Ui.Error(fmt.Sprintf("Unset environment variable %s if you don't intend to collect telemetry from OpenTofu.", tracing.OTELExporterEnvVar))
+		rv.Error(fmt.Sprintf("Could not initialize telemetry: %s", err))
+		rv.Error(fmt.Sprintf("Unset environment variable %s if you don't intend to collect telemetry from OpenTofu.", tracing.OTELExporterEnvVar))
 
 		return 1
 	}
@@ -129,28 +151,6 @@ func realMain() int {
 		log.Printf("[INFO] This build of OpenTofu allows using experimental features")
 	}
 
-	streams, err := terminal.Init()
-	if err != nil {
-		Ui.Error(fmt.Sprintf("Failed to configure the terminal: %s", err))
-
-		return 1
-	}
-	if streams.Stdout.IsTerminal() {
-		log.Printf("[TRACE] Stdout is a terminal of width %d", streams.Stdout.Columns())
-	} else {
-		log.Printf("[TRACE] Stdout is not a terminal")
-	}
-	if streams.Stderr.IsTerminal() {
-		log.Printf("[TRACE] Stderr is a terminal of width %d", streams.Stderr.Columns())
-	} else {
-		log.Printf("[TRACE] Stderr is not a terminal")
-	}
-	if streams.Stdin.IsTerminal() {
-		log.Printf("[TRACE] Stdin is a terminal")
-	} else {
-		log.Printf("[TRACE] Stdin is not a terminal")
-	}
-
 	// NOTE: We're intentionally calling LoadConfig _before_ handling a possible
 	// -chdir=... option on the command line, so that a possible relative
 	// path in the TERRAFORM_CONFIG_FILE environment variable (though probably
@@ -162,20 +162,10 @@ func realMain() int {
 		// Since we haven't instantiated a command.Meta yet, we need to do
 		// some things manually here and use some "safe" defaults for things
 		// that command.Meta could otherwise figure out in smarter ways.
-		Ui.Error("There are some problems with the CLI configuration:")
-		for _, diag := range diags {
-			earlyColor := &colorstring.Colorize{
-				Colors:  colorstring.DefaultColors,
-				Disable: true, // Disable color to be conservative until we know better
-				Reset:   true,
-			}
-			// We don't currently have access to the source code cache for
-			// the parser used to load the CLI config, so we can't show
-			// source code snippets in early diagnostics.
-			Ui.Error(format.Diagnostic(diag, nil, earlyColor, 78))
-		}
+		rv.Error("There are some problems with the CLI configuration:")
+		rv.Diagnostics(diags)
 		if diags.HasErrors() {
-			Ui.Error("As a result of the above problems, OpenTofu may not behave as intended.\n\n")
+			rv.Error("As a result of the above problems, OpenTofu may not behave as intended.\n\n")
 			// We continue to run anyway, since OpenTofu has reasonable defaults.
 		}
 	}
@@ -202,7 +192,7 @@ func realMain() int {
 	// primarily by the SDK's acceptance testing framework.
 	unmanagedProviders, err := parseReattachProviders(os.Getenv("TF_REATTACH_PROVIDERS"))
 	if err != nil {
-		Ui.Error(err.Error())
+		rv.Error(err.Error())
 		return 1
 	}
 
@@ -217,7 +207,7 @@ func realMain() int {
 	// The logic inside [NewWorkdir] handles the TF_DATA_DIR env var too.
 	wd, newArgs, err := workdir.NewWorkdir(args)
 	if err != nil {
-		Ui.Error(err.Error())
+		rv.Error(err.Error())
 		return 1
 	}
 	// TODO meta-refactor - this is temporary because chdir logic strips away the -chdir flag from the args.
@@ -233,17 +223,10 @@ func realMain() int {
 		wd.RootModuleDir(), // this has to be the directory that tofu has been executed from, not the one after -chdir
 	)
 	if len(diags) > 0 {
-		Ui.Error("There are some problems with the provider_installation configuration:")
-		for _, diag := range diags {
-			earlyColor := &colorstring.Colorize{
-				Colors:  colorstring.DefaultColors,
-				Disable: true, // Disable color to be conservative until we know better
-				Reset:   true,
-			}
-			Ui.Error(format.Diagnostic(diag, nil, earlyColor, 78))
-		}
+		rv.Error("There are some problems with the provider_installation configuration:")
+		rv.Diagnostics(diags)
 		if diags.HasErrors() {
-			Ui.Error("As a result of the above problems, OpenTofu's provider installer may not behave as intended.\n\n")
+			rv.Error("As a result of the above problems, OpenTofu's provider installer may not behave as intended.\n\n")
 			// We continue to run anyway, because most commands don't do provider installation.
 		}
 	}
@@ -254,7 +237,7 @@ func realMain() int {
 		// in case they need to refer back to it for any special reason, though
 		// they should primarily be working with the override working directory
 		// that we've now switched to above.
-		initCommands(ctx, wd, streams, config, services, modulePkgFetcher, providerSrc, providerDevOverrides, unmanagedProviders)
+		initCommands(ctx, wd, view, config, services, modulePkgFetcher, providerSrc, providerDevOverrides, unmanagedProviders)
 	}
 
 	// Attempt to ensure the config directory exists.
@@ -279,7 +262,7 @@ func realMain() int {
 	// Prefix the args with any args from the EnvCLI
 	args, err = mergeEnvArgs(EnvCLI, cliRunner.Subcommand(), args)
 	if err != nil {
-		Ui.Error(err.Error())
+		rv.Error(err.Error())
 		return 1
 	}
 
@@ -289,7 +272,7 @@ func realMain() int {
 	args, err = mergeEnvArgs(
 		fmt.Sprintf("%s_%s", EnvCLI, suffix), cliRunner.Subcommand(), args)
 	if err != nil {
-		Ui.Error(err.Error())
+		rv.Error(err.Error())
 		return 1
 	}
 
@@ -345,14 +328,14 @@ func realMain() int {
 			if suggestion != "" {
 				suggestion = fmt.Sprintf(" Did you mean %q?", suggestion)
 			}
-			fmt.Fprintf(os.Stderr, "OpenTofu has no command named %q.%s\n\nTo see all of OpenTofu's top-level commands, run:\n  tofu -help\n\n", cmd, suggestion)
+			rv.Error(fmt.Sprintf("OpenTofu has no command named %q.%s\n\nTo see all of OpenTofu's top-level commands, run:\n  tofu -help\n", cmd, suggestion))
 			return 1
 		}
 	}
 
 	exitCode, err := cliRunner.Run()
 	if err != nil {
-		Ui.Error(fmt.Sprintf("Error executing CLI: %s", err.Error()))
+		rv.Error(fmt.Sprintf("Error executing CLI: %s", err.Error()))
 		return 1
 	}
 
@@ -366,7 +349,7 @@ func realMain() int {
 	// plugins crashing
 	if exitCode != 0 {
 		for _, panicLog := range logging.PluginPanics() {
-			Ui.Error(panicLog)
+			rv.Error(panicLog)
 		}
 	}
 

@@ -1247,7 +1247,6 @@ func TestVarsParsing(t *testing.T) {
 				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
 				View:             views.NewView(streams),
-				Streams:          streams,
 			},
 		}
 

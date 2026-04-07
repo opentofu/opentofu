@@ -17,7 +17,6 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hcltest"
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/zclconf/go-cty/cty"
@@ -2125,7 +2124,6 @@ func TestBackendFromState(t *testing.T) {
 
 func testMetaBackend(t *testing.T) *Meta {
 	var m Meta
-	m.Ui = new(cli.MockUi)
 	view, _ := testView(t)
 	m.View = view
 
@@ -2133,8 +2131,6 @@ func testMetaBackend(t *testing.T) *Meta {
 	//   which had these with defaults as "true". In a future iteration, once these are not needed, we need to remove them.
 	m.input = true
 	m.stateLock = true
-
-	m.configureUiFromView(arguments.ViewOptions{ViewType: arguments.ViewHuman})
 
 	// metaBackend tests are verifying migrate actions
 	m.migrateState = true

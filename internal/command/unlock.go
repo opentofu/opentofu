@@ -45,10 +45,6 @@ func (c *UnlockCommand) Run(rawArgs []string) int {
 	// Instantiate the view, even if there are flag errors, so that we render
 	// diagnostics according to the desired view
 	view := views.NewUnlock(args.ViewOptions, c.View)
-	// ... and initialise the Meta.Ui to wrap Meta.View into a new implementation
-	// that is able to print by using View abstraction and use the Meta.Ui
-	// to ask for the user input.
-	c.Meta.configureUiFromView(args.ViewOptions)
 
 	if diags.HasErrors() {
 		view.Diagnostics(diags)

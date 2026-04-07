@@ -20,7 +20,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/zclconf/go-cty/cty"
@@ -148,17 +147,12 @@ func TestApply_approveNo(t *testing.T) {
 		"approve": "no",
 	})()
 
-	// Do not use the NewMockUi initializer here, as we want to delay
-	// the call to init until after setting up the input mocks
-	ui := new(cli.MockUi)
-
 	p := applyFixtureProvider()
 	view, done := testView(t)
 	c := &ApplyCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
 			View:             view,
 		},
 	}
@@ -194,16 +188,11 @@ func TestApply_approveYes(t *testing.T) {
 		"approve": "yes",
 	})()
 
-	// Do not use the NewMockUi initializer here, as we want to delay
-	// the call to init until after setting up the input mocks
-	ui := new(cli.MockUi)
-
 	view, done := testView(t)
 	c := &ApplyCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
 			View:             view,
 		},
 	}
@@ -980,7 +969,6 @@ func TestApply_planNoModuleFiles(t *testing.T) {
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               new(cli.MockUi),
 			View:             view,
 		},
 	}

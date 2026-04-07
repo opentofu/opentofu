@@ -37,7 +37,6 @@ func TestConsole_basic(t *testing.T) {
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
-			Streams:          streams,
 		},
 	}
 	defer testStdinPipe(t, strings.NewReader("1+5\n"))()
@@ -84,7 +83,6 @@ func TestConsole_tfvars(t *testing.T) {
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
-			Streams:          streams,
 		},
 	}
 
@@ -134,7 +132,6 @@ func TestConsole_unsetRequiredVars(t *testing.T) {
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
-			Streams:          streams,
 		},
 	}
 
@@ -177,7 +174,6 @@ func TestConsole_variables(t *testing.T) {
 					WorkingDir:       workdir.NewDir("."),
 					testingOverrides: metaOverridesForProvider(p),
 					View:             view,
-					Streams:          streams,
 				},
 			}
 
@@ -218,7 +214,6 @@ func TestConsole_modules(t *testing.T) {
 					WorkingDir:       workdir.NewDir("."),
 					testingOverrides: metaOverridesForProvider(p),
 					View:             view,
-					Streams:          streams,
 				},
 			}
 			code := c.Run(nil)
@@ -318,7 +313,6 @@ func TestConsole_multiline_pipe(t *testing.T) {
 					WorkingDir:       workdir.NewDir("."),
 					testingOverrides: metaOverridesForProvider(p),
 					View:             view,
-					Streams:          streams,
 				},
 			}
 
