@@ -173,6 +173,14 @@ A block representation contains "attributes" and "block_types" (which represent 
       // "sensitive", if set to true, indicates that the
       // attribute may contain sensitive information.
       "sensitive": bool
+
+      // "deprecated", if set to true, indicates that the
+      // attribute is deprecated
+      "deprecated": bool
+
+      // "deprecation_message" is the description provided
+      // detailing why an attribute has been deprecated.
+      "deprecation_message": "string"
     },
   },
   // "block_types" describes any nested blocks that appear directly
@@ -196,6 +204,14 @@ A block representation contains "attributes" and "block_types" (which represent 
     "min_items": 1,
     "max_items": 3
   }
+
+  // "deprecated", if set to true, indicates that the
+  // attribute is deprecated
+  "deprecated": bool
+
+  // "deprecation_message" is the description provided
+  // detailing why an attribute has been deprecated.
+  "deprecation_message": "string"
 }
 ```
 

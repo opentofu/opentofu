@@ -257,3 +257,37 @@ for configuration, if any.
 Many managed resources now offer write-only attributes as an alternative to older attributes which existed before the concept of ephemeral was added.
 As an example, see [aws_secretsmanager_secret_version](https://search.opentofu.org/provider/hashicorp/aws/v6.11.0/docs/resources/secretsmanager_secret_version) and its `secret_string_wo` alternative for `secret_string`).
 Additional documentation is available for [write-only attributes](../ephemerality/write-only-attributes.mdx)
+
+## Deprecation of blocks and attributes
+
+Over time, provider authors may need to change the schema of some of their resource types. Ideally they will mark attributes and blocks as deprecated before removing them completely. This notifies consumers of the deprecated
+features, providing time to migrate. OpenTofu produces a warning each time it finds a reference to a deprecated provider feature.
+
+
+```hcl
+resource "example_resource" "dummy" {
+}
+
+locals {
+  usage = example_resource.dummy.some_deprecated_attribute
+}
+```
+
+```
+Warning: Value derived from a deprecated source
+
+  on main.tf line 5, in locals:
+  36:         usage = example_resource.dummy.some_deprecated_attribute
+
+This value is derived from example_resource.dummy.some_deprecated_attribute, which is deprecated with the following message:
+
+This is a deprecated message from the provider author
+```
+
+Deprecation warnings can be filtered or disabled by using the `-deprecation` CLI argument.
+By default, deprecated resources will be consolidated by the resource address. In
+order to see them individually, `-consolidation-warnings=false` can be used.
+For more details, check its description in the command options for
+[plan](../../cli/commands/plan.mdx#other-options) and [apply](../../cli/commands/apply.mdx#apply-options).
+
+

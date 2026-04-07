@@ -453,7 +453,7 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 			}
 			valMarks := rc.BeforeValMarks
 			if schema.Block.ContainsMarks() {
-				valMarks = append(valMarks, schema.Block.ValueMarks(changeV.Before, nil)...)
+				valMarks = append(valMarks, schema.Block.ValueMarks(changeV.Before, nil, nil, false)...)
 			}
 			if err := ensureEphemeralMarksAreValid(addr, valMarks); err != nil {
 				return nil, err
@@ -485,7 +485,7 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 			}
 			valMarks := rc.AfterValMarks
 			if schema.Block.ContainsMarks() {
-				valMarks = append(valMarks, schema.Block.ValueMarks(changeV.After, nil)...)
+				valMarks = append(valMarks, schema.Block.ValueMarks(changeV.After, nil, nil, false)...)
 			}
 			if err := ensureEphemeralMarksAreValid(addr, valMarks); err != nil {
 				return nil, err

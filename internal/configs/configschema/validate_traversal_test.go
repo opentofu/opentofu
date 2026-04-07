@@ -228,7 +228,7 @@ func TestStaticValidateTraversal(t *testing.T) {
 		},
 		{
 			`obj.deprecated`,
-			`Deprecated attribute: The attribute "deprecated" is deprecated. Refer to the provider documentation for details.`,
+			``, // Handled dynamically in the evaluator, not statically
 		},
 	}
 

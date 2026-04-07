@@ -1123,42 +1123,34 @@ func TestIsCallFromRemote(t *testing.T) {
 	}
 	for ttn, tt := range tests {
 		t.Run(ttn, func(t *testing.T) {
-			root := &Config{
-				Module: &Module{
-					ModuleCalls: map[string]*ModuleCall{
-						childName: {SourceAddr: parseModuleSource(t, tt.childModulePath)},
-					},
-				},
-			}
+			root := &Config{}
 			child := &Config{
-				Parent: root,
-				Path:   []string{childName},
-				Module: &Module{
-					ModuleCalls: map[string]*ModuleCall{
-						gchildName: {SourceAddr: parseModuleSource(t, "../gchild-module")},
-					},
-				},
+				Parent:     root,
+				Path:       []string{childName},
+				SourceAddr: parseModuleSource(t, tt.childModulePath),
 			}
 			gchild := &Config{
-				Parent: child,
-				Path:   []string{gchildName},
-				Module: &Module{
-					ModuleCalls: map[string]*ModuleCall{
-						ggchildName: {SourceAddr: parseModuleSource(t, "../ggchild-module")},
-					},
-				},
+				Parent:     child,
+				Path:       []string{childName, gchildName},
+				SourceAddr: parseModuleSource(t, "../gchild-module"),
 			}
 			ggchild := &Config{
-				Parent: gchild,
-				Path:   []string{ggchildName},
-				Module: &Module{
-					ModuleCalls: map[string]*ModuleCall{
-						gggchildName: {SourceAddr: parseModuleSource(t, "../gggchild-module")},
-					},
-				},
+				Parent:     gchild,
+				Path:       []string{childName, gchildName, ggchildName},
+				SourceAddr: parseModuleSource(t, "../ggchild-module"),
+			}
+			gggchild := &Config{
+				Parent:     ggchild,
+				Path:       []string{childName, gchildName, ggchildName, gggchildName},
+				SourceAddr: parseModuleSource(t, "../gggchild-module"),
 			}
 
-			if want, got := tt.expectedRes, ggchild.IsModuleCallFromRemoteModule(ggchildName); want != got {
+			root.Children = map[string]*Config{childName: child}
+			child.Children = map[string]*Config{gchildName: gchild}
+			gchild.Children = map[string]*Config{ggchildName: ggchild}
+			ggchild.Children = map[string]*Config{gggchildName: gggchild}
+
+			if want, got := tt.expectedRes, ggchild.IsModuleCallFromRemoteModule(gggchildName); want != got {
 				t.Fatalf("expected IsModuleCallFromRemoteModule to return %t but got %t", want, got)
 			}
 		})

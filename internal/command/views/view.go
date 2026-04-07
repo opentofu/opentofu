@@ -137,18 +137,15 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 	}
 
 	// Filter the deprecation warnings based on the cli arg.
-	// For safety and performance reasons, we are filtering the deprecation related diagnostics only when
-	// the filtering level is not tofu.DeprecationWarningLevelAll.
-	if v.ModuleDeprecationWarnLvl != tofu.DeprecationWarningLevelAll {
-		var newDiags tfdiags.Diagnostics
-		for _, diag := range diags {
-			if !tofu.DeprecationDiagnosticAllowed(v.ModuleDeprecationWarnLvl, diag) {
-				continue
-			}
-			newDiags = append(newDiags, diag)
+	var newDiags tfdiags.Diagnostics
+	seen := tofu.DeprecationDiagnosticAllowedSeen{}
+	for _, diag := range diags {
+		if !tofu.DeprecationDiagnosticAllowed(v.ModuleDeprecationWarnLvl, diag, seen) {
+			continue
 		}
-		diags = newDiags
+		newDiags = append(newDiags, diag)
 	}
+	diags = newDiags
 
 	if v.consolidateWarnings {
 		diags = diags.Consolidate(1, tfdiags.Warning)

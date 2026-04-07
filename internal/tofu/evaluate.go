@@ -795,27 +795,23 @@ func (d *evaluationStateData) GetResource(ctx context.Context, addr addrs.Resour
 			}
 
 		default:
+			if config.Count != nil || config.ForEach != nil {
+				val := cty.DynamicVal
+				if schema.Ephemeral {
+					val = val.Mark(marks.Ephemeral)
+				}
+				return val, diags
+			}
 			// We should only end up here during the validate walk,
 			// since later walks should have at least partial states populated
 			// for all resources in the configuration.
-			if schema.Ephemeral {
-				// If the block that it's evaluated is an ephemeral one, we want to mark
-				// the cty.DynamicVal as ephemeral to ensure that the ephemeral references
-				// check is working properly during walkValidate.
-				// For the sake of consistency, we could use "schema.ValueMarks(...)" instead.
-				// Though, since that method it also gathers sensitive marks from all the nesting
-				// layers, based on the size of the schema and the level of nested objects,
-				// that could add a pretty significant performance penalty for marking in the end
-				// only the root object with the ephemeral mark (only the root object, because the
-				// returned slice of cty.PathValueMarks will not be applicable to the attributes
-				// of cty.DynamicVal, since it is having none).
-				ephemeralMark := cty.PathValueMarks{
-					Path:  make(cty.Path, 0),
-					Marks: cty.NewValueMarks(marks.Ephemeral),
-				}
-				return cty.DynamicVal.MarkWithPaths([]cty.PathValueMarks{ephemeralMark}), diags
+			if schema.ContainsMarks() && config.Enabled == nil {
+				val := schema.UnknownValue()
+				schemaMarks := schema.ValueMarks(val, nil, addr, moduleConfig.IsRemoteModule())
+				val = val.MarkWithPaths(schemaMarks)
+				return val, diags
 			}
-			return cty.DynamicVal, diags
+			return cty.UnknownVal(ty), diags
 		}
 	}
 
@@ -843,7 +839,7 @@ func (d *evaluationStateData) GetResource(ctx context.Context, addr addrs.Resour
 		instAddr := addr.Instance(key).Absolute(d.ModulePath)
 
 		if instAddr.Resource.Resource.Mode == addrs.EphemeralResourceMode {
-			v, ephDiags := d.getEphemeralResourceInstanceValue(schema, instAddr, instance, config)
+			v, ephDiags := d.getEphemeralResourceInstanceValue(schema, instAddr, instance, config, moduleConfig)
 			diags = diags.Append(ephDiags)
 			instances[key] = v
 			continue
@@ -896,7 +892,7 @@ func (d *evaluationStateData) GetResource(ctx context.Context, addr addrs.Resour
 				}
 				// Now that we know that the schema contains sensitive and/or ephemeral marks,
 				// Combine those marks together to ensure that the value is marked correctly but not double marked
-				schemaMarks := schema.ValueMarks(val, nil)
+				schemaMarks := schema.ValueMarks(val, nil, addr, moduleConfig.IsRemoteModule())
 				afterMarks = combinePathValueMarks(afterMarks, schemaMarks)
 			}
 
@@ -919,7 +915,7 @@ func (d *evaluationStateData) GetResource(ctx context.Context, addr addrs.Resour
 		}
 
 		val := instanceObjectSrc.Value
-		instances[key] = markedValueBySchema(schema, val)
+		instances[key] = markedValueBySchema(addr, moduleConfig, schema, val)
 	}
 
 	// ret should be populated with a valid value in all cases below
@@ -1005,7 +1001,7 @@ func (d *evaluationStateData) GetResource(ctx context.Context, addr addrs.Resour
 	return ret, diags
 }
 
-func markedValueBySchema(schema *configschema.Block, val cty.Value) cty.Value {
+func markedValueBySchema(addr addrs.Resource, moduleConfig *configs.Config, schema *configschema.Block, val cty.Value) cty.Value {
 	if !schema.ContainsMarks() {
 		return val
 	}
@@ -1013,7 +1009,7 @@ func markedValueBySchema(schema *configschema.Block, val cty.Value) cty.Value {
 	// Now that we know that the schema contains sensitive and/or ephemeral marks,
 	// Combine those marks together to ensure that the value is marked correctly but not double marked
 	val, valMarks = val.UnmarkDeepWithPaths()
-	schemaMarks := schema.ValueMarks(val, nil)
+	schemaMarks := schema.ValueMarks(val, nil, addr, moduleConfig.IsRemoteModule())
 	if schema.Ephemeral {
 		// Since we are preparing to mark the whole value as ephemeral, we want to remove any other
 		// possible downstream ephemeral marks to avoid having the same mark on multiple layers.
@@ -1160,7 +1156,7 @@ func (d *evaluationStateData) GetCheckBlock(_ context.Context, addr addrs.Check,
 // The state object carries also a deferral information so if it was deferred, it cannot return the value
 // since such a value contains only the values from the configuration so we want to return unknown values
 // for all the other attributes.
-func (d *evaluationStateData) getEphemeralResourceInstanceValue(schema *configschema.Block, addr addrs.AbsResourceInstance, ris *states.ResourceInstance, config *configs.Resource) (cty.Value, tfdiags.Diagnostics) {
+func (d *evaluationStateData) getEphemeralResourceInstanceValue(schema *configschema.Block, addr addrs.AbsResourceInstance, ris *states.ResourceInstance, config *configs.Resource, moduleConfig *configs.Config) (cty.Value, tfdiags.Diagnostics) {
 	ty := schema.ImpliedType()
 	// During validate, ephemeral values are not opened
 	if d.Operation == walkValidate {
@@ -1187,7 +1183,7 @@ func (d *evaluationStateData) getEphemeralResourceInstanceValue(schema *configsc
 		return objchange.PlannedUnknownObject(schema, v.Value).Mark(marks.Ephemeral), nil
 	}
 
-	return markedValueBySchema(schema, v.Value), nil
+	return markedValueBySchema(addr.Resource.Resource, moduleConfig, schema, v.Value), nil
 }
 
 // moduleDisplayAddr returns a string describing the given module instance

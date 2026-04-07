@@ -1096,7 +1096,8 @@ func (n *NodeAbstractResourceInstance) refresh(ctx context.Context, evalCtx Eval
 	// Bring in the marks from the schema for the value, this will be merged with the marks from the
 	// previous value to preserve user-marked values, for example: someone passing a sensitive arg to a non-sensitive
 	// prop on a resource
-	marks := combinePathValueMarks(priorPaths, schema.Block.ValueMarks(ret.Value, nil))
+	// Deprecated marks are not added here (..., nil, false)
+	marks := combinePathValueMarks(priorPaths, schema.Block.ValueMarks(ret.Value, nil, nil, false))
 
 	// we only want to mark the value if it has marks
 	if len(marks) > 0 {
@@ -1372,7 +1373,8 @@ func (n *NodeAbstractResourceInstance) plan(
 
 	// Add the marks back to the planned new value -- this must happen after ignore changes
 	// have been processed
-	marks := combinePathValueMarks(unmarkedPaths, schema.Block.ValueMarks(plannedNewVal, nil))
+	// Deprecated marks are not added here (..., nil, false)
+	marks := combinePathValueMarks(unmarkedPaths, schema.Block.ValueMarks(plannedNewVal, nil, nil, false))
 	if len(marks) > 0 {
 		plannedNewVal = plannedNewVal.MarkWithPaths(marks)
 	}
@@ -2962,7 +2964,8 @@ func (n *NodeAbstractResourceInstance) apply(
 	newVal := resp.NewState
 
 	// If we have paths to mark, mark those on this new value
-	newValMarks := combinePathValueMarks(afterPaths, schema.Block.ValueMarks(newVal, nil))
+	// Deprecated marks are not added here (..., nil, false)
+	newValMarks := combinePathValueMarks(afterPaths, schema.Block.ValueMarks(newVal, nil, nil, false))
 	if len(newValMarks) > 0 {
 		newVal = newVal.MarkWithPaths(newValMarks)
 	}
