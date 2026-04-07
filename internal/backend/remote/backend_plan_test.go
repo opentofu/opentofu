@@ -17,8 +17,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	tfe "github.com/hashicorp/go-tfe"
-	"github.com/mitchellh/cli"
-
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/cloud"
@@ -34,13 +32,13 @@ import (
 	"github.com/opentofu/opentofu/internal/tofu"
 )
 
-func testOperationPlan(t *testing.T, configDir string) (*backend.Operation, func(*testing.T) *terminal.TestOutput) {
+func testOperationPlan(t *testing.T, configDir string) (*backend.Operation, *views.View, func(*testing.T) *terminal.TestOutput) {
 	t.Helper()
 
 	return testOperationPlanWithTimeout(t, configDir, 0)
 }
 
-func testOperationPlanWithTimeout(t *testing.T, configDir string, timeout time.Duration) (*backend.Operation, func(*testing.T) *terminal.TestOutput) {
+func testOperationPlanWithTimeout(t *testing.T, configDir string, timeout time.Duration) (*backend.Operation, *views.View, func(*testing.T) *terminal.TestOutput) {
 	t.Helper()
 
 	_, configLoader := initwd.MustLoadConfigForTests(t, configDir, "tests")
@@ -64,15 +62,15 @@ func testOperationPlanWithTimeout(t *testing.T, configDir string, timeout time.D
 		Type:            backend.OperationTypePlan,
 		View:            operationView,
 		DependencyLocks: depLocks,
-	}, done
+	}, view, done
 }
 
 func TestRemote_planBasic(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan")
-	defer done(t)
+	op, view, done := testOperationPlan(t, "./testdata/plan")
+	b.View = views.NewBackendRemote(view)
 
 	op.Workspace = backend.DefaultStateName
 
@@ -82,14 +80,15 @@ func TestRemote_planBasic(t *testing.T) {
 	}
 
 	<-run.Done()
+	voutput := done(t)
 	if run.Result != backend.OperationSuccess {
-		t.Fatalf("operation failed: %s", b.CLI.(*cli.MockUi).ErrorWriter.String())
+		t.Fatalf("operation failed: %s", voutput.Stderr())
 	}
 	if run.PlanEmpty {
 		t.Fatal("expected a non-empty plan")
 	}
 
-	output := b.CLI.(*cli.MockUi).OutputWriter.String()
+	output := voutput.Stdout()
 	if !strings.Contains(output, "Running plan in the remote backend") {
 		t.Fatalf("expected remote backend header in output: %s", output)
 	}
@@ -108,7 +107,8 @@ func TestRemote_planCanceled(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan")
+	op, view, done := testOperationPlan(t, "./testdata/plan")
+	b.View = views.NewBackendRemote(view)
 	defer done(t)
 
 	op.Workspace = backend.DefaultStateName
@@ -137,8 +137,8 @@ func TestRemote_planLongLine(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan-long-line")
-	defer done(t)
+	op, view, done := testOperationPlan(t, "./testdata/plan-long-line")
+	b.View = views.NewBackendRemote(view)
 
 	op.Workspace = backend.DefaultStateName
 
@@ -148,14 +148,15 @@ func TestRemote_planLongLine(t *testing.T) {
 	}
 
 	<-run.Done()
+	voutput := done(t)
 	if run.Result != backend.OperationSuccess {
-		t.Fatalf("operation failed: %s", b.CLI.(*cli.MockUi).ErrorWriter.String())
+		t.Fatalf("operation failed: %s", voutput.Stderr())
 	}
 	if run.PlanEmpty {
 		t.Fatal("expected a non-empty plan")
 	}
 
-	output := b.CLI.(*cli.MockUi).OutputWriter.String()
+	output := voutput.Stdout()
 	if !strings.Contains(output, "Running plan in the remote backend") {
 		t.Fatalf("expected remote backend header in output: %s", output)
 	}
@@ -181,7 +182,8 @@ func TestRemote_planWithoutPermissions(t *testing.T) {
 	}
 	w.Permissions.CanQueueRun = false
 
-	op, done := testOperationPlan(t, "./testdata/plan")
+	op, view, done := testOperationPlan(t, "./testdata/plan")
+	b.View = views.NewBackendRemote(view)
 
 	op.Workspace = "prod"
 
@@ -206,7 +208,8 @@ func TestRemote_planWithParallelism(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan")
+	op, view, done := testOperationPlan(t, "./testdata/plan")
+	b.View = views.NewBackendRemote(view)
 
 	if b.ContextOpts == nil {
 		b.ContextOpts = &tofu.ContextOpts{}
@@ -235,7 +238,8 @@ func TestRemote_planWithPlan(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan")
+	op, view, done := testOperationPlan(t, "./testdata/plan")
+	b.View = views.NewBackendRemote(view)
 
 	op.PlanFile = planfile.NewWrappedLocal(&planfile.Reader{})
 	op.Workspace = backend.DefaultStateName
@@ -264,7 +268,8 @@ func TestRemote_planWithPath(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan")
+	op, view, done := testOperationPlan(t, "./testdata/plan")
+	b.View = views.NewBackendRemote(view)
 
 	op.PlanOutPath = "./testdata/plan"
 	op.Workspace = backend.DefaultStateName
@@ -293,8 +298,8 @@ func TestRemote_planWithoutRefresh(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan")
-	defer done(t)
+	op, view, done := testOperationPlan(t, "./testdata/plan")
+	b.View = views.NewBackendRemote(view)
 
 	op.PlanRefresh = false
 	op.Workspace = backend.DefaultStateName
@@ -305,8 +310,9 @@ func TestRemote_planWithoutRefresh(t *testing.T) {
 	}
 
 	<-run.Done()
+	voutput := done(t)
 	if run.Result != backend.OperationSuccess {
-		t.Fatalf("operation failed: %s", b.CLI.(*cli.MockUi).ErrorWriter.String())
+		t.Fatalf("operation failed: %s", voutput.Stderr())
 	}
 	if run.PlanEmpty {
 		t.Fatal("expected a non-empty plan")
@@ -329,7 +335,8 @@ func TestRemote_planWithoutRefreshIncompatibleAPIVersion(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan")
+	op, view, done := testOperationPlan(t, "./testdata/plan")
+	b.View = views.NewBackendRemote(view)
 
 	b.client.SetFakeRemoteAPIVersion("2.3")
 
@@ -360,8 +367,8 @@ func TestRemote_planWithRefreshOnly(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan")
-	defer done(t)
+	op, view, done := testOperationPlan(t, "./testdata/plan")
+	b.View = views.NewBackendRemote(view)
 
 	op.PlanMode = plans.RefreshOnlyMode
 	op.Workspace = backend.DefaultStateName
@@ -372,8 +379,9 @@ func TestRemote_planWithRefreshOnly(t *testing.T) {
 	}
 
 	<-run.Done()
+	voutput := done(t)
 	if run.Result != backend.OperationSuccess {
-		t.Fatalf("operation failed: %s", b.CLI.(*cli.MockUi).ErrorWriter.String())
+		t.Fatalf("operation failed: %s", voutput.Stderr())
 	}
 	if run.PlanEmpty {
 		t.Fatal("expected a non-empty plan")
@@ -396,7 +404,8 @@ func TestRemote_planWithRefreshOnlyIncompatibleAPIVersion(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan")
+	op, view, done := testOperationPlan(t, "./testdata/plan")
+	b.View = views.NewBackendRemote(view)
 
 	b.client.SetFakeRemoteAPIVersion("2.3")
 
@@ -450,8 +459,8 @@ func TestRemote_planWithTarget(t *testing.T) {
 		}
 	}
 
-	op, done := testOperationPlan(t, "./testdata/plan")
-	defer done(t)
+	op, view, done := testOperationPlan(t, "./testdata/plan")
+	b.View = views.NewBackendRemote(view)
 
 	addr, _ := addrs.ParseAbsResourceStr("null_resource.foo")
 
@@ -473,7 +482,8 @@ func TestRemote_planWithTarget(t *testing.T) {
 
 	// testBackendDefault above attached a "mock UI" to our backend, so we
 	// can retrieve its non-error output via the OutputWriter in-memory buffer.
-	gotOutput := b.CLI.(*cli.MockUi).OutputWriter.String()
+	voutput := done(t)
+	gotOutput := voutput.Stdout()
 	if wantOutput := "Not available for this plan, because it was created with the -target option."; !strings.Contains(gotOutput, wantOutput) {
 		t.Errorf("missing message about skipped cost estimation\ngot:\n%s\nwant substring: %s", gotOutput, wantOutput)
 	}
@@ -495,7 +505,8 @@ func TestRemote_planWithTargetIncompatibleAPIVersion(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan")
+	op, view, done := testOperationPlan(t, "./testdata/plan")
+	b.View = views.NewBackendRemote(view)
 
 	// Set the tfe client's RemoteAPIVersion to an empty string, to mimic
 	// API versions prior to 2.3.
@@ -531,7 +542,8 @@ func TestRemote_planWithExclude(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan")
+	op, view, done := testOperationPlan(t, "./testdata/plan")
+	b.View = views.NewBackendRemote(view)
 
 	addr, _ := addrs.ParseAbsResourceStr("null_resource.foo")
 
@@ -562,7 +574,8 @@ func TestRemote_planWithReplace(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan")
+	op, view, done := testOperationPlan(t, "./testdata/plan")
+	b.View = views.NewBackendRemote(view)
 	defer done(t)
 
 	addr, _ := addrs.ParseAbsResourceInstanceStr("null_resource.foo")
@@ -600,7 +613,8 @@ func TestRemote_planWithReplaceIncompatibleAPIVersion(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan")
+	op, view, done := testOperationPlan(t, "./testdata/plan")
+	b.View = views.NewBackendRemote(view)
 
 	b.client.SetFakeRemoteAPIVersion("2.3")
 
@@ -633,7 +647,8 @@ func TestRemote_planWithVariables(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan-variables")
+	op, view, done := testOperationPlan(t, "./testdata/plan-variables")
+	b.View = views.NewBackendRemote(view)
 
 	op.Variables = testVariables(tofu.ValueFromCLIArg, "foo", "bar")
 	op.Workspace = backend.DefaultStateName
@@ -659,7 +674,8 @@ func TestRemote_planNoConfig(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/empty")
+	op, view, done := testOperationPlan(t, "./testdata/empty")
+	b.View = views.NewBackendRemote(view)
 
 	op.Workspace = backend.DefaultStateName
 
@@ -687,8 +703,8 @@ func TestRemote_planNoChanges(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan-no-changes")
-	defer done(t)
+	op, view, done := testOperationPlan(t, "./testdata/plan-no-changes")
+	b.View = views.NewBackendRemote(view)
 
 	op.Workspace = backend.DefaultStateName
 
@@ -698,14 +714,15 @@ func TestRemote_planNoChanges(t *testing.T) {
 	}
 
 	<-run.Done()
+	voutput := done(t)
 	if run.Result != backend.OperationSuccess {
-		t.Fatalf("operation failed: %s", b.CLI.(*cli.MockUi).ErrorWriter.String())
+		t.Fatalf("operation failed: %s", voutput.Stderr())
 	}
 	if !run.PlanEmpty {
 		t.Fatalf("expected plan to be empty")
 	}
 
-	output := b.CLI.(*cli.MockUi).OutputWriter.String()
+	output := voutput.Stdout()
 	if !strings.Contains(output, "No changes. Infrastructure is up-to-date.") {
 		t.Fatalf("expected no changes in plan summary: %s", output)
 	}
@@ -722,14 +739,12 @@ func TestRemote_planForceLocal(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan")
-	defer done(t)
+	op, view, done := testOperationPlan(t, "./testdata/plan")
+	b.View = views.NewBackendRemote(view)
 
 	op.Workspace = backend.DefaultStateName
 
-	streams, done := terminal.StreamsForTesting(t)
-	view := views.NewOperation(arguments.ViewHuman, false, views.NewView(streams))
-	op.View = view
+	op.View = views.NewOperation(arguments.ViewHuman, false, view)
 
 	run, err := b.Operation(context.Background(), op)
 	if err != nil {
@@ -737,18 +752,19 @@ func TestRemote_planForceLocal(t *testing.T) {
 	}
 
 	<-run.Done()
+	voutput := done(t)
 	if run.Result != backend.OperationSuccess {
-		t.Fatalf("operation failed: %s", b.CLI.(*cli.MockUi).ErrorWriter.String())
+		t.Fatalf("operation failed: %s", voutput.Stderr())
 	}
 	if run.PlanEmpty {
 		t.Fatalf("expected a non-empty plan")
 	}
 
-	output := b.CLI.(*cli.MockUi).OutputWriter.String()
+	output := voutput.Stdout()
 	if strings.Contains(output, "Running plan in the remote backend") {
 		t.Fatalf("unexpected remote backend header in output: %s", output)
 	}
-	if output := done(t).Stdout(); !strings.Contains(output, "1 to add, 0 to change, 0 to destroy") {
+	if !strings.Contains(output, "1 to add, 0 to change, 0 to destroy") {
 		t.Fatalf("expected plan summary in output: %s", output)
 	}
 }
@@ -757,14 +773,12 @@ func TestRemote_planWithoutOperationsEntitlement(t *testing.T) {
 	b, bCleanup := testBackendNoOperations(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan")
-	defer done(t)
+	op, view, done := testOperationPlan(t, "./testdata/plan")
+	b.View = views.NewBackendRemote(view)
 
 	op.Workspace = backend.DefaultStateName
 
-	streams, done := terminal.StreamsForTesting(t)
-	view := views.NewOperation(arguments.ViewHuman, false, views.NewView(streams))
-	op.View = view
+	op.View = views.NewOperation(arguments.ViewHuman, false, view)
 
 	run, err := b.Operation(context.Background(), op)
 	if err != nil {
@@ -772,18 +786,19 @@ func TestRemote_planWithoutOperationsEntitlement(t *testing.T) {
 	}
 
 	<-run.Done()
+	voutput := done(t)
 	if run.Result != backend.OperationSuccess {
-		t.Fatalf("operation failed: %s", b.CLI.(*cli.MockUi).ErrorWriter.String())
+		t.Fatalf("operation failed: %s", voutput.Stderr())
 	}
 	if run.PlanEmpty {
 		t.Fatalf("expected a non-empty plan")
 	}
 
-	output := b.CLI.(*cli.MockUi).OutputWriter.String()
+	output := voutput.Stdout()
 	if strings.Contains(output, "Running plan in the remote backend") {
 		t.Fatalf("unexpected remote backend header in output: %s", output)
 	}
-	if output := done(t).Stdout(); !strings.Contains(output, "1 to add, 0 to change, 0 to destroy") {
+	if !strings.Contains(output, "1 to add, 0 to change, 0 to destroy") {
 		t.Fatalf("expected plan summary in output: %s", output)
 	}
 }
@@ -806,14 +821,12 @@ func TestRemote_planWorkspaceWithoutOperations(t *testing.T) {
 		t.Fatalf("error creating named workspace: %v", err)
 	}
 
-	op, done := testOperationPlan(t, "./testdata/plan")
-	defer done(t)
+	op, view, done := testOperationPlan(t, "./testdata/plan")
+	b.View = views.NewBackendRemote(view)
 
 	op.Workspace = "no-operations"
 
-	streams, done := terminal.StreamsForTesting(t)
-	view := views.NewOperation(arguments.ViewHuman, false, views.NewView(streams))
-	op.View = view
+	op.View = views.NewOperation(arguments.ViewHuman, false, view)
 
 	run, err := b.Operation(ctx, op)
 	if err != nil {
@@ -821,18 +834,19 @@ func TestRemote_planWorkspaceWithoutOperations(t *testing.T) {
 	}
 
 	<-run.Done()
+	voutput := done(t)
 	if run.Result != backend.OperationSuccess {
-		t.Fatalf("operation failed: %s", b.CLI.(*cli.MockUi).ErrorWriter.String())
+		t.Fatalf("operation failed: %s", voutput.Stderr())
 	}
 	if run.PlanEmpty {
 		t.Fatalf("expected a non-empty plan")
 	}
 
-	output := b.CLI.(*cli.MockUi).OutputWriter.String()
+	output := voutput.Stdout()
 	if strings.Contains(output, "Running plan in the remote backend") {
 		t.Fatalf("unexpected remote backend header in output: %s", output)
 	}
-	if output := done(t).Stdout(); !strings.Contains(output, "1 to add, 0 to change, 0 to destroy") {
+	if !strings.Contains(output, "1 to add, 0 to change, 0 to destroy") {
 		t.Fatalf("expected plan summary in output: %s", output)
 	}
 }
@@ -868,8 +882,8 @@ func TestRemote_planLockTimeout(t *testing.T) {
 		t.Fatalf("error creating pending run: %v", err)
 	}
 
-	op, done := testOperationPlanWithTimeout(t, "./testdata/plan", 50)
-	defer done(t)
+	op, view, done := testOperationPlanWithTimeout(t, "./testdata/plan", 50)
+	b.View = views.NewBackendRemote(view)
 
 	input := testInput(t, map[string]string{
 		"cancel":  "yes",
@@ -877,7 +891,6 @@ func TestRemote_planLockTimeout(t *testing.T) {
 	})
 
 	op.UIIn = input
-	op.UIOut = b.CLI
 	op.Workspace = backend.DefaultStateName
 
 	_, err = b.Operation(context.Background(), op)
@@ -899,7 +912,8 @@ func TestRemote_planLockTimeout(t *testing.T) {
 		t.Fatalf("expected unused answers, got: %v", input.answers)
 	}
 
-	output := b.CLI.(*cli.MockUi).OutputWriter.String()
+	voutput := done(t)
+	output := voutput.Stdout()
 	if !strings.Contains(output, "Running plan in the remote backend") {
 		t.Fatalf("expected remote backend header in output: %s", output)
 	}
@@ -915,8 +929,8 @@ func TestRemote_planDestroy(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan")
-	defer done(t)
+	op, view, done := testOperationPlan(t, "./testdata/plan")
+	b.View = views.NewBackendRemote(view)
 
 	op.PlanMode = plans.DestroyMode
 	op.Workspace = backend.DefaultStateName
@@ -927,8 +941,9 @@ func TestRemote_planDestroy(t *testing.T) {
 	}
 
 	<-run.Done()
+	voutput := done(t)
 	if run.Result != backend.OperationSuccess {
-		t.Fatalf("operation failed: %s", b.CLI.(*cli.MockUi).ErrorWriter.String())
+		t.Fatalf("operation failed: %s", voutput.Stderr())
 	}
 	if run.PlanEmpty {
 		t.Fatalf("expected a non-empty plan")
@@ -939,8 +954,8 @@ func TestRemote_planDestroyNoConfig(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/empty")
-	defer done(t)
+	op, view, done := testOperationPlan(t, "./testdata/empty")
+	b.View = views.NewBackendRemote(view)
 
 	op.PlanMode = plans.DestroyMode
 	op.Workspace = backend.DefaultStateName
@@ -951,8 +966,9 @@ func TestRemote_planDestroyNoConfig(t *testing.T) {
 	}
 
 	<-run.Done()
+	voutput := done(t)
 	if run.Result != backend.OperationSuccess {
-		t.Fatalf("operation failed: %s", b.CLI.(*cli.MockUi).ErrorWriter.String())
+		t.Fatalf("operation failed: %s", voutput.Stderr())
 	}
 	if run.PlanEmpty {
 		t.Fatalf("expected a non-empty plan")
@@ -973,8 +989,8 @@ func TestRemote_planWithWorkingDirectory(t *testing.T) {
 		t.Fatalf("error configuring working directory: %v", err)
 	}
 
-	op, done := testOperationPlan(t, "./testdata/plan-with-working-directory/tofu")
-	defer done(t)
+	op, view, done := testOperationPlan(t, "./testdata/plan-with-working-directory/tofu")
+	b.View = views.NewBackendRemote(view)
 
 	op.Workspace = backend.DefaultStateName
 
@@ -984,14 +1000,15 @@ func TestRemote_planWithWorkingDirectory(t *testing.T) {
 	}
 
 	<-run.Done()
+	voutput := done(t)
 	if run.Result != backend.OperationSuccess {
-		t.Fatalf("operation failed: %s", b.CLI.(*cli.MockUi).ErrorWriter.String())
+		t.Fatalf("operation failed: %s", voutput.Stderr())
 	}
 	if run.PlanEmpty {
 		t.Fatalf("expected a non-empty plan")
 	}
 
-	output := b.CLI.(*cli.MockUi).OutputWriter.String()
+	output := voutput.Stdout()
 	if !strings.Contains(output, "The remote workspace is configured to work with configuration") {
 		t.Fatalf("expected working directory warning: %s", output)
 	}
@@ -1023,8 +1040,8 @@ func TestRemote_planWithWorkingDirectoryFromCurrentPath(t *testing.T) {
 
 	// For this test we need to give our current directory instead of the
 	// full path to the configuration as we already changed directories.
-	op, done := testOperationPlan(t, ".")
-	defer done(t)
+	op, view, done := testOperationPlan(t, ".")
+	b.View = views.NewBackendRemote(view)
 
 	op.Workspace = backend.DefaultStateName
 
@@ -1034,14 +1051,15 @@ func TestRemote_planWithWorkingDirectoryFromCurrentPath(t *testing.T) {
 	}
 
 	<-run.Done()
+	voutput := done(t)
 	if run.Result != backend.OperationSuccess {
-		t.Fatalf("operation failed: %s", b.CLI.(*cli.MockUi).ErrorWriter.String())
+		t.Fatalf("operation failed: %s", voutput.Stderr())
 	}
 	if run.PlanEmpty {
 		t.Fatalf("expected a non-empty plan")
 	}
 
-	output := b.CLI.(*cli.MockUi).OutputWriter.String()
+	output := voutput.Stdout()
 	if !strings.Contains(output, "Running plan in the remote backend") {
 		t.Fatalf("expected remote backend header in output: %s", output)
 	}
@@ -1054,8 +1072,8 @@ func TestRemote_planCostEstimation(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan-cost-estimation")
-	defer done(t)
+	op, view, done := testOperationPlan(t, "./testdata/plan-cost-estimation")
+	b.View = views.NewBackendRemote(view)
 
 	op.Workspace = backend.DefaultStateName
 
@@ -1065,14 +1083,15 @@ func TestRemote_planCostEstimation(t *testing.T) {
 	}
 
 	<-run.Done()
+	voutput := done(t)
 	if run.Result != backend.OperationSuccess {
-		t.Fatalf("operation failed: %s", b.CLI.(*cli.MockUi).ErrorWriter.String())
+		t.Fatalf("operation failed: %s", voutput.Stderr())
 	}
 	if run.PlanEmpty {
 		t.Fatalf("expected a non-empty plan")
 	}
 
-	output := b.CLI.(*cli.MockUi).OutputWriter.String()
+	output := voutput.Stdout()
 	if !strings.Contains(output, "Running plan in the remote backend") {
 		t.Fatalf("expected remote backend header in output: %s", output)
 	}
@@ -1088,8 +1107,8 @@ func TestRemote_planPolicyPass(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan-policy-passed")
-	defer done(t)
+	op, view, done := testOperationPlan(t, "./testdata/plan-policy-passed")
+	b.View = views.NewBackendRemote(view)
 
 	op.Workspace = backend.DefaultStateName
 
@@ -1099,14 +1118,15 @@ func TestRemote_planPolicyPass(t *testing.T) {
 	}
 
 	<-run.Done()
+	voutput := done(t)
 	if run.Result != backend.OperationSuccess {
-		t.Fatalf("operation failed: %s", b.CLI.(*cli.MockUi).ErrorWriter.String())
+		t.Fatalf("operation failed: %s", voutput.Stderr())
 	}
 	if run.PlanEmpty {
 		t.Fatalf("expected a non-empty plan")
 	}
 
-	output := b.CLI.(*cli.MockUi).OutputWriter.String()
+	output := voutput.Stdout()
 	if !strings.Contains(output, "Running plan in the remote backend") {
 		t.Fatalf("expected remote backend header in output: %s", output)
 	}
@@ -1122,7 +1142,8 @@ func TestRemote_planPolicyHardFail(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan-policy-hard-failed")
+	op, view, done := testOperationPlan(t, "./testdata/plan-policy-hard-failed")
+	b.View = views.NewBackendRemote(view)
 
 	op.Workspace = backend.DefaultStateName
 
@@ -1145,7 +1166,7 @@ func TestRemote_planPolicyHardFail(t *testing.T) {
 		t.Fatalf("expected a policy check error, got: %v", errOutput)
 	}
 
-	output := b.CLI.(*cli.MockUi).OutputWriter.String()
+	output := viewOutput.Stdout()
 	if !strings.Contains(output, "Running plan in the remote backend") {
 		t.Fatalf("expected remote backend header in output: %s", output)
 	}
@@ -1161,7 +1182,8 @@ func TestRemote_planPolicySoftFail(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan-policy-soft-failed")
+	op, view, done := testOperationPlan(t, "./testdata/plan-policy-soft-failed")
+	b.View = views.NewBackendRemote(view)
 
 	op.Workspace = backend.DefaultStateName
 
@@ -1184,7 +1206,7 @@ func TestRemote_planPolicySoftFail(t *testing.T) {
 		t.Fatalf("expected a policy check error, got: %v", errOutput)
 	}
 
-	output := b.CLI.(*cli.MockUi).OutputWriter.String()
+	output := viewOutput.Stdout()
 	if !strings.Contains(output, "Running plan in the remote backend") {
 		t.Fatalf("expected remote backend header in output: %s", output)
 	}
@@ -1200,8 +1222,8 @@ func TestRemote_planWithRemoteError(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan-with-error")
-	defer done(t)
+	op, view, done := testOperationPlan(t, "./testdata/plan-with-error")
+	b.View = views.NewBackendRemote(view)
 
 	op.Workspace = backend.DefaultStateName
 
@@ -1218,7 +1240,8 @@ func TestRemote_planWithRemoteError(t *testing.T) {
 		t.Fatalf("expected exit code 1, got %d", run.Result.ExitStatus())
 	}
 
-	output := b.CLI.(*cli.MockUi).OutputWriter.String()
+	voutput := done(t)
+	output := voutput.Stdout()
 	if !strings.Contains(output, "Running plan in the remote backend") {
 		t.Fatalf("expected remote backend header in output: %s", output)
 	}
@@ -1231,7 +1254,8 @@ func TestRemote_planOtherError(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan")
+	op, view, done := testOperationPlan(t, "./testdata/plan")
+	b.View = views.NewBackendRemote(view)
 	defer done(t)
 
 	op.Workspace = "network-error" // custom error response in backend_mock.go
@@ -1251,7 +1275,8 @@ func TestRemote_planWithGenConfigOut(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan")
+	op, view, done := testOperationPlan(t, "./testdata/plan")
+	b.View = views.NewBackendRemote(view)
 
 	op.GenerateConfigOut = "generated.tf"
 	op.Workspace = backend.DefaultStateName

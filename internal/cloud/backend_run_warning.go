@@ -7,8 +7,6 @@ package cloud
 
 import (
 	"context"
-	"fmt"
-	"strings"
 
 	tfe "github.com/hashicorp/go-tfe"
 )
@@ -20,7 +18,7 @@ const (
 )
 
 func (b *Cloud) renderRunWarnings(ctx context.Context, client *tfe.Client, runId string) error {
-	if b.CLI == nil {
+	if b.View == nil {
 		return nil
 	}
 
@@ -36,16 +34,9 @@ func (b *Cloud) renderRunWarnings(ctx context.Context, client *tfe.Client, runId
 	for _, re := range result.Items {
 		switch re.Action {
 		case changedPolicyEnforcementAction, changedTaskEnforcementAction, ignoredPolicySetAction:
-			if re.Description != "" {
-				b.CLI.Warn(b.Colorize().Color(strings.TrimSpace(fmt.Sprintf(
-					runWarningHeader, re.Description)) + "\n"))
-			}
+			b.View.RunWarning(re.Description)
 		}
 	}
 
 	return nil
 }
-
-const runWarningHeader = `
-[reset][yellow]Warning:[reset] %s
-`

@@ -603,6 +603,8 @@ func TestCloud_setUnavailableTerraformVersion(t *testing.T) {
 
 	b, _, bCleanup := testBackend(t, config, nil)
 	defer bCleanup()
+	_, done := refreshView(t, b)
+	defer done(t)
 
 	// Make sure the workspace doesn't exist yet -- otherwise, we can't test what
 	// happens when a workspace gets created. This is why we can't use "name" in

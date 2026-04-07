@@ -425,9 +425,7 @@ func (m *Meta) backendCLIOpts(ctx context.Context) (*backend.CLIOpts, error) {
 		return nil, err
 	}
 	return &backend.CLIOpts{
-		CLI:                 m.Ui,
-		CLIColor:            m.View.Colorize(),
-		Streams:             m.Streams,
+		View:                views.NewBackendRemote(m.View),
 		StatePath:           m.statePath,
 		StateOutPath:        m.stateOutPath,
 		StateBackupPath:     m.backupPath,
@@ -479,7 +477,6 @@ func (m *Meta) Operation(ctx context.Context, b backend.Backend, view views.Back
 		Encryption:      enc,
 		PlanOutBackend:  planOutBackend,
 		UIIn:            m.UIInput(),
-		UIOut:           m.Ui,
 		Workspace:       workspace,
 		StateLocker:     stateLocker,
 		DependencyLocks: depLocks,

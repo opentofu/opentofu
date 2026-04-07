@@ -7,7 +7,6 @@ package cloud
 
 import (
 	"github.com/opentofu/opentofu/internal/backend"
-	"github.com/opentofu/opentofu/internal/command/jsonformat"
 )
 
 // CLIInit implements backend.CLI
@@ -18,15 +17,10 @@ func (b *Cloud) CLIInit(opts *backend.CLIOpts) error {
 		}
 	}
 
-	b.CLI = opts.CLI
-	b.CLIColor = opts.CLIColor
+	b.View = opts.View
 	b.ContextOpts = opts.ContextOpts
 	b.runningInAutomation = opts.RunningInAutomation
 	b.input = opts.Input
-	b.renderer = &jsonformat.Renderer{
-		Streams:  opts.Streams,
-		Colorize: opts.CLIColor,
-	}
 
 	return nil
 }

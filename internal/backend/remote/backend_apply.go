@@ -227,7 +227,7 @@ func (b *Remote) opApply(ctx context.Context, stopCtx, cancelCtx context.Context
 		return r, diags.Err()
 	}
 
-	mustConfirm := (op.UIIn != nil && op.UIOut != nil) && !op.AutoApprove
+	mustConfirm := (op.UIIn != nil && op.View != nil) && !op.AutoApprove
 
 	if !w.AutoApply {
 		if mustConfirm {
@@ -259,8 +259,8 @@ func (b *Remote) opApply(ctx context.Context, stopCtx, cancelCtx context.Context
 	// If we don't need to ask for confirmation, insert a blank
 	// line to separate the outputs.
 	if w.AutoApply || !mustConfirm {
-		if b.CLI != nil {
-			b.CLI.Output("")
+		if b.View != nil {
+			b.View.Output("", false)
 		}
 	}
 
@@ -275,7 +275,7 @@ func (b *Remote) opApply(ctx context.Context, stopCtx, cancelCtx context.Context
 	}
 	reader := bufio.NewReaderSize(logs, 64*1024)
 
-	if b.CLI != nil {
+	if b.View != nil {
 		skip := 0
 		for next := true; next; {
 			var l, line []byte
@@ -298,18 +298,10 @@ func (b *Remote) opApply(ctx context.Context, stopCtx, cancelCtx context.Context
 			}
 
 			if next || len(line) > 0 {
-				b.CLI.Output(b.Colorize().Color(string(line)))
+				b.View.Output(string(line), true)
 			}
 		}
 	}
 
 	return r, nil
 }
-
-const applyDefaultHeader = `
-[reset][yellow]Running apply in the remote backend. Output will stream here. Pressing Ctrl-C
-will cancel the remote apply if it's still pending. If the apply started it
-will stop streaming the logs, but will not stop the apply running remotely.[reset]
-
-Preparing the remote apply...
-`

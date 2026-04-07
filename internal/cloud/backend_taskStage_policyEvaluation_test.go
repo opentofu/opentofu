@@ -79,27 +79,32 @@ func TestCloud_runTaskStageWithPolicyEvaluation(t *testing.T) {
 		},
 	}
 
-	for _, c := range cases {
-		c.writer.output.Reset()
-		trs := policyEvaluationSummarizer{
-			cloud: b,
-		}
-		err := c.context.Poll(0, 0, func(i int) (bool, error) {
-			cont, _, _ := trs.Summarize(c.context, c.writer, c.taskStage())
-			if cont {
-				return true, nil
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			c.writer.output.Reset()
+			trs := policyEvaluationSummarizer{
+				cloud: b,
 			}
-
-			output := c.writer.output.String()
-			for _, expected := range c.expectedOutputs {
-				if !strings.Contains(output, expected) {
-					t.Fatalf("Expected output to contain '%s' but it was:\n\n%s", expected, output)
+			err := c.context.Poll(0, 0, func(i int) (bool, error) {
+				cont, _, _ := trs.Summarize(c.context, c.writer, c.taskStage())
+				if cont {
+					return true, nil
 				}
+
+				output := c.writer.output.String()
+				for _, expected := range c.expectedOutputs {
+					// Added this sanitisation of the expected while we removed the colorize object from the
+					// outputs collector (testIntegrationOutput)
+					expected = removeColoriseMarks(strings.ReplaceAll(expected, "│ ", ""))
+					if !strings.Contains(output, expected) {
+						t.Fatalf("Wrong output:\n\n%s\n\nExpected to contain:\n\n%s", output, expected)
+					}
+				}
+				return false, nil
+			})
+			if err != nil {
+				t.Fatalf("Error while polling: %v", err)
 			}
-			return false, nil
 		})
-		if err != nil {
-			t.Fatalf("Error while polling: %v", err)
-		}
 	}
 }

@@ -1234,14 +1234,13 @@ func testHangServer(t testing.TB) (server *httptest.Server, reqs <-chan *http.Re
 // Tested against commands with checkable outputs to validate that the right variable values reached the
 // execution context.
 func TestVarsParsing(t *testing.T) {
-	td := t.TempDir()
-	testCopyDir(t, testFixturePath("variables"), td)
-	t.Chdir(td)
-
 	p := testProvider()
 	varArgs := []string{"-var", "snack=chips", "-var-file", "all.tfvars"}
 	t.Run("console", func(t *testing.T) {
-		defer testStdinPipe(t, strings.NewReader("var.foo\nvar.snack\n"))()
+		td := t.TempDir()
+		testCopyDir(t, testFixturePath("variables"), td)
+		t.Chdir(td)
+		t.Cleanup(testStdinPipe(t, strings.NewReader("var.foo\nvar.snack\n")))
 		streams, done := terminal.StreamsForTesting(t)
 		c := &ConsoleCommand{
 			Meta: Meta{
@@ -1271,6 +1270,7 @@ func TestVarsParsing(t *testing.T) {
 	cases := map[string]struct {
 		cmdBuilder      func(m Meta) cli.Command
 		expectedContent []string
+		confirmation    bool
 	}{
 		"plan": {
 			cmdBuilder: func(m Meta) cli.Command {
@@ -1281,6 +1281,7 @@ func TestVarsParsing(t *testing.T) {
 			cmdBuilder: func(m Meta) cli.Command {
 				return &ApplyCommand{Meta: m}
 			},
+			confirmation: true,
 		},
 		"output": {
 			cmdBuilder: func(m Meta) cli.Command {
@@ -1300,6 +1301,9 @@ func TestVarsParsing(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
+			td := t.TempDir()
+			testCopyDir(t, testFixturePath("variables"), td)
+			t.Chdir(td)
 			view, done := testView(t)
 			m := Meta{
 				WorkingDir:       workdir.NewDir("."),
@@ -1309,6 +1313,9 @@ func TestVarsParsing(t *testing.T) {
 			c := tc.cmdBuilder(m)
 
 			args := append([]string{"-no-color"}, varArgs...)
+			if tc.confirmation {
+				t.Cleanup(testInputMap(t, map[string]string{"approve": "yes"}))
+			}
 			code := c.Run(args)
 			output := done(t)
 			if code != 0 {

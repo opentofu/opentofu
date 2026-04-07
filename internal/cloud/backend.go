@@ -20,8 +20,7 @@ import (
 
 	tfe "github.com/hashicorp/go-tfe"
 	version "github.com/hashicorp/go-version"
-	"github.com/mitchellh/cli"
-	"github.com/mitchellh/colorstring"
+	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/svchost"
 	"github.com/opentofu/svchost/disco"
 	"github.com/opentofu/svchost/svcauth"
@@ -29,7 +28,6 @@ import (
 	"github.com/zclconf/go-cty/cty/gocty"
 
 	"github.com/opentofu/opentofu/internal/backend"
-	"github.com/opentofu/opentofu/internal/command/jsonformat"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/httpclient"
@@ -54,10 +52,7 @@ const (
 // integration for OpenTofu CLI. This backend is not intended to be surfaced at the user level and
 // is instead an implementation detail of cloud.Cloud.
 type Cloud struct {
-	// CLI and Colorize control the CLI output. If CLI is nil then no CLI
-	// output will be done. If CLIColor is nil then no coloring will be done.
-	CLI      cli.Ui
-	CLIColor *colorstring.Colorize
+	View views.BackendRemote
 
 	// ContextOpts are the base context options to set when initializing a
 	// new OpenTofu context. Many of these will be overridden or merged by
@@ -85,9 +80,6 @@ type Cloud struct {
 
 	// services is used for service discovery
 	services *disco.Disco
-
-	// renderer is used for rendering JSON plan output and streamed logs.
-	renderer *jsonformat.Renderer
 
 	// local allows local operations, where Terraform Cloud serves as a state storage backend.
 	local backend.Enhanced
@@ -547,7 +539,7 @@ func (b *Cloud) cliConfigToken() (string, error) {
 // retryLogHook is invoked each time a request is retried allowing the
 // backend to log any connection issues to prevent data loss.
 func (b *Cloud) retryLogHook(attemptNum int, resp *http.Response) {
-	if b.CLI != nil {
+	if b.View != nil {
 		// Ignore the first retry to make sure any delayed output will
 		// be written to the console before we start logging retries.
 		//
@@ -561,10 +553,9 @@ func (b *Cloud) retryLogHook(attemptNum int, resp *http.Response) {
 		}
 
 		if attemptNum == 1 {
-			b.CLI.Output(b.Colorize().Color(strings.TrimSpace(initialRetryError)))
+			b.View.InitialRetryError(false)
 		} else {
-			b.CLI.Output(b.Colorize().Color(strings.TrimSpace(
-				fmt.Sprintf(repeatedRetryError, time.Since(b.lastRetry).Round(time.Second)))))
+			b.View.RepeatedRetryError(time.Since(b.lastRetry).Round(time.Second))
 		}
 	}
 }
@@ -755,9 +746,8 @@ func (b *Cloud) StateMgr(ctx context.Context, name string) (statemgr.Full, error
 			// issue was that the version wasn't available since that's probably what
 			// happened.
 			log.Printf("[TRACE] cloud: Attempted to select version %s for cloud backend workspace; unavailable, so %s will be used instead.", tfversion.String(), workspace.TerraformVersion)
-			if b.CLI != nil {
-				versionUnavailable := fmt.Sprintf(unavailableTerraformVersion, tfversion.String(), workspace.TerraformVersion)
-				b.CLI.Output(b.Colorize().Color(versionUnavailable))
+			if b.View != nil {
+				b.View.UnavailableVersionInBackend(tfversion.String(), workspace.TerraformVersion)
 			}
 		}
 	}
@@ -829,8 +819,8 @@ func (b *Cloud) Operation(ctx context.Context, op *backend.Operation) (*backend.
 		// The `tofu refresh` command has been deprecated in favor of `tofu apply -refresh-state`.
 		// Rather than respond with an error telling the user to run the other command we can just run
 		// that command instead. We will tell the user what we are doing, and then do it.
-		if b.CLI != nil {
-			b.CLI.Output(b.Colorize().Color(strings.TrimSpace(refreshToApplyRefresh) + "\n"))
+		if b.View != nil {
+			b.View.PreRefresh()
 		}
 		op.PlanMode = plans.RefreshOnlyMode
 		op.PlanRefresh = true
@@ -928,15 +918,15 @@ func (b *Cloud) cancel(cancelCtx context.Context, op *backend.Operation, r *tfe.
 				return generalError("Failed asking to cancel", err)
 			}
 			if v != "yes" {
-				if b.CLI != nil {
-					b.CLI.Output(b.Colorize().Color(strings.TrimSpace(operationNotCanceled)))
+				if b.View != nil {
+					b.View.OperationNotCancelled()
 				}
 				return nil
 			}
 		} else {
-			if b.CLI != nil {
+			if b.View != nil {
 				// Insert a blank line to separate the outputs.
-				b.CLI.Output("")
+				b.View.Output("", false)
 			}
 		}
 
@@ -945,8 +935,8 @@ func (b *Cloud) cancel(cancelCtx context.Context, op *backend.Operation, r *tfe.
 		if err != nil {
 			return generalError("Failed to cancel run", err)
 		}
-		if b.CLI != nil {
-			b.CLI.Output(b.Colorize().Color(strings.TrimSpace(operationCanceled)))
+		if b.View != nil {
+			b.View.OperationCancelled()
 		}
 	}
 
@@ -1071,24 +1061,6 @@ func (b *Cloud) VerifyWorkspaceTerraformVersion(workspaceName string) tfdiags.Di
 
 func (b *Cloud) IsLocalOperations() bool {
 	return b.forceLocal
-}
-
-// Colorize returns the Colorize structure that can be used for colorizing
-// output. This is guaranteed to always return a non-nil value and so useful
-// as a helper to wrap any potentially colored strings.
-//
-// TODO SvH: Rename this back to Colorize as soon as we can pass -no-color.
-//
-//lint:ignore U1000 see above todo
-func (b *Cloud) cliColorize() *colorstring.Colorize {
-	if b.CLIColor != nil {
-		return b.CLIColor
-	}
-
-	return &colorstring.Colorize{
-		Colors:  colorstring.DefaultColors,
-		Disable: true,
-	}
 }
 
 func (b *Cloud) workspaceTagsRequireUpdate(workspace *tfe.Workspace, workspaceMapping WorkspaceMapping) bool {
@@ -1284,30 +1256,6 @@ func generalError(msg string, err error) error {
 }
 
 // The newline in this error is to make it look good in the CLI!
-const initialRetryError = `
-[reset][yellow]There was an error connecting to the cloud backend. Please do not exit
-OpenTofu to prevent data loss! Trying to restore the connection...
-[reset]
-`
-
-const repeatedRetryError = `
-[reset][yellow]Still trying to restore the connection... (%s elapsed)[reset]
-`
-
-const operationCanceled = `
-[reset][red]The remote operation was successfully cancelled.[reset]
-`
-
-const operationNotCanceled = `
-[reset][red]The remote operation was not cancelled.[reset]
-`
-
-const refreshToApplyRefresh = `[bold][yellow]Proceeding with 'tofu apply -refresh-only -auto-approve'.[reset]`
-
-const unavailableTerraformVersion = `
-[reset][yellow]The local OpenTofu version (%s) is not available in the cloud backend, or your
-organization does not have access to it. The new workspace will use %s. You can
-change this later in the workspace settings.[reset]`
 
 const cloudIntegrationUsedInUnsupportedTFE = `
 This version of cloud backend does not support the state mechanism

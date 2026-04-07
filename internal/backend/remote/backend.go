@@ -19,8 +19,7 @@ import (
 
 	tfe "github.com/hashicorp/go-tfe"
 	version "github.com/hashicorp/go-version"
-	"github.com/mitchellh/cli"
-	"github.com/mitchellh/colorstring"
+	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/svchost"
 	"github.com/opentofu/svchost/disco"
 	"github.com/opentofu/svchost/svcauth"
@@ -49,10 +48,7 @@ const (
 // Remote is an implementation of EnhancedBackend that performs all
 // operations in a remote backend.
 type Remote struct {
-	// CLI and Colorize control the CLI output. If CLI is nil then no CLI
-	// output will be done. If CLIColor is nil then no coloring will be done.
-	CLI      cli.Ui
-	CLIColor *colorstring.Colorize
+	View views.BackendRemote
 
 	// ContextOpts are the base context options to set when initializing a
 	// new OpenTofu context. Many of these will be overridden or merged by
@@ -446,7 +442,7 @@ func (b *Remote) token() (string, error) {
 // retryLogHook is invoked each time a request is retried allowing the
 // backend to log any connection issues to prevent data loss.
 func (b *Remote) retryLogHook(attemptNum int, resp *http.Response) {
-	if b.CLI != nil {
+	if b.View != nil {
 		// Ignore the first retry to make sure any delayed output will
 		// be written to the console before we start logging retries.
 		//
@@ -460,10 +456,9 @@ func (b *Remote) retryLogHook(attemptNum int, resp *http.Response) {
 		}
 
 		if attemptNum == 1 {
-			b.CLI.Output(b.Colorize().Color(strings.TrimSpace(initialRetryError)))
+			b.View.InitialRetryError(true)
 		} else {
-			b.CLI.Output(b.Colorize().Color(strings.TrimSpace(
-				fmt.Sprintf(repeatedRetryError, time.Since(b.lastRetry).Round(time.Second)))))
+			b.View.RepeatedRetryError(time.Since(b.lastRetry).Round(time.Second))
 		}
 	}
 }
@@ -807,15 +802,15 @@ func (b *Remote) cancel(cancelCtx context.Context, op *backend.Operation, r *tfe
 				return generalError("Failed asking to cancel", err)
 			}
 			if v != "yes" {
-				if b.CLI != nil {
-					b.CLI.Output(b.Colorize().Color(strings.TrimSpace(operationNotCanceled)))
+				if b.View != nil {
+					b.View.OperationNotCancelled()
 				}
 				return nil
 			}
 		} else {
-			if b.CLI != nil {
+			if b.View != nil {
 				// Insert a blank line to separate the outputs.
-				b.CLI.Output("")
+				b.View.Output("", false)
 			}
 		}
 
@@ -824,8 +819,8 @@ func (b *Remote) cancel(cancelCtx context.Context, op *backend.Operation, r *tfe
 		if err != nil {
 			return generalError("Failed to cancel run", err)
 		}
-		if b.CLI != nil {
-			b.CLI.Output(b.Colorize().Color(strings.TrimSpace(operationCanceled)))
+		if b.View != nil {
+			b.View.OperationCancelled()
 		}
 	}
 
@@ -984,24 +979,6 @@ func generalError(msg string, err error) error {
 }
 
 // The newline in this error is to make it look good in the CLI!
-const initialRetryError = `
-[reset][yellow]There was an error connecting to the remote backend. Please do not exit
-OpenTofu to prevent data loss! Trying to restore the connection...
-[reset]
-`
-
-const repeatedRetryError = `
-[reset][yellow]Still trying to restore the connection... (%s elapsed)[reset]
-`
-
-const operationCanceled = `
-[reset][red]The remote operation was successfully cancelled.[reset]
-`
-
-const operationNotCanceled = `
-[reset][red]The remote operation was not cancelled.[reset]
-`
-
 var schemaDescriptions = map[string]string{
 	"hostname":     "The remote backend hostname to connect to.",
 	"organization": "The name of the organization containing the targeted workspace(s).",

@@ -12,7 +12,6 @@ import (
 
 	"github.com/hashicorp/go-tfe"
 	tfemocks "github.com/hashicorp/go-tfe/mocks"
-	"github.com/mitchellh/cli"
 	"go.uber.org/mock/gomock"
 )
 
@@ -85,6 +84,7 @@ func MockAllRunEvents(t *testing.T, client *tfe.Client) (fullRunID string, empty
 func TestRunEventWarningsAll(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
+	_, done := refreshView(t, b)
 
 	config := &tfe.Config{
 		Token: "not-a-token",
@@ -97,7 +97,8 @@ func TestRunEventWarningsAll(t *testing.T) {
 		t.Fatalf("Expected to not error but received %s", err)
 	}
 
-	output := b.CLI.(*cli.MockUi).ErrorWriter.String()
+	voutput := done(t)
+	output := voutput.Stdout()
 	testString := "The enforcement level for task 'MockTask'"
 	if !strings.Contains(output, testString) {
 		t.Fatalf("Expected %q to contain %q but it did not", output, testString)
@@ -115,6 +116,7 @@ func TestRunEventWarningsAll(t *testing.T) {
 func TestRunEventWarningsEmpty(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
+	_, done := refreshView(t, b)
 
 	config := &tfe.Config{
 		Token: "not-a-token",
@@ -127,15 +129,17 @@ func TestRunEventWarningsEmpty(t *testing.T) {
 		t.Fatalf("Expected to not error but received %s", err)
 	}
 
-	output := b.CLI.(*cli.MockUi).ErrorWriter.String()
-	if output != "" {
-		t.Fatalf("Expected %q to be empty but it was not", output)
+	output := done(t)
+	if all := output.All(); all != "" {
+		t.Fatalf("Expected %q to be empty but it was not", all)
 	}
 }
 
 func TestRunEventWarningsWithError(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
+	_, done := refreshView(t, b)
+	defer func() { _ = done(t) }()
 
 	config := &tfe.Config{
 		Token: "not-a-token",

@@ -18,14 +18,11 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	tfe "github.com/hashicorp/go-tfe"
-	"github.com/mitchellh/cli"
-
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/cloud/cloudplan"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/clistate"
-	"github.com/opentofu/opentofu/internal/command/jsonformat"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/depsfile"
 	"github.com/opentofu/opentofu/internal/initwd"
@@ -36,13 +33,13 @@ import (
 	"github.com/opentofu/opentofu/internal/tofu"
 )
 
-func testOperationPlan(t *testing.T, configDir string) (*backend.Operation, func(*testing.T) *terminal.TestOutput) {
+func testOperationPlan(t *testing.T, configDir string) (*backend.Operation, *views.View, func(*testing.T) *terminal.TestOutput) {
 	t.Helper()
 
 	return testOperationPlanWithTimeout(t, configDir, 0)
 }
 
-func testOperationPlanWithTimeout(t *testing.T, configDir string, timeout time.Duration) (*backend.Operation, func(*testing.T) *terminal.TestOutput) {
+func testOperationPlanWithTimeout(t *testing.T, configDir string, timeout time.Duration) (*backend.Operation, *views.View, func(*testing.T) *terminal.TestOutput) {
 	t.Helper()
 
 	_, configLoader := initwd.MustLoadConfigForTests(t, configDir, "tests")
@@ -66,15 +63,15 @@ func testOperationPlanWithTimeout(t *testing.T, configDir string, timeout time.D
 		Type:            backend.OperationTypePlan,
 		View:            operationView,
 		DependencyLocks: depLocks,
-	}, done
+	}, view, done
 }
 
 func TestCloud_planBasic(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan")
-	defer done(t)
+	op, view, done := testOperationPlan(t, "./testdata/plan")
+	b.View = views.NewBackendRemote(view)
 
 	op.Workspace = testBackendSingleWorkspaceName
 
@@ -84,14 +81,15 @@ func TestCloud_planBasic(t *testing.T) {
 	}
 
 	<-run.Done()
+	voutput := done(t)
 	if run.Result != backend.OperationSuccess {
-		t.Fatalf("operation failed: %s", b.CLI.(*cli.MockUi).ErrorWriter.String())
+		t.Fatalf("operation failed: %s", voutput.Stderr())
 	}
 	if run.PlanEmpty {
 		t.Fatal("expected a non-empty plan")
 	}
 
-	output := b.CLI.(*cli.MockUi).OutputWriter.String()
+	output := voutput.Stdout()
 	if !strings.Contains(output, "Running plan in cloud backend") {
 		t.Fatalf("expected TFC header in output: %s", output)
 	}
@@ -110,16 +108,8 @@ func TestCloud_planJSONBasic(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	stream, close := terminal.StreamsForTesting(t)
-	defer close(t)
-
-	b.renderer = &jsonformat.Renderer{
-		Streams:  stream,
-		Colorize: mockColorize(),
-	}
-
-	op, done := testOperationPlan(t, "./testdata/plan-json-basic")
-	defer done(t)
+	op, view, done := testOperationPlan(t, "./testdata/plan-json-basic")
+	b.View = views.NewBackendRemote(view)
 
 	op.Workspace = testBackendSingleWorkspaceName
 
@@ -131,8 +121,9 @@ func TestCloud_planJSONBasic(t *testing.T) {
 	}
 
 	<-run.Done()
+	outp := done(t)
 	if run.Result != backend.OperationSuccess {
-		t.Fatalf("operation failed: %s", b.CLI.(*cli.MockUi).ErrorWriter.String())
+		t.Fatalf("operation failed: %s", outp.Stderr())
 	}
 	if run.PlanEmpty {
 		t.Fatal("expected a non-empty plan")
@@ -155,7 +146,8 @@ func TestCloud_planCanceled(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan")
+	op, view, done := testOperationPlan(t, "./testdata/plan")
+	b.View = views.NewBackendRemote(view)
 	defer done(t)
 
 	op.Workspace = testBackendSingleWorkspaceName
@@ -184,8 +176,8 @@ func TestCloud_planLongLine(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan-long-line")
-	defer done(t)
+	op, view, done := testOperationPlan(t, "./testdata/plan-long-line")
+	b.View = views.NewBackendRemote(view)
 
 	op.Workspace = testBackendSingleWorkspaceName
 
@@ -195,14 +187,15 @@ func TestCloud_planLongLine(t *testing.T) {
 	}
 
 	<-run.Done()
+	voutput := done(t)
 	if run.Result != backend.OperationSuccess {
-		t.Fatalf("operation failed: %s", b.CLI.(*cli.MockUi).ErrorWriter.String())
+		t.Fatalf("operation failed: %s", voutput.Stderr())
 	}
 	if run.PlanEmpty {
 		t.Fatal("expected a non-empty plan")
 	}
 
-	output := b.CLI.(*cli.MockUi).OutputWriter.String()
+	output := voutput.Stdout()
 	if !strings.Contains(output, "Running plan in cloud backend") {
 		t.Fatalf("expected TFC header in output: %s", output)
 	}
@@ -215,15 +208,8 @@ func TestCloud_planJSONFull(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	stream, close := terminal.StreamsForTesting(t)
-
-	b.renderer = &jsonformat.Renderer{
-		Streams:  stream,
-		Colorize: mockColorize(),
-	}
-
-	op, done := testOperationPlan(t, "./testdata/plan-json-full")
-	defer done(t)
+	op, view, done := testOperationPlan(t, "./testdata/plan-json-full")
+	b.View = views.NewBackendRemote(view)
 
 	op.Workspace = testBackendSingleWorkspaceName
 
@@ -235,14 +221,14 @@ func TestCloud_planJSONFull(t *testing.T) {
 	}
 
 	<-run.Done()
+	outp := done(t)
 	if run.Result != backend.OperationSuccess {
-		t.Fatalf("operation failed: %s", b.CLI.(*cli.MockUi).ErrorWriter.String())
+		t.Fatalf("operation failed: %s", outp.Stderr())
 	}
 	if run.PlanEmpty {
 		t.Fatal("expected a non-empty plan")
 	}
 
-	outp := close(t)
 	gotOut := outp.Stdout()
 
 	if !strings.Contains(gotOut, "tfcoremock_simple_resource.example: Refreshing state... [id=my-simple-resource]") {
@@ -279,7 +265,8 @@ func TestCloud_planWithoutPermissions(t *testing.T) {
 	}
 	w.Permissions.CanQueueRun = false
 
-	op, done := testOperationPlan(t, "./testdata/plan")
+	op, view, done := testOperationPlan(t, "./testdata/plan")
+	b.View = views.NewBackendRemote(view)
 
 	op.Workspace = "prod"
 
@@ -304,7 +291,8 @@ func TestCloud_planWithParallelism(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan")
+	op, view, done := testOperationPlan(t, "./testdata/plan")
+	b.View = views.NewBackendRemote(view)
 
 	if b.ContextOpts == nil {
 		b.ContextOpts = &tofu.ContextOpts{}
@@ -333,7 +321,8 @@ func TestCloud_planWithPlan(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan")
+	op, view, done := testOperationPlan(t, "./testdata/plan")
+	b.View = views.NewBackendRemote(view)
 
 	op.PlanFile = planfile.NewWrappedLocal(&planfile.Reader{})
 	op.Workspace = testBackendSingleWorkspaceName
@@ -362,8 +351,8 @@ func TestCloud_planWithPath(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan")
-	defer done(t)
+	op, view, done := testOperationPlan(t, "./testdata/plan")
+	b.View = views.NewBackendRemote(view)
 
 	tmpDir := t.TempDir()
 	pfPath := tmpDir + "/plan.tfplan"
@@ -376,14 +365,15 @@ func TestCloud_planWithPath(t *testing.T) {
 	}
 
 	<-run.Done()
+	voutput := done(t)
 	if run.Result != backend.OperationSuccess {
-		t.Fatalf("operation failed: %s", b.CLI.(*cli.MockUi).ErrorWriter.String())
+		t.Fatalf("operation failed: %s", voutput.Stderr())
 	}
 	if run.PlanEmpty {
 		t.Fatal("expected a non-empty plan")
 	}
 
-	output := b.CLI.(*cli.MockUi).OutputWriter.String()
+	output := voutput.Stdout()
 	if !strings.Contains(output, "Running plan in cloud backend") {
 		t.Fatalf("expected TFC header in output: %s", output)
 	}
@@ -420,8 +410,8 @@ func TestCloud_planWithoutRefresh(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan")
-	defer done(t)
+	op, view, done := testOperationPlan(t, "./testdata/plan")
+	b.View = views.NewBackendRemote(view)
 
 	op.PlanRefresh = false
 	op.Workspace = testBackendSingleWorkspaceName
@@ -432,8 +422,9 @@ func TestCloud_planWithoutRefresh(t *testing.T) {
 	}
 
 	<-run.Done()
+	output := done(t)
 	if run.Result != backend.OperationSuccess {
-		t.Fatalf("operation failed: %s", b.CLI.(*cli.MockUi).ErrorWriter.String())
+		t.Fatalf("operation failed: %s", output.Stderr())
 	}
 	if run.PlanEmpty {
 		t.Fatal("expected a non-empty plan")
@@ -456,8 +447,8 @@ func TestCloud_planWithRefreshOnly(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan")
-	defer done(t)
+	op, view, done := testOperationPlan(t, "./testdata/plan")
+	b.View = views.NewBackendRemote(view)
 
 	op.PlanMode = plans.RefreshOnlyMode
 	op.Workspace = testBackendSingleWorkspaceName
@@ -468,8 +459,9 @@ func TestCloud_planWithRefreshOnly(t *testing.T) {
 	}
 
 	<-run.Done()
+	output := done(t)
 	if run.Result != backend.OperationSuccess {
-		t.Fatalf("operation failed: %s", b.CLI.(*cli.MockUi).ErrorWriter.String())
+		t.Fatalf("operation failed: %s", output.Stderr())
 	}
 	if run.PlanEmpty {
 		t.Fatal("expected a non-empty plan")
@@ -515,8 +507,8 @@ func TestCloud_planWithTarget(t *testing.T) {
 		}
 	}
 
-	op, done := testOperationPlan(t, "./testdata/plan")
-	defer done(t)
+	op, view, done := testOperationPlan(t, "./testdata/plan")
+	b.View = views.NewBackendRemote(view)
 
 	addr, _ := addrs.ParseAbsResourceStr("null_resource.foo")
 
@@ -538,7 +530,8 @@ func TestCloud_planWithTarget(t *testing.T) {
 
 	// testBackendDefault above attached a "mock UI" to our backend, so we
 	// can retrieve its non-error output via the OutputWriter in-memory buffer.
-	gotOutput := b.CLI.(*cli.MockUi).OutputWriter.String()
+	output := done(t)
+	gotOutput := output.Stdout()
 	if wantOutput := "Not available for this plan, because it was created with the -target option."; !strings.Contains(gotOutput, wantOutput) {
 		t.Errorf("missing message about skipped cost estimation\ngot:\n%s\nwant substring: %s", gotOutput, wantOutput)
 	}
@@ -561,7 +554,8 @@ func TestCloud_planWithExclude(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan")
+	op, view, done := testOperationPlan(t, "./testdata/plan")
+	b.View = views.NewBackendRemote(view)
 
 	addr, _ := addrs.ParseAbsResourceStr("null_resource.foo")
 
@@ -592,7 +586,8 @@ func TestCloud_planWithReplace(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan")
+	op, view, done := testOperationPlan(t, "./testdata/plan")
+	b.View = views.NewBackendRemote(view)
 	defer done(t)
 
 	addr, _ := addrs.ParseAbsResourceInstanceStr("null_resource.foo")
@@ -630,8 +625,8 @@ func TestCloud_planWithRequiredVariables(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan-variables")
-	defer done(t)
+	op, view, done := testOperationPlan(t, "./testdata/plan-variables")
+	b.View = views.NewBackendRemote(view)
 
 	op.Variables = testVariables(tofu.ValueFromCLIArg, "foo") // "bar" variable defined in config is  missing
 	op.Workspace = testBackendSingleWorkspaceName
@@ -648,7 +643,8 @@ func TestCloud_planWithRequiredVariables(t *testing.T) {
 		t.Fatal("expected plan operation to succeed")
 	}
 
-	output := b.CLI.(*cli.MockUi).OutputWriter.String()
+	voutput := done(t)
+	output := voutput.Stdout()
 	if !strings.Contains(output, "Running plan in cloud backend") {
 		t.Fatalf("unexpected TFC header in output: %s", output)
 	}
@@ -658,7 +654,8 @@ func TestCloud_planNoConfig(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/empty")
+	op, view, done := testOperationPlan(t, "./testdata/empty")
+	b.View = views.NewBackendRemote(view)
 
 	op.Workspace = testBackendSingleWorkspaceName
 
@@ -686,8 +683,8 @@ func TestCloud_planNoChanges(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan-no-changes")
-	defer done(t)
+	op, view, done := testOperationPlan(t, "./testdata/plan-no-changes")
+	b.View = views.NewBackendRemote(view)
 
 	op.Workspace = testBackendSingleWorkspaceName
 
@@ -697,14 +694,15 @@ func TestCloud_planNoChanges(t *testing.T) {
 	}
 
 	<-run.Done()
+	voutput := done(t)
 	if run.Result != backend.OperationSuccess {
-		t.Fatalf("operation failed: %s", b.CLI.(*cli.MockUi).ErrorWriter.String())
+		t.Fatalf("operation failed: %s", voutput.Stderr())
 	}
 	if !run.PlanEmpty {
 		t.Fatalf("expected plan to be empty")
 	}
 
-	output := b.CLI.(*cli.MockUi).OutputWriter.String()
+	output := voutput.Stdout()
 	if !strings.Contains(output, "No changes. Infrastructure is up-to-date.") {
 		t.Fatalf("expected no changes in plan summary: %s", output)
 	}
@@ -721,14 +719,12 @@ func TestCloud_planForceLocal(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan")
-	defer done(t)
+	op, view, done := testOperationPlan(t, "./testdata/plan")
+	b.View = views.NewBackendRemote(view)
 
 	op.Workspace = testBackendSingleWorkspaceName
 
-	streams, done := terminal.StreamsForTesting(t)
-	view := views.NewOperation(arguments.ViewHuman, false, views.NewView(streams))
-	op.View = view
+	op.View = views.NewOperation(arguments.ViewHuman, false, view)
 
 	run, err := b.Operation(context.Background(), op)
 	if err != nil {
@@ -736,18 +732,19 @@ func TestCloud_planForceLocal(t *testing.T) {
 	}
 
 	<-run.Done()
+	voutput := done(t)
 	if run.Result != backend.OperationSuccess {
-		t.Fatalf("operation failed: %s", b.CLI.(*cli.MockUi).ErrorWriter.String())
+		t.Fatalf("operation failed: %s", voutput.Stderr())
 	}
 	if run.PlanEmpty {
 		t.Fatalf("expected a non-empty plan")
 	}
 
-	output := b.CLI.(*cli.MockUi).OutputWriter.String()
+	output := voutput.Stdout()
 	if strings.Contains(output, "Running plan in cloud backend") {
 		t.Fatalf("unexpected TFC header in output: %s", output)
 	}
-	if output := done(t).Stdout(); !strings.Contains(output, "1 to add, 0 to change, 0 to destroy") {
+	if !strings.Contains(output, "1 to add, 0 to change, 0 to destroy") {
 		t.Fatalf("expected plan summary in output: %s", output)
 	}
 }
@@ -756,14 +753,12 @@ func TestCloud_planWithoutOperationsEntitlement(t *testing.T) {
 	b, bCleanup := testBackendNoOperations(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan")
-	defer done(t)
+	op, view, done := testOperationPlan(t, "./testdata/plan")
+	b.View = views.NewBackendRemote(view)
 
 	op.Workspace = testBackendSingleWorkspaceName
 
-	streams, done := terminal.StreamsForTesting(t)
-	view := views.NewOperation(arguments.ViewHuman, false, views.NewView(streams))
-	op.View = view
+	op.View = views.NewOperation(arguments.ViewHuman, false, view)
 
 	run, err := b.Operation(context.Background(), op)
 	if err != nil {
@@ -771,18 +766,19 @@ func TestCloud_planWithoutOperationsEntitlement(t *testing.T) {
 	}
 
 	<-run.Done()
+	voutput := done(t)
 	if run.Result != backend.OperationSuccess {
-		t.Fatalf("operation failed: %s", b.CLI.(*cli.MockUi).ErrorWriter.String())
+		t.Fatalf("operation failed: %s", voutput.Stderr())
 	}
 	if run.PlanEmpty {
 		t.Fatalf("expected a non-empty plan")
 	}
 
-	output := b.CLI.(*cli.MockUi).OutputWriter.String()
+	output := voutput.Stdout()
 	if strings.Contains(output, "Running plan in cloud backend") {
 		t.Fatalf("unexpected TFC header in output: %s", output)
 	}
-	if output := done(t).Stdout(); !strings.Contains(output, "1 to add, 0 to change, 0 to destroy") {
+	if !strings.Contains(output, "1 to add, 0 to change, 0 to destroy") {
 		t.Fatalf("expected plan summary in output: %s", output)
 	}
 }
@@ -805,14 +801,12 @@ func TestCloud_planWorkspaceWithoutOperations(t *testing.T) {
 		t.Fatalf("error creating named workspace: %v", err)
 	}
 
-	op, done := testOperationPlan(t, "./testdata/plan")
-	defer done(t)
+	op, view, done := testOperationPlan(t, "./testdata/plan")
+	b.View = views.NewBackendRemote(view)
 
 	op.Workspace = "no-operations"
 
-	streams, done := terminal.StreamsForTesting(t)
-	view := views.NewOperation(arguments.ViewHuman, false, views.NewView(streams))
-	op.View = view
+	op.View = views.NewOperation(arguments.ViewHuman, false, view)
 
 	run, err := b.Operation(ctx, op)
 	if err != nil {
@@ -820,18 +814,19 @@ func TestCloud_planWorkspaceWithoutOperations(t *testing.T) {
 	}
 
 	<-run.Done()
+	voutput := done(t)
 	if run.Result != backend.OperationSuccess {
-		t.Fatalf("operation failed: %s", b.CLI.(*cli.MockUi).ErrorWriter.String())
+		t.Fatalf("operation failed: %s", voutput.Stderr())
 	}
 	if run.PlanEmpty {
 		t.Fatalf("expected a non-empty plan")
 	}
 
-	output := b.CLI.(*cli.MockUi).OutputWriter.String()
+	output := voutput.Stdout()
 	if strings.Contains(output, "Running plan in cloud backend") {
 		t.Fatalf("unexpected TFC header in output: %s", output)
 	}
-	if output := done(t).Stdout(); !strings.Contains(output, "1 to add, 0 to change, 0 to destroy") {
+	if !strings.Contains(output, "1 to add, 0 to change, 0 to destroy") {
 		t.Fatalf("expected plan summary in output: %s", output)
 	}
 }
@@ -863,8 +858,8 @@ func TestCloud_planLockTimeout(t *testing.T) {
 		t.Fatalf("error creating pending run: %v", err)
 	}
 
-	op, done := testOperationPlanWithTimeout(t, "./testdata/plan", 50)
-	defer done(t)
+	op, view, done := testOperationPlanWithTimeout(t, "./testdata/plan", 50)
+	b.View = views.NewBackendRemote(view)
 
 	input := testInput(t, map[string]string{
 		"cancel":  "yes",
@@ -872,7 +867,6 @@ func TestCloud_planLockTimeout(t *testing.T) {
 	})
 
 	op.UIIn = input
-	op.UIOut = b.CLI
 	op.Workspace = testBackendSingleWorkspaceName
 
 	_, err = b.Operation(context.Background(), op)
@@ -894,7 +888,8 @@ func TestCloud_planLockTimeout(t *testing.T) {
 		t.Fatalf("expected unused answers, got: %v", input.answers)
 	}
 
-	output := b.CLI.(*cli.MockUi).OutputWriter.String()
+	voutput := done(t)
+	output := voutput.Stdout()
 	if !strings.Contains(output, "Running plan in cloud backend") {
 		t.Fatalf("expected TFC header in output: %s", output)
 	}
@@ -910,8 +905,8 @@ func TestCloud_planDestroy(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan")
-	defer done(t)
+	op, view, done := testOperationPlan(t, "./testdata/plan")
+	b.View = views.NewBackendRemote(view)
 
 	op.PlanMode = plans.DestroyMode
 	op.Workspace = testBackendSingleWorkspaceName
@@ -922,8 +917,9 @@ func TestCloud_planDestroy(t *testing.T) {
 	}
 
 	<-run.Done()
+	output := done(t)
 	if run.Result != backend.OperationSuccess {
-		t.Fatalf("operation failed: %s", b.CLI.(*cli.MockUi).ErrorWriter.String())
+		t.Fatalf("operation failed: %s", output.Stderr())
 	}
 	if run.PlanEmpty {
 		t.Fatalf("expected a non-empty plan")
@@ -934,8 +930,8 @@ func TestCloud_planDestroyNoConfig(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/empty")
-	defer done(t)
+	op, view, done := testOperationPlan(t, "./testdata/empty")
+	b.View = views.NewBackendRemote(view)
 
 	op.PlanMode = plans.DestroyMode
 	op.Workspace = testBackendSingleWorkspaceName
@@ -946,8 +942,10 @@ func TestCloud_planDestroyNoConfig(t *testing.T) {
 	}
 
 	<-run.Done()
+
+	output := done(t)
 	if run.Result != backend.OperationSuccess {
-		t.Fatalf("operation failed: %s", b.CLI.(*cli.MockUi).ErrorWriter.String())
+		t.Fatalf("operation failed: %s", output.Stderr())
 	}
 	if run.PlanEmpty {
 		t.Fatalf("expected a non-empty plan")
@@ -968,8 +966,8 @@ func TestCloud_planWithWorkingDirectory(t *testing.T) {
 		t.Fatalf("error configuring working directory: %v", err)
 	}
 
-	op, done := testOperationPlan(t, "./testdata/plan-with-working-directory/tofu")
-	defer done(t)
+	op, view, done := testOperationPlan(t, "./testdata/plan-with-working-directory/tofu")
+	b.View = views.NewBackendRemote(view)
 
 	op.Workspace = testBackendSingleWorkspaceName
 
@@ -979,14 +977,15 @@ func TestCloud_planWithWorkingDirectory(t *testing.T) {
 	}
 
 	<-run.Done()
+	voutput := done(t)
 	if run.Result != backend.OperationSuccess {
-		t.Fatalf("operation failed: %s", b.CLI.(*cli.MockUi).ErrorWriter.String())
+		t.Fatalf("operation failed: %s", voutput.Stderr())
 	}
 	if run.PlanEmpty {
 		t.Fatalf("expected a non-empty plan")
 	}
 
-	output := b.CLI.(*cli.MockUi).OutputWriter.String()
+	output := voutput.Stdout()
 	if !strings.Contains(output, "The remote workspace is configured to work with configuration") {
 		t.Fatalf("expected working directory warning: %s", output)
 	}
@@ -1018,8 +1017,8 @@ func TestCloud_planWithWorkingDirectoryFromCurrentPath(t *testing.T) {
 
 	// For this test we need to give our current directory instead of the
 	// full path to the configuration as we already changed directories.
-	op, done := testOperationPlan(t, ".")
-	defer done(t)
+	op, view, done := testOperationPlan(t, ".")
+	b.View = views.NewBackendRemote(view)
 
 	op.Workspace = testBackendSingleWorkspaceName
 
@@ -1029,14 +1028,15 @@ func TestCloud_planWithWorkingDirectoryFromCurrentPath(t *testing.T) {
 	}
 
 	<-run.Done()
+	voutput := done(t)
 	if run.Result != backend.OperationSuccess {
-		t.Fatalf("operation failed: %s", b.CLI.(*cli.MockUi).ErrorWriter.String())
+		t.Fatalf("operation failed: %s", voutput.Stderr())
 	}
 	if run.PlanEmpty {
 		t.Fatalf("expected a non-empty plan")
 	}
 
-	output := b.CLI.(*cli.MockUi).OutputWriter.String()
+	output := voutput.Stdout()
 	if !strings.Contains(output, "Running plan in cloud backend") {
 		t.Fatalf("expected TFC header in output: %s", output)
 	}
@@ -1049,8 +1049,8 @@ func TestCloud_planCostEstimation(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan-cost-estimation")
-	defer done(t)
+	op, view, done := testOperationPlan(t, "./testdata/plan-cost-estimation")
+	b.View = views.NewBackendRemote(view)
 
 	op.Workspace = testBackendSingleWorkspaceName
 
@@ -1060,14 +1060,15 @@ func TestCloud_planCostEstimation(t *testing.T) {
 	}
 
 	<-run.Done()
+	voutput := done(t)
 	if run.Result != backend.OperationSuccess {
-		t.Fatalf("operation failed: %s", b.CLI.(*cli.MockUi).ErrorWriter.String())
+		t.Fatalf("operation failed: %s", voutput.Stderr())
 	}
 	if run.PlanEmpty {
 		t.Fatalf("expected a non-empty plan")
 	}
 
-	output := b.CLI.(*cli.MockUi).OutputWriter.String()
+	output := voutput.Stdout()
 	if !strings.Contains(output, "Running plan in cloud backend") {
 		t.Fatalf("expected TFC header in output: %s", output)
 	}
@@ -1083,8 +1084,8 @@ func TestCloud_planPolicyPass(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan-policy-passed")
-	defer done(t)
+	op, view, done := testOperationPlan(t, "./testdata/plan-policy-passed")
+	b.View = views.NewBackendRemote(view)
 
 	op.Workspace = testBackendSingleWorkspaceName
 
@@ -1094,14 +1095,15 @@ func TestCloud_planPolicyPass(t *testing.T) {
 	}
 
 	<-run.Done()
+	voutput := done(t)
 	if run.Result != backend.OperationSuccess {
-		t.Fatalf("operation failed: %s", b.CLI.(*cli.MockUi).ErrorWriter.String())
+		t.Fatalf("operation failed: %s", voutput.Stderr())
 	}
 	if run.PlanEmpty {
 		t.Fatalf("expected a non-empty plan")
 	}
 
-	output := b.CLI.(*cli.MockUi).OutputWriter.String()
+	output := voutput.Stdout()
 	if !strings.Contains(output, "Running plan in cloud backend") {
 		t.Fatalf("expected TFC header in output: %s", output)
 	}
@@ -1117,7 +1119,8 @@ func TestCloud_planPolicyHardFail(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan-policy-hard-failed")
+	op, view, done := testOperationPlan(t, "./testdata/plan-policy-hard-failed")
+	b.View = views.NewBackendRemote(view)
 
 	op.Workspace = testBackendSingleWorkspaceName
 
@@ -1140,7 +1143,7 @@ func TestCloud_planPolicyHardFail(t *testing.T) {
 		t.Fatalf("expected a policy check error, got: %v", errOutput)
 	}
 
-	output := b.CLI.(*cli.MockUi).OutputWriter.String()
+	output := viewOutput.Stdout()
 	if !strings.Contains(output, "Running plan in cloud backend") {
 		t.Fatalf("expected TFC header in output: %s", output)
 	}
@@ -1156,7 +1159,8 @@ func TestCloud_planPolicySoftFail(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan-policy-soft-failed")
+	op, view, done := testOperationPlan(t, "./testdata/plan-policy-soft-failed")
+	b.View = views.NewBackendRemote(view)
 
 	op.Workspace = testBackendSingleWorkspaceName
 
@@ -1179,7 +1183,7 @@ func TestCloud_planPolicySoftFail(t *testing.T) {
 		t.Fatalf("expected a policy check error, got: %v", errOutput)
 	}
 
-	output := b.CLI.(*cli.MockUi).OutputWriter.String()
+	output := viewOutput.Stdout()
 	if !strings.Contains(output, "Running plan in cloud backend") {
 		t.Fatalf("expected TFC header in output: %s", output)
 	}
@@ -1195,8 +1199,8 @@ func TestCloud_planWithRemoteError(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan-with-error")
-	defer done(t)
+	op, view, done := testOperationPlan(t, "./testdata/plan-with-error")
+	b.View = views.NewBackendRemote(view)
 
 	op.Workspace = testBackendSingleWorkspaceName
 
@@ -1213,7 +1217,8 @@ func TestCloud_planWithRemoteError(t *testing.T) {
 		t.Fatalf("expected exit code 1, got %d", run.Result.ExitStatus())
 	}
 
-	output := b.CLI.(*cli.MockUi).OutputWriter.String()
+	voutput := done(t)
+	output := voutput.Stdout()
 	if !strings.Contains(output, "Running plan in cloud backend") {
 		t.Fatalf("expected TFC header in output: %s", output)
 	}
@@ -1226,16 +1231,8 @@ func TestCloud_planJSONWithRemoteError(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	stream, close := terminal.StreamsForTesting(t)
-
-	// Initialize the plan renderer
-	b.renderer = &jsonformat.Renderer{
-		Streams:  stream,
-		Colorize: mockColorize(),
-	}
-
-	op, done := testOperationPlan(t, "./testdata/plan-json-error")
-	defer done(t)
+	op, view, done := testOperationPlan(t, "./testdata/plan-json-error")
+	b.View = views.NewBackendRemote(view)
 
 	op.Workspace = testBackendSingleWorkspaceName
 
@@ -1254,7 +1251,7 @@ func TestCloud_planJSONWithRemoteError(t *testing.T) {
 		t.Fatalf("expected exit code 1, got %d", run.Result.ExitStatus())
 	}
 
-	outp := close(t)
+	outp := done(t)
 	gotOut := outp.Stdout()
 
 	if !strings.Contains(gotOut, "Unsupported block type") {
@@ -1266,7 +1263,8 @@ func TestCloud_planOtherError(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan")
+	op, view, done := testOperationPlan(t, "./testdata/plan")
+	b.View = views.NewBackendRemote(view)
 	defer done(t)
 
 	op.Workspace = "network-error" // custom error response in backend_mock.go
@@ -1286,15 +1284,8 @@ func TestCloud_planImportConfigGeneration(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	stream, close := terminal.StreamsForTesting(t)
-
-	b.renderer = &jsonformat.Renderer{
-		Streams:  stream,
-		Colorize: mockColorize(),
-	}
-
-	op, done := testOperationPlan(t, "./testdata/plan-import-config-gen")
-	defer done(t)
+	op, view, done := testOperationPlan(t, "./testdata/plan-import-config-gen")
+	b.View = views.NewBackendRemote(view)
 
 	genPath := filepath.Join(op.ConfigDir, "generated.tf")
 	op.GenerateConfigOut = genPath
@@ -1310,14 +1301,13 @@ func TestCloud_planImportConfigGeneration(t *testing.T) {
 	}
 
 	<-run.Done()
+	output := done(t)
 	if run.Result != backend.OperationSuccess {
-		t.Fatalf("operation failed: %s", b.CLI.(*cli.MockUi).ErrorWriter.String())
+		t.Fatalf("operation failed: %s", output.Stderr())
 	}
 	if run.PlanEmpty {
 		t.Fatal("expected a non-empty plan")
 	}
-	outp := close(t)
-	_ = outp.Stdout()
 
 	// This has been added in terraform#32504 but seems that this test was not executed, because in the same PR
 	// it was added the logic to skip logs of type jsonformat.LogChangeSummary (see Cloud.renderPlanLogs).
@@ -1338,15 +1328,8 @@ func TestCloud_planImportGenerateInvalidConfig(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	stream, close := terminal.StreamsForTesting(t)
-
-	b.renderer = &jsonformat.Renderer{
-		Streams:  stream,
-		Colorize: mockColorize(),
-	}
-
-	op, done := testOperationPlan(t, "./testdata/plan-import-config-gen-validation-error")
-	defer done(t)
+	op, view, done := testOperationPlan(t, "./testdata/plan-import-config-gen-validation-error")
+	b.View = views.NewBackendRemote(view)
 
 	genPath := filepath.Join(op.ConfigDir, "generated.tf")
 	op.GenerateConfigOut = genPath
@@ -1369,7 +1352,7 @@ func TestCloud_planImportGenerateInvalidConfig(t *testing.T) {
 		t.Fatalf("expected exit code 1, got %d", run.Result.ExitStatus())
 	}
 
-	outp := close(t)
+	outp := done(t)
 	gotOut := outp.Stdout()
 
 	if !strings.Contains(gotOut, "Conflicting configuration arguments") {
@@ -1383,7 +1366,8 @@ func TestCloud_planInvalidGenConfigOutPath(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, done := testOperationPlan(t, "./testdata/plan-import-config-gen-exists")
+	op, view, done := testOperationPlan(t, "./testdata/plan-import-config-gen-exists")
+	b.View = views.NewBackendRemote(view)
 
 	genPath := filepath.Join(op.ConfigDir, "generated.tf")
 	op.GenerateConfigOut = genPath
@@ -1418,7 +1402,6 @@ func TestCloud_planShouldRenderSRO(t *testing.T) {
 		}
 		b, bCleanup := testBackendWithHandlers(t, handlers)
 		t.Cleanup(bCleanup)
-		b.renderer = &jsonformat.Renderer{}
 
 		t.Run("and SRO is enabled", func(t *testing.T) {
 			r := &tfe.Run{
@@ -1454,7 +1437,6 @@ func TestCloud_planShouldRenderSRO(t *testing.T) {
 		}
 		b, bCleanup := testBackendWithHandlers(t, handlers)
 		t.Cleanup(bCleanup)
-		b.renderer = &jsonformat.Renderer{}
 
 		t.Run("and SRO is enabled", func(t *testing.T) {
 			r := &tfe.Run{
@@ -1486,7 +1468,6 @@ func TestCloud_planShouldRenderSRO(t *testing.T) {
 		}
 		b, bCleanup := testBackendWithHandlers(t, handlers)
 		t.Cleanup(bCleanup)
-		b.renderer = &jsonformat.Renderer{}
 
 		r := &tfe.Run{
 			Workspace: &tfe.Workspace{
@@ -1505,7 +1486,6 @@ func TestCloud_planShouldRenderSRO(t *testing.T) {
 		}
 		b, bCleanup := testBackendWithHandlers(t, handlers)
 		t.Cleanup(bCleanup)
-		b.renderer = &jsonformat.Renderer{}
 
 		r := &tfe.Run{
 			Workspace: &tfe.Workspace{

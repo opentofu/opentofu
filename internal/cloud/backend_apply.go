@@ -130,10 +130,10 @@ func (b *Cloud) opApply(ctx, stopCtx, cancelCtx context.Context, op *backend.Ope
 		}
 
 		// Since we're not calling plan(), we need to print a run header ourselves:
-		if b.CLI != nil {
-			b.CLI.Output(b.Colorize().Color(strings.TrimSpace(applySavedHeader) + "\n"))
-			b.CLI.Output(b.Colorize().Color(strings.TrimSpace(fmt.Sprintf(
-				runHeader, b.hostname, b.organization, r.Workspace.Name, r.ID)) + "\n"))
+		if b.View != nil {
+			b.View.ApplySavedHeader()
+			b.View.Output(strings.TrimSpace(fmt.Sprintf(
+				runHeader, b.hostname, b.organization, r.Workspace.Name, r.ID))+"\n", true)
 		}
 	} else {
 		log.Printf("[TRACE] Running new cloud plan for apply")
@@ -162,7 +162,7 @@ func (b *Cloud) opApply(ctx, stopCtx, cancelCtx context.Context, op *backend.Ope
 			return r, nil
 		}
 
-		mustConfirm := (op.UIIn != nil && op.UIOut != nil) && !op.AutoApprove
+		mustConfirm := (op.UIIn != nil && op.View != nil) && !op.AutoApprove
 
 		if mustConfirm && b.input {
 			opts := &tofu.InputOpts{Id: "approve"}
@@ -186,8 +186,8 @@ func (b *Cloud) opApply(ctx, stopCtx, cancelCtx context.Context, op *backend.Ope
 		} else {
 			// If we don't need to ask for confirmation, insert a blank
 			// line to separate the outputs.
-			if b.CLI != nil {
-				b.CLI.Output("")
+			if b.View != nil {
+				b.View.Output("", false)
 			}
 		}
 	}
@@ -231,7 +231,7 @@ func (b *Cloud) renderApplyLogs(ctx context.Context, run *tfe.Run) error {
 		return err
 	}
 
-	if b.CLI != nil {
+	if b.View != nil {
 		reader := bufio.NewReaderSize(logs, 64*1024)
 		skip := 0
 
@@ -265,16 +265,13 @@ func (b *Cloud) renderApplyLogs(ctx context.Context, run *tfe.Run) error {
 					// print the line. This maintains backwards compatibility for
 					// users who do not wish to enable structured output in their
 					// workspace.
-					b.CLI.Output(string(line))
+					b.View.Output(string(line), false)
 					continue
 				}
 
-				if b.renderer != nil {
-					// Otherwise, we will print the log
-					err := b.renderer.RenderLog(log)
-					if err != nil {
-						return err
-					}
+				// Otherwise, we will print the log
+				if err := b.View.RenderLog(log); err != nil {
+					return err
 				}
 			}
 		}
@@ -328,18 +325,3 @@ func unusableSavedPlanError(status tfe.RunStatus, url string) error {
 	))
 	return diags.Err()
 }
-
-const applyDefaultHeader = `
-[reset][yellow]Running apply in cloud backend. Output will stream here. Pressing Ctrl-C
-will cancel the remote apply if it's still pending. If the apply started it
-will stop streaming the logs, but will not stop the apply running remotely.[reset]
-
-Preparing the remote apply...
-`
-
-const applySavedHeader = `
-[reset][yellow]Running apply in cloud backend. Output will stream here. Pressing Ctrl-C
-will stop streaming the logs, but will not stop the apply running remotely.[reset]
-
-Preparing the remote apply...
-`

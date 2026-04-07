@@ -21,8 +21,8 @@ import (
 	"time"
 
 	tfe "github.com/hashicorp/go-tfe"
-	"github.com/mitchellh/cli"
-	"github.com/mitchellh/colorstring"
+	"github.com/opentofu/opentofu/internal/command/views"
+	"github.com/opentofu/opentofu/internal/terminal"
 	"github.com/opentofu/svchost"
 	"github.com/opentofu/svchost/disco"
 	"github.com/opentofu/svchost/svcauth"
@@ -254,7 +254,6 @@ func testBackend(t *testing.T, obj cty.Value, handlers map[string]func(http.Resp
 	mc := NewMockClient()
 
 	// Replace the services we use with our mock services.
-	b.CLI = cli.NewMockUi()
 	b.client.Applies = mc.Applies
 	b.client.ConfigurationVersions = mc.ConfigurationVersions
 	b.client.CostEstimates = mc.CostEstimates
@@ -329,7 +328,6 @@ func testUnconfiguredBackend(t *testing.T) (*Cloud, func()) {
 	mc := NewMockClient()
 
 	// Replace the services we use with our mock services.
-	b.CLI = cli.NewMockUi()
 	b.client.Applies = mc.Applies
 	b.client.ConfigurationVersions = mc.ConfigurationVersions
 	b.client.CostEstimates = mc.CostEstimates
@@ -585,20 +583,6 @@ var testDefaultRequestHandlers = map[string]func(http.ResponseWriter, *http.Requ
 	},
 }
 
-func mockColorize() *colorstring.Colorize {
-	colors := make(map[string]string)
-	for k, v := range colorstring.DefaultColors {
-		colors[k] = v
-	}
-	colors["purple"] = "38;5;57"
-
-	return &colorstring.Colorize{
-		Colors:  colors,
-		Disable: false,
-		Reset:   true,
-	}
-}
-
 func mockSROWorkspace(t *testing.T, b *Cloud, workspaceName string) {
 	_, err := b.client.Workspaces.Update(context.Background(), "hashicorp", workspaceName, tfe.WorkspaceUpdateOptions{
 		StructuredRunOutputEnabled: tfe.Bool(true),
@@ -648,4 +632,15 @@ func testVariables(s tofu.ValueSourceType, vs ...string) map[string]backend.Unpa
 		}
 	}
 	return vars
+}
+
+func testView(t *testing.T) (*views.View, func(*testing.T) *terminal.TestOutput) {
+	streams, done := terminal.StreamsForTesting(t)
+	return views.NewView(streams), done
+}
+
+func refreshView(t *testing.T, c *Cloud) (*views.View, func(*testing.T) *terminal.TestOutput) {
+	view, done := testView(t)
+	c.View = views.NewBackendRemote(view)
+	return view, done
 }
