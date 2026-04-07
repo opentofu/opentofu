@@ -10,17 +10,17 @@ import "github.com/opentofu/opentofu/internal/tfdiags"
 // Root is the view that is meant to be used strictly during the initialisation of the process
 // and offers methods to print errors as raw as possible.
 type Root struct {
-	v *View
+	view *View
 }
 
-func NewRoot(v *View) *Root {
-	return &Root{v: v}
+func NewRoot(view *View) *Root {
+	return &Root{view: view}
 }
 
 func (v *Root) Error(msg string) {
-	_, _ = v.v.streams.Eprintln(msg)
+	_, _ = v.view.streams.Eprintln(msg)
 }
 
 func (v *Root) Diagnostics(diagnostics tfdiags.Diagnostics) {
-	v.v.Diagnostics(diagnostics)
+	v.view.Diagnostics(diagnostics)
 }

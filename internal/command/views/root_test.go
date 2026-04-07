@@ -18,7 +18,7 @@ func TestRootView(t *testing.T) {
 		wantStdout string
 		wantStderr string
 	}{
-		"waitingForCostEstimation without elapsed": {
+		"custom error": {
 			viewCall: func(v *Root) {
 				v.Error("custom error")
 			},
