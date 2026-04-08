@@ -9,8 +9,9 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/zclconf/go-cty/cty"
+
+	"github.com/opentofu/opentofu/internal/configs/configschema"
 )
 
 // ConnectionBlockSupersetSchema is a schema representing the superset of all
@@ -126,7 +127,12 @@ var ConnectionBlockSupersetSchema = &configschema.Block{
 			Optional: true,
 		},
 
-		// For type=winrm only (enforced in winrm communicator)
+		// For type=winrm only
+		// This connection type is actually no longer supported in
+		// OpenTofu v1.13 and later, but we're keeping these attributes in the
+		// schema for now so that older modules that use this type can still
+		// pass validation enough to reach the error about this type being
+		// unsupported, which is implemented in [communicator.New].
 		"https": {
 			Type:     cty.Bool,
 			Optional: true,
