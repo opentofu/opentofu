@@ -142,7 +142,7 @@ jobs:
           path: dist
 
       - name: Upload Debian packages to PackageCloud
-        if: startsWith(inputs.tag, 'v') && "${{ inputs.prerelease }}" != "true"
+        if: startsWith(inputs.tag, 'v') && ! inputs.prerelease
         uses: computology/packagecloud-github-action@3a3116159414e57767827ed264a6de29a1f86d4c # v0.6
         with:
                 PACKAGE-NAME: dist/*.deb
@@ -151,7 +151,7 @@ jobs:
                 PACKAGECLOUD-DISTRO: any/any
                 PACKAGECLOUD-TOKEN: ${{ secrets.PACKAGECLOUD_TOKEN }}
       - name: Upload RPM packages to PackageCloud
-        if: startsWith(inputs.tag, 'v') && "${{ inputs.prerelease }}" != "true"
+        if: startsWith(inputs.tag, 'v') && ! inputs.prerelease
         uses: computology/packagecloud-github-action@3a3116159414e57767827ed264a6de29a1f86d4c # v0.6
         with:
                 PACKAGE-NAME: dist/*.rpm
