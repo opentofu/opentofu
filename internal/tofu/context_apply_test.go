@@ -2592,6 +2592,76 @@ func TestContext2Apply_provisionerInterpCount(t *testing.T) {
 	}
 }
 
+func TestContext2Apply_winrmConnectionMigrationMessage(t *testing.T) {
+	// This is testing for an error diagnostic we've added temporarily
+	// for the v1.13 series to help folks migrate from the no-longer-supported
+	// "winrm" connection type to using SSH instead.
+	//
+	// The special error message and this test should be removed during the
+	// v1.14 development period, after which we'll fall back to a terser
+	// error message from [communicator.New] that just states that "winrm"
+	// is no longer supported, without giving any further guidance.
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+			resource "test_instance" "test" {
+				connection {
+					type = "winrm"
+					host = "invalid" # We should fail before attempting to connect to this
+
+					# This winrm-specific argument makes sure we are still able
+					# to get past the schema-based validation in order to reach
+					# the error message about the WinRM protocol. This will
+					# fail once these arguments are removed from the schema for
+					# "connection" blocks in a later release.
+					use_ntlm = false
+				}
+				provisioner "test" {
+					# This block is here just to make OpenTofu try to evaluate
+					# the connection block.
+				}
+			}
+		`,
+	})
+
+	p := testProvider("test")
+	p.PlanResourceChangeFn = testDiffFn
+	providers := map[addrs.Provider]providers.Factory{
+		addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+	}
+	provisioners := map[string]provisioners.Factory{
+		"test": testProvisionerFuncFixed(testProvisioner()),
+	}
+	tofuCtx := testContext2(t, &ContextOpts{
+		Plugins: plugins.NewLibrary(providers, provisioners),
+	})
+
+	// Planning should succeed because provisioners and their connection
+	// settings are finalized only during the apply phase.
+	plan, diags := tofuCtx.Plan(t.Context(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
+	assertNoErrors(t, diags)
+
+	// Applying the plan should now fail, because it'll try to run the
+	// provisioner with an invalid connection configuration.
+	_, diags = tofuCtx.Apply(t.Context(), plan, m, nil)
+	foundDiag := false
+	for _, diag := range diags {
+		if diag.Severity() != tfdiags.Error {
+			continue
+		}
+		if diag.Description().Summary == "Provisioners no longer support WinRM" {
+			foundDiag = true
+			break
+		}
+	}
+	if !foundDiag {
+		if diags.HasErrors() {
+			t.Errorf("want error about WinRM not being supported, but got: %s", diags.Err().Error())
+		} else {
+			t.Errorf("unexpected success; want error about WinRM not being supported")
+		}
+	}
+}
+
 func TestContext2Apply_foreachVariable(t *testing.T) {
 	m := testModule(t, "plan-for-each-unknown-value")
 	p := testProvider("aws")
