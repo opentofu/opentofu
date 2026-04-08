@@ -1,4 +1,5 @@
 The v1.11.x release series is supported until **August 1 2026**.
+
 ## 1.11.6 (Unreleased)
 
 BUG FIXES:
@@ -7,6 +8,8 @@ BUG FIXES:
 * Fixed `tofu init` crashing when a module `version` uses a variable and the module is referenced from a test file. ([#3686](https://github.com/opentofu/opentofu/issues/3686))
 * Fixed provider-defined functions in `import` block `id` expressions causing "BUG: Uninitialized function provider" error. ([#3803](https://github.com/opentofu/opentofu/issues/3803))
 * `tofu test` no longer fails during cleanup when using a mocked version of a resource type with write-only attributes. ([#3964](https://github.com/opentofu/opentofu/issues/3964))
+* A malicious remote TLS server can no longer deadlock OpenTofu by sending multiple key update messages in a single record. ([#3966](https://github.com/opentofu/opentofu/pull/3966))
+* When installing module packages from "tar" archives, OpenTofu now accepts only a limited number of sparse file entries to avoid unbounded memory usage from maliciously-crafted archives containing many sparse regions. ([#3966](https://github.com/opentofu/opentofu/pull/3966))
 
 ## 1.11.5
 
