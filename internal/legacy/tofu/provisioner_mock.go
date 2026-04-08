@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"sync"
 
 	"github.com/opentofu/opentofu/internal/provisioners"
@@ -31,7 +32,7 @@ type MockProvisioner struct {
 	ProvisionResourceCalled   bool
 	ProvisionResourceRequest  provisioners.ProvisionResourceRequest
 	ProvisionResourceResponse provisioners.ProvisionResourceResponse
-	ProvisionResourceFn       func(provisioners.ProvisionResourceRequest) provisioners.ProvisionResourceResponse
+	ProvisionResourceFn       func(context.Context, provisioners.ProvisionResourceRequest) provisioners.ProvisionResourceResponse
 
 	StopCalled   bool
 	StopResponse error
@@ -68,7 +69,7 @@ func (p *MockProvisioner) ValidateProvisionerConfig(r provisioners.ValidateProvi
 	return p.ValidateProvisionerConfigResponse
 }
 
-func (p *MockProvisioner) ProvisionResource(r provisioners.ProvisionResourceRequest) provisioners.ProvisionResourceResponse {
+func (p *MockProvisioner) ProvisionResource(ctx context.Context, r provisioners.ProvisionResourceRequest) provisioners.ProvisionResourceResponse {
 	p.Lock()
 	defer p.Unlock()
 
@@ -76,7 +77,7 @@ func (p *MockProvisioner) ProvisionResource(r provisioners.ProvisionResourceRequ
 	p.ProvisionResourceRequest = r
 	if p.ProvisionResourceFn != nil {
 		fn := p.ProvisionResourceFn
-		return fn(r)
+		return fn(ctx, r)
 	}
 
 	return p.ProvisionResourceResponse

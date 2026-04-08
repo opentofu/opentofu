@@ -108,7 +108,7 @@ func TestGRPCProvisioner_ProvisionResource(t *testing.T) {
 
 	rec := &provisionRecorder{}
 
-	resp := p.ProvisionResource(provisioners.ProvisionResourceRequest{
+	resp := p.ProvisionResource(t.Context(), provisioners.ProvisionResourceRequest{
 		Config: cty.ObjectVal(map[string]cty.Value{
 			"attr": cty.StringVal("value"),
 		}),

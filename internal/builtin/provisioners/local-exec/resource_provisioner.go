@@ -97,7 +97,7 @@ func (p *provisioner) ValidateProvisionerConfig(req provisioners.ValidateProvisi
 	return resp
 }
 
-func (p *provisioner) ProvisionResource(req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
+func (p *provisioner) ProvisionResource(_ context.Context, req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
 	commandVal := req.Config.GetAttr("command")
 	if commandVal.IsNull() || commandVal.AsString() == "" {
 		resp.Diagnostics = resp.Diagnostics.Append(tfdiags.WholeContainingBody(

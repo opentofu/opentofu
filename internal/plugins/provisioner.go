@@ -161,7 +161,7 @@ func (p *provisionerManager) ProvisionResource(ctx context.Context, typ string, 
 	if err != nil {
 		return tfdiags.Diagnostics{}.Append(fmt.Errorf("failed to instantiate provisioner %q to provision resource: %w", typ, err))
 	}
-	return provisioner.ProvisionResource(provisioners.ProvisionResourceRequest{
+	return provisioner.ProvisionResource(ctx, provisioners.ProvisionResourceRequest{
 		Config:     config,
 		Connection: connection,
 		UIOutput:   output,

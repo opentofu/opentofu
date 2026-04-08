@@ -85,7 +85,7 @@ func (p *provisioner) ProvisionResource(req *tfplugin5.ProvisionResource_Request
 		return srv.Send(srvResp)
 	}
 
-	resp := p.provisioner.ProvisionResource(provisioners.ProvisionResourceRequest{
+	resp := p.provisioner.ProvisionResource(srv.Context(), provisioners.ProvisionResourceRequest{
 		Config:     configVal,
 		Connection: connVal,
 		UIOutput:   uiOutput{srv},

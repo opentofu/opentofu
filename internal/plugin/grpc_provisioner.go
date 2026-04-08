@@ -107,7 +107,7 @@ func (p *GRPCProvisioner) ValidateProvisionerConfig(r provisioners.ValidateProvi
 	return resp
 }
 
-func (p *GRPCProvisioner) ProvisionResource(r provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
+func (p *GRPCProvisioner) ProvisionResource(_ context.Context, r provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
 	schema := p.GetSchema()
 	if schema.Diagnostics.HasErrors() {
 		resp.Diagnostics = resp.Diagnostics.Append(schema.Diagnostics)
