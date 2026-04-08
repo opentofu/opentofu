@@ -11,6 +11,9 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	regaddr "github.com/opentofu/registry-address/v2"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -19,8 +22,7 @@ import (
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
-	regaddr "github.com/opentofu/registry-address/v2"
-	"github.com/zclconf/go-cty/cty"
+	"github.com/opentofu/opentofu/version"
 )
 
 func TestStateViews(t *testing.T) {
@@ -532,7 +534,7 @@ resource "test_resource" "foo" {
 			wantJson: []map[string]any{
 				{
 					"format_version":    "1.0",
-					"terraform_version": "1.12.0",
+					"terraform_version": version.SemVer.String(),
 					"values": map[string]any{
 						"root_module": map[string]any{
 							"resources": []any{
