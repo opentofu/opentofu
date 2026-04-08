@@ -16,6 +16,7 @@ import (
 	"github.com/armon/circbuf"
 	"github.com/mitchellh/go-linereader"
 	"github.com/zclconf/go-cty/cty"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/provisioners"
@@ -97,7 +98,7 @@ func (p *provisioner) ValidateProvisionerConfig(req provisioners.ValidateProvisi
 	return resp
 }
 
-func (p *provisioner) ProvisionResource(_ context.Context, req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
+func (p *provisioner) ProvisionResource(ctx context.Context, req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
 	commandVal := req.Config.GetAttr("command")
 	if commandVal.IsNull() || commandVal.AsString() == "" {
 		resp.Diagnostics = resp.Diagnostics.Append(tfdiags.WholeContainingBody(
@@ -163,6 +164,22 @@ func (p *provisioner) ProvisionResource(_ context.Context, req provisioners.Prov
 	var cmdEnv []string
 	cmdEnv = os.Environ()
 	cmdEnv = append(cmdEnv, env...)
+
+	// If the caller's context carries an active OpenTelemetry trace span,
+	// propagate it to the child process via the TRACEPARENT environment
+	// variable (per the W3C Trace Context specification), unless the user
+	// has already set TRACEPARENT explicitly in the provisioner's
+	// "environment" block.
+	if !hasEnvVar(env, "TRACEPARENT") {
+		if sc := trace.SpanContextFromContext(ctx); sc.IsValid() {
+			cmdEnv = append(cmdEnv, fmt.Sprintf(
+				"TRACEPARENT=00-%s-%s-%s",
+				sc.TraceID().String(),
+				sc.SpanID().String(),
+				sc.TraceFlags().String(),
+			))
+		}
+	}
 
 	// Set up the command
 	cmd := exec.CommandContext(p.ctx, cmdargs[0], cmdargs[1:]...)
@@ -237,4 +254,16 @@ func copyUIOutput(o provisioners.UIOutput, r io.Reader, doneCh chan<- struct{}) 
 	for line := range lr.Ch {
 		o.Output(line)
 	}
+}
+
+// hasEnvVar checks whether a slice of "KEY=VALUE" strings contains an entry
+// for the given variable name.
+func hasEnvVar(env []string, name string) bool {
+	prefix := name + "="
+	for _, e := range env {
+		if len(e) >= len(prefix) && e[:len(prefix)] == prefix {
+			return true
+		}
+	}
+	return false
 }
