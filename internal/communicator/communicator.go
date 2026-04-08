@@ -14,12 +14,12 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/communicator/remote"
 	"github.com/opentofu/opentofu/internal/communicator/shared"
 	"github.com/opentofu/opentofu/internal/communicator/ssh"
-	"github.com/opentofu/opentofu/internal/communicator/winrm"
 	"github.com/opentofu/opentofu/internal/provisioners"
-	"github.com/zclconf/go-cty/cty"
 )
 
 // Communicator is an interface that must be implemented by all communicators
@@ -67,7 +67,11 @@ func New(v cty.Value) (Communicator, error) {
 	case "ssh", "": // The default connection type is ssh, so if connType is empty use ssh
 		return ssh.New(v)
 	case "winrm":
-		return winrm.New(v)
+		// This connection type was valid in OpenTofu v1.12 and earlier, so
+		// for now we'll keep a specalized error message for it as an aid to
+		// anyone who tries to use a module that was written for an older
+		// version.
+		return nil, fmt.Errorf("'winrm' connections are not supported in OpenTofu v1.13 or later")
 	default:
 		return nil, fmt.Errorf("connection type '%s' not supported", connType)
 	}

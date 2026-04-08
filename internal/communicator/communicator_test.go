@@ -33,10 +33,11 @@ func TestCommunicator_new(t *testing.T) {
 	}
 
 	cfg["type"] = cty.StringVal("winrm")
-	if _, err := New(cty.ObjectVal(cfg)); err != nil {
-		t.Fatalf("err: %v", err)
+	if _, err := New(cty.ObjectVal(cfg)); err == nil {
+		t.Fatalf("unexpected success for 'winrm', which is no longer supported")
 	}
 }
+
 func TestRetryFunc(t *testing.T) {
 	origMax := maxBackoffDelay
 	maxBackoffDelay = time.Second
