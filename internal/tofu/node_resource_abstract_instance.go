@@ -2734,6 +2734,30 @@ func (n *NodeAbstractResourceInstance) applyProvisioners(ctx context.Context, ev
 		unmarkedConfig, configMarks := config.UnmarkDeep()
 		unmarkedConnInfo, _ := connInfo.UnmarkDeep()
 
+		// During the v1.13 series only we have a more elaborate error
+		// message for using the recently-removed "winrm" connection type,
+		// which we implement here just because the provisioner-related APIs
+		// can't return diagnostics but it isn't worth refactoring that API
+		// just for behavior that we intend to remove imminently.
+		// TODO: Remove this during the v1.14 development period, at which
+		// point we'll begin returning an error message handled in the
+		// [communicator.New] function instead, which just states that "winrm"
+		// is not supported without any other guidance.
+		if unmarkedConnInfo != cty.NilVal && !unmarkedConnInfo.IsNull() {
+			if connType := unmarkedConnInfo.GetAttr("type"); connType.RawEquals(cty.StringVal("winrm")) {
+				var rng *hcl.Range
+				if connBody != nil {
+					rng = connBody.MissingItemRange().Ptr() // this is a close-enough range for this temporary error message
+				}
+				diags = diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Provisioners no longer support WinRM",
+					Detail:   "The \"winrm\" connection type is no longer supported in OpenTofu v1.13 and later, because some of the upstream client libraries it had relied on are no longer maintained.\n\nModern versions of Windows allow enabling an SSH server:\n    https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse",
+					Subject:  rng,
+				})
+			}
+		}
+
 		// Marks on the config might result in leaking sensitive values through
 		// provisioner logging, so we conservatively suppress all output in
 		// this case. This should not apply to connection info values, which
