@@ -10,12 +10,12 @@ import (
 	"fmt"
 	"log"
 	"reflect"
+	"runtime"
 	"slices"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/mitchellh/cli"
-	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/svchost"
 	"github.com/posener/complete"
 	"github.com/zclconf/go-cty/cty"
@@ -25,6 +25,7 @@ import (
 	backendInit "github.com/opentofu/opentofu/internal/backend/init"
 	"github.com/opentofu/opentofu/internal/cloud"
 	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -64,6 +65,14 @@ func (c *InitCommand) Run(rawArgs []string) int {
 	// Instantiate the view, even if there are flag errors, so that we render
 	// diagnostics according to the desired view
 	view := views.NewInit(args.ViewOptions, c.View)
+
+	// For "tofu init" in particular we'll warn if this is an official build
+	// for a platform which will stop getting official release packages in
+	// the near future. Generating this warning only during init is a compromise
+	// because it tends to be run less often than other commands and so is
+	// hopefully makes these warnings a little less annoying for however long it
+	// takes for a team to react to them.
+	diags = diags.Append(c.platformSupportWarnings())
 
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
@@ -164,6 +173,7 @@ To initialize the configuration already in this working directory, omit the
 		return 1
 	}
 	if empty {
+		view.Diagnostics(diags) // just in case there are warnings
 		view.InitialisedFromEmptyDir()
 		return 0
 	}
@@ -1155,6 +1165,27 @@ func (c *InitCommand) configureBackendFlags(args *arguments.Backend) {
 	//  https://github.com/opentofu/opentofu/blob/db8c872defd8666618649ef7e29fa2b809adfd5e/internal/command/arguments/extended.go#L320-L321
 	c.Meta.stateLock = args.StateLock
 	c.Meta.stateLockTimeout = args.StateLockTimeout
+}
+
+func (c *InitCommand) platformSupportWarnings() tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+	if !tfversion.IsOfficialBuild() {
+		// platform support warnings are irrelevant for third-party builds,
+		// because they can produce release packages for whatever targets
+		// they are willing to maintain support for.
+		return diags
+	}
+	if runtime.GOARCH == "386" || runtime.GOARCH == "arm" {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Warning,
+			"Support for 32-bit CPU architectures is ending soon",
+			fmt.Sprintf(
+				"OpenTofu v1.13 is the last release series that will include official release packages for 32-bit CPU architectures.\n\nWe recommend planning to migrate to a 64-bit CPU architecture instead. Alternatively, you could build OpenTofu for %s from source code yourself, and we'll consider pull requests to fix any regressions for this platform as long as they wouldn't make OpenTofu considerably harder to maintain.",
+				getproviders.CurrentPlatform,
+			),
+		))
+	}
+	return diags
 }
 
 func (c *InitCommand) AutocompleteFlags() complete.Flags {
