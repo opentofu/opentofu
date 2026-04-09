@@ -15,8 +15,12 @@ import (
 )
 
 func TestDeprecationDiagnosticAllowed(t *testing.T) {
-	localPath := addrs.Module{"local"}
-	remotePath := addrs.Module{"remote"}
+	localInstance := addrs.ModuleInstance{{Name: "local"}}
+	remoteInstance := addrs.ModuleInstance{{Name: "remote"}}
+
+	localCause := marks.DeprecationCauseOutput(addrs.AbsOutputValue{Module: localInstance}, "msg")
+	remoteCause := marks.DeprecationCauseOutput(addrs.AbsOutputValue{Module: remoteInstance}, "msg")
+
 	tests := map[string]struct {
 		diag tfdiags.Diagnostics
 		lvl  arguments.DeprecationWarningLevel
@@ -40,7 +44,7 @@ func TestDeprecationDiagnosticAllowed(t *testing.T) {
 			diag: tfdiags.Diagnostics{}.Append(tfdiags.Override(
 				tfdiags.AttributeValue(tfdiags.Warning, "summary", "details", nil),
 				tfdiags.Warning,
-				marks.DeprecatedDiagnosticOverride(marks.DeprecationCause{Module: remotePath.String()}),
+				marks.DeprecatedDiagnosticOverride(remoteCause),
 			)),
 			lvl:  arguments.DeprecationWarningLevelAll,
 			want: true,
@@ -49,7 +53,7 @@ func TestDeprecationDiagnosticAllowed(t *testing.T) {
 			diag: tfdiags.Diagnostics{}.Append(tfdiags.Override(
 				tfdiags.AttributeValue(tfdiags.Warning, "summary", "details", nil),
 				tfdiags.Warning,
-				marks.DeprecatedDiagnosticOverride(marks.DeprecationCause{Module: remotePath.String()}),
+				marks.DeprecatedDiagnosticOverride(remoteCause),
 			)),
 			lvl:  arguments.DeprecationWarningLevelLocal,
 			want: false,
@@ -58,7 +62,7 @@ func TestDeprecationDiagnosticAllowed(t *testing.T) {
 			diag: tfdiags.Diagnostics{}.Append(tfdiags.Override(
 				tfdiags.AttributeValue(tfdiags.Warning, "summary", "details", nil),
 				tfdiags.Warning,
-				marks.DeprecatedDiagnosticOverride(marks.DeprecationCause{Module: remotePath.String()}),
+				marks.DeprecatedDiagnosticOverride(remoteCause),
 			)),
 			lvl:  arguments.DeprecationWarningLevelNone,
 			want: false,
@@ -67,7 +71,7 @@ func TestDeprecationDiagnosticAllowed(t *testing.T) {
 			diag: tfdiags.Diagnostics{}.Append(tfdiags.Override(
 				tfdiags.AttributeValue(tfdiags.Warning, "summary", "details", nil),
 				tfdiags.Warning,
-				marks.DeprecatedDiagnosticOverride(marks.DeprecationCause{Module: localPath.String()}),
+				marks.DeprecatedDiagnosticOverride(localCause),
 			)),
 			lvl:  arguments.DeprecationWarningLevelAll,
 			want: true,
@@ -76,7 +80,7 @@ func TestDeprecationDiagnosticAllowed(t *testing.T) {
 			diag: tfdiags.Diagnostics{}.Append(tfdiags.Override(
 				tfdiags.AttributeValue(tfdiags.Warning, "summary", "details", nil),
 				tfdiags.Warning,
-				marks.DeprecatedDiagnosticOverride(marks.DeprecationCause{Module: localPath.String()}),
+				marks.DeprecatedDiagnosticOverride(localCause),
 			)),
 			lvl:  arguments.DeprecationWarningLevelLocal,
 			want: true,
@@ -85,49 +89,49 @@ func TestDeprecationDiagnosticAllowed(t *testing.T) {
 			diag: tfdiags.Diagnostics{}.Append(tfdiags.Override(
 				tfdiags.AttributeValue(tfdiags.Warning, "summary", "details", nil),
 				tfdiags.Warning,
-				marks.DeprecatedDiagnosticOverride(marks.DeprecationCause{Module: localPath.String()}),
+				marks.DeprecatedDiagnosticOverride(localCause),
 			)),
 			lvl:  arguments.DeprecationWarningLevelNone,
 			want: false,
 		},
 		"remote deprecated output expr with all level": {
 			diag: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
-				Extra: marks.DeprecationCause{Module: remotePath.String()},
+				Extra: remoteCause,
 			}),
 			lvl:  arguments.DeprecationWarningLevelAll,
 			want: true,
 		},
 		"remote deprecated output expr with local level": {
 			diag: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
-				Extra: marks.DeprecationCause{Module: remotePath.String()},
+				Extra: remoteCause,
 			}),
 			lvl:  arguments.DeprecationWarningLevelLocal,
 			want: false,
 		},
 		"remote deprecated output expr with none level": {
 			diag: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
-				Extra: marks.DeprecationCause{Module: remotePath.String()},
+				Extra: remoteCause,
 			}),
 			lvl:  arguments.DeprecationWarningLevelNone,
 			want: false,
 		},
 		"local deprecated output expr with all level": {
 			diag: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
-				Extra: marks.DeprecationCause{Module: localPath.String()},
+				Extra: localCause,
 			}),
 			lvl:  arguments.DeprecationWarningLevelAll,
 			want: true,
 		},
 		"local deprecated output expr with local level": {
 			diag: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
-				Extra: marks.DeprecationCause{Module: localPath.String()},
+				Extra: localCause,
 			}),
 			lvl:  arguments.DeprecationWarningLevelLocal,
 			want: true,
 		},
 		"local deprecated output expr with none level": {
 			diag: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
-				Extra: marks.DeprecationCause{Module: localPath.String()},
+				Extra: localCause,
 			}),
 			lvl:  arguments.DeprecationWarningLevelNone,
 			want: false,
@@ -140,7 +144,7 @@ func TestDeprecationDiagnosticAllowed(t *testing.T) {
 			v := &View{
 				ModuleDeprecationWarnLvl: tt.lvl,
 				isRemoteModuleSource: func(path addrs.Module) bool {
-					return path.Equal(remotePath)
+					return path.Equal(remoteInstance.Module())
 				},
 			}
 

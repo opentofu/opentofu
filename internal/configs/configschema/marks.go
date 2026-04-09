@@ -10,7 +10,6 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/marks"
-	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -24,7 +23,7 @@ func copyAndExtendPath(path cty.Path, nextSteps ...cty.PathStep) cty.Path {
 }
 
 func deprecationMark(subject *addrs.AbsResourceInstance, path cty.Path, message string) any {
-	return marks.DeprecationMark(subject.Module, subject.Resource.String()+tfdiags.FormatCtyPath(path), message)
+	return marks.DeprecationMark(marks.DeprecationCauseResource(*subject, path, message))
 }
 
 // ValueMarks returns a set of path value marks for a given value and path,

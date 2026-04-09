@@ -561,9 +561,6 @@ func evalVariableDeprecation(
 		Summary:  `Variable marked as deprecated by the module author`,
 		Detail:   fmt.Sprintf("Variable %q is marked as deprecated with the following message:\n%s", config.Name, config.Deprecated),
 		Subject:  expr.Range().Ptr(),
-		Extra: marks.DeprecationCause{
-			Module:  addr.Module.String(),
-			Subject: config.Name,
-		},
+		Extra:    marks.DeprecationCauseVariable(addr, config.Deprecated),
 	})
 }
