@@ -103,7 +103,7 @@ func HasDeprecated(v cty.Value) bool {
 	return false
 }
 
-func DeprecationMark(module addrs.Module, subject string, message string) any {
+func DeprecationMark(module addrs.ModuleInstance, subject string, message string) any {
 	return deprecationMark{
 		Cause: DeprecationCause{
 			Module:  module.String(), // This sucks, but it's a hashable / map key
@@ -137,8 +137,8 @@ func DeprecatedOutput(v cty.Value, addr addrs.AbsOutputValue, msg string) cty.Va
 	}
 	//_, callOutAddr := addr.ModuleCallOutput()
 	return Deprecated(v, DeprecationCause{
-		Module:  addr.Module.Module().String(),
-		Subject: addr.OutputValue.String(), //callOutAddr.String(),
+		Module:  addr.Module.String(),
+		Subject: addr.OutputValue.Name, //callOutAddr.String(),
 		Message: msg,
 	})
 }

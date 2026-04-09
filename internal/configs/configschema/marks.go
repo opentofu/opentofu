@@ -23,7 +23,7 @@ func copyAndExtendPath(path cty.Path, nextSteps ...cty.PathStep) cty.Path {
 	return newPath
 }
 
-func deprecationMark(subject *addrs.ConfigResource, path cty.Path, message string) any {
+func deprecationMark(subject *addrs.AbsResourceInstance, path cty.Path, message string) any {
 	return marks.DeprecationMark(subject.Module, subject.Resource.String()+tfdiags.FormatCtyPath(path), message)
 }
 
@@ -31,7 +31,7 @@ func deprecationMark(subject *addrs.ConfigResource, path cty.Path, message strin
 // based on the sensitive flag for each attribute within the schema. Nested
 // blocks are descended (if present in the given value).
 // If subject is nil, deprecated marks will not be added. This is an intended usage.
-func (b *Block) ValueMarks(val cty.Value, path cty.Path, subject *addrs.ConfigResource) []cty.PathValueMarks {
+func (b *Block) ValueMarks(val cty.Value, path cty.Path, subject *addrs.AbsResourceInstance) []cty.PathValueMarks {
 	var pvm []cty.PathValueMarks
 
 	var blockMarks []any
@@ -132,7 +132,7 @@ func (b *Block) ValueMarks(val cty.Value, path cty.Path, subject *addrs.ConfigRe
 // based on the sensitive flag for each attribute within the nested attribute.
 // Attributes with nested types are descended (if present in the given value).
 // If subject is nil, deprecated marks will not be added. This is an intended usage.
-func (o *Object) ValueMarks(val cty.Value, path cty.Path, subject *addrs.ConfigResource) []cty.PathValueMarks {
+func (o *Object) ValueMarks(val cty.Value, path cty.Path, subject *addrs.AbsResourceInstance) []cty.PathValueMarks {
 	var pvm []cty.PathValueMarks
 
 	if val.IsNull() || !val.IsKnown() {

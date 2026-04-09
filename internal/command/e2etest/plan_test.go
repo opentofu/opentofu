@@ -59,6 +59,24 @@ found no differences, so no changes are needed.
 │ this is local deprecated2
 ╵
 ╷
+│ Warning: Variable marked as deprecated by the module author
+│ 
+│   on main.tf line 9, in module "second_call":
+│    9:   input  = "test"
+│ 
+│ Variable "input" is marked as deprecated with the following message:
+│ this is local deprecated
+╵
+╷
+│ Warning: Variable marked as deprecated by the module author
+│ 
+│   on main.tf line 10, in module "second_call":
+│   10:   input2 = "test2"
+│ 
+│ Variable "input2" is marked as deprecated with the following message:
+│ this is local deprecated2
+╵
+╷
 │ Warning: Value derived from a deprecated source
 │ 
 │   on main.tf line 14, in locals:

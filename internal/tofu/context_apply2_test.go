@@ -5451,25 +5451,25 @@ output "test-child" {
 		"multipleModCalls": {
 			expectedWarn: tfdiags.Description{
 				Summary: "Value derived from a deprecated source",
-				Detail:  "This value is derived from module.mod.test-child, which is deprecated with the following message:\n\nDon't use me",
+				Detail:  "This value is derived from module.modA.module.modB.test-child, which is deprecated with the following message:\n\nDon't use me",
 			},
 			module: map[string]string{
 				"main.tf": `
-module "mod" {
+module "modA" {
 	source = "./mod"
 }
 
 resource "test_object" "test" {
-	test_string = module.mod.test
+	test_string = module.modA.test
 }`,
 				"./mod/mod/main.tf": singleDeprecatedOutput,
 				"./mod/main.tf": `
-module "mod" {
+module "modB" {
 	source = "./mod"
 }
 
 output "test" {
-	value = module.mod.test-child
+	value = module.modB.test-child
 }
 				`,
 			},

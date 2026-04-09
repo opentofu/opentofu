@@ -807,7 +807,7 @@ func (d *evaluationStateData) GetResource(ctx context.Context, addr addrs.Resour
 			// for all resources in the configuration.
 			if schema.ContainsMarks() && config.Enabled == nil {
 				val := schema.UnknownValue()
-				schemaMarks := schema.ValueMarks(val, nil, new(addr.InModule(moduleConfig.Path)))
+				schemaMarks := schema.ValueMarks(val, nil, new(addr.Instance(addrs.NoKey).Absolute(d.ModulePath)))
 				val = val.MarkWithPaths(schemaMarks)
 				return val, diags
 			}
@@ -892,7 +892,7 @@ func (d *evaluationStateData) GetResource(ctx context.Context, addr addrs.Resour
 				}
 				// Now that we know that the schema contains sensitive and/or ephemeral marks,
 				// Combine those marks together to ensure that the value is marked correctly but not double marked
-				schemaMarks := schema.ValueMarks(val, nil, new(addr.InModule(moduleConfig.Path)))
+				schemaMarks := schema.ValueMarks(val, nil, &instAddr)
 				afterMarks = combinePathValueMarks(afterMarks, schemaMarks)
 			}
 
@@ -915,7 +915,7 @@ func (d *evaluationStateData) GetResource(ctx context.Context, addr addrs.Resour
 		}
 
 		val := instanceObjectSrc.Value
-		instances[key] = markedValueBySchema(addr.InModule(moduleConfig.Path), schema, val)
+		instances[key] = markedValueBySchema(instAddr, schema, val)
 	}
 
 	// ret should be populated with a valid value in all cases below
@@ -1001,7 +1001,7 @@ func (d *evaluationStateData) GetResource(ctx context.Context, addr addrs.Resour
 	return ret, diags
 }
 
-func markedValueBySchema(addr addrs.ConfigResource, schema *configschema.Block, val cty.Value) cty.Value {
+func markedValueBySchema(addr addrs.AbsResourceInstance, schema *configschema.Block, val cty.Value) cty.Value {
 	if !schema.ContainsMarks() {
 		return val
 	}
@@ -1009,7 +1009,7 @@ func markedValueBySchema(addr addrs.ConfigResource, schema *configschema.Block, 
 	// Now that we know that the schema contains sensitive and/or ephemeral marks,
 	// Combine those marks together to ensure that the value is marked correctly but not double marked
 	val, valMarks = val.UnmarkDeepWithPaths()
-	schemaMarks := schema.ValueMarks(val, nil, new(addr))
+	schemaMarks := schema.ValueMarks(val, nil, &addr)
 	if schema.Ephemeral {
 		// Since we are preparing to mark the whole value as ephemeral, we want to remove any other
 		// possible downstream ephemeral marks to avoid having the same mark on multiple layers.
@@ -1178,7 +1178,7 @@ func (d *evaluationStateData) getEphemeralResourceInstanceValue(schema *configsc
 		return objchange.PlannedUnknownObject(schema, v.Value).Mark(marks.Ephemeral), nil
 	}
 
-	return markedValueBySchema(addr.ConfigResource(), schema, v.Value), nil
+	return markedValueBySchema(addr, schema, v.Value), nil
 }
 
 // moduleDisplayAddr returns a string describing the given module instance

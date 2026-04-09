@@ -35,7 +35,7 @@ func TestMarkConsolidateWarnings(t *testing.T) {
 				End:      hcl.Pos{Line: 1, Column: 1, Byte: 0},
 			},
 			Extra: DeprecationCause{
-				By: addrs.OutputValue{
+				Subject: addrs.OutputValue{
 					Name: fmt.Sprintf("output%d", i),
 				}.String(),
 				Message: "output deprecate",
@@ -51,7 +51,7 @@ func TestMarkConsolidateWarnings(t *testing.T) {
 				End:      hcl.Pos{Line: 1, Column: 1, Byte: 0},
 			},
 			Extra: DeprecationCause{
-				By: addrs.InputVariable{
+				Subject: addrs.InputVariable{
 					Name: fmt.Sprintf("variable%d", i),
 				}.String(),
 				Message: "variable deprecate",
@@ -70,7 +70,7 @@ func TestMarkConsolidateWarnings(t *testing.T) {
 			End:      hcl.Pos{Line: 1, Column: 1, Byte: 0},
 		},
 		Extra: DeprecationCause{
-			By: addrs.InputVariable{
+			Subject: addrs.InputVariable{
 				Name: "variable1",
 			}.String(),
 			Message: "variable deprecate",
@@ -88,9 +88,10 @@ func TestMarkConsolidateWarnings(t *testing.T) {
 			End:      hcl.Pos{Line: 1, Column: 1, Byte: 0},
 		},
 		Extra: DeprecationCause{
-			By: addrs.InputVariable{
-				Name: "mod1.variable",
+			Subject: addrs.InputVariable{
+				Name: "variable",
 			}.String(),
+			Module:  addrs.ModuleInstance{addrs.ModuleInstanceStep{Name: "mod1"}}.String(),
 			Message: "variable deprecate",
 		},
 	})
@@ -139,7 +140,7 @@ func TestHasDeprecated(t *testing.T) {
 		{
 			name: "has deprecation mark",
 			input: Deprecated(cty.StringVal("test"), DeprecationCause{
-				By:      addrs.InputVariable{Name: "var1"}.String(),
+				Subject: addrs.InputVariable{Name: "var1"}.String(),
 				Message: "deprecated",
 			}),
 			want: true,
@@ -147,7 +148,7 @@ func TestHasDeprecated(t *testing.T) {
 		{
 			name: "mixed marks with deprecation",
 			input: Deprecated(cty.StringVal("test").Mark(Sensitive), DeprecationCause{
-				By:      addrs.InputVariable{Name: "var1"}.String(),
+				Subject: addrs.InputVariable{Name: "var1"}.String(),
 				Message: "deprecated",
 			}),
 			want: true,
@@ -176,7 +177,6 @@ func TestExtractDeprecatedDiagnosticsWithExpr(t *testing.T) {
 			cty.StringVal("deprecated"),
 			addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance.Child("child", addrs.StringKey("beep"))),
 			"Blah blah blah don't use this!",
-			false,
 		),
 	})
 	got, gotDiags := ExtractDeprecatedDiagnosticsWithExpr(

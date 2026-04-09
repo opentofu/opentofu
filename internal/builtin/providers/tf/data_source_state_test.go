@@ -300,13 +300,12 @@ func TestState_basic(t *testing.T) {
 				}),
 				"outputs": cty.ObjectVal(map[string]cty.Value{
 					"foo": marks.Deprecated(cty.StringVal("bar"), marks.DeprecationCause{
-						By: addrs.ResourceInstance{
-							Resource: addrs.Resource{
-								Mode: addrs.DataResourceMode,
-								Type: "terraform_remote_state",
-								Name: "test",
-							},
+						Subject: addrs.Resource{
+							Mode: addrs.DataResourceMode,
+							Type: "terraform_remote_state",
+							Name: "test",
 						}.String() + ".foo",
+						Module:  addrs.RootModuleInstance.String(),
 						Message: "I am deprecated",
 					}),
 				}),
