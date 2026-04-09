@@ -11,10 +11,10 @@ package version
 var officialBuild string
 
 // IsOfficialBuild returns true if the current executable was built with
-// the following argument, which is set by the OpenTofu project's main
+// an argument like the following, which is set by the OpenTofu project's main
 // release process:
 //
-//	-X 'github.com/opentofu/opentofu/version.officialBuild=yes'
+//	-X 'github.com/opentofu/opentofu/version.officialBuild=1'
 //
 // We use this ONLY to generate warnings where we're intending to stop producing
 // official builds for a certain configuration in a future release series and
@@ -25,4 +25,23 @@ var officialBuild string
 // supported in the official set of release packages.
 func IsOfficialBuild() bool {
 	return officialBuild != ""
+}
+
+// WithFakedOfficialBuild runs the given function with the global "official
+// build" flag temporarily forced to the given value, so that [IsOfficialBuild]
+// will return that value for the duration of that function's runtime.
+//
+// This is intended for unit testing only. Because it affects global state, it
+// must not be used in parallel tests.
+func WithFakedOfficialBuild(official bool, f func()) {
+	oldOfficialBuild := officialBuild
+	defer func() {
+		officialBuild = oldOfficialBuild
+	}()
+	if official {
+		officialBuild = "1"
+	} else {
+		officialBuild = ""
+	}
+	f()
 }
