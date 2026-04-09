@@ -126,6 +126,9 @@ jobs:
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_TOKEN }}
           RELEASE_FLAG_LATEST: ${{ inputs.latest }}
           RELEASE_FLAG_PRERELEASE: ${{ inputs.prerelease }}
+          # This causes version.IsOfficialBuild to return true when someone is
+          # running one of our official release builds.
+          BUILD_OPENTOFU_OFFICIAL: '1'
 
       - name: Remove GPG key
         if: always()
