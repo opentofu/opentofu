@@ -448,6 +448,7 @@ func (m *Meta) initConfigLoader() (*configload.Loader, error) {
 		m.configLoader = loader
 		if m.View != nil {
 			m.View.SetConfigSources(loader.Sources)
+			m.View.SetModuleSourceAddrs(loader.ModuleSourceAddrs)
 			m.View.SetIsRemoteModuleSource(loader.IsRemoteModuleSource)
 		}
 	}

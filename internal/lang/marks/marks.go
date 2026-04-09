@@ -111,7 +111,12 @@ func DeprecationCauseVariable(vaddr addrs.AbsInputVariableInstance, message stri
 }
 
 // ExtraInfoKey returns the key used for consolidation of deprecation diagnostics.
+// This will be enhanced bythe view with module source address
 func (dc DeprecationCause) ExtraInfoKey() string {
+	return dc.subject + dc.message
+}
+
+func (dc DeprecationCause) fullSubject() string {
 	if dc.module == "" {
 		return dc.subject
 	}
@@ -142,7 +147,7 @@ func DeprecationMark(cause DeprecationCause) any {
 // Deprecated marks a given value as deprecated with specified DeprecationCause.
 func Deprecated(v cty.Value, cause DeprecationCause) cty.Value {
 	for m := range cty.ValueMarksOfType[deprecationMark](v) {
-		if m.Cause.ExtraInfoKey() == cause.ExtraInfoKey() {
+		if m.Cause.module == cause.module && m.Cause.subject == cause.subject {
 			// Already marked as deprecated for this cause.
 			return v
 		}
@@ -185,9 +190,9 @@ func ExtractDeprecationDiagnosticsWithBody(val cty.Value, body hcl.Body) (cty.Va
 		cause := dm.Cause
 		var msg string
 		if cause.message == "" {
-			msg = fmt.Sprintf("This value is derived from %s, which is deprecated.", cause.ExtraInfoKey())
+			msg = fmt.Sprintf("This value is derived from %s, which is deprecated.", cause.fullSubject())
 		} else {
-			msg = fmt.Sprintf("This value is derived from %s, which is deprecated with the following message:\n\n%s", cause.ExtraInfoKey(), cause.message)
+			msg = fmt.Sprintf("This value is derived from %s, which is deprecated with the following message:\n\n%s", cause.fullSubject(), cause.message)
 		}
 		diag := tfdiags.AttributeValue(
 			tfdiags.Warning,
@@ -231,9 +236,9 @@ func ExtractDeprecatedDiagnosticsWithExpr(val cty.Value, expr hcl.Expression) (c
 		cause := dm.Cause
 		var msg string
 		if cause.message == "" {
-			msg = fmt.Sprintf("%s is derived from %s, which is deprecated.", source, cause.ExtraInfoKey())
+			msg = fmt.Sprintf("%s is derived from %s, which is deprecated.", source, cause.fullSubject())
 		} else {
-			msg = fmt.Sprintf("%s is derived from %s, which is deprecated with the following message:\n\n%s", source, cause.ExtraInfoKey(), cause.message)
+			msg = fmt.Sprintf("%s is derived from %s, which is deprecated with the following message:\n\n%s", source, cause.fullSubject(), cause.message)
 		}
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity:   hcl.DiagWarning,

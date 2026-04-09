@@ -7,6 +7,20 @@ package tfdiags
 
 import "fmt"
 
+type DiagnosticConsolidationKeyFn func(Diagnostic) string
+
+func DefaultDiagnosticsConsolidation(diag Diagnostic) string {
+	desc := diag.Description()
+	consolidationKey := desc.Summary
+	// If the diagnostic has a keyable extra info and it's not empty,
+	// use it as the consolidation key, along with the summary.
+	// Otherwise use the summary only.
+	if key, keyOk := diag.ExtraInfo().(Keyable); keyOk {
+		consolidationKey += key.ExtraInfoKey()
+	}
+	return consolidationKey
+}
+
 // Consolidate checks if there is an unreasonable amount of diagnostics
 // with the same summary in the receiver and, if so, returns a new diagnostics
 // with some of those diagnostics consolidated into a single diagnostic in order
@@ -22,7 +36,7 @@ import "fmt"
 //
 // The definition of "unreasonable" is given as the threshold argument. At most
 // that many diagnostics with the same summary will be shown.
-func (diags Diagnostics) Consolidate(threshold int, level Severity) Diagnostics {
+func (diags Diagnostics) Consolidate(threshold int, level Severity, keyFn DiagnosticConsolidationKeyFn) Diagnostics {
 	if len(diags) == 0 {
 		return nil
 	}
@@ -54,15 +68,7 @@ func (diags Diagnostics) Consolidate(threshold int, level Severity) Diagnostics 
 			continue
 		}
 
-		desc := diag.Description()
-		consolidationKey := desc.Summary
-		// If the diagnostic has a keyable extra info and it's not empty,
-		// use it as the consolidation key, along with the summary.
-		// Otherwise use the summary only.
-		if key, keyOk := diag.ExtraInfo().(Keyable); keyOk {
-			consolidationKey += key.ExtraInfoKey()
-		}
-
+		consolidationKey := keyFn(diag)
 		if g, ok := diagnosticGroups[consolidationKey]; ok {
 			// We're already grouping this one, so we'll just continue it.
 			g.Append(diag)

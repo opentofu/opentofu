@@ -56,6 +56,7 @@ type View struct {
 	configSources func() map[string]*hcl.File
 
 	isRemoteModuleSource func(addrs.Module) bool
+	moduleSourceAddrs    func(addrs.Module) addrs.ModuleSource
 }
 
 // Initialize a View with the given streams, a disabled colorize object, and a
@@ -70,6 +71,7 @@ func NewView(streams *terminal.Streams) *View {
 		},
 		configSources:        func() map[string]*hcl.File { return nil },
 		isRemoteModuleSource: func(addrs.Module) bool { return false },
+		moduleSourceAddrs:    func(addrs.Module) addrs.ModuleSource { return nil },
 		diagsPrinter: func(severity tfdiags.Severity, msg string) {
 			if severity == tfdiags.Error {
 				_, _ = streams.Eprint(msg)
@@ -130,6 +132,10 @@ func (v *View) SetIsRemoteModuleSource(cb func(addrs.Module) bool) {
 	v.isRemoteModuleSource = cb
 }
 
+func (v *View) SetModuleSourceAddrs(cb func(addrs.Module) addrs.ModuleSource) {
+	v.moduleSourceAddrs = cb
+}
+
 // Diagnostics renders a set of warnings and errors in human-readable form.
 // Warnings are printed to stdout, and errors to stderr.
 func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
@@ -151,10 +157,17 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 	diags = newDiags
 
 	if v.consolidateWarnings {
-		diags = diags.Consolidate(1, tfdiags.Warning)
+		diags = diags.Consolidate(1, tfdiags.Warning, func(diag tfdiags.Diagnostic) string {
+			// Check to see if we have a DeprecationCause
+			depExtra := v.DeprecationKeyExtra(diag)
+			if depExtra != "" {
+				return depExtra
+			}
+			return tfdiags.DefaultDiagnosticsConsolidation(diag)
+		})
 	}
 	if v.consolidateErrors {
-		diags = diags.Consolidate(1, tfdiags.Error)
+		diags = diags.Consolidate(1, tfdiags.Error, tfdiags.DefaultDiagnosticsConsolidation)
 	}
 
 	// Since warning messages are generally competing

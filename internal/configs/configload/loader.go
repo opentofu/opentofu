@@ -181,3 +181,21 @@ func (l *Loader) IsRemoteModuleSource(path addrs.Module) bool {
 	}
 	return current.IsRemoteModule()
 }
+
+func (l *Loader) ModuleSourceAddrs(path addrs.Module) addrs.ModuleSource {
+	if l.lastLoadedRoot == nil {
+		log.Printf("[ERROR] Unable to determine if module source is remote due to missing config load")
+		return nil
+	}
+
+	current := l.lastLoadedRoot
+	for _, part := range path {
+		child, childOk := current.Children[part]
+		if !childOk {
+			log.Printf("[ERROR] Unable to determine if module source is remote due to missing child")
+			return nil
+		}
+		current = child
+	}
+	return current.SourceAddr
+}

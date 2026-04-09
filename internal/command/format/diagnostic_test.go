@@ -891,7 +891,7 @@ func TestDiagnosticWarningsCompact(t *testing.T) {
 	// ConsolidateWarnings groups together the ones
 	// that have source location information and that
 	// have the same summary text.
-	diags = diags.Consolidate(1, tfdiags.Warning)
+	diags = diags.Consolidate(1, tfdiags.Warning, tfdiags.DefaultDiagnosticsConsolidation)
 
 	// A zero-value Colorize just passes all the formatting
 	// codes back to us, so we can test them literally.

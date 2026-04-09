@@ -96,7 +96,7 @@ func TestMarkConsolidateWarnings(t *testing.T) {
 		},
 	})
 
-	consolidatedDiags := diags.Consolidate(1, tfdiags.Warning)
+	consolidatedDiags := diags.Consolidate(1, tfdiags.Warning, tfdiags.DefaultDiagnosticsConsolidation)
 	expectedDescriptions := [][2]string{
 		{"Output deprecated", "This one has an output 0"},
 		{"Variable deprecated", "This one has a var 0"},
