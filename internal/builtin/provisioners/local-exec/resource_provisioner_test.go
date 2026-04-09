@@ -416,8 +416,19 @@ func TestResourceProvider_TraceparentNotSetWithoutSpan(t *testing.T) {
 	}
 
 	got := strings.TrimSpace(output.OutputWriter.String())
-	if !strings.Contains(got, "traceparent_is_unset") {
-		t.Errorf("expected TRACEPARENT to be unset without span context, got %q", got)
+
+	// On Unix, the shell substitutes ${TRACEPARENT:-unset} to "unset".
+	// On Windows, cmd.exe leaves %TRACEPARENT% unexpanded when the
+	// variable is empty, so the literal marker appears in the output.
+	// Either result confirms the provisioner did not inject TRACEPARENT.
+	if runtime.GOOS == "windows" {
+		if !strings.Contains(got, "traceparent_is_%TRACEPARENT%") {
+			t.Errorf("expected TRACEPARENT to be unset without span context, got %q", got)
+		}
+	} else {
+		if !strings.Contains(got, "traceparent_is_unset") {
+			t.Errorf("expected TRACEPARENT to be unset without span context, got %q", got)
+		}
 	}
 }
 
