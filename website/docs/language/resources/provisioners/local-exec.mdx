@@ -104,3 +104,9 @@ resource "aws_instance" "web" {
   }
 }
 ```
+
+## OpenTelemetry Trace Propagation
+
+If you run OpenTofu with [OpenTelemetry Tracing](../../../internals/tracing.mdx) enabled, the `local-exec` provisioner will automatically set the `TRACEPARENT` environment variable when launching the specified program, so that it can contribute its own spans to the overall trace.
+
+Programs launched with this provisioner also inherit environment variables from the parent OpenTofu process by default, so the child program can also access any `OTEL_`-prefixed environment variables you set to enable OpenTofu's tracing functionality.
