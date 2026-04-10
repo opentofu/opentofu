@@ -60,3 +60,29 @@ dealing with a public disclosure all timelines become ASAP (assuming the vulnera
 score >= 4). If the fix relies on another upstream project's disclosure timeline, that
 will adjust the process as well. We will work with the upstream project to fit their timeline and
 best protect our users.
+
+## Security advisories in upstream dependencies
+
+When a security problem is found in an library we depend on, we usually learn about it only once it
+has already been publicly announced.
+
+We use a scheduled job that periodically runs [`govulncheck`](https://go.dev/doc/tutorial/govulncheck)
+to detect whether currently-supported OpenTofu releases might be affected by any advisories in the
+[Go Vulnerability Database](https://pkg.go.dev/vuln/), and so we typically learn of these advisories
+soon after they are published in
+[issues labelled "govulncheck"](https://github.com/opentofu/opentofu/issues?q=is%3Aissue%20label%3Agovulncheck).
+
+OpenTofu maintainers review each advisory to determine whether it actually impacts OpenTofu or whether
+it is a false positive.
+
+For any advisory that is relevant to users of OpenTofu, we produce new patch releases for any
+currently-supported series that the available fixes can be applied to, and publish
+[an OpenTofu-specific security advisory](https://github.com/opentofu/opentofu/security/advisories)
+describing how the problem might impact users of OpenTofu.
+
+For false positive advisories our policy is to document our conclusions in comments on the relevant
+GitHub issue, and upgrade to a newer version of the dependency only on our main branch for inclusion
+in the next minor release series. We do not typically backport these changes to earlier release series.
+
+For more information on our process for upstream security advisories, refer to
+[rfc/20250314-security-patch-policy.md](Security Advisory Policy for Upstream Dependencies).
