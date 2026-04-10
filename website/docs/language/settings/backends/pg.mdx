@@ -15,16 +15,6 @@ use `pg` backend with multiple OpenTofu versions (under 1.10) in parallel if tho
 are sharing the same underlying database.
 :::
 
-## Example Configuration
-
-```hcl
-terraform {
-  backend "pg" {
-    conn_str = "postgres://user:pass@db.example.com/tofu_backend"
-  }
-}
-```
-
 Before initializing the backend with `tofu init`, the database must already exist:
 
 ```
@@ -32,9 +22,6 @@ createdb tofu_backend
 ```
 
 This `createdb` command is found in [Postgres client applications](https://www.postgresql.org/docs/10/reference-client.html) which are installed along with the database server.
-
-
-### Using environment variables
 
 We recommend using environment variables to configure the `pg` backend in order
 not to have sensitive credentials written to  disk and committed to source
