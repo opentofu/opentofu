@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 
 	"github.com/armon/circbuf"
 	"github.com/mitchellh/go-linereader"
@@ -99,6 +100,10 @@ func (p *provisioner) ValidateProvisionerConfig(req provisioners.ValidateProvisi
 }
 
 func (p *provisioner) ProvisionResource(ctx context.Context, req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
+	// We ignore cancellation of this incoming context because provisioners
+	// currently get cancelled by calling the "Stop" method instead.
+	ctx = context.WithoutCancel(ctx)
+
 	commandVal := req.Config.GetAttr("command")
 	if commandVal.IsNull() || commandVal.AsString() == "" {
 		resp.Diagnostics = resp.Diagnostics.Append(tfdiags.WholeContainingBody(
@@ -259,9 +264,8 @@ func copyUIOutput(o provisioners.UIOutput, r io.Reader, doneCh chan<- struct{}) 
 // hasEnvVar checks whether a slice of "KEY=VALUE" strings contains an entry
 // for the given variable name.
 func hasEnvVar(env []string, name string) bool {
-	prefix := name + "="
 	for _, e := range env {
-		if len(e) >= len(prefix) && e[:len(prefix)] == prefix {
+		if _, ok := strings.CutPrefix(e, name+"="); ok {
 			return true
 		}
 	}

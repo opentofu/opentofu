@@ -342,8 +342,8 @@ func TestResourceProvisioner_nullsInOptionals(t *testing.T) {
 
 // testSpanContext returns a known-valid SpanContext for use in tests.
 func testSpanContext() trace.SpanContext {
-	traceID, _ := trace.TraceIDFromHex("4bf92f3577b34da6a3ce929d0e0e4736")
-	spanID, _ := trace.SpanIDFromHex("00f067aa0ba902b7")
+	traceID, _ := trace.TraceIDFromHex("0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f")
+	spanID, _ := trace.SpanIDFromHex("0f0f0f0f0f0f0f0f")
 	return trace.NewSpanContext(trace.SpanContextConfig{
 		TraceID:    traceID,
 		SpanID:     spanID,
@@ -381,7 +381,7 @@ func TestResourceProvider_TraceparentPropagation(t *testing.T) {
 	}
 
 	got := strings.TrimSpace(output.OutputWriter.String())
-	want := "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
+	want := "00-0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f-0f0f0f0f0f0f0f0f-01"
 	if !strings.Contains(got, want) {
 		t.Errorf("expected TRACEPARENT %q in output, got %q", want, got)
 	}
@@ -469,7 +469,7 @@ func TestResourceProvider_TraceparentUserOverride(t *testing.T) {
 		t.Errorf("expected user-specified TRACEPARENT %q, got %q", userTraceparent, got)
 	}
 	// The span context's traceparent should NOT appear
-	autoTraceparent := "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
+	autoTraceparent := "00-0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f-0f0f0f0f0f0f0f0f-01"
 	if strings.Contains(got, autoTraceparent) {
 		t.Errorf("expected user override to take precedence, but found auto-generated TRACEPARENT in output")
 	}
