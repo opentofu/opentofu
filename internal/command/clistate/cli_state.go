@@ -104,7 +104,9 @@ type jsonVersionOnly struct {
 }
 
 // ReadState reads the CLI state file format written by WriteState.
-func ReadState(src io.Reader) (*CLIState, error) {
+// dataDirOverridden should be true when the data directory was explicitly
+// overridden (e.g. via TF_DATA_DIR).
+func ReadState(src io.Reader, dataDirOverridden bool) (*CLIState, error) {
 	if f, ok := src.(*os.File); ok && f == nil {
 		return nil, ErrNoState
 	}
@@ -129,12 +131,12 @@ func ReadState(src io.Reader) (*CLIState, error) {
 	}
 
 	if ver.Version != StateVersion {
-		if bytes.Contains(jsonBytes, []byte(`"terraform_version"`)) {
+		if dataDirOverridden && bytes.Contains(jsonBytes, []byte(`"terraform_version"`)) {
 			return nil, fmt.Errorf(
-				"found a resource state file (version %d) where a backend configuration "+
-					"file (version %d) was expected; if TF_DATA_DIR is set, ensure it does "+
-					"not point to a directory containing a terraform.tfstate resource state file",
-				ver.Version, StateVersion,
+				"found a resource state file (version %d) where a backend configuration cache "+
+					"file was expected; if TF_DATA_DIR is set, ensure it does "+
+					"not point to a directory containing your main terraform.tfstate resource state file",
+				ver.Version,
 			)
 		}
 		return nil, fmt.Errorf(

@@ -504,7 +504,7 @@ func testDataStateRead(t *testing.T, path string) *clistate.CLIState {
 	}
 	defer f.Close()
 
-	s, err := clistate.ReadState(f)
+	s, err := clistate.ReadState(f, false)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}

@@ -20,7 +20,7 @@ import (
 
 func TestReadState_EmptyFile(t *testing.T) {
 	reader := bytes.NewReader([]byte{})
-	_, err := ReadState(reader)
+	_, err := ReadState(reader, false)
 	if !errors.Is(err, ErrNoState) {
 		t.Fatalf("expected ErrNoState, got %T", err)
 	}
@@ -28,7 +28,7 @@ func TestReadState_EmptyFile(t *testing.T) {
 
 func TestReadState_NilFile(t *testing.T) {
 	var f *os.File
-	_, err := ReadState(f)
+	_, err := ReadState(f, false)
 	if !errors.Is(err, ErrNoState) {
 		t.Fatalf("expected ErrNoState, got %T", err)
 	}
@@ -44,7 +44,7 @@ func TestReadState_ValidState(t *testing.T) {
 		t.Fatalf("failed to write state: %v", err)
 	}
 
-	result, err := ReadState(buf)
+	result, err := ReadState(buf, false)
 	if err != nil {
 		t.Fatalf("ReadState failed: %v", err)
 	}
@@ -56,7 +56,7 @@ func TestReadState_ValidState(t *testing.T) {
 
 func TestReadState_InvalidJSON(t *testing.T) {
 	reader := strings.NewReader("{invalid json")
-	_, err := ReadState(reader)
+	_, err := ReadState(reader, false)
 	if err == nil {
 		t.Fatal("expected error for invalid JSON, got nil")
 	}
@@ -67,7 +67,7 @@ func TestReadState_InvalidJSON(t *testing.T) {
 
 func TestReadState_MissingVersion(t *testing.T) {
 	reader := strings.NewReader(`{}`)
-	_, err := ReadState(reader)
+	_, err := ReadState(reader, false)
 	if err == nil {
 		t.Fatal("expected error for missing version, got nil")
 	}
@@ -90,7 +90,7 @@ func TestReadState_UnsupportedVersion(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			input := fmt.Sprintf(`{"version": %d}`, tt.version)
-			_, err := ReadState(strings.NewReader(input))
+			_, err := ReadState(strings.NewReader(input), false)
 			if err == nil {
 				t.Fatalf("expected error for version %d, got nil", tt.version)
 			}
@@ -111,13 +111,15 @@ func TestReadState_ResourceStateCollision(t *testing.T) {
 		"outputs": {},
 		"resources": []
 	}`
-	_, err := ReadState(strings.NewReader(input))
+	_, err := ReadState(strings.NewReader(input), true)
 	if err == nil {
 		t.Fatal("expected error for resource state file, got nil")
 	}
 	for _, want := range []string{
 		"resource state file",
+		"backend configuration cache",
 		"TF_DATA_DIR",
+		"your main terraform.tfstate",
 	} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error %q should contain %q", err.Error(), want)
@@ -127,12 +129,26 @@ func TestReadState_ResourceStateCollision(t *testing.T) {
 
 func TestReadState_ResourceStateCollision_PartialFields(t *testing.T) {
 	input := `{"version": 4, "terraform_version": "1.12.0"}`
-	_, err := ReadState(strings.NewReader(input))
+	_, err := ReadState(strings.NewReader(input), true)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
 	if !strings.Contains(err.Error(), "resource state file") {
 		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestReadState_ResourceStateCollision_NotTriggeredWithoutOverride(t *testing.T) {
+	input := `{"version": 4, "terraform_version": "1.12.0"}`
+	_, err := ReadState(strings.NewReader(input), false)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if strings.Contains(err.Error(), "resource state file") {
+		t.Errorf("collision error should not appear when dataDirOverridden is false, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "does not support CLI state version") {
+		t.Errorf("expected generic version error, got: %v", err)
 	}
 }
 
@@ -354,7 +370,7 @@ func TestReadWriteRoundTrip(t *testing.T) {
 		t.Fatalf("WriteState failed: %v", err)
 	}
 
-	result, err := ReadState(buf)
+	result, err := ReadState(buf, false)
 	if err != nil {
 		t.Fatalf("ReadState failed: %v", err)
 	}

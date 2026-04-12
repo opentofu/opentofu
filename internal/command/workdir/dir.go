@@ -66,6 +66,10 @@ type Dir struct {
 	// directory named ".terraform" within mainDir, but users may
 	// override it.
 	dataDir string
+
+	// dataDirOverridden is true when OverrideDataDir has been called,
+	// which typically means the TF_DATA_DIR environment variable was set.
+	dataDirOverridden bool
 }
 
 // NewWorkdir returns a [*Dir] instance configured with the following:
@@ -134,7 +138,7 @@ func (d *Dir) OverrideOriginalWorkingDir(originalPath string) {
 }
 
 // OverrideDataDir chooses a specific alternative directory to read and write
-// the persistent working directory settings.
+// the persistent working directory settings. It also sets the dataDirOverridden flag to true.
 //
 // "package main" can call this if it detects that the user has overridden
 // the default location by setting the relevant environment variable. Don't
@@ -143,6 +147,13 @@ func (d *Dir) OverrideOriginalWorkingDir(originalPath string) {
 // working directory.
 func (d *Dir) OverrideDataDir(dataDir string) {
 	d.dataDir = filepath.Clean(dataDir)
+	d.dataDirOverridden = true
+}
+
+// DataDirOverridden reports whether the data directory was explicitly
+// overridden, by calling OverrideDataDir.
+func (d *Dir) DataDirOverridden() bool {
+	return d.dataDirOverridden
 }
 
 // RootModuleDir returns the directory where we expect to find the root module
