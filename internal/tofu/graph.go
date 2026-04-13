@@ -47,13 +47,13 @@ func (g *Graph) walk(ctx context.Context, walker GraphWalker) tfdiags.Diagnostic
 	// spawning many go routines for vertex evaluation
 	// to minimize the performance impact of capturing
 	// the stack trace.
-	panicHandler := logging.PanicHandlerWithTraceFn()
+	panicHandler := logging.PanicHandlerWithTraceCallerFn()
 
 	// Walk the graph.
 	walkFn := func(v dag.Vertex) (diags tfdiags.Diagnostics) {
 		// the walkFn is called asynchronously, and needs to be recovered
 		// separately in the case of a panic.
-		defer panicHandler()
+		defer panicHandler(fmt.Sprintf("Walking vertex %s - %T", dag.VertexName(v), v))
 
 		log.Printf("[TRACE] vertex %q: starting visit (%T)", dag.VertexName(v), v)
 
