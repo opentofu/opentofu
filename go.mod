@@ -312,6 +312,7 @@ tool (
 	github.com/mitchellh/gox
 	github.com/opentofu/opentofu/cmd/tofu
 	github.com/opentofu/opentofu/tools/find-dep-upgrades
+	github.com/opentofu/opentofu/tools/find-pkg-importer
 	github.com/opentofu/opentofu/tools/loggraphdiff
 	github.com/opentofu/opentofu/tools/protobuf-compile
 	github.com/opentofu/opentofu/tools/selected-go-version
