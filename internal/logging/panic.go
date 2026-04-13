@@ -6,6 +6,7 @@
 package logging
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"runtime/debug"
@@ -48,7 +49,7 @@ func PanicHandler() {
 	defer panicMutex.Unlock()
 
 	recovered := recover()
-	panicHandler(recovered, nil)
+	panicHandler(recovered, nil, "")
 }
 
 // PanicHandlerWithTraceFn returns a function similar to PanicHandler which is
@@ -69,8 +70,17 @@ func PanicHandler() {
 // is a significant step in the right direction that will dramatically improve crash
 // debugging
 func PanicHandlerWithTraceFn() func() {
-	trace := debug.Stack()
+	ret := PanicHandlerWithTraceCallerFn()
 	return func() {
+		ret("")
+	}
+}
+
+// PanicHandlerWithTraceCallerFn is an enhanced version of PanicHandlerWithTraceFn
+// that supports providing information about the caller
+func PanicHandlerWithTraceCallerFn() func(caller string) {
+	trace := debug.Stack()
+	return func(caller string) {
 		// Have all managed goroutines checkin here, and prevent them from exiting
 		// if there's a panic in progress. While this can't lock the entire runtime
 		// to block progress, we can prevent some cases where OpenTofu may return
@@ -79,25 +89,35 @@ func PanicHandlerWithTraceFn() func() {
 		defer panicMutex.Unlock()
 
 		recovered := recover()
-		panicHandler(recovered, trace)
+		panicHandler(recovered, trace, caller)
 	}
 }
 
-func panicHandler(recovered interface{}, trace []byte) {
+func panicHandler(recovered interface{}, trace []byte, caller string) {
 	if recovered == nil {
 		return
 	}
 
-	fmt.Fprint(os.Stderr, panicOutput)
-	fmt.Fprint(os.Stderr, recovered, "\n")
+	// Given that multiple routines may be spewing to stderr at the same time
+	// buffer our message to prevent it being split.
+	buffer := new(bytes.Buffer)
+
+	fmt.Fprint(buffer, panicOutput)
+	if caller != "" {
+		fmt.Fprint(buffer, caller, "\n\n")
+	}
+	fmt.Fprint(buffer, recovered, "\n")
 
 	// When called from a deferred function, debug.PrintStack will include the
 	// full stack from the point of the pending panic.
-	debug.PrintStack()
+	buffer.Write(debug.Stack())
 	if trace != nil {
-		fmt.Fprint(os.Stderr, "With go-routine called from:\n")
-		os.Stderr.Write(trace)
+		fmt.Fprint(buffer, "With go-routine called from:\n")
+		buffer.Write(trace)
 	}
+
+	// Write the complete buffer to stderr
+	os.Stderr.Write(buffer.Bytes())
 
 	// An exit code of 11 keeps us out of the way of the detailed exitcodes
 	// from plan, and also happens to be the same code as SIGSEGV which is
