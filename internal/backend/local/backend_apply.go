@@ -34,15 +34,21 @@ const (
 	persistIntervalEnvironmentVariableName = "TF_STATE_PERSIST_INTERVAL"
 )
 
-func getEnvAsInt(envName string, defaultValue int) int {
+func getEnvAsInt(envName string, defaultValue int) (int, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
 	if val, exists := os.LookupEnv(envName); exists {
 		parsedVal, err := strconv.Atoi(val)
-		if err == nil {
-			return parsedVal
+		if err != nil {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Invalid environment variable value",
+				fmt.Sprintf("The environment variable %s must be a valid integer, got %q.", envName, val),
+			))
+			return 0, diags
 		}
-		panic(fmt.Sprintf("Can't parse value '%s' of environment variable '%s'", val, envName))
+		return parsedVal, diags
 	}
-	return defaultValue
+	return defaultValue, diags
 }
 
 func (b *Local) opApply(
@@ -112,10 +118,20 @@ func (b *Local) opApply(
 	// stateHook uses schemas for when it periodically persists state to the
 	// persistent storage backend.
 	stateHook.Schemas = schemas
-	persistInterval := getEnvAsInt(persistIntervalEnvironmentVariableName, defaultPersistInterval)
+	persistInterval, intervalDiags := getEnvAsInt(persistIntervalEnvironmentVariableName, defaultPersistInterval)
+	diags = diags.Append(intervalDiags)
+	if intervalDiags.HasErrors() {
+		op.ReportResult(runningOp, diags)
+		return
+	}
 	if persistInterval < defaultPersistInterval {
-		panic(fmt.Sprintf("Can't use value lower than %d for env variable %s, got %d",
-			defaultPersistInterval, persistIntervalEnvironmentVariableName, persistInterval))
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Invalid environment variable value",
+			fmt.Sprintf("The environment variable %s must be at least %d, got %d.", persistIntervalEnvironmentVariableName, defaultPersistInterval, persistInterval),
+		))
+		op.ReportResult(runningOp, diags)
+		return
 	}
 	stateHook.PersistInterval = time.Duration(persistInterval) * time.Second
 

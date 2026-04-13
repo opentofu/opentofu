@@ -428,3 +428,85 @@ func TestApply_applyCanceledAutoApprove(t *testing.T) {
 	}
 
 }
+
+func TestGetEnvAsInt(t *testing.T) {
+	const testEnv = "TEST_GET_ENV_AS_INT"
+
+	t.Run("env not set returns default", func(t *testing.T) {
+		os.Unsetenv(testEnv)
+		got, diags := getEnvAsInt(testEnv, 20)
+		if diags.HasErrors() {
+			t.Fatalf("unexpected error: %s", diags.Err())
+		}
+		if got != 20 {
+			t.Errorf("got %d, want 20", got)
+		}
+	})
+
+	t.Run("valid integer is parsed", func(t *testing.T) {
+		t.Setenv(testEnv, "30")
+		got, diags := getEnvAsInt(testEnv, 20)
+		if diags.HasErrors() {
+			t.Fatalf("unexpected error: %s", diags.Err())
+		}
+		if got != 30 {
+			t.Errorf("got %d, want 30", got)
+		}
+	})
+
+	t.Run("non-integer value returns error", func(t *testing.T) {
+		t.Setenv(testEnv, "abc")
+		_, diags := getEnvAsInt(testEnv, 20)
+		if !diags.HasErrors() {
+			t.Error("expected error but got none")
+		}
+	})
+
+	t.Run("float value returns error", func(t *testing.T) {
+		t.Setenv(testEnv, "1.5")
+		_, diags := getEnvAsInt(testEnv, 20)
+		if !diags.HasErrors() {
+			t.Error("expected error but got none")
+		}
+	})
+}
+
+func TestLocal_applyInvalidPersistInterval(t *testing.T) {
+	t.Run("non-integer value causes error diagnostic", func(t *testing.T) {
+		t.Setenv(persistIntervalEnvironmentVariableName, "abc")
+
+		b := TestLocal(t)
+		TestLocalProvider(t, b, "test", applyFixtureSchema())
+
+		op, done := testOperationApply(t, "./testdata/apply")
+		defer done(t)
+
+		run, err := b.Operation(context.Background(), op)
+		if err != nil {
+			t.Fatalf("unexpected error starting operation: %v", err)
+		}
+		<-run.Done()
+		if run.Result == backend.OperationSuccess {
+			t.Fatalf("expected operation to fail with invalid %s=abc", persistIntervalEnvironmentVariableName)
+		}
+	})
+
+	t.Run("below minimum value causes error diagnostic", func(t *testing.T) {
+		t.Setenv(persistIntervalEnvironmentVariableName, "5")
+
+		b := TestLocal(t)
+		TestLocalProvider(t, b, "test", applyFixtureSchema())
+
+		op, done := testOperationApply(t, "./testdata/apply")
+		defer done(t)
+
+		run, err := b.Operation(context.Background(), op)
+		if err != nil {
+			t.Fatalf("unexpected error starting operation: %v", err)
+		}
+		<-run.Done()
+		if run.Result == backend.OperationSuccess {
+			t.Fatalf("expected operation to fail with invalid %s=5", persistIntervalEnvironmentVariableName)
+		}
+	})
+}
