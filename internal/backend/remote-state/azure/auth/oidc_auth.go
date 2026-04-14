@@ -114,10 +114,12 @@ func getTokenFromRemote(client *http.Client, config OIDCAuthConfig, env cloud.Co
 // Reference:
 // https://learn.microsoft.com/en-us/entra/workload-id/workload-identity-federation-config-app-trust-managed-identity
 func requestURLAudience(env cloud.Configuration) string {
+	// Note: if these URLs ever change, double-check them against the way we obtain cloud configurations:
+	// clients.go:CloudConfigFromAddresses
 	switch env.ActiveDirectoryAuthorityHost {
-	case "https://login.chinacloudapi.cn/":
+	case cloud.AzureChina.ActiveDirectoryAuthorityHost:
 		return "api://AzureADTokenExchangeChina"
-	case "https://login.microsoftonline.us/":
+	case cloud.AzureGovernment.ActiveDirectoryAuthorityHost:
 		return "api://AzureADTokenExchangeUSGov"
 	default:
 		return "api://AzureADTokenExchange"
