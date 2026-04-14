@@ -395,8 +395,14 @@ func TestResourceProvider_TraceparentNotSetWithoutSpan(t *testing.T) {
 	schema := p.GetSchema().Provisioner
 
 	command := "echo traceparent_is_${TRACEPARENT:-unset}"
+	expectedOutput := "traceparent_is_unset"
 	if runtime.GOOS == "windows" {
 		command = "echo traceparent_is_%TRACEPARENT%"
+		// On Unix, the shell substitutes ${TRACEPARENT:-unset} to "unset".
+		// On Windows, cmd.exe leaves %TRACEPARENT% unexpanded when the
+		// variable is empty, so the literal marker appears in the output.
+		// Either result confirms the provisioner did not inject TRACEPARENT.
+		expectedOutput = "traceparent_is_%TRACEPARENT%"
 	}
 
 	c, err := schema.CoerceValue(cty.ObjectVal(map[string]cty.Value{
@@ -417,18 +423,8 @@ func TestResourceProvider_TraceparentNotSetWithoutSpan(t *testing.T) {
 
 	got := strings.TrimSpace(output.OutputWriter.String())
 
-	// On Unix, the shell substitutes ${TRACEPARENT:-unset} to "unset".
-	// On Windows, cmd.exe leaves %TRACEPARENT% unexpanded when the
-	// variable is empty, so the literal marker appears in the output.
-	// Either result confirms the provisioner did not inject TRACEPARENT.
-	if runtime.GOOS == "windows" {
-		if !strings.Contains(got, "traceparent_is_%TRACEPARENT%") {
-			t.Errorf("expected TRACEPARENT to be unset without span context, got %q", got)
-		}
-	} else {
-		if !strings.Contains(got, "traceparent_is_unset") {
-			t.Errorf("expected TRACEPARENT to be unset without span context, got %q", got)
-		}
+	if !strings.Contains(got, expectedOutput) {
+		t.Errorf("expected TRACEPARENT to be unset without span context, got %q", got)
 	}
 }
 
@@ -472,28 +468,5 @@ func TestResourceProvider_TraceparentUserOverride(t *testing.T) {
 	autoTraceparent := "00-0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f-0f0f0f0f0f0f0f0f-01"
 	if strings.Contains(got, autoTraceparent) {
 		t.Errorf("expected user override to take precedence, but found auto-generated TRACEPARENT in output")
-	}
-}
-
-func TestHasEnvVar(t *testing.T) {
-	env := []string{"FOO=bar", "TRACEPARENT=00-abc-def-01", "BAZ="}
-
-	if !hasEnvVar(env, "FOO") {
-		t.Error("expected to find FOO")
-	}
-	if !hasEnvVar(env, "TRACEPARENT") {
-		t.Error("expected to find TRACEPARENT")
-	}
-	if !hasEnvVar(env, "BAZ") {
-		t.Error("expected to find BAZ (empty value)")
-	}
-	if hasEnvVar(env, "MISSING") {
-		t.Error("expected not to find MISSING")
-	}
-	if hasEnvVar(env, "FOO=bar") {
-		t.Error("expected not to match full entry as name")
-	}
-	if hasEnvVar(nil, "FOO") {
-		t.Error("expected not to find anything in nil slice")
 	}
 }

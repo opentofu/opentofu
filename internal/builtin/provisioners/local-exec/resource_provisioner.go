@@ -17,7 +17,7 @@ import (
 	"github.com/armon/circbuf"
 	"github.com/mitchellh/go-linereader"
 	"github.com/zclconf/go-cty/cty"
-	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/propagation"
 
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/provisioners"
@@ -117,10 +117,12 @@ func (p *provisioner) ProvisionResource(ctx context.Context, req provisioners.Pr
 
 	envVal := req.Config.GetAttr("environment")
 	var env []string
+	var traceparentConfigured bool
 
 	if !envVal.IsNull() {
 		for k, v := range envVal.AsValueMap() {
 			if !v.IsNull() {
+				traceparentConfigured = traceparentConfigured || strings.EqualFold(k, "TRACEPARENT")
 				entry := fmt.Sprintf("%s=%s", k, v.AsString())
 				env = append(env, entry)
 			}
@@ -175,14 +177,11 @@ func (p *provisioner) ProvisionResource(ctx context.Context, req provisioners.Pr
 	// variable (per the W3C Trace Context specification), unless the user
 	// has already set TRACEPARENT explicitly in the provisioner's
 	// "environment" block.
-	if !hasEnvVar(env, "TRACEPARENT") {
-		if sc := trace.SpanContextFromContext(ctx); sc.IsValid() {
-			cmdEnv = append(cmdEnv, fmt.Sprintf(
-				"TRACEPARENT=00-%s-%s-%s",
-				sc.TraceID().String(),
-				sc.SpanID().String(),
-				sc.TraceFlags().String(),
-			))
+	if !traceparentConfigured {
+		carrier := make(propagation.MapCarrier)
+		propagation.TraceContext{}.Inject(ctx, carrier)
+		for k, v := range carrier {
+			cmdEnv = append(cmdEnv, strings.ToUpper(k)+"="+v)
 		}
 	}
 
@@ -259,15 +258,4 @@ func copyUIOutput(o provisioners.UIOutput, r io.Reader, doneCh chan<- struct{}) 
 	for line := range lr.Ch {
 		o.Output(line)
 	}
-}
-
-// hasEnvVar checks whether a slice of "KEY=VALUE" strings contains an entry
-// for the given variable name.
-func hasEnvVar(env []string, name string) bool {
-	for _, e := range env {
-		if _, ok := strings.CutPrefix(e, name+"="); ok {
-			return true
-		}
-	}
-	return false
 }
