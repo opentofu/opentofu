@@ -134,6 +134,9 @@ func CloudConfigFromAddresses(ctx context.Context, environment, metadataHost str
 
 	// These environments come from the hamilton Azure library, which was the predecessor to this implementation
 	// https://github.com/manicminer/hamilton/blob/v0.44.0/environments/environments.go#L103-L118
+
+	// Note: if these URLs ever change, double-check them against the way we select audiences in OIDC auth:
+	// oidc_auth.go:requestURLAudience
 	switch environment {
 	case "", "public", "global", "canary":
 		return cloud.AzurePublic, "core.windows.net", nil
