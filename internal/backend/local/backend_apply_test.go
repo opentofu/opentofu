@@ -478,7 +478,6 @@ func TestLocal_applyInvalidPersistInterval(t *testing.T) {
 		TestLocalProvider(t, b, "test", applyFixtureSchema())
 
 		op, done := testOperationApply(t, "./testdata/apply")
-		defer done(t)
 
 		run, err := b.Operation(context.Background(), op)
 		if err != nil {
@@ -487,6 +486,9 @@ func TestLocal_applyInvalidPersistInterval(t *testing.T) {
 		<-run.Done()
 		if run.Result == backend.OperationSuccess {
 			t.Fatalf("expected operation to fail with invalid %s=abc", persistIntervalEnvironmentVariableName)
+		}
+		if got, want := done(t).Stderr(), "Invalid environment variable value"; !strings.Contains(got, want) {
+			t.Errorf("expected stderr to contain %q, got:\n%s", want, got)
 		}
 	})
 
@@ -497,7 +499,6 @@ func TestLocal_applyInvalidPersistInterval(t *testing.T) {
 		TestLocalProvider(t, b, "test", applyFixtureSchema())
 
 		op, done := testOperationApply(t, "./testdata/apply")
-		defer done(t)
 
 		run, err := b.Operation(context.Background(), op)
 		if err != nil {
@@ -506,6 +507,9 @@ func TestLocal_applyInvalidPersistInterval(t *testing.T) {
 		<-run.Done()
 		if run.Result == backend.OperationSuccess {
 			t.Fatalf("expected operation to fail with invalid %s=5", persistIntervalEnvironmentVariableName)
+		}
+		if got, want := done(t).Stderr(), "Invalid environment variable value"; !strings.Contains(got, want) {
+			t.Errorf("expected stderr to contain %q, got:\n%s", want, got)
 		}
 	})
 }
