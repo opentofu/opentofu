@@ -432,42 +432,62 @@ func TestApply_applyCanceledAutoApprove(t *testing.T) {
 func TestGetEnvAsInt(t *testing.T) {
 	const testEnv = "TEST_GET_ENV_AS_INT"
 
-	t.Run("env not set returns default", func(t *testing.T) {
-		got, diags := getEnvAsInt(testEnv, 20)
-		if diags.HasErrors() {
-			t.Fatalf("unexpected error: %s", diags.Err())
-		}
-		if got != 20 {
-			t.Errorf("got %d, want 20", got)
-		}
-	})
+	tests := []struct {
+		name         string
+		envValue     string
+		defaultValue int
+		wantValue    int
+		wantError    bool
+	}{
+		{
+			name:         "env not set returns default",
+			envValue:     "",
+			defaultValue: 20,
+			wantValue:    20,
+			wantError:    false,
+		},
+		{
+			name:         "valid integer is parsed",
+			envValue:     "30",
+			defaultValue: 20,
+			wantValue:    30,
+			wantError:    false,
+		},
+		{
+			name:         "non-integer value returns error",
+			envValue:     "abc",
+			defaultValue: 20,
+			wantError:    true,
+		},
+		{
+			name:         "float value returns error",
+			envValue:     "1.5",
+			defaultValue: 20,
+			wantError:    true,
+		},
+	}
 
-	t.Run("valid integer is parsed", func(t *testing.T) {
-		t.Setenv(testEnv, "30")
-		got, diags := getEnvAsInt(testEnv, 20)
-		if diags.HasErrors() {
-			t.Fatalf("unexpected error: %s", diags.Err())
-		}
-		if got != 30 {
-			t.Errorf("got %d, want 30", got)
-		}
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.envValue != "" {
+				t.Setenv(testEnv, tt.envValue)
+			}
 
-	t.Run("non-integer value returns error", func(t *testing.T) {
-		t.Setenv(testEnv, "abc")
-		_, diags := getEnvAsInt(testEnv, 20)
-		if !diags.HasErrors() {
-			t.Error("expected error but got none")
-		}
-	})
-
-	t.Run("float value returns error", func(t *testing.T) {
-		t.Setenv(testEnv, "1.5")
-		_, diags := getEnvAsInt(testEnv, 20)
-		if !diags.HasErrors() {
-			t.Error("expected error but got none")
-		}
-	})
+			got, diags := getEnvAsInt(testEnv, tt.defaultValue)
+			if tt.wantError {
+				if !diags.HasErrors() {
+					t.Errorf("expected error but got none, value=%d", got)
+				}
+				return
+			}
+			if diags.HasErrors() {
+				t.Fatalf("unexpected error: %s", diags.Err())
+			}
+			if got != tt.wantValue {
+				t.Errorf("got %d, want %d", got, tt.wantValue)
+			}
+		})
+	}
 }
 
 func TestLocal_applyInvalidPersistInterval(t *testing.T) {
