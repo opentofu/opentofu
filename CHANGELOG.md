@@ -10,6 +10,10 @@ UPGRADE NOTES:
 
     [Modern Windows versions now support OpenSSH](https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse), and so we suggest that anyone currently relying on WinRM plan to migrate to using SSH instead.
 
+BUG FIXES:
+
+- provisioner output is no longer suppressed when `-show-sensitive` is passed. ([#3927](https://github.com/opentofu/opentofu/issues/3927))
+
 ## Previous Releases
 
 For information on prior major and minor releases, refer to their changelogs:

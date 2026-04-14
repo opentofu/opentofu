@@ -17,6 +17,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/format"
 	"github.com/opentofu/opentofu/internal/command/views/json"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tofu"
@@ -152,7 +153,13 @@ func (h *jsonHook) PostProvisionInstanceStep(addr addrs.AbsResourceInstance, typ
 	return tofu.HookActionContinue, nil
 }
 
-func (h *jsonHook) ProvisionOutput(addr addrs.AbsResourceInstance, typeName string, msg string) {
+func (h *jsonHook) ProvisionOutput(addr addrs.AbsResourceInstance, typeName string, msg string, configMarks cty.ValueMarks) {
+	// If the config has sensitive marks and showSensitive is not enabled,
+	// suppress the output.
+	if _, hasSensitive := configMarks[marks.Sensitive]; hasSensitive && !h.view.view.showSensitive {
+		msg = "(output suppressed due to sensitive value in config)"
+	}
+
 	s := bufio.NewScanner(strings.NewReader(msg))
 	s.Split(scanLines)
 	for s.Scan() {

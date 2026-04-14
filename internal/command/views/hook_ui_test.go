@@ -16,6 +16,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
@@ -433,60 +434,75 @@ func TestProvisionOutput(t *testing.T) {
 	}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance)
 
 	testCases := map[string]struct {
-		provisioner string
-		input       string
-		wantOutput  string
+		provisioner   string
+		input         string
+		configMarks   cty.ValueMarks
+		showSensitive bool
+		wantOutput    string
 	}{
 		"single line": {
-			"local-exec",
-			"foo\n",
-			"test_instance.foo (local-exec): foo\n",
+			provisioner: "local-exec",
+			input:       "foo\n",
+			wantOutput:  "test_instance.foo (local-exec): foo\n",
 		},
 		"multiple lines": {
-			"x",
-			`foo
+			provisioner: "x",
+			input: `foo
 bar
 baz
 `,
-			`test_instance.foo (x): foo
+			wantOutput: `test_instance.foo (x): foo
 test_instance.foo (x): bar
 test_instance.foo (x): baz
 `,
 		},
 		"trailing whitespace": {
-			"x",
-			"foo                  \nbar\n",
-			"test_instance.foo (x): foo\ntest_instance.foo (x): bar\n",
+			provisioner: "x",
+			input:       "foo                  \nbar\n",
+			wantOutput:  "test_instance.foo (x): foo\ntest_instance.foo (x): bar\n",
 		},
 		"blank lines": {
-			"x",
-			"foo\n\nbar\n\n\nbaz\n",
-			`test_instance.foo (x): foo
+			provisioner: "x",
+			input:       "foo\n\nbar\n\n\nbaz\n",
+			wantOutput: `test_instance.foo (x): foo
 test_instance.foo (x): bar
 test_instance.foo (x): baz
 `,
 		},
 		"no final newline": {
-			"x",
-			`foo
+			provisioner: "x",
+			input: `foo
 bar`,
-			`test_instance.foo (x): foo
+			wantOutput: `test_instance.foo (x): foo
 test_instance.foo (x): bar
 `,
 		},
 		"CR, no LF": {
-			"MacOS 9?",
-			"foo\rbar\r",
-			`test_instance.foo (MacOS 9?): foo
+			provisioner: "MacOS 9?",
+			input:       "foo\rbar\r",
+			wantOutput: `test_instance.foo (MacOS 9?): foo
 test_instance.foo (MacOS 9?): bar
 `,
 		},
 		"CRLF": {
-			"winrm",
-			"foo\r\nbar\r\n",
-			`test_instance.foo (winrm): foo
+			provisioner: "winrm",
+			input:       "foo\r\nbar\r\n",
+			wantOutput: `test_instance.foo (winrm): foo
 test_instance.foo (winrm): bar
 `,
+		},
+		"sensitive suppressed by default": {
+			provisioner: "local-exec",
+			input:       "secret-value\n",
+			configMarks: cty.NewValueMarks(marks.Sensitive),
+			wantOutput:  "test_instance.foo (local-exec): (output suppressed due to sensitive value in config)\n",
+		},
+		"sensitive shown with show-sensitive": {
+			provisioner:   "local-exec",
+			input:         "secret-value\n",
+			configMarks:   cty.NewValueMarks(marks.Sensitive),
+			showSensitive: true,
+			wantOutput:    "test_instance.foo (local-exec): secret-value\n",
 		},
 	}
 
@@ -494,9 +510,10 @@ test_instance.foo (winrm): bar
 		t.Run(name, func(t *testing.T) {
 			streams, done := terminal.StreamsForTesting(t)
 			view := NewView(streams)
+			view.SetShowSensitive(tc.showSensitive)
 			h := NewUiHook(view)
 
-			h.ProvisionOutput(addr, tc.provisioner, tc.input)
+			h.ProvisionOutput(addr, tc.provisioner, tc.input, tc.configMarks)
 			result := done(t)
 
 			if got := result.Stdout(); got != tc.wantOutput {

@@ -461,7 +461,24 @@ Changes to Outputs:
 					`simple_resource.test_res (local-exec): visible test value`,
 					`simple_resource.test_res (local-exec): \"visible test value\"`,
 				}, true},
-				outputCheckContains{[]string{"simple_resource.test_res (local-exec): (output suppressed due to ephemeral value in config)"}, true},
+				// https://github.com/opentofu/opentofu/pull/3931#discussion_r2983258136
+				// Ephemeral values can be shown on local provisioners, they do not need to be hidden
+				outputCheckContains{[]string{
+					`simple_resource.test_res (local-exec): Executing: ["/bin/sh" "-c" "echo \"visible plan_val-ephemeral_val-with-renew\""]`,
+					`simple_resource.test_res (local-exec): Executing: ["cmd" "/C" "echo \"visible plan_val-ephemeral_val-with-renew\""]`,
+				}, true},
+				outputCheckContains{[]string{
+					`simple_resource.test_res (local-exec): visible plan_val-ephemeral_val-with-renew`,
+					`simple_resource.test_res (local-exec): \"visible plan_val-ephemeral_val-with-renew\"`,
+				}, true},
+				outputCheckContains{[]string{
+					`simple_resource.test_res (local-exec): Executing: ["/bin/sh" "-c" "echo \"visible ephemeral_val\""]`,
+					`simple_resource.test_res (local-exec): Executing: ["cmd" "/C" "echo \"visible ephemeral_val\""]`,
+				}, true},
+				outputCheckContains{[]string{
+					`simple_resource.test_res (local-exec): visible ephemeral_val`,
+					`simple_resource.test_res (local-exec): \"visible ephemeral_val\"`,
+				}, true},
 			}
 			out := stripAnsi(stdout)
 

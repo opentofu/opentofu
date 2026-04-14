@@ -95,7 +95,7 @@ func (h *testHook) PostProvisionInstanceStep(addr addrs.AbsResourceInstance, typ
 	return HookActionContinue, nil
 }
 
-func (h *testHook) ProvisionOutput(addr addrs.AbsResourceInstance, typeName string, line string) {
+func (h *testHook) ProvisionOutput(addr addrs.AbsResourceInstance, typeName string, line string, configMarks cty.ValueMarks) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.Calls = append(h.Calls, &testHookCall{"ProvisionOutput", addr.String()})

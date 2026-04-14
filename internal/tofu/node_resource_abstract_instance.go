@@ -2718,15 +2718,6 @@ func (n *NodeAbstractResourceInstance) applyProvisioners(ctx context.Context, ev
 			}
 		}
 
-		// The output function
-		outputFn := func(msg string) {
-			// Given that we return nil below, this will never error
-			_ = evalCtx.Hook(func(h Hook) (HookAction, error) {
-				h.ProvisionOutput(n.Addr, prov.Type, msg)
-				return HookActionContinue, nil
-			})
-		}
-
 		// If our config or connection info contains any marked values, ensure
 		// those are stripped out before sending to the provisioner. Unlike
 		// resources, we have no need to capture the marked paths and reapply
@@ -2758,29 +2749,14 @@ func (n *NodeAbstractResourceInstance) applyProvisioners(ctx context.Context, ev
 			}
 		}
 
-		// Marks on the config might result in leaking sensitive values through
-		// provisioner logging, so we conservatively suppress all output in
-		// this case. This should not apply to connection info values, which
-		// provisioners ought not to be logging anyway.
-		if _, hasSensitive := configMarks[marks.Sensitive]; hasSensitive {
-			outputFn = func(msg string) {
-				// Given that we return nil below, this will never error
-				_ = evalCtx.Hook(func(h Hook) (HookAction, error) {
-					h.ProvisionOutput(n.Addr, prov.Type, "(output suppressed due to sensitive value in config)")
-					return HookActionContinue, nil
-				})
-			}
-		}
-		// In case the configuration of a provisioner is referencing an
-		// ephemeral value, supress the whole output of the provisioner.
-		if _, hasEphemeral := configMarks[marks.Ephemeral]; hasEphemeral {
-			outputFn = func(msg string) {
-				// Given that we return nil below, this will never error
-				_ = evalCtx.Hook(func(h Hook) (HookAction, error) {
-					h.ProvisionOutput(n.Addr, prov.Type, "(output suppressed due to ephemeral value in config)")
-					return HookActionContinue, nil
-				})
-			}
+		// The output function passes the config marks to hooks so they can
+		// inspect them (e.g. sensitive) and decide how to handle output.
+		outputFn := func(msg string) {
+			// Given that we return nil below, this will never error
+			_ = evalCtx.Hook(func(h Hook) (HookAction, error) {
+				h.ProvisionOutput(n.Addr, prov.Type, msg, configMarks)
+				return HookActionContinue, nil
+			})
 		}
 
 		output := CallbackUIOutput{OutputFn: outputFn}

@@ -12745,15 +12745,18 @@ func TestContext2Apply_provisionerSensitive(t *testing.T) {
 		t.Fatalf("provisioner was not called on apply")
 	}
 
-	// Verify output was suppressed
+	// Verify output was received by the hook
 	if !h.ProvisionOutputCalled {
 		t.Fatalf("ProvisionOutput hook not called")
 	}
-	if got, doNotWant := h.ProvisionOutputMessage, "secret"; strings.Contains(got, doNotWant) {
-		t.Errorf("sensitive value %q included in output:\n%s", doNotWant, got)
+
+	// The hook receives the raw message and the config marks.
+	// Suppression is handled by UiHook/jsonHook based on the View's showSensitive setting.
+	if _, hasSensitive := h.ProvisionOutputConfigMarks[marks.Sensitive]; !hasSensitive {
+		t.Errorf("expected config marks to have sensitive mark, but it didn't")
 	}
-	if got, want := h.ProvisionOutputMessage, "output suppressed"; !strings.Contains(got, want) {
-		t.Errorf("expected hook to be called with %q, but was:\n%s", want, got)
+	if got := h.ProvisionOutputMessage; !strings.Contains(got, "Executing:") {
+		t.Errorf("expected provisioner output to contain real message, but got: %q", got)
 	}
 }
 
