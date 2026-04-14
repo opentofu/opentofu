@@ -183,8 +183,8 @@ output "secret_manager_arn" {
 The following configuration uses the module above to read the secret, configure a provider with
 the credentials retrieved and store the same credentials in a write-only attribute `value_wo`
 of the `aws_ssm_parameter` resource.
-Additionally, it adds two `local-exec` provisioners. The execution of the first one will print the `command` content but the
-second one will print `(output suppressed due to ephemeral value in config)`:
+Additionally, it adds two `local-exec` provisioners. Both will print the `command` content, since ephemeral values
+do not suppress provisioner output. If the output needs to be suppressed, the values should be marked as `sensitive`:
 ```hcl
 terraform {
   required_providers {
@@ -230,7 +230,7 @@ resource "aws_ssm_parameter" "store_ephemeral_in_write_only" {
     command = "echo non-ephemeral value: ${aws_ssm_parameter.store_ephemeral_in_write_only.arn}"
   }
 
-  # Because this provisioner uses ephemeral values, its output will be suppressed
+  # This provisioner uses ephemeral values but its output will still be visible
   provisioner "local-exec" {
     when    = create
     command = "echo ephemeral value from module: #${jsonencode(module.secret_management.secrets)}#"
