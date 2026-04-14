@@ -13,6 +13,7 @@ import (
 	"net/http"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -53,9 +54,9 @@ func (cred *oidcAuth) Construct(ctx context.Context, config *Config) (azcore.Tok
 		// a fresh OIDC token as needed, enabling proper token refresh behavior.
 		func(ctx context.Context) (string, error) {
 			client := httpclient.New(ctx)
-			
+
 			if config.OIDCToken == "" && config.OIDCTokenFilePath == "" {
-				return getTokenFromRemote(client, config.OIDCAuthConfig)
+				return getTokenFromRemote(client, config.OIDCAuthConfig, config.CloudConfig)
 			}
 			return consolidateToken(config)
 		},
@@ -69,7 +70,7 @@ type TokenResponse struct {
 	Value string `json:"value"`
 }
 
-func getTokenFromRemote(client *http.Client, config OIDCAuthConfig) (string, error) {
+func getTokenFromRemote(client *http.Client, config OIDCAuthConfig, env cloud.Configuration) (string, error) {
 	// GET from the request URL, using the bearer token
 	req, err := http.NewRequest(http.MethodGet, config.OIDCRequestURL, nil)
 	if err != nil {
@@ -79,9 +80,11 @@ func getTokenFromRemote(client *http.Client, config OIDCAuthConfig) (string, err
 	req.Header.Add("Accept", "application/json; api-version=2.0")
 	req.Header.Add("Content-Type", "application/json")
 
-	query := req.URL.Query()
-	query.Set("audience", "api://AzureADTokenExchange")
-	req.URL.RawQuery = query.Encode()
+	if !req.URL.Query().Has("audience") {
+		query := req.URL.Query()
+		query.Set("audience", requestURLAudience(env))
+		req.URL.RawQuery = query.Encode()
+	}
 
 	// Read the response
 	resp, err := client.Do(req)
@@ -103,6 +106,22 @@ func getTokenFromRemote(client *http.Client, config OIDCAuthConfig) (string, err
 		return "", fmt.Errorf("error parsing json of token response body: %w", err)
 	}
 	return token.Value, nil
+}
+
+// requestURLAudience ensures the audience is configured appropriately for
+// its target cloud authority
+//
+// Reference:
+// https://learn.microsoft.com/en-us/entra/workload-id/workload-identity-federation-config-app-trust-managed-identity
+func requestURLAudience(env cloud.Configuration) string {
+	switch env.ActiveDirectoryAuthorityHost {
+	case "https://login.chinacloudapi.cn/":
+		return "api://AzureADTokenExchangeChina"
+	case "https://login.microsoftonline.us/":
+		return "api://AzureADTokenExchangeUSGov"
+	default:
+		return "api://AzureADTokenExchange"
+	}
 }
 
 func consolidateToken(config *Config) (string, error) {
@@ -145,7 +164,7 @@ func (cred *oidcAuth) Validate(ctx context.Context, config *Config) tfdiags.Diag
 	}
 	if directTokenUnset {
 		// check request URL and token
-		_, err := getTokenFromRemote(httpclient.New(ctx), config.OIDCAuthConfig)
+		_, err := getTokenFromRemote(httpclient.New(ctx), config.OIDCAuthConfig, config.CloudConfig)
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
