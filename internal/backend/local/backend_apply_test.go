@@ -433,7 +433,6 @@ func TestGetEnvAsInt(t *testing.T) {
 	const testEnv = "TEST_GET_ENV_AS_INT"
 
 	t.Run("env not set returns default", func(t *testing.T) {
-		os.Unsetenv(testEnv)
 		got, diags := getEnvAsInt(testEnv, 20)
 		if diags.HasErrors() {
 			t.Fatalf("unexpected error: %s", diags.Err())
