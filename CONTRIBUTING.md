@@ -2,6 +2,10 @@
 
 Welcome and thank you for wanting to contribute!
 
+## AI and Legal Note:
+
+We do not accept AI-generated contributions. We do not accept AI-assisted contributions. We cannot accept contributions that use, are inspired by, or are otherwise derived from Terraform's source code. Please see "A note on copyright" in our [Development Guide](contributing/DEVELOPING.md).
+
 ## Get started
 
 - Have a question? Post it in [GitHub Discussions ➡️](https://github.com/orgs/opentofu/discussions) or on the [OpenTofu Slack ➡️](https://opentofu.org/slack/)!
