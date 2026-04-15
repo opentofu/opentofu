@@ -17,7 +17,7 @@ import (
 	"github.com/armon/circbuf"
 	"github.com/mitchellh/go-linereader"
 	"github.com/zclconf/go-cty/cty"
-	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/provisioners"
@@ -178,10 +178,13 @@ func (p *provisioner) ProvisionResource(ctx context.Context, req provisioners.Pr
 	// has already set TRACEPARENT explicitly in the provisioner's
 	// "environment" block.
 	if !traceparentConfigured {
-		carrier := make(propagation.MapCarrier)
-		propagation.TraceContext{}.Inject(ctx, carrier)
-		for k, v := range carrier {
-			cmdEnv = append(cmdEnv, strings.ToUpper(k)+"="+v)
+		if sc := trace.SpanContextFromContext(ctx); sc.IsValid() {
+			cmdEnv = append(cmdEnv, fmt.Sprintf(
+				"TRACEPARENT=00-%s-%s-%s",
+				sc.TraceID().String(),
+				sc.SpanID().String(),
+				sc.TraceFlags().String(),
+			))
 		}
 	}
 
