@@ -69,7 +69,7 @@ type Hook interface {
 	PostProvisionInstance(addr addrs.AbsResourceInstance, state cty.Value) (HookAction, error)
 	PreProvisionInstanceStep(addr addrs.AbsResourceInstance, typeName string) (HookAction, error)
 	PostProvisionInstanceStep(addr addrs.AbsResourceInstance, typeName string, err error) (HookAction, error)
-	ProvisionOutput(addr addrs.AbsResourceInstance, typeName string, line string)
+	ProvisionOutput(addr addrs.AbsResourceInstance, typeName string, line string, configMarks cty.ValueMarks)
 
 	// PreRefresh and PostRefresh are called before and after a single
 	// resource state is refreshed, respectively.
@@ -178,7 +178,7 @@ func (*NilHook) PostProvisionInstanceStep(addr addrs.AbsResourceInstance, typeNa
 	return HookActionContinue, nil
 }
 
-func (*NilHook) ProvisionOutput(addr addrs.AbsResourceInstance, typeName string, line string) {
+func (*NilHook) ProvisionOutput(addr addrs.AbsResourceInstance, typeName string, line string, configMarks cty.ValueMarks) {
 }
 
 func (*NilHook) PreRefresh(addr addrs.AbsResourceInstance, gen states.Generation, priorState cty.Value) (HookAction, error) {

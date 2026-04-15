@@ -59,7 +59,7 @@ func TestJSONHook_create(t *testing.T) {
 	action, err = hook.PreProvisionInstanceStep(addr, "local-exec")
 	testHookReturnValues(t, action, err)
 
-	hook.ProvisionOutput(addr, "local-exec", `Executing: ["/bin/sh" "-c" "touch /etc/motd"]`)
+	hook.ProvisionOutput(addr, "local-exec", `Executing: ["/bin/sh" "-c" "touch /etc/motd"]`, nil)
 
 	action, err = hook.PostProvisionInstanceStep(addr, "local-exec", nil)
 	testHookReturnValues(t, action, err)

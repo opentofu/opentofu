@@ -85,6 +85,7 @@ type MockHook struct {
 	ProvisionOutputAddr            addrs.AbsResourceInstance
 	ProvisionOutputProvisionerType string
 	ProvisionOutputMessage         string
+	ProvisionOutputConfigMarks     cty.ValueMarks
 
 	PreRefreshCalled     bool
 	PreRefreshAddr       addrs.AbsResourceInstance
@@ -285,7 +286,7 @@ func (h *MockHook) PostProvisionInstanceStep(addr addrs.AbsResourceInstance, typ
 	return h.PostProvisionInstanceStepReturn, h.PostProvisionInstanceStepError
 }
 
-func (h *MockHook) ProvisionOutput(addr addrs.AbsResourceInstance, typeName string, line string) {
+func (h *MockHook) ProvisionOutput(addr addrs.AbsResourceInstance, typeName string, line string, configMarks cty.ValueMarks) {
 	h.Lock()
 	defer h.Unlock()
 
@@ -293,6 +294,7 @@ func (h *MockHook) ProvisionOutput(addr addrs.AbsResourceInstance, typeName stri
 	h.ProvisionOutputAddr = addr
 	h.ProvisionOutputProvisionerType = typeName
 	h.ProvisionOutputMessage = line
+	h.ProvisionOutputConfigMarks = configMarks
 }
 
 func (h *MockHook) PreRefresh(addr addrs.AbsResourceInstance, gen states.Generation, priorState cty.Value) (HookAction, error) {

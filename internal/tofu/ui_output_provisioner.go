@@ -19,6 +19,6 @@ type ProvisionerUIOutput struct {
 
 func (o *ProvisionerUIOutput) Output(msg string) {
 	for _, h := range o.Hooks {
-		h.ProvisionOutput(o.InstanceAddr, o.ProvisionerType, msg)
+		h.ProvisionOutput(o.InstanceAddr, o.ProvisionerType, msg, nil)
 	}
 }
