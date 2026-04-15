@@ -13,6 +13,7 @@ import (
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/getproviders"
+	"github.com/opentofu/opentofu/internal/modsdir"
 )
 
 // VersionCommand is a Command implementation prints the version.
@@ -75,7 +76,20 @@ func (c *VersionCommand) Run(rawArgs []string) int {
 			providerVersions[providerAddr.String()] = lock.Version().String()
 		}
 	}
-	if !view.PrintVersion(c.Version, c.VersionPrerelease, c.Platform.String(), fips140.Enabled(), providerVersions) {
+
+	// We'll also attempt to print out installed module versions. We read
+	// these from the modules manifest file in the data directory. Only
+	// modules sourced from a registry will have a version recorded.
+	moduleVersions := map[string]string{}
+	if manifest, err := modsdir.ReadManifestSnapshotForDir(c.WorkingDir.ModulesDir()); err == nil {
+		for _, record := range manifest {
+			if record.Version != nil && record.SourceAddr != "" {
+				moduleVersions[record.SourceAddr] = record.Version.String()
+			}
+		}
+	}
+
+	if !view.PrintVersion(c.Version, c.VersionPrerelease, c.Platform.String(), fips140.Enabled(), providerVersions, moduleVersions) {
 		return 1
 	}
 	return 0

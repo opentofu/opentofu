@@ -25,7 +25,7 @@ func TestVersionViews(t *testing.T) {
 			viewCall: func(v Version) {
 				v.PrintVersion("0.1.0", "dev", "darwin_arm64", false, map[string]string{
 					"registry.opentofu.org/test/test": "0.2.0",
-				})
+				}, nil)
 			},
 			wantStdout: `OpenTofu v0.1.0-dev
 on darwin_arm64
@@ -38,7 +38,7 @@ on darwin_arm64
 			viewCall: func(v Version) {
 				v.PrintVersion("0.1.0", "dev", "darwin_arm64", true, map[string]string{
 					"registry.opentofu.org/test/test": "0.2.0",
-				})
+				}, nil)
 			},
 			wantStdout: `OpenTofu v0.1.0-dev
 on darwin_arm64
@@ -52,11 +52,27 @@ running in FIPS 140-3 mode (not yet supported)
 			viewCall: func(v Version) {
 				v.PrintVersion("0.1.0", "dev", "darwin_arm64", false, map[string]string{
 					"registry.opentofu.org/test/test": "0.0.0",
-				})
+				}, nil)
 			},
 			wantStdout: `OpenTofu v0.1.0-dev
 on darwin_arm64
 + provider registry.opentofu.org/test/test (unversioned)
+`,
+			wantStderr: "",
+		},
+		"human printVersion with modules": {
+			viewType: arguments.ViewHuman,
+			viewCall: func(v Version) {
+				v.PrintVersion("0.1.0", "dev", "darwin_arm64", false, map[string]string{
+					"registry.opentofu.org/test/test": "0.2.0",
+				}, map[string]string{
+					"registry.opentofu.org/namespace/iam/aws": "1.4.2",
+				})
+			},
+			wantStdout: `OpenTofu v0.1.0-dev
+on darwin_arm64
++ provider registry.opentofu.org/test/test v0.2.0
++ module registry.opentofu.org/namespace/iam/aws v1.4.2
 `,
 			wantStderr: "",
 		},
@@ -65,7 +81,7 @@ on darwin_arm64
 			viewCall: func(v Version) {
 				v.PrintVersion("0.1.0", "dev", "darwin_arm64", false, map[string]string{
 					"registry.opentofu.org/test/test": "0.2.0",
-				})
+				}, nil)
 			},
 			wantStdout: `{
   "terraform_version": "0.1.0-dev",
@@ -82,7 +98,7 @@ on darwin_arm64
 			viewCall: func(v Version) {
 				v.PrintVersion("0.1.0", "dev", "darwin_arm64", true, map[string]string{
 					"registry.opentofu.org/test/test": "0.2.0",
-				})
+				}, nil)
 			},
 			wantStdout: `{
   "terraform_version": "0.1.0-dev",
@@ -100,13 +116,35 @@ on darwin_arm64
 			viewCall: func(v Version) {
 				v.PrintVersion("0.1.0", "dev", "darwin_arm64", false, map[string]string{
 					"registry.opentofu.org/test/test": "0.0.0",
-				})
+				}, nil)
 			},
 			wantStdout: `{
   "terraform_version": "0.1.0-dev",
   "platform": "darwin_arm64",
   "provider_selections": {
     "registry.opentofu.org/test/test": "0.0.0"
+  }
+}
+`,
+			wantStderr: "",
+		},
+		"json printVersion with modules": {
+			viewType: arguments.ViewJSON,
+			viewCall: func(v Version) {
+				v.PrintVersion("0.1.0", "dev", "darwin_arm64", false, map[string]string{
+					"registry.opentofu.org/test/test": "0.2.0",
+				}, map[string]string{
+					"registry.opentofu.org/namespace/iam/aws": "1.4.2",
+				})
+			},
+			wantStdout: `{
+  "terraform_version": "0.1.0-dev",
+  "platform": "darwin_arm64",
+  "provider_selections": {
+    "registry.opentofu.org/test/test": "0.2.0"
+  },
+  "module_selections": {
+    "registry.opentofu.org/namespace/iam/aws": "1.4.2"
   }
 }
 `,

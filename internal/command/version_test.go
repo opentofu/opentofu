@@ -7,8 +7,12 @@ package command
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	version "github.com/hashicorp/go-version"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/mitchellh/cli"
@@ -17,6 +21,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/depsfile"
 	"github.com/opentofu/opentofu/internal/getproviders"
+	"github.com/opentofu/opentofu/internal/modsdir"
 )
 
 func TestVersionCommand_implements(t *testing.T) {
@@ -178,6 +183,140 @@ func TestVersion_json(t *testing.T) {
   "provider_selections": {
     "registry.opentofu.org/hashicorp/test1": "7.8.9-beta.2",
     "registry.opentofu.org/hashicorp/test2": "1.2.3"
+  }
+}
+`)
+	if diff := cmp.Diff(expected, actual); diff != "" {
+		t.Fatalf("wrong output\n%s", diff)
+	}
+}
+
+func TestVersion_withModules(t *testing.T) {
+	td := t.TempDir()
+	t.Chdir(td)
+
+	// Create a modules manifest in the data directory so the version command
+	// can find and display module versions.
+	modsDir := filepath.Join(td, ".terraform", "modules")
+	if err := os.MkdirAll(modsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	manifest := modsdir.Manifest{
+		"vpc": {
+			Key:        "vpc",
+			SourceAddr: "registry.opentofu.org/namespace/vpc/aws",
+			Version:    version.Must(version.NewVersion("3.5.0")),
+			Dir:        ".terraform/modules/vpc",
+		},
+		"": {
+			// The root module entry has no source and no version.
+			Key: "",
+			Dir: ".",
+		},
+		"local_mod": {
+			// A local module with no version.
+			Key:        "local_mod",
+			SourceAddr: "./modules/local",
+			Dir:        "modules/local",
+		},
+	}
+	if err := manifest.WriteSnapshotToDir(modsDir); err != nil {
+		t.Fatal(err)
+	}
+
+	// Also set up a provider lock file.
+	locks := depsfile.NewLocks()
+	locks.SetProvider(
+		addrs.NewDefaultProvider("test1"),
+		getproviders.MustParseVersion("1.0.0"),
+		nil,
+		nil,
+	)
+
+	view, done := testView(t)
+	c := &VersionCommand{
+		Meta: Meta{
+			WorkingDir: workdir.NewDir("."),
+			View:       view,
+		},
+		Version:  "4.5.6",
+		Platform: getproviders.Platform{OS: "linux", Arch: "amd64"},
+	}
+	if err := c.replaceLockedDependencies(context.Background(), locks); err != nil {
+		t.Fatal(err)
+	}
+
+	code := c.Run([]string{})
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", output.Stderr())
+	}
+
+	actual := strings.TrimSpace(output.Stdout())
+	expected := "OpenTofu v4.5.6\non linux_amd64\n+ provider registry.opentofu.org/hashicorp/test1 v1.0.0\n+ module registry.opentofu.org/namespace/vpc/aws v3.5.0"
+	if actual != expected {
+		t.Fatalf("wrong output\ngot:\n%s\nwant:\n%s", actual, expected)
+	}
+}
+
+func TestVersion_jsonWithModules(t *testing.T) {
+	td := t.TempDir()
+	t.Chdir(td)
+
+	// Create a modules manifest in the data directory.
+	modsDir := filepath.Join(td, ".terraform", "modules")
+	if err := os.MkdirAll(modsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	manifest := modsdir.Manifest{
+		"iam": {
+			Key:        "iam",
+			SourceAddr: "registry.opentofu.org/namespace/iam/aws",
+			Version:    version.Must(version.NewVersion("1.4.2")),
+			Dir:        ".terraform/modules/iam",
+		},
+	}
+	if err := manifest.WriteSnapshotToDir(modsDir); err != nil {
+		t.Fatal(err)
+	}
+
+	locks := depsfile.NewLocks()
+	locks.SetProvider(
+		addrs.NewDefaultProvider("test1"),
+		getproviders.MustParseVersion("2.0.0"),
+		nil,
+		nil,
+	)
+
+	view, done := testView(t)
+	c := &VersionCommand{
+		Meta: Meta{
+			WorkingDir: workdir.NewDir("."),
+			View:       view,
+		},
+		Version:  "4.5.6",
+		Platform: getproviders.Platform{OS: "linux", Arch: "amd64"},
+	}
+	if err := c.replaceLockedDependencies(context.Background(), locks); err != nil {
+		t.Fatal(err)
+	}
+
+	code := c.Run([]string{"-json"})
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", output.Stderr())
+	}
+
+	actual := strings.TrimSpace(output.Stdout())
+	expected := strings.TrimSpace(`
+{
+  "terraform_version": "4.5.6",
+  "platform": "linux_amd64",
+  "provider_selections": {
+    "registry.opentofu.org/hashicorp/test1": "2.0.0"
+  },
+  "module_selections": {
+    "registry.opentofu.org/namespace/iam/aws": "1.4.2"
   }
 }
 `)

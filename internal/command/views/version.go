@@ -19,7 +19,7 @@ import (
 type Version interface {
 	Diagnostics(diags tfdiags.Diagnostics)
 	// PrintVersion returns true if the printing has been done successfully and false otherwise.
-	PrintVersion(version string, versionPrerelease string, platform string, fipsEnabled bool, providerVersions map[string]string) bool
+	PrintVersion(version string, versionPrerelease string, platform string, fipsEnabled bool, providerVersions map[string]string, moduleVersions map[string]string) bool
 }
 
 // NewVersion returns an initialized Version implementation for the given ViewType.
@@ -43,14 +43,14 @@ func (v *VersionMixed) Diagnostics(diags tfdiags.Diagnostics) {
 	v.view.Diagnostics(diags)
 }
 
-func (v *VersionMixed) PrintVersion(version string, versionPrerelease string, platform string, fipsEnabled bool, providerVersions map[string]string) bool {
+func (v *VersionMixed) PrintVersion(version string, versionPrerelease string, platform string, fipsEnabled bool, providerVersions map[string]string, moduleVersions map[string]string) bool {
 	if v.json {
-		return v.printJsonVersion(version, versionPrerelease, platform, fipsEnabled, providerVersions)
+		return v.printJsonVersion(version, versionPrerelease, platform, fipsEnabled, providerVersions, moduleVersions)
 	}
-	return v.printHumanVersion(version, versionPrerelease, platform, fipsEnabled, providerVersions)
+	return v.printHumanVersion(version, versionPrerelease, platform, fipsEnabled, providerVersions, moduleVersions)
 }
 
-func (v *VersionMixed) printJsonVersion(version string, versionPrerelease string, platform string, fipsEnabled bool, providerVersions map[string]string) bool {
+func (v *VersionMixed) printJsonVersion(version string, versionPrerelease string, platform string, fipsEnabled bool, providerVersions map[string]string, moduleVersions map[string]string) bool {
 	finalVersion := version
 	if versionPrerelease != "" {
 		finalVersion = fmt.Sprintf("%s-%s", finalVersion, versionPrerelease)
@@ -60,6 +60,7 @@ func (v *VersionMixed) printJsonVersion(version string, versionPrerelease string
 		Version:            finalVersion,
 		Platform:           platform,
 		ProviderSelections: providerVersions,
+		ModuleSelections:   moduleVersions,
 		FIPS140Enabled:     fipsEnabled,
 	}
 	jsonOutput, err := json.MarshalIndent(output, "", "  ")
@@ -71,7 +72,7 @@ func (v *VersionMixed) printJsonVersion(version string, versionPrerelease string
 	return true
 }
 
-func (v *VersionMixed) printHumanVersion(version string, versionPrerelease string, platform string, fipsEnabled bool, providerVersions map[string]string) bool {
+func (v *VersionMixed) printHumanVersion(version string, versionPrerelease string, platform string, fipsEnabled bool, providerVersions map[string]string, moduleVersions map[string]string) bool {
 	formattedVersion := fmt.Sprintf("OpenTofu v%s", version)
 	if versionPrerelease != "" {
 		formattedVersion = fmt.Sprintf("%s-%s", formattedVersion, versionPrerelease)
@@ -95,6 +96,16 @@ func (v *VersionMixed) printHumanVersion(version string, versionPrerelease strin
 			_, _ = v.view.streams.Println(fmt.Sprintf("+ provider %s v%s", provAddr, provVers))
 		}
 	}
+
+	moduleAddrs := slices.Collect(maps.Keys(moduleVersions))
+	sort.Strings(moduleAddrs)
+	for _, modAddr := range moduleAddrs {
+		modVers, ok := moduleVersions[modAddr]
+		if !ok {
+			continue
+		}
+		_, _ = v.view.streams.Println(fmt.Sprintf("+ module %s v%s", modAddr, modVers))
+	}
 	return true
 }
 
@@ -103,4 +114,5 @@ type versionOutput struct {
 	Platform           string            `json:"platform"`
 	FIPS140Enabled     bool              `json:"fips140,omitempty"`
 	ProviderSelections map[string]string `json:"provider_selections"`
+	ModuleSelections   map[string]string `json:"module_selections,omitempty"`
 }
