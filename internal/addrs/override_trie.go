@@ -24,7 +24,8 @@ type OverrideTrie[T any] struct {
 	defaultVal T
 
 	// usesModernAddresses is used in the root trie to track
-	// whether a wildcard was ever used in an override
+	// whether a wildcard literal was ever used for the
+	// index of an override
 	usesModernAddresses bool
 
 	// noKeyEvidenceMap, for each step, provides a list of address ranges used in overrides
