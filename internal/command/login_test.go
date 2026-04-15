@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/opentofu/opentofu/internal/terminal"
@@ -368,4 +369,162 @@ func TestLogin(t *testing.T) {
 			t.Fatalf("missing expected error message\nwant: %s\nfull output:\n%s", want, got)
 		}
 	}, false))
+}
+
+// TestLoginOAuthCallbackRace verifies that no panic, deadlock, or data race
+// occurs when ShutdownCh fires concurrently with the OAuth callback completing.
+//
+// Before the fix, interactiveGetTokenByCode had multiple goroutines calling
+// close(codeCh), which could panic with "close of closed channel". The fix
+// uses server.Shutdown() to wait for all in-flight handler goroutines to
+// finish before closing codeCh, ensuring the main goroutine is the sole owner
+// of the channel's lifetime.
+//
+// Run with the race detector to catch any remaining data races:
+//
+//	go test -race -run TestLoginOAuthCallbackRace ./internal/command/
+func TestLoginOAuthCallbackRace(t *testing.T) {
+	s := httptest.NewServer(oauthserver.Handler)
+	defer s.Close()
+
+	const iterations = 200
+
+	for i := range iterations {
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					t.Errorf("iteration %d: panic in LoginCommand.Run (would crash tofu login): %v", i, r)
+				}
+			}()
+
+			workDir := t.TempDir()
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			loginView, done := testView(t)
+			defer done(t)
+
+			creds := cliconfig.EmptyCredentialsSourceForTests(
+				filepath.Join(workDir, "credentials.tfrc.json"),
+			)
+			svcs := disco.New(
+				disco.WithCredentials(creds),
+				disco.WithHTTPClient(httpclient.New(ctx)),
+			)
+			svcs.ForceHostServices(svchost.Hostname("example.com"), map[string]any{
+				"login.v1": map[string]any{
+					"client": "anything-goes",
+					"authz":  s.URL + "/authz",
+					"token":  s.URL + "/token",
+				},
+			})
+
+			abortCh := make(chan struct{})
+			c := &LoginCommand{
+				Meta: Meta{
+					WorkingDir:      workdir.NewDir("."),
+					View:            loginView,
+					BrowserLauncher: webbrowser.NewMockLauncher(ctx),
+					Services:        svcs,
+					ShutdownCh:      abortCh,
+				},
+			}
+
+			defer testInputMap(t, map[string]string{
+				"approve": "yes",
+			})()
+
+			statusCh := make(chan int, 1)
+			go func() {
+				statusCh <- c.Run([]string{"example.com"})
+			}()
+
+			// Fire ShutdownCh at varying delays to hit different timing windows:
+			// - delay 0: ShutdownCh fires before MockLauncher visits the callback URL
+			// - small delay: races with the HTTP callback handler
+			// - larger delay: fires after OAuth is already complete
+			go func() {
+				time.Sleep(time.Duration(i%5) * time.Millisecond)
+				close(abortCh)
+			}()
+
+			select {
+			case <-statusCh:
+				// exit status 0 (OAuth won) or 1 (ShutdownCh won) are both valid
+			case <-time.After(10 * time.Second):
+				t.Errorf("iteration %d: LoginCommand.Run did not return — possible deadlock", i)
+			}
+		}()
+	}
+}
+
+// TestLoginOAuthCallbackNoPanicOnAbort verifies that sending to ShutdownCh
+// before the OAuth callback arrives causes a clean abort without deadlock.
+func TestLoginOAuthCallbackNoPanicOnAbort(t *testing.T) {
+	s := httptest.NewServer(oauthserver.Handler)
+	defer s.Close()
+
+	for i := range 50 {
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					t.Errorf("iteration %d: unexpected panic: %v", i, r)
+				}
+			}()
+
+			workDir := t.TempDir()
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			loginView, done := testView(t)
+			defer done(t)
+
+			creds := cliconfig.EmptyCredentialsSourceForTests(
+				filepath.Join(workDir, "credentials.tfrc.json"),
+			)
+			svcs := disco.New(
+				disco.WithCredentials(creds),
+				disco.WithHTTPClient(httpclient.New(ctx)),
+			)
+			svcs.ForceHostServices(svchost.Hostname("example.com"), map[string]any{
+				"login.v1": map[string]any{
+					"client": "anything-goes",
+					"authz":  s.URL + "/authz",
+					"token":  s.URL + "/token",
+				},
+			})
+
+			// No MockLauncher: the OAuth callback will never arrive, so ShutdownCh
+			// is the only way to unblock the command.
+			abortCh := make(chan struct{})
+			c := &LoginCommand{
+				Meta: Meta{
+					WorkingDir: workdir.NewDir("."),
+					View:       loginView,
+					Services:   svcs,
+					ShutdownCh: abortCh,
+				},
+			}
+
+			defer testInputMap(t, map[string]string{
+				"approve": "yes",
+			})()
+
+			statusCh := make(chan int, 1)
+			go func() {
+				statusCh <- c.Run([]string{"example.com"})
+			}()
+
+			close(abortCh)
+
+			select {
+			case status := <-statusCh:
+				if status != 1 {
+					t.Errorf("iteration %d: expected exit status 1 after abort, got %d", i, status)
+				}
+			case <-time.After(10 * time.Second):
+				t.Errorf("iteration %d: LoginCommand.Run did not return after ShutdownCh — deadlock", i)
+			}
+		}()
+	}
 }
