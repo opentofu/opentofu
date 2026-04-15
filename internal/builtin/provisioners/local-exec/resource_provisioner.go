@@ -12,10 +12,12 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 
 	"github.com/armon/circbuf"
 	"github.com/mitchellh/go-linereader"
 	"github.com/zclconf/go-cty/cty"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/provisioners"
@@ -97,7 +99,11 @@ func (p *provisioner) ValidateProvisionerConfig(req provisioners.ValidateProvisi
 	return resp
 }
 
-func (p *provisioner) ProvisionResource(_ context.Context, req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
+func (p *provisioner) ProvisionResource(ctx context.Context, req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
+	// We ignore cancellation of this incoming context because provisioners
+	// currently get cancelled by calling the "Stop" method instead.
+	ctx = context.WithoutCancel(ctx)
+
 	commandVal := req.Config.GetAttr("command")
 	if commandVal.IsNull() || commandVal.AsString() == "" {
 		resp.Diagnostics = resp.Diagnostics.Append(tfdiags.WholeContainingBody(
@@ -111,10 +117,12 @@ func (p *provisioner) ProvisionResource(_ context.Context, req provisioners.Prov
 
 	envVal := req.Config.GetAttr("environment")
 	var env []string
+	var traceparentConfigured bool
 
 	if !envVal.IsNull() {
 		for k, v := range envVal.AsValueMap() {
 			if !v.IsNull() {
+				traceparentConfigured = traceparentConfigured || strings.EqualFold(k, "TRACEPARENT")
 				entry := fmt.Sprintf("%s=%s", k, v.AsString())
 				env = append(env, entry)
 			}
@@ -163,6 +171,22 @@ func (p *provisioner) ProvisionResource(_ context.Context, req provisioners.Prov
 	var cmdEnv []string
 	cmdEnv = os.Environ()
 	cmdEnv = append(cmdEnv, env...)
+
+	// If the caller's context carries an active OpenTelemetry trace span,
+	// propagate it to the child process via the TRACEPARENT environment
+	// variable (per the W3C Trace Context specification), unless the user
+	// has already set TRACEPARENT explicitly in the provisioner's
+	// "environment" block.
+	if !traceparentConfigured {
+		if sc := trace.SpanContextFromContext(ctx); sc.IsValid() {
+			cmdEnv = append(cmdEnv, fmt.Sprintf(
+				"TRACEPARENT=00-%s-%s-%s",
+				sc.TraceID().String(),
+				sc.SpanID().String(),
+				sc.TraceFlags().String(),
+			))
+		}
+	}
 
 	// Set up the command
 	cmd := exec.CommandContext(p.ctx, cmdargs[0], cmdargs[1:]...)
