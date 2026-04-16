@@ -47,6 +47,8 @@ type graphWalkOpts struct {
 	MoveResults refactoring.MoveResults
 
 	ProviderFunctionTracker ProviderFunctionMapping
+
+	BackupStateForError func(*states.State)
 }
 
 func (c *Context) walk(ctx context.Context, graph *Graph, operation walkOperation, opts *graphWalkOpts) (*ContextGraphWalker, tfdiags.Diagnostics) {
@@ -58,7 +60,7 @@ func (c *Context) walk(ctx context.Context, graph *Graph, operation walkOperatio
 	watchStop, watchWait := c.watchStop(walker)
 
 	// Walk the real graph, this will block until it completes
-	diags := graph.Walk(ctx, walker)
+	diags := graph.Walk(ctx, walker, opts.BackupStateForError)
 
 	// Close the channel so the watcher stops, and wait for it to return.
 	close(watchStop)
