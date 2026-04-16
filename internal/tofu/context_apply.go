@@ -41,6 +41,8 @@ type ApplyOpts struct {
 	// SuppressForgetErrorsDuringDestroy suppresses the error that would otherwise
 	// be raised when a destroy operation completes with forgotten instances remaining.
 	SuppressForgetErrorsDuringDestroy bool
+
+	BackupStateForError func(*states.State)
 }
 
 // Apply performs the actions described by the given Plan object and returns
@@ -147,6 +149,10 @@ func (c *Context) Apply(ctx context.Context, plan *plans.Plan, config *configs.C
 		PlanTimeTimestamp:       plan.Timestamp,
 		ProviderFunctionTracker: providerFunctionTracker,
 	})
+	if opts != nil {
+		// opts are nil in some tests...
+		opts.BackupStateForError = opts.BackupStateForError
+	}
 	diags = diags.Append(walker.NonFatalDiagnostics)
 	diags = diags.Append(walkDiags)
 
