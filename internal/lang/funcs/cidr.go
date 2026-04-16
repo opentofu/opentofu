@@ -163,13 +163,6 @@ var CidrSubnetsFunc = function.New(&function.Spec{
 			if length < 1 {
 				return cty.UnknownVal(cty.String), function.NewArgErrorf(i+1, "must extend prefix by at least one bit")
 			}
-			// For portability with 32-bit systems where the subnet number
-			// will be a 32-bit int, we only allow extension of 32 bits in
-			// one call even if we're running on a 64-bit machine.
-			// (Of course, this is significant only for IPv6.)
-			if length > 32 {
-				return cty.UnknownVal(cty.String), function.NewArgErrorf(i+1, "may not extend prefix by more than 32 bits")
-			}
 			length += startPrefixLen
 			if length > (len(network.IP) * 8) {
 				protocol := "IP"

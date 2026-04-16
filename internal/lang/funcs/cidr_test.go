@@ -311,6 +311,38 @@ func TestCidrSubnets(t *testing.T) {
 			``,
 		},
 		{
+			cty.StringVal("2001:0db8:0102:0304::/64"),
+			[]cty.Value{
+				cty.NumberIntVal(32),
+				cty.NumberIntVal(56),
+				cty.NumberIntVal(63),
+				cty.NumberIntVal(64),
+			},
+			cty.ListVal([]cty.Value{
+				cty.StringVal("2001:db8:102:304::/96"),
+				cty.StringVal("2001:db8:102:304:0:1::/120"),
+				cty.StringVal("2001:db8:102:304:0:1:0:100/127"),
+				cty.StringVal("2001:db8:102:304:0:1:0:102/128"),
+			}),
+			``,
+		},
+		{
+			cty.StringVal("2001:db8:1100::/56"),
+			[]cty.Value{
+				cty.NumberIntVal(8),
+				cty.NumberIntVal(8),
+				cty.NumberIntVal(8),
+				cty.NumberIntVal(8),
+			},
+			cty.ListVal([]cty.Value{
+				cty.StringVal("2001:db8:1100::/64"),
+				cty.StringVal("2001:db8:1100:1::/64"),
+				cty.StringVal("2001:db8:1100:2::/64"),
+				cty.StringVal("2001:db8:1100:3::/64"),
+			}),
+			``,
+		},
+		{
 			// We inadvertently inherited a pre-Go1.17 standard library quirk
 			// if parsing zero-prefix parts as decimal rather than octal.
 			// Go 1.17 resolved that quirk by making zero-prefix invalid, but
@@ -337,6 +369,22 @@ func TestCidrSubnets(t *testing.T) {
 			`would extend prefix to 33 bits, which is too long for an IPv4 address`,
 		},
 		{
+			cty.StringVal("2001:db8:ffff::/127"),
+			[]cty.Value{
+				cty.NumberIntVal(2),
+			},
+			cty.UnknownVal(cty.List(cty.String)),
+			`would extend prefix to 129 bits, which is too long for an IPv6 address`,
+		},
+		{
+			cty.StringVal("::/1"),
+			[]cty.Value{
+				cty.NumberIntVal(129),
+			},
+			cty.UnknownVal(cty.List(cty.String)),
+			`would extend prefix to 130 bits, which is too long for an IPv6 address`,
+		},
+		{
 			cty.StringVal("10.0.0.0/8"),
 			[]cty.Value{
 				cty.NumberIntVal(1),
@@ -345,6 +393,18 @@ func TestCidrSubnets(t *testing.T) {
 			},
 			cty.UnknownVal(cty.List(cty.String)),
 			`not enough remaining address space for a subnet with a prefix of 9 bits after 10.128.0.0/9`,
+		},
+		{
+			cty.StringVal("2001:db8:1100::/125"),
+			[]cty.Value{
+				cty.NumberIntVal(2),
+				cty.NumberIntVal(2),
+				cty.NumberIntVal(2),
+				cty.NumberIntVal(2),
+				cty.NumberIntVal(2),
+			},
+			cty.UnknownVal(cty.List(cty.String)),
+			`not enough remaining address space for a subnet with a prefix of 127 bits after 2001:db8:1100::6/127`,
 		},
 		{
 			cty.StringVal("10.0.0.0/8"),
@@ -363,15 +423,6 @@ func TestCidrSubnets(t *testing.T) {
 			},
 			cty.UnknownVal(cty.List(cty.String)),
 			`must extend prefix by at least one bit`,
-		},
-		{
-			cty.StringVal("fe80::/48"),
-			[]cty.Value{
-				cty.NumberIntVal(1),
-				cty.NumberIntVal(33),
-			},
-			cty.UnknownVal(cty.List(cty.String)),
-			`may not extend prefix by more than 32 bits`,
 		},
 	}
 
