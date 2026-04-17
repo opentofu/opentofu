@@ -13,6 +13,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs/symlib"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty-debug/ctydebug"
@@ -186,6 +187,7 @@ func TestStaticScope_GetInputVariable(t *testing.T) {
 			"irrelevant",
 		)
 		mod, diags := p.LoadConfigDir(".")
+		diags = diags.Extend(mod.WithSymbolLibrary(symlib.EmptyLibrary))
 		diags = diags.Extend(mod.WithStaticCall(call))
 		assertNoDiagnostics(t, diags)
 
@@ -237,6 +239,7 @@ func TestStaticScope_GetInputVariable(t *testing.T) {
 			"irrelevant",
 		)
 		mod, diags := p.LoadConfigDir(".")
+		diags = diags.Extend(mod.WithSymbolLibrary(symlib.EmptyLibrary))
 		diags = diags.Extend(mod.WithStaticCall(call))
 		assertNoDiagnostics(t, diags)
 
@@ -276,6 +279,7 @@ func TestStaticScope_GetInputVariable(t *testing.T) {
 			"irrelevant",
 		)
 		mod, diags := p.LoadConfigDir(".")
+		diags = diags.Extend(mod.WithSymbolLibrary(symlib.EmptyLibrary))
 		diags = diags.Extend(mod.WithStaticCall(call))
 		assertNoDiagnostics(t, diags)
 
@@ -319,6 +323,7 @@ func TestStaticScope_GetLocalValue(t *testing.T) {
 			"irrelevant",
 		)
 		mod, diags := p.LoadConfigDir(".")
+		diags = diags.Extend(mod.WithSymbolLibrary(symlib.EmptyLibrary))
 		diags = diags.Extend(mod.WithStaticCall(call))
 		assertNoDiagnostics(t, diags)
 
@@ -351,6 +356,7 @@ func TestStaticScope_GetLocalValue(t *testing.T) {
 			"irrelevant",
 		)
 		mod, diags := p.LoadConfigDir(".")
+		diags = diags.Extend(mod.WithSymbolLibrary(symlib.EmptyLibrary))
 		diags = diags.Extend(mod.WithStaticCall(call))
 		assertNoDiagnostics(t, diags)
 

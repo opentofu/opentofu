@@ -80,7 +80,7 @@ func TestTypeConversionConstraint(t *testing.T) {
 			if hclDiags.HasErrors() {
 				t.Fatal(hclDiags.Error())
 			}
-			constraint, diags := ParseTypeConversionConstraint(expr)
+			constraint, diags := ParseTypeConversionConstraint(expr, nil)
 			if diags.HasErrors() {
 				// We're intentionally not testing parsing errors here because
 				// our current implementation is just a thing wrapper around
@@ -162,7 +162,7 @@ func TestConvertFunc(t *testing.T) {
 		},
 	}
 
-	convertFunc := makeConvertFunc()
+	convertFunc := makeConvertFunc(nil)
 	hclCtx := &hcl.EvalContext{
 		Variables: map[string]cty.Value{
 			"unknown": cty.DynamicVal,

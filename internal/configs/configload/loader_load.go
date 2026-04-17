@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 
 	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/configs/symlib"
 	"github.com/opentofu/opentofu/internal/modsdir"
 )
 
@@ -46,6 +47,8 @@ func (l *loader) loadConfig(ctx context.Context, rootMod *configs.Module, call c
 			Module: rootMod,
 		}
 		if rootMod != nil {
+			// This is a best effort hack for this error pass.
+			_ = rootMod.WithSymbolLibrary(symlib.EmptyLibrary)
 			diags = diags.Extend(rootMod.WithStaticCall(call))
 		}
 

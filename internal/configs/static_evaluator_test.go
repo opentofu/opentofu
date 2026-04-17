@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/configs/symlib"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -96,6 +97,7 @@ resource "foo" "bar" {}
 
 	t.Run("Empty Eval", func(t *testing.T) {
 		mod, _ := NewModule([]*File{file}, nil, "dir", SelectiveLoadAll)
+		_ = mod.WithSymbolLibrary(symlib.EmptyLibrary)
 		_ = mod.WithStaticCall(RootModuleCallForTesting())
 		emptyEval := StaticEvaluator{}
 
@@ -120,6 +122,7 @@ resource "foo" "bar" {}
 
 	t.Run("Simple static cases", func(t *testing.T) {
 		mod, _ := NewModule([]*File{file}, nil, "dir", SelectiveLoadAll)
+		_ = mod.WithSymbolLibrary(symlib.EmptyLibrary)
 		_ = mod.WithStaticCall(RootModuleCallForTesting())
 		eval := NewStaticEvaluator(mod, RootModuleCallForTesting())
 
@@ -158,6 +161,7 @@ resource "foo" "bar" {}
 			return v.Default, nil
 		}, "<testing>", "")
 		mod, _ := NewModule([]*File{file}, nil, "dir", SelectiveLoadAll)
+		_ = mod.WithSymbolLibrary(symlib.EmptyLibrary)
 		_ = mod.WithStaticCall(call)
 		eval := NewStaticEvaluator(mod, call)
 
@@ -185,6 +189,7 @@ resource "foo" "bar" {}
 
 	t.Run("Bad References", func(t *testing.T) {
 		mod, _ := NewModule([]*File{file}, nil, "dir", SelectiveLoadAll)
+		_ = mod.WithSymbolLibrary(symlib.EmptyLibrary)
 		_ = mod.WithStaticCall(RootModuleCallForTesting())
 		eval := NewStaticEvaluator(mod, RootModuleCallForTesting())
 
@@ -206,6 +211,7 @@ resource "foo" "bar" {}
 
 	t.Run("Circular References", func(t *testing.T) {
 		mod, _ := NewModule([]*File{file}, nil, "dir", SelectiveLoadAll)
+		_ = mod.WithSymbolLibrary(symlib.EmptyLibrary)
 		_ = mod.WithStaticCall(RootModuleCallForTesting())
 		eval := NewStaticEvaluator(mod, RootModuleCallForTesting())
 
@@ -244,6 +250,7 @@ resource "foo" "bar" {}
 			}}
 		}, "<testing>", "")
 		mod, _ := NewModule([]*File{file}, nil, "dir", SelectiveLoadAll)
+		_ = mod.WithSymbolLibrary(symlib.EmptyLibrary)
 		_ = mod.WithStaticCall(call)
 		eval := NewStaticEvaluator(mod, call)
 
@@ -259,6 +266,7 @@ resource "foo" "bar" {}
 
 	t.Run("Missing References", func(t *testing.T) {
 		mod, _ := NewModule([]*File{file}, nil, "dir", SelectiveLoadAll)
+		_ = mod.WithSymbolLibrary(symlib.EmptyLibrary)
 		_ = mod.WithStaticCall(RootModuleCallForTesting())
 		eval := NewStaticEvaluator(mod, RootModuleCallForTesting())
 
@@ -281,6 +289,7 @@ resource "foo" "bar" {}
 	t.Run("Workspace", func(t *testing.T) {
 		call := NewStaticModuleCall(nil, hcl.Range{}, nil, "<testing>", "my-workspace")
 		mod, _ := NewModule([]*File{file}, nil, "dir", SelectiveLoadAll)
+		_ = mod.WithSymbolLibrary(symlib.EmptyLibrary)
 		_ = mod.WithStaticCall(call)
 		eval := NewStaticEvaluator(mod, call)
 
@@ -296,6 +305,7 @@ resource "foo" "bar" {}
 	t.Run("Functions", func(t *testing.T) {
 		mod, _ := NewModule([]*File{file}, nil, "dir", SelectiveLoadAll)
 		_ = mod.WithStaticCall(RootModuleCallForTesting())
+		_ = mod.WithSymbolLibrary(symlib.EmptyLibrary)
 		eval := NewStaticEvaluator(mod, RootModuleCallForTesting())
 
 		value, diags := eval.Evaluate(t.Context(), mod.Locals["func"].Expr, dummyIdentifier)
@@ -321,6 +331,7 @@ func TestStaticEvaluator_DecodeExpression(t *testing.T) {
 		t.Fatal(fileDiags)
 	}
 	mod, _ := NewModule([]*File{file}, nil, "dir", SelectiveLoadAll)
+	_ = mod.WithSymbolLibrary(symlib.EmptyLibrary)
 	_ = mod.WithStaticCall(RootModuleCallForTesting())
 	mod.Locals["my_ephemeral_local"] = &Local{
 		Name:      "my_ephemeral_local",
@@ -454,6 +465,7 @@ terraform {
 				},
 			}
 			mod, _ := NewModule([]*File{file}, nil, "dir", SelectiveLoadAll)
+			_ = mod.WithSymbolLibrary(symlib.EmptyLibrary)
 			_ = mod.WithStaticCall(modCall)
 
 			_, diags := mod.Backend.Hash(t.Context(), schema)

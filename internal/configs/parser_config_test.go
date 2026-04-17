@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/opentofu/opentofu/internal/configs/symlib"
 
 	"github.com/hashicorp/hcl/v2"
 )
@@ -79,7 +80,13 @@ func TestParserLoadConfigFileFailure(t *testing.T) {
 				name: string(src),
 			})
 
-			_, diags := parser.LoadConfigFile(name)
+			file, diags := parser.LoadConfigFile(name)
+			// TODO many of these errors are now deferred until module loading
+			// This is a structural issue which existed before static evaluation, but has been made worse by it
+			// See https://github.com/opentofu/opentofu/issues/1467 for more details
+			for _, vc := range file.Variables {
+				diags = diags.Extend(vc.withLibrary(symlib.EmptyLibrary))
+			}
 			if !diags.HasErrors() {
 				t.Errorf("LoadConfigFile succeeded; want errors")
 			}
@@ -185,7 +192,14 @@ func TestParserLoadConfigFileFailureMessages(t *testing.T) {
 				test.Filename: string(src),
 			})
 
-			_, diags := parser.LoadConfigFile(test.Filename)
+			file, diags := parser.LoadConfigFile(test.Filename)
+			// TODO many of these errors are now deferred until module loading
+			// This is a structural issue which existed before static evaluation, but has been made worse by it
+			// See https://github.com/opentofu/opentofu/issues/1467 for more details
+			for _, vc := range file.Variables {
+				diags = diags.Extend(vc.withLibrary(symlib.EmptyLibrary))
+			}
+
 			if len(diags) != 1 {
 				t.Errorf("Wrong number of diagnostics %d; want 1", len(diags))
 				for _, diag := range diags {
@@ -248,12 +262,19 @@ func TestParserLoadConfigFileWarning(t *testing.T) {
 				name: string(src),
 			})
 
-			_, diags := parser.LoadConfigFile(name)
+			file, diags := parser.LoadConfigFile(name)
 			if diags.HasErrors() {
 				t.Errorf("unexpected error diagnostics")
 				for _, diag := range diags {
 					t.Logf("- %s", diag)
 				}
+			}
+
+			// TODO many of these errors are now deferred until module loading
+			// This is a structural issue which existed before static evaluation, but has been made worse by it
+			// See https://github.com/opentofu/opentofu/issues/1467 for more details
+			for _, vc := range file.Variables {
+				diags = diags.Extend(vc.withLibrary(symlib.EmptyLibrary))
 			}
 
 			gotWarnings := make(map[int]string)
@@ -317,6 +338,9 @@ func TestParserLoadConfigFileError(t *testing.T) {
 			// TODO many of these errors are now deferred until module loading
 			// This is a structural issue which existed before static evaluation, but has been made worse by it
 			// See https://github.com/opentofu/opentofu/issues/1467 for more details
+			for _, vc := range file.Variables {
+				diags = diags.Extend(vc.withLibrary(symlib.EmptyLibrary))
+			}
 			eval := NewStaticEvaluator(nil, RootModuleCallForTesting())
 			for _, mc := range file.ModuleCalls {
 				mDiags := mc.decodeStaticFields(t.Context(), eval)

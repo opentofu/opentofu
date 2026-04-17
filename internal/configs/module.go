@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs/symlib"
 	"github.com/opentofu/opentofu/internal/encryption/config"
 	"github.com/opentofu/opentofu/internal/experiments"
 )
@@ -54,6 +55,10 @@ type Module struct {
 	Removed []*Removed
 
 	Checks map[string]*Check
+
+	SymbolCalls map[string]*symlib.SymbolCall
+	// Compiled into
+	SymbolTable symlib.Table
 
 	Tests map[string]*TestFile
 
@@ -109,6 +114,8 @@ type File struct {
 	Moved   []*Moved
 	Import  []*Import
 	Removed []*Removed
+
+	SymbolCalls []*symlib.SymbolCall
 
 	Checks []*Check
 }
@@ -167,6 +174,7 @@ func NewModuleWithTests(primaryFiles, overrideFiles []*File, testFiles map[strin
 // module will probably not be semantically valid.
 func NewModule(primaryFiles, overrideFiles []*File, sourceDir string, load SelectiveLoader) (*Module, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
+
 	mod := &Module{
 		ProviderConfigs:    map[string]*Provider{},
 		ProviderLocalNames: map[addrs.Provider]string{},
@@ -174,6 +182,7 @@ func NewModule(primaryFiles, overrideFiles []*File, sourceDir string, load Selec
 		Locals:             map[string]*Local{},
 		Outputs:            map[string]*Output{},
 		ModuleCalls:        map[string]*ModuleCall{},
+		SymbolCalls:        map[string]*symlib.SymbolCall{},
 		ManagedResources:   map[string]*Resource{},
 		DataResources:      map[string]*Resource{},
 		EphemeralResources: map[string]*Resource{},
@@ -233,6 +242,18 @@ func NewModule(primaryFiles, overrideFiles []*File, sourceDir string, load Selec
 	}
 
 	return mod, diags
+}
+
+func (m *Module) WithSymbolLibrary(l symlib.Table) hcl.Diagnostics {
+	var diags hcl.Diagnostics
+
+	m.SymbolTable = l
+
+	for _, v := range m.Variables {
+		diags = diags.Extend(v.withLibrary(l))
+	}
+
+	return diags
 }
 
 func (m *Module) WithStaticCall(call StaticModuleCall) hcl.Diagnostics {
@@ -436,6 +457,20 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 			})
 		}
 		m.ModuleCalls[mc.Name] = mc
+	}
+
+	for _, mc := range file.SymbolCalls {
+		// This is a *HACK* to merge the symbol call into the library
+		// This is because we haven't decided on a real approach
+		if existing, exists := m.SymbolCalls[mc.Name]; exists {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Duplicate symbols",
+				Detail:   fmt.Sprintf("A symbols named %q was already defined at %s. Module calls must have unique names within a module.", existing.Name, existing.DeclRange),
+				Subject:  &mc.DeclRange,
+			})
+		}
+		m.SymbolCalls[mc.Name] = mc
 	}
 
 	for _, r := range file.ManagedResources {

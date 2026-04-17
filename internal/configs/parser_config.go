@@ -8,6 +8,7 @@ package configs
 import (
 	"github.com/hashicorp/hcl/v2"
 
+	"github.com/opentofu/opentofu/internal/configs/symlib"
 	"github.com/opentofu/opentofu/internal/encryption/config"
 	"github.com/opentofu/opentofu/version"
 )
@@ -53,7 +54,21 @@ func (p *Parser) LoadTestFile(path string) (*TestFile, hcl.Diagnostics) {
 	return test, diags
 }
 
+func (p *Parser) loadSymbolFile(path string) (*symlib.SymbolFile, hcl.Diagnostics) {
+	body, diags := p.LoadHCLFile(path)
+	if body == nil {
+		return nil, diags
+	}
+	ret, moreDiags := symlib.LoadSymbolFile(body)
+	diags = append(diags, moreDiags...)
+	return ret, diags
+}
+
 func (p *Parser) loadConfigFile(path string, override bool) (*File, hcl.Diagnostics) {
+
+	if symbolFileExt(path) != "" {
+		panic("Symbol")
+	}
 	body, diags := p.LoadHCLFile(path)
 	if body == nil {
 		return nil, diags
@@ -235,7 +250,12 @@ func loadConfigFileBody(body hcl.Body, _ string, override bool) (*File, hcl.Diag
 			if cfg != nil {
 				file.Removed = append(file.Removed, cfg)
 			}
-
+		case "symbols":
+			cfg, cfgDiags := symlib.DecodeSymbolsBlock(block)
+			diags = append(diags, cfgDiags...)
+			if cfg != nil {
+				file.SymbolCalls = append(file.SymbolCalls, cfg)
+			}
 		default:
 			// Should never happen because the above cases should be exhaustive
 			// for all block type names in our schema.
@@ -304,6 +324,10 @@ var configFileSchema = &hcl.BodySchema{
 		},
 		{
 			Type: "removed",
+		},
+		{
+			Type:       "symbols",
+			LabelNames: []string{"name"},
 		},
 		{
 			Type: "terraform",

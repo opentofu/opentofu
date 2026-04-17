@@ -24,6 +24,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/configs/symlib"
 	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/initwd"
 	"github.com/opentofu/opentofu/internal/registry"
@@ -86,6 +87,7 @@ func (m *Meta) loadSingleModule(ctx context.Context, dir string, load configs.Se
 
 	module, hclDiags := m.configLoader().LoadConfigDirSelective(dir, load)
 	diags = diags.Append(hclDiags)
+	_ = module.WithSymbolLibrary(symlib.EmptyLibrary) // TODO we need to do a multi-phase installation.  Symbols may not be used in static eval (yet)
 	diags = diags.Append(module.WithStaticCall(call))
 	return module, diags
 }
@@ -170,6 +172,7 @@ func (m *Meta) loadSingleModuleWithTests(ctx context.Context, dir string, testDi
 
 	module, hclDiags := m.configLoader().LoadConfigDirWithTests(dir, testDir)
 	diags = diags.Append(hclDiags)
+	_ = module.WithSymbolLibrary(symlib.EmptyLibrary) // TODO we need to do a multi-phase installation.  Symbols may not be used in static eval (yet)
 	diags = diags.Append(module.WithStaticCall(call))
 	return module, diags
 }

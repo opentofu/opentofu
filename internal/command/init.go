@@ -377,7 +377,7 @@ func (c *InitCommand) getModules(ctx context.Context, path, testsDir string, ear
 		}
 	}
 
-	if len(earlyRoot.ModuleCalls) == 0 && !testModules {
+	if len(earlyRoot.ModuleCalls) == 0 && len(earlyRoot.SymbolCalls) == 0 && !testModules {
 		// Nothing to do
 		return false, false, nil
 	}

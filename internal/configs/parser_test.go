@@ -11,10 +11,13 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"reflect"
 	"testing"
 
-	"github.com/davecgh/go-spew/spew"
+	"github.com/apparentlymart/go-versions/versions"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/opentofu/opentofu/internal/configs/symlib"
+	"github.com/zclconf/go-cty/cty"
 
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/hcl/v2"
@@ -60,6 +63,7 @@ func testModuleConfigFromFile(ctx context.Context, filename string) (*Config, hc
 func testModuleFromDir(path string) (*Module, hcl.Diagnostics) {
 	parser := NewParser(nil)
 	mod, diags := parser.LoadConfigDir(path)
+	diags = diags.Extend(mod.WithSymbolLibrary(symlib.EmptyLibrary))
 	diags = diags.Extend(mod.WithStaticCall(RootModuleCallForTesting()))
 	return mod, diags
 }
@@ -199,8 +203,12 @@ func assertExactDiagnostics(t *testing.T, diags hcl.Diagnostics, want []string) 
 
 func assertResultDeepEqual(t *testing.T, got, want interface{}) bool {
 	t.Helper()
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("wrong result\ngot: %swant: %s", spew.Sdump(got), spew.Sdump(want))
+	cmpOpts := cmp.Options{
+		cmpopts.IgnoreUnexported(ProviderConfigRef{}),
+		cmpopts.EquateComparable(cty.Type{}, cty.Value{}, versions.Set{}, hcl.TraverseRoot{}, hcl.TraverseAttr{}),
+	}
+	if diff := cmp.Diff(want, got, cmpOpts...); diff != "" {
+		t.Errorf("wrong result: %s", diff)
 		return true
 	}
 	return false

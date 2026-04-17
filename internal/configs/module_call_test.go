@@ -21,6 +21,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs/symlib"
 )
 
 func TestLoadModuleCall(t *testing.T) {
@@ -427,6 +428,7 @@ variable "path" {
 			}
 			mod, diags := NewModule(tFiles, nil, "testdata", SelectiveLoadAll)
 			if mod != nil {
+				diags = diags.Extend(mod.WithSymbolLibrary(symlib.EmptyLibrary))
 				diags = diags.Extend(mod.WithStaticCall(call))
 			}
 			if tc.err == "" {

@@ -58,12 +58,11 @@ func (v *Variable) merge(ov *Variable) hcl.Diagnostics {
 		v.EphemeralSet = ov.EphemeralSet
 		v.Ephemeral = ov.Ephemeral
 	}
-	if ov.Default != cty.NilVal {
-		v.Default = ov.Default
+	if ov.DefaultAttr != nil {
+		v.DefaultAttr = ov.DefaultAttr
 	}
-	if ov.Type != cty.NilType {
-		v.Type = ov.Type
-		v.ConstraintType = ov.ConstraintType
+	if ov.TypeExpr != nil {
+		v.TypeExpr = ov.TypeExpr
 	}
 	if ov.ParsingMode != 0 {
 		v.ParsingMode = ov.ParsingMode
