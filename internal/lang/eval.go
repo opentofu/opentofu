@@ -349,7 +349,7 @@ func (s *Scope) evalContext(ctx context.Context, parent *hcl.EvalContext, refs [
 	maps.Copy(hclCtx.Functions, s.Functions())
 
 	for n, fn := range s.ModuleFunctions {
-		hclCtx.Functions["module::"+n] = fn
+		hclCtx.Functions[n] = fn
 	}
 
 	// Easy path for common case where there are no references at all.

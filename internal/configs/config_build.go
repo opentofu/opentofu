@@ -145,6 +145,39 @@ func buildChildModules(ctx context.Context, parent *Config, walker ModuleWalker)
 	var diags hcl.Diagnostics
 	ret := map[string]*Config{}
 
+	// Hack in library loading
+	// This is not a valid approach for static eval (without much deeper changes)
+
+	for _, call := range parent.Module.LibraryCalls {
+		path := make([]string, len(parent.Path)+1)
+		copy(path, parent.Path)
+		path[len(path)-1] = call.Name
+
+		req := ModuleRequest{
+			Name:              call.Name,
+			Path:              path,
+			SourceAddr:        call.SourceAddr,
+			VersionConstraint: call.Version,
+			Parent:            parent,
+			CallRange:         call.DeclRange,
+			Call:              NewStaticModuleCall(path, call.DeclRange, call.Variables, parent.Root.Module.SourceDir, call.Workspace),
+		}
+		if call.Source != nil {
+			// Invalid modules sometimes have a nil source field which is handled through loadModule below
+			req.SourceAddrRange = call.Source.Range()
+		}
+		// This loads a full module, whereas we just care about the library data
+		child, modDiags := loadModule(ctx, parent.Root, &req, walker)
+		diags = append(diags, modDiags...)
+		if child == nil {
+			// This means an error occurred, there should be diagnostics within
+			// modDiags for this.
+			continue
+		}
+
+		parent.Module.Libraries[call.Name] = child.Module.Library
+	}
+
 	calls := parent.Module.ModuleCalls
 
 	// We'll sort the calls by their local names so that they'll appear in a

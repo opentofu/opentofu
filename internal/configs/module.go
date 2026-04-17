@@ -43,7 +43,8 @@ type Module struct {
 	Locals    map[string]*Local
 	Outputs   map[string]*Output
 
-	ModuleCalls map[string]*ModuleCall
+	ModuleCalls  map[string]*ModuleCall
+	LibraryCalls map[string]*LibraryCall
 
 	ManagedResources   map[string]*Resource
 	DataResources      map[string]*Resource
@@ -55,7 +56,8 @@ type Module struct {
 
 	Checks map[string]*Check
 
-	Functions map[string]*Function
+	Library   *Library
+	Libraries map[string]*Library
 
 	Tests map[string]*TestFile
 
@@ -102,7 +104,8 @@ type File struct {
 	Locals    []*Local
 	Outputs   []*Output
 
-	ModuleCalls []*ModuleCall
+	ModuleCalls  []*ModuleCall
+	LibraryCalls []*LibraryCall
 
 	ManagedResources   []*Resource
 	DataResources      []*Resource
@@ -153,8 +156,8 @@ func (s SelectiveLoader) filter(input []*File) []*File {
 
 // NewModuleWithTests matches NewModule except it will also load in the provided
 // test files.
-func NewModuleWithTests(primaryFiles, overrideFiles []*File, testFiles map[string]*TestFile, call StaticModuleCall, sourceDir string) (*Module, hcl.Diagnostics) {
-	mod, diags := NewModule(primaryFiles, overrideFiles, call, sourceDir, SelectiveLoadAll)
+func NewModuleWithTests(primaryFiles, overrideFiles []*File, testFiles map[string]*TestFile, library *Library, call StaticModuleCall, sourceDir string) (*Module, hcl.Diagnostics) {
+	mod, diags := NewModule(primaryFiles, overrideFiles, library, call, sourceDir, SelectiveLoadAll)
 	if mod != nil {
 		mod.Tests = testFiles
 	}
@@ -169,7 +172,7 @@ func NewModuleWithTests(primaryFiles, overrideFiles []*File, testFiles map[strin
 // internal/lang/eval, which wants to handle the situations where we currently
 // rely on early eval in a different way. Outside of that experiment we should
 // keep using [NewModule] in its entirety for now.
-func NewModuleUneval(primaryFiles, overrideFiles []*File, sourceDir string, load SelectiveLoader) (*Module, hcl.Diagnostics) {
+func NewModuleUneval(primaryFiles, overrideFiles []*File, library *Library, sourceDir string, load SelectiveLoader) (*Module, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	mod := &Module{
 		ProviderConfigs:    map[string]*Provider{},
@@ -178,11 +181,13 @@ func NewModuleUneval(primaryFiles, overrideFiles []*File, sourceDir string, load
 		Locals:             map[string]*Local{},
 		Outputs:            map[string]*Output{},
 		ModuleCalls:        map[string]*ModuleCall{},
+		LibraryCalls:       map[string]*LibraryCall{},
+		Libraries:          map[string]*Library{},
+		Library:            library,
 		ManagedResources:   map[string]*Resource{},
 		DataResources:      map[string]*Resource{},
 		EphemeralResources: map[string]*Resource{},
 		Checks:             map[string]*Check{},
-		Functions:          map[string]*Function{},
 		ProviderMetas:      map[addrs.Provider]*ProviderMeta{},
 		Tests:              map[string]*TestFile{},
 		SourceDir:          sourceDir,
@@ -248,8 +253,8 @@ func NewModuleUneval(primaryFiles, overrideFiles []*File, sourceDir string, load
 // will be incomplete and error diagnostics will be returned. Careful static
 // analysis of the returned Module is still possible in this case, but the
 // module will probably not be semantically valid.
-func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall, sourceDir string, load SelectiveLoader) (*Module, hcl.Diagnostics) {
-	mod, diags := NewModuleUneval(primaryFiles, overrideFiles, sourceDir, load)
+func NewModule(primaryFiles, overrideFiles []*File, library *Library, call StaticModuleCall, sourceDir string, load SelectiveLoader) (*Module, hcl.Diagnostics) {
+	mod, diags := NewModuleUneval(primaryFiles, overrideFiles, library, sourceDir, load)
 
 	// Static evaluation to build a StaticContext now that module has all relevant Locals / Variables
 	mod.StaticEvaluator = NewStaticEvaluator(mod, call)
@@ -435,18 +440,6 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 		m.Outputs[o.Name] = o
 	}
 
-	for _, fn := range file.Functions {
-		if existing, exists := m.Functions[fn.Name]; exists {
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Duplicate function definition",
-				Detail:   fmt.Sprintf("An function named %q was already defined at %s. Function names must be unique within a module.", existing.Name, existing.DeclRange),
-				Subject:  &fn.DeclRange,
-			})
-		}
-		m.Functions[fn.Name] = fn
-	}
-
 	for _, mc := range file.ModuleCalls {
 		if existing, exists := m.ModuleCalls[mc.Name]; exists {
 			diags = append(diags, &hcl.Diagnostic{
@@ -457,6 +450,18 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 			})
 		}
 		m.ModuleCalls[mc.Name] = mc
+	}
+
+	for _, mc := range file.LibraryCalls {
+		if existing, exists := m.LibraryCalls[mc.Name]; exists {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Duplicate library call",
+				Detail:   fmt.Sprintf("A library call named %q was already defined at %s. Library calls must have unique names within a library.", existing.Name, existing.DeclRange),
+				Subject:  &mc.DeclRange,
+			})
+		}
+		m.LibraryCalls[mc.Name] = mc
 	}
 
 	for _, r := range file.ManagedResources {
@@ -756,6 +761,21 @@ func (m *Module) mergeFile(file *File) hcl.Diagnostics {
 				Severity: hcl.DiagError,
 				Summary:  "Missing module call to override",
 				Detail:   fmt.Sprintf("There is no module call named %q. An override file can only override a module call that was defined in a primary configuration file.", mc.Name),
+				Subject:  &mc.DeclRange,
+			})
+			continue
+		}
+		mergeDiags := existing.merge(mc)
+		diags = append(diags, mergeDiags...)
+	}
+
+	for _, mc := range file.LibraryCalls {
+		existing, exists := m.LibraryCalls[mc.Name]
+		if !exists {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Missing library call to override",
+				Detail:   fmt.Sprintf("There is no library call named %q. An override file can only override a library call that was defined in a primary configuration file.", mc.Name),
 				Subject:  &mc.DeclRange,
 			})
 			continue

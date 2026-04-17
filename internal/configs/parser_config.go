@@ -54,6 +54,10 @@ func (p *Parser) LoadTestFile(path string) (*TestFile, hcl.Diagnostics) {
 }
 
 func (p *Parser) loadConfigFile(path string, override bool) (*File, hcl.Diagnostics) {
+
+	if symbolFileExt(path) != "" {
+		panic("Symbol")
+	}
 	body, diags := p.LoadHCLFile(path)
 	if body == nil {
 		return nil, diags
@@ -187,6 +191,13 @@ func loadConfigFileBody(body hcl.Body, _ string, override bool) (*File, hcl.Diag
 				file.ModuleCalls = append(file.ModuleCalls, cfg)
 			}
 
+		case "library":
+			cfg, cfgDiags := decodeLibraryBlock(block, override)
+			diags = append(diags, cfgDiags...)
+			if cfg != nil {
+				file.LibraryCalls = append(file.LibraryCalls, cfg)
+			}
+
 		case "resource":
 			cfg, cfgDiags := decodeResourceBlock(block, override)
 			diags = append(diags, cfgDiags...)
@@ -235,12 +246,6 @@ func loadConfigFileBody(body hcl.Body, _ string, override bool) (*File, hcl.Diag
 			if cfg != nil {
 				file.Removed = append(file.Removed, cfg)
 			}
-		case "function":
-			cfg, cfgDiags := decodeFunctionBlock(block)
-			diags = append(diags, cfgDiags...)
-			if cfg != nil {
-				file.Functions = append(file.Functions, cfg)
-			}
 		default:
 			// Should never happen because the above cases should be exhaustive
 			// for all block type names in our schema.
@@ -286,6 +291,10 @@ var configFileSchema = &hcl.BodySchema{
 			LabelNames: []string{"name"},
 		},
 		{
+			Type:       "library",
+			LabelNames: []string{"name"},
+		},
+		{
 			Type:       "resource",
 			LabelNames: []string{"type", "name"},
 		},
@@ -309,10 +318,6 @@ var configFileSchema = &hcl.BodySchema{
 		},
 		{
 			Type: "removed",
-		},
-		{
-			Type:       "function",
-			LabelNames: []string{"name"},
 		},
 		{
 			Type: "terraform",

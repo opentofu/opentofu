@@ -66,6 +66,7 @@ func (l *Loader) moduleWalkerLoad(ctx context.Context, req *configs.ModuleReques
 	record, exists := l.modules.manifest[key]
 
 	if !exists {
+		panic("HERE")
 		return nil, nil, hcl.Diagnostics{
 			{
 				Severity: hcl.DiagError,
