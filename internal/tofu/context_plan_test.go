@@ -32,6 +32,7 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/legacy/hcl2shim"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/plans/objchange"
 	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
@@ -66,12 +67,14 @@ func TestContext2Plan_basic(t *testing.T) {
 
 		switch i := ric.Addr.String(); i {
 		case "aws_instance.bar":
-			foo := ric.After.GetAttr("foo").AsString()
+			fooAttrUnmarked, _ := ric.After.GetAttr("foo").UnmarkDeep()
+			foo := fooAttrUnmarked.AsString()
 			if foo != "2" {
 				t.Fatalf("incorrect plan for 'bar': %#v", ric.After)
 			}
 		case "aws_instance.foo":
-			num, _ := ric.After.GetAttr("num").AsBigFloat().Int64()
+			numAttrUnmarked, _ := ric.After.GetAttr("num").UnmarkDeep()
+			num, _ := numAttrUnmarked.AsBigFloat().Int64()
 			if num != 2 {
 				t.Fatalf("incorrect plan for 'foo': %#v", ric.After)
 			}
@@ -3002,7 +3005,7 @@ func TestContext2Plan_countZero(t *testing.T) {
 
 	expected := cty.TupleVal(nil)
 
-	foo := ric.After.GetAttr("foo")
+	foo := objchange.RemovePendingChangesMark(ric.After.GetAttr("foo"))
 
 	if !cmp.Equal(expected, foo, valueComparer) {
 		t.Fatal(cmp.Diff(expected, foo, valueComparer))
@@ -7151,6 +7154,7 @@ func TestContext2Plan_variableSensitivityModule(t *testing.T) {
 }
 
 func checkVals(t *testing.T, expected, got cty.Value) {
+	got = objchange.RemovePendingChangesMark(got)
 	t.Helper()
 	// The GoStringer format seems to result in the closest thing to a useful
 	// diff for values with marks.
