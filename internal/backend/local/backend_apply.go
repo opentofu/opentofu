@@ -42,7 +42,7 @@ func getEnvAsInt(envName string, defaultValue int) (int, tfdiags.Diagnostics) {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
 				"Invalid environment variable value",
-				fmt.Sprintf("The environment variable %s must be a valid integer, got %q.", envName, val),
+				fmt.Sprintf("The environment variable %q is expected to be a valid integer but got %q which cannot be converted.", envName, val),
 			))
 			return 0, diags
 		}
@@ -128,7 +128,7 @@ func (b *Local) opApply(
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Invalid environment variable value",
-			fmt.Sprintf("The environment variable %s must be at least %d, got %d.", persistIntervalEnvironmentVariableName, defaultPersistInterval, persistInterval),
+			fmt.Sprintf("The value for the environment variable %q cannot be smaller than %d but got %d.", persistIntervalEnvironmentVariableName, defaultPersistInterval, persistInterval),
 		))
 		op.ReportResult(runningOp, diags)
 		return
