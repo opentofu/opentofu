@@ -55,6 +55,8 @@ type Module struct {
 
 	Checks map[string]*Check
 
+	Functions map[string]*Function
+
 	Tests map[string]*TestFile
 
 	// IsOverridden indicates if the module is being overridden. It's used in
@@ -111,6 +113,8 @@ type File struct {
 	Removed []*Removed
 
 	Checks []*Check
+
+	Functions []*Function
 }
 
 // SelectiveLoader allows the consumer to only load and validate the portions of files needed for the given operations/contexts
@@ -178,6 +182,7 @@ func NewModuleUneval(primaryFiles, overrideFiles []*File, sourceDir string, load
 		DataResources:      map[string]*Resource{},
 		EphemeralResources: map[string]*Resource{},
 		Checks:             map[string]*Check{},
+		Functions:          map[string]*Function{},
 		ProviderMetas:      map[addrs.Provider]*ProviderMeta{},
 		Tests:              map[string]*TestFile{},
 		SourceDir:          sourceDir,
@@ -428,6 +433,18 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 			})
 		}
 		m.Outputs[o.Name] = o
+	}
+
+	for _, fn := range file.Functions {
+		if existing, exists := m.Functions[fn.Name]; exists {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Duplicate function definition",
+				Detail:   fmt.Sprintf("An function named %q was already defined at %s. Function names must be unique within a module.", existing.Name, existing.DeclRange),
+				Subject:  &fn.DeclRange,
+			})
+		}
+		m.Functions[fn.Name] = fn
 	}
 
 	for _, mc := range file.ModuleCalls {

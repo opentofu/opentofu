@@ -92,6 +92,7 @@ func (e *Evaluator) Scope(data lang.Data, self addrs.Referenceable, source addrs
 		BaseDir:           ".", // Always current working directory for now.
 		PlanTimestamp:     e.PlanTimestamp,
 		ProviderFunctions: functions,
+		ModuleFunctions:   e.Config.Module.DeclaredFunctions(), // TODO this only works for the root module
 	}
 }
 
