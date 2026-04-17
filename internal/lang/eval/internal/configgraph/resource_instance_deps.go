@@ -14,6 +14,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
+	"github.com/opentofu/opentofu/internal/plans/objchange"
 )
 
 // As an implementation detail within this package we use cty marks as the
@@ -162,15 +163,16 @@ func ResourceInstanceAddrs(insts iter.Seq[*ResourceInstance]) iter.Seq[addrs.Abs
 // "Dependency" here means that some sort of externally-visible change must
 // be made before the associated value could be used during the apply phase.
 //
-// Currently only values of type [ResourceInstanceMark] are considered to be
-// dependency-related, but that might change in future if we begin tracking
-// other information about how values relate to changes that will happen during
-// the apply phase.
+// Currently only values of type [ResourceInstanceMark] and [PendingChange]
+// are considered to be dependency-related, but that might change in future
+// if we begin tracking other information about how values relate to changes
+// that will happen during the apply phase.
 func IsDependencyMark(mark any) bool {
-	// Currently only [ResourceInstanceMark] is considered to be
-	// "dependency-related".
-	_, ok := mark.(ResourceInstanceMark)
-	return ok
+	// Currently only [ResourceInstanceMark] and [PendingChange]
+	// are considered to be "dependency-related".
+	_, okRI := mark.(ResourceInstanceMark)
+	_, okPC := mark.(objchange.PendingChange)
+	return okRI || okPC
 }
 
 // RemoveNonDependencyMarks modifies the given mark set in-place to remove
