@@ -34,15 +34,23 @@ const (
 	persistIntervalEnvironmentVariableName = "TF_STATE_PERSIST_INTERVAL"
 )
 
-func getEnvAsInt(envName string, defaultValue int) int {
-	if val, exists := os.LookupEnv(envName); exists {
-		parsedVal, err := strconv.Atoi(val)
-		if err == nil {
-			return parsedVal
-		}
-		panic(fmt.Sprintf("Can't parse value '%s' of environment variable '%s'", val, envName))
+// getEnvAsInt reads the named environment variable and parses it as an
+// int, falling back to defaultValue when the variable is unset. It
+// returns an error (rather than panicking) when the value is set but
+// cannot be parsed as an int, so the caller can surface the problem to
+// the user through the normal diagnostics channel instead of tripping
+// the panicHandler and producing an alarming "OPENTOFU CRASH"
+// message for what is really just a bad user input.
+func getEnvAsInt(envName string, defaultValue int) (int, error) {
+	val, exists := os.LookupEnv(envName)
+	if !exists {
+		return defaultValue, nil
 	}
-	return defaultValue
+	parsed, err := strconv.Atoi(val)
+	if err != nil {
+		return 0, fmt.Errorf("invalid value %q for environment variable %s: %w", val, envName, err)
+	}
+	return parsed, nil
 }
 
 func (b *Local) opApply(
@@ -112,10 +120,26 @@ func (b *Local) opApply(
 	// stateHook uses schemas for when it periodically persists state to the
 	// persistent storage backend.
 	stateHook.Schemas = schemas
-	persistInterval := getEnvAsInt(persistIntervalEnvironmentVariableName, defaultPersistInterval)
+	persistInterval, err := getEnvAsInt(persistIntervalEnvironmentVariableName, defaultPersistInterval)
+	if err != nil {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			fmt.Sprintf("Invalid %s", persistIntervalEnvironmentVariableName),
+			fmt.Sprintf("%s must be an integer >= %d. %s",
+				persistIntervalEnvironmentVariableName, defaultPersistInterval, err),
+		))
+		op.ReportResult(runningOp, diags)
+		return
+	}
 	if persistInterval < defaultPersistInterval {
-		panic(fmt.Sprintf("Can't use value lower than %d for env variable %s, got %d",
-			defaultPersistInterval, persistIntervalEnvironmentVariableName, persistInterval))
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			fmt.Sprintf("Invalid %s", persistIntervalEnvironmentVariableName),
+			fmt.Sprintf("%s must be an integer >= %d (the minimum interval in seconds between state persistence checkpoints). Got %d.",
+				persistIntervalEnvironmentVariableName, defaultPersistInterval, persistInterval),
+		))
+		op.ReportResult(runningOp, diags)
+		return
 	}
 	stateHook.PersistInterval = time.Duration(persistInterval) * time.Second
 
