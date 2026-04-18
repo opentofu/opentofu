@@ -105,11 +105,17 @@ func getOCIRepositoryStore(ctx context.Context, registryDomain, repositoryName s
 		return nil, err // This is only for registryDomain validation errors, and we should've caught those much earlier than here
 	}
 	reg.Client = client
-	err = reg.Ping(ctx) // tests whether the given domain refers to a valid OCI repository and will accept the credentials
-	if err != nil {
-		tracing.SetSpanError(span, err)
-		return nil, fmt.Errorf("failed to contact OCI registry at %q: %w", registryDomain, err)
-	}
+	// NOTE: We intentionally do NOT call reg.Ping(ctx) here. Ping targets GET /v2/
+	// which some registries (notably Azure Container Registry) answer with a 401
+	// challenge that carries no repository scope. ORAS then requests an anonymous
+	// bearer token with no scope, and ACR rejects that with 401 — even when the
+	// repository IS configured for anonymous pull.
+	//
+	// Actual repository operations include a scope in their 401 challenge
+	// (e.g. repository:azure/naming:pull), which ACR will grant for publicly-
+	// accessible repositories. Authentication is handled transparently by ORAS
+	// on the first real API call, so the Ping is both redundant and actively
+	// harmful for this class of registry.
 	repo, err := reg.Repository(ctx, repositoryName)
 	if err != nil {
 		tracing.SetSpanError(span, err)

@@ -6,9 +6,13 @@
 package main
 
 import (
+	"context"
+	"iter"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/opentofu/opentofu/internal/command/cliconfig/ociauthconfig"
 )
 
 func TestOCICredentialsLookupEnv_DockerCredHelper(t *testing.T) {
@@ -50,4 +54,90 @@ func TestOCICredentialsLookupEnv_DockerCredHelper(t *testing.T) {
 	if gotErr := err.Error(); !strings.Contains(gotErr, wantErr) {
 		t.Errorf("wrong error\ngot: %s\nwant substring: %s", gotErr, wantErr)
 	}
+}
+
+// TestGetOCIRepositoryORASClient_PerRepositoryCredentials verifies that when a
+// single registry hosts two repositories each requiring different credentials,
+// getOCIRepositoryORASClient selects the correct credential source for each
+// repository independently — i.e. credentials are not shared or mixed up across
+// repositories on the same host.
+//
+// This addresses the reviewer concern from the PR: if registry.example.com/repo-a
+// and registry.example.com/repo-b each need different credentials, both can be
+// used in the same "tofu init" run and each will receive the right credentials.
+func TestGetOCIRepositoryORASClient_PerRepositoryCredentials(t *testing.T) {
+	ctx := t.Context()
+
+	// Configure two distinct sets of credentials scoped to separate repositories
+	// on the same registry domain.
+	credsPolicy := ociauthconfig.NewCredentialsConfigs([]ociauthconfig.CredentialsConfig{
+		&testPerRepoCredentialsConfig{
+			domain: "registry.example.com",
+			repos: map[string]ociauthconfig.Credentials{
+				"repo-a": ociauthconfig.NewBasicAuthCredentials("user-a", "secret-a"),
+				"repo-b": ociauthconfig.NewBasicAuthCredentials("user-b", "secret-b"),
+			},
+		},
+	})
+
+	// Create a separate ORAS client for each repository.
+	// getOCIRepositoryORASClient resolves and closes over the credential source
+	// at construction time, so each client is independent.
+	clientA, err := getOCIRepositoryORASClient(ctx, "registry.example.com", "repo-a", credsPolicy)
+	if err != nil {
+		t.Fatalf("creating client for repo-a: %s", err)
+	}
+	clientB, err := getOCIRepositoryORASClient(ctx, "registry.example.com", "repo-b", credsPolicy)
+	if err != nil {
+		t.Fatalf("creating client for repo-b: %s", err)
+	}
+
+	// Invoke the Credential callback directly — this is what ORAS calls when it
+	// needs to authenticate an outgoing request.
+	credA, err := clientA.Credential(ctx, "registry.example.com")
+	if err != nil {
+		t.Fatalf("resolving credential for repo-a: %s", err)
+	}
+	if got, want := credA.Username, "user-a"; got != want {
+		t.Errorf("repo-a: wrong username: got %q, want %q", got, want)
+	}
+	if got, want := credA.Password, "secret-a"; got != want {
+		t.Errorf("repo-a: wrong password: got %q, want %q", got, want)
+	}
+
+	credB, err := clientB.Credential(ctx, "registry.example.com")
+	if err != nil {
+		t.Fatalf("resolving credential for repo-b: %s", err)
+	}
+	if got, want := credB.Username, "user-b"; got != want {
+		t.Errorf("repo-b: wrong username: got %q, want %q", got, want)
+	}
+	if got, want := credB.Password, "secret-b"; got != want {
+		t.Errorf("repo-b: wrong password: got %q, want %q", got, want)
+	}
+}
+
+// testPerRepoCredentialsConfig is a test-only implementation of
+// [ociauthconfig.CredentialsConfig] that maps repository paths within a fixed
+// domain to static credentials.
+type testPerRepoCredentialsConfig struct {
+	domain string
+	repos  map[string]ociauthconfig.Credentials
+}
+
+func (c *testPerRepoCredentialsConfig) CredentialsSourcesForRepository(_ context.Context, registryDomain, repositoryPath string) iter.Seq2[ociauthconfig.CredentialsSource, error] {
+	return func(yield func(ociauthconfig.CredentialsSource, error) bool) {
+		if registryDomain != c.domain {
+			return
+		}
+		creds, ok := c.repos[repositoryPath]
+		if !ok {
+			return
+		}
+		yield(ociauthconfig.NewStaticCredentialsSource(creds, ociauthconfig.RepositoryCredentialsSpecificity(1)), nil)
+	}
+}
+
+func (c *testPerRepoCredentialsConfig) CredentialsConfigLocationForUI() string {
+	return "test fixture"
 }
