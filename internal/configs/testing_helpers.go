@@ -105,7 +105,7 @@ func moduleFromStringForTesting(t testing.TB, src string, fakeFilename string) *
 		return nil
 	}
 
-	file, diags := loadConfigFileBody(hclFile.Body, fakeFilename, false, nil)
+	file, diags := loadConfigFileBody(hclFile.Body, fakeFilename, false)
 	if diags.HasErrors() {
 		t.Errorf("unexpected file analysis error: %s", diags.Error())
 		return nil

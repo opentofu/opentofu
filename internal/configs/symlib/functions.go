@@ -1,8 +1,7 @@
-package configs
+package symlib
 
 import (
 	"fmt"
-	"maps"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/ext/typeexpr"
@@ -12,43 +11,13 @@ import (
 	"github.com/zclconf/go-cty/cty/function"
 )
 
-func (m *Module) DeclaredFunctions() map[string]function.Function {
-	var diags hcl.Diagnostics
-	funcs := map[string]function.Function{}
-
-	moreFuncs, moreDiags := m.Library.DeclaredFunctions("library::")
-	maps.Copy(funcs, moreFuncs)
-	diags = diags.Extend(moreDiags)
-
-	for lname, lib := range m.Libraries {
-		moreFuncs, moreDiags := lib.DeclaredFunctions("library::" + lname + "::")
-		maps.Copy(funcs, moreFuncs)
-		diags = diags.Extend(moreDiags)
-	}
-	println(diags.Error())
-
-	return funcs
-}
-
-func (l *Library) DeclaredFunctions(prefix string) (map[string]function.Function, hcl.Diagnostics) {
-	var diags hcl.Diagnostics
-	funcs := map[string]function.Function{}
-
-	for _, fn := range l.Functions {
-		var moreDiags hcl.Diagnostics
-		funcs[prefix+fn.Name], moreDiags = fn.Impl(l)
-		diags = diags.Extend(moreDiags)
-	}
-	return funcs, diags
-}
-
 type Function struct {
 	Name        string
 	Description string
 
 	Params     []FunctionParameter
 	VarParam   *FunctionParameter
-	Locals     map[string]*Local
+	Locals     map[string]hcl.Expression
 	ReturnType hcl.Expression
 	Return     hcl.Expression
 
@@ -84,7 +53,7 @@ func decodeFunctionBlock(block *hcl.Block) (*Function, hcl.Diagnostics) {
 		})
 	}
 
-	fn.Locals = map[string]*Local{}
+	fn.Locals = map[string]hcl.Expression{}
 
 	for _, block := range content.Blocks {
 		if block.Type == "parameter" {
@@ -138,10 +107,19 @@ func decodeFunctionBlock(block *hcl.Block) (*Function, hcl.Diagnostics) {
 		}
 
 		if block.Type == "locals" {
-			attrs, moreDiags := decodeLocalsBlock(block)
-			diags = diags.Extend(moreDiags)
-			for _, attr := range attrs {
-				fn.Locals[attr.Name] = attr
+			attrs, diags := block.Body.JustAttributes()
+			for name, attr := range attrs {
+				if !hclsyntax.ValidIdentifier(name) {
+					diags = append(diags, &hcl.Diagnostic{
+						Severity: hcl.DiagError,
+						Summary:  "Invalid local value name",
+						Detail:   badIdentifierDetail,
+						Subject:  &attr.NameRange,
+					})
+				}
+				// TODO dupe check locals
+
+				fn.Locals[name] = attr.Expr
 			}
 		}
 	}
@@ -165,7 +143,7 @@ func decodeFunctionBlock(block *hcl.Block) (*Function, hcl.Diagnostics) {
 func (fn *Function) Impl(lib *Library) (function.Function, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
-	typeCtx, diags := lib.TypeContext()
+	typeCtx := lib.TypeContext
 
 	spec := &function.Spec{
 		Description: fn.Description,
@@ -250,7 +228,7 @@ func (fn *Function) Impl(lib *Library) (function.Function, hcl.Diagnostics) {
 					localName := trav[1].(hcl.TraverseAttr).Name
 					if _, ok := localObj[localName]; !ok {
 						var computeErr error
-						localObj[localName], computeErr = computeValue(fn.Locals[localName].Expr)
+						localObj[localName], computeErr = computeValue(fn.Locals[localName])
 						hclCtx.Variables["local"] = cty.ObjectVal(localObj)
 						if computeErr != nil {
 							return cty.NilVal, computeErr

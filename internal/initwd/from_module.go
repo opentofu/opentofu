@@ -178,7 +178,9 @@ func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modu
 	}
 
 	walker := inst.moduleInstallWalker(ctx, instManifest, true, wrapHooks, remoteFetcher)
-	_, cDiags := inst.installDescendentModules(ctx, fakeRootModule, instManifest, walker, true)
+	var call configs.StaticModuleCall
+	panic("TODO CALL")
+	_, cDiags := inst.installDescendentModules(ctx, fakeRootModule, call, instManifest, walker, true)
 	if cDiags.HasErrors() {
 		return diags.Append(cDiags)
 	}

@@ -14,9 +14,11 @@ import (
 
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs/symlib"
 )
 
 // BuildConfig constructs a Config from a root module by loading all of its
@@ -26,14 +28,28 @@ import (
 // file-level invariants validated. If the returned diagnostics contains errors,
 // the returned module tree may be incomplete but can still be used carefully
 // for static analysis.
-func BuildConfig(ctx context.Context, root *Module, walker ModuleWalker) (*Config, hcl.Diagnostics) {
+func BuildConfig(ctx context.Context, root *Module, call StaticModuleCall, walker ModuleWalker) (*Config, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	cfg := &Config{
 		Module: root,
 	}
 	cfg.Root = cfg // Root module is self-referential.
-	cfg.Children, diags = buildChildModules(ctx, cfg, walker)
-	diags = append(diags, buildTestModules(ctx, cfg, walker)...)
+
+	// TODO in the future, we could potentially interweave static eval and libraries using the new engine machinery
+
+	// Load Library
+	l, lDiags := buildLibrary(ctx, cfg, walker)
+	diags = diags.Extend(lDiags)
+
+	diags = diags.Extend(cfg.Module.WithLibrary(l))
+	diags = diags.Extend(cfg.Module.WithStaticCall(call))
+
+	// Load Children
+	var cDiags hcl.Diagnostics
+	cfg.Children, cDiags = buildChildModules(ctx, cfg, walker)
+	diags = diags.Extend(cDiags)
+	cDiags = buildTestModules(ctx, cfg, walker)
+	diags = diags.Extend(cDiags)
 
 	// Skip provider resolution if there are any errors, since the provider
 	// configurations themselves may not be valid.
@@ -47,6 +63,76 @@ func BuildConfig(ctx context.Context, root *Module, walker ModuleWalker) (*Confi
 	}
 
 	return cfg, diags
+}
+
+func buildLibrary(ctx context.Context, parent *Config, walker ModuleWalker) (*symlib.Library, hcl.Diagnostics) {
+	if parent.Module.LibraryContents == nil {
+		panic("Bad Library")
+	}
+
+	return symlib.NewLibrary(parent.Module.LibraryContents, func(libCall *symlib.LibraryCall) (*symlib.Library, hcl.Diagnostics) {
+		var diags hcl.Diagnostics
+
+		// THIS IS A BAD HACK
+		fakeModCall := RootModuleCallForTesting()
+		fakeEval := NewStaticEvaluator(&Module{}, fakeModCall)
+
+		call := &ModuleCall{
+			Name:        libCall.Name,
+			Source:      libCall.Source,
+			VersionAttr: libCall.VersionAttr,
+			DeclRange:   libCall.DeclRange,
+
+			Config: &hclsyntax.Body{},
+		}
+
+		diags = call.decodeStaticFields(ctx, fakeEval)
+		if diags.HasErrors() {
+			return nil, diags
+		}
+
+		path := make([]string, len(parent.Path)+1)
+		copy(path, parent.Path)
+		path[len(path)-1] = call.Name
+
+		req := &ModuleRequest{
+			Name:              call.Name,
+			Path:              path,
+			SourceAddr:        call.SourceAddr,
+			VersionConstraint: call.Version,
+			Parent:            parent,
+			CallRange:         call.DeclRange,
+		}
+		if call.Source != nil {
+			// Invalid modules sometimes have a nil source field which is handled through loadModule below
+			req.SourceAddrRange = call.Source.Range()
+		}
+
+		mod, ver, modDiags := walker.LoadModule(ctx, req)
+		diags = append(diags, modDiags...)
+		if mod == nil {
+			// nil can be returned if the source address was invalid and so
+			// nothing could be loaded whatsoever. LoadModule should've
+			// returned at least one error diagnostic in that case.
+			return nil, diags
+		}
+
+		cfg := &Config{
+			Parent:          req.Parent,
+			Root:            parent.Root,
+			Path:            req.Path,
+			Module:          mod,
+			CallRange:       req.CallRange,
+			SourceAddr:      req.SourceAddr,
+			SourceAddrRange: req.SourceAddrRange,
+			Version:         ver,
+		}
+
+		l, lDiags := buildLibrary(ctx, cfg, walker)
+		diags = diags.Extend(lDiags)
+
+		return l, diags
+	})
 }
 
 func buildTestModules(ctx context.Context, root *Config, walker ModuleWalker) hcl.Diagnostics {
@@ -74,6 +160,31 @@ func buildTestModules(ctx context.Context, root *Config, walker ModuleWalker) hc
 				path = append(path, strings.Split(dir, "/")...)
 			}
 			path = append(path, strings.TrimSuffix(base, ".tftest.hcl"), run.Name)
+			call := NewStaticModuleCall(
+				path,
+				run.Module.DeclRange,
+				func(v *Variable) (cty.Value, hcl.Diagnostics) {
+					// Handle the case where this is overridden in the test run block
+					expr, isOverridden := run.Variables[v.Name]
+					if isOverridden {
+						identifier := StaticIdentifier{
+							Module:    path,
+							Subject:   fmt.Sprintf("var.%s", v.Name),
+							DeclRange: expr.Range(),
+						}
+						return root.Module.StaticEvaluator.Evaluate(ctx, expr, identifier)
+					}
+
+					// If we haven't had it overridden in a run block, fall back to trying our best
+					// but we do have defaults for some that we can use.
+					if v.Default != cty.NilVal {
+						return v.Default, nil
+					}
+					return cty.DynamicVal, nil
+				},
+				root.Module.SourceDir,
+				root.Module.StaticEvaluator.call.workspace,
+			)
 			req := ModuleRequest{
 				Name:              run.Name,
 				Path:              path,
@@ -81,36 +192,10 @@ func buildTestModules(ctx context.Context, root *Config, walker ModuleWalker) hc
 				SourceAddrRange:   run.Module.SourceDeclRange,
 				VersionConstraint: run.Module.Version,
 				Parent:            root,
-				Call: NewStaticModuleCall(
-					path,
-					run.Module.DeclRange,
-					func(v *Variable) (cty.Value, hcl.Diagnostics) {
-						// Handle the case where this is overridden in the test run block
-						expr, isOverridden := run.Variables[v.Name]
-						if isOverridden {
-							identifier := StaticIdentifier{
-								Module:    path,
-								Subject:   fmt.Sprintf("var.%s", v.Name),
-								DeclRange: expr.Range(),
-							}
-							return root.Module.StaticEvaluator.Evaluate(ctx, expr, identifier)
-						}
-
-						// If we haven't had it overridden in a run block, fall back to trying our best
-						// but we do have defaults for some that we can use.
-						if v.Default != cty.NilVal {
-							return v.Default, nil
-						}
-						return cty.DynamicVal, nil
-					},
-					root.Module.SourceDir,
-					root.Module.StaticEvaluator.call.workspace,
-				),
-
-				CallRange: run.Module.DeclRange,
+				CallRange:         run.Module.DeclRange,
 			}
 
-			cfg, modDiags := loadModule(ctx, root, &req, walker)
+			cfg, modDiags := loadModule(ctx, root, &req, call, walker)
 			diags = append(diags, modDiags...)
 
 			if cfg != nil {
@@ -145,39 +230,6 @@ func buildChildModules(ctx context.Context, parent *Config, walker ModuleWalker)
 	var diags hcl.Diagnostics
 	ret := map[string]*Config{}
 
-	// Hack in library loading
-	// This is not a valid approach for static eval (without much deeper changes)
-
-	for _, call := range parent.Module.LibraryCalls {
-		path := make([]string, len(parent.Path)+1)
-		copy(path, parent.Path)
-		path[len(path)-1] = call.Name
-
-		req := ModuleRequest{
-			Name:              call.Name,
-			Path:              path,
-			SourceAddr:        call.SourceAddr,
-			VersionConstraint: call.Version,
-			Parent:            parent,
-			CallRange:         call.DeclRange,
-			Call:              NewStaticModuleCall(path, call.DeclRange, call.Variables, parent.Root.Module.SourceDir, call.Workspace),
-		}
-		if call.Source != nil {
-			// Invalid modules sometimes have a nil source field which is handled through loadModule below
-			req.SourceAddrRange = call.Source.Range()
-		}
-		// This loads a full module, whereas we just care about the library data
-		child, modDiags := loadModule(ctx, parent.Root, &req, walker)
-		diags = append(diags, modDiags...)
-		if child == nil {
-			// This means an error occurred, there should be diagnostics within
-			// modDiags for this.
-			continue
-		}
-
-		parent.Module.Libraries[call.Name] = child.Module.Library
-	}
-
 	calls := parent.Module.ModuleCalls
 
 	// We'll sort the calls by their local names so that they'll appear in a
@@ -201,13 +253,13 @@ func buildChildModules(ctx context.Context, parent *Config, walker ModuleWalker)
 			VersionConstraint: call.Version,
 			Parent:            parent,
 			CallRange:         call.DeclRange,
-			Call:              NewStaticModuleCall(path, call.DeclRange, call.Variables, parent.Root.Module.SourceDir, call.Workspace),
 		}
 		if call.Source != nil {
 			// Invalid modules sometimes have a nil source field which is handled through loadModule below
 			req.SourceAddrRange = call.Source.Range()
 		}
-		child, modDiags := loadModule(ctx, parent.Root, &req, walker)
+		staticCall := NewStaticModuleCall(path, call.DeclRange, call.Variables, parent.Root.Module.SourceDir, call.Workspace)
+		child, modDiags := loadModule(ctx, parent.Root, &req, staticCall, walker)
 		diags = append(diags, modDiags...)
 		if child == nil {
 			// This means an error occurred, there should be diagnostics within
@@ -221,7 +273,7 @@ func buildChildModules(ctx context.Context, parent *Config, walker ModuleWalker)
 	return ret, diags
 }
 
-func loadModule(ctx context.Context, root *Config, req *ModuleRequest, walker ModuleWalker) (*Config, hcl.Diagnostics) {
+func loadModule(ctx context.Context, root *Config, req *ModuleRequest, call StaticModuleCall, walker ModuleWalker) (*Config, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
 	mod, ver, modDiags := walker.LoadModule(ctx, req)
@@ -243,6 +295,12 @@ func loadModule(ctx context.Context, root *Config, req *ModuleRequest, walker Mo
 		SourceAddrRange: req.SourceAddrRange,
 		Version:         ver,
 	}
+
+	l, lDiags := buildLibrary(ctx, cfg, walker)
+	diags = diags.Extend(lDiags)
+
+	diags = diags.Extend(cfg.Module.WithLibrary(l))
+	diags = diags.Extend(cfg.Module.WithStaticCall(call))
 
 	cfg.Children, modDiags = buildChildModules(ctx, cfg, walker)
 	diags = append(diags, modDiags...)
@@ -362,10 +420,6 @@ type ModuleRequest struct {
 	// subject of an error diagnostic that relates to the module call itself,
 	// rather than to either its source address or its version number.
 	CallRange hcl.Range
-
-	// This is where variables and other information from the calling module
-	// are propagated to the child module for use in the static evaluator
-	Call StaticModuleCall
 }
 
 // DisabledModuleWalker is a ModuleWalker that doesn't support

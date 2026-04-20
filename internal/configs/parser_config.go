@@ -7,8 +7,8 @@ package configs
 
 import (
 	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/ext/typeexpr"
 
+	"github.com/opentofu/opentofu/internal/configs/symlib"
 	"github.com/opentofu/opentofu/internal/encryption/config"
 	"github.com/opentofu/opentofu/version"
 )
@@ -28,14 +28,14 @@ import (
 // This method wraps LoadHCLFile, and so it inherits the syntax selection
 // behaviors documented for that method.
 func (p *Parser) LoadConfigFile(path string) (*File, hcl.Diagnostics) {
-	return p.loadConfigFile(path, false, nil)
+	return p.loadConfigFile(path, false)
 }
 
 // LoadConfigFileOverride is the same as LoadConfigFile except that it relaxes
 // certain required attribute constraints in order to interpret the given
 // file as an overrides file.
 func (p *Parser) LoadConfigFileOverride(path string) (*File, hcl.Diagnostics) {
-	return p.loadConfigFile(path, true, nil)
+	return p.loadConfigFile(path, true)
 }
 
 // LoadTestFile reads the file at the given path and parses it as a OpenTofu
@@ -54,7 +54,17 @@ func (p *Parser) LoadTestFile(path string) (*TestFile, hcl.Diagnostics) {
 	return test, diags
 }
 
-func (p *Parser) loadConfigFile(path string, override bool, typeCtx *typeexpr.TypeContext) (*File, hcl.Diagnostics) {
+func (p *Parser) loadSymbolFile(path string) (*symlib.SymbolFile, hcl.Diagnostics) {
+	body, diags := p.LoadHCLFile(path)
+	if body == nil {
+		return nil, diags
+	}
+	ret, moreDiags := symlib.LoadSymbolFile(body)
+	diags = append(diags, moreDiags...)
+	return ret, diags
+}
+
+func (p *Parser) loadConfigFile(path string, override bool) (*File, hcl.Diagnostics) {
 
 	if symbolFileExt(path) != "" {
 		panic("Symbol")
@@ -63,12 +73,12 @@ func (p *Parser) loadConfigFile(path string, override bool, typeCtx *typeexpr.Ty
 	if body == nil {
 		return nil, diags
 	}
-	ret, moreDiags := loadConfigFileBody(body, path, override, typeCtx)
+	ret, moreDiags := loadConfigFileBody(body, path, override)
 	diags = append(diags, moreDiags...)
 	return ret, diags
 }
 
-func loadConfigFileBody(body hcl.Body, _ string, override bool, typeCtx *typeexpr.TypeContext) (*File, hcl.Diagnostics) {
+func loadConfigFileBody(body hcl.Body, _ string, override bool) (*File, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	file := &File{}
 
@@ -167,7 +177,7 @@ func loadConfigFileBody(body hcl.Body, _ string, override bool, typeCtx *typeexp
 			}
 
 		case "variable":
-			cfg, cfgDiags := decodeVariableBlock(block, override, typeCtx)
+			cfg, cfgDiags := decodeVariableBlock(block, override)
 			diags = append(diags, cfgDiags...)
 			if cfg != nil {
 				file.Variables = append(file.Variables, cfg)
@@ -190,13 +200,6 @@ func loadConfigFileBody(body hcl.Body, _ string, override bool, typeCtx *typeexp
 			diags = append(diags, cfgDiags...)
 			if cfg != nil {
 				file.ModuleCalls = append(file.ModuleCalls, cfg)
-			}
-
-		case "library":
-			cfg, cfgDiags := decodeLibraryBlock(block, override)
-			diags = append(diags, cfgDiags...)
-			if cfg != nil {
-				file.LibraryCalls = append(file.LibraryCalls, cfg)
 			}
 
 		case "resource":

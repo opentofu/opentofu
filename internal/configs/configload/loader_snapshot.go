@@ -26,7 +26,7 @@ import (
 // creates an in-memory snapshot of the configuration files used, which can
 // be later used to create a loader that may read only from this snapshot.
 func (l *Loader) LoadConfigWithSnapshot(ctx context.Context, rootDir string, call configs.StaticModuleCall) (*configs.Config, *Snapshot, hcl.Diagnostics) {
-	rootMod, diags := l.parser.LoadConfigDir(rootDir, call)
+	rootMod, diags := l.parser.LoadConfigDirUneval(rootDir, configs.SelectiveLoadAll)
 	if rootMod == nil {
 		return nil, nil, diags
 	}
@@ -35,7 +35,7 @@ func (l *Loader) LoadConfigWithSnapshot(ctx context.Context, rootDir string, cal
 		Modules: map[string]*SnapshotModule{},
 	}
 	walker := l.makeModuleWalkerSnapshot(snap)
-	cfg, cDiags := configs.BuildConfig(ctx, rootMod, walker)
+	cfg, cDiags := configs.BuildConfig(ctx, rootMod, call, walker)
 	diags = append(diags, cDiags...)
 
 	addDiags := l.addModuleToSnapshot(snap, "", rootDir, "", nil)
