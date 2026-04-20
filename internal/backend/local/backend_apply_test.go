@@ -428,3 +428,108 @@ func TestApply_applyCanceledAutoApprove(t *testing.T) {
 	}
 
 }
+
+func TestGetEnvAsInt(t *testing.T) {
+	const testEnv = "TEST_GET_ENV_AS_INT"
+
+	tests := []struct {
+		name         string
+		envValue     string
+		defaultValue int
+		wantValue    int
+		wantError    bool
+	}{
+		{
+			name:         "env not set returns default",
+			envValue:     "",
+			defaultValue: 20,
+			wantValue:    20,
+			wantError:    false,
+		},
+		{
+			name:         "valid integer is parsed",
+			envValue:     "30",
+			defaultValue: 20,
+			wantValue:    30,
+			wantError:    false,
+		},
+		{
+			name:         "non-integer value returns error",
+			envValue:     "abc",
+			defaultValue: 20,
+			wantError:    true,
+		},
+		{
+			name:         "float value returns error",
+			envValue:     "1.5",
+			defaultValue: 20,
+			wantError:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.envValue != "" {
+				t.Setenv(testEnv, tt.envValue)
+			}
+
+			got, diags := getEnvAsInt(testEnv, tt.defaultValue)
+			if tt.wantError {
+				if !diags.HasErrors() {
+					t.Errorf("expected error but got none, value=%d", got)
+				}
+				return
+			}
+			if diags.HasErrors() {
+				t.Fatalf("unexpected error: %s", diags.Err())
+			}
+			if got != tt.wantValue {
+				t.Errorf("got %d, want %d", got, tt.wantValue)
+			}
+		})
+	}
+}
+
+func TestLocal_applyInvalidPersistInterval(t *testing.T) {
+	t.Run("non-integer value causes error diagnostic", func(t *testing.T) {
+		t.Setenv(persistIntervalEnvironmentVariableName, "abc")
+
+		b := TestLocal(t)
+		TestLocalProvider(t, b, "test", applyFixtureSchema())
+
+		op, done := testOperationApply(t, "./testdata/apply")
+
+		run, err := b.Operation(context.Background(), op)
+		if err != nil {
+			t.Fatalf("unexpected error starting operation: %v", err)
+		}
+		<-run.Done()
+		if run.Result == backend.OperationSuccess {
+			t.Fatalf("expected operation to fail with invalid %s=abc", persistIntervalEnvironmentVariableName)
+		}
+		if got, want := done(t).Stderr(), "Invalid environment variable value"; !strings.Contains(got, want) {
+			t.Errorf("expected stderr to contain %q, got:\n%s", want, got)
+		}
+	})
+
+	t.Run("below minimum value causes error diagnostic", func(t *testing.T) {
+		t.Setenv(persistIntervalEnvironmentVariableName, "5")
+
+		b := TestLocal(t)
+		TestLocalProvider(t, b, "test", applyFixtureSchema())
+
+		op, done := testOperationApply(t, "./testdata/apply")
+
+		run, err := b.Operation(context.Background(), op)
+		if err != nil {
+			t.Fatalf("unexpected error starting operation: %v", err)
+		}
+		<-run.Done()
+		if run.Result == backend.OperationSuccess {
+			t.Fatalf("expected operation to fail with invalid %s=5", persistIntervalEnvironmentVariableName)
+		}
+		if got, want := done(t).Stderr(), "Invalid environment variable value"; !strings.Contains(got, want) {
+			t.Errorf("expected stderr to contain %q, got:\n%s", want, got)
+		}
+	})
+}
