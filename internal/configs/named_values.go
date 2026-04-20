@@ -65,7 +65,7 @@ type Variable struct {
 	DeclRange hcl.Range
 }
 
-func decodeVariableBlock(block *hcl.Block, override bool) (*Variable, hcl.Diagnostics) {
+func decodeVariableBlock(block *hcl.Block, override bool, typeCtx *typeexpr.TypeContext) (*Variable, hcl.Diagnostics) {
 	v := &Variable{
 		Name:      block.Labels[0],
 		DeclRange: block.DefRange,
@@ -123,7 +123,7 @@ func decodeVariableBlock(block *hcl.Block, override bool) (*Variable, hcl.Diagno
 	}
 
 	if attr, exists := content.Attributes["type"]; exists {
-		ty, tyDefaults, parseMode, tyDiags := decodeVariableType(attr.Expr)
+		ty, tyDefaults, parseMode, tyDiags := decodeVariableType(attr.Expr, typeCtx)
 		diags = append(diags, tyDiags...)
 		v.ConstraintType = ty
 		v.TypeDefaults = tyDefaults
@@ -284,7 +284,7 @@ func lintVariableDefaultValue(expr hcl.Expression, targetTy cty.Type) hcl.Diagno
 	return diags
 }
 
-func decodeVariableType(expr hcl.Expression) (cty.Type, *typeexpr.Defaults, VariableParsingMode, hcl.Diagnostics) {
+func decodeVariableType(expr hcl.Expression, typeCtx *typeexpr.TypeContext) (cty.Type, *typeexpr.Defaults, VariableParsingMode, hcl.Diagnostics) {
 	if exprIsNativeQuotedString(expr) {
 		// If a user provides the pre-0.12 form of variable type argument where
 		// the string values "string", "list" and "map" are accepted, we
@@ -344,7 +344,10 @@ func decodeVariableType(expr hcl.Expression) (cty.Type, *typeexpr.Defaults, Vari
 		return cty.Map(cty.DynamicPseudoType), nil, VariableParseHCL, nil
 	}
 
-	ty, typeDefaults, diags := typeexpr.TypeConstraintWithDefaults(expr)
+	if typeCtx == nil {
+		typeCtx = &typeexpr.TypeContext{}
+	}
+	ty, typeDefaults, diags := typeCtx.TypeConstraintWithDefaults(expr)
 	if diags.HasErrors() {
 		return cty.DynamicPseudoType, nil, VariableParseHCL, diags
 	}

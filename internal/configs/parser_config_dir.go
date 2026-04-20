@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/ext/typeexpr"
 )
 
 const (
@@ -64,10 +65,12 @@ func (p *Parser) LoadConfigDirSelective(path string, call StaticModuleCall, load
 	diags = append(diags, fDiags...)
 	library, lDiags := NewLibrary(symbols)
 	diags = append(diags, lDiags...)
+	typeCtx, tDiags := library.TypeContext()
+	diags = append(diags, tDiags...)
 
-	primary, fDiags := p.loadFiles(primaryPaths, false)
+	primary, fDiags := p.loadFiles(primaryPaths, false, typeCtx)
 	diags = append(diags, fDiags...)
-	override, fDiags := p.loadFiles(overridePaths, true)
+	override, fDiags := p.loadFiles(overridePaths, true, typeCtx)
 	diags = append(diags, fDiags...)
 
 	mod, modDiags := NewModule(primary, override, library, call, path, load)
@@ -94,10 +97,12 @@ func (p *Parser) LoadConfigDirUneval(path string, load SelectiveLoader) (*Module
 	diags = append(diags, fDiags...)
 	library, lDiags := NewLibrary(symbols)
 	diags = append(diags, lDiags...)
+	typeCtx, tDiags := library.TypeContext()
+	diags = append(diags, tDiags...)
 
-	primary, fDiags := p.loadFiles(primaryPaths, false)
+	primary, fDiags := p.loadFiles(primaryPaths, false, typeCtx)
 	diags = append(diags, fDiags...)
-	override, fDiags := p.loadFiles(overridePaths, true)
+	override, fDiags := p.loadFiles(overridePaths, true, typeCtx)
 	diags = append(diags, fDiags...)
 
 	mod, modDiags := NewModuleUneval(primary, override, library, path, load)
@@ -119,10 +124,12 @@ func (p *Parser) LoadConfigDirWithTests(path string, testDirectory string, call 
 	diags = append(diags, fDiags...)
 	library, lDiags := NewLibrary(symbols)
 	diags = append(diags, lDiags...)
+	typeCtx, tDiags := library.TypeContext()
+	diags = append(diags, tDiags...)
 
-	primary, fDiags := p.loadFiles(primaryPaths, false)
+	primary, fDiags := p.loadFiles(primaryPaths, false, typeCtx)
 	diags = append(diags, fDiags...)
-	override, fDiags := p.loadFiles(overridePaths, true)
+	override, fDiags := p.loadFiles(overridePaths, true, typeCtx)
 	diags = append(diags, fDiags...)
 	tests, fDiags := p.loadTestFiles(path, testPaths)
 	diags = append(diags, fDiags...)
@@ -159,18 +166,12 @@ func (p *Parser) IsConfigDir(path string) bool {
 	return (len(primaryPaths) + len(overridePaths) + len(symbols)) > 0
 }
 
-func (p *Parser) loadFiles(paths []string, override bool) ([]*File, hcl.Diagnostics) {
+func (p *Parser) loadFiles(paths []string, override bool, typeCtx *typeexpr.TypeContext) ([]*File, hcl.Diagnostics) {
 	var files []*File
 	var diags hcl.Diagnostics
 
 	for _, path := range paths {
-		var f *File
-		var fDiags hcl.Diagnostics
-		if override {
-			f, fDiags = p.LoadConfigFileOverride(path)
-		} else {
-			f, fDiags = p.LoadConfigFile(path)
-		}
+		f, fDiags := p.loadConfigFile(path, override, typeCtx)
 		diags = append(diags, fDiags...)
 		if f != nil {
 			files = append(files, f)
