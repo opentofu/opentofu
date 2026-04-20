@@ -29,6 +29,10 @@ type LocalState struct {
 	Path    string
 	PathOut string
 
+	// DataDirOverridden is true when the data directory was explicitly
+	// overridden (e.g. via TF_DATA_DIR).
+	DataDirOverridden bool
+
 	// the file handle corresponding to PathOut
 	stateFileOut *os.File
 
@@ -161,7 +165,7 @@ func (s *LocalState) RefreshState(_ context.Context) error {
 		reader = s.stateFileOut
 	}
 
-	state, err := ReadState(reader)
+	state, err := ReadState(reader, s.DataDirOverridden)
 	// if there's no state we just assign the nil return value
 	if err != nil && err != ErrNoState {
 		return err

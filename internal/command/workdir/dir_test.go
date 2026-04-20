@@ -113,3 +113,52 @@ func TestWorkdirCreatedCorrectly(t *testing.T) {
 		})
 	}
 }
+
+// TestDataDirOverridden verifies that the dataDirOverridden flag is only set
+// when OverrideDataDir is called (i.e. when TF_DATA_DIR is set by the user).
+//
+// Without the flag, the generic version mismatch error is shown instead, avoiding confusion for users who never
+// touched TF_DATA_DIR.
+func TestDataDirOverridden(t *testing.T) {
+	t.Run("false by default", func(t *testing.T) {
+		d := &Dir{dataDir: DefaultDataDir}
+		if d.DataDirOverridden() {
+			t.Error("DataDirOverridden should be false for a freshly created Dir")
+		}
+	})
+
+	t.Run("true after OverrideDataDir", func(t *testing.T) {
+		d := &Dir{dataDir: DefaultDataDir}
+		d.OverrideDataDir("/tmp/custom-data-dir")
+		if !d.DataDirOverridden() {
+			t.Error("DataDirOverridden should be true after OverrideDataDir is called")
+		}
+	})
+
+	t.Run("set via NewWorkdir when TF_DATA_DIR is set", func(t *testing.T) {
+		tempDir := t.TempDir()
+		t.Chdir(tempDir)
+		t.Setenv("TF_DATA_DIR", "/tmp/custom-data-dir")
+
+		d, _, err := NewWorkdir(nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if !d.DataDirOverridden() {
+			t.Error("DataDirOverridden should be true when TF_DATA_DIR is set")
+		}
+	})
+
+	t.Run("not set via NewWorkdir without TF_DATA_DIR", func(t *testing.T) {
+		tempDir := t.TempDir()
+		t.Chdir(tempDir)
+
+		d, _, err := NewWorkdir(nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if d.DataDirOverridden() {
+			t.Error("DataDirOverridden should be false when TF_DATA_DIR is not set")
+		}
+	})
+}

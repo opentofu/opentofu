@@ -593,9 +593,9 @@ func (m *Meta) backendFromConfig(ctx context.Context, opts *BackendOpts, enc enc
 	// if we're using a remote backend. This may not yet exist which means
 	// we haven't used a non-local backend before. That is okay.
 	statePath := filepath.Join(m.WorkingDir.DataDir(), arguments.DefaultStateFilename)
-	sMgr := &clistate.LocalState{Path: statePath}
+	sMgr := &clistate.LocalState{Path: statePath, DataDirOverridden: m.WorkingDir.DataDirOverridden()}
 	if err := sMgr.RefreshState(context.TODO()); err != nil {
-		diags = diags.Append(fmt.Errorf("Failed to load state: %w", err))
+		diags = diags.Append(fmt.Errorf("Failed to load backend configuration from %s: %w", statePath, err))
 		return nil, diags
 	}
 
@@ -810,9 +810,9 @@ func (m *Meta) backendFromState(ctx context.Context, enc encryption.StateEncrypt
 	// if we're using a remote backend. This may not yet exist which means
 	// we haven't used a non-local backend before. That is okay.
 	statePath := filepath.Join(m.WorkingDir.DataDir(), arguments.DefaultStateFilename)
-	sMgr := &clistate.LocalState{Path: statePath}
+	sMgr := &clistate.LocalState{Path: statePath, DataDirOverridden: m.WorkingDir.DataDirOverridden()}
 	if err := sMgr.RefreshState(context.TODO()); err != nil {
-		diags = diags.Append(fmt.Errorf("Failed to load state: %w", err))
+		diags = diags.Append(fmt.Errorf("Failed to load backend configuration from %s: %w", statePath, err))
 		return nil, diags
 	}
 	s := sMgr.State()
