@@ -357,6 +357,7 @@ To initialize the configuration already in this working directory, omit the
 }
 
 func (c *InitCommand) getModules(ctx context.Context, path, testsDir string, earlyRoot *configs.Module, upgrade bool, view views.Init) (output bool, abort bool, diags tfdiags.Diagnostics) {
+	/* TODO? disabled for now
 	testModules := false // We can also have modules buried in test files.
 	for _, file := range earlyRoot.Tests {
 		for _, run := range file.Runs {
@@ -369,7 +370,7 @@ func (c *InitCommand) getModules(ctx context.Context, path, testsDir string, ear
 	if len(earlyRoot.ModuleCalls) == 0 && len(earlyRoot.LibraryContents.LibraryCalls) == 0 && !testModules {
 		// Nothing to do
 		return false, false, nil
-	}
+	}*/
 
 	ctx, span := tracing.Tracer().Start(ctx, "Get Modules", tracing.SpanAttributes(
 		traceattrs.Bool("opentofu.modules.upgrade", upgrade),
