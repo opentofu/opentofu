@@ -19,6 +19,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/symlib"
+	"github.com/opentofu/opentofu/internal/lang"
 )
 
 // BuildConfig constructs a Config from a root module by loading all of its
@@ -132,7 +133,7 @@ func buildLibrary(ctx context.Context, parent *Config, walker ModuleWalker) (*sy
 		diags = diags.Extend(lDiags)
 
 		return l, diags
-	})
+	}, new(lang.Scope{PureOnly: true, BaseDir: "."}).Functions())
 }
 
 func buildTestModules(ctx context.Context, root *Config, walker ModuleWalker) hcl.Diagnostics {

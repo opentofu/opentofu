@@ -14,18 +14,22 @@ type Library struct {
 	types        map[string]cty.Type
 	typeDefaults map[string]*typeexpr.Defaults
 
+	builtinFuncs map[string]function.Function
+
 	TypeContext typeexpr.TypeContext
 	Functions   map[string]function.Function
 }
 
 type LibraryLoader func(*LibraryCall) (*Library, hcl.Diagnostics)
 
-func NewLibrary(contents *LibraryContents, loader LibraryLoader) (*Library, hcl.Diagnostics) {
+func NewLibrary(contents *LibraryContents, loader LibraryLoader, builtinFuncs map[string]function.Function) (*Library, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	l := &Library{
 		functions:    map[string]function.Function{},
 		types:        map[string]cty.Type{},
 		typeDefaults: map[string]*typeexpr.Defaults{},
+
+		builtinFuncs: builtinFuncs,
 
 		Functions: map[string]function.Function{},
 		TypeContext: typeexpr.TypeContext{

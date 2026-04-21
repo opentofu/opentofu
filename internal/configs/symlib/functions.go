@@ -192,7 +192,7 @@ func (fn *Function) Impl(lib *Library) (function.Function, hcl.Diagnostics) {
 
 		hclCtx := &hcl.EvalContext{
 			Variables: map[string]cty.Value{},
-			// TODO builtin functions and references to other functions in the configuration
+			Functions: lib.builtinFuncs,
 		}
 
 		paramObj := map[string]cty.Value{}
