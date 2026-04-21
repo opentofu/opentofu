@@ -41,12 +41,13 @@ type Plan struct {
 func ParsePlan(args []string) (*Plan, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	plan := &Plan{
-		State:     &State{},
+		State:     NewStateFlags(),
 		Operation: &Operation{},
 		Vars:      &Vars{},
 	}
 
-	cmdFlags := extendedFlagSet("plan", plan.State, plan.Operation, plan.Vars)
+	cmdFlags := extendedFlagSet("plan", plan.Operation, plan.Vars)
+	plan.State.AddFlags(cmdFlags, true, true, true, true)
 	cmdFlags.BoolVar(&plan.DetailedExitCode, "detailed-exitcode", false, "detailed-exitcode")
 	cmdFlags.StringVar(&plan.OutPath, "out", "", "out")
 	cmdFlags.StringVar(&plan.GenerateConfigPath, "generate-config-out", "", "generate-config-out")

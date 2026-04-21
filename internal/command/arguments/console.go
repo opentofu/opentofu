@@ -32,7 +32,7 @@ func ParseConsole(args []string) (*Console, func(), tfdiags.Diagnostics) {
 		Vars: &Vars{},
 	}
 
-	cmdFlags := extendedFlagSet("console", nil, nil, console.Vars)
+	cmdFlags := extendedFlagSet("console", nil, console.Vars)
 	console.Backend.AddStateFlags(cmdFlags)
 	cmdFlags.StringVar(&console.StatePath, "state", DefaultStateFilename, "path")
 

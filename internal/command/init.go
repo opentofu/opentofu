@@ -77,7 +77,7 @@ func (c *InitCommand) Run(rawArgs []string) int {
 	// operation, but there is no clear path to pass this value down, so we
 	// continue to mutate the Meta object state for now.
 	c.Meta.input = args.ViewOptions.InputEnabled
-	c.configureBackendFlags(args.Backend)
+	c.configureBackendFlags(args.Backend, args.State)
 
 	if len(args.FlagPluginPath) > 0 {
 		c.pluginPath = args.FlagPluginPath
@@ -1146,15 +1146,15 @@ func (c *InitCommand) AutocompleteArgs() complete.Predictor {
 //
 // TODO meta-refactor: remove this when the Meta fields configured here will be removed and replaced
 // with proper arguments for the backend.
-func (c *InitCommand) configureBackendFlags(args *arguments.Backend) {
+func (c *InitCommand) configureBackendFlags(args *arguments.Backend, state *arguments.State) {
 	c.forceInitCopy = args.ForceInitCopy
 	c.reconfigure = args.Reconfigure
 	c.migrateState = args.MigrateState
 	c.Meta.ignoreRemoteVersion = args.IgnoreRemoteVersion
 	// TODO meta-refactor: unify these 2 args attributes with the state flags in arguments.extendedFlagSet
 	//  https://github.com/opentofu/opentofu/blob/db8c872defd8666618649ef7e29fa2b809adfd5e/internal/command/arguments/extended.go#L320-L321
-	c.Meta.stateLock = args.StateLock
-	c.Meta.stateLockTimeout = args.StateLockTimeout
+	c.Meta.stateLock = state.Lock
+	c.Meta.stateLockTimeout = state.LockTimeout
 }
 
 func (c *InitCommand) AutocompleteFlags() complete.Flags {

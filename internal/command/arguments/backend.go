@@ -30,6 +30,7 @@ func (b *Backend) AddIgnoreRemoteVersionFlag(f *flag.FlagSet) {
 	f.BoolVar(&b.IgnoreRemoteVersion, "ignore-remote-version", false, "continue even if remote and local OpenTofu versions are incompatible")
 }
 
+// TODO meta-refactor: replace this with the State.AddFlags instead.
 func (b *Backend) AddStateFlags(f *flag.FlagSet) {
 	f.BoolVar(&b.StateLock, "lock", true, "lock state")
 	f.DurationVar(&b.StateLockTimeout, "lock-timeout", 0, "lock timeout")

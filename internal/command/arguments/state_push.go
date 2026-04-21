@@ -33,7 +33,7 @@ func ParseStatePush(args []string) (*StatePush, func(), tfdiags.Diagnostics) {
 	ret := &StatePush{
 		Vars: &Vars{},
 	}
-	cmdFlags := extendedFlagSet("state push", nil, nil, ret.Vars)
+	cmdFlags := extendedFlagSet("state push", nil, ret.Vars)
 	ret.Backend.AddIgnoreRemoteVersionFlag(cmdFlags)
 	ret.Backend.AddStateFlags(cmdFlags)
 	cmdFlags.BoolVar(&ret.Force, "force", false, "")

@@ -50,6 +50,8 @@ type Init struct {
 	// Backend holds and providers information for the flags related to the backend operations, like locking
 	// locking timeout, force migration, etc.
 	Backend *Backend
+	// State is used for the state related flags
+	State *State
 }
 
 // ParseInit processes CLI arguments, returning an Init value, a closer function, and errors.
@@ -60,12 +62,13 @@ func ParseInit(args []string) (*Init, func(), tfdiags.Diagnostics) {
 	init := &Init{
 		Vars:            &Vars{},
 		Backend:         &Backend{},
+		State:           NewStateFlags(),
 		FlagConfigExtra: flags.NewRawFlags("-backend-config"),
 	}
 
-	cmdFlags := extendedFlagSet("init", nil, nil, init.Vars)
+	cmdFlags := extendedFlagSet("init", nil, init.Vars)
 	init.Backend.AddIgnoreRemoteVersionFlag(cmdFlags)
-	init.Backend.AddStateFlags(cmdFlags)
+	init.State.AddFlags(cmdFlags, true, false, false, false)
 	init.Backend.AddMigrationFlags(cmdFlags)
 	cmdFlags.BoolVar(&init.FlagBackend, "backend", true, "")
 	cmdFlags.BoolVar(&init.FlagCloud, "cloud", true, "")

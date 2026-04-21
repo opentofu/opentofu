@@ -42,14 +42,15 @@ func ParseTaint(isTaint bool, args []string) (*Taint, func(), tfdiags.Diagnostic
 	var diags tfdiags.Diagnostics
 	arguments := &Taint{
 		Vars:    &Vars{},
-		State:   &State{},
+		State:   NewStateFlags(),
 		Backend: &Backend{},
 	}
 	cmd := "taint"
 	if !isTaint {
 		cmd = "untaint"
 	}
-	cmdFlags := extendedFlagSet(cmd, arguments.State, nil, arguments.Vars)
+	cmdFlags := extendedFlagSet(cmd, nil, arguments.Vars)
+	arguments.State.AddFlags(cmdFlags, true, true, true, true)
 	cmdFlags.BoolVar(&arguments.AllowMissing, "allow-missing", false, "allow missing")
 	arguments.Backend.AddIgnoreRemoteVersionFlag(cmdFlags)
 	arguments.ViewOptions.AddFlags(cmdFlags, false)

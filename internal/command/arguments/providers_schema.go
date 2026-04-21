@@ -28,7 +28,7 @@ func ParseProvidersSchema(args []string) (*ProvidersSchema, func(), tfdiags.Diag
 		Vars: &Vars{},
 	}
 
-	cmdFlags := extendedFlagSet("providers schema", nil, nil, schema.Vars)
+	cmdFlags := extendedFlagSet("providers schema", nil, schema.Vars)
 
 	schema.ViewOptions.AddGranularFlags(cmdFlags, false, false)
 

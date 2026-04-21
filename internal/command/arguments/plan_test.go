@@ -33,7 +33,7 @@ func TestParsePlan_basicValid(t *testing.T) {
 					ViewType:     ViewHuman,
 				},
 				OutPath: "",
-				State:   &State{Lock: true},
+				State:   NewStateFlags(),
 				Vars:    &Vars{},
 				Operation: &Operation{
 					PlanMode:    plans.NormalMode,
@@ -51,7 +51,7 @@ func TestParsePlan_basicValid(t *testing.T) {
 					ViewType:     ViewHuman,
 				},
 				OutPath: "saved.tfplan",
-				State:   &State{Lock: true},
+				State:   NewStateFlags(),
 				Vars:    &Vars{},
 				Operation: &Operation{
 					PlanMode:    plans.DestroyMode,
@@ -69,7 +69,7 @@ func TestParsePlan_basicValid(t *testing.T) {
 					ViewType:     ViewJSON,
 				},
 				OutPath: "",
-				State:   &State{Lock: true},
+				State:   NewStateFlags(),
 				Vars:    &Vars{},
 				Operation: &Operation{
 					PlanMode:    plans.NormalMode,

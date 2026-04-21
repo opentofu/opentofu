@@ -36,7 +36,7 @@ func ParseStateShow(args []string) (*StateShow, func(), tfdiags.Diagnostics) {
 	ret := &StateShow{
 		Vars: &Vars{},
 	}
-	cmdFlags := extendedFlagSet("state show", nil, nil, ret.Vars)
+	cmdFlags := extendedFlagSet("state show", nil, ret.Vars)
 	cmdFlags.BoolVar(&ret.ShowSensitive, "show-sensitive", false, "displays sensitive values")
 	// TODO meta-refactor: we should use directly the [State] struct here but we cannot use it in the `extendedFlagSet`
 	//  since that registers more flags than desired by this command.

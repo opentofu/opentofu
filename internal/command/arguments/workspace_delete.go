@@ -38,7 +38,7 @@ func ParseWorkspaceDelete(args []string) (*WorkspaceDelete, func(), tfdiags.Diag
 		Vars: &Vars{},
 	}
 
-	cmdFlags := extendedFlagSet("workspace delete", nil, nil, ret.Vars)
+	cmdFlags := extendedFlagSet("workspace delete", nil, ret.Vars)
 	cmdFlags.BoolVar(&ret.Force, "force", false, "force removal of a non-empty workspace")
 	cmdFlags.BoolVar(&ret.StateLock, "lock", true, "lock state")
 	cmdFlags.DurationVar(&ret.StateLockTimeout, "lock-timeout", 0, "lock timeout")

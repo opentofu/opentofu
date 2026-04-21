@@ -26,12 +26,13 @@ type Refresh struct {
 func ParseRefresh(args []string) (*Refresh, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	refresh := &Refresh{
-		State:     &State{},
+		State:     NewStateFlags(),
 		Operation: &Operation{},
 		Vars:      &Vars{},
 	}
 
-	cmdFlags := extendedFlagSet("refresh", refresh.State, refresh.Operation, refresh.Vars)
+	cmdFlags := extendedFlagSet("refresh", refresh.Operation, refresh.Vars)
+	refresh.State.AddFlags(cmdFlags, true, true, true, true)
 	refresh.ViewOptions.AddFlags(cmdFlags, true)
 
 	if err := cmdFlags.Parse(args); err != nil {

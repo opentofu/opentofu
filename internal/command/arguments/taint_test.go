@@ -184,10 +184,8 @@ func taintArgsWithDefaults(mutate func(v *Taint)) *Taint {
 			ViewType:     ViewHuman,
 			InputEnabled: false,
 		},
-		Vars: &Vars{},
-		State: &State{
-			Lock: true,
-		},
+		Vars:    &Vars{},
+		State:   NewStateFlags(),
 		Backend: &Backend{},
 	}
 	if mutate != nil {

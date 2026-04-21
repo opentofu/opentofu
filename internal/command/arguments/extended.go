@@ -53,6 +53,31 @@ type State struct {
 	BackupPath string
 }
 
+// NewStateFlags must be used when creating a new [State] instance, instead of creating a new object inline.
+// This is because it provides the default value for [State.Lock] even if the flags are not registered.
+func NewStateFlags() *State {
+	return &State{
+		Lock: true,
+	}
+}
+
+// AddFlags is the sole logic of registering the state related flags in OpenTofu.
+func (s *State) AddFlags(f *flag.FlagSet, lockFlags bool, stateInPath bool, stateOutPath bool, backupPath bool) {
+	if lockFlags {
+		f.BoolVar(&s.Lock, "lock", true, "lock")
+		f.DurationVar(&s.LockTimeout, "lock-timeout", 0, "lock-timeout")
+	}
+	if stateInPath {
+		f.StringVar(&s.StatePath, "state", "", "state-path")
+	}
+	if stateOutPath {
+		f.StringVar(&s.StateOutPath, "state-out", "", "state-path")
+	}
+	if backupPath {
+		f.StringVar(&s.BackupPath, "backup", "", "backup-path")
+	}
+}
+
 // Operation describes arguments which are used to configure how a OpenTofu
 // operation such as a plan or apply executes.
 type Operation struct {
@@ -310,19 +335,11 @@ func (v *Vars) Empty() bool {
 // extendedFlagSet creates a FlagSet with common backend, operation, and vars
 // flags used in many commands. Target structs for each subset of flags must be
 // provided in order to support those flags.
-func extendedFlagSet(name string, state *State, operation *Operation, vars *Vars) *flag.FlagSet {
+func extendedFlagSet(name string, operation *Operation, vars *Vars) *flag.FlagSet {
 	f := defaultFlagSet(name)
 
-	if state == nil && operation == nil && vars == nil {
+	if operation == nil && vars == nil {
 		panic("use defaultFlagSet")
-	}
-
-	if state != nil {
-		f.BoolVar(&state.Lock, "lock", true, "lock")
-		f.DurationVar(&state.LockTimeout, "lock-timeout", 0, "lock-timeout")
-		f.StringVar(&state.StatePath, "state", "", "state-path")
-		f.StringVar(&state.StateOutPath, "state-out", "", "state-path")
-		f.StringVar(&state.BackupPath, "backup", "", "backup-path")
 	}
 
 	if operation != nil {

@@ -33,7 +33,7 @@ func TestParseApply_basicValid(t *testing.T) {
 					ViewType:     ViewHuman,
 				},
 				PlanPath: "",
-				State:    &State{Lock: true},
+				State:    NewStateFlags(),
 				Vars:     &Vars{},
 				Operation: &Operation{
 					PlanMode:    plans.NormalMode,
@@ -51,7 +51,7 @@ func TestParseApply_basicValid(t *testing.T) {
 					ViewType:     ViewHuman,
 				},
 				PlanPath: "saved.tfplan",
-				State:    &State{Lock: true},
+				State:    NewStateFlags(),
 				Vars:     &Vars{},
 				Operation: &Operation{
 					PlanMode:    plans.NormalMode,
@@ -69,7 +69,7 @@ func TestParseApply_basicValid(t *testing.T) {
 					ViewType:     ViewHuman,
 				},
 				PlanPath: "",
-				State:    &State{Lock: true},
+				State:    NewStateFlags(),
 				Vars:     &Vars{},
 				Operation: &Operation{
 					PlanMode:    plans.DestroyMode,
@@ -87,7 +87,7 @@ func TestParseApply_basicValid(t *testing.T) {
 					ViewType:     ViewJSON,
 				},
 				PlanPath: "",
-				State:    &State{Lock: true},
+				State:    NewStateFlags(),
 				Vars:     &Vars{},
 				Operation: &Operation{
 					PlanMode:    plans.NormalMode,
@@ -774,7 +774,7 @@ func TestParseApplyDestroy_basicValid(t *testing.T) {
 					InputEnabled: true,
 					ViewType:     ViewHuman,
 				},
-				State: &State{Lock: true},
+				State: NewStateFlags(),
 				Vars:  &Vars{},
 				Operation: &Operation{
 					PlanMode:    plans.DestroyMode,
@@ -791,7 +791,7 @@ func TestParseApplyDestroy_basicValid(t *testing.T) {
 					InputEnabled: false,
 					ViewType:     ViewHuman,
 				},
-				State: &State{Lock: true},
+				State: NewStateFlags(),
 				Vars:  &Vars{},
 				Operation: &Operation{
 					PlanMode:    plans.DestroyMode,

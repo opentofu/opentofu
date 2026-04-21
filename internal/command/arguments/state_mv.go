@@ -45,7 +45,7 @@ func ParseStateMv(args []string) (*StateMv, func(), tfdiags.Diagnostics) {
 		Vars: &Vars{},
 	}
 
-	cmdFlags := extendedFlagSet("state mv", nil, nil, ret.Vars)
+	cmdFlags := extendedFlagSet("state mv", nil, ret.Vars)
 	ret.Backend.AddIgnoreRemoteVersionFlag(cmdFlags)
 	ret.Backend.AddStateFlags(cmdFlags)
 	cmdFlags.BoolVar(&ret.DryRun, "dry-run", false, "dry run")

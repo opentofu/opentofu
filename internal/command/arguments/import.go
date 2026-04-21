@@ -38,16 +38,17 @@ func ParseImport(args []string, wd *workdir.Dir) (*Import, func(), tfdiags.Diagn
 	var diags tfdiags.Diagnostics
 	ret := &Import{
 		Vars:    &Vars{},
-		State:   &State{},
+		State:   NewStateFlags(),
 		Backend: &Backend{},
 	}
 	// Get the pwd since its our default -config flag value
 	pwd := wd.NormalizePath(wd.RootModuleDir())
 
-	cmdFlags := extendedFlagSet("import", ret.State, nil, ret.Vars)
-	ret.Backend.AddIgnoreRemoteVersionFlag(cmdFlags)
+	cmdFlags := extendedFlagSet("import", nil, ret.Vars)
 	cmdFlags.IntVar(&ret.Parallelism, "parallelism", DefaultParallelism, "parallelism")
 	cmdFlags.StringVar(&ret.ConfigPath, "config", pwd, "path")
+	ret.Backend.AddIgnoreRemoteVersionFlag(cmdFlags)
+	ret.State.AddFlags(cmdFlags, true, true, true, true)
 	ret.ViewOptions.AddFlags(cmdFlags, true)
 
 	if err := cmdFlags.Parse(args); err != nil {

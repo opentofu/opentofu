@@ -13,7 +13,7 @@ import (
 type Login struct {
 	// Host represents the host that OpenTofu will try to login to
 	Host string
-	
+
 	// ViewOptions specifies which view options to use
 	ViewOptions ViewOptions
 	// Vars holds and provides information for the flags related to variables that a user can give into the process
@@ -31,7 +31,7 @@ func ParseLogin(args []string) (*Login, func(), tfdiags.Diagnostics) {
 		Vars: &Vars{},
 	}
 
-	cmdFlags := extendedFlagSet("login", nil, nil, arguments.Vars)
+	cmdFlags := extendedFlagSet("login", nil, arguments.Vars)
 	arguments.ViewOptions.AddFlags(cmdFlags, true)
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(

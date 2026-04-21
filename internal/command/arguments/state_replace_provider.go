@@ -43,7 +43,7 @@ func ParseReplaceProvider(args []string) (*StateReplaceProvider, func(), tfdiags
 		Vars: &Vars{},
 	}
 
-	cmdFlags := extendedFlagSet("state replace-provider", nil, nil, ret.Vars)
+	cmdFlags := extendedFlagSet("state replace-provider", nil, ret.Vars)
 	ret.Backend.AddIgnoreRemoteVersionFlag(cmdFlags)
 	ret.Backend.AddStateFlags(cmdFlags)
 	cmdFlags.BoolVar(&ret.AutoApprove, "auto-approve", false, "skip interactive approval of replacements")

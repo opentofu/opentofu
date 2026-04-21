@@ -6,8 +6,6 @@
 package arguments
 
 import (
-	"time"
-
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -15,32 +13,26 @@ type WorkspaceNew struct {
 	// Workspace represents the name of the workspace that the user wants to be selected.
 	WorkspaceName string
 
-	// StatePath allows the user to give a specific state file into the command.
-	StatePath string
-	// StateLock allows the user to disable, the default enabled, state locking.
-	StateLock bool
-	// StateLockTimeout allows the user to configure the timeout for the locking of the state..
-	StateLockTimeout time.Duration
-
 	// ViewOptions contains the options that allows the user to configure different types of outputs
 	// from the current command.
 	ViewOptions ViewOptions
 
 	// Vars holds the information that might be needed to be given through `-var`/`-var-file`.
 	Vars *Vars
+	// State is used for the state related flags
+	State *State
 }
 
 func ParseWorkspaceNew(args []string) (*WorkspaceNew, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	ret := &WorkspaceNew{
-		Vars: &Vars{},
+		Vars:  &Vars{},
+		State: NewStateFlags(),
 	}
 
-	cmdFlags := extendedFlagSet("workspace new", nil, nil, ret.Vars)
-	cmdFlags.StringVar(&ret.StatePath, "state", "", "tofu state file")
-	cmdFlags.BoolVar(&ret.StateLock, "lock", true, "lock state")
-	cmdFlags.DurationVar(&ret.StateLockTimeout, "lock-timeout", 0, "lock timeout")
+	cmdFlags := extendedFlagSet("workspace new", nil, ret.Vars)
+	ret.State.AddFlags(cmdFlags, true, true, false, false)
 	ret.ViewOptions.AddFlags(cmdFlags, false)
 
 	if err := cmdFlags.Parse(args); err != nil {
