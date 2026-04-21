@@ -13,6 +13,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/eval"
+	"github.com/opentofu/opentofu/internal/plans/objchange"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -62,11 +63,32 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 	// arguments properly here.
 	p.planCtx.refreshedState.SetResourceInstanceCurrent(inst.Addr, nil, addrs.AbsProviderConfig{}, inst.ProviderInstance.Key)
 
-	// TODO: If the config value is not wholly known, or if any resource
-	// instance in inst.RequiredResourceInstances already has a planned change,
-	// then plan to read this during the apply phase and set ret.PlannedChange
-	// to an object using the [plans.Read] action, without writing a new
-	// object into the refreshed state yet.
+	requiredChanges := addrs.CollectSet(objchange.PrereqChangesForValue(inst.ConfigVal))
+	if len(requiredChanges) != 0 || !inst.ConfigVal.IsWhollyKnown() {
+		// TODO: plan to read this during the apply phase and set ret.PlannedChange
+		// to an object using the [plans.Read] action, without writing a new
+		// object into the refreshed state yet.
+		//
+		// In this case the placeholder value for any computed attribute in
+		// the object we return should also be annotated with
+		// [objchange.ValuePendingChange] using this data resource instance's
+		// address, so that any downstream data resource instance that derives
+		// from the results of this one will also get delayed to the apply
+		// phase.
+		panic("TODO: delaying of data resource instances to the apply phase not implemented yet")
+
+		// TODO: It would be nice to also report the requiredChanges set in a way
+		// that would allow us to enumerate in the UI exactly which managed
+		// resource instances are blocking the reading of this data resource
+		// instance, but that's less important than making sure the generated
+		// execution graph respects those dependencies.
+		//
+		// When we do this note that there can be unknown values in the config
+		// even when there aren't any required changes, such as if for some
+		// reason the data resource configuration includes a call to an
+		// impure function like "timestamp", so we should make sure the UI still
+		// does something sensible when requiredChanges is empty.
+	}
 
 	providerClient, moreDiags := p.providerClient(ctx, *inst.ProviderInstance)
 	if providerClient == nil {
