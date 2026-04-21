@@ -159,6 +159,8 @@ func compileModuleInstanceModuleCalls(
 
 						configgraph.RemoveNonDependencyMarks(childDependencyMarks)
 
+						// TODO add provider marks here?
+
 						modInst, moreDiags := mod.CompileModuleInstance(ctx, calleeAddr, &evalglue.ModuleCall{
 							InputValues:          exprs.ConstantValuer(inputs),
 							AllowImpureFunctions: parentCall.AllowImpureFunctions,
