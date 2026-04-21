@@ -14,7 +14,10 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/lang/eval"
+	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/plans/objchange"
 	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/resources"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -45,6 +48,7 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 
 	ret := &resourceInstanceObject{
 		Addr:               inst.Addr.CurrentObject(),
+		PrevRoundAddr:      inst.Addr.CurrentObject(),
 		ConfigDependencies: addrs.MakeSet[addrs.AbsResourceInstanceObject](),
 		Provider:           meta.Provider,
 
@@ -61,15 +65,6 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 		ret.ConfigDependencies.Add(dep.CurrentObject())
 	}
 
-	unmarkedConfigVal, _ := inst.ConfigVal.UnmarkDeep()
-
-	// TODO resourceType.ValidateConfig
-	validateDiags := p.planCtx.providers.ValidateResourceConfig(ctx, meta.Provider, addrs.DataResourceMode, meta.ResourceType, unmarkedConfigVal)
-	diags = diags.Append(validateDiags)
-	if diags.HasErrors() {
-		return ret, diags
-	}
-
 	providerInstUnmarked, providerInstMarks := meta.ProviderInstance.Unmark()
 	// TODO: What should we do with these marks, if anything?
 	_ = providerInstMarks
@@ -79,20 +74,6 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 		// provider instance it belongs to.
 		return ret, diags
 	}
-
-	// The equivalent of "refreshing" a data resource is just to discard it
-	// completely, because we only retain the previous result in state snapshots
-	// to support unusual situations like "tofu console"; it's not expected that
-	// data resource instances persist between rounds and they cannot because
-	// the protocol doesn't include any way to "upgrade" them if the provider
-	// schema has changed since previous round.
-	ret.PrevRoundAddr = ret.Addr
-
-	// TODO: If the config value is not wholly known, or if any resource
-	// instance in inst.RequiredResourceInstances already has a planned change,
-	// then plan to read this during the apply phase and set ret.PlannedChange
-	// to an object using the [plans.Read] action, without writing a new
-	// object into the refreshed state yet.
 
 	providerClient, moreDiags := p.providerClient(ctx, providerInstAddr)
 	if providerClient == nil {
@@ -108,46 +89,192 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 		return ret, diags
 	}
 
-	readCtx := ctx
-	if cb := tracer.StartDataResourceInstanceRead; cb != nil {
-		readCtx = cb(ctx, inst.Addr)
-	}
-	resp := providerClient.ReadDataSource(readCtx, providers.ReadDataSourceRequest{
-		TypeName: meta.ResourceType,
-		Config:   unmarkedConfigVal,
+	resourceType := resources.NewDataResourceType(meta.Provider, meta.ResourceType, providerClient)
 
-		// TODO: ProviderMeta is a rarely-used feature that only really makes
-		// sense when the module and provider are both written by the same
-		// party and the module author is using the provider as a way to
-		// transport module usage telemetry. We should decide whether we want
-		// to keep supporting that, and if so design a way for the relevant
-		// meta value to get from the evaluator into here.
-		ProviderMeta: cty.NullVal(cty.DynamicPseudoType),
-	})
-	diags = diags.Append(resp.Diagnostics)
-	if cb := tracer.EndDataResourceInstanceRead; cb != nil {
-		resultVal := cty.DynamicVal
-		if resp.State != cty.NilVal {
-			// TODO: Should apply "sensitive" marks here where appropriate in
-			// case the tracer is reporting events in the UI.
-			resultVal = resp.State
+	requiredChanges := addrs.CollectSet(objchange.PrereqChangesForValue(inst.ConfigVal))
+	depsPending := len(requiredChanges) != 0
+	configKnown := inst.ConfigVal.IsWhollyKnown()
+	if depsPending || !configKnown {
+		var reason plans.ResourceInstanceChangeActionReason
+		switch {
+		case !configKnown:
+			// log.Printf("[TRACE] planDataSource: %s configuration not fully known yet, so deferring to apply phase", n.Addr)
+			reason = plans.ResourceInstanceReadBecauseConfigUnknown
+		case depsPending:
+			// NOTE: depsPending can be true at the same time as configKnown
+			// is false; configKnown takes precedence because it's more
+			// specific.
+			// log.Printf("[TRACE] planDataSource: %s configuration is fully known, at least one dependency has changes pending", n.Addr)
+			reason = plans.ResourceInstanceReadBecauseDependencyPending
 		}
-		cb(readCtx, inst.Addr, resultVal, diags)
-	}
-	if resp.Diagnostics.HasErrors() {
+
+		// The configuration for this data resource instance is relying on
+		// values that won't be finalized until the apply phase, so we'll need
+		// to delay reading this until the apply phase.
+		// Note that this is not "deferral" in the sense of "deferred actions":
+		// that terminology refers to skipping any actions for a particular
+		// resource instance _even in the apply phase_ of this round, whereas
+		// "delaying" here just means that it gets read in the apply phase
+		// instead of during the plan phase.
+		//
+		// TODO: We should also used [derivedFromDeferredVal] somewhere in this
+		// function to handle when this is derived from something that _is_
+		// being completely deferred in this round, in which case we must also
+		// defer reading this data resource instance to a future round.
+
+		// We only do this if we're not in refresh-only mode!
+		if !p.planCtx.refreshOnly {
+			ret, moreDiags = p.planDelayedDataResourceInstance(ctx, inst, providerInstAddr, providerClient, reason, ret)
+			diags = diags.Append(moreDiags)
+		}
 		return ret, diags
 	}
-	// TODO: Verify that the object the provider returned is a valid completion
-	// of the configuration value.
 
-	// TODO: Update the refreshed state to match what we've just read.
+	validateDiags := resourceType.ValidateConfig(ctx, inst.ConfigVal)
+	// FIXME Needs that InConfigBody thing, see (*DataResourceType).Read
+	// for more details, that's gotta be fixed too.
+	diags = diags.Append(validateDiags)
+	if diags.HasErrors() {
+		return ret, diags
+	}
+
+	unmarkedConfigVal, _ := inst.ConfigVal.UnmarkDeepWithPaths()
+	proposedNewVal, unkDiags := resourceType.UnknownValue(ctx, unmarkedConfigVal)
+	diags = diags.Append(unkDiags)
+	if diags.HasErrors() {
+		// This only happens when there's issues getting the schema
+		return ret, diags
+	}
+
+	readCtx := ctx
+	if cb := tracer.StartDataResourceInstanceRead; cb != nil {
+		// TODO this feels like it belongs in resourceType.Read, but the tracer belongs to the planner...
+		readCtx = cb(ctx, inst.Addr, proposedNewVal)
+	}
+
+	resp, readDiags := resourceType.Read(readCtx, &resources.DataResourceReadRequest{
+		ResourceAddress: inst.Addr,
+		ConfigValue:     inst.ConfigVal,
+	}, inst.Addr.CurrentObject())
+	diags = diags.Append(readDiags)
+
+	if cb := tracer.EndDataResourceInstanceRead; cb != nil {
+		resultVal := cty.DynamicVal
+		if resp.Result != cty.NilVal {
+			// Note: resourceType.Read applies "sensitive" marks to Result
+			resultVal = resp.Result
+		}
+		cb(readCtx, inst.Addr, resultVal, diags.Err())
+	}
+
+	encodedVal, encodeDiags := resourceType.EncodeValue(ctx, resp.ResultUnmarked, inst.Addr.CurrentObject())
+	diags = diags.Append(encodeDiags)
+	if diags.HasErrors() {
+		return ret, diags
+	}
+
+	// no errors means encodedVal is non-nil!
+
+	dataResourceState := &states.ResourceInstanceObjectFullSrc{
+		Value: states.ValueJSONWithMetadata{
+			ValueJSON:      encodedVal.ValueJSON,
+			SensitivePaths: resp.SensitivePaths,
+		},
+		Status:               resp.Status,
+		ProviderInstanceAddr: providerInstAddr,
+		ResourceType:         meta.ResourceType,
+		SchemaVersion:        encodedVal.SchemaVersion,
+		// TODO: Populate these Dependencies based on the dependencies in the state
+		// See plan_managed.go for a similar problem
+		// Dependencies:         resp.Dependencies,
+	}
+
+	ret.RefreshedState = dataResourceState
+	ret.UpgradedState = dataResourceState
 
 	// Since we've already read the data source during the planning phase,
 	// we don't need a PlannedChange here and can instead just use the result
 	// as the PlaceholderValue.
-	ret.PlaceholderValue = resp.State
+	ret.PlaceholderValue = resp.Result
 
 	return ret, diags
+}
+
+// planDelayedDataResourceInstance deals with the situation where a data
+// resource instance has a configuration that includes values that won't be
+// finalized and known until the apply phase.
+//
+// In that case we produce a planned action to read the resource instance during
+// the apply phase, and then use a marked placeholder for ongoing evaluation.
+//
+// This is called by [planDesiredDataResourceInstance] after it has already
+// partially-constructed the [resourceInstanceObject] to return, so that's
+// passed in as "ret" and then modified in-place before returning it. The
+// caller is expected to then just return that result verbatim.
+func (p *planGlue) planDelayedDataResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance, providerAddr addrs.AbsProviderInstanceCorrect, providerClient providers.Interface, reason plans.ResourceInstanceChangeActionReason, ret *resourceInstanceObject) (*resourceInstanceObject, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
+	resourceType := resources.NewDataResourceType(providerAddr.Config.Config.Provider, inst.Addr.Resource.Resource.Type, providerClient)
+
+	schema, schemaDiags := resourceType.LoadSchema(ctx)
+	if schemaDiags.HasErrors() {
+		// We don't return the schema-loading diagnostics directly here because
+		// they should have already been returned by earlier code, but we do
+		// return a more specific error to make it clear that this specific
+		// resource instance was unplannable because of the problem.
+		diags = diags.Append(tfdiags.AttributeValue(
+			tfdiags.Error,
+			"Resource type schema unavailable",
+			fmt.Sprintf(
+				"Cannot plan %s because provider %s failed to return the schema for its resource type %q.",
+				inst.Addr, providerAddr.Config.Config.Provider, inst.Addr.Resource.Resource.Type,
+			),
+			nil, // this error belongs to the whole resource config
+		))
+		return ret, diags
+	}
+
+	unmarkedConfigVal, configMarkPaths := inst.ConfigVal.UnmarkDeepWithPaths()
+	// TODO replace with (*DataResourceType).UnknownValue
+	proposedNewVal := objchange.PlannedUnknownObject(schema.Block, unmarkedConfigVal)
+	proposedNewVal = proposedNewVal.MarkWithPaths(configMarkPaths)
+
+	// Apply detects that the data source will need to be read by the After
+	// value containing unknowns from PlanDataResourceObject.
+	ret.PlannedChange = &plans.ResourceInstanceChange{
+		Addr:         inst.Addr,
+		PrevRunAddr:  inst.Addr,
+		ProviderAddr: providerAddr.Config.Module.ProviderConfigDefault(providerAddr.Config.Config.Provider),
+		Action:       plans.Read,
+		Before:       proposedNewVal, // this is provided to the execgraph_data during read as "priorStateRef"
+		After:        proposedNewVal,
+		ActionReason: reason,
+	}
+	ret.ProviderInst = providerAddr
+
+	// TODO post-diff hook
+
+	return ret, diags
+
+	// Still TODO:
+	// The placeholder value for any computed attribute in
+	// the object we return should also be annotated with
+	// [objchange.ValuePendingChange] using this data resource instance's
+	// address, so that any downstream data resource instance that derives
+	// from the results of this one will also get delayed to the apply
+	// phase.
+
+	// TODO: It would be nice to also report the requiredChanges set in a way
+	// that would allow us to enumerate in the UI exactly which managed
+	// resource instances are blocking the reading of this data resource
+	// instance, but that's less important than making sure the generated
+	// execution graph respects those dependencies.
+	//
+	// When we do this note that there can be unknown values in the config
+	// even when there aren't any required changes, such as if for some
+	// reason the data resource configuration includes a call to an
+	// impure function like "timestamp", so we should make sure the UI still
+	// does something sensible when requiredChanges is empty.
 }
 
 func (p *planGlue) planOrphanDataResourceInstance(_ context.Context, addr addrs.AbsResourceInstance, state *states.ResourceInstanceObjectFullSrc) (*resourceInstanceObject, tfdiags.Diagnostics) {

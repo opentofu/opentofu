@@ -145,17 +145,14 @@ func TestGraphMarshalUnmarshalValid(t *testing.T) {
 				meta := builder.ResourceInstanceCurrentMeta(instAddrResult, nil)
 				desiredInst := builder.ResourceInstanceDesired(meta)
 
-				plannedVal := builder.ConstantValue(cty.DynamicVal)
-				newState := builder.DataRead(meta, desiredInst, plannedVal, nil)
+				newState := builder.DataRead(meta, desiredInst, nil)
 				builder.SetResourceInstanceFinalStateResult(instAddr, newState)
 				return builder.Finish()
 			},
 			`
-				v[0] = cty.UnknownVal(cty.DynamicPseudoType);
-
 				r[0] = ResourceInstanceCurrentMeta(data.test.example, nil);
 				r[1] = ResourceInstanceDesired(r[0]);
-				r[2] = DataRead(r[0], r[1], v[0], await());
+				r[2] = DataRead(r[0], r[1], await());
 
 				data.test.example = r[2];
 			`,
@@ -173,26 +170,23 @@ func TestGraphMarshalUnmarshalValid(t *testing.T) {
 					Name: "example2",
 				}.Absolute(addrs.RootModuleInstance).Instance(addrs.NoKey)
 
-				plannedVal := builder.ConstantValue(cty.DynamicVal)
 				meta1 := builder.ResourceInstanceCurrentMeta(builder.ConstantResourceInstAddr(instAddr1), nil)
 				desiredInst1 := builder.ResourceInstanceDesired(meta1)
-				newState1 := builder.DataRead(meta1, desiredInst1, plannedVal, nil)
+				newState1 := builder.DataRead(meta1, desiredInst1, nil)
 				meta2 := builder.ResourceInstanceCurrentMeta(builder.ConstantResourceInstAddr(instAddr2), nil)
 				desiredInst2 := builder.ResourceInstanceDesired(meta2)
-				newState2 := builder.DataRead(meta2, desiredInst2, plannedVal, builder.Waiter(newState1))
+				newState2 := builder.DataRead(meta2, desiredInst2, builder.Waiter(newState1))
 				builder.SetResourceInstanceFinalStateResult(instAddr1, newState1)
 				builder.SetResourceInstanceFinalStateResult(instAddr2, newState2)
 				return builder.Finish()
 			},
 			`
-				v[0] = cty.UnknownVal(cty.DynamicPseudoType);
-
 				r[0] = ResourceInstanceCurrentMeta(data.test.example1, nil);
 				r[1] = ResourceInstanceDesired(r[0]);
-				r[2] = DataRead(r[0], r[1], v[0], await());
+				r[2] = DataRead(r[0], r[1], await());
 				r[3] = ResourceInstanceCurrentMeta(data.test.example2, nil);
 				r[4] = ResourceInstanceDesired(r[3]);
-				r[5] = DataRead(r[3], r[4], v[0], await(r[2]));
+				r[5] = DataRead(r[3], r[4], await(r[2]));
 
 				data.test.example1 = r[2];
 				data.test.example2 = r[5];

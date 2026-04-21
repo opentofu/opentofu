@@ -304,7 +304,7 @@ type Operations interface {
 	// this method should not attempt to handle postconditions themselves.
 	DataRead(
 		ctx context.Context,
+		metadata *ResourceInstanceObjectMeta,
 		desired *eval.DesiredResourceInstance,
-		plannedVal cty.Value,
 	) (*ResourceInstanceObject, tfdiags.Diagnostics)
 }
