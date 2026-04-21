@@ -68,5 +68,11 @@ func buildExecutionGraph(
 		effectiveReplaceOrders,
 		additionalStateDependencies,
 	)
+
+	// TODO add provider data resource dependencies
+	// to the object subgraph, to make sure providers
+	// obtain the all values they depend upon
+	// See: TestContext2Apply_destroyProviderReference
+
 	return egb.lower.Finish()
 }
