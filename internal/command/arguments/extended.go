@@ -74,8 +74,13 @@ func (s *State) AddFlags(f *flag.FlagSet, lockFlags bool, stateInPath bool, stat
 		f.StringVar(&s.StateOutPath, "state-out", "", "state-path")
 	}
 	if backupPath {
-		f.StringVar(&s.BackupPath, "backup", "", "backup-path")
+		s.AddBackupFlag(f, "")
 	}
+}
+
+// AddBackupFlag exists strictly because the default value can get a different value in some commands.
+func (s *State) AddBackupFlag(f *flag.FlagSet, defVal string) {
+	f.StringVar(&s.BackupPath, "backup", defVal, "backup-path")
 }
 
 // Operation describes arguments which are used to configure how a OpenTofu

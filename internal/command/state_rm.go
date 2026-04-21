@@ -50,10 +50,10 @@ func (c *StateRmCommand) Run(rawArgs []string) int {
 	//  that uses them
 	c.Meta.variableArgs = args.Vars.All()
 	c.ignoreRemoteVersion = args.Backend.IgnoreRemoteVersion
-	c.backupPath = args.BackupPath
-	c.stateLock = args.Backend.StateLock
-	c.stateLockTimeout = args.Backend.StateLockTimeout
-	c.statePath = args.StatePath
+	c.backupPath = args.State.BackupPath
+	c.stateLock = args.State.Lock
+	c.stateLockTimeout = args.State.LockTimeout
+	c.statePath = args.State.StatePath
 
 	if diags := c.Meta.checkRequiredVersion(ctx); diags != nil {
 		view.Diagnostics(diags)

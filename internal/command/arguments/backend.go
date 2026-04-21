@@ -7,17 +7,12 @@ package arguments
 
 import (
 	"flag"
-	"time"
 
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 type Backend struct {
 	IgnoreRemoteVersion bool
-	// StateLock indicates if the state should be locked or not.
-	StateLock bool
-	// StateLockTimeout configures the duration that it waits for the state lock to be acquired.
-	StateLockTimeout time.Duration
 	// ForceInitCopy controls if the prompts for state migration should be skipped or not.
 	ForceInitCopy bool
 	// Reconfigure controls if the reconfiguration of the backend should happen with discarding the old configurations.
@@ -28,12 +23,6 @@ type Backend struct {
 
 func (b *Backend) AddIgnoreRemoteVersionFlag(f *flag.FlagSet) {
 	f.BoolVar(&b.IgnoreRemoteVersion, "ignore-remote-version", false, "continue even if remote and local OpenTofu versions are incompatible")
-}
-
-// TODO meta-refactor: replace this with the State.AddFlags instead.
-func (b *Backend) AddStateFlags(f *flag.FlagSet) {
-	f.BoolVar(&b.StateLock, "lock", true, "lock state")
-	f.DurationVar(&b.StateLockTimeout, "lock-timeout", 0, "lock timeout")
 }
 
 func (b *Backend) AddMigrationFlags(f *flag.FlagSet) {

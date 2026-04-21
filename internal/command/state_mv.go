@@ -51,10 +51,10 @@ func (c *StateMvCommand) Run(rawArgs []string) int {
 	}
 	// TODO meta-refactor: remove these assignments once there is a clear way to propagate these to the place
 	//   where are used
-	c.backupPath = args.BackupPath
-	c.statePath = args.StatePath
-	c.stateLock = args.Backend.StateLock
-	c.stateLockTimeout = args.Backend.StateLockTimeout
+	c.backupPath = args.State.BackupPath
+	c.statePath = args.State.StatePath
+	c.stateLock = args.State.Lock
+	c.stateLockTimeout = args.State.LockTimeout
 	c.ignoreRemoteVersion = args.Backend.IgnoreRemoteVersion
 	c.Meta.variableArgs = args.Vars.All()
 
@@ -66,8 +66,8 @@ func (c *StateMvCommand) Run(rawArgs []string) int {
 	// If backup or backup-out options are set
 	// and the state option is not set, make sure
 	// the backend is local
-	backupOptionSetWithoutStateOption := args.BackupPath != "-" && args.StatePath == ""
-	backupOutOptionSetWithoutStateOption := args.BackupPathOut != "-" && args.StatePath == ""
+	backupOptionSetWithoutStateOption := args.State.BackupPath != "-" && args.State.StatePath == ""
+	backupOutOptionSetWithoutStateOption := args.BackupPathOut != "-" && args.State.StatePath == ""
 
 	var setLegacyLocalBackendOptions []string
 	if backupOptionSetWithoutStateOption {
@@ -146,8 +146,8 @@ func (c *StateMvCommand) Run(rawArgs []string) int {
 	stateToMgr := stateFromMgr
 	stateTo := stateFrom
 
-	if args.StateOutPath != "" {
-		c.statePath = args.StateOutPath
+	if args.State.StateOutPath != "" {
+		c.statePath = args.State.StateOutPath
 		c.backupPath = args.BackupPathOut
 
 		stateToMgr, err = c.State(ctx, enc, view)

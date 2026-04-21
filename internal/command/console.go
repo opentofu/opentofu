@@ -52,8 +52,8 @@ func (c *ConsoleCommand) Run(rawArgs []string) int {
 	}
 	// TODO meta-refactor: get rid of this assignment once the statePath from Meta is removed
 	c.Meta.statePath = args.StatePath
-	c.Meta.stateLock = args.Backend.StateLock
-	c.Meta.stateLockTimeout = args.Backend.StateLockTimeout
+	c.Meta.stateLock = args.State.Lock
+	c.Meta.stateLockTimeout = args.State.LockTimeout
 
 	// FIXME: the -input flag value is needed to initialize the backend and the
 	// operation, but there is no clear path to pass this value down, so we

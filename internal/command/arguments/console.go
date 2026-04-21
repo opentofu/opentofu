@@ -18,8 +18,8 @@ type Console struct {
 	ViewOptions ViewOptions
 	// Vars holds and provides information for the flags related to variables that a user can give into the process
 	Vars *Vars
-	// Backend is used here to register and parse the flags for state locking
-	Backend Backend
+	// State is used for the state related flags
+	State *State
 }
 
 // ParseConsole processes CLI arguments, returning a Console value, a closer function, and errors.
@@ -29,11 +29,12 @@ func ParseConsole(args []string) (*Console, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	console := &Console{
-		Vars: &Vars{},
+		Vars:  &Vars{},
+		State: NewStateFlags(),
 	}
 
 	cmdFlags := extendedFlagSet("console", nil, console.Vars)
-	console.Backend.AddStateFlags(cmdFlags)
+	console.State.AddFlags(cmdFlags, true, false, false, false)
 	cmdFlags.StringVar(&console.StatePath, "state", DefaultStateFilename, "path")
 
 	console.ViewOptions.AddFlags(cmdFlags, true)

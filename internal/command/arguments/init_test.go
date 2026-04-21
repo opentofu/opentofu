@@ -442,18 +442,3 @@ func initArgsWithDefaults(mutate func(init *Init)) *Init {
 	}
 	return ret
 }
-
-func backendWithDefaults(mutate func(backend *Backend)) Backend {
-	ret := Backend{
-		IgnoreRemoteVersion: false,
-		StateLock:           false,
-		StateLockTimeout:    0,
-		ForceInitCopy:       false,
-		Reconfigure:         false,
-		MigrateState:        false,
-	}
-	if mutate != nil {
-		mutate(&ret)
-	}
-	return ret
-}

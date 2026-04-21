@@ -65,13 +65,13 @@ func TestParseConsole_basicValidation(t *testing.T) {
 			args: []string{"-lock-timeout=10s"},
 			want: consoleArgsWithDefaults(func(console *Console) {
 				// do not set `console.Backend.StateLock = true` since it's meant to be true already
-				console.Backend.StateLockTimeout = 10 * time.Second
+				console.State.LockTimeout = 10 * time.Second
 			}),
 		},
 		"disable locking": {
 			args: []string{"-lock=false"},
 			want: consoleArgsWithDefaults(func(console *Console) {
-				console.Backend.StateLock = false
+				console.State.Lock = false
 			}),
 		},
 	}
@@ -103,10 +103,8 @@ func consoleArgsWithDefaults(mutate func(console *Console)) *Console {
 			ViewType:     ViewHuman,
 			InputEnabled: true,
 		},
-		Vars: &Vars{},
-		Backend: Backend{
-			StateLock: true,
-		},
+		Vars:  &Vars{},
+		State: NewStateFlags(),
 	}
 	if mutate != nil {
 		mutate(ret)

@@ -56,8 +56,8 @@ func (c *StatePushCommand) Run(rawArgs []string) int {
 	// TODO meta-refactor: remove these assignments once we have a clear way to propagate these to the logic
 	//  that uses them
 	c.Meta.variableArgs = args.Vars.All()
-	c.stateLock = args.Backend.StateLock
-	c.stateLockTimeout = args.Backend.StateLockTimeout
+	c.stateLock = args.State.Lock
+	c.stateLockTimeout = args.State.LockTimeout
 	c.ignoreRemoteVersion = args.Backend.IgnoreRemoteVersion
 
 	if diags := c.Meta.checkRequiredVersion(ctx); diags != nil {

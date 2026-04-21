@@ -19,20 +19,16 @@ type StateMv struct {
 	// DryRun just validates that the arguments provided are valid and will output the possible outcome.
 	// When running in this mode, the state will suffer no change.
 	DryRun bool
-	// BackupPathOut and BackupPath can be used by the user to configure where to save the backup file of the state file.
+	// BackupPathOut can be used by the user to configure where to save the backup file of the state file.
 	BackupPathOut string
-	BackupPath    string
-	// StatePath represents the path of the state to be used for the moving operation.
-	StatePath string
-	// StateOutPath represents the path where OpenTofu should save the new state.
-	StateOutPath string
 
 	// ViewOptions specifies which view options to use
 	ViewOptions ViewOptions
 
-	// Vars and Backend are the common extended flags
+	// Vars, Backend and State are the common extended flags
 	Vars    *Vars
 	Backend Backend
+	State   *State
 }
 
 // ParseStateMv processes CLI arguments, returning a StateMv value, a closer function, and errors.
@@ -42,23 +38,16 @@ func ParseStateMv(args []string) (*StateMv, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	ret := &StateMv{
-		Vars: &Vars{},
+		Vars:  &Vars{},
+		State: NewStateFlags(),
 	}
 
 	cmdFlags := extendedFlagSet("state mv", nil, ret.Vars)
 	ret.Backend.AddIgnoreRemoteVersionFlag(cmdFlags)
-	ret.Backend.AddStateFlags(cmdFlags)
+	ret.State.AddFlags(cmdFlags, true, true, true, false)
+	ret.State.AddBackupFlag(cmdFlags, "-")
 	cmdFlags.BoolVar(&ret.DryRun, "dry-run", false, "dry run")
-	// NOTE: because the `-backup` and `-backup-out` flags need a different default value than usual,
-	// we cannot use the [State] flags extension to register and parse these.
-	// Therefore, we need to have these redefined here.
-	// TODO meta-refactor: we might want to have a separate function on the [arguments.State] to register flags,
-	//  where default value can be provided by the caller. This way we could still use those flags instead of redefining
-	//  everything again.
-	cmdFlags.StringVar(&ret.BackupPath, "backup", "-", "backup-path")
 	cmdFlags.StringVar(&ret.BackupPathOut, "backup-out", "-", "backup")
-	cmdFlags.StringVar(&ret.StatePath, "state", "", "state-path")
-	cmdFlags.StringVar(&ret.StateOutPath, "state-out", "", "state-path")
 
 	ret.ViewOptions.AddFlags(cmdFlags, false)
 

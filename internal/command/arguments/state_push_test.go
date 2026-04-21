@@ -51,14 +51,14 @@ func TestParseStatePush_basicValidation(t *testing.T) {
 		"lock flag": {
 			args: []string{"-lock=false", "terraform.tfstate"},
 			want: statePushArgsWithDefaults(func(v *StatePush) {
-				v.Backend.StateLock = false
+				v.State.Lock = false
 				v.StateSrc = "terraform.tfstate"
 			}),
 		},
 		"lock-timeout flag": {
 			args: []string{"-lock-timeout=30s", "terraform.tfstate"},
 			want: statePushArgsWithDefaults(func(v *StatePush) {
-				v.Backend.StateLockTimeout = 30000000000 // 30s in nanoseconds
+				v.State.LockTimeout = 30000000000 // 30s in nanoseconds
 				v.StateSrc = "terraform.tfstate"
 			}),
 		},
@@ -73,7 +73,7 @@ func TestParseStatePush_basicValidation(t *testing.T) {
 			args: []string{"-force", "-lock=false", "-ignore-remote-version", "terraform.tfstate"},
 			want: statePushArgsWithDefaults(func(v *StatePush) {
 				v.Force = true
-				v.Backend.StateLock = false
+				v.State.Lock = false
 				v.Backend.IgnoreRemoteVersion = true
 				v.StateSrc = "terraform.tfstate"
 			}),
@@ -167,13 +167,12 @@ func statePushArgsWithDefaults(mutate func(v *StatePush)) *StatePush {
 		},
 		Vars: &Vars{},
 		Backend: Backend{
-			StateLock:           true,
-			StateLockTimeout:    0,
 			IgnoreRemoteVersion: false,
 			Reconfigure:         false,
 			MigrateState:        false,
 			ForceInitCopy:       false,
 		},
+		State: NewStateFlags(),
 	}
 	if mutate != nil {
 		mutate(ret)
