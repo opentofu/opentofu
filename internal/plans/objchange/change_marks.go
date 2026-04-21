@@ -80,6 +80,32 @@ func PrereqChangesForValue(v cty.Value) iter.Seq[addrs.AbsResourceInstance] {
 	}
 }
 
+// MarkUnknownValuesAsPending returns a value that is equivalent to the given
+// value except that any unknown values within it are marked as having pending
+// changes associated with the given resource instance address.
+//
+// This is intended for when preparing the approximate planned value for a
+// data resource instance whose read is being delayed until the apply phase to
+// await some upstream changes. In that case, we want to treat the unknown parts
+// of that placeholder as also being pending changes so that downstream uses
+// of those values in other data resource instances can get attributed to the
+// data resource instance in question.
+//
+// Ideally we'd merge [PlannedUnknownObject] and this function together to do
+// both jobs at once instead of doing this in two passes, but that'll wait until
+// we're ready to start changing code that the older OpenTofu runtime depends
+// on, rather than having new-runtime-specific needs intentionally separated.
+func MarkUnknownValuesAsPending(v cty.Value, instAddr addrs.AbsResourceInstance) cty.Value {
+	// This transform cannot fail because the given callback never returns an error.
+	ret, _ := cty.Transform(v, func(p cty.Path, v cty.Value) (cty.Value, error) {
+		if !v.IsKnown() {
+			return ValuePendingChange(v, instAddr), nil
+		}
+		return v, nil
+	})
+	return ret
+}
+
 // MarkPendingChanges returns a value with the same content as "planned" except
 // that it has additional [PendingChange] marks on any part of the value that
 // differs from "prior".
