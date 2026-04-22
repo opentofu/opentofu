@@ -104,6 +104,15 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 
 	// Perform the operation
 	op, diags := c.RunOperation(ctx, be, opReq)
+
+	// Planning is one of the operations most likely to activate Go runtime
+	// behavior that's affected by GODEBUG, so we'll take this opportunity
+	// to warn about any reliance on non-default runtime behavior so that
+	// hopefully folks will report problems to us while their workaround is
+	// still available, instead of waiting until the workaround gets removed
+	// in a later Go releases.
+	diags = diags.Append(c.godebugUsageWarnings())
+
 	view.Diagnostics(diags)
 	if diags.HasErrors() {
 		return 1
