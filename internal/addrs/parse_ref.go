@@ -259,6 +259,9 @@ func parseRef(traversal hcl.Traversal) (*Reference, tfdiags.Diagnostics) {
 			Subject:  rootRange.Ptr(),
 		})
 		return nil, diags
+	case "library", "const":
+		// handled elsewhere
+		return nil, diags
 	default:
 		function := ParseFunction(root)
 		if function.IsNamespace(FunctionNamespaceProvider) {

@@ -14,6 +14,7 @@ import (
 	"github.com/zclconf/go-cty/cty/function"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs/symlib"
 	"github.com/opentofu/opentofu/internal/experiments"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -75,7 +76,7 @@ type Scope struct {
 
 	ProviderFunctions ProviderFunction
 
-	ModuleFunctions map[string]function.Function
+	Library *symlib.Library
 }
 
 type ProviderFunction func(context.Context, addrs.ProviderFunction, tfdiags.SourceRange) (*function.Function, tfdiags.Diagnostics)

@@ -13,6 +13,7 @@ import (
 type Library struct {
 	scope *scope
 
+	Consts      map[string]cty.Value
 	TypeContext typeexpr.TypeContext
 	Functions   map[string]function.Function
 }
@@ -51,7 +52,9 @@ func NewLibrary(contents *LibraryContents, loader LibraryLoader, builtinFuncs ma
 	for _, fn := range contents.Functions {
 		l.scope.addFunction(fn.Name, fn.Impl)
 	}
-	// TODO consts
+	for _, c := range contents.Consts {
+		l.scope.addVar("const", c.Name, c.Expr)
+	}
 
 	worker := workgraph.NewWorker()
 
@@ -63,11 +66,13 @@ func NewLibrary(contents *LibraryContents, loader LibraryLoader, builtinFuncs ma
 
 	l.TypeContext = typeCtx
 	l.Functions = evalCtx.Functions
+	l.Consts = evalCtx.Variables
 
 	return l, diags
 }
 
 type LibraryContents struct {
+	Consts       map[string]*Const
 	Functions    map[string]*Function
 	TypeDefs     map[string]*TypeDef
 	LibraryCalls map[string]*LibraryCall
@@ -76,22 +81,23 @@ type LibraryContents struct {
 func NewLibraryContents(files []*SymbolFile) (*LibraryContents, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	l := &LibraryContents{
+		Consts:       map[string]*Const{},
 		Functions:    map[string]*Function{},
 		TypeDefs:     map[string]*TypeDef{},
 		LibraryCalls: map[string]*LibraryCall{},
 	}
 
 	for _, file := range files {
-		for _, o := range file.Functions {
-			if existing, exists := l.Functions[o.Name]; exists {
+		for _, o := range file.Consts {
+			if existing, exists := l.Consts[o.Name]; exists {
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagError,
-					Summary:  "Duplicate function definition",
-					Detail:   fmt.Sprintf("An function named %q was already defined at %s. Function names must be unique within a module.", existing.Name, existing.DeclRange),
+					Summary:  "Duplicate const definition",
+					Detail:   fmt.Sprintf("An const named %q was already defined at %s. Const names must be unique within a module.", existing.Name, existing.DeclRange),
 					Subject:  &o.DeclRange,
 				})
 			}
-			l.Functions[o.Name] = o
+			l.Consts[o.Name] = o
 		}
 		for _, o := range file.TypeDefs {
 			if existing, exists := l.TypeDefs[o.Name]; exists {
@@ -103,6 +109,17 @@ func NewLibraryContents(files []*SymbolFile) (*LibraryContents, hcl.Diagnostics)
 				})
 			}
 			l.TypeDefs[o.Name] = o
+		}
+		for _, o := range file.Functions {
+			if existing, exists := l.Functions[o.Name]; exists {
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Duplicate function definition",
+					Detail:   fmt.Sprintf("An function named %q was already defined at %s. Function names must be unique within a module.", existing.Name, existing.DeclRange),
+					Subject:  &o.DeclRange,
+				})
+			}
+			l.Functions[o.Name] = o
 		}
 		for _, o := range file.LibraryCalls {
 			if existing, exists := l.LibraryCalls[o.Name]; exists {
@@ -121,6 +138,7 @@ func NewLibraryContents(files []*SymbolFile) (*LibraryContents, hcl.Diagnostics)
 }
 
 type SymbolFile struct {
+	Consts       []*Const
 	Functions    []*Function
 	TypeDefs     []*TypeDef
 	LibraryCalls []*LibraryCall
@@ -135,17 +153,23 @@ func LoadSymbolFile(body hcl.Body) (*SymbolFile, hcl.Diagnostics) {
 
 	for _, block := range content.Blocks {
 		switch block.Type {
-		case "function":
-			cfg, cfgDiags := decodeFunctionBlock(block)
+		case "const":
+			cfg, cfgDiags := decodeConstBlock(block)
 			diags = append(diags, cfgDiags...)
 			if cfg != nil {
-				file.Functions = append(file.Functions, cfg)
+				file.Consts = append(file.Consts, cfg...)
 			}
 		case "typedef":
 			cfg, cfgDiags := decodeTypeDefBlock(block)
 			diags = append(diags, cfgDiags...)
 			if cfg != nil {
 				file.TypeDefs = append(file.TypeDefs, cfg)
+			}
+		case "function":
+			cfg, cfgDiags := decodeFunctionBlock(block)
+			diags = append(diags, cfgDiags...)
+			if cfg != nil {
+				file.Functions = append(file.Functions, cfg)
 			}
 		case "library":
 			cfg, cfgDiags := decodeLibraryBlock(block)
@@ -167,11 +191,14 @@ func LoadSymbolFile(body hcl.Body) (*SymbolFile, hcl.Diagnostics) {
 var symbolFileSchema = &hcl.BodySchema{
 	Blocks: []hcl.BlockHeaderSchema{
 		{
-			Type:       "function",
-			LabelNames: []string{"name"},
+			Type: "const",
 		},
 		{
 			Type:       "typedef",
+			LabelNames: []string{"name"},
+		},
+		{
+			Type:       "function",
 			LabelNames: []string{"name"},
 		},
 		{

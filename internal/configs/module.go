@@ -10,7 +10,6 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/zclconf/go-cty/cty/function"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/symlib"
@@ -922,8 +921,4 @@ func (m *Module) EphemeralVariablesHints() map[string]bool {
 		res[vn] = vc.Ephemeral
 	}
 	return res
-}
-
-func (m *Module) DeclaredFunctions() map[string]function.Function {
-	return m.Library.Functions
 }

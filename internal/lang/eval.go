@@ -348,8 +348,9 @@ func (s *Scope) evalContext(ctx context.Context, parent *hcl.EvalContext, refs [
 	// provider-defined functions below.
 	maps.Copy(hclCtx.Functions, s.Functions())
 
-	for n, fn := range s.ModuleFunctions {
-		hclCtx.Functions[n] = fn
+	if s.Library != nil {
+		maps.Copy(hclCtx.Functions, s.Library.Functions)
+		maps.Copy(hclCtx.Variables, s.Library.Consts)
 	}
 
 	// Easy path for common case where there are no references at all.

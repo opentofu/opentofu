@@ -31,7 +31,6 @@ type FunctionParameter struct {
 	AllowUnknown bool
 }
 
-// Easier to ignore overrides for prototyping
 func decodeFunctionBlock(block *hcl.Block) (*Function, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
