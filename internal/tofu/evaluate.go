@@ -21,6 +21,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/configs/symlib"
 	"github.com/opentofu/opentofu/internal/didyoumean"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang"
@@ -82,7 +83,7 @@ type Evaluator struct {
 // If the "self" argument is nil then the "self" object is not available
 // in evaluated expressions. Otherwise, it behaves as an alias for the given
 // address.
-func (e *Evaluator) Scope(data lang.Data, self addrs.Referenceable, source addrs.Referenceable, functions lang.ProviderFunction) *lang.Scope {
+func (e *Evaluator) Scope(data lang.Data, self addrs.Referenceable, source addrs.Referenceable, functions lang.ProviderFunction, library *symlib.Library) *lang.Scope {
 	return &lang.Scope{
 		Data:              data,
 		ParseRef:          addrs.ParseRef,
@@ -92,7 +93,7 @@ func (e *Evaluator) Scope(data lang.Data, self addrs.Referenceable, source addrs
 		BaseDir:           ".", // Always current working directory for now.
 		PlanTimestamp:     e.PlanTimestamp,
 		ProviderFunctions: functions,
-		Library:           e.Config.Module.Library, // TODO this only works for the root module
+		Library:           library,
 	}
 }
 
