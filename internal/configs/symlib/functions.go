@@ -1,8 +1,7 @@
 package symlib
 
 import (
-	"fmt"
-
+	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/ext/typeexpr"
 	"github.com/hashicorp/hcl/v2/gohcl"
@@ -140,10 +139,8 @@ func decodeFunctionBlock(block *hcl.Block) (*Function, hcl.Diagnostics) {
 	return fn, diags
 }
 
-func (fn *Function) Impl(lib *Library) (function.Function, hcl.Diagnostics) {
+func (fn *Function) Impl(w *workgraph.Worker, s *scope) (function.Function, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
-
-	typeCtx := lib.TypeContext
 
 	spec := &function.Spec{
 		Description: fn.Description,
@@ -151,6 +148,9 @@ func (fn *Function) Impl(lib *Library) (function.Function, hcl.Diagnostics) {
 
 	returnType := cty.DynamicPseudoType
 	if fn.ReturnType != nil {
+		typeCtx, tDiags := s.typeContext(w, fn.ReturnType)
+		diags = diags.Extend(tDiags)
+
 		var valDiags hcl.Diagnostics
 		returnType, _, valDiags = typeCtx.TypeConstraintWithDefaults(fn.ReturnType)
 		diags = append(diags, valDiags...)
@@ -169,6 +169,9 @@ func (fn *Function) Impl(lib *Library) (function.Function, hcl.Diagnostics) {
 		}
 
 		if param.TypeExpr != nil {
+			typeCtx, tDiags := s.typeContext(w, *param.TypeExpr)
+			diags = diags.Extend(tDiags)
+
 			var valDiags hcl.Diagnostics
 			fnp.Type, defaults[fnp.Name], valDiags = typeCtx.TypeConstraintWithDefaults(*param.TypeExpr)
 			return fnp, valDiags
@@ -188,65 +191,35 @@ func (fn *Function) Impl(lib *Library) (function.Function, hcl.Diagnostics) {
 	}
 
 	spec.Impl = func(args []cty.Value, retType cty.Type) (cty.Value, error) {
-		// This is bad and I should feel bad
+		// This could also be accomplished by creating a full evalcontext
+		// and building deps internally via workgraph
+		s := s.clone()
 
-		hclCtx := &hcl.EvalContext{
-			Variables: map[string]cty.Value{},
-			Functions: lib.builtinFuncs,
-		}
-
-		paramObj := map[string]cty.Value{}
 		for i, arg := range args[:len(spec.Params)] {
 			param := spec.Params[i]
 
 			if defaults[param.Name] != nil && !arg.IsNull() {
 				arg = defaults[param.Name].Apply(arg)
 			}
-
-			paramObj[param.Name] = arg
+			s.addVar("param", param.Name, &hclsyntax.LiteralValueExpr{Val: arg})
 		}
 		if spec.VarParam != nil && len(spec.Params) != len(args) {
-			paramObj[spec.VarParam.Name] = cty.ListVal(args[len(spec.Params):])
-		}
-		hclCtx.Variables["param"] = cty.ObjectVal(paramObj)
-
-		localObj := map[string]cty.Value{}
-		hclCtx.Variables["local"] = cty.ObjectVal(localObj)
-
-		// TODO track stack / circuilar dependencies
-		var computeValue func(expr hcl.Expression) (cty.Value, error)
-		computeValue = func(expr hcl.Expression) (cty.Value, error) {
-			for _, trav := range expr.Variables() {
-				if len(trav) < 2 {
-					return cty.NilVal, fmt.Errorf("Bad traversal: %#v", trav)
-				}
-
-				switch trav[0].(hcl.TraverseRoot).Name {
-				case "param":
-					// Could validate if we care
-				case "local":
-					localName := trav[1].(hcl.TraverseAttr).Name
-					if _, ok := localObj[localName]; !ok {
-						var computeErr error
-						localObj[localName], computeErr = computeValue(fn.Locals[localName])
-						hclCtx.Variables["local"] = cty.ObjectVal(localObj)
-						if computeErr != nil {
-							return cty.NilVal, computeErr
-						}
-					}
-				default:
-					return cty.NilVal, fmt.Errorf("Bad traversal: %#v", trav)
-				}
-			}
-
-			val, vDiags := expr.Value(hclCtx)
-			if vDiags.HasErrors() {
-				return val, vDiags
-			}
-			return val, nil
+			s.addVar("param", spec.VarParam.Name, &hclsyntax.LiteralValueExpr{Val: cty.ListVal(args[len(spec.Params):])})
 		}
 
-		return computeValue(fn.Return)
+		for name, expr := range fn.Locals {
+			s.addVar("local", name, expr)
+		}
+
+		hclCtx, diags := s.evalContext(w, fn.Return)
+
+		val, vDiags := fn.Return.Value(hclCtx)
+		diags = diags.Extend(vDiags)
+
+		if diags.HasErrors() {
+			return val, error(diags)
+		}
+		return val, nil
 	}
 
 	return function.New(spec), diags

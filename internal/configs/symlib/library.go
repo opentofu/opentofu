@@ -3,6 +3,7 @@ package symlib
 import (
 	"fmt"
 
+	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/ext/typeexpr"
 	"github.com/zclconf/go-cty/cty"
@@ -10,11 +11,7 @@ import (
 )
 
 type Library struct {
-	functions    map[string]function.Function
-	types        map[string]cty.Type
-	typeDefaults map[string]*typeexpr.Defaults
-
-	builtinFuncs map[string]function.Function
+	scope *scope
 
 	TypeContext typeexpr.TypeContext
 	Functions   map[string]function.Function
@@ -25,11 +22,7 @@ type LibraryLoader func(*LibraryCall) (*Library, hcl.Diagnostics)
 func NewLibrary(contents *LibraryContents, loader LibraryLoader, builtinFuncs map[string]function.Function) (*Library, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	l := &Library{
-		functions:    map[string]function.Function{},
-		types:        map[string]cty.Type{},
-		typeDefaults: map[string]*typeexpr.Defaults{},
-
-		builtinFuncs: builtinFuncs,
+		scope: newScope(builtinFuncs),
 
 		Functions: map[string]function.Function{},
 		TypeContext: typeexpr.TypeContext{
@@ -37,9 +30,6 @@ func NewLibrary(contents *LibraryContents, loader LibraryLoader, builtinFuncs ma
 			Defaults: map[string]map[string]*typeexpr.Defaults{},
 		},
 	}
-
-	// TODO This is where complex interdependencies can happen!
-	// TODO We ignore this problem for now!
 
 	// Load libraries
 	for libName, call := range contents.LibraryCalls {
@@ -51,41 +41,28 @@ func NewLibrary(contents *LibraryContents, loader LibraryLoader, builtinFuncs ma
 			continue
 		}
 
-		// Imported functions
-		for name, fn := range lib.functions {
-			l.Functions["library::"+libName+"::"+name] = fn
-		}
-
-		// Imported types
-		l.TypeContext.Types["library::"+libName+"::types"] = lib.types
-		l.TypeContext.Defaults["library::"+libName+"::types"] = lib.typeDefaults
+		l.scope.libraries[libName] = lib.scope
 	}
 
-	// Declared types
+	// Build scope
 	for _, typeDef := range contents.TypeDefs {
-		varType, typeDefault, valDiags := l.TypeContext.TypeConstraintWithDefaults(typeDef.TypeExpr)
-		diags = diags.Extend(valDiags)
-
-		l.types[typeDef.Name] = varType
-		if typeDefault != nil {
-			l.typeDefaults[typeDef.Name] = typeDefault
-		}
+		l.scope.addType(typeDef.Name, typeDef.TypeExpr)
 	}
-	// Exported types
-	l.TypeContext.Types["library::types"] = l.types
-	l.TypeContext.Defaults["library::types"] = l.typeDefaults
-
-	// Declared functions
 	for _, fn := range contents.Functions {
-		impl, moreDiags := fn.Impl(l)
-		diags = diags.Extend(moreDiags)
+		l.scope.addFunction(fn.Name, fn.Impl)
+	}
+	// TODO consts
 
-		l.functions[fn.Name] = impl
-	}
-	// Exported functions
-	for name, fn := range l.functions {
-		l.Functions["library::"+name] = fn
-	}
+	worker := workgraph.NewWorker()
+
+	typeCtx, mDiags := l.scope.typeContext(worker, nil)
+	diags = diags.Extend(mDiags)
+
+	evalCtx, mDiags := l.scope.evalContext(worker, nil)
+	diags = diags.Extend(mDiags)
+
+	l.TypeContext = typeCtx
+	l.Functions = evalCtx.Functions
 
 	return l, diags
 }
