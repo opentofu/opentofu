@@ -53,11 +53,9 @@ func (c *StateReplaceProviderCommand) Run(rawArgs []string) int {
 	}
 	// TODO meta-refactor: remove these assignments once there is a clear way to propagate these to the place
 	//   where are used
-	c.backupPath = args.State.BackupPath
-	c.statePath = args.State.StatePath
-	c.stateLock = args.State.Lock
-	c.stateLockTimeout = args.State.LockTimeout
 	c.ignoreRemoteVersion = args.Backend.IgnoreRemoteVersion
+
+	c.stateArgs = *args.State
 	c.Meta.variableArgs = args.Vars.All()
 
 	if diags := c.Meta.checkRequiredVersion(ctx); diags != nil {
@@ -103,8 +101,8 @@ func (c *StateReplaceProviderCommand) Run(rawArgs []string) int {
 	}
 
 	// Acquire lock if requested
-	if c.stateLock {
-		stateLocker := clistate.NewLocker(c.stateLockTimeout, view.Backend().StateLocker())
+	if c.stateArgs.Lock {
+		stateLocker := clistate.NewLocker(c.stateArgs.LockTimeout, view.Backend().StateLocker())
 		if diags := stateLocker.Lock(stateMgr, "state-replace-provider"); diags.HasErrors() {
 			view.Diagnostics(diags)
 			return 1

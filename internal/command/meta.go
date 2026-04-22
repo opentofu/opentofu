@@ -217,27 +217,8 @@ type Meta struct {
 	// The fields below are expected to be set by the command via
 	// command line flags. See the Apply command for an example.
 	//
-	// statePath is the path to the state file. If this is empty, then
-	// no state will be loaded. It is also okay for this to be a path to
-	// a file that doesn't exist; it is assumed that this means that there
-	// is simply no state.
-	//
-	// stateOutPath is used to override the output path for the state.
-	// If not provided, the StatePath is used causing the old state to
-	// be overridden.
-	//
-	// backupPath is used to backup the state file before writing a modified
-	// version. It defaults to stateOutPath + DefaultBackupExtension
-	//
 	// parallelism is used to control the number of concurrent operations
 	// allowed when walking the graph
-	//
-	// provider is to specify specific resource providers
-	//
-	// stateLock is set to false to disable state locking
-	//
-	// stateLockTimeout is the optional duration to retry a state locks locks
-	// when it is already locked by another process.
 	//
 	// forceInitCopy suppresses confirmation for copying state data during
 	// init.
@@ -246,15 +227,11 @@ type Meta struct {
 	//
 	// migrateState confirms the user wishes to migrate from the prior backend
 	// configuration to a new configuration.
-	statePath        string
-	stateOutPath     string
-	backupPath       string
-	parallelism      int
-	stateLock        bool
-	stateLockTimeout time.Duration
-	forceInitCopy    bool
-	reconfigure      bool
-	migrateState     bool
+	stateArgs     arguments.State
+	parallelism   int
+	forceInitCopy bool
+	reconfigure   bool
+	migrateState  bool
 
 	// Used with commands which write state to allow users to write remote
 	// state even if the remote and local OpenTofu versions don't match.
@@ -279,22 +256,22 @@ type testingOverrides struct {
 }
 
 // initStatePaths is used to initialize the default values for
-// statePath, stateOutPath, and backupPath
+// arguments.State#StatePath, arguments.State#stateOutPath, and arguments.State#backupPath
 func (m *Meta) initStatePaths() {
-	if m.statePath == "" {
-		m.statePath = arguments.DefaultStateFilename
+	if m.stateArgs.StatePath == "" {
+		m.stateArgs.StatePath = arguments.DefaultStateFilename
 	}
-	if m.stateOutPath == "" {
-		m.stateOutPath = m.statePath
+	if m.stateArgs.StateOutPath == "" {
+		m.stateArgs.StateOutPath = m.stateArgs.StatePath
 	}
-	if m.backupPath == "" {
-		m.backupPath = m.stateOutPath + DefaultBackupExtension
+	if m.stateArgs.BackupPath == "" {
+		m.stateArgs.BackupPath = m.stateArgs.StateOutPath + DefaultBackupExtension
 	}
 }
 
 // StateOutPath returns the true output path for the state file
 func (m *Meta) StateOutPath() string {
-	return m.stateOutPath
+	return m.stateArgs.StateOutPath
 }
 
 const (
@@ -580,17 +557,6 @@ func (m *Meta) SetWorkspace(name string) error {
 func isAutoVarFile(path string) bool {
 	return strings.HasSuffix(path, ".auto.tfvars") ||
 		strings.HasSuffix(path, ".auto.tfvars.json")
-}
-
-// FIXME: as an interim refactoring step, we apply the contents of the state
-// arguments directly to the Meta object. Future work would ideally update the
-// code paths which use these arguments to be passed them directly for clarity.
-func (m *Meta) applyStateArguments(args *arguments.State) {
-	m.stateLock = args.Lock
-	m.stateLockTimeout = args.LockTimeout
-	m.statePath = args.StatePath
-	m.stateOutPath = args.StateOutPath
-	m.backupPath = args.BackupPath
 }
 
 // checkRequiredVersion loads the config and check if the

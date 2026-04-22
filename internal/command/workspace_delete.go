@@ -50,13 +50,9 @@ func (c *WorkspaceDeleteCommand) Run(rawArgs []string) int {
 		return cli.RunResultHelp
 	}
 	c.Meta.variableArgs = args.Vars.All()
+	c.stateArgs = *args.State
 
 	view.WarnWhenUsedAsEnvCmd(c.LegacyName)
-
-	// TODO meta-refactor: remove these when meta state locking related fields are removed and pass the
-	//  arguments to the backend component instead
-	c.stateLock = args.StateLock
-	c.stateLockTimeout = args.StateLockTimeout
 
 	configPath := c.WorkingDir.NormalizePath(c.WorkingDir.RootModuleDir())
 
@@ -134,8 +130,8 @@ func (c *WorkspaceDeleteCommand) Run(rawArgs []string) int {
 	}
 
 	var stateLocker clistate.Locker
-	if args.StateLock {
-		stateLocker = clistate.NewLocker(args.StateLockTimeout, backendView.StateLocker())
+	if args.State.Lock {
+		stateLocker = clistate.NewLocker(args.State.LockTimeout, backendView.StateLocker())
 		if diags := stateLocker.Lock(stateMgr, "state-replace-provider"); diags.HasErrors() {
 			view.Diagnostics(diags)
 			return 1

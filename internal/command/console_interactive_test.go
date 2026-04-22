@@ -116,7 +116,7 @@ func TestConsole_multiline_interactive(t *testing.T) {
 			}
 
 			// TODO meta-refactor: remove this assertion once the stateLock from Meta is removed
-			if !c.Meta.stateLock {
+			if !c.Meta.stateArgs.Lock {
 				t.Errorf("stateLock should always be nil for this command")
 			}
 		})

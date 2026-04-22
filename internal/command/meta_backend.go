@@ -425,10 +425,11 @@ func (m *Meta) backendCLIOpts(ctx context.Context) (*backend.CLIOpts, error) {
 		return nil, err
 	}
 	return &backend.CLIOpts{
-		View:                views.NewBackendRemote(m.View),
-		StatePath:           m.statePath,
-		StateOutPath:        m.stateOutPath,
-		StateBackupPath:     m.backupPath,
+		View: views.NewBackendRemote(m.View),
+		// TODO meta-refactor: pass the arguments.State here instead of individual properties
+		StatePath:           m.stateArgs.StatePath,
+		StateOutPath:        m.stateArgs.StateOutPath,
+		StateBackupPath:     m.stateArgs.BackupPath,
 		ContextOpts:         contextOpts,
 		Input:               m.Input(),
 		RunningInAutomation: m.RunningInAutomation,
@@ -459,8 +460,8 @@ func (m *Meta) Operation(ctx context.Context, b backend.Backend, view views.Back
 	}
 
 	stateLocker := clistate.NewNoopLocker()
-	if m.stateLock {
-		stateLocker = clistate.NewLocker(m.stateLockTimeout, view.StateLocker())
+	if m.stateArgs.Lock {
+		stateLocker = clistate.NewLocker(m.stateArgs.LockTimeout, view.StateLocker())
 	}
 
 	depLocks, diags := m.lockedDependencies()
@@ -1072,8 +1073,8 @@ func (m *Meta) backend_C_r_s(ctx context.Context, c *configs.Backend, cHash int,
 		}
 	}
 
-	if m.stateLock {
-		stateLocker := clistate.NewLocker(m.stateLockTimeout, view.StateLocker())
+	if m.stateArgs.Lock {
+		stateLocker := clistate.NewLocker(m.stateArgs.LockTimeout, view.StateLocker())
 		if d := stateLocker.Lock(sMgr, "backend from plan"); d != nil {
 			diags = diags.Append(fmt.Errorf("Error locking state: %s", d))
 			return nil, diags
@@ -1204,8 +1205,8 @@ func (m *Meta) backend_C_r_S_changed(ctx context.Context, c *configs.Backend, cH
 			return nil, diags
 		}
 
-		if m.stateLock {
-			stateLocker := clistate.NewLocker(m.stateLockTimeout, view.StateLocker())
+		if m.stateArgs.Lock {
+			stateLocker := clistate.NewLocker(m.stateArgs.LockTimeout, view.StateLocker())
 			if d := stateLocker.Lock(sMgr, "backend from plan"); d != nil {
 				diags = diags.Append(fmt.Errorf("Error locking state: %s", d))
 				return nil, diags

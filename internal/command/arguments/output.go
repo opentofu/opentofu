@@ -14,18 +14,14 @@ type Output struct {
 	// Name identifies which root module output to show.  If empty, show all
 	// outputs.
 	Name string
-
-	// StatePath is an optional path to a state file, from which outputs will
-	// be loaded.
-	StatePath string
+	// ShowSensitive is used to display the value of variables marked as sensitive.
+	ShowSensitive bool
 
 	// ViewOptions specifies which view options to use
 	ViewOptions ViewOptions
-
-	Vars *Vars
-
-	// ShowSensitive is used to display the value of variables marked as sensitive.
-	ShowSensitive bool
+	// Vars and State are the common extended flags
+	Vars  *Vars
+	State *State
 }
 
 // ParseOutput processes CLI arguments, returning an Output value, a closer function, and errors.
@@ -34,14 +30,14 @@ type Output struct {
 func ParseOutput(args []string) (*Output, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	output := &Output{
-		Vars: &Vars{},
+		Vars:  &Vars{},
+		State: NewStateFlags(),
 	}
 
 	var rawOutput bool
-	var statePath string
 	cmdFlags := extendedFlagSet("output", nil, output.Vars)
 	cmdFlags.BoolVar(&rawOutput, "raw", false, "raw")
-	cmdFlags.StringVar(&statePath, "state", "", "path")
+	output.State.AddFlags(cmdFlags, false, true, false, false)
 	cmdFlags.BoolVar(&output.ShowSensitive, "show-sensitive", false, "displays sensitive values")
 
 	output.ViewOptions.AddFlags(cmdFlags, false)
@@ -79,8 +75,6 @@ func ParseOutput(args []string) (*Output, func(), tfdiags.Diagnostics) {
 			rawOutput = false
 		}
 	}
-
-	output.StatePath = statePath
 
 	if len(args) > 0 {
 		output.Name = args[0]

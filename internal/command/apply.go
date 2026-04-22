@@ -196,11 +196,7 @@ func (c *ApplyCommand) LoadPlanFile(path string, enc encryption.Encryption) (*pl
 func (c *ApplyCommand) PrepareBackend(ctx context.Context, planFile *planfile.WrappedPlanFile, args *arguments.State, backendView views.Backend, enc encryption.StateEncryption) (backend.Enhanced, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	// FIXME: we need to apply the state arguments to the meta object here
-	// because they are later used when initializing the backend. Carving a
-	// path to pass these arguments to the functions that need them is
-	// difficult but would make their use easier to understand.
-	c.Meta.applyStateArguments(args)
+	c.stateArgs = *args
 
 	// Load the backend
 	var be backend.Enhanced

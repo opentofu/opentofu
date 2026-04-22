@@ -49,14 +49,12 @@ func (c *StateMvCommand) Run(rawArgs []string) int {
 		}
 		return cli.RunResultHelp
 	}
-	// TODO meta-refactor: remove these assignments once there is a clear way to propagate these to the place
-	//   where are used
-	c.backupPath = args.State.BackupPath
-	c.statePath = args.State.StatePath
-	c.stateLock = args.State.Lock
-	c.stateLockTimeout = args.State.LockTimeout
+	// TODO meta-refactor: remove this assignment once there is a clear way to propagate this to the place
+	//   where is used
 	c.ignoreRemoteVersion = args.Backend.IgnoreRemoteVersion
+
 	c.Meta.variableArgs = args.Vars.All()
+	c.stateArgs = *args.State
 
 	if diags := c.Meta.checkRequiredVersion(ctx); diags != nil {
 		view.Diagnostics(diags)
@@ -114,8 +112,8 @@ func (c *StateMvCommand) Run(rawArgs []string) int {
 		return 1
 	}
 
-	if c.stateLock {
-		stateLocker := clistate.NewLocker(c.stateLockTimeout, view.Backend().StateLocker())
+	if c.stateArgs.Lock {
+		stateLocker := clistate.NewLocker(c.stateArgs.LockTimeout, view.Backend().StateLocker())
 		if diags := stateLocker.Lock(stateFromMgr, "state-mv"); diags.HasErrors() {
 			view.Diagnostics(diags)
 			return 1
@@ -147,8 +145,8 @@ func (c *StateMvCommand) Run(rawArgs []string) int {
 	stateTo := stateFrom
 
 	if args.State.StateOutPath != "" {
-		c.statePath = args.State.StateOutPath
-		c.backupPath = args.BackupPathOut
+		c.stateArgs.StatePath = args.State.StateOutPath
+		c.stateArgs.BackupPath = args.BackupPathOut
 
 		stateToMgr, err = c.State(ctx, enc, view)
 		if err != nil {
@@ -156,8 +154,8 @@ func (c *StateMvCommand) Run(rawArgs []string) int {
 			return 1
 		}
 
-		if c.stateLock {
-			stateLocker := clistate.NewLocker(c.stateLockTimeout, view.Backend().StateLocker())
+		if c.stateArgs.Lock {
+			stateLocker := clistate.NewLocker(c.stateArgs.LockTimeout, view.Backend().StateLocker())
 			if diags := stateLocker.Lock(stateToMgr, "state-mv"); diags.HasErrors() {
 				view.Diagnostics(diags)
 				return 1

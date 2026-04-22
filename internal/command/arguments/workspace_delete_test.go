@@ -73,14 +73,14 @@ func TestParseWorkspaceDelete_basicValidation(t *testing.T) {
 			[]string{"-lock=false", "target-ws"},
 			workspaceDeleteArgsWithDefaults(func(in *WorkspaceDelete) {
 				in.WorkspaceName = "target-ws"
-				in.StateLock = false
+				in.State.Lock = false
 			}),
 		},
 		"lock timeout flag": {
 			[]string{"-lock-timeout=2s", "target-ws"},
 			workspaceDeleteArgsWithDefaults(func(in *WorkspaceDelete) {
 				in.WorkspaceName = "target-ws"
-				in.StateLockTimeout = 2 * time.Second
+				in.State.LockTimeout = 2 * time.Second
 			}),
 		},
 	}
@@ -163,13 +163,12 @@ func TestParseWorkspaceDelete_vars(t *testing.T) {
 
 func workspaceDeleteArgsWithDefaults(mutate func(in *WorkspaceDelete)) *WorkspaceDelete {
 	ret := &WorkspaceDelete{
-		Force:            false,
-		StateLock:        true,
-		StateLockTimeout: 0,
-		Vars:             &Vars{},
+		Force: false,
+		Vars:  &Vars{},
 		ViewOptions: ViewOptions{
 			ViewType: ViewHuman,
 		},
+		State: NewStateFlags(),
 	}
 	if mutate != nil {
 		mutate(ret)

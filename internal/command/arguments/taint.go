@@ -26,9 +26,6 @@ type Taint struct {
 	// Vars holds and provides information for the flags related to variables that a user can give into the process
 	Vars *Vars
 
-	// TODO meta-refactor: Backend and State have overlapping flags. Those need to be unified and
-	//  have a single point of registration of those flags
-
 	// State is used for the state related flags
 	State *State
 	// Backend is used strictly for the ignore remote version flag

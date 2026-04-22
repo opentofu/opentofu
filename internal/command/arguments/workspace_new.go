@@ -17,9 +17,8 @@ type WorkspaceNew struct {
 	// from the current command.
 	ViewOptions ViewOptions
 
-	// Vars holds the information that might be needed to be given through `-var`/`-var-file`.
-	Vars *Vars
-	// State is used for the state related flags
+	// Vars and State are the common extended flags
+	Vars  *Vars
 	State *State
 }
 

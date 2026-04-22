@@ -52,14 +52,9 @@ func (c *WorkspaceNewCommand) Run(rawArgs []string) int {
 		return cli.RunResultHelp
 	}
 	c.Meta.variableArgs = args.Vars.All()
+	c.stateArgs = *args.State
 
 	view.WarnWhenUsedAsEnvCmd(c.LegacyName)
-
-	// TODO meta-refactor: remove these when meta state locking related fields are removed and pass the
-	//  arguments to the backend component instead
-	c.stateLock = args.State.Lock
-	c.stateLockTimeout = args.State.LockTimeout
-	c.statePath = args.State.StatePath
 
 	configPath := c.WorkingDir.NormalizePath(c.WorkingDir.RootModuleDir())
 

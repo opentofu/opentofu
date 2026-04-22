@@ -44,6 +44,7 @@ func (c *OutputCommand) Run(rawArgs []string) int {
 
 	// Inject variables from args into meta for static evaluation
 	c.Meta.variableArgs = args.Vars.All()
+	c.stateArgs = *args.State
 
 	// Load the encryption configuration
 	enc, encDiags := c.Encryption(ctx)
@@ -54,7 +55,7 @@ func (c *OutputCommand) Run(rawArgs []string) int {
 	}
 
 	// Fetch data from state
-	outputs, diags := c.Outputs(ctx, args.StatePath, enc)
+	outputs, diags := c.Outputs(ctx, args.State.StatePath, enc)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
 		return 1
@@ -78,7 +79,8 @@ func (c *OutputCommand) Outputs(ctx context.Context, statePath string, enc encry
 
 	// Allow state path override
 	if statePath != "" {
-		c.Meta.statePath = statePath
+		// TODO andrei - double check this, since this might be redundant
+		c.Meta.stateArgs.StatePath = statePath
 	}
 
 	// Load the backend
