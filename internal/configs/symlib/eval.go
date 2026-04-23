@@ -62,10 +62,8 @@ func once[V any](id ident, s *scope, fn result[V]) result[V] {
 			s.requests[resolver.RequestID()] = id
 
 			workgraph.WithNewAsyncWorker(func(w *workgraph.Worker) {
-				fmt.Printf("%s %s (%s)\n", "Run:\t\t", id.name, resolver.RequestID().String())
 				val, diags := fn(w)
 				resolver.Report(w, T{val, diags}, nil)
-				fmt.Printf("%s %s (%s)\n", "Complete:\t", id.name, resolver.RequestID().String())
 			}, resolver)
 		}
 		needsSetup = false
@@ -73,9 +71,6 @@ func once[V any](id ident, s *scope, fn result[V]) result[V] {
 
 		val, err := promise.Await(w)
 		if err != nil {
-			fmt.Printf("%s %s (%s)\n", "Await:\t\t", id.name, resolver.RequestID().String())
-			fmt.Printf("%#v\n", err)
-
 			if selfDep, ok := err.(workgraph.ErrSelfDependency); ok {
 				// Copied from grapheval/diagnostics.go
 				reqDescs := make([]string, 0)
@@ -277,52 +272,20 @@ func (s *scope) evalContext(w *workgraph.Worker, expr hcl.Expression) (*hcl.Eval
 		evalCtx.Variables[name] = cty.ObjectVal(vars)
 	}
 
-	if expr != nil {
-		for _, trav := range expr.(hcl.ExpressionWithFunctions).Functions() {
-			funcIdent := trav.RootName()
-			parts := strings.Split(funcIdent, "::")
+	// Recursion is not allowed (hcl limitation)
+	for funcName, fn := range s.funcs {
+		funcIdent := "library::" + funcName
+		impl, fDiags := fn(w)
+		diags = diags.Extend(fDiags)
+		evalCtx.Functions[funcIdent] = impl
+	}
 
-			if parts[0] == "library" {
-				// library::func
-				if len(parts) == 2 {
-					funcName := parts[1]
-					fn, ok := s.funcs[funcName]
-					if ok {
-						impl, fDiags := fn(w)
-						diags = diags.Extend(fDiags)
-						evalCtx.Functions[funcIdent] = impl
-					}
-				}
-				// library::lib::func
-				if len(parts) == 3 {
-					libName := parts[1]
-					funcName := parts[2]
-
-					if lib, ok := s.libraries[libName]; ok {
-						if fn, ok := lib.funcs[funcName]; ok {
-							impl, fDiags := fn(w)
-							diags = diags.Extend(fDiags)
-							evalCtx.Functions[funcIdent] = impl
-						}
-					}
-				}
-			}
-		}
-	} else {
-		for funcName, fn := range s.funcs {
-			funcIdent := "library::" + funcName
+	for libName, lib := range s.libraries {
+		for funcName, fn := range lib.funcs {
+			funcIdent := "library::" + libName + "::" + funcName
 			impl, fDiags := fn(w)
 			diags = diags.Extend(fDiags)
 			evalCtx.Functions[funcIdent] = impl
-		}
-
-		for libName, lib := range s.libraries {
-			for funcName, fn := range lib.funcs {
-				funcIdent := "library::" + libName + "::" + funcName
-				impl, fDiags := fn(w)
-				diags = diags.Extend(fDiags)
-				evalCtx.Functions[funcIdent] = impl
-			}
 		}
 	}
 

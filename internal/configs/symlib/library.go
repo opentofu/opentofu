@@ -24,12 +24,6 @@ func NewLibrary(contents *LibraryContents, loader LibraryLoader, builtinFuncs ma
 	var diags hcl.Diagnostics
 	l := &Library{
 		scope: newScope(builtinFuncs),
-
-		Functions: map[string]function.Function{},
-		TypeContext: typeexpr.TypeContext{
-			Types:    map[string]map[string]cty.Type{},
-			Defaults: map[string]map[string]*typeexpr.Defaults{},
-		},
 	}
 
 	// Load libraries
