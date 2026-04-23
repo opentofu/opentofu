@@ -3,6 +3,7 @@ package symlib
 import (
 	"fmt"
 	"maps"
+	"slices"
 	"strings"
 	"sync"
 
@@ -20,7 +21,8 @@ type scope struct {
 
 	builtinFuncs map[string]function.Function
 	libraries    map[string]*scope
-	// TODO parent scope for functions
+
+	requests map[workgraph.RequestID]ident
 }
 
 type typeWithDefault struct {
@@ -36,10 +38,17 @@ func newScope(builtinFuncs map[string]function.Function) *scope {
 		libraries: map[string]*scope{},
 
 		builtinFuncs: builtinFuncs,
+
+		requests: map[workgraph.RequestID]ident{},
 	}
 }
 
-func once[V any](fn result[V]) result[V] {
+type ident struct {
+	name string
+	src  *hcl.Range
+}
+
+func once[V any](id ident, s *scope, fn result[V]) result[V] {
 	var mu sync.Mutex
 	type T withDiags[V]
 	var promise workgraph.Promise[T]
@@ -50,23 +59,60 @@ func once[V any](fn result[V]) result[V] {
 		mu.Lock()
 		if needsSetup {
 			resolver, promise = workgraph.NewRequest[T](w)
+			s.requests[resolver.RequestID()] = id
+
+			workgraph.WithNewAsyncWorker(func(w *workgraph.Worker) {
+				fmt.Printf("%s %s (%s)\n", "Run:\t\t", id.name, resolver.RequestID().String())
+				val, diags := fn(w)
+				resolver.Report(w, T{val, diags}, nil)
+				fmt.Printf("%s %s (%s)\n", "Complete:\t", id.name, resolver.RequestID().String())
+			}, resolver)
 		}
-		neededSetup := needsSetup
 		needsSetup = false
 		mu.Unlock()
 
-		if neededSetup {
-			val, diags := fn(w)
-			resolver.Report(w, T{val, diags}, nil)
-		}
 		val, err := promise.Await(w)
 		if err != nil {
-			val.diags = val.diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Workgraph error",
-				Detail:   err.Error(),
-				Extra:    err,
-			})
+			fmt.Printf("%s %s (%s)\n", "Await:\t\t", id.name, resolver.RequestID().String())
+			fmt.Printf("%#v\n", err)
+
+			if selfDep, ok := err.(workgraph.ErrSelfDependency); ok {
+				// Copied from grapheval/diagnostics.go
+				reqDescs := make([]string, 0)
+				for _, reqID := range selfDep.RequestIDs {
+					desc := "<unknown object> (failing to report this is a bug in OpenTofu)"
+					if info, ok := s.requests[reqID]; ok {
+						if info.src != nil {
+							desc = fmt.Sprintf("%s (%s)", info.name, info.src)
+						} else {
+							desc = info.name
+						}
+					}
+					reqDescs = append(reqDescs, desc)
+				}
+				slices.Sort(reqDescs)
+
+				var detailBuf strings.Builder
+				detailBuf.WriteString("The following objects in the configuration form a dependency cycle, so there is no valid order to evaluate them in:\n")
+				for _, desc := range reqDescs {
+					fmt.Fprintf(&detailBuf, "  - %s\n", desc)
+				}
+
+				val.diags = val.diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Self-referential expressions",
+					Detail:   strings.TrimSpace(detailBuf.String()),
+					Subject:  id.src,
+				})
+
+			} else {
+				val.diags = val.diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Workgraph error",
+					Detail:   err.Error(),
+					Subject:  id.src,
+				})
+			}
 		}
 		return val.value, val.diags
 	}
@@ -80,12 +126,16 @@ func (s *scope) clone() *scope {
 		libraries: s.libraries,
 
 		builtinFuncs: s.builtinFuncs,
+
+		requests: map[workgraph.RequestID]ident{},
 	}
 
 	for rk, rv := range s.vars {
 		ns.vars[rk] = map[string]result[cty.Value]{}
 		maps.Copy(ns.vars[rk], rv)
 	}
+
+	maps.Copy(ns.requests, s.requests)
 
 	return ns
 }
@@ -280,7 +330,8 @@ func (s *scope) evalContext(w *workgraph.Worker, expr hcl.Expression) (*hcl.Eval
 }
 
 func (s *scope) addType(name string, typeExpr hcl.Expression) {
-	s.types[name] = once(func(w *workgraph.Worker) (typeWithDefault, hcl.Diagnostics) {
+	id := ident{"library::types(" + name + ")", typeExpr.Range().Ptr()}
+	s.types[name] = once(id, s, func(w *workgraph.Worker) (typeWithDefault, hcl.Diagnostics) {
 		typeCtx, diags := s.typeContext(w, typeExpr)
 
 		varType, typeDefault, vDiags := typeCtx.TypeConstraintWithDefaults(typeExpr)
@@ -297,7 +348,8 @@ func (s *scope) addVar(namespace string, name string, expr hcl.Expression) {
 		s.vars[namespace] = ns
 	}
 
-	ns[name] = once(func(w *workgraph.Worker) (cty.Value, hcl.Diagnostics) {
+	id := ident{namespace + "." + name, expr.Range().Ptr()}
+	ns[name] = once(id, s, func(w *workgraph.Worker) (cty.Value, hcl.Diagnostics) {
 		evalCtx, diags := s.evalContext(w, expr)
 
 		val, vDiags := expr.Value(evalCtx)
@@ -308,7 +360,8 @@ func (s *scope) addVar(namespace string, name string, expr hcl.Expression) {
 }
 
 func (s *scope) addFunction(name string, fn func(*workgraph.Worker, *scope) (function.Function, hcl.Diagnostics)) {
-	s.funcs[name] = once(func(w *workgraph.Worker) (function.Function, hcl.Diagnostics) {
+	id := ident{"library::" + name + "()", nil}
+	s.funcs[name] = once(id, s, func(w *workgraph.Worker) (function.Function, hcl.Diagnostics) {
 		return fn(w, s)
 	})
 }
