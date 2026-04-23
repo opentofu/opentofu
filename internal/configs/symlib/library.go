@@ -19,16 +19,23 @@ type Library struct {
 }
 
 type LibraryLoader func(*LibraryCall) (*Library, hcl.Diagnostics)
+type SymbolsLoader func(*SymbolCall) (*Symbols, hcl.Diagnostics)
 
-func NewLibrary(contents *LibraryContents, loader LibraryLoader, builtinFuncs map[string]function.Function) (*Library, hcl.Diagnostics) {
+const TypeLibrary = "library"
+const TypeSymbols = "symbols"
+
+func NewLibrary(contents *LibraryContents, libLoader LibraryLoader, symLoader SymbolsLoader, builtinFuncs map[string]function.Function) (*Library, hcl.Diagnostics) {
+	return newLibraryOrSymbols(TypeLibrary, contents, libLoader, symLoader, builtinFuncs)
+}
+func newLibraryOrSymbols(ltype string, contents *LibraryContents, libLoader LibraryLoader, symLoader SymbolsLoader, builtinFuncs map[string]function.Function) (*Library, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	l := &Library{
-		scope: newScope(builtinFuncs),
+		scope: newScope(ltype, builtinFuncs),
 	}
 
 	// Load libraries
 	for libName, call := range contents.LibraryCalls {
-		lib, lDiags := loader(call)
+		lib, lDiags := libLoader(call)
 		diags = diags.Extend(lDiags)
 
 		if lib == nil {
@@ -37,6 +44,17 @@ func NewLibrary(contents *LibraryContents, loader LibraryLoader, builtinFuncs ma
 		}
 
 		l.scope.libraries[libName] = lib.scope
+	}
+	for symName, call := range contents.SymbolCalls {
+		lib, lDiags := symLoader(call)
+		diags = diags.Extend(lDiags)
+
+		if lib == nil {
+			// Load failed
+			continue
+		}
+
+		l.scope.libraries[symName] = lib.scope
 	}
 
 	// Build scope
@@ -70,6 +88,7 @@ type LibraryContents struct {
 	Functions    map[string]*Function
 	TypeDefs     map[string]*TypeDef
 	LibraryCalls map[string]*LibraryCall
+	SymbolCalls  map[string]*SymbolCall
 }
 
 func NewLibraryContents(files []*SymbolFile) (*LibraryContents, hcl.Diagnostics) {
@@ -79,6 +98,7 @@ func NewLibraryContents(files []*SymbolFile) (*LibraryContents, hcl.Diagnostics)
 		Functions:    map[string]*Function{},
 		TypeDefs:     map[string]*TypeDef{},
 		LibraryCalls: map[string]*LibraryCall{},
+		SymbolCalls:  map[string]*SymbolCall{},
 	}
 
 	for _, file := range files {
@@ -126,80 +146,20 @@ func NewLibraryContents(files []*SymbolFile) (*LibraryContents, hcl.Diagnostics)
 			}
 			l.LibraryCalls[o.Name] = o
 		}
-	}
-
-	return l, diags
-}
-
-type SymbolFile struct {
-	Consts       []*Const
-	Functions    []*Function
-	TypeDefs     []*TypeDef
-	LibraryCalls []*LibraryCall
-}
-
-func LoadSymbolFile(body hcl.Body) (*SymbolFile, hcl.Diagnostics) {
-	var diags hcl.Diagnostics
-	file := &SymbolFile{}
-
-	content, contentDiags := body.Content(symbolFileSchema)
-	diags = append(diags, contentDiags...)
-
-	for _, block := range content.Blocks {
-		switch block.Type {
-		case "const":
-			cfg, cfgDiags := decodeConstBlock(block)
-			diags = append(diags, cfgDiags...)
-			if cfg != nil {
-				file.Consts = append(file.Consts, cfg...)
+		for _, o := range file.SymbolCalls {
+			if existing, exists := l.SymbolCalls[o.Name]; exists {
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Duplicate symbol definition",
+					Detail:   fmt.Sprintf("An symbol named %q was already defined at %s. SymbolCall names must be unique within a module.", existing.Name, existing.DeclRange),
+					Subject:  &o.DeclRange,
+				})
 			}
-		case "typedef":
-			cfg, cfgDiags := decodeTypeDefBlock(block)
-			diags = append(diags, cfgDiags...)
-			if cfg != nil {
-				file.TypeDefs = append(file.TypeDefs, cfg)
-			}
-		case "function":
-			cfg, cfgDiags := decodeFunctionBlock(block)
-			diags = append(diags, cfgDiags...)
-			if cfg != nil {
-				file.Functions = append(file.Functions, cfg)
-			}
-		case "library":
-			cfg, cfgDiags := decodeLibraryBlock(block)
-			diags = append(diags, cfgDiags...)
-			if cfg != nil {
-				file.LibraryCalls = append(file.LibraryCalls, cfg)
-			}
-		default:
-			// Should never happen because the above cases should be exhaustive
-			// for all block type names in our schema.
-			continue
-
+			l.SymbolCalls[o.Name] = o
 		}
 	}
 
-	return file, diags
-}
-
-var symbolFileSchema = &hcl.BodySchema{
-	Blocks: []hcl.BlockHeaderSchema{
-		{
-			Type: "const",
-		},
-		{
-			Type:       "typedef",
-			LabelNames: []string{"name"},
-		},
-		{
-			Type:       "function",
-			LabelNames: []string{"name"},
-		},
-		{
-			Type:       "library",
-			LabelNames: []string{"name"},
-		},
-	},
+	return l, diags
 }
 
 // A consistent detail message for all "not a valid identifier" diagnostics.

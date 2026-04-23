@@ -259,7 +259,7 @@ func parseRef(traversal hcl.Traversal) (*Reference, tfdiags.Diagnostics) {
 			Subject:  rootRange.Ptr(),
 		})
 		return nil, diags
-	case "library", "const":
+	case "library", "const", "symbols":
 		// handled elsewhere
 		return nil, diags
 	default:

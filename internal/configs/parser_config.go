@@ -250,6 +250,12 @@ func loadConfigFileBody(body hcl.Body, _ string, override bool) (*File, hcl.Diag
 			if cfg != nil {
 				file.Removed = append(file.Removed, cfg)
 			}
+		case "symbols":
+			cfg, cfgDiags := symlib.DecodeSymbolsBlock(block)
+			diags = append(diags, cfgDiags...)
+			if cfg != nil {
+				file.SymbolCalls = append(file.SymbolCalls, cfg)
+			}
 		default:
 			// Should never happen because the above cases should be exhaustive
 			// for all block type names in our schema.
@@ -322,6 +328,10 @@ var configFileSchema = &hcl.BodySchema{
 		},
 		{
 			Type: "removed",
+		},
+		{
+			Type:       "symbols",
+			LabelNames: []string{"name"},
 		},
 		{
 			Type: "terraform",

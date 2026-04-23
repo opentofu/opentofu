@@ -71,7 +71,7 @@ func buildLibrary(ctx context.Context, parent *Config, walker ModuleWalker) (*sy
 		panic("Bad Library")
 	}
 
-	return symlib.NewLibrary(parent.Module.LibraryContents, func(libCall *symlib.LibraryCall) (*symlib.Library, hcl.Diagnostics) {
+	libLoader := func(libCall *symlib.LibraryCall) (*symlib.Library, hcl.Diagnostics) {
 		var diags hcl.Diagnostics
 
 		// THIS IS A BAD HACK
@@ -133,7 +133,68 @@ func buildLibrary(ctx context.Context, parent *Config, walker ModuleWalker) (*sy
 		diags = diags.Extend(lDiags)
 
 		return l, diags
-	}, new(lang.Scope{PureOnly: true, BaseDir: "."}).Functions())
+	}
+
+	var symLoader func(libCall *symlib.SymbolCall) (*symlib.Symbols, hcl.Diagnostics)
+	symLoader = func(libCall *symlib.SymbolCall) (*symlib.Symbols, hcl.Diagnostics) {
+		var diags hcl.Diagnostics
+
+		// THIS IS A BAD HACK
+		fakeModCall := RootModuleCallForTesting()
+		fakeEval := NewStaticEvaluator(&Module{}, fakeModCall)
+
+		call := &ModuleCall{
+			Name:        libCall.Name,
+			Source:      libCall.Source,
+			VersionAttr: libCall.VersionAttr,
+			DeclRange:   libCall.DeclRange,
+
+			Config: &hclsyntax.Body{},
+		}
+
+		diags = call.decodeStaticFields(ctx, fakeEval)
+		if diags.HasErrors() {
+			return nil, diags
+		}
+
+		path := make([]string, len(parent.Path)+1)
+		copy(path, parent.Path)
+		path[len(path)-1] = call.Name
+
+		req := &ModuleRequest{
+			Name:              call.Name,
+			Path:              path,
+			SourceAddr:        call.SourceAddr,
+			VersionConstraint: call.Version,
+			Parent:            parent,
+			CallRange:         call.DeclRange,
+		}
+		if call.Source != nil {
+			// Invalid modules sometimes have a nil source field which is handled through loadModule below
+			req.SourceAddrRange = call.Source.Range()
+		}
+
+		mod, _, modDiags := walker.LoadModule(ctx, req)
+		diags = append(diags, modDiags...)
+		if mod == nil {
+			// nil can be returned if the source address was invalid and so
+			// nothing could be loaded whatsoever. LoadModule should've
+			// returned at least one error diagnostic in that case.
+			return nil, diags
+		}
+
+		symPath := filepath.Join(mod.SourceDir, libCall.File)
+
+		symbols, fDiags := NewParser(nil).loadSymbolFiles([]string{symPath})
+		diags = diags.Extend(fDiags)
+
+		l, lDiags := symlib.NewSymbols(symbols[0], libLoader, symLoader, new(lang.Scope{PureOnly: true, BaseDir: "."}).Functions())
+		diags = diags.Extend(lDiags)
+
+		return l, diags
+	}
+
+	return symlib.NewLibrary(parent.Module.LibraryContents, libLoader, symLoader, new(lang.Scope{PureOnly: true, BaseDir: "."}).Functions())
 }
 
 func buildTestModules(ctx context.Context, root *Config, walker ModuleWalker) hcl.Diagnostics {
