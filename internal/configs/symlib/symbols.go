@@ -120,7 +120,7 @@ func LoadSymbolFile(body hcl.Body) (*SymbolFile, hcl.Diagnostics) {
 				file.Functions = append(file.Functions, cfg)
 			}
 		case "library":
-			cfg, cfgDiags := decodeLibraryBlock(block)
+			cfg, cfgDiags := DecodeLibraryBlock(block)
 			diags = append(diags, cfgDiags...)
 			if cfg != nil {
 				file.LibraryCalls = append(file.LibraryCalls, cfg)

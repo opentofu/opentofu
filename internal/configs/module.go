@@ -116,7 +116,8 @@ type File struct {
 	Import  []*Import
 	Removed []*Removed
 
-	SymbolCalls []*symlib.SymbolCall
+	LibraryCalls []*symlib.LibraryCall
+	SymbolCalls  []*symlib.SymbolCall
 
 	Checks []*Check
 }
@@ -497,6 +498,20 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 			})
 		}
 		m.LibraryContents.SymbolCalls[mc.Name] = mc
+	}
+
+	for _, mc := range file.LibraryCalls {
+		// This is a *HACK* to merge the symbol call into the library
+		// This is because we haven't decided on a real approach
+		if existing, exists := m.LibraryContents.LibraryCalls[mc.Name]; exists {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Duplicate symbols",
+				Detail:   fmt.Sprintf("A symbols named %q was already defined at %s. Module calls must have unique names within a module.", existing.Name, existing.DeclRange),
+				Subject:  &mc.DeclRange,
+			})
+		}
+		m.LibraryContents.LibraryCalls[mc.Name] = mc
 	}
 
 	for _, r := range file.ManagedResources {

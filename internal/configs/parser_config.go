@@ -256,6 +256,12 @@ func loadConfigFileBody(body hcl.Body, _ string, override bool) (*File, hcl.Diag
 			if cfg != nil {
 				file.SymbolCalls = append(file.SymbolCalls, cfg)
 			}
+		case "library":
+			cfg, cfgDiags := symlib.DecodeLibraryBlock(block)
+			diags = append(diags, cfgDiags...)
+			if cfg != nil {
+				file.LibraryCalls = append(file.LibraryCalls, cfg)
+			}
 		default:
 			// Should never happen because the above cases should be exhaustive
 			// for all block type names in our schema.
@@ -331,6 +337,10 @@ var configFileSchema = &hcl.BodySchema{
 		},
 		{
 			Type:       "symbols",
+			LabelNames: []string{"name"},
+		},
+		{
+			Type:       "library",
 			LabelNames: []string{"name"},
 		},
 		{

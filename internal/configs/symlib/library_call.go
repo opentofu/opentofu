@@ -12,7 +12,7 @@ type LibraryCall struct {
 	DeclRange   hcl.Range
 }
 
-func decodeLibraryBlock(block *hcl.Block) (*LibraryCall, hcl.Diagnostics) {
+func DecodeLibraryBlock(block *hcl.Block) (*LibraryCall, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
 	lc := &LibraryCall{
