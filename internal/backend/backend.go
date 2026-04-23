@@ -331,6 +331,10 @@ type Operation struct {
 	// for unmatched import targets and where any generated config should be
 	// written to.
 	GenerateConfigOut string
+
+	// StopCtx is used by some of the backends to be able to shut down gracefully when the caller
+	// asks for it.
+	StopCtx context.Context
 }
 
 // HasConfig returns true if and only if the operation has a ConfigDir value

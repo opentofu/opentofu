@@ -191,9 +191,7 @@ func (b *Local) localRunDirect(ctx context.Context, op *backend.Operation, run *
 	} else {
 		// If interactive input is enabled, we might gather some more variable
 		// values through interactive prompts.
-		// TODO: Need to route the operation context through into here, so that
-		// the interactive prompts can be sensitive to its timeouts/etc.
-		rawVariables = b.interactiveCollectVariables(ctx, op.Variables, config.Module.Variables, op.UIIn)
+		rawVariables = b.interactiveCollectVariables(op.StopCtx, op.Variables, config.Module.Variables, op.UIIn)
 	}
 
 	variables, varDiags := backend.ParseVariableValues(rawVariables, config.Module.Variables)
