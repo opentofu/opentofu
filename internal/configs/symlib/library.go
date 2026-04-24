@@ -27,14 +27,14 @@ func NewSymbolLibrary(files []*SymbolFile, symLoader SymbolsLoader, builtinFuncs
 
 	// Combine symbol files into iterable maps
 
-	Values := map[string]*Value{}
-	Functions := map[string]*Function{}
-	TypeDefs := map[string]*TypeDef{}
-	SymbolCalls := map[string]*SymbolCall{}
+	values := map[string]*Value{}
+	functions := map[string]*Function{}
+	typeDefs := map[string]*TypeDef{}
+	symbolCalls := map[string]*SymbolCall{}
 
 	for _, file := range files {
 		for _, o := range file.Consts {
-			if existing, exists := Values[o.Name]; exists {
+			if existing, exists := values[o.Name]; exists {
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Duplicate const definition",
@@ -42,10 +42,10 @@ func NewSymbolLibrary(files []*SymbolFile, symLoader SymbolsLoader, builtinFuncs
 					Subject:  &o.DeclRange,
 				})
 			}
-			Values[o.Name] = o
+			values[o.Name] = o
 		}
 		for _, o := range file.TypeDefs {
-			if existing, exists := TypeDefs[o.Name]; exists {
+			if existing, exists := typeDefs[o.Name]; exists {
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Duplicate typedef definition",
@@ -53,10 +53,10 @@ func NewSymbolLibrary(files []*SymbolFile, symLoader SymbolsLoader, builtinFuncs
 					Subject:  &o.DeclRange,
 				})
 			}
-			TypeDefs[o.Name] = o
+			typeDefs[o.Name] = o
 		}
 		for _, o := range file.Functions {
-			if existing, exists := Functions[o.Name]; exists {
+			if existing, exists := functions[o.Name]; exists {
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Duplicate function definition",
@@ -64,10 +64,10 @@ func NewSymbolLibrary(files []*SymbolFile, symLoader SymbolsLoader, builtinFuncs
 					Subject:  &o.DeclRange,
 				})
 			}
-			Functions[o.Name] = o
+			functions[o.Name] = o
 		}
 		for _, o := range file.SymbolCalls {
-			if existing, exists := SymbolCalls[o.Name]; exists {
+			if existing, exists := symbolCalls[o.Name]; exists {
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Duplicate symbols definition",
@@ -75,7 +75,7 @@ func NewSymbolLibrary(files []*SymbolFile, symLoader SymbolsLoader, builtinFuncs
 					Subject:  &o.DeclRange,
 				})
 			}
-			SymbolCalls[o.Name] = o
+			symbolCalls[o.Name] = o
 		}
 	}
 
@@ -86,7 +86,7 @@ func NewSymbolLibrary(files []*SymbolFile, symLoader SymbolsLoader, builtinFuncs
 	}
 
 	// Load symbol calls first
-	for symName, call := range SymbolCalls {
+	for symName, call := range symbolCalls {
 		lib, lDiags := symLoader(call)
 		diags = diags.Extend(lDiags)
 
@@ -99,13 +99,13 @@ func NewSymbolLibrary(files []*SymbolFile, symLoader SymbolsLoader, builtinFuncs
 	}
 
 	// Build scope
-	for _, typeDef := range TypeDefs {
+	for _, typeDef := range typeDefs {
 		l.scope.addType(typeDef.Name, typeDef.TypeExpr)
 	}
-	for _, fn := range Functions {
+	for _, fn := range functions {
 		l.scope.addFunction(fn.Name, fn.Impl)
 	}
-	for _, c := range Values {
+	for _, c := range values {
 		l.scope.addVar("value", c.Name, c.Expr)
 	}
 
