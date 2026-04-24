@@ -52,12 +52,12 @@ A symbol file may also import the contents of another symbol library.
 typedef "simple_type" {
   # https://opentofu.org/docs/language/expressions/types/
   # Any builtin type may be used here
-  type = int
+  type = number
 }
 
 typedef "complex_type" {
   type = object({
-    ncpus = int
+    ncpus = number
     # Types may reference other types within the same symbol library (or other imported libraries)
     memory_size = symbols::types(simple_type)
   })
@@ -66,7 +66,7 @@ typedef "complex_type" {
 typedef "defaults_type" {
   type = object({
     # Defaults (via optional()) will be stored alongside the type
-    complex = optional(symbols::types(complex_type), { ncpus = 1 })
+    complex = optional(symbols::types(complex_type), { ncpus = 1, memory_size = 1024 })
   })
 }
 
@@ -118,11 +118,10 @@ function "divide" {
 function "greeting" {
   type = list(string)
   parameter "prefix" {
-    type    = "string"
-    default = "Hello "
+    type    = string
   }
   parameter "name" {
-    type    = string
+    type     = string
     variadic = true
   }
   locals {
@@ -145,7 +144,7 @@ function "vec3_length" {
     zz = param.z * param.z
     squared_sum = symbols::add(symbols::add(local.xx, local.yy), local.zz)
   }
-  return sqrt(local.squared_sum)
+  return = sqrt(local.squared_sum)
 }
 
 #### Libraries ####
@@ -171,7 +170,7 @@ typedef "embedded" {
 
 # Usage in functions
 function "myfunc" {
-  return symbols::namespace::func_name()
+  return = symbols::namespace::func_name()
 }
 
 # Usage in values
@@ -197,20 +196,20 @@ typedef "items" {
 
 function "non_empty" {
   parameter "in" {
-    type = symbols::type(items) 
+    type = symbols::types(items) 
   }
-  return alltrue([for x in param.in: length(x) != 0])
+  return = alltrue([for x in param.in: length(x) != 0])
 }
 
 function "assert_non_empty" {
   parameter "in" {
-    type = symbols::type(items)
+    type = symbols::types(items)
     validation {
       condition = non_empty(param.in)
       error_message = "One or more of the elements in ${param.in} is empty"
     }
   }
-  return param.in
+  return = param.in
 }
 
 values {
@@ -229,7 +228,7 @@ symbols "lib" {
 
 # This variable pre-emptively 
 variable "my_items" {
-  type = symbols::lib::type(items)
+  type = symbols::lib::types(items)
   #type = list(string) would also work here
   validation {
     condition = symbols::lib::non_empty(var.my_items)
@@ -239,7 +238,7 @@ variable "my_items" {
 }
 
 variable "my_items_unchecked" {
-  type = symbols::lib::type(items)
+  type = symbols::lib::types(items)
 }
 
 locals {
