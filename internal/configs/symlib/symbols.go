@@ -67,7 +67,7 @@ var symbolBlockSchema = &hcl.BodySchema{
 }
 
 type SymbolFile struct {
-	Consts      []*Const
+	Consts      []*Value
 	Functions   []*Function
 	TypeDefs    []*TypeDef
 	SymbolCalls []*SymbolCall
@@ -82,8 +82,8 @@ func LoadSymbolFile(body hcl.Body) (*SymbolFile, hcl.Diagnostics) {
 
 	for _, block := range content.Blocks {
 		switch block.Type {
-		case "const":
-			cfg, cfgDiags := decodeConstBlock(block)
+		case "values":
+			cfg, cfgDiags := decodeValuesBlock(block)
 			diags = append(diags, cfgDiags...)
 			if cfg != nil {
 				file.Consts = append(file.Consts, cfg...)
@@ -120,7 +120,7 @@ func LoadSymbolFile(body hcl.Body) (*SymbolFile, hcl.Diagnostics) {
 var symbolFileSchema = &hcl.BodySchema{
 	Blocks: []hcl.BlockHeaderSchema{
 		{
-			Type: "const",
+			Type: "values",
 		},
 		{
 			Type:       "typedef",

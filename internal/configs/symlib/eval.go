@@ -32,7 +32,7 @@ type typeWithDefault struct {
 
 func newScope(builtinFuncs map[string]function.Function) *scope {
 	return &scope{
-		vars:    map[string]map[string]result[cty.Value]{"const": {}},
+		vars:    map[string]map[string]result[cty.Value]{"value": {}},
 		types:   map[string]result[typeWithDefault]{},
 		funcs:   map[string]result[function.Function]{},
 		symbols: map[string]*scope{},
@@ -192,14 +192,14 @@ func (s *scope) evalContext(w *workgraph.Worker, expr hcl.Expression) (*hcl.Eval
 
 	for lname, lib := range s.symbols {
 		// TODO opt with expr deps
-		consts := map[string]cty.Value{}
-		for cn, fn := range lib.vars["const"] {
+		values := map[string]cty.Value{}
+		for cn, fn := range lib.vars["value"] {
 			val, vDiags := fn(w)
 			diags = diags.Extend(vDiags)
-			consts[cn] = val
+			values[cn] = val
 		}
-		// TODO consts in name?
-		vars[TypeSymbols][lname] = cty.ObjectVal(consts)
+		// TODO values in name?
+		vars[TypeSymbols][lname] = cty.ObjectVal(values)
 	}
 
 	if expr != nil {

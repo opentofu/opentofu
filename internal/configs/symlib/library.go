@@ -27,14 +27,14 @@ func NewSymbolLibrary(files []*SymbolFile, symLoader SymbolsLoader, builtinFuncs
 
 	// Combine symbol files into iterable maps
 
-	Consts := map[string]*Const{}
+	Values := map[string]*Value{}
 	Functions := map[string]*Function{}
 	TypeDefs := map[string]*TypeDef{}
 	SymbolCalls := map[string]*SymbolCall{}
 
 	for _, file := range files {
 		for _, o := range file.Consts {
-			if existing, exists := Consts[o.Name]; exists {
+			if existing, exists := Values[o.Name]; exists {
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Duplicate const definition",
@@ -42,7 +42,7 @@ func NewSymbolLibrary(files []*SymbolFile, symLoader SymbolsLoader, builtinFuncs
 					Subject:  &o.DeclRange,
 				})
 			}
-			Consts[o.Name] = o
+			Values[o.Name] = o
 		}
 		for _, o := range file.TypeDefs {
 			if existing, exists := TypeDefs[o.Name]; exists {
@@ -105,8 +105,8 @@ func NewSymbolLibrary(files []*SymbolFile, symLoader SymbolsLoader, builtinFuncs
 	for _, fn := range Functions {
 		l.scope.addFunction(fn.Name, fn.Impl)
 	}
-	for _, c := range Consts {
-		l.scope.addVar("const", c.Name, c.Expr)
+	for _, c := range Values {
+		l.scope.addVar("value", c.Name, c.Expr)
 	}
 
 	worker := workgraph.NewWorker()
