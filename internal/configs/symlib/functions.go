@@ -1,6 +1,8 @@
 package symlib
 
 import (
+	"fmt"
+
 	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/ext/typeexpr"
@@ -29,6 +31,12 @@ type FunctionParameter struct {
 	TypeExpr     *hcl.Expression
 	AllowNull    bool
 	AllowUnknown bool
+	Validations  []FunctionParameterValidation
+}
+
+type FunctionParameterValidation struct {
+	Condition    hcl.Expression
+	ErrorMessage hcl.Expression
 }
 
 func decodeFunctionBlock(block *hcl.Block) (*Function, hcl.Diagnostics) {
@@ -89,6 +97,19 @@ func decodeFunctionBlock(block *hcl.Block) (*Function, hcl.Diagnostics) {
 			if attr, ok := content.Attributes["allow_null"]; ok {
 				valDiags := gohcl.DecodeExpression(attr.Expr, nil, &param.AllowNull)
 				diags = append(diags, valDiags...)
+			}
+
+			for _, block := range content.Blocks {
+				if block.Type != "validation" {
+					panic("BUG")
+				}
+
+				content, moreDiags := block.Body.Content(functionParameterValidationSchema)
+				diags = diags.Extend(moreDiags)
+				param.Validations = append(param.Validations, FunctionParameterValidation{
+					Condition:    content.Attributes["condition"].Expr,
+					ErrorMessage: content.Attributes["error_message"].Expr,
+				})
 			}
 
 			variadic := false
@@ -157,6 +178,7 @@ func (fn *Function) Impl(w *workgraph.Worker, s *scope) (function.Function, hcl.
 	spec.Type = function.StaticReturnType(returnType)
 
 	defaults := map[string]*typeexpr.Defaults{}
+	validations := map[string][]FunctionParameterValidation{}
 
 	decodeParam := func(param FunctionParameter) (function.Parameter, hcl.Diagnostics) {
 		fnp := function.Parameter{
@@ -167,6 +189,8 @@ func (fn *Function) Impl(w *workgraph.Worker, s *scope) (function.Function, hcl.
 			AllowUnknown: param.AllowUnknown,
 		}
 
+		validations[fnp.Name] = param.Validations
+
 		if param.TypeExpr != nil {
 			typeCtx, tDiags := s.typeContext(w, *param.TypeExpr)
 			diags = diags.Extend(tDiags)
@@ -175,6 +199,7 @@ func (fn *Function) Impl(w *workgraph.Worker, s *scope) (function.Function, hcl.
 			fnp.Type, defaults[fnp.Name], valDiags = typeCtx.TypeConstraintWithDefaults(*param.TypeExpr)
 			return fnp, valDiags
 		}
+
 		return fnp, nil
 	}
 
@@ -190,8 +215,11 @@ func (fn *Function) Impl(w *workgraph.Worker, s *scope) (function.Function, hcl.
 	}
 
 	spec.Impl = func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+		var diags hcl.Diagnostics
+
 		// This could also be accomplished by creating a full evalcontext
 		// and building deps internally via workgraph
+		w := workgraph.NewWorker()
 		s := s.clone()
 
 		for i, arg := range args[:len(spec.Params)] {
@@ -202,15 +230,59 @@ func (fn *Function) Impl(w *workgraph.Worker, s *scope) (function.Function, hcl.
 			}
 			s.addVar("param", param.Name, &hclsyntax.LiteralValueExpr{Val: arg})
 		}
-		if spec.VarParam != nil && len(spec.Params) != len(args) {
-			s.addVar("param", spec.VarParam.Name, &hclsyntax.LiteralValueExpr{Val: cty.ListVal(args[len(spec.Params):])})
+		if spec.VarParam != nil {
+			// TODO defaults + validations
+			if len(spec.Params) != len(args) {
+				s.addVar("param", spec.VarParam.Name, &hclsyntax.LiteralValueExpr{Val: cty.ListVal(args[len(spec.Params):])})
+			} else {
+				s.addVar("param", spec.VarParam.Name, &hclsyntax.LiteralValueExpr{Val: cty.ListValEmpty(spec.VarParam.Type)})
+			}
+		}
+
+		for i := range args[:len(spec.Params)] {
+			param := spec.Params[i]
+
+			for _, validation := range validations[param.Name] {
+				hclCtx, hDiags := s.evalContext(w, validation.Condition)
+				diags = diags.Extend(hDiags)
+				if hDiags.HasErrors() {
+					continue
+				}
+
+				condVal, cDiags := validation.Condition.Value(hclCtx)
+				diags = diags.Extend(cDiags)
+
+				if cDiags.HasErrors() {
+					continue
+				}
+
+				if condVal.IsKnown() && condVal.False() {
+					hclCtx, hDiags := s.evalContext(w, validation.ErrorMessage)
+					diags = diags.Extend(hDiags)
+
+					msgVal, mDiags := validation.ErrorMessage.Value(hclCtx)
+					diags = diags.Extend(mDiags)
+
+					if !msgVal.IsKnown() {
+						println(msgVal.Type().GoString())
+						continue
+					}
+
+					diags = diags.Append(&hcl.Diagnostic{
+						Severity: hcl.DiagError,
+						Summary:  "Function parameter failed validation",
+						Detail:   fmt.Sprintf("Parameter %q: %s", param.Name, msgVal.AsString()),
+					})
+				}
+			}
 		}
 
 		for name, expr := range fn.Locals {
 			s.addVar("local", name, expr)
 		}
 
-		hclCtx, diags := s.evalContext(w, fn.Return)
+		hclCtx, hDiags := s.evalContext(w, fn.Return)
+		diags = diags.Extend(hDiags)
 
 		val, vDiags := fn.Return.Value(hclCtx)
 		diags = diags.Extend(vDiags)
@@ -231,6 +303,16 @@ var functionParameterSchema = &hcl.BodySchema{
 		{Name: "variadic"},
 		{Name: "allow_null"},
 		{Name: "allow_unknown"},
+	},
+	Blocks: []hcl.BlockHeaderSchema{
+		{Type: "validation"},
+	},
+}
+
+var functionParameterValidationSchema = &hcl.BodySchema{
+	Attributes: []hcl.AttributeSchema{
+		{Name: "condition", Required: true},
+		{Name: "error_message", Required: true},
 	},
 }
 
