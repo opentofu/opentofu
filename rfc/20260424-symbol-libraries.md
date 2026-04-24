@@ -2,7 +2,7 @@
 
 Issue: https://github.com/opentofu/opentofu/issues/1962
 
-One of the goals of many engineers using OpenTofu is to be as DRY as possible. The current design of OpenTofu's language has some hard edges that prevent easy re-use of types, logic, and values.
+Most engineers using OpenTofu strive to write configuration that is as DRY as possible. The current design of OpenTofu's language has some hard edges that prevent easy re-use of types, logic, and values.
 
 ### Types
 
@@ -51,7 +51,7 @@ A symbol file may also import the contents of another symbol library.
 
 typedef "simple_type" {
   # https://opentofu.org/docs/language/expressions/types/
-  # Any primitive type may be used here
+  # Any builtin type may be used here
   type = int
 }
 
@@ -282,9 +282,9 @@ Contracts:
 
 Most of the proposed implementation follows existing patterns within the `configs` package and will not be covered here. The interesting differences however are in how HCL handles type lookups and in how we need to "compile" the library into a static set of functionality that requires no more evaluation.
 
-The simpler of the two changes is to our fork of the HCL language. We already use the [typeext extension](https://github.com/opentofu/hcl/tree/opentofu/ext/typeexpr) heavily in OpenTofu. It however does not support the addition of custom types. The `typeext` package is fairly simple, and extending it to support custom types is a fairly straightforward task. A possible implementation can be seen in the [patch for the hackathon experiment](https://gist.github.com/cam72cam/ac7d3900c7d5b96c8d87a0ef803302a2).
+The simpler of the two changes is to our fork of the HCL language. We already use the [typeext extension](https://github.com/opentofu/hcl/tree/opentofu/ext/typeexpr) heavily in OpenTofu. It however does not support the addition of custom types. The `typeext` package is fairly simple, and extending it to support custom types is a straightforward task. A possible implementation can be seen in the [patch for the hackathon experiment](https://gist.github.com/cam72cam/ac7d3900c7d5b96c8d87a0ef803302a2).
 
-The other possible change to HCL is to make changes to the [userfunc extension](https://github.com/opentofu/hcl/tree/opentofu/ext/userfunc). The syntax shown in the user examples above is inspired by, but ultimately more complex than the existing userfunc extension. We will need to decide which syntax to use, and when either it makes sense to keep that implementation within the symbol library implementation or to move it into HCL.
+The other possible change to HCL is in altering the [userfunc extension](https://github.com/opentofu/hcl/tree/opentofu/ext/userfunc). The syntax shown in the user examples above is inspired by, but ultimately more complex than the existing userfunc extension. We will need to decide which syntax to use, and when either it makes sense to keep that implementation within the symbol library implementation or to move it into HCL.
 
 The more complex piece of the library implementation is how to handle the compilation of the symbol files into a library. Ultimately, some form of evaluator will need to be built. It will need to understand the dependencies between the elements within the given symbol files and ensure that they are compiled in the correct order.
 
@@ -296,7 +296,9 @@ The biggest challenge to integrating with OpenTofu at this juncture is that we a
 
 One of the critical touch-points is supporting symbol libraries in variable types. These need to be known prior to static evaluation, as that depends on the variable types. In practice, the current `configs/config_build.go` code can be juggled around to make the symbol library loading and static evaluation steps explicit and properly integrated. In theory, it will be easier to do this integration natively within the new engine.
 
-The only other component that needs to be integrated is how and where we install symbol libraries themselves. The hackathon prototype treats them as modules to be installed, but is that the right solution?
+We also need to determine how and where we install symbol library packages. The hackathon prototype treats them as modules to be installed, but is that the right solution?
+
+The injection of the symbol library data into the OpenTofu engine/evaluator is a trivial concern, if the prototype is anything to go by.
 
 ### Open Questions
 
