@@ -330,9 +330,6 @@ func (b *Local) Operation(ctx context.Context, op *backend.Operation) (*backend.
 	runningOp.Cancel = cancel
 
 	op.StateLocker = op.StateLocker.WithContext(stopCtx)
-	if op.StopCtx == nil {
-		op.StopCtx = stopCtx
-	}
 
 	panicHandler := logging.PanicHandlerWithTraceFn()
 

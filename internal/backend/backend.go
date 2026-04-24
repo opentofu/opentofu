@@ -170,7 +170,13 @@ type Local interface {
 	// backend's implementations of this to understand what this actually
 	// does, because this operation has no well-defined contract aside from
 	// "whatever it already does".
-	LocalRun(context.Context, *Operation) (*LocalRun, statemgr.Full, tfdiags.Diagnostics)
+	//
+	// Even though both contexts contain the tracing information, there is a crucial difference between the two:
+	//  - The first one is non-cancellable meaning that it's safe to be used for thing like state unlocking and other
+	//    critical operations that need to run even when the process is asked to end gracefully.
+	//  - The second one is a cancellable context. This is the context that should be used to cancel operations
+	//    for a graceful shutdown.
+	LocalRun(context.Context, context.Context, *Operation) (*LocalRun, statemgr.Full, tfdiags.Diagnostics)
 }
 
 // LocalRun represents the assortment of objects that we can collect or
@@ -331,10 +337,6 @@ type Operation struct {
 	// for unmatched import targets and where any generated config should be
 	// written to.
 	GenerateConfigOut string
-
-	// StopCtx is used by some of the backends to be able to shut down gracefully when the caller
-	// asks for it.
-	StopCtx context.Context
 }
 
 // HasConfig returns true if and only if the operation has a ConfigDir value

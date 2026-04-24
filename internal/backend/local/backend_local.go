@@ -28,7 +28,7 @@ import (
 var _ backend.Local = (*Local)(nil)
 
 // backend.Local implementation.
-func (b *Local) LocalRun(ctx context.Context, op *backend.Operation) (*backend.LocalRun, statemgr.Full, tfdiags.Diagnostics) {
+func (b *Local) LocalRun(ctx context.Context, stopCtx context.Context, op *backend.Operation) (*backend.LocalRun, statemgr.Full, tfdiags.Diagnostics) {
 	// Make sure the type is invalid. We use this as a way to know not
 	// to ask for input/validate. We're modifying this through a pointer,
 	// so we're mutating an object that belongs to the caller here, which
@@ -39,11 +39,11 @@ func (b *Local) LocalRun(ctx context.Context, op *backend.Operation) (*backend.L
 
 	op.StateLocker = op.StateLocker.WithContext(context.Background())
 
-	lr, _, stateMgr, diags := b.localRun(ctx, op)
+	lr, _, stateMgr, diags := b.localRun(ctx, stopCtx, op)
 	return lr, stateMgr, diags
 }
 
-func (b *Local) localRun(ctx context.Context, op *backend.Operation) (*backend.LocalRun, *configload.Snapshot, statemgr.Full, tfdiags.Diagnostics) {
+func (b *Local) localRun(ctx context.Context, stopCtx context.Context, op *backend.Operation) (*backend.LocalRun, *configload.Snapshot, statemgr.Full, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// Get the latest state.
@@ -111,7 +111,7 @@ func (b *Local) localRun(ctx context.Context, op *backend.Operation) (*backend.L
 		op.ConfigLoader.ImportSourcesFromSnapshot(configSnap)
 	} else {
 		log.Printf("[TRACE] backend/local: populating backend.LocalRun for current working directory")
-		ret, configSnap, ctxDiags = b.localRunDirect(ctx, op, ret, &coreOpts, s)
+		ret, configSnap, ctxDiags = b.localRunDirect(ctx, stopCtx, op, ret, &coreOpts, s)
 	}
 	diags = diags.Append(ctxDiags)
 	if diags.HasErrors() {
@@ -144,7 +144,7 @@ func (b *Local) localRun(ctx context.Context, op *backend.Operation) (*backend.L
 	return ret, configSnap, s, diags
 }
 
-func (b *Local) localRunDirect(ctx context.Context, op *backend.Operation, run *backend.LocalRun, coreOpts *tofu.ContextOpts, s statemgr.Full) (*backend.LocalRun, *configload.Snapshot, tfdiags.Diagnostics) {
+func (b *Local) localRunDirect(ctx context.Context, stopCtx context.Context, op *backend.Operation, run *backend.LocalRun, coreOpts *tofu.ContextOpts, s statemgr.Full) (*backend.LocalRun, *configload.Snapshot, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// Load the configuration using the caller-provided configuration loader.
@@ -191,7 +191,7 @@ func (b *Local) localRunDirect(ctx context.Context, op *backend.Operation, run *
 	} else {
 		// If interactive input is enabled, we might gather some more variable
 		// values through interactive prompts.
-		rawVariables = b.interactiveCollectVariables(op.StopCtx, op.Variables, config.Module.Variables, op.UIIn)
+		rawVariables = b.interactiveCollectVariables(stopCtx, op.Variables, config.Module.Variables, op.UIIn)
 	}
 
 	variables, varDiags := backend.ParseVariableValues(rawVariables, config.Module.Variables)
