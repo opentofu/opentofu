@@ -83,7 +83,7 @@ type Evaluator struct {
 // If the "self" argument is nil then the "self" object is not available
 // in evaluated expressions. Otherwise, it behaves as an alias for the given
 // address.
-func (e *Evaluator) Scope(data lang.Data, self addrs.Referenceable, source addrs.Referenceable, functions lang.ProviderFunction, library *symlib.Library) *lang.Scope {
+func (e *Evaluator) Scope(data lang.Data, self addrs.Referenceable, source addrs.Referenceable, functions lang.ProviderFunction, library *symlib.SymbolLibrary) *lang.Scope {
 	return &lang.Scope{
 		Data:              data,
 		ParseRef:          addrs.ParseRef,

@@ -39,10 +39,10 @@ func BuildConfig(ctx context.Context, root *Module, call StaticModuleCall, walke
 	// TODO in the future, we could potentially interweave static eval and libraries using the new engine machinery
 
 	// Load Library
-	l, lDiags := buildLibrary(ctx, cfg, walker)
+	l, lDiags := buildSymbolLibraries(ctx, cfg, walker)
 	diags = diags.Extend(lDiags)
 
-	diags = diags.Extend(cfg.Module.WithLibrary(l))
+	diags = diags.Extend(cfg.Module.WithSymbolLibrary(l))
 	diags = diags.Extend(cfg.Module.WithStaticCall(call))
 
 	// Load Children
@@ -66,12 +66,9 @@ func BuildConfig(ctx context.Context, root *Module, call StaticModuleCall, walke
 	return cfg, diags
 }
 
-func buildLibrary(ctx context.Context, parent *Config, walker ModuleWalker) (*symlib.Library, hcl.Diagnostics) {
-	if parent.Module.LibraryContents == nil {
-		panic("Bad Library")
-	}
-
-	libLoader := func(libCall *symlib.LibraryCall) (*symlib.Library, hcl.Diagnostics) {
+func buildSymbolLibraries(ctx context.Context, parent *Config, walker ModuleWalker) (*symlib.SymbolLibrary, hcl.Diagnostics) {
+	var symLoader func(symCall *symlib.SymbolCall) (*symlib.SymbolLibrary, hcl.Diagnostics)
+	symLoader = func(symCall *symlib.SymbolCall) (*symlib.SymbolLibrary, hcl.Diagnostics) {
 		var diags hcl.Diagnostics
 
 		// THIS IS A BAD HACK
@@ -79,75 +76,10 @@ func buildLibrary(ctx context.Context, parent *Config, walker ModuleWalker) (*sy
 		fakeEval := NewStaticEvaluator(&Module{}, fakeModCall)
 
 		call := &ModuleCall{
-			Name:        libCall.Name,
-			Source:      libCall.Source,
-			VersionAttr: libCall.VersionAttr,
-			DeclRange:   libCall.DeclRange,
-
-			Config: &hclsyntax.Body{},
-		}
-
-		diags = call.decodeStaticFields(ctx, fakeEval)
-		if diags.HasErrors() {
-			return nil, diags
-		}
-
-		path := make([]string, len(parent.Path)+1)
-		copy(path, parent.Path)
-		path[len(path)-1] = call.Name
-
-		req := &ModuleRequest{
-			Name:              call.Name,
-			Path:              path,
-			SourceAddr:        call.SourceAddr,
-			VersionConstraint: call.Version,
-			Parent:            parent,
-			CallRange:         call.DeclRange,
-		}
-		if call.Source != nil {
-			// Invalid modules sometimes have a nil source field which is handled through loadModule below
-			req.SourceAddrRange = call.Source.Range()
-		}
-
-		mod, ver, modDiags := walker.LoadModule(ctx, req)
-		diags = append(diags, modDiags...)
-		if mod == nil {
-			// nil can be returned if the source address was invalid and so
-			// nothing could be loaded whatsoever. LoadModule should've
-			// returned at least one error diagnostic in that case.
-			return nil, diags
-		}
-
-		cfg := &Config{
-			Parent:          req.Parent,
-			Root:            parent.Root,
-			Path:            req.Path,
-			Module:          mod,
-			CallRange:       req.CallRange,
-			SourceAddr:      req.SourceAddr,
-			SourceAddrRange: req.SourceAddrRange,
-			Version:         ver,
-		}
-
-		l, lDiags := buildLibrary(ctx, cfg, walker)
-		diags = diags.Extend(lDiags)
-
-		return l, diags
-	}
-
-	var symLoader func(libCall *symlib.SymbolCall) (*symlib.Symbols, hcl.Diagnostics)
-	symLoader = func(libCall *symlib.SymbolCall) (*symlib.Symbols, hcl.Diagnostics) {
-		var diags hcl.Diagnostics
-
-		// THIS IS A BAD HACK
-		fakeModCall := RootModuleCallForTesting()
-		fakeEval := NewStaticEvaluator(&Module{}, fakeModCall)
-
-		call := &ModuleCall{
-			Name:        libCall.Name,
-			Source:      libCall.Source,
-			VersionAttr: libCall.VersionAttr,
-			DeclRange:   libCall.DeclRange,
+			Name:        symCall.Name,
+			Source:      symCall.Source,
+			VersionAttr: symCall.VersionAttr,
+			DeclRange:   symCall.DeclRange,
 
 			Config: &hclsyntax.Body{},
 		}
@@ -183,18 +115,35 @@ func buildLibrary(ctx context.Context, parent *Config, walker ModuleWalker) (*sy
 			return nil, diags
 		}
 
-		symPath := filepath.Join(mod.SourceDir, libCall.File)
+		p := NewParser(nil)
 
-		symbols, fDiags := NewParser(nil).loadSymbolFiles([]string{symPath})
+		var symPaths []string
+		if symCall.File == "" {
+			var pDiags hcl.Diagnostics
+			_, _, _, symPaths, pDiags = p.dirFiles(mod.SourceDir, "")
+			diags = diags.Extend(pDiags)
+		} else {
+			symPath := filepath.Join(mod.SourceDir, symCall.File)
+			symPaths = append(symPaths, symPath)
+		}
+
+		symbols, fDiags := p.loadSymbolFiles(symPaths)
 		diags = diags.Extend(fDiags)
 
-		l, lDiags := symlib.NewSymbols(symbols[0], libLoader, symLoader, new(lang.Scope{PureOnly: true, BaseDir: "."}).Functions())
+		l, lDiags := symlib.NewSymbolLibrary(symbols, symLoader, new(lang.Scope{PureOnly: true, BaseDir: "."}).Functions())
 		diags = diags.Extend(lDiags)
 
 		return l, diags
 	}
 
-	return symlib.NewLibrary(parent.Module.LibraryContents, libLoader, symLoader, new(lang.Scope{PureOnly: true, BaseDir: "."}).Functions())
+	var fakeFile symlib.SymbolFile
+
+	for _, symCall := range parent.Module.SymbolCalls {
+		fakeFile.SymbolCalls = append(fakeFile.SymbolCalls, symCall)
+
+	}
+
+	return symlib.NewSymbolLibrary([]*symlib.SymbolFile{&fakeFile}, symLoader, new(lang.Scope{PureOnly: true, BaseDir: "."}).Functions())
 }
 
 func buildTestModules(ctx context.Context, root *Config, walker ModuleWalker) hcl.Diagnostics {
@@ -358,10 +307,10 @@ func loadModule(ctx context.Context, root *Config, req *ModuleRequest, call Stat
 		Version:         ver,
 	}
 
-	l, lDiags := buildLibrary(ctx, cfg, walker)
+	l, lDiags := buildSymbolLibraries(ctx, cfg, walker)
 	diags = diags.Extend(lDiags)
 
-	diags = diags.Extend(cfg.Module.WithLibrary(l))
+	diags = diags.Extend(cfg.Module.WithSymbolLibrary(l))
 	diags = diags.Extend(cfg.Module.WithStaticCall(call))
 
 	cfg.Children, modDiags = buildChildModules(ctx, cfg, walker)

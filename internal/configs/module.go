@@ -56,10 +56,9 @@ type Module struct {
 
 	Checks map[string]*Check
 
-	LibraryContents *symlib.LibraryContents
-
-	Symbols map[string]*symlib.Symbols
-	Library *symlib.Library
+	SymbolCalls map[string]*symlib.SymbolCall
+	// Compiled into
+	SymbolLibrary *symlib.SymbolLibrary
 
 	Tests map[string]*TestFile
 
@@ -116,8 +115,7 @@ type File struct {
 	Import  []*Import
 	Removed []*Removed
 
-	LibraryCalls []*symlib.LibraryCall
-	SymbolCalls  []*symlib.SymbolCall
+	SymbolCalls []*symlib.SymbolCall
 
 	Checks []*Check
 }
@@ -166,8 +164,8 @@ func NewModuleWithTests(primaryFiles, overrideFiles []*File, testFiles map[strin
 	return mod, diags
 }
 
-func NewModuleUnevalWithTests(primaryFiles, overrideFiles []*File, symbolFiles []*symlib.SymbolFile, testFiles map[string]*TestFile, sourceDir string, load SelectiveLoader) (*Module, hcl.Diagnostics) {
-	mod, diags := NewModuleUneval(primaryFiles, overrideFiles, symbolFiles, sourceDir, SelectiveLoadAll)
+func NewModuleUnevalWithTests(primaryFiles, overrideFiles []*File, testFiles map[string]*TestFile, sourceDir string, load SelectiveLoader) (*Module, hcl.Diagnostics) {
+	mod, diags := NewModuleUneval(primaryFiles, overrideFiles, sourceDir, SelectiveLoadAll)
 	if mod != nil {
 		mod.Tests = testFiles
 	}
@@ -182,11 +180,8 @@ func NewModuleUnevalWithTests(primaryFiles, overrideFiles []*File, symbolFiles [
 // internal/lang/eval, which wants to handle the situations where we currently
 // rely on early eval in a different way. Outside of that experiment we should
 // keep using [NewModule] in its entirety for now.
-func NewModuleUneval(primaryFiles, overrideFiles []*File, symbolFiles []*symlib.SymbolFile, sourceDir string, load SelectiveLoader) (*Module, hcl.Diagnostics) {
+func NewModuleUneval(primaryFiles, overrideFiles []*File, sourceDir string, load SelectiveLoader) (*Module, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
-
-	library, lDiags := symlib.NewLibraryContents(symbolFiles)
-	diags = append(diags, lDiags...)
 
 	mod := &Module{
 		ProviderConfigs:    map[string]*Provider{},
@@ -195,7 +190,7 @@ func NewModuleUneval(primaryFiles, overrideFiles []*File, symbolFiles []*symlib.
 		Locals:             map[string]*Local{},
 		Outputs:            map[string]*Output{},
 		ModuleCalls:        map[string]*ModuleCall{},
-		LibraryContents:    library,
+		SymbolCalls:        map[string]*symlib.SymbolCall{},
 		ManagedResources:   map[string]*Resource{},
 		DataResources:      map[string]*Resource{},
 		EphemeralResources: map[string]*Resource{},
@@ -266,7 +261,7 @@ func NewModuleUneval(primaryFiles, overrideFiles []*File, symbolFiles []*symlib.
 // analysis of the returned Module is still possible in this case, but the
 // module will probably not be semantically valid.
 func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall, sourceDir string, load SelectiveLoader) (*Module, hcl.Diagnostics) {
-	mod, diags := NewModuleUneval(primaryFiles, overrideFiles, nil, sourceDir, load)
+	mod, diags := NewModuleUneval(primaryFiles, overrideFiles, sourceDir, load)
 
 	if mod != nil {
 		diags = diags.Extend(mod.WithStaticCall(call))
@@ -275,10 +270,10 @@ func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall, sourc
 	return mod, diags
 }
 
-func (m *Module) WithLibrary(l *symlib.Library) hcl.Diagnostics {
+func (m *Module) WithSymbolLibrary(l *symlib.SymbolLibrary) hcl.Diagnostics {
 	var diags hcl.Diagnostics
 
-	m.Library = l
+	m.SymbolLibrary = l
 
 	for _, v := range m.Variables {
 		diags = diags.Extend(v.withLibrary(l))
@@ -489,7 +484,7 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 	for _, mc := range file.SymbolCalls {
 		// This is a *HACK* to merge the symbol call into the library
 		// This is because we haven't decided on a real approach
-		if existing, exists := m.LibraryContents.SymbolCalls[mc.Name]; exists {
+		if existing, exists := m.SymbolCalls[mc.Name]; exists {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Duplicate symbols",
@@ -497,21 +492,7 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 				Subject:  &mc.DeclRange,
 			})
 		}
-		m.LibraryContents.SymbolCalls[mc.Name] = mc
-	}
-
-	for _, mc := range file.LibraryCalls {
-		// This is a *HACK* to merge the library call into the library
-		// This is because we haven't decided on a real approach
-		if existing, exists := m.LibraryContents.LibraryCalls[mc.Name]; exists {
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Duplicate library call",
-				Detail:   fmt.Sprintf("A library call named %q was already defined at %s. Module calls must have unique names within a module.", existing.Name, existing.DeclRange),
-				Subject:  &mc.DeclRange,
-			})
-		}
-		m.LibraryContents.LibraryCalls[mc.Name] = mc
+		m.SymbolCalls[mc.Name] = mc
 	}
 
 	for _, r := range file.ManagedResources {

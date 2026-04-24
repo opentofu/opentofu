@@ -111,7 +111,7 @@ func moduleFromStringForTesting(t testing.TB, src string, fakeFilename string) *
 		return nil
 	}
 
-	ret, diags := NewModuleUneval([]*File{file}, nil, nil, fakeFilename, SelectiveLoadAll)
+	ret, diags := NewModuleUneval([]*File{file}, nil, fakeFilename, SelectiveLoadAll)
 	if diags.HasErrors() {
 		t.Errorf("unexpected module analysis error: %s", diags.Error())
 		return nil

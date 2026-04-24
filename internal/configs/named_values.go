@@ -194,7 +194,7 @@ func decodeVariableBlock(block *hcl.Block, override bool) (*Variable, hcl.Diagno
 	return v, diags
 }
 
-func (v *Variable) withLibrary(l *symlib.Library) hcl.Diagnostics {
+func (v *Variable) withLibrary(l *symlib.SymbolLibrary) hcl.Diagnostics {
 	var diags hcl.Diagnostics
 
 	if v.TypeExpr != nil {

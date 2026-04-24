@@ -4,26 +4,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/zclconf/go-cty/cty/function"
 )
-
-type Symbols struct {
-	*Library
-}
-
-func NewSymbols(file *SymbolFile, libLoader LibraryLoader, symLoader SymbolsLoader, builtinFuncs map[string]function.Function) (*Symbols, hcl.Diagnostics) {
-	var diags hcl.Diagnostics
-	contents, sDiags := NewLibraryContents([]*SymbolFile{file})
-	diags = diags.Extend(sDiags)
-
-	l, lDiags := newLibraryOrSymbols(TypeSymbols, contents, libLoader, symLoader, builtinFuncs)
-	diags = diags.Extend(lDiags)
-
-	if l == nil {
-		return nil, diags
-	}
-	return &Symbols{l}, diags
-}
 
 type SymbolCall struct {
 	Name        string
@@ -78,18 +59,18 @@ var symbolBlockSchema = &hcl.BodySchema{
 			Name: "version",
 		},
 		{
-			Name:     "file",
-			Required: true,
+			Name: "file",
+			// Optional to support both full collection vs single file methods
+			// Required: true,
 		},
 	},
 }
 
 type SymbolFile struct {
-	Consts       []*Const
-	Functions    []*Function
-	TypeDefs     []*TypeDef
-	LibraryCalls []*LibraryCall
-	SymbolCalls  []*SymbolCall
+	Consts      []*Const
+	Functions   []*Function
+	TypeDefs    []*TypeDef
+	SymbolCalls []*SymbolCall
 }
 
 func LoadSymbolFile(body hcl.Body) (*SymbolFile, hcl.Diagnostics) {
@@ -119,12 +100,6 @@ func LoadSymbolFile(body hcl.Body) (*SymbolFile, hcl.Diagnostics) {
 			if cfg != nil {
 				file.Functions = append(file.Functions, cfg)
 			}
-		case "library":
-			cfg, cfgDiags := DecodeLibraryBlock(block)
-			diags = append(diags, cfgDiags...)
-			if cfg != nil {
-				file.LibraryCalls = append(file.LibraryCalls, cfg)
-			}
 		case "symbols":
 			cfg, cfgDiags := DecodeSymbolsBlock(block)
 			diags = append(diags, cfgDiags...)
@@ -153,10 +128,6 @@ var symbolFileSchema = &hcl.BodySchema{
 		},
 		{
 			Type:       "function",
-			LabelNames: []string{"name"},
-		},
-		{
-			Type:       "library",
 			LabelNames: []string{"name"},
 		},
 		{

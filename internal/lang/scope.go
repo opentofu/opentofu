@@ -76,7 +76,7 @@ type Scope struct {
 
 	ProviderFunctions ProviderFunction
 
-	Library *symlib.Library
+	Library *symlib.SymbolLibrary
 }
 
 type ProviderFunction func(context.Context, addrs.ProviderFunction, tfdiags.SourceRange) (*function.Function, tfdiags.Diagnostics)

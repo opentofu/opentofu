@@ -363,7 +363,7 @@ func (c *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source ad
 		}
 
 		return evalContextProviderFunction(ctx, provider, c.Evaluator.Operation, pf, rng)
-	}, mc.Module.Library)
+	}, mc.Module.SymbolLibrary)
 	scope.SetActiveExperiments(mc.Module.ActiveExperiments)
 
 	return scope

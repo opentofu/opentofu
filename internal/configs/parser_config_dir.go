@@ -81,20 +81,17 @@ func (p *Parser) LoadConfigDirSelective(path string, call StaticModuleCall, load
 // use-cases. We should continue to use [Parser.LoadConfigDir] for all other
 // callers for now.
 func (p *Parser) LoadConfigDirUneval(path string, load SelectiveLoader) (*Module, hcl.Diagnostics) {
-	primaryPaths, overridePaths, _, symbolPaths, diags := p.dirFiles(path, "")
+	primaryPaths, overridePaths, _, _, diags := p.dirFiles(path, "")
 	if diags.HasErrors() {
 		return nil, diags
 	}
-
-	symbols, fDiags := p.loadSymbolFiles(symbolPaths)
-	diags = append(diags, fDiags...)
 
 	primary, fDiags := p.loadFiles(primaryPaths, false)
 	diags = append(diags, fDiags...)
 	override, fDiags := p.loadFiles(overridePaths, true)
 	diags = append(diags, fDiags...)
 
-	mod, modDiags := NewModuleUneval(primary, override, symbols, path, load)
+	mod, modDiags := NewModuleUneval(primary, override, path, load)
 	diags = append(diags, modDiags...)
 
 	diags = finalizeModuleLoadDiagnostics(diags)
@@ -102,13 +99,10 @@ func (p *Parser) LoadConfigDirUneval(path string, load SelectiveLoader) (*Module
 }
 
 func (p *Parser) LoadConfigDirUnevalWithTests(path string, testDirectory string, load SelectiveLoader) (*Module, hcl.Diagnostics) {
-	primaryPaths, overridePaths, testPaths, symbolPaths, diags := p.dirFiles(path, testDirectory)
+	primaryPaths, overridePaths, testPaths, _, diags := p.dirFiles(path, testDirectory)
 	if diags.HasErrors() {
 		return nil, diags
 	}
-
-	symbols, fDiags := p.loadSymbolFiles(symbolPaths)
-	diags = append(diags, fDiags...)
 
 	primary, fDiags := p.loadFiles(primaryPaths, false)
 	diags = append(diags, fDiags...)
@@ -117,7 +111,7 @@ func (p *Parser) LoadConfigDirUnevalWithTests(path string, testDirectory string,
 	tests, fDiags := p.loadTestFiles(path, testPaths)
 	diags = append(diags, fDiags...)
 
-	mod, modDiags := NewModuleUnevalWithTests(primary, override, symbols, tests, path, load)
+	mod, modDiags := NewModuleUnevalWithTests(primary, override, tests, path, load)
 	diags = append(diags, modDiags...)
 
 	diags = finalizeModuleLoadDiagnostics(diags)

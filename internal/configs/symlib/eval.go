@@ -15,14 +15,12 @@ import (
 )
 
 type scope struct {
-	ltype string
-
 	vars  map[string]map[string]result[cty.Value]
 	types map[string]result[typeWithDefault]
 	funcs map[string]result[function.Function]
 
 	builtinFuncs map[string]function.Function
-	libraries    map[string]*scope
+	symbols      map[string]*scope
 
 	requests map[workgraph.RequestID]ident
 }
@@ -32,14 +30,12 @@ type typeWithDefault struct {
 	def *typeexpr.Defaults
 }
 
-func newScope(ltype string, builtinFuncs map[string]function.Function) *scope {
+func newScope(builtinFuncs map[string]function.Function) *scope {
 	return &scope{
-		ltype: ltype,
-
-		vars:      map[string]map[string]result[cty.Value]{"const": {}},
-		types:     map[string]result[typeWithDefault]{},
-		funcs:     map[string]result[function.Function]{},
-		libraries: map[string]*scope{},
+		vars:    map[string]map[string]result[cty.Value]{"const": {}},
+		types:   map[string]result[typeWithDefault]{},
+		funcs:   map[string]result[function.Function]{},
+		symbols: map[string]*scope{},
 
 		builtinFuncs: builtinFuncs,
 
@@ -119,12 +115,10 @@ func once[V any](id ident, s *scope, fn result[V]) result[V] {
 
 func (s *scope) clone() *scope {
 	ns := &scope{
-		ltype: s.ltype,
-
-		vars:      map[string]map[string]result[cty.Value]{},
-		types:     s.types,
-		funcs:     s.funcs,
-		libraries: s.libraries,
+		vars:    map[string]map[string]result[cty.Value]{},
+		types:   s.types,
+		funcs:   s.funcs,
+		symbols: s.symbols,
 
 		builtinFuncs: s.builtinFuncs,
 
@@ -146,7 +140,7 @@ func (s *scope) typeContext(w *workgraph.Worker, typeExpr hcl.Expression) (typee
 
 	sep := "::"
 	suffix := "types"
-	selfNs := "self" + sep + suffix
+	selfNs := TypeSymbols + sep + suffix
 
 	typeCtx := typeexpr.TypeContext{
 		Types:    map[string]map[string]cty.Type{selfNs: {}},
@@ -154,8 +148,8 @@ func (s *scope) typeContext(w *workgraph.Worker, typeExpr hcl.Expression) (typee
 	}
 	// Add all libraries, we could do less work based on missing below
 	// Minor opt at this point, not worth it
-	for lname, lib := range s.libraries {
-		lNs := lib.ltype + sep + lname + sep + suffix
+	for lname, lib := range s.symbols {
+		lNs := TypeSymbols + sep + lname + sep + suffix
 		typeCtx.Types[lNs] = map[string]cty.Type{}
 		typeCtx.Defaults[lNs] = map[string]*typeexpr.Defaults{}
 		for tname, fn := range lib.types {
@@ -193,12 +187,10 @@ func (s *scope) evalContext(w *workgraph.Worker, expr hcl.Expression) (*hcl.Eval
 	var diags hcl.Diagnostics
 
 	vars := map[string]map[string]cty.Value{
-		"self":      {},
-		TypeLibrary: {},
 		TypeSymbols: {},
 	}
 
-	for lname, lib := range s.libraries {
+	for lname, lib := range s.symbols {
 		// TODO opt with expr deps
 		consts := map[string]cty.Value{}
 		for cn, fn := range lib.vars["const"] {
@@ -207,7 +199,7 @@ func (s *scope) evalContext(w *workgraph.Worker, expr hcl.Expression) (*hcl.Eval
 			consts[cn] = val
 		}
 		// TODO consts in name?
-		vars[lib.ltype][lname] = cty.ObjectVal(consts)
+		vars[TypeSymbols][lname] = cty.ObjectVal(consts)
 	}
 
 	if expr != nil {
@@ -224,7 +216,7 @@ func (s *scope) evalContext(w *workgraph.Worker, expr hcl.Expression) (*hcl.Eval
 
 			root := trav[0].(hcl.TraverseRoot)
 
-			if root.Name == TypeLibrary || root.Name == TypeSymbols {
+			if root.Name == TypeSymbols {
 				continue
 			}
 
@@ -284,15 +276,15 @@ func (s *scope) evalContext(w *workgraph.Worker, expr hcl.Expression) (*hcl.Eval
 
 	// Recursion is not allowed (hcl limitation)
 	for funcName, fn := range s.funcs {
-		funcIdent := "self::" + funcName
+		funcIdent := TypeSymbols + "::" + funcName
 		impl, fDiags := fn(w)
 		diags = diags.Extend(fDiags)
 		evalCtx.Functions[funcIdent] = impl
 	}
 
-	for libName, lib := range s.libraries {
+	for libName, lib := range s.symbols {
 		for funcName, fn := range lib.funcs {
-			funcIdent := lib.ltype + "::" + libName + "::" + funcName
+			funcIdent := TypeSymbols + "::" + libName + "::" + funcName
 			impl, fDiags := fn(w)
 			diags = diags.Extend(fDiags)
 			evalCtx.Functions[funcIdent] = impl
@@ -303,7 +295,7 @@ func (s *scope) evalContext(w *workgraph.Worker, expr hcl.Expression) (*hcl.Eval
 }
 
 func (s *scope) addType(name string, typeExpr hcl.Expression) {
-	id := ident{s.ltype + "types(" + name + ")", typeExpr.Range().Ptr()}
+	id := ident{TypeSymbols + "::" + "types(" + name + ")", typeExpr.Range().Ptr()}
 	s.types[name] = once(id, s, func(w *workgraph.Worker) (typeWithDefault, hcl.Diagnostics) {
 		typeCtx, diags := s.typeContext(w, typeExpr)
 
@@ -333,7 +325,7 @@ func (s *scope) addVar(namespace string, name string, expr hcl.Expression) {
 }
 
 func (s *scope) addFunction(name string, fn func(*workgraph.Worker, *scope) (function.Function, hcl.Diagnostics)) {
-	id := ident{s.ltype + "::" + name + "()", nil}
+	id := ident{TypeSymbols + "::" + name + "()", nil}
 	s.funcs[name] = once(id, s, func(w *workgraph.Worker) (function.Function, hcl.Diagnostics) {
 		return fn(w, s)
 	})
