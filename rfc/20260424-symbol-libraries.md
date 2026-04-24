@@ -205,8 +205,8 @@ function "assert_non_empty" {
   parameter "in" {
     type = symbols::types(items)
     validation {
-      condition = non_empty(param.in)
-      error_message = "One or more of the elements in ${param.in} is empty"
+      condition = symbols::non_empty(param.in)
+      error_message = "One or more of the elements in ${jsonencode(param.in)} is empty"
     }
   }
   return = param.in
