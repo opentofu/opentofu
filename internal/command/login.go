@@ -19,6 +19,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/mitchellh/cli"
@@ -418,8 +419,14 @@ func (c *LoginCommand) interactiveGetTokenByCode(ctx context.Context, hostname s
 	}
 
 	// codeCh will allow our temporary HTTP server to transmit the OAuth code
-	// to the main execution path that follows.
-	codeCh := make(chan string)
+	// to the main execution path that follows. It is buffered so the handler
+	// can send without blocking even if the main goroutine has already moved on.
+	// Only the main goroutine may close codeCh, after all producers have stopped.
+	codeCh := make(chan string, 1)
+	// serverErrCh carries any unexpected error from server.Serve so that the
+	// main goroutine can handle it without a shared-state race on diags.
+	serverErrCh := make(chan error, 1)
+	var wg sync.WaitGroup
 	server := &http.Server{
 		Handler: http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
 			log.Printf("[TRACE] login: request to callback server")
@@ -442,12 +449,17 @@ func (c *LoginCommand) interactiveGetTokenByCode(ctx context.Context, hostname s
 				return
 			}
 
-			log.Printf("[TRACE] login: request contains an authorization code")
-
-			// Send the code to our blocking wait below, so that the token
-			// fetching process can continue.
-			codeCh <- gotCode
-			close(codeCh)
+			// Non-blocking send: only the first callback request succeeds.
+			// Duplicate or concurrent requests are rejected with 400 so that
+			// the handler never blocks on the already-full buffered channel.
+			select {
+			case codeCh <- gotCode:
+				log.Printf("[TRACE] login: request contains an authorization code")
+			default:
+				log.Printf("[WARN] login: ignoring duplicate callback request")
+				resp.WriteHeader(400)
+				return
+			}
 
 			log.Printf("[TRACE] login: returning response from callback server")
 
@@ -460,21 +472,13 @@ func (c *LoginCommand) interactiveGetTokenByCode(ctx context.Context, hostname s
 		}),
 	}
 	panicHandler := logging.PanicHandlerWithTraceFn()
-	go func() {
+	wg.Go(func() {
 		defer panicHandler()
 		err := server.Serve(listener)
 		if err != nil && err != http.ErrServerClosed {
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
-				"Can't start temporary login server",
-				fmt.Sprintf(
-					"The login process uses OAuth, which requires starting a temporary HTTP server on localhost. However, no TCP port numbers between %d and %d are available to create such a server.",
-					clientConfig.MinPort, clientConfig.MaxPort,
-				),
-			))
-			close(codeCh)
+			serverErrCh <- err
 		}
-	}()
+	})
 
 	oauthConfig := &oauth2.Config{
 		ClientID:    clientConfig.ID,
@@ -509,7 +513,6 @@ func (c *LoginCommand) interactiveGetTokenByCode(ctx context.Context, hostname s
 	view.WaitingForHostSignal()
 
 	var code string
-	var ok bool
 	select {
 	case <-c.ShutdownCh:
 		diags = diags.Append(
@@ -519,22 +522,36 @@ func (c *LoginCommand) interactiveGetTokenByCode(ctx context.Context, hostname s
 				"Current command was aborted by the calling code.",
 			),
 		)
-		code, ok = "", true
+    if err := server.Shutdown(ctx); err != nil {
+		log.Printf("[WARN] login: callback server shutdown failed: %s", err)
+	}
+		wg.Wait()
 		close(codeCh)
-	case code, ok = <-codeCh:
-	}
-
-	if !ok {
-		// If we got no code at all then the server wasn't able to start
-		// up, so we'll just give up.
 		return nil, diags
+	case serveErr := <-serverErrCh:
+		// The server failed to start up, so we'll just give up.
+		// No need to call Shutdown here: the server never started accepting
+		// requests, so there are no in-flight handler goroutines to wait for.
+		log.Printf("[ERROR] login: callback server error: %s", serveErr)
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Can't start temporary login server",
+			fmt.Sprintf(
+				"The login process uses OAuth, which requires starting a temporary HTTP server on localhost. However, no TCP port numbers between %d and %d are available to create such a server.",
+				clientConfig.MinPort, clientConfig.MaxPort,
+			),
+		))
+		wg.Wait()
+		close(codeCh)
+		return nil, diags
+	case code = <-codeCh:
 	}
 
-	if err := server.Close(); err != nil {
-		// The server will close soon enough when our process exits anyway,
-		// so we won't fuss about it for right now.
+	if err := server.Shutdown(ctx); err != nil {
 		log.Printf("[WARN] login: callback server can't shut down: %s", err)
 	}
+	wg.Wait()
+	close(codeCh)
 
 	if code == "" {
 		// empty code is not possible in happy path as it is validated in the HTTP handler of our callback server
