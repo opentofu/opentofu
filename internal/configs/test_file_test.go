@@ -13,6 +13,8 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hcltest"
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/zclconf/go-cty/cty"
 )
 
 func TestTestRun_Validate(t *testing.T) {
@@ -176,5 +178,162 @@ func TestDecodeTestRunModuleBlock(t *testing.T) {
 				t.Fatalf("got %#v; want %#v", trcm.Source.String(), tc.wantModuleSource)
 			}
 		})
+	}
+}
+
+func TestLoadMockFile_ValidBlocks(t *testing.T) {
+	parser := NewParser(nil)
+
+	mp, diags := parser.LoadMockFile("testdata/mock-source-valid/mocks/resources.tfmock.hcl")
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors: %s", diags.Error())
+	}
+
+	if len(mp.MockResources) != 2 {
+		t.Fatalf("expected 2 mock resources, got %d", len(mp.MockResources))
+	}
+
+	var managed, data *MockResource
+	for _, r := range mp.MockResources {
+		switch r.Mode {
+		case addrs.ManagedResourceMode:
+			managed = r
+		case addrs.DataResourceMode:
+			data = r
+		}
+	}
+
+	if managed == nil || managed.Type != "aws_instance" {
+		t.Fatalf("expected mock_resource aws_instance, got %v", managed)
+	}
+	if data == nil || data.Type != "aws_ami" {
+		t.Fatalf("expected mock_data aws_ami, got %v", data)
+	}
+}
+
+func TestLoadTestFile_MockSourceLoadsFromDir(t *testing.T) {
+	parser := NewParser(nil)
+
+	tf, diags := parser.LoadTestFile("testdata/mock-source-valid/main.tftest.hcl")
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors: %s", diags.Error())
+	}
+
+	mp, ok := tf.MockProviders["aws"]
+	if !ok {
+		t.Fatal("expected mock_provider aws")
+	}
+
+	if len(mp.MockResources) != 2 {
+		t.Fatalf("expected 2 mock resources loaded from source dir, got %d", len(mp.MockResources))
+	}
+}
+
+func TestLoadTestFile_MockSourceTofuPrecedence(t *testing.T) {
+	parser := NewParser(nil)
+
+	tf, diags := parser.LoadTestFile("testdata/mock-source-tofuprecedence/main.tftest.hcl")
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors: %s", diags.Error())
+	}
+
+	mp, ok := tf.MockProviders["aws"]
+	if !ok {
+		t.Fatal("expected mock_provider aws")
+	}
+
+	if len(mp.MockResources) != 1 {
+		t.Fatalf("expected exactly 1 mock resource (tofumock wins), got %d", len(mp.MockResources))
+	}
+
+	r := mp.MockResources[0]
+	if r.Type != "aws_instance" {
+		t.Fatalf("expected aws_instance, got %s", r.Type)
+	}
+
+	val, ok := r.Defaults["ami"]
+	if !ok {
+		t.Fatal("expected ami default value")
+	}
+	if val.AsString() != "ami-from-tofumock" {
+		t.Fatalf("expected ami-from-tofumock (tofumock wins), got %s", val.AsString())
+	}
+}
+
+func TestLoadTestFile_MockSourceInlinePrecedence(t *testing.T) {
+	parser := NewParser(nil)
+
+	tf, diags := parser.LoadTestFile("testdata/mock-source-inline-precedence/main.tftest.hcl")
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors: %s", diags.Error())
+	}
+
+	mp, ok := tf.MockProviders["aws"]
+	if !ok {
+		t.Fatal("expected mock_provider aws")
+	}
+
+	// Should have 2 resources: aws_instance (inline) + aws_vpc (from file)
+	if len(mp.MockResources) != 2 {
+		t.Fatalf("expected 2 mock resources (1 inline + 1 from file), got %d", len(mp.MockResources))
+	}
+
+	resourcesByType := make(map[string]*MockResource)
+	for _, r := range mp.MockResources {
+		resourcesByType[r.Type] = r
+	}
+
+	instance, ok := resourcesByType["aws_instance"]
+	if !ok {
+		t.Fatal("expected aws_instance")
+	}
+	if instance.Defaults["ami"].AsString() != "ami-inline" {
+		t.Fatalf("inline aws_instance should win, got %s", instance.Defaults["ami"].AsString())
+	}
+
+	if _, ok := resourcesByType["aws_vpc"]; !ok {
+		t.Fatal("expected aws_vpc loaded from mock file")
+	}
+}
+
+func TestLoadTestFile_MockSourceMissingDir(t *testing.T) {
+	parser := NewParser(nil)
+
+	_, diags := parser.LoadTestFile("testdata/mock-source-missing-dir/main.tftest.hcl")
+	if !diags.HasErrors() {
+		t.Fatal("expected error for missing source directory")
+	}
+
+	found := false
+	for _, d := range diags {
+		if d.Summary == "Mock source directory not found" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected 'Mock source directory not found' diagnostic, got: %s", diags.Error())
+	}
+}
+
+func TestMergeMockResources_InlinePrecedence(t *testing.T) {
+	inline := []*MockResource{
+		{Mode: addrs.ManagedResourceMode, Type: "aws_instance", Defaults: map[string]cty.Value{}},
+	}
+	fromFiles := []*MockResource{
+		{Mode: addrs.ManagedResourceMode, Type: "aws_instance", Defaults: map[string]cty.Value{}},
+		{Mode: addrs.ManagedResourceMode, Type: "aws_vpc", Defaults: map[string]cty.Value{}},
+	}
+
+	result := mergeMockResources(inline, fromFiles)
+
+	if len(result) != 2 {
+		t.Fatalf("expected 2 resources (inline aws_instance + file aws_vpc), got %d", len(result))
+	}
+	if result[0].Type != "aws_instance" {
+		t.Fatalf("first resource should be the inline aws_instance")
+	}
+	if result[1].Type != "aws_vpc" {
+		t.Fatalf("second resource should be aws_vpc from file")
 	}
 }

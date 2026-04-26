@@ -6,6 +6,8 @@
 package configs
 
 import (
+	"path/filepath"
+
 	"github.com/hashicorp/hcl/v2"
 
 	"github.com/opentofu/opentofu/internal/encryption/config"
@@ -50,7 +52,39 @@ func (p *Parser) LoadTestFile(path string) (*TestFile, hcl.Diagnostics) {
 
 	test, testDiags := loadTestFile(body)
 	diags = append(diags, testDiags...)
+
+	if test != nil {
+		baseDir := filepath.Dir(path)
+		for _, mockProvider := range test.MockProviders {
+			if mockProvider.Source == "" {
+				continue
+			}
+			sourceDir := filepath.Join(baseDir, mockProvider.Source)
+			fromFiles, fileDiags := p.loadMockFilesFromDir(sourceDir, mockProvider.SourceRange)
+			diags = append(diags, fileDiags...)
+			if fromFiles != nil {
+				mockProvider.MockResources = mergeMockResources(mockProvider.MockResources, fromFiles.MockResources)
+				mockProvider.OverrideResources = mergeOverrideResources(mockProvider.OverrideResources, fromFiles.OverrideResources)
+			}
+		}
+	}
+
 	return test, diags
+}
+
+// LoadMockFile reads the file at the given path and parses it as a mock data
+// file (.tfmock.hcl or .tofumock.hcl). Mock files contain mock_resource,
+// mock_data, override_resource, and override_data blocks used to populate a
+// mock_provider that specifies a source directory.
+func (p *Parser) LoadMockFile(path string) (*MockProvider, hcl.Diagnostics) {
+	body, diags := p.LoadHCLFile(path)
+	if body == nil {
+		return nil, diags
+	}
+
+	mock, mockDiags := loadMockFileBody(body)
+	diags = append(diags, mockDiags...)
+	return mock, diags
 }
 
 func (p *Parser) loadConfigFile(path string, override bool) (*File, hcl.Diagnostics) {

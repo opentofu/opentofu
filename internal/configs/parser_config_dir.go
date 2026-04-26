@@ -30,6 +30,8 @@ const (
 	tofuTestExt     = ".tofutest.hcl"
 	tfTestJSONExt   = ".tftest.json"
 	tofuTestJSONExt = ".tofutest.json"
+	tfMockExt       = ".tfmock.hcl"
+	tofuMockExt     = ".tofumock.hcl"
 )
 
 // LoadConfigDir reads the .tf and .tf.json files in the given directory
@@ -330,6 +332,71 @@ func (p *Parser) loadTestFiles(basePath string, paths []string) (map[string]*Tes
 	}
 
 	return tfs, diags
+}
+
+// loadMockFilesFromDir reads all .tfmock.hcl and .tofumock.hcl files from dir,
+// parses them, and returns a merged MockProvider containing all discovered blocks.
+// When both a .tfmock.hcl and a .tofumock.hcl file share the same base name,
+// the .tofumock.hcl file takes precedence and the .tfmock.hcl file is skipped.
+func (p *Parser) loadMockFilesFromDir(dir string, sourceRange hcl.Range) (*MockProvider, hcl.Diagnostics) {
+	var diags hcl.Diagnostics
+
+	infos, err := p.fs.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, hcl.Diagnostics{{
+				Severity: hcl.DiagError,
+				Summary:  "Mock source directory not found",
+				Detail:   fmt.Sprintf("The mock source directory %q does not exist.", dir),
+				Subject:  sourceRange.Ptr(),
+			}}
+		}
+		return nil, hcl.Diagnostics{{
+			Severity: hcl.DiagError,
+			Summary:  "Failed to read mock source directory",
+			Detail:   fmt.Sprintf("Could not read mock source directory %q: %s.", dir, err),
+			Subject:  sourceRange.Ptr(),
+		}}
+	}
+
+	// Pre-collect .tofumock.hcl base names so we can skip .tfmock.hcl duplicates.
+	tofuMockNames := make(map[string]bool)
+	for _, info := range infos {
+		name := info.Name()
+		if strings.HasSuffix(name, tofuMockExt) {
+			tofuMockNames[strings.TrimSuffix(name, tofuMockExt)] = true
+		}
+	}
+
+	result := &MockProvider{}
+
+	for _, info := range infos {
+		if info.IsDir() || IsIgnoredFile(info.Name()) {
+			continue
+		}
+
+		name := info.Name()
+		switch {
+		case strings.HasSuffix(name, tofuMockExt):
+			// always load .tofumock.hcl files
+		case strings.HasSuffix(name, tfMockExt):
+			// skip if a .tofumock.hcl alternative with the same base name exists
+			if tofuMockNames[strings.TrimSuffix(name, tfMockExt)] {
+				continue
+			}
+		default:
+			continue
+		}
+
+		mock, mockDiags := p.LoadMockFile(filepath.Join(dir, name))
+		diags = append(diags, mockDiags...)
+		if mock != nil {
+			result.MockResources = append(result.MockResources, mock.MockResources...)
+			result.OverrideResources = append(result.OverrideResources, mock.OverrideResources...)
+		}
+	}
+
+	return result, diags
 }
 
 // fileExt returns the OpenTofu configuration extension of the given

@@ -329,6 +329,12 @@ type MockProvider struct {
 
 	MockResources     []*MockResource
 	OverrideResources []*OverrideResource
+
+	// Source is the path to a directory containing .tfmock.hcl or .tofumock.hcl
+	// files. Blocks from those files are merged into this provider after parsing,
+	// with any inline mock_resource / override_resource blocks taking precedence.
+	Source      string
+	SourceRange hcl.Range
 }
 
 // moduleUniqueKey is copied from Provider.moduleUniqueKey
@@ -921,6 +927,12 @@ func decodeMockProviderBlock(block *hcl.Block) (*MockProvider, hcl.Diagnostics) 
 		provider.ForEach = attr.Expr
 	}
 
+	if attr, exists := content.Attributes["source"]; exists {
+		valDiags := gohcl.DecodeExpression(attr.Expr, nil, &provider.Source)
+		diags = append(diags, valDiags...)
+		provider.SourceRange = attr.Range
+	}
+
 	if len(provider.Alias) == 0 && provider.ForEach != nil {
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
@@ -1180,6 +1192,10 @@ var mockProviderBlockSchema = &hcl.BodySchema{
 			Name:     "for_each",
 			Required: false,
 		},
+		{
+			Name:     "source",
+			Required: false,
+		},
 	},
 	Blocks: []hcl.BlockHeaderSchema{
 		{
@@ -1205,4 +1221,99 @@ var mockResourceBlockSchema = &hcl.BodySchema{
 			Name: "defaults",
 		},
 	},
+}
+
+// mockFileSchema defines the structure of a .tfmock.hcl / .tofumock.hcl file.
+// These files may only contain mock_resource, mock_data, override_resource, and
+// override_data blocks — the same blocks that can appear inside a mock_provider,
+// but without the provider wrapper.
+var mockFileSchema = &hcl.BodySchema{
+	Blocks: []hcl.BlockHeaderSchema{
+		{
+			Type:       blockNameMockResource,
+			LabelNames: []string{"type"},
+		},
+		{
+			Type:       blockNameMockData,
+			LabelNames: []string{"type"},
+		},
+		{
+			Type: blockNameOverrideResource,
+		},
+		{
+			Type: blockNameOverrideData,
+		},
+	},
+}
+
+func loadMockFileBody(body hcl.Body) (*MockProvider, hcl.Diagnostics) {
+	var diags hcl.Diagnostics
+
+	content, contentDiags := body.Content(mockFileSchema)
+	diags = append(diags, contentDiags...)
+
+	mp := &MockProvider{}
+
+	for _, block := range content.Blocks {
+		switch block.Type {
+		case blockNameMockData, blockNameMockResource:
+			res, resDiags := decodeMockResourceBlock(block)
+			diags = append(diags, resDiags...)
+			if !resDiags.HasErrors() {
+				mp.MockResources = append(mp.MockResources, res)
+			}
+		case blockNameOverrideData, blockNameOverrideResource:
+			res, resDiags := decodeOverrideResourceBlock(block)
+			diags = append(diags, resDiags...)
+			if !resDiags.HasErrors() {
+				mp.OverrideResources = append(mp.OverrideResources, res)
+			}
+		}
+	}
+
+	return mp, diags
+}
+
+// mergeMockResources returns inline mock resources plus any file-sourced
+// resources whose type is not already defined inline. Inline takes precedence.
+func mergeMockResources(inline, fromFiles []*MockResource) []*MockResource {
+	if len(fromFiles) == 0 {
+		return inline
+	}
+
+	inlineKeys := make(map[string]struct{}, len(inline))
+	for _, r := range inline {
+		inlineKeys[r.Mode.String()+"."+r.Type] = struct{}{}
+	}
+
+	result := make([]*MockResource, len(inline), len(inline)+len(fromFiles))
+	copy(result, inline)
+	for _, r := range fromFiles {
+		if _, exists := inlineKeys[r.Mode.String()+"."+r.Type]; !exists {
+			result = append(result, r)
+		}
+	}
+	return result
+}
+
+// mergeOverrideResources returns inline override resources plus any file-sourced
+// override resources whose target is not already defined inline. Inline takes precedence.
+func mergeOverrideResources(inline, fromFiles []*OverrideResource) []*OverrideResource {
+	if len(fromFiles) == 0 {
+		return inline
+	}
+
+	inlineKeys := make(map[string]struct{}, len(inline))
+	for _, r := range inline {
+		inlineKeys[r.TargetParsed.String()] = struct{}{}
+	}
+
+	result := make([]*OverrideResource, len(inline), len(inline)+len(fromFiles))
+	copy(result, inline)
+	for _, r := range fromFiles {
+		if _, exists := inlineKeys[r.TargetParsed.String()]; !exists {
+			result = append(result, r)
+		}
+	}
+	return result
 }
