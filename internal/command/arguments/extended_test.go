@@ -129,6 +129,34 @@ func TestStateFlagsParsing(t *testing.T) {
 			}),
 			wantErr: fmt.Errorf("flag provided but not defined: -lock"),
 		},
+		"register only stateIn flag - no flags provided": {
+			args: []string{},
+			register: func(s *State, f *flag.FlagSet) {
+				s.AddStateInFlag(f, "default.tfstate")
+			},
+			want: stateArgsWithDefaults(func(v *State) {
+				v.StatePath = "default.tfstate" // the provided different default
+			}),
+		},
+		"register only stateIn flag - with state flag": {
+			args: []string{"-state=/path/to/state"},
+			register: func(s *State, f *flag.FlagSet) {
+				s.AddStateInFlag(f, "default.tfstate")
+			},
+			want: stateArgsWithDefaults(func(v *State) {
+				v.StatePath = "/path/to/state"
+			}),
+		},
+		"register only stateIn flag - unregistered flag": {
+			args: []string{"-state=/path/to/state", "-lock=false"},
+			register: func(s *State, f *flag.FlagSet) {
+				s.AddStateInFlag(f, "-")
+			},
+			want: stateArgsWithDefaults(func(v *State) {
+				v.StatePath = "/path/to/state"
+			}),
+			wantErr: fmt.Errorf("flag provided but not defined: -lock"),
+		},
 	}
 
 	cmpOpts := cmpopts.IgnoreUnexported()

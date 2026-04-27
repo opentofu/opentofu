@@ -69,7 +69,7 @@ func (s *State) AddFlags(f *flag.FlagSet, lockFlags bool, stateInPath bool, stat
 		f.DurationVar(&s.LockTimeout, "lock-timeout", 0, "lock-timeout")
 	}
 	if stateInPath {
-		f.StringVar(&s.StatePath, "state", "", "state-path")
+		s.AddStateInFlag(f, "")
 	}
 	if stateOutPath {
 		f.StringVar(&s.StateOutPath, "state-out", "", "state-path")
@@ -77,6 +77,11 @@ func (s *State) AddFlags(f *flag.FlagSet, lockFlags bool, stateInPath bool, stat
 	if backupPath {
 		s.AddBackupFlag(f, "")
 	}
+}
+
+// AddStateInFlag exists strictly because the default value can get a different value in some commands.
+func (s *State) AddStateInFlag(f *flag.FlagSet, defVal string) {
+	f.StringVar(&s.StatePath, "state", defVal, "state-path")
 }
 
 // AddBackupFlag exists strictly because the default value can get a different value in some commands.

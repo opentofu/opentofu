@@ -28,7 +28,7 @@ func TestParseConsole_basicValidation(t *testing.T) {
 		"custom state path": {
 			args: []string{"-state=/path/to/state.tfstate"},
 			want: consoleArgsWithDefaults(func(console *Console) {
-				console.StatePath = "/path/to/state.tfstate"
+				console.State.StatePath = "/path/to/state.tfstate"
 			}),
 		},
 		"json-into with input enabled": {
@@ -98,7 +98,6 @@ func TestParseConsole_basicValidation(t *testing.T) {
 
 func consoleArgsWithDefaults(mutate func(console *Console)) *Console {
 	ret := &Console{
-		StatePath: DefaultStateFilename,
 		ViewOptions: ViewOptions{
 			ViewType:     ViewHuman,
 			InputEnabled: true,
@@ -106,6 +105,8 @@ func consoleArgsWithDefaults(mutate func(console *Console)) *Console {
 		Vars:  &Vars{},
 		State: NewStateFlags(),
 	}
+	// Because the state flag is registered with a different default value
+	ret.State.StatePath = DefaultStateFilename
 	if mutate != nil {
 		mutate(ret)
 	}

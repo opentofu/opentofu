@@ -11,9 +11,6 @@ import (
 
 // Console represents the command-line arguments for the console command.
 type Console struct {
-	// StatePath is the path to the state file to use for the console session.
-	StatePath string
-
 	// ViewOptions specifies which view options to use
 	ViewOptions ViewOptions
 	// Vars holds and provides information for the flags related to variables that a user can give into the process
@@ -35,7 +32,7 @@ func ParseConsole(args []string) (*Console, func(), tfdiags.Diagnostics) {
 
 	cmdFlags := extendedFlagSet("console", nil, console.Vars)
 	console.State.AddFlags(cmdFlags, true, false, false, false)
-	cmdFlags.StringVar(&console.StatePath, "state", DefaultStateFilename, "path")
+	console.State.AddStateInFlag(cmdFlags, DefaultStateFilename)
 
 	console.ViewOptions.AddFlags(cmdFlags, true)
 

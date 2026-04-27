@@ -16,7 +16,7 @@ type Login struct {
 
 	// ViewOptions specifies which view options to use
 	ViewOptions ViewOptions
-	// Vars holds and provides information for the flags related to variables that a user can give into the process
+	// Vars and State are the common extended flags
 	Vars  *Vars
 	State *State
 }
@@ -29,7 +29,9 @@ func ParseLogin(args []string) (*Login, func(), tfdiags.Diagnostics) {
 	arguments := &Login{
 		// Even though the command does not use the -var/-var-file content, we will keep this for the moment
 		// just to keep backwards compatibility for users (in case any of them are using these flags with this command)
-		Vars:  &Vars{},
+		Vars: &Vars{},
+		// State is only initialised and no flags are registered since the login command needs to lock the
+		// state by default, which is ensured by NewStateFlags.
 		State: NewStateFlags(),
 	}
 
