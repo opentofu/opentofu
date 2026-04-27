@@ -184,6 +184,36 @@ values {
 
 How do I have "unexported" symbols?
 
+The easiest way to do this without introduing any new syntax is to take an approach similar to go's `internal` pattern.
+
+```hcl
+# ./lib/contents.sym.hcl
+
+# Import the internal library
+symbols "internal" {
+  source = "."
+  file  = "./internal/types.sym.hcl"
+}
+
+
+# Re-export the custom type defined in the internal library
+typedef "custom" {
+  type = symbols::internal::types(custom)
+}
+
+```
+
+```hcl
+# ./lib/internal/types.sym.hcl
+
+typedef "custom" {
+  type = object({id = string, size = number})
+}
+
+typedef "other" {
+  type = list(symbols::types(custom))
+}
+```
 
 #### Symbol file usage
 
