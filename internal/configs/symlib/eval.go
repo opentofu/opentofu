@@ -135,52 +135,42 @@ func (s *scope) clone() *scope {
 	return ns
 }
 
-func (s *scope) typeContext(w *workgraph.Worker, typeExpr hcl.Expression) (typeexpr.TypeContext, hcl.Diagnostics) {
-	var diags hcl.Diagnostics
-
+func (s *scope) typeContext(w *workgraph.Worker) typeexpr.TypeContext {
 	sep := "::"
 	suffix := "types"
 	selfNs := TypeSymbols + sep + suffix
 
-	typeCtx := typeexpr.TypeContext{
-		Types:    map[string]map[string]cty.Type{selfNs: {}},
-		Defaults: map[string]map[string]*typeexpr.Defaults{selfNs: {}},
-	}
-	// Add all libraries, we could do less work based on missing below
-	// Minor opt at this point, not worth it
-	for lname, lib := range s.symbols {
-		lNs := TypeSymbols + sep + lname + sep + suffix
-		typeCtx.Types[lNs] = map[string]cty.Type{}
-		typeCtx.Defaults[lNs] = map[string]*typeexpr.Defaults{}
-		for tname, fn := range lib.types {
-			val, vDiags := fn(w)
-			diags = diags.Extend(vDiags)
-			typeCtx.Types[lNs][tname] = val.ty
-			typeCtx.Defaults[lNs][tname] = val.def
-		}
-	}
+	return typeexpr.TypeContext{
+		TypeFunc: func(call *hcl.StaticCall) (*cty.Type, *typeexpr.Defaults, hcl.Diagnostics) {
+			kw := hcl.ExprAsKeyword(call.Arguments[0])
+			ns := call.Name
 
-	if typeExpr != nil {
-		missing, mDiags := typeCtx.TypeDependencies(typeExpr)
-		diags = diags.Extend(mDiags)
-		for _, ty := range missing[selfNs] {
-			if fn, ok := s.types[ty]; ok {
-				val, vDiags := fn(w)
-				diags = diags.Extend(vDiags)
-				typeCtx.Types[selfNs][ty] = val.ty
-				typeCtx.Defaults[selfNs][ty] = val.def
+			var types map[string]result[typeWithDefault]
+
+			if ns == selfNs {
+				types = s.types
+			} else {
+				for lname, lib := range s.symbols {
+					lNs := TypeSymbols + sep + lname + sep + suffix
+					if ns == lNs {
+						types = lib.types
+						break
+					}
+				}
 			}
-		}
-	} else {
-		for tn, fn := range s.types {
-			val, vDiags := fn(w)
-			diags = diags.Extend(vDiags)
-			typeCtx.Types[selfNs][tn] = val.ty
-			typeCtx.Defaults[selfNs][tn] = val.def
-		}
-	}
 
-	return typeCtx, diags
+			fn, ok := types[kw]
+			if !ok {
+				return nil, nil, nil
+			}
+
+			val, diags := fn(w)
+			if diags.HasErrors() {
+				return nil, nil, diags
+			}
+			return &(val.ty), val.def, diags
+		},
+	}
 }
 
 func (s *scope) evalContext(w *workgraph.Worker, expr hcl.Expression) (*hcl.EvalContext, hcl.Diagnostics) {
@@ -297,11 +287,8 @@ func (s *scope) evalContext(w *workgraph.Worker, expr hcl.Expression) (*hcl.Eval
 func (s *scope) addType(name string, typeExpr hcl.Expression) {
 	id := ident{TypeSymbols + "::" + "types(" + name + ")", typeExpr.Range().Ptr()}
 	s.types[name] = once(id, s, func(w *workgraph.Worker) (typeWithDefault, hcl.Diagnostics) {
-		typeCtx, diags := s.typeContext(w, typeExpr)
-
-		varType, typeDefault, vDiags := typeCtx.TypeConstraintWithDefaults(typeExpr)
-		diags = diags.Extend(vDiags)
-
+		typeCtx := s.typeContext(w)
+		varType, typeDefault, diags := typeCtx.TypeConstraintWithDefaults(typeExpr)
 		return typeWithDefault{varType, typeDefault}, diags
 	})
 }

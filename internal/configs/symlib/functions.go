@@ -166,11 +166,10 @@ func (fn *Function) Impl(w *workgraph.Worker, s *scope) (function.Function, hcl.
 		Description: fn.Description,
 	}
 
+	typeCtx := s.typeContext(w)
+
 	returnType := cty.DynamicPseudoType
 	if fn.ReturnType != nil {
-		typeCtx, tDiags := s.typeContext(w, fn.ReturnType)
-		diags = diags.Extend(tDiags)
-
 		var valDiags hcl.Diagnostics
 		returnType, _, valDiags = typeCtx.TypeConstraintWithDefaults(fn.ReturnType)
 		diags = append(diags, valDiags...)
@@ -192,9 +191,6 @@ func (fn *Function) Impl(w *workgraph.Worker, s *scope) (function.Function, hcl.
 		validations[fnp.Name] = param.Validations
 
 		if param.TypeExpr != nil {
-			typeCtx, tDiags := s.typeContext(w, *param.TypeExpr)
-			diags = diags.Extend(tDiags)
-
 			var valDiags hcl.Diagnostics
 			fnp.Type, defaults[fnp.Name], valDiags = typeCtx.TypeConstraintWithDefaults(*param.TypeExpr)
 			return fnp, valDiags

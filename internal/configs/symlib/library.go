@@ -113,8 +113,7 @@ func NewSymbolLibrary(files []*SymbolFile, symLoader SymbolsLoader, builtinFuncs
 
 	// Compile the library
 
-	typeCtx, mDiags := l.scope.typeContext(worker, nil)
-	diags = diags.Extend(mDiags)
+	typeCtx := l.scope.typeContext(worker)
 
 	evalCtx, mDiags := l.scope.evalContext(worker, nil)
 	diags = diags.Extend(mDiags)
