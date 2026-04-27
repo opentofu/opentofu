@@ -255,20 +255,6 @@ type testingOverrides struct {
 	Provisioners map[string]provisioners.Factory
 }
 
-// initStatePaths is used to initialize the default values for
-// arguments.State#StatePath, arguments.State#stateOutPath, and arguments.State#backupPath
-func (m *Meta) initStatePaths() {
-	if m.stateArgs.StatePath == "" {
-		m.stateArgs.StatePath = arguments.DefaultStateFilename
-	}
-	if m.stateArgs.StateOutPath == "" {
-		m.stateArgs.StateOutPath = m.stateArgs.StatePath
-	}
-	if m.stateArgs.BackupPath == "" {
-		m.stateArgs.BackupPath = m.stateArgs.StateOutPath + DefaultBackupExtension
-	}
-}
-
 // StateOutPath returns the true output path for the state file
 func (m *Meta) StateOutPath() string {
 	return m.stateArgs.StateOutPath

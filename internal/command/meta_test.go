@@ -112,49 +112,6 @@ func TestMetaInputMode_disable(t *testing.T) {
 	}
 }
 
-func TestMeta_initStatePaths(t *testing.T) {
-	m := &Meta{
-		WorkingDir: workdir.NewDir("."),
-	}
-	m.initStatePaths()
-
-	if m.stateArgs.StatePath != arguments.DefaultStateFilename {
-		t.Fatalf("bad: %#v", m)
-	}
-	if m.stateArgs.StateOutPath != arguments.DefaultStateFilename {
-		t.Fatalf("bad: %#v", m)
-	}
-	if m.stateArgs.BackupPath != arguments.DefaultStateFilename+DefaultBackupExtension {
-		t.Fatalf("bad: %#v", m)
-	}
-
-	m = &Meta{
-		WorkingDir: workdir.NewDir("."),
-	}
-	m.stateArgs.StatePath = "foo"
-	m.initStatePaths()
-
-	if m.stateArgs.StateOutPath != "foo" {
-		t.Fatalf("bad: %#v", m)
-	}
-	if m.stateArgs.BackupPath != "foo"+DefaultBackupExtension {
-		t.Fatalf("bad: %#v", m)
-	}
-
-	m = &Meta{
-		WorkingDir: workdir.NewDir("."),
-	}
-	m.stateArgs.StateOutPath = "foo"
-	m.initStatePaths()
-
-	if m.stateArgs.StatePath != arguments.DefaultStateFilename {
-		t.Fatalf("bad: %#v", m)
-	}
-	if m.stateArgs.BackupPath != "foo"+DefaultBackupExtension {
-		t.Fatalf("bad: %#v", m)
-	}
-}
-
 func TestMeta_Env(t *testing.T) {
 	td := t.TempDir()
 	t.Chdir(td)
