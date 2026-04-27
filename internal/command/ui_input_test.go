@@ -8,6 +8,7 @@ package command
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"sync/atomic"
@@ -55,7 +56,7 @@ func TestUIInputInput_canceled(t *testing.T) {
 
 	// Get input until the context is canceled.
 	v, err := i.Input(ctx, &tofu.InputOpts{})
-	if err != context.Canceled {
+	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("expected a context.Canceled error, got: %v", err)
 	}
 
@@ -70,20 +71,31 @@ func TestUIInputInput_canceled(t *testing.T) {
 		t.Fatalf("expected listening to be 1, got: %d", listening)
 	}
 
-	go func() {
-		// Fake input is given after 1 second.
-		time.Sleep(time.Second)
-		fmt.Fprint(w, "foo\n")
-		w.Close()
-	}()
-
-	v, err = i.Input(context.Background(), &tofu.InputOpts{})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	// Using the same context that was cancelled should fail with the same error again when invoked again
+	{
+		_, err = i.Input(ctx, &tofu.InputOpts{})
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("expected a context.Canceled error, got: %v", err)
+		}
 	}
 
-	if v != "foo" {
-		t.Fatalf("unexpected input: %s", v)
+	{
+		// But asking for input with a new, uncancelled context, should work just fine
+		go func() {
+			// Fake input is given after 1 second.
+			time.Sleep(time.Second)
+			fmt.Fprint(w, "foo\n")
+			w.Close()
+		}()
+
+		v, err = i.Input(context.Background(), &tofu.InputOpts{})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if v != "foo" {
+			t.Fatalf("unexpected input: %s", v)
+		}
 	}
 }
 

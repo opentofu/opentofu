@@ -123,7 +123,9 @@ func (c *StateShowCommand) Run(rawArgs []string) int {
 	}
 
 	// Get the context (required to get the schemas)
-	lr, _, ctxDiags := local.LocalRun(ctx, opReq)
+	stopCtx, cancel := c.InterruptibleContext(ctx)
+	defer cancel()
+	lr, _, ctxDiags := local.LocalRun(ctx, stopCtx, opReq)
 	if ctxDiags.HasErrors() {
 		view.Diagnostics(ctxDiags)
 		return 1

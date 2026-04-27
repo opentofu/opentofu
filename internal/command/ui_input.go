@@ -14,7 +14,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"os/signal"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -46,9 +45,8 @@ type UIInput struct {
 	result    chan string
 	err       chan string
 
-	interrupted bool
-	l           sync.Mutex
-	once        sync.Once
+	l    sync.Mutex
+	once sync.Once
 }
 
 func (i *UIInput) Input(ctx context.Context, opts *tofu.InputOpts) (string, error) {
@@ -74,11 +72,6 @@ func (i *UIInput) Input(ctx context.Context, opts *tofu.InputOpts) (string, erro
 	i.l.Lock()
 	defer i.l.Unlock()
 
-	// If we're interrupted, then don't ask for input
-	if i.interrupted {
-		return "", errors.New("interrupted")
-	}
-
 	// If we have test results, return those. testInputResponse is the
 	// "old" way of doing it and we should remove that.
 	if testInputResponse != nil {
@@ -100,11 +93,6 @@ func (i *UIInput) Input(ctx context.Context, opts *tofu.InputOpts) (string, erro
 	}
 
 	log.Printf("[DEBUG] command: asking for input: %q", opts.Query)
-
-	// Listen for interrupts so we can cancel the input ask
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, os.Interrupt)
-	defer signal.Stop(sigCh)
 
 	// Build the output format for asking
 	var buf bytes.Buffer
@@ -170,16 +158,7 @@ func (i *UIInput) Input(ctx context.Context, opts *tofu.InputOpts) (string, erro
 		// on a new line.
 		fmt.Fprintln(w)
 
-		return "", ctx.Err()
-	case <-sigCh:
-		// Print a newline so that any further output starts properly
-		// on a new line.
-		fmt.Fprintln(w)
-
-		// Mark that we were interrupted so future Ask calls fail.
-		i.interrupted = true
-
-		return "", errors.New("interrupted")
+		return "", fmt.Errorf("interrupted: %w", ctx.Err())
 	}
 }
 

@@ -27,7 +27,8 @@ import (
 var _ backend.Local = (*Cloud)(nil)
 
 // LocalRun implements backend.Local
-func (b *Cloud) LocalRun(ctx context.Context, op *backend.Operation) (*backend.LocalRun, statemgr.Full, tfdiags.Diagnostics) {
+// Refer to the comments of backend.Local for more details about ctx vs stopCtx.
+func (b *Cloud) LocalRun(ctx context.Context, stopCtx context.Context, op *backend.Operation) (*backend.LocalRun, statemgr.Full, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	ret := &backend.LocalRun{
 		PlanOpts: &tofu.PlanOpts{

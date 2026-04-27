@@ -88,7 +88,7 @@ func (b *Local) opPlan(
 	}
 
 	// Get our context
-	lr, configSnap, opState, ctxDiags := b.localRun(ctx, op)
+	lr, configSnap, opState, ctxDiags := b.localRun(ctx, stopCtx, op)
 	diags = diags.Append(ctxDiags)
 	if ctxDiags.HasErrors() {
 		op.ReportResult(runningOp, diags)
