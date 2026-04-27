@@ -101,8 +101,8 @@ github.com/aliyun/aliyun-oss-go-sdk v3.0.2+incompatible/go.mod h1:T/Aws4fEfogEE9
 github.com/aliyun/aliyun-tablestore-go-sdk v4.1.3+incompatible h1:UbBDubZ5xDDaB50NvikAEPxz9dNG4+JVgIvV4y3dvFM=
 github.com/aliyun/aliyun-tablestore-go-sdk v4.1.3+incompatible/go.mod h1:LDQHRZylxvcg8H7wBIDfvO5g/cy4/sz1iucBlc2l3Jw=
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
-github.com/apparentlymart/go-cidr v1.1.0 h1:2mAhrMoF+nhXqxTzSZMUzDHkLjmIHC+Zzn4tdgBZjnU=
-github.com/apparentlymart/go-cidr v1.1.0/go.mod h1:EBcsNrHc3zQeuaeCeCtQruQm+n9/YjEn/vI25Lg7Gwc=
+github.com/apparentlymart/go-cidr v1.1.1 h1:oEEk8CE0HP0YpHxsegk/TaOtR2FLHdWv4p3eM4ceUwg=
+github.com/apparentlymart/go-cidr v1.1.1/go.mod h1:EBcsNrHc3zQeuaeCeCtQruQm+n9/YjEn/vI25Lg7Gwc=
 github.com/apparentlymart/go-shquot v0.0.1 h1:MGV8lwxF4zw75lN7e0MGs7o6AFYn7L6AZaExUpLh0Mo=
 github.com/apparentlymart/go-shquot v0.0.1/go.mod h1:lw58XsE5IgUXZ9h0cxnypdx31p9mPFIVEQ9P3c7MlrU=
 github.com/apparentlymart/go-textseg/v15 v15.0.0 h1:uYvfpb3DyLSCGWnctWKGj857c6ew1u1fNQOlOtuGxQY=

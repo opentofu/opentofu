@@ -25,7 +25,7 @@ require (
 	github.com/aliyun/alibaba-cloud-sdk-go v1.63.107
 	github.com/aliyun/aliyun-oss-go-sdk v3.0.2+incompatible
 	github.com/aliyun/aliyun-tablestore-go-sdk v4.1.3+incompatible
-	github.com/apparentlymart/go-cidr v1.1.0
+	github.com/apparentlymart/go-cidr v1.1.1
 	github.com/apparentlymart/go-shquot v0.0.1
 	github.com/apparentlymart/go-userdirs v0.0.0-20200915174352-b0c018a67c13
 	github.com/apparentlymart/go-versions v1.0.3
