@@ -26,11 +26,11 @@ func TestMetaInputMode(t *testing.T) {
 
 	m := &Meta{
 		WorkingDir: workdir.NewDir("."),
+		stateArgs:  *arguments.NewStateFlags(),
 	}
 	// TODO meta-refactor: these assignments are needed because the extendedFlagSet was used here before,
 	//   which had these with defaults as "true". In a future iteration, once these are not needed, we need to remove them.
 	m.input = true
-	m.stateArgs.Lock = true
 
 	args := []string{}
 
@@ -50,11 +50,11 @@ func TestMetaInputMode_envVar(t *testing.T) {
 
 	m := &Meta{
 		WorkingDir: workdir.NewDir("."),
+		stateArgs:  *arguments.NewStateFlags(),
 	}
 	// TODO meta-refactor: these assignments are needed because the extendedFlagSet was used here before,
 	//   which had these with defaults as "true". In a future iteration, once these are not needed, we need to remove them.
 	m.input = true
-	m.stateArgs.Lock = true
 
 	args := []string{}
 
@@ -89,11 +89,11 @@ func TestMetaInputMode_disable(t *testing.T) {
 
 	m := &Meta{
 		WorkingDir: workdir.NewDir("."),
+		stateArgs:  *arguments.NewStateFlags(),
 	}
 	// TODO meta-refactor: these assignments are needed because the extendedFlagSet was used here before,
 	//   which had these with defaults as "true". In a future iteration, once these are not needed, we need to remove them.
 	m.input = true
-	m.stateArgs.Lock = true
 	args := []string{"-input=false"}
 
 	fs := flag.NewFlagSet("foo", flag.ContinueOnError)

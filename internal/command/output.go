@@ -44,7 +44,6 @@ func (c *OutputCommand) Run(rawArgs []string) int {
 
 	// Inject variables from args into meta for static evaluation
 	c.Meta.variableArgs = args.Vars.All()
-	c.stateArgs = *args.State
 
 	// Load the encryption configuration
 	enc, encDiags := c.Encryption(ctx)
@@ -79,7 +78,6 @@ func (c *OutputCommand) Outputs(ctx context.Context, statePath string, enc encry
 
 	// Allow state path override
 	if statePath != "" {
-		// TODO andrei - double check this, since this might be redundant
 		c.Meta.stateArgs.StatePath = statePath
 	}
 

@@ -48,9 +48,8 @@ func (c *StateListCommand) Run(rawArgs []string) int {
 	}
 	c.Meta.variableArgs = args.Vars.All()
 
-	// TODO meta-refactor: migrate this command's arguments to use the arguments.State
-	if args.StatePath != "" {
-		c.Meta.stateArgs.StatePath = args.StatePath
+	if args.State.StatePath != "" {
+		c.Meta.stateArgs.StatePath = args.State.StatePath
 	}
 
 	// Load the encryption configuration

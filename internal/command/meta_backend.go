@@ -426,7 +426,7 @@ func (m *Meta) backendCLIOpts(ctx context.Context) (*backend.CLIOpts, error) {
 	}
 	return &backend.CLIOpts{
 		View: views.NewBackendRemote(m.View),
-		// TODO meta-refactor: pass the arguments.State here instead of individual properties
+		// TODO andrei: pass the arguments.State here instead of individual properties
 		StatePath:           m.stateArgs.StatePath,
 		StateOutPath:        m.stateArgs.StateOutPath,
 		StateBackupPath:     m.stateArgs.BackupPath,

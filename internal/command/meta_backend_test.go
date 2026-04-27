@@ -2126,11 +2126,11 @@ func testMetaBackend(t *testing.T) *Meta {
 	var m Meta
 	view, _ := testView(t)
 	m.View = view
+	m.stateArgs = *arguments.NewStateFlags()
 
 	// TODO meta-refactor: these assignments are needed because the extendedFlagSet was used here before,
 	//   which had these with defaults as "true". In a future iteration, once these are not needed, we need to remove them.
 	m.input = true
-	m.stateArgs.Lock = true
 
 	// metaBackend tests are verifying migrate actions
 	m.migrateState = true

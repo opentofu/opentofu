@@ -11,8 +11,6 @@ import (
 
 // StateList represents the command-line arguments for the 'state list' command.
 type StateList struct {
-	// StatePath is the path to the state file to be used to list the information from.
-	StatePath string
 	// LookupId restricts output to paths with a resource having the specified ID.
 	LookupId string
 	// InstancesRawAddr is a list of raw addresses of the resources that are requested
@@ -22,8 +20,9 @@ type StateList struct {
 	// ViewOptions specifies which view options to use
 	ViewOptions ViewOptions
 
-	// Vars holds and provides information for the flags related to variables that a user can give into the process
-	Vars *Vars
+	// Vars and State are the common extended flags
+	Vars  *Vars
+	State *State
 }
 
 // ParseStateList processes CLI arguments, returning a StateList value, a closer function, and errors.
@@ -33,12 +32,13 @@ func ParseStateList(args []string) (*StateList, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	ret := &StateList{
-		Vars: &Vars{},
+		Vars:  &Vars{},
+		State: &State{}, // Initialised like this because we don't want to have the lock enabled by default
 	}
 
 	cmdFlags := extendedFlagSet("state list", nil, ret.Vars)
-	cmdFlags.StringVar(&ret.StatePath, "state", "", "path")
 	cmdFlags.StringVar(&ret.LookupId, "id", "", "Restrict output to paths with a resource having the specified ID.")
+	ret.State.AddFlags(cmdFlags, false, true, false, false)
 	ret.ViewOptions.AddFlags(cmdFlags, false)
 
 	if err := cmdFlags.Parse(args); err != nil {
