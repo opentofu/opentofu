@@ -164,6 +164,7 @@ func (l *Loader) AllowLanguageExperiments(allowed bool) {
 	// in future versions of OpenTofu.
 }
 
+// IsRemoteModuleSource returns true if any of the modules in the path remote
 func (l *Loader) IsRemoteModuleSource(path addrs.Module) bool {
 	if l.lastLoadedRoot == nil {
 		log.Printf("[ERROR] Unable to determine if module source is remote due to missing config load")
@@ -177,9 +178,12 @@ func (l *Loader) IsRemoteModuleSource(path addrs.Module) bool {
 			log.Printf("[ERROR] Unable to determine if module source is remote due to missing child")
 			return false
 		}
+		if child.EntersNewPackage() {
+			return true
+		}
 		current = child
 	}
-	return current.IsRemoteModule()
+	return false
 }
 
 func (l *Loader) ModuleSourceAddrs(path addrs.Module) addrs.ModuleSource {

@@ -1085,18 +1085,7 @@ func TestTransformForTest(t *testing.T) {
 	}
 }
 
-// This test is checking that by giving the outermost called module, the method called is
-// returning correctly that is a remote module relatively to the root module.
-// This is because root module is calling the child module from a remote source
-// but all the other calls are done from local modules.
-// Eg: Root module is calling a module from a git repo in a particular directory,
-// but that module is calling other modules from the same repo by referencing those
-// with a relative path.
-func TestIsCallFromRemote(t *testing.T) {
-	childName := "call-to-child"
-	gchildName := "call-to-gchild"
-	ggchildName := "call-to-ggchild"
-	gggchildName := "call-to-gggchild"
+func TestEntersNewPackage(t *testing.T) {
 	parseModuleSource := func(t *testing.T, source string) addrs.ModuleSource {
 		s, err := addrs.ParseModuleSource(source)
 		if err != nil {
@@ -1105,53 +1094,34 @@ func TestIsCallFromRemote(t *testing.T) {
 		return s
 	}
 	tests := map[string]struct {
-		childModulePath string
-		expectedRes     bool
+		source   addrs.ModuleSource
+		expected bool
 	}{
 		"from git repo": {
-			childModulePath: "git::https://github.com/user/repo//child",
-			expectedRes:     true,
+			source:   parseModuleSource(t, "git::https://github.com/user/repo//child"),
+			expected: true,
 		},
 		"from registry": {
-			childModulePath: "registry.example.com/foo/bar/baz",
-			expectedRes:     true,
+			source:   parseModuleSource(t, "registry.example.com/foo/bar/baz"),
+			expected: true,
 		},
 		"from local": {
-			childModulePath: "../mod",
-			expectedRes:     false,
+			source:   parseModuleSource(t, "../mod"),
+			expected: false,
+		},
+		"root": {
+			source:   nil,
+			expected: false,
 		},
 	}
 	for ttn, tt := range tests {
 		t.Run(ttn, func(t *testing.T) {
-			root := &Config{}
-			child := &Config{
-				Parent:     root,
-				Path:       []string{childName},
-				SourceAddr: parseModuleSource(t, tt.childModulePath),
-			}
-			gchild := &Config{
-				Parent:     child,
-				Path:       []string{childName, gchildName},
-				SourceAddr: parseModuleSource(t, "../gchild-module"),
-			}
-			ggchild := &Config{
-				Parent:     gchild,
-				Path:       []string{childName, gchildName, ggchildName},
-				SourceAddr: parseModuleSource(t, "../ggchild-module"),
-			}
-			gggchild := &Config{
-				Parent:     ggchild,
-				Path:       []string{childName, gchildName, ggchildName, gggchildName},
-				SourceAddr: parseModuleSource(t, "../gggchild-module"),
+			config := &Config{
+				SourceAddr: tt.source,
 			}
 
-			root.Children = map[string]*Config{childName: child}
-			child.Children = map[string]*Config{gchildName: gchild}
-			gchild.Children = map[string]*Config{ggchildName: ggchild}
-			ggchild.Children = map[string]*Config{gggchildName: gggchild}
-
-			if want, got := tt.expectedRes, ggchild.IsModuleCallFromRemoteModule(gggchildName); want != got {
-				t.Fatalf("expected IsModuleCallFromRemoteModule to return %t but got %t", want, got)
+			if want, got := tt.expected, config.EntersNewPackage(); want != got {
+				t.Fatalf("expected EntersNewPackage to return %t but got %t", want, got)
 			}
 		})
 	}
