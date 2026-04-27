@@ -47,7 +47,7 @@ var (
 func (c *deprecatedDiagnosticExtra) WrapDiagnosticExtra(inner interface{}) {
 	if c.wrapped != nil {
 		// This is a logical inconsistency, the caller should know whether they have already wrapped an extra or not.
-		panic("Attempted to wrap a diagnostic extra into a deprecatedOutputDiagnosticExtra that is already wrapping a different extra. This is a bug in OpenTofu, please report it.")
+		panic("Attempted to wrap a diagnostic extra into deprecatedDiagnosticExtra that is already wrapping a different extra. This is a bug in OpenTofu, please report it.")
 	}
 	c.wrapped = inner
 }
@@ -57,7 +57,7 @@ func (c *deprecatedDiagnosticExtra) diagnosticDeprecationCause() DeprecationCaus
 }
 
 // DeprecatedDiagnosticOverride is mainly created for unit testing. This is done this way just to avoid
-// exporting deprecatedOutputDiagnosticExtra from this package, which can create confusion when somebody would like to use this package.
+// exporting deprecatedDiagnosticExtra from this package, which can create confusion when somebody would like to use this package.
 func DeprecatedDiagnosticOverride(cause DeprecationCause) func() tfdiags.DiagnosticExtraWrapper {
 	return func() tfdiags.DiagnosticExtraWrapper {
 		return &deprecatedDiagnosticExtra{

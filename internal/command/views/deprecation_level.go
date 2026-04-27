@@ -40,8 +40,7 @@ func (v *View) DeprecationDiagnosticAllowed(diag tfdiags.Diagnostic, seen Deprec
 	case arguments.DeprecationWarningLevelNone:
 		return false
 	}
-	// unreachable
-	return true
+	panic("unreachable")
 }
 
 func (v *View) DeprecationKeyExtra(diag tfdiags.Diagnostic) string {

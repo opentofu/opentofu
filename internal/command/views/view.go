@@ -55,6 +55,8 @@ type View struct {
 	// order to access the config loader cache.
 	configSources func() map[string]*hcl.File
 
+	// These other unfortunate warts is required to enable correct deduplication
+	// and filtering of deprecation diagnostics diagnostics
 	isRemoteModuleSource func(addrs.Module) bool
 	moduleSourceAddrs    func(addrs.Module) addrs.ModuleSource
 }

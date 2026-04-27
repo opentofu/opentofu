@@ -111,7 +111,7 @@ func DeprecationCauseVariable(vaddr addrs.AbsInputVariableInstance, message stri
 }
 
 // ExtraInfoKey returns the key used for consolidation of deprecation diagnostics.
-// This will be enhanced bythe view with module source address
+// This will be enhanced by the view with module source address
 func (dc DeprecationCause) ExtraInfoKey() string {
 	return dc.subject + dc.message
 }
