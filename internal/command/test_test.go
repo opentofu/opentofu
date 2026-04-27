@@ -1717,11 +1717,10 @@ func TestTest_InstanceOverride(t *testing.T) {
 			expected: "2 passed, 0 failed.",
 			code:     0,
 		},
-		// TODO enable when the hcl library has pattern traversal support in json expressions
-		// "module_json": {
-		// 	expected: "3 passed, 0 failed.",
-		// 	code:     0,
-		// },
+		"module_json": {
+			expected: "3 passed, 0 failed.",
+			code:     0,
+		},
 	}
 
 	providerSource, close := newMockProviderSource(t, map[string][]string{
