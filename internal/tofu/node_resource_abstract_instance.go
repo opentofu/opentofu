@@ -3204,7 +3204,7 @@ func (n *NodeAbstractResourceInstance) getProvider(ctx context.Context, evalCtx 
 		return nil, providers.ProviderSchema{}, fmt.Errorf("failed to read schema for provider %s: %w", n.ResolvedProvider.ProviderConfig, schemaDiags.Err())
 	}
 
-	var isOverridden, providerOverrideIsNotDefault bool
+	var isOverridden, providerOverrideUsesDefault bool
 	var overrideValues map[string]cty.Value
 
 	if n.ResolvedProvider.IsMocked {
@@ -3227,7 +3227,9 @@ func (n *NodeAbstractResourceInstance) getProvider(ctx context.Context, evalCtx 
 		}
 
 		var providerOverrideDiags tfdiags.Diagnostics
-		overrideValues, providerOverrideIsNotDefault, providerOverrideDiags = trie.Get(&n.Addr)
+		var ok bool
+		overrideValues, ok, providerOverrideDiags = trie.Get(&n.Addr)
+		providerOverrideUsesDefault = !ok
 		if providerOverrideDiags.HasErrors() {
 			return nil, providers.ProviderSchema{}, providerOverrideDiags.Err()
 		}
@@ -3236,11 +3238,22 @@ func (n *NodeAbstractResourceInstance) getProvider(ctx context.Context, evalCtx 
 	if n.Config != nil && n.Config.IsOverridden && n.Config.Overrides != nil {
 		// Overridden in the currently running test (overrides any provider settings)
 
-		// We check if the provider's override is non-default;
-		// if it is, we only set overrideValues if the retrieved value
-		// is not default, i.e. it was actually overridden in the trie.
+		// If we find a value in the trie, `ok` will be true, and we should override
+		// even if it was set by the provider earlier (these overrides take precedence)
+		// It may be the case that the provider had a non-default override earlier;
+		// If providerOverrideUsesDefault is false, the provider set an override
+		// and we shouldn't over-write it with this trie's default
+		// However, if providerOverrideUsesDefault is true, set the default.
+		// The following logic table shows the details of whether overrides should
+		// be set here.
+
+		// ok (non-default result from override trie) | providerOverrideUsesDefault
+		// true | true => set as override
+		// true | false => set as override
+		// false | true => set as override (prefer the resource override default over the provider default)
+		// false | false => do not set override
 		isOverridden = n.Config.IsOverridden
-		if newOverrideValues, ok, resourceOverrideDiags := n.Config.Overrides.Get(&n.Addr); !providerOverrideIsNotDefault || ok {
+		if newOverrideValues, ok, resourceOverrideDiags := n.Config.Overrides.Get(&n.Addr); ok || providerOverrideUsesDefault {
 			overrideValues = newOverrideValues
 			if resourceOverrideDiags.HasErrors() {
 				return nil, providers.ProviderSchema{}, resourceOverrideDiags.Err()
