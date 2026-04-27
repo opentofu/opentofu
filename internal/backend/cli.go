@@ -6,6 +6,7 @@
 package backend
 
 import (
+	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/tofu"
 )
@@ -51,16 +52,12 @@ type CLIOpts struct {
 	// of their actions.
 	View views.BackendRemote
 
-	// StatePath is the local path where state is read from.
-	//
-	// StateOutPath is the local path where the state will be written.
-	// If this is empty, it will default to StatePath.
-	//
-	// StateBackupPath is the local path where a backup file will be written.
-	// If this is empty, no backup will be taken.
-	StatePath       string
-	StateOutPath    string
-	StateBackupPath string
+	// StateArgs carries the state related configurations. Refer to the
+	// arguments.State for more details.
+	// In this particular case, an empty arguments.State#BackupPath will result
+	// in skipping the backup entirely and the new state will just ovewrite the old
+	// one.
+	StateArgs arguments.State
 
 	// ContextOpts are the base context options to set when initializing a
 	// OpenTofu context. Many of these will be overridden or merged by

@@ -39,6 +39,7 @@ type State struct {
 
 	// StatePath specifies a non-default location for the state file. The
 	// default value is blank, which is interpreted as "terraform.tfstate".
+	// Represents the local path where state is read from.
 	StatePath string
 
 	// StateOutPath specifies a different path to write the final state file.
@@ -48,8 +49,8 @@ type State struct {
 
 	// BackupPath specifies the path where a backup copy of the state file will
 	// be stored before the new state is written. The default value is blank,
-	// which is interpreted as StateOutPath +
-	// ".backup".
+	// which is interpreted as StateOutPath + ".backup" or, in some cases, the backup
+	// is skipped altogether.
 	BackupPath string
 }
 

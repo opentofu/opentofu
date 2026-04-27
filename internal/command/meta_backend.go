@@ -425,11 +425,8 @@ func (m *Meta) backendCLIOpts(ctx context.Context) (*backend.CLIOpts, error) {
 		return nil, err
 	}
 	return &backend.CLIOpts{
-		View: views.NewBackendRemote(m.View),
-		// TODO andrei: pass the arguments.State here instead of individual properties
-		StatePath:           m.stateArgs.StatePath,
-		StateOutPath:        m.stateArgs.StateOutPath,
-		StateBackupPath:     m.stateArgs.BackupPath,
+		View:                views.NewBackendRemote(m.View),
+		StateArgs:           m.stateArgs,
 		ContextOpts:         contextOpts,
 		Input:               m.Input(),
 		RunningInAutomation: m.RunningInAutomation,
