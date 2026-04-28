@@ -31,7 +31,7 @@ func ParseLogin(args []string) (*Login, func(), tfdiags.Diagnostics) {
 		// just to keep backwards compatibility for users (in case any of them are using these flags with this command)
 		Vars: &Vars{},
 		// State is only initialised and no flags are registered since the login command needs to lock the
-		// state by default, which is ensured by NewStateFlags.
+		// state by default, with no user input on that.
 		State: &State{Lock: true},
 	}
 

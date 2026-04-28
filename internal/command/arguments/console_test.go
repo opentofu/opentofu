@@ -105,10 +105,10 @@ func consoleArgsWithDefaults(mutate func(console *Console)) *Console {
 		Vars: &Vars{},
 		State: &State{
 			Lock: true,
+			// Because the state flag is registered with a different default value
+			StatePath: DefaultStateFilename,
 		},
 	}
-	// Because the state flag is registered with a different default value
-	ret.State.StatePath = DefaultStateFilename
 	if mutate != nil {
 		mutate(ret)
 	}

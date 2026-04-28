@@ -135,10 +135,10 @@ func stateRmArgsWithDefaults(mutate func(stateRm *StateRm)) *StateRm {
 		Vars: &Vars{},
 		State: &State{
 			Lock: true,
+			// Because the default value is different on this command
+			BackupPath: "-",
 		},
 	}
-	// Because the default value is different on this command
-	ret.State.BackupPath = "-"
 	if mutate != nil {
 		mutate(ret)
 	}

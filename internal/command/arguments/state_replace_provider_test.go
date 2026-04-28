@@ -165,10 +165,11 @@ func stateReplaceProviderArgsWithDefaults(mutate func(srp *StateReplaceProvider)
 		Vars: &Vars{},
 		State: &State{
 			Lock: true,
+			// Because the backup flag is registered with a different default value
+			BackupPath: "-",
 		},
 	}
 	// Because the default value is different on this command
-	ret.State.BackupPath = "-"
 	if mutate != nil {
 		mutate(ret)
 	}
