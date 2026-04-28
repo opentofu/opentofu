@@ -54,8 +54,10 @@ type State struct {
 	BackupPath string
 }
 
-// NewStateFlags must be used when creating a new [State] instance, instead of creating a new object inline.
-// This is because it provides the default value for [State.Lock] even if the flags are not registered.
+// NewStateFlags can be used to create the [State] instance with [State.Lock] initialised as "true", instead of creating
+// a new object inline.
+// It's not needed to be used if the lock related flags are registered, since that provides the same default value
+// for the lock flag.
 func NewStateFlags() *State {
 	return &State{
 		Lock: true,
