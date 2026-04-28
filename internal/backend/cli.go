@@ -55,7 +55,7 @@ type CLIOpts struct {
 	// StateArgs carries the state related configurations. Refer to the
 	// arguments.State for more details.
 	// In this particular case, an empty arguments.State#BackupPath will result
-	// in skipping the backup entirely and the new state will just ovewrite the old
+	// in skipping the backup entirely and the new state will just overwrite the old
 	// one.
 	StateArgs arguments.State
 
