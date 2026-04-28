@@ -56,7 +56,7 @@ func (c *StateMvCommand) Run(rawArgs []string) int {
 	c.Meta.variableArgs = args.Vars.All()
 	// NOTE: We intentionally configure the stateArgs here like this, ignoring the stateOutPath, because the c.stateArgs
 	// are used for loading the state which stores internally the output path which in the context of this command
-	// will have unwanted side effects.
+	// will have unwanted side effects, ending in writing the source state in the target state.
 	// TODO meta-refactor: when we move the backend logic to its own component, maybe there is a way to change the
 	//  arguments.State in such way to be reused with/without the stateOut.
 	c.stateArgs = arguments.State{
