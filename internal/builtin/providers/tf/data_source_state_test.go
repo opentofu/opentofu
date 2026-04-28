@@ -299,16 +299,13 @@ func TestState_basic(t *testing.T) {
 					"path": cty.StringVal("./testdata/deprecation_warnings.tfstate"),
 				}),
 				"outputs": cty.ObjectVal(map[string]cty.Value{
-					"foo": marks.Deprecated(cty.StringVal("bar"), marks.DeprecationCause{
-						By: addrs.ResourceInstance{
-							Resource: addrs.Resource{
-								Mode: addrs.DataResourceMode,
-								Type: "terraform_remote_state",
-								Name: "test",
-							},
-						}.String() + ".foo",
-						Message: "I am deprecated",
-					}),
+					"foo": marks.Deprecated(cty.StringVal("bar"), marks.DeprecationCauseResource(addrs.AbsResourceInstance{
+						Resource: addrs.ResourceInstance{Resource: addrs.Resource{
+							Mode: addrs.DataResourceMode,
+							Type: "terraform_remote_state",
+							Name: "test",
+						}},
+					}, cty.Path{cty.GetAttrStep{Name: "foo"}}, "I am deprecated")),
 				}),
 				"defaults":  cty.NullVal(cty.DynamicPseudoType),
 				"workspace": cty.NullVal(cty.String),

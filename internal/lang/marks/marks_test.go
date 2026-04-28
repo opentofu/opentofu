@@ -35,10 +35,10 @@ func TestMarkConsolidateWarnings(t *testing.T) {
 				End:      hcl.Pos{Line: 1, Column: 1, Byte: 0},
 			},
 			Extra: DeprecationCause{
-				By: addrs.OutputValue{
+				subject: addrs.OutputValue{
 					Name: fmt.Sprintf("output%d", i),
 				}.String(),
-				Message: "output deprecate",
+				message: "output deprecate",
 			},
 		})
 		diags = diags.Append(&hcl.Diagnostic{
@@ -51,10 +51,10 @@ func TestMarkConsolidateWarnings(t *testing.T) {
 				End:      hcl.Pos{Line: 1, Column: 1, Byte: 0},
 			},
 			Extra: DeprecationCause{
-				By: addrs.InputVariable{
+				subject: addrs.InputVariable{
 					Name: fmt.Sprintf("variable%d", i),
 				}.String(),
-				Message: "variable deprecate",
+				message: "variable deprecate",
 			},
 		})
 	}
@@ -70,10 +70,10 @@ func TestMarkConsolidateWarnings(t *testing.T) {
 			End:      hcl.Pos{Line: 1, Column: 1, Byte: 0},
 		},
 		Extra: DeprecationCause{
-			By: addrs.InputVariable{
+			subject: addrs.InputVariable{
 				Name: "variable1",
 			}.String(),
-			Message: "variable deprecate",
+			message: "variable deprecate",
 		},
 	})
 
@@ -88,14 +88,15 @@ func TestMarkConsolidateWarnings(t *testing.T) {
 			End:      hcl.Pos{Line: 1, Column: 1, Byte: 0},
 		},
 		Extra: DeprecationCause{
-			By: addrs.InputVariable{
-				Name: "mod1.variable",
+			subject: addrs.InputVariable{
+				Name: "variable",
 			}.String(),
-			Message: "variable deprecate",
+			module:  addrs.ModuleInstance{addrs.ModuleInstanceStep{Name: "mod1"}}.String(),
+			message: "variable deprecate",
 		},
 	})
 
-	consolidatedDiags := diags.Consolidate(1, tfdiags.Warning)
+	consolidatedDiags := diags.Consolidate(1, tfdiags.Warning, tfdiags.DefaultDiagnosticsConsolidation)
 	expectedDescriptions := [][2]string{
 		{"Output deprecated", "This one has an output 0"},
 		{"Variable deprecated", "This one has a var 0"},
@@ -139,16 +140,16 @@ func TestHasDeprecated(t *testing.T) {
 		{
 			name: "has deprecation mark",
 			input: Deprecated(cty.StringVal("test"), DeprecationCause{
-				By:      addrs.InputVariable{Name: "var1"}.String(),
-				Message: "deprecated",
+				subject: addrs.InputVariable{Name: "var1"}.String(),
+				message: "deprecated",
 			}),
 			want: true,
 		},
 		{
 			name: "mixed marks with deprecation",
 			input: Deprecated(cty.StringVal("test").Mark(Sensitive), DeprecationCause{
-				By:      addrs.InputVariable{Name: "var1"}.String(),
-				Message: "deprecated",
+				subject: addrs.InputVariable{Name: "var1"}.String(),
+				message: "deprecated",
 			}),
 			want: true,
 		},
@@ -176,7 +177,6 @@ func TestExtractDeprecatedDiagnosticsWithExpr(t *testing.T) {
 			cty.StringVal("deprecated"),
 			addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance.Child("child", addrs.StringKey("beep"))),
 			"Blah blah blah don't use this!",
-			false,
 		),
 	})
 	got, gotDiags := ExtractDeprecatedDiagnosticsWithExpr(

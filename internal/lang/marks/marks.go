@@ -31,6 +31,16 @@ func Has(val cty.Value, mark valueMark) bool {
 	return val.HasMark(mark)
 }
 
+// HasDeprecated returns true if the cty.Value contains a deprecated mark.
+func HasDeprecated(v cty.Value) bool {
+	for m := range v.Marks() {
+		if _, ok := m.(deprecationMark); ok {
+			return true
+		}
+	}
+	return false
+}
+
 // Contains returns true if the cty.Value or any value within it contains
 // the given mark.
 func Contains(val cty.Value, mark valueMark) bool {
@@ -73,18 +83,53 @@ var (
 )
 
 type DeprecationCause struct {
-	By      string
-	Message string
+	module  string
+	subject string
+	message string
+}
 
-	// IsFromRemoteModule indicates if the cause of deprecation is coming from a remotely
-	// imported module relative to the root module.
-	// This is useful when the user wants to control the type of deprecation warnings OpenTofu will show.
-	IsFromRemoteModule bool
+func DeprecationCauseResource(res addrs.AbsResourceInstance, path cty.Path, message string) DeprecationCause {
+	return DeprecationCause{
+		module:  res.Module.String(),
+		subject: res.Resource.String() + tfdiags.FormatCtyPath(path),
+		message: message,
+	}
+}
+func DeprecationCauseOutput(out addrs.AbsOutputValue, message string) DeprecationCause {
+	return DeprecationCause{
+		module:  out.Module.String(),
+		subject: out.OutputValue.Name,
+		message: message,
+	}
+}
+func DeprecationCauseVariable(vaddr addrs.AbsInputVariableInstance, message string) DeprecationCause {
+	return DeprecationCause{
+		module:  vaddr.Module.String(),
+		subject: vaddr.Variable.Name,
+		message: message,
+	}
 }
 
 // ExtraInfoKey returns the key used for consolidation of deprecation diagnostics.
+// This will be enhanced by the view with module source address
 func (dc DeprecationCause) ExtraInfoKey() string {
-	return dc.By
+	return dc.subject + dc.message
+}
+
+func (dc DeprecationCause) fullSubject() string {
+	if dc.module == "" {
+		return dc.subject
+	}
+	return dc.module + "." + dc.subject
+}
+
+func (dc DeprecationCause) ModuleInstance() addrs.ModuleInstance {
+	if dc.module == "" {
+		return addrs.RootModuleInstance // Root module
+	}
+	mod, _ := addrs.ParseModuleInstanceStr(dc.module)
+	// This is best effort, we ignore diags here
+	return mod
 }
 
 type deprecationMark struct {
@@ -95,25 +140,14 @@ func (m deprecationMark) GoString() string {
 	return "marks.Deprecated"
 }
 
-func HasDeprecated(v cty.Value) bool {
-	for m := range v.Marks() {
-		if _, ok := m.(deprecationMark); ok {
-			return true
-		}
-	}
-	return false
-}
-
 func DeprecationMark(cause DeprecationCause) any {
-	return deprecationMark{
-		Cause: cause,
-	}
+	return deprecationMark{Cause: cause}
 }
 
 // Deprecated marks a given value as deprecated with specified DeprecationCause.
 func Deprecated(v cty.Value, cause DeprecationCause) cty.Value {
 	for m := range cty.ValueMarksOfType[deprecationMark](v) {
-		if m.Cause.ExtraInfoKey() == cause.ExtraInfoKey() {
+		if m.Cause.module == cause.module && m.Cause.subject == cause.subject {
 			// Already marked as deprecated for this cause.
 			return v
 		}
@@ -123,21 +157,16 @@ func Deprecated(v cty.Value, cause DeprecationCause) cty.Value {
 	})
 }
 
-// DeprecatedOutput marks a given values as deprecated constructing a DeprecationCause
+// DeprecatedOutput marks a given value as deprecated constructing a DeprecationCause
 // from module output specific data.
-func DeprecatedOutput(v cty.Value, addr addrs.AbsOutputValue, msg string, isFromRemoteModule bool) cty.Value {
+func DeprecatedOutput(v cty.Value, addr addrs.AbsOutputValue, msg string) cty.Value {
 	if addr.Module.IsRoot() {
 		// Marking a root output as deprecated has no impact.
 		// We hit this case when using the test framework on a module however.
 		// This is requried as the ModuleCallOutput() below will panic on the root module.
 		return v
 	}
-	_, callOutAddr := addr.ModuleCallOutput()
-	return Deprecated(v, DeprecationCause{
-		IsFromRemoteModule: isFromRemoteModule,
-		By:                 callOutAddr.String(),
-		Message:            msg,
-	})
+	return Deprecated(v, DeprecationCauseOutput(addr, msg))
 }
 
 // ExtractDeprecationDiagnosticsWithBody composes deprecation diagnostics based on deprecation marks inside
@@ -160,10 +189,10 @@ func ExtractDeprecationDiagnosticsWithBody(val cty.Value, body hcl.Body) (cty.Va
 		}
 		cause := dm.Cause
 		var msg string
-		if cause.Message == "" {
-			msg = fmt.Sprintf("This value is derived from %s, which is deprecated.", cause.By)
+		if cause.message == "" {
+			msg = fmt.Sprintf("This value is derived from %s, which is deprecated.", cause.fullSubject())
 		} else {
-			msg = fmt.Sprintf("This value is derived from %s, which is deprecated with the following message:\n\n%s", cause.By, cause.Message)
+			msg = fmt.Sprintf("This value is derived from %s, which is deprecated with the following message:\n\n%s", cause.fullSubject(), cause.message)
 		}
 		diag := tfdiags.AttributeValue(
 			tfdiags.Warning,
@@ -172,7 +201,7 @@ func ExtractDeprecationDiagnosticsWithBody(val cty.Value, body hcl.Body) (cty.Va
 			path,
 		)
 		diags = diags.Append(tfdiags.Override(diag, tfdiags.Warning, func() tfdiags.DiagnosticExtraWrapper {
-			return &deprecatedOutputDiagnosticExtra{
+			return &deprecatedDiagnosticExtra{
 				Cause: cause,
 			}
 		}))
@@ -206,10 +235,10 @@ func ExtractDeprecatedDiagnosticsWithExpr(val cty.Value, expr hcl.Expression) (c
 		}
 		cause := dm.Cause
 		var msg string
-		if cause.Message == "" {
-			msg = fmt.Sprintf("%s is derived from %s, which is deprecated.", source, cause.By)
+		if cause.message == "" {
+			msg = fmt.Sprintf("%s is derived from %s, which is deprecated.", source, cause.fullSubject())
 		} else {
-			msg = fmt.Sprintf("%s is derived from %s, which is deprecated with the following message:\n\n%s", source, cause.By, cause.Message)
+			msg = fmt.Sprintf("%s is derived from %s, which is deprecated with the following message:\n\n%s", source, cause.fullSubject(), cause.message)
 		}
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity:   hcl.DiagWarning,
@@ -250,4 +279,5 @@ func EnsureNoEphemeralMarks(pvms []cty.PathValueMarks) error {
 		return fmt.Errorf("ephemeral marks found at the following paths:\n%s", strings.Join(res, "\n"))
 	}
 	return nil
+
 }

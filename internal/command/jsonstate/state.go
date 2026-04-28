@@ -434,7 +434,7 @@ func marshalResources(resources map[string]*states.Resource, module addrs.Module
 
 				value, valMarks := riObj.Value.UnmarkDeepWithPaths()
 				if schema.Block.ContainsMarks() {
-					valMarks = append(valMarks, schema.Block.ValueMarks(value, nil, nil, false)...)
+					valMarks = append(valMarks, schema.Block.ValueMarks(value, nil, nil)...)
 				}
 				// NOTE: Even though at this point, the resources that are processed here
 				// should have no ephemeral mark, we want to validate that before having
@@ -497,7 +497,7 @@ func marshalResources(resources map[string]*states.Resource, module addrs.Module
 
 				value, valMarks := riObj.Value.UnmarkDeepWithPaths()
 				if schema.Block.ContainsMarks() {
-					valMarks = append(valMarks, schema.Block.ValueMarks(value, nil, nil, false)...)
+					valMarks = append(valMarks, schema.Block.ValueMarks(value, nil, nil)...)
 				}
 				// NOTE: Even though at this point, the resources that are processed here
 				// should have no ephemeral mark, we want to validate that before having

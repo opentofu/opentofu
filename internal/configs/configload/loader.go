@@ -7,11 +7,13 @@ package configload
 
 import (
 	"fmt"
+	"log"
 	"path/filepath"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/spf13/afero"
 
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 )
 
@@ -28,6 +30,8 @@ type Loader struct {
 	// modules is used to install and locate descendent modules that are
 	// referenced (directly or indirectly) from the root module.
 	modules moduleMgr
+
+	lastLoadedRoot *configs.Config
 }
 
 // Config is used with NewLoader to specify configuration arguments for the
@@ -158,4 +162,44 @@ func (l *Loader) AllowLanguageExperiments(allowed bool) {
 	// We don't currently have any support for language experiments. We'll
 	// add support here later if we decide to make use of language experiments
 	// in future versions of OpenTofu.
+}
+
+// IsRemoteModuleSource returns true if any of the modules in the path remote
+func (l *Loader) IsRemoteModuleSource(path addrs.Module) bool {
+	if l.lastLoadedRoot == nil {
+		log.Printf("[ERROR] Unable to determine if module source is remote due to missing config load")
+		return false
+	}
+
+	current := l.lastLoadedRoot
+	for _, part := range path {
+		child, childOk := current.Children[part]
+		if !childOk {
+			log.Printf("[ERROR] Unable to determine if module source is remote due to missing child")
+			return false
+		}
+		if child.EntersNewPackage() {
+			return true
+		}
+		current = child
+	}
+	return false
+}
+
+func (l *Loader) ModuleSourceAddrs(path addrs.Module) addrs.ModuleSource {
+	if l.lastLoadedRoot == nil {
+		log.Printf("[ERROR] Unable to determine if module source is remote due to missing config load")
+		return nil
+	}
+
+	current := l.lastLoadedRoot
+	for _, part := range path {
+		child, childOk := current.Children[part]
+		if !childOk {
+			log.Printf("[ERROR] Unable to determine if module source is remote due to missing child")
+			return nil
+		}
+		current = child
+	}
+	return current.SourceAddr
 }

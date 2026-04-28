@@ -41,6 +41,8 @@ func (l *Loader) LoadConfigWithSnapshot(ctx context.Context, rootDir string, cal
 	addDiags := l.addModuleToSnapshot(snap, "", rootDir, "", nil)
 	diags = append(diags, addDiags...)
 
+	l.lastLoadedRoot = cfg
+
 	return cfg, snap, diags
 }
 

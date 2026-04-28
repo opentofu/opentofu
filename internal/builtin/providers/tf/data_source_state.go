@@ -181,10 +181,7 @@ func dataSourceRemoteStateRead(ctx context.Context, d cty.Value, enc encryption.
 			v := os.Value
 
 			if os.Deprecated != "" {
-				v = marks.Deprecated(v, marks.DeprecationCause{
-					By:      fmt.Sprintf("%s.%s", path.Resource.String(), k),
-					Message: os.Deprecated,
-				})
+				v = marks.Deprecated(v, marks.DeprecationCauseResource(path, cty.Path{cty.GetAttrStep{Name: k}}, os.Deprecated))
 			}
 
 			outputs[k] = v

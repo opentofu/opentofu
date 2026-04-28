@@ -48,6 +48,8 @@ found no differences, so no changes are needed.
 │ 
 │ Variable "input" is marked as deprecated with the following message:
 │ this is local deprecated
+│ 
+│ (and one more similar warning elsewhere)
 ╵
 ╷
 │ Warning: Variable marked as deprecated by the module author
@@ -57,6 +59,8 @@ found no differences, so no changes are needed.
 │ 
 │ Variable "input2" is marked as deprecated with the following message:
 │ this is local deprecated2
+│ 
+│ (and one more similar warning elsewhere)
 ╵
 ╷
 │ Warning: Value derived from a deprecated source
@@ -68,6 +72,8 @@ found no differences, so no changes are needed.
 │ the following message:
 │ 
 │ output deprecated
+│ 
+│ (and one more similar warning elsewhere)
 ╵
 ╷
 │ Warning: Value derived from a deprecated source
@@ -79,28 +85,8 @@ found no differences, so no changes are needed.
 │ the following message:
 │ 
 │ output deprecated
-╵
-╷
-│ Warning: Value derived from a deprecated source
 │ 
-│   on main.tf line 16, in locals:
-│   16:   i3 = module.second_call.modout1
-│ 
-│ This value is derived from module.second_call.modout1, which is deprecated
-│ with the following message:
-│ 
-│ output deprecated
-╵
-╷
-│ Warning: Value derived from a deprecated source
-│ 
-│   on main.tf line 17, in locals:
-│   17:   i4 = module.second_call.modout2
-│ 
-│ This value is derived from module.second_call.modout2, which is deprecated
-│ with the following message:
-│ 
-│ output deprecated
+│ (and one more similar warning elsewhere)
 ╵
 `
 		if diff := cmp.Diff(strings.TrimSpace(stripAnsi(planStdout)), strings.TrimSpace(stripAnsi(expectedOutput))); diff != "" {
