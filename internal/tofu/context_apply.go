@@ -134,6 +134,11 @@ func (c *Context) Apply(ctx context.Context, plan *plans.Plan, config *configs.C
 		return nil, diags
 	}
 
+	var backupStateFunc func(*states.State)
+	if opts != nil {
+		backupStateFunc = opts.BackupStateForError
+	}
+
 	workingState := plan.PriorState.DeepCopy()
 	walker, walkDiags := c.walk(ctx, graph, operation, &graphWalkOpts{
 		Config:     config,
@@ -148,11 +153,10 @@ func (c *Context) Apply(ctx context.Context, plan *plans.Plan, config *configs.C
 		// We also want to propagate the timestamp from the plan file.
 		PlanTimeTimestamp:       plan.Timestamp,
 		ProviderFunctionTracker: providerFunctionTracker,
+
+		// Include state backup handler in case of panic
+		BackupStateForError: backupStateFunc,
 	})
-	if opts != nil {
-		// opts are nil in some tests...
-		opts.BackupStateForError = opts.BackupStateForError
-	}
 	diags = diags.Append(walker.NonFatalDiagnostics)
 	diags = diags.Append(walkDiags)
 
