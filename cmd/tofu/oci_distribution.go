@@ -105,11 +105,6 @@ func getOCIRepositoryStore(ctx context.Context, registryDomain, repositoryName s
 		return nil, err // This is only for registryDomain validation errors, and we should've caught those much earlier than here
 	}
 	reg.Client = client
-	err = reg.Ping(ctx) // tests whether the given domain refers to a valid OCI repository and will accept the credentials
-	if err != nil {
-		tracing.SetSpanError(span, err)
-		return nil, fmt.Errorf("failed to contact OCI registry at %q: %w", registryDomain, err)
-	}
 	repo, err := reg.Repository(ctx, repositoryName)
 	if err != nil {
 		tracing.SetSpanError(span, err)

@@ -6,9 +6,13 @@
 package main
 
 import (
+	"context"
+	"iter"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/opentofu/opentofu/internal/command/cliconfig/ociauthconfig"
 )
 
 func TestOCICredentialsLookupEnv_DockerCredHelper(t *testing.T) {
@@ -50,4 +54,66 @@ func TestOCICredentialsLookupEnv_DockerCredHelper(t *testing.T) {
 	if gotErr := err.Error(); !strings.Contains(gotErr, wantErr) {
 		t.Errorf("wrong error\ngot: %s\nwant substring: %s", gotErr, wantErr)
 	}
+}
+
+// Test that getOCIRepositoryORASClient uses the correct credentials for each repository
+// when a registry has multiple repositories with different credentials.
+func TestGetOCIRepositoryORASClient_PerRepositoryCredentials(t *testing.T) {
+	ctx := t.Context()
+
+	// Configure two repositories with different credentials for same repository
+	credsPolicy := ociauthconfig.NewCredentialsConfigs([]ociauthconfig.CredentialsConfig{
+		&testPerRepoCredentialsConfig{
+			domain: "registry.example.com",
+			repos: map[string]ociauthconfig.Credentials{
+				"repo-a": ociauthconfig.NewBasicAuthCredentials("user-a", "password-a"),
+				"repo-b": ociauthconfig.NewBasicAuthCredentials("user-b", "password-b"),
+			},
+		},
+	})
+
+	for _, id := range [...]string{"a", "b"} {
+		client, err := getOCIRepositoryORASClient(ctx, "registry.example.com", "repo-"+id, credsPolicy)
+		if err != nil {
+			t.Fatalf("creating client for repo-%s: %s", id, err)
+		}
+
+		credentials, err := client.Credential(ctx, "registry.example.com")
+		if err != nil {
+			t.Fatalf("resolving credential for repo-%s: %s", id, err)
+		}
+
+		if credentials.Username != "user-"+id {
+			t.Errorf("repo-a: wrong username: got %q, want %q", credentials.Username, "user-"+id)
+		}
+		if credentials.Password != "password-"+id {
+			t.Errorf("repo-a: wrong password: got %q, want %q", credentials.Password, "password-"+id)
+		}
+	}
+
+}
+
+// testPerRepoCredentialsConfig is a test-only implementation of
+// [ociauthconfig.CredentialsConfig] that maps repository paths within a fixed
+// domain to static credentials.
+type testPerRepoCredentialsConfig struct {
+	domain string
+	repos  map[string]ociauthconfig.Credentials
+}
+
+func (c *testPerRepoCredentialsConfig) CredentialsSourcesForRepository(_ context.Context, registryDomain, repositoryPath string) iter.Seq2[ociauthconfig.CredentialsSource, error] {
+	return func(yield func(ociauthconfig.CredentialsSource, error) bool) {
+		if registryDomain != c.domain {
+			return
+		}
+		creds, ok := c.repos[repositoryPath]
+		if !ok {
+			return
+		}
+		yield(ociauthconfig.NewStaticCredentialsSource(creds, ociauthconfig.RepositoryCredentialsSpecificity(1)), nil)
+	}
+}
+
+func (c *testPerRepoCredentialsConfig) CredentialsConfigLocationForUI() string {
+	return "test fixture"
 }
