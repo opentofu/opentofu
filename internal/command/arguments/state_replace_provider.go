@@ -37,7 +37,7 @@ func ParseReplaceProvider(args []string) (*StateReplaceProvider, func(), tfdiags
 
 	ret := &StateReplaceProvider{
 		Vars:  &Vars{},
-		State: NewStateFlags(),
+		State: &State{},
 	}
 
 	cmdFlags := extendedFlagSet("state replace-provider", nil, ret.Vars)

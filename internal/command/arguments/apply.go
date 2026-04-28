@@ -42,7 +42,7 @@ type Apply struct {
 func ParseApply(args []string) (*Apply, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	apply := &Apply{
-		State:     NewStateFlags(),
+		State:     &State{},
 		Operation: &Operation{},
 		Vars:      &Vars{},
 	}

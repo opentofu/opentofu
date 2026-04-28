@@ -2126,7 +2126,7 @@ func testMetaBackend(t *testing.T) *Meta {
 	var m Meta
 	view, _ := testView(t)
 	m.View = view
-	m.stateArgs = *arguments.NewStateFlags()
+	m.stateArgs = arguments.State{}
 
 	// TODO meta-refactor: these assignments are needed because the extendedFlagSet was used here before,
 	//   which had these with defaults as "true". In a future iteration, once these are not needed, we need to remove them.

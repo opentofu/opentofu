@@ -38,7 +38,7 @@ func ParseImport(args []string, wd *workdir.Dir) (*Import, func(), tfdiags.Diagn
 	var diags tfdiags.Diagnostics
 	ret := &Import{
 		Vars:    &Vars{},
-		State:   NewStateFlags(),
+		State:   &State{},
 		Backend: &Backend{},
 	}
 	// Get the pwd since its our default -config flag value

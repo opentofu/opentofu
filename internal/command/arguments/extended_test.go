@@ -27,7 +27,9 @@ func TestStateFlagsParsing(t *testing.T) {
 			register: func(s *State, f *flag.FlagSet) {
 				s.AddFlags(f, true, true, true, true)
 			},
-			want: stateArgsWithDefaults(nil),
+			want: stateArgsWithDefaults(func(v *State) {
+				v.Lock = true
+			}),
 		},
 		"lock": {
 			args: []string{"-lock=false"},
@@ -45,6 +47,7 @@ func TestStateFlagsParsing(t *testing.T) {
 			},
 			want: stateArgsWithDefaults(func(v *State) {
 				v.LockTimeout = 2 * time.Second
+				v.Lock = true
 			}),
 		},
 		"state": {
@@ -54,6 +57,7 @@ func TestStateFlagsParsing(t *testing.T) {
 			},
 			want: stateArgsWithDefaults(func(v *State) {
 				v.StatePath = "/path/to/state"
+				v.Lock = true
 			}),
 		},
 		"stateOut": {
@@ -63,6 +67,7 @@ func TestStateFlagsParsing(t *testing.T) {
 			},
 			want: stateArgsWithDefaults(func(v *State) {
 				v.StateOutPath = "/path/to/output/state"
+				v.Lock = true
 			}),
 		},
 		"backup": {
@@ -72,6 +77,7 @@ func TestStateFlagsParsing(t *testing.T) {
 			},
 			want: stateArgsWithDefaults(func(v *State) {
 				v.BackupPath = "/path/to/state/backup"
+				v.Lock = true
 			}),
 		},
 		"all flags": {
@@ -103,6 +109,7 @@ func TestStateFlagsParsing(t *testing.T) {
 			},
 			want: stateArgsWithDefaults(func(v *State) {
 				v.BackupPath = "/path/to/state/backup"
+				v.Lock = true
 			}),
 			wantErr: fmt.Errorf("flag provided but not defined: -unknown"),
 		},
@@ -168,7 +175,7 @@ func TestStateFlagsParsing(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			s := NewStateFlags()
+			s := &State{}
 			f := defaultFlagSet("test")
 			tc.register(s, f)
 			err := f.Parse(tc.args)
@@ -257,7 +264,7 @@ func TestStateFlagsRegistering(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			s := NewStateFlags()
+			s := &State{}
 			f := defaultFlagSet("test")
 			tc.register(s, f)
 			err := f.Parse([]string{
@@ -278,7 +285,7 @@ func TestStateFlagsRegistering(t *testing.T) {
 }
 
 func stateArgsWithDefaults(mutate func(v *State)) *State {
-	ret := NewStateFlags()
+	ret := &State{}
 	if mutate != nil {
 		mutate(ret)
 	}

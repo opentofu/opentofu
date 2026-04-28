@@ -39,7 +39,7 @@ func ParseStateMv(args []string) (*StateMv, func(), tfdiags.Diagnostics) {
 
 	ret := &StateMv{
 		Vars:  &Vars{},
-		State: NewStateFlags(),
+		State: &State{},
 	}
 
 	cmdFlags := extendedFlagSet("state mv", nil, ret.Vars)

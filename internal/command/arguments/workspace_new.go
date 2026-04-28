@@ -27,7 +27,7 @@ func ParseWorkspaceNew(args []string) (*WorkspaceNew, func(), tfdiags.Diagnostic
 
 	ret := &WorkspaceNew{
 		Vars:  &Vars{},
-		State: NewStateFlags(),
+		State: &State{},
 	}
 
 	cmdFlags := extendedFlagSet("workspace new", nil, ret.Vars)

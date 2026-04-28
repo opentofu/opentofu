@@ -33,7 +33,7 @@ func ParseStateList(args []string) (*StateList, func(), tfdiags.Diagnostics) {
 
 	ret := &StateList{
 		Vars:  &Vars{},
-		State: &State{}, // Initialised like this because we don't want to have the lock enabled by default
+		State: &State{},
 	}
 
 	cmdFlags := extendedFlagSet("state list", nil, ret.Vars)

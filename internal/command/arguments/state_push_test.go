@@ -172,7 +172,9 @@ func statePushArgsWithDefaults(mutate func(v *StatePush)) *StatePush {
 			MigrateState:        false,
 			ForceInitCopy:       false,
 		},
-		State: NewStateFlags(),
+		State: &State{
+			Lock: true,
+		},
 	}
 	if mutate != nil {
 		mutate(ret)

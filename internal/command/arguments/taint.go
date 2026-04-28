@@ -39,7 +39,7 @@ func ParseTaint(isTaint bool, args []string) (*Taint, func(), tfdiags.Diagnostic
 	var diags tfdiags.Diagnostics
 	arguments := &Taint{
 		Vars:    &Vars{},
-		State:   NewStateFlags(),
+		State:   &State{},
 		Backend: &Backend{},
 	}
 	cmd := "taint"

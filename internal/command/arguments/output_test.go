@@ -102,7 +102,7 @@ func outputArgsWithDefaults(mutate func(a *Output)) *Output {
 			ViewType: ViewHuman,
 		},
 		Vars:  &Vars{},
-		State: NewStateFlags(),
+		State: &State{},
 	}
 	if mutate != nil {
 		mutate(ret)

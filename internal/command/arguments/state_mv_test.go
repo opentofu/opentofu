@@ -167,8 +167,10 @@ func stateMvArgsWithDefaults(mutate func(stateMv *StateMv)) *StateMv {
 		Backend: Backend{
 			IgnoreRemoteVersion: false,
 		},
-		State: NewStateFlags(),
-		Vars:  &Vars{},
+		State: &State{
+			Lock: true,
+		},
+		Vars: &Vars{},
 	}
 	// Because the default value is different on this command
 	ret.State.BackupPath = "-"

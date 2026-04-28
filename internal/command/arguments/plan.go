@@ -41,7 +41,7 @@ type Plan struct {
 func ParsePlan(args []string) (*Plan, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	plan := &Plan{
-		State:     NewStateFlags(),
+		State:     &State{},
 		Operation: &Operation{},
 		Vars:      &Vars{},
 	}

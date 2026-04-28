@@ -31,7 +31,7 @@ func ParseOutput(args []string) (*Output, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	output := &Output{
 		Vars:  &Vars{},
-		State: NewStateFlags(),
+		State: &State{},
 	}
 
 	var rawOutput bool

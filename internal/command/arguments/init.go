@@ -62,7 +62,7 @@ func ParseInit(args []string) (*Init, func(), tfdiags.Diagnostics) {
 	init := &Init{
 		Vars:            &Vars{},
 		Backend:         &Backend{},
-		State:           NewStateFlags(),
+		State:           &State{},
 		FlagConfigExtra: flags.NewRawFlags("-backend-config"),
 	}
 

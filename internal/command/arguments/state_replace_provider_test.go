@@ -162,8 +162,10 @@ func stateReplaceProviderArgsWithDefaults(mutate func(srp *StateReplaceProvider)
 		Backend: Backend{
 			IgnoreRemoteVersion: false,
 		},
-		Vars:  &Vars{},
-		State: NewStateFlags(),
+		Vars: &Vars{},
+		State: &State{
+			Lock: true,
+		},
 	}
 	// Because the default value is different on this command
 	ret.State.BackupPath = "-"

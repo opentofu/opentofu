@@ -31,7 +31,7 @@ func ParseWorkspaceDelete(args []string) (*WorkspaceDelete, func(), tfdiags.Diag
 
 	ret := &WorkspaceDelete{
 		Vars:  &Vars{},
-		State: NewStateFlags(),
+		State: &State{},
 	}
 
 	cmdFlags := extendedFlagSet("workspace delete", nil, ret.Vars)

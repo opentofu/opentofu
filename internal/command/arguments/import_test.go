@@ -202,7 +202,10 @@ func importArgsWithDefaults(mutate func(imp *Import)) *Import {
 			vars:     &v,
 			varFiles: &vf,
 		},
-		State:   NewStateFlags(),
+		State: &State{
+			Lock:      true,
+			StatePath: "",
+		},
 		Backend: &Backend{},
 	}
 	if mutate != nil {

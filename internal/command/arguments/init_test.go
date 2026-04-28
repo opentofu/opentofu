@@ -434,7 +434,7 @@ func initArgsWithDefaults(mutate func(init *Init)) *Init {
 			InputEnabled: true,
 		},
 		Vars:    &Vars{},
-		State:   NewStateFlags(),
+		State:   &State{Lock: true},
 		Backend: &Backend{},
 	}
 	if mutate != nil {

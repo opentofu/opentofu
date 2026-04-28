@@ -163,8 +163,10 @@ func TestParseWorkspaceNew_vars(t *testing.T) {
 
 func workspaceNewArgsWithDefaults(mutate func(in *WorkspaceNew)) *WorkspaceNew {
 	ret := &WorkspaceNew{
-		State: NewStateFlags(),
-		Vars:  &Vars{},
+		State: &State{
+			Lock: true,
+		},
+		Vars: &Vars{},
 		ViewOptions: ViewOptions{
 			ViewType: ViewHuman,
 		},

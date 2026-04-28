@@ -168,7 +168,9 @@ func workspaceDeleteArgsWithDefaults(mutate func(in *WorkspaceDelete)) *Workspac
 		ViewOptions: ViewOptions{
 			ViewType: ViewHuman,
 		},
-		State: NewStateFlags(),
+		State: &State{
+			Lock: true,
+		},
 	}
 	if mutate != nil {
 		mutate(ret)

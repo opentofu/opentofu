@@ -105,7 +105,7 @@ func stateShowArgsWithDefaults(mutate func(stateShow *StateShow)) *StateShow {
 			InputEnabled: false,
 		},
 		Vars:  &Vars{},
-		State: &State{}, // Initialised like this because we don't want to have the lock enabled by default
+		State: &State{},
 	}
 	if mutate != nil {
 		mutate(ret)

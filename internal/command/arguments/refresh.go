@@ -26,7 +26,7 @@ type Refresh struct {
 func ParseRefresh(args []string) (*Refresh, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	refresh := &Refresh{
-		State:     NewStateFlags(),
+		State:     &State{},
 		Operation: &Operation{},
 		Vars:      &Vars{},
 	}

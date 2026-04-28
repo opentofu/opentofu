@@ -27,7 +27,7 @@ func ParseConsole(args []string) (*Console, func(), tfdiags.Diagnostics) {
 
 	console := &Console{
 		Vars:  &Vars{},
-		State: NewStateFlags(),
+		State: &State{},
 	}
 
 	cmdFlags := extendedFlagSet("console", nil, console.Vars)

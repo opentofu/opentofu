@@ -34,7 +34,7 @@ func ParseStateShow(args []string) (*StateShow, func(), tfdiags.Diagnostics) {
 
 	ret := &StateShow{
 		Vars:  &Vars{},
-		State: &State{}, // Initialised like this because we don't want to have the lock enabled by default
+		State: &State{},
 	}
 	cmdFlags := extendedFlagSet("state show", nil, ret.Vars)
 	cmdFlags.BoolVar(&ret.ShowSensitive, "show-sensitive", false, "displays sensitive values")

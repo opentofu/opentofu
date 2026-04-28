@@ -102,8 +102,10 @@ func consoleArgsWithDefaults(mutate func(console *Console)) *Console {
 			ViewType:     ViewHuman,
 			InputEnabled: true,
 		},
-		Vars:  &Vars{},
-		State: NewStateFlags(),
+		Vars: &Vars{},
+		State: &State{
+			Lock: true,
+		},
 	}
 	// Because the state flag is registered with a different default value
 	ret.State.StatePath = DefaultStateFilename

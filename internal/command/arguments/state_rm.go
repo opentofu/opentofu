@@ -34,7 +34,7 @@ func ParseStateRm(args []string) (*StateRm, func(), tfdiags.Diagnostics) {
 
 	ret := &StateRm{
 		Vars:  &Vars{},
-		State: NewStateFlags(),
+		State: &State{},
 	}
 	cmdFlags := extendedFlagSet("state rm", nil, ret.Vars)
 	ret.Backend.AddIgnoreRemoteVersionFlag(cmdFlags)

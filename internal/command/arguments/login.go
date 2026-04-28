@@ -32,7 +32,7 @@ func ParseLogin(args []string) (*Login, func(), tfdiags.Diagnostics) {
 		Vars: &Vars{},
 		// State is only initialised and no flags are registered since the login command needs to lock the
 		// state by default, which is ensured by NewStateFlags.
-		State: NewStateFlags(),
+		State: &State{Lock: true},
 	}
 
 	cmdFlags := extendedFlagSet("login", nil, arguments.Vars)
