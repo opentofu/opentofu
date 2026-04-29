@@ -86,15 +86,17 @@ func initCommands(
 	meta := command.Meta{
 		WorkingDir: wd,
 		View:       view.SetRunningInAutomation(inAutomation),
+		SystemArgs: command.SystemArguments{
+			RunningInAutomation: inAutomation,
+		},
 
 		GlobalPluginDirs: globalPluginDirs(),
 
 		Services:        services,
 		BrowserLauncher: browserLauncher(),
 
-		RunningInAutomation: inAutomation,
-		CLIConfigDir:        configDir,
-		PluginCacheDir:      config.PluginCacheDir,
+		CLIConfigDir:   configDir,
+		PluginCacheDir: config.PluginCacheDir,
 
 		PluginCacheMayBreakDependencyLockFile: config.PluginCacheMayBreakDependencyLockFile,
 

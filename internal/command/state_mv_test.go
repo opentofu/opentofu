@@ -630,10 +630,10 @@ func TestStateMv_resourceToInstanceErrInAutomation(t *testing.T) {
 	c := &StateMvCommand{
 		StateMeta{
 			Meta: Meta{
-				WorkingDir:          workdir.NewDir("."),
-				testingOverrides:    metaOverridesForProvider(p),
-				View:                view,
-				RunningInAutomation: true,
+				WorkingDir:       workdir.NewDir("."),
+				testingOverrides: metaOverridesForProvider(p),
+				View:             view,
+				SystemArgs:       SystemArguments{RunningInAutomation: true},
 			},
 		},
 	}

@@ -304,7 +304,7 @@ To initialize the configuration already in this working directory, omit the
 	}
 
 	if cb, ok := back.(*cloud.Cloud); ok {
-		if c.RunningInAutomation {
+		if c.SystemArgs.RunningInAutomation {
 			if err := cb.AssertImportCompatible(config); err != nil {
 				diags = diags.Append(tfdiags.Sourceless(tfdiags.Error, "Compatibility error", err.Error()))
 				view.Diagnostics(diags)
@@ -348,7 +348,7 @@ To initialize the configuration already in this working directory, omit the
 	view.Diagnostics(diags)
 	_, isCloud := back.(*cloud.Cloud)
 	view.InitSuccess(isCloud)
-	if !c.RunningInAutomation {
+	if !c.SystemArgs.RunningInAutomation {
 		// If we're not running in an automation wrapper, give the user
 		// some more detailed next steps that are appropriate for interactive
 		// shell usage.

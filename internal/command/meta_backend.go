@@ -151,7 +151,7 @@ func (m *Meta) Backend(ctx context.Context, opts *BackendOpts, enc encryption.St
 					fmt.Fprintf(&buf, "\n  - %s: %s", addr, err)
 				}
 				suggestion := "To download the plugins required for this configuration, run:\n  tofu init"
-				if m.RunningInAutomation {
+				if m.SystemArgs.RunningInAutomation {
 					// Don't mention "tofu init" specifically if we're running in an automation wrapper
 					suggestion = "You must install the required plugins before running OpenTofu operations."
 				}
@@ -429,7 +429,7 @@ func (m *Meta) backendCLIOpts(ctx context.Context) (*backend.CLIOpts, error) {
 		StateArgs:           m.stateArgs,
 		ContextOpts:         contextOpts,
 		Input:               m.Input(),
-		RunningInAutomation: m.RunningInAutomation,
+		RunningInAutomation: m.SystemArgs.RunningInAutomation,
 	}, err
 }
 
