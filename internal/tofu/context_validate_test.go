@@ -2913,6 +2913,38 @@ resource "test_instance" "b" {
 `,
 			wantError: true,
 		},
+		"count.index": {
+			config: `
+resource "test_instance" "a" {
+  count = 2
+  value = "hello"
+}
+
+resource "test_instance" "b" {
+  count = 2
+  lifecycle {
+    replace_triggered_by = [test_instance.a[count.index].value]
+  }
+}
+`,
+			wantError: false,
+		},
+		"each.key": {
+			config: `
+resource "test_instance" "a" {
+  for_each = to_set([])
+  value = "hello"
+}
+
+resource "test_instance" "b" {
+  for_each = to_set([])
+  lifecycle {
+    replace_triggered_by = [test_instance.a[each.key].value]
+  }
+}
+`,
+			wantError: false,
+		},
 	}
 
 	for name, tc := range tests {
