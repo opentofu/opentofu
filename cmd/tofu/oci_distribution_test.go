@@ -61,7 +61,7 @@ func TestOCICredentialsLookupEnv_DockerCredHelper(t *testing.T) {
 func TestGetOCIRepositoryORASClient_PerRepositoryCredentials(t *testing.T) {
 	ctx := t.Context()
 
-	// Configure two repositories with different credentials for same repository
+	// Configure two repositories with different credentials for same registry
 	credsPolicy := ociauthconfig.NewCredentialsConfigs([]ociauthconfig.CredentialsConfig{
 		&testPerRepoCredentialsConfig{
 			domain: "registry.example.com",
@@ -84,10 +84,10 @@ func TestGetOCIRepositoryORASClient_PerRepositoryCredentials(t *testing.T) {
 		}
 
 		if credentials.Username != "user-"+id {
-			t.Errorf("repo-a: wrong username: got %q, want %q", credentials.Username, "user-"+id)
+			t.Errorf("repo-%s: wrong username: got %s, want %s", id, credentials.Username, "user-"+id)
 		}
 		if credentials.Password != "password-"+id {
-			t.Errorf("repo-a: wrong password: got %q, want %q", credentials.Password, "password-"+id)
+			t.Errorf("repo-%s: wrong password: got %s, want %s", id, credentials.Password, "password-"+id)
 		}
 	}
 
