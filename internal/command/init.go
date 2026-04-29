@@ -605,6 +605,13 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 	// and incomplete providers are stored here for later analysis.
 	var incompleteProviders []string
 
+	// In OpenTofu v1.12, we added support for accepting more hashes from the provider's
+	// origin registry. This can either be from the default OpenTofu registry, or from
+	// a trusted mirror. We will want to warn users about this, as lock file updates
+	// are scary. This is well documented in the changelog and blog posts, but
+	// we assume users won't read that.
+	var providersWithAdditionalHashes []string
+
 	// Because we're currently just streaming a series of events sequentially
 	// into the terminal, we're showing only a subset of the events to keep
 	// things relatively concise. Later it'd be nice to have a progress UI
@@ -863,11 +870,25 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 			// when used on machines of a different architecture.
 			//
 			// We want to print a warning about this.
+			//
+			// We also look for any updates that likely occured due to
+			// OpenTofu 1.12 adding support for additional hashes reported
+			// by the registry and trusted mirrors
 
 			if len(signedHashes) > 0 {
 				// If we have any signedHashes hashes then we don't worry - as
 				// we know we retrieved all available hashes for this version
 				// anyway.
+
+				if len(priorHashes) > 0 {
+					// The registry or trusted mirror has reported additional hashes for a provider.
+					// record this to produce a warning later
+					//
+					// There's a small chance that this occurs from a trusted mirror serving different hashes
+					// per platform, but that's an incredibly rare edge case we are willing to accept.
+					providersWithAdditionalHashes = append(providersWithAdditionalHashes, provider.ForDisplay())
+				}
+
 				return
 			}
 
@@ -975,6 +996,18 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 					incompleteLockFileInformationBody,
 					strings.Join(incompleteProviders, "\n  - "),
 					getproviders.CurrentPlatform.String())))
+		}
+		if len(providersWithAdditionalHashes) > 0 {
+			// We don't really care about the order here, we just want the
+			// output to be deterministic.
+			slices.Sort(providersWithAdditionalHashes)
+
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Warning,
+				`Provider hashes added for additional platforms`,
+				fmt.Sprintf(
+					updatedLockFilePlatformsInformationBody,
+					strings.Join(providersWithAdditionalHashes, "\n  - "))))
 		}
 
 		if previousLocks.Empty() {
@@ -1337,6 +1370,12 @@ The current .terraform.lock.hcl file only includes checksums for %s, so OpenTofu
 To calculate additional checksums for another platform, run:
   tofu providers lock -platform=linux_amd64
 (where linux_amd64 is the platform to generate)`
+
+const updatedLockFilePlatformsInformationBody = `As of OpenTofu v1.12.0, provider hashes for all reported platforms from the registry and trusted mirrors are now included in the lockfile.
+
+This change has added additional information to the lockfile for the following providers:
+  - %s
+`
 
 const implicitProviderReferenceBody = `Due to the prefix of the resource type name OpenTofu guessed that you intended to associate %s with a provider whose local name is "%s", but that name is not declared in this module's required_providers block. OpenTofu therefore guessed that you intended to use %s, but that provider does not exist.
 
