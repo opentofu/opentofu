@@ -2855,6 +2855,22 @@ resource "test_instance" "b" {
 `,
 			wantError: false,
 		},
+		"valid for_each reference with attribute": {
+			config: `
+resource "test_instance" "a" {
+  for_each = toset(["x"])
+  value = "hello"
+}
+
+resource "test_instance" "b" {
+  for_each = toset(["x"])
+  lifecycle {
+    replace_triggered_by = [test_instance.a[each.key]]
+  }
+}
+`,
+			wantError: false,
+		},
 		"invalid nested attribute reference": {
 			config: `
 resource "test_instance" "a" {
