@@ -47,7 +47,7 @@ func testOperationPlanWithTimeout(t *testing.T, configDir string, timeout time.D
 	view := views.NewView(streams)
 	backendView := views.NewBackendHuman(views.NewView(streams))
 	stateLockerView := backendView.StateLocker()
-	operationView := views.NewOperation(arguments.ViewHuman, false, view)
+	operationView := views.NewOperation(arguments.ViewHuman, view)
 
 	// Many of our tests use an overridden "null" provider that's just in-memory
 	// inside the test process, not a separate plugin on disk.
@@ -744,7 +744,7 @@ func TestRemote_planForceLocal(t *testing.T) {
 
 	op.Workspace = backend.DefaultStateName
 
-	op.View = views.NewOperation(arguments.ViewHuman, false, view)
+	op.View = views.NewOperation(arguments.ViewHuman, view)
 
 	run, err := b.Operation(context.Background(), op)
 	if err != nil {
@@ -778,7 +778,7 @@ func TestRemote_planWithoutOperationsEntitlement(t *testing.T) {
 
 	op.Workspace = backend.DefaultStateName
 
-	op.View = views.NewOperation(arguments.ViewHuman, false, view)
+	op.View = views.NewOperation(arguments.ViewHuman, view)
 
 	run, err := b.Operation(context.Background(), op)
 	if err != nil {
@@ -826,7 +826,7 @@ func TestRemote_planWorkspaceWithoutOperations(t *testing.T) {
 
 	op.Workspace = "no-operations"
 
-	op.View = views.NewOperation(arguments.ViewHuman, false, view)
+	op.View = views.NewOperation(arguments.ViewHuman, view)
 
 	run, err := b.Operation(ctx, op)
 	if err != nil {
