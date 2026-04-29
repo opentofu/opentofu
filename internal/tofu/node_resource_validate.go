@@ -344,10 +344,12 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 				repData := instances.RepetitionData{}
 				switch {
 				case n.Config.Count != nil:
-					repData.CountIndex = cty.UnknownVal(cty.Number)
+					// Actual value does not matter for validation
+					repData.CountIndex = cty.NumberIntVal(0)
 				case n.Config.ForEach != nil:
-					repData.EachKey = cty.UnknownVal(cty.String)
-					repData.EachValue = cty.UnknownVal(cty.DynamicPseudoType)
+					// Actual value does not matter for validation
+					repData.EachKey = cty.StringVal("")
+					// EachValue can not be used in `replace_triggered_by` (config layer)
 				}
 
 				// Evaluate the expression with repetitionData as unknown values
