@@ -44,10 +44,9 @@ func NewApply(args arguments.ViewOptions, destroy bool, view *View) Apply {
 		}
 	case arguments.ViewHuman:
 		apply = &ApplyHuman{
-			view:         view,
-			destroy:      destroy,
-			inAutomation: view.RunningInAutomation(),
-			countHook:    &countHook{},
+			view:      view,
+			destroy:   destroy,
+			countHook: &countHook{},
 		}
 	default:
 		panic(fmt.Sprintf("unknown view type %v", args.ViewType))
@@ -120,8 +119,7 @@ func (m ApplyMulti) Backend() Backend {
 type ApplyHuman struct {
 	view *View
 
-	destroy      bool
-	inAutomation bool
+	destroy bool
 
 	countHook *countHook
 }
@@ -183,7 +181,7 @@ func (v *ApplyHuman) Outputs(outputValues map[string]*states.OutputValue) {
 }
 
 func (v *ApplyHuman) Operation() Operation {
-	return NewOperation(arguments.ViewHuman, v.inAutomation, v.view)
+	return NewOperation(arguments.ViewHuman, v.view)
 }
 
 func (v *ApplyHuman) Hooks() []tofu.Hook {

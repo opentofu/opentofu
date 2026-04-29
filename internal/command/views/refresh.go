@@ -122,7 +122,7 @@ func (v *RefreshHuman) Outputs(outputValues map[string]*states.OutputValue) {
 }
 
 func (v *RefreshHuman) Operation() Operation {
-	return NewOperation(arguments.ViewHuman, v.inAutomation, v.view)
+	return NewOperation(arguments.ViewHuman, v.view)
 }
 
 func (v *RefreshHuman) Hooks() []tofu.Hook {

@@ -36,7 +36,7 @@ func testOperationRefreshWithTimeout(t *testing.T, configDir string, timeout tim
 	view := views.NewView(streams)
 	backendView := views.NewBackendHuman(views.NewView(streams))
 	stateLockerView := backendView.StateLocker()
-	operationView := views.NewOperation(arguments.ViewHuman, false, view)
+	operationView := views.NewOperation(arguments.ViewHuman, view)
 
 	return &backend.Operation{
 		ConfigDir:    configDir,

@@ -266,7 +266,7 @@ func testOperationRefresh(t *testing.T, configDir string) (*backend.Operation, f
 	_, configLoader := initwd.MustLoadConfigForTests(t, configDir, "tests")
 
 	streams, done := terminal.StreamsForTesting(t)
-	view := views.NewOperation(arguments.ViewHuman, false, views.NewView(streams))
+	view := views.NewOperation(arguments.ViewHuman, views.NewView(streams))
 
 	// Many of our tests use an overridden "test" provider that's just in-memory
 	// inside the test process, not a separate plugin on disk.

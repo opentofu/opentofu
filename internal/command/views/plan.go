@@ -101,7 +101,7 @@ type PlanHuman struct {
 var _ Plan = (*PlanHuman)(nil)
 
 func (v *PlanHuman) Operation() Operation {
-	return NewOperation(arguments.ViewHuman, v.inAutomation, v.view)
+	return NewOperation(arguments.ViewHuman, v.view)
 }
 
 func (v *PlanHuman) Hooks() []tofu.Hook {
