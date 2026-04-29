@@ -105,11 +105,14 @@ func getOCIRepositoryStore(ctx context.Context, registryDomain, repositoryName s
 		return nil, err // This is only for registryDomain validation errors, and we should've caught those much earlier than here
 	}
 	reg.Client = client
-	err = reg.Ping(ctx) // tests whether the given domain refers to a valid OCI repository and will accept the credentials
-	if err != nil {
-		tracing.SetSpanError(span, err)
-		return nil, fmt.Errorf("failed to contact OCI registry at %q: %w", registryDomain, err)
-	}
+	// NOTE: We intentionally do not call reg.Ping(ctx) here.
+	// The Ping method targets the GET /v2/ endpoint, which some registries
+	// respond to with a 401 challenge, even for repositories with an
+	// anonymous pull configuration, which is interpreted as an error
+	//
+	// Since ORAS handles authentication transparently on the first real
+	// API call, the Ping is both redundant and problematic for this type of
+	// registry.
 	repo, err := reg.Repository(ctx, repositoryName)
 	if err != nil {
 		tracing.SetSpanError(span, err)
