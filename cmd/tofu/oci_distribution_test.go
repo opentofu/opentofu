@@ -59,8 +59,6 @@ func TestOCICredentialsLookupEnv_DockerCredHelper(t *testing.T) {
 // Test that getOCIRepositoryORASClient uses the correct credentials for each repository
 // when a registry has multiple repositories with different credentials.
 func TestGetOCIRepositoryORASClient_PerRepositoryCredentials(t *testing.T) {
-	ctx := t.Context()
-
 	// Configure two repositories with different credentials for same registry
 	credsPolicy := ociauthconfig.NewCredentialsConfigs([]ociauthconfig.CredentialsConfig{
 		&testPerRepoCredentialsConfig{
@@ -73,24 +71,31 @@ func TestGetOCIRepositoryORASClient_PerRepositoryCredentials(t *testing.T) {
 	})
 
 	for _, id := range [...]string{"a", "b"} {
-		client, err := getOCIRepositoryORASClient(ctx, "registry.example.com", "repo-"+id, credsPolicy)
-		if err != nil {
-			t.Fatalf("creating client for repo-%s: %s", id, err)
-		}
+		t.Run(id, func(t *testing.T) {
+			ctx := t.Context()
+			client, err := getOCIRepositoryORASClient(ctx, "registry.example.com", "repo-"+id, credsPolicy)
 
-		credentials, err := client.Credential(ctx, "registry.example.com")
-		if err != nil {
-			t.Fatalf("resolving credential for repo-%s: %s", id, err)
-		}
+			if err != nil {
+				t.Fatalf("failed creating credential: %s", err)
+			}
 
-		if credentials.Username != "user-"+id {
-			t.Errorf("repo-%s: wrong username: got %s, want %s", id, credentials.Username, "user-"+id)
-		}
-		if credentials.Password != "password-"+id {
-			t.Errorf("repo-%s: wrong password: got %s, want %s", id, credentials.Password, "password-"+id)
-		}
+			credentials, err := client.Credential(ctx, "registry.example.com")
+			if err != nil {
+				t.Fatalf("failed resolving credential: %s", err)
+			}
+
+			want, got := "user-"+id, credentials.Username
+			if want != got {
+				t.Fatalf("username mismatch: %s != %s", got, want)
+			}
+
+			want, got = "password-"+id, credentials.Password
+			if want != got {
+				t.Fatalf("password mismatch: %s != %s", got, want)
+			}
+
+		})
 	}
-
 }
 
 // testPerRepoCredentialsConfig is a test-only implementation of
