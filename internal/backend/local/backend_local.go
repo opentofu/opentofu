@@ -7,6 +7,7 @@ package local
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"sort"
@@ -18,6 +19,8 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/plans/planfile"
+	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
@@ -214,6 +217,15 @@ func (b *Local) localRunDirect(ctx context.Context, stopCtx context.Context, op 
 	// Set ApplyOpts for direct runs to pass through the CLI flag
 	run.ApplyOpts = &tofu.ApplyOpts{
 		SuppressForgetErrorsDuringDestroy: op.SuppressForgetErrorsDuringDestroy,
+		BackupStateForError: func(state *states.State) {
+			stateFile := statemgr.Export(s)
+			if stateFile == nil {
+				stateFile = statefile.New(state, "", 0)
+			}
+			stateFile.State = state
+			diags = b.backupStateForError(stateFile, errors.New("Graph Traversal Panic"), op.View)
+			op.View.Diagnostics(diags)
+		},
 	}
 
 	// For a "direct" local run, the input state is the most recently stored
@@ -288,6 +300,18 @@ func (b *Local) localRunForPlanFile(ctx context.Context, op *backend.Operation, 
 	run.ApplyOpts = &tofu.ApplyOpts{
 		SetVariables:                      declaredVars,
 		SuppressForgetErrorsDuringDestroy: op.SuppressForgetErrorsDuringDestroy,
+		BackupStateForError: func(state *states.State) {
+			var stateFile *statefile.File
+			if currentStateMeta != nil {
+				stateFile = statefile.New(state, currentStateMeta.Lineage, currentStateMeta.Serial)
+			} else {
+				stateFile = &statefile.File{
+					State: state,
+				}
+			}
+			diags = b.backupStateForError(stateFile, errors.New("Graph Traversal Panic"), op.View)
+			op.View.Diagnostics(diags)
+		},
 	}
 
 	// NOTE: We're intentionally comparing the current locks with the

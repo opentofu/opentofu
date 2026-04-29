@@ -49,7 +49,7 @@ func PanicHandler() {
 	defer panicMutex.Unlock()
 
 	recovered := recover()
-	panicHandler(recovered, nil, "")
+	panicHandler(recovered, nil, "", nil)
 }
 
 // PanicHandlerWithTraceFn returns a function similar to PanicHandler which is
@@ -70,17 +70,17 @@ func PanicHandler() {
 // is a significant step in the right direction that will dramatically improve crash
 // debugging
 func PanicHandlerWithTraceFn() func() {
-	ret := PanicHandlerWithTraceCallerFn()
+	ret := PanicHandlerWithTraceHandlerFn()
 	return func() {
-		ret("")
+		ret("", nil)
 	}
 }
 
-// PanicHandlerWithTraceCallerFn is an enhanced version of PanicHandlerWithTraceFn
+// PanicHandlerWithTraceHandlerFn is an enhanced version of PanicHandlerWithTraceFn
 // that supports providing information about the caller
-func PanicHandlerWithTraceCallerFn() func(caller string) {
+func PanicHandlerWithTraceHandlerFn() func(caller string, handler func()) {
 	trace := debug.Stack()
-	return func(caller string) {
+	return func(caller string, handler func()) {
 		// Have all managed goroutines checkin here, and prevent them from exiting
 		// if there's a panic in progress. While this can't lock the entire runtime
 		// to block progress, we can prevent some cases where OpenTofu may return
@@ -89,11 +89,11 @@ func PanicHandlerWithTraceCallerFn() func(caller string) {
 		defer panicMutex.Unlock()
 
 		recovered := recover()
-		panicHandler(recovered, trace, caller)
+		panicHandler(recovered, trace, caller, handler)
 	}
 }
 
-func panicHandler(recovered interface{}, trace []byte, caller string) {
+func panicHandler(recovered interface{}, trace []byte, caller string, handler func()) {
 	if recovered == nil {
 		return
 	}
@@ -118,6 +118,11 @@ func panicHandler(recovered interface{}, trace []byte, caller string) {
 
 	// Write the complete buffer to stderr
 	os.Stderr.Write(buffer.Bytes())
+
+	// Now that we have written the buffer, we can do a potentially dangerous action by calling handler()
+	if handler != nil {
+		handler()
+	}
 
 	// An exit code of 11 keeps us out of the way of the detailed exitcodes
 	// from plan, and also happens to be the same code as SIGSEGV which is
