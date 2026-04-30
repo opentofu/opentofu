@@ -19,18 +19,14 @@ type StateReplaceProvider struct {
 	// AutoApprove is an option that the user can configure to skip the confirmation step of the replacement
 	// process.
 	AutoApprove bool
-	// BackupPath can be used by the user to configure where to save the backup file of the state file
-	// before replacing the provider
-	BackupPath string
-	// StatePath represents the path of the state to be used for the replace operation.
-	StatePath string
 
 	// ViewOptions specifies which view options to use
 	ViewOptions ViewOptions
 
-	// Vars and Backend are the common extended flags
+	// Vars, Backend and State are the common extended flags
 	Vars    *Vars
 	Backend Backend
+	State   *State
 }
 
 // ParseReplaceProvider processes CLI arguments, returning a StateReplaceProvider value, a closer function, and errors.
@@ -40,21 +36,16 @@ func ParseReplaceProvider(args []string) (*StateReplaceProvider, func(), tfdiags
 	var diags tfdiags.Diagnostics
 
 	ret := &StateReplaceProvider{
-		Vars: &Vars{},
+		Vars:  &Vars{},
+		State: &State{},
 	}
 
-	cmdFlags := extendedFlagSet("state replace-provider", nil, nil, ret.Vars)
-	ret.Backend.AddIgnoreRemoteVersionFlag(cmdFlags)
-	ret.Backend.AddStateFlags(cmdFlags)
+	cmdFlags := extendedFlagSet("state replace-provider", nil, ret.Vars)
 	cmdFlags.BoolVar(&ret.AutoApprove, "auto-approve", false, "skip interactive approval of replacements")
-	// NOTE: because the `-backup` flag needs a different default value than usual,
-	// we cannot use the [State] flags extension to register and parse these.
-	// Therefore, we need to have those flags redefined here.
-	// TODO meta-refactor: we might want to have a separate function on the [arguments.State] to register flags,
-	//  where default value can be provided by the caller. This way we could still use those flags instead of redefining
-	//  everything again.
-	cmdFlags.StringVar(&ret.BackupPath, "backup", "-", "backup-path")
-	cmdFlags.StringVar(&ret.StatePath, "state", "", "state-path")
+	ret.Backend.AddIgnoreRemoteVersionFlag(cmdFlags)
+	// StateFlagBackup omitted here to be added later with a different default value
+	ret.State.addFlags(cmdFlags, stateFlagLock|stateFlagStateIn)
+	ret.State.AddBackupFlag(cmdFlags, "-")
 	ret.ViewOptions.AddFlags(cmdFlags, false)
 
 	if err := cmdFlags.Parse(args); err != nil {

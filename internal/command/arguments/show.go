@@ -76,7 +76,7 @@ func ParseShow(args []string) (*Show, func(), tfdiags.Diagnostics) {
 	var planTarget string
 	var configTarget bool
 	var moduleTarget string
-	cmdFlags := extendedFlagSet("show", nil, nil, show.Vars)
+	cmdFlags := extendedFlagSet("show", nil, show.Vars)
 	cmdFlags.BoolVar(&show.ShowSensitive, "show-sensitive", false, "displays sensitive values")
 	cmdFlags.BoolVar(&stateTarget, "state", false, "show the latest state snapshot")
 	cmdFlags.StringVar(&planTarget, "plan", "", "show the plan from a saved plan file")

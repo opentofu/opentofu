@@ -183,7 +183,7 @@ func TestMetaBackend_emptyWithExplicitState(t *testing.T) {
 
 	// Setup the meta
 	m := testMetaBackend(t)
-	m.statePath = statePath
+	m.stateArgs.StatePath = statePath
 
 	// Get the backend
 	b, diags := m.Backend(t.Context(), &BackendOpts{Init: true}, encryption.StateEncryptionDisabled())
@@ -1816,7 +1816,7 @@ func TestMetaBackend_planLocalStatePath(t *testing.T) {
 
 	// Setup the meta
 	m := testMetaBackend(t)
-	m.stateOutPath = statePath
+	m.stateArgs.StateOutPath = statePath
 
 	// Get the backend
 	b, diags := m.BackendForLocalPlan(t.Context(), plannedBackend, encryption.StateEncryptionDisabled())
@@ -2126,11 +2126,11 @@ func testMetaBackend(t *testing.T) *Meta {
 	var m Meta
 	view, _ := testView(t)
 	m.View = view
+	m.stateArgs = arguments.State{Lock: true}
 
 	// TODO meta-refactor: these assignments are needed because the extendedFlagSet was used here before,
 	//   which had these with defaults as "true". In a future iteration, once these are not needed, we need to remove them.
 	m.input = true
-	m.stateLock = true
 
 	// metaBackend tests are verifying migrate actions
 	m.migrateState = true

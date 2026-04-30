@@ -8,7 +8,6 @@ package arguments
 import (
 	"flag"
 	"testing"
-	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -53,65 +52,6 @@ func TestBackend_AddIgnoreRemoteVersionFlag(t *testing.T) {
 
 			if got := backend.IgnoreRemoteVersion; got != tc.want {
 				t.Errorf("IgnoreRemoteVersion = %v, want %v", got, tc.want)
-			}
-		})
-	}
-}
-
-func TestBackend_AddStateFlags(t *testing.T) {
-	testCases := map[string]struct {
-		args            []string
-		wantLock        bool
-		wantLockTimeout time.Duration
-	}{
-		"default values": {
-			args:            nil,
-			wantLock:        true,
-			wantLockTimeout: 0,
-		},
-		"lock set to false": {
-			args:            []string{"-lock=false"},
-			wantLock:        false,
-			wantLockTimeout: 0,
-		},
-		"lock set to true explicitly": {
-			args:            []string{"-lock=true"},
-			wantLock:        true,
-			wantLockTimeout: 0,
-		},
-		"lock-timeout set": {
-			args:            []string{"-lock-timeout=10s"},
-			wantLock:        true,
-			wantLockTimeout: 10 * time.Second,
-		},
-		"lock-timeout set in minutes": {
-			args:            []string{"-lock-timeout=5m"},
-			wantLock:        true,
-			wantLockTimeout: 5 * time.Minute,
-		},
-		"both flags set": {
-			args:            []string{"-lock=false", "-lock-timeout=30s"},
-			wantLock:        false,
-			wantLockTimeout: 30 * time.Second,
-		},
-	}
-
-	for name, tc := range testCases {
-		t.Run(name, func(t *testing.T) {
-			backend := &Backend{}
-			fs := flag.NewFlagSet("test", flag.ContinueOnError)
-			backend.AddStateFlags(fs)
-
-			if err := fs.Parse(tc.args); err != nil {
-				t.Fatalf("unexpected error parsing flags: %v", err)
-			}
-
-			if got := backend.StateLock; got != tc.wantLock {
-				t.Errorf("StateLock = %v, want %v", got, tc.wantLock)
-			}
-
-			if got := backend.StateLockTimeout; got != tc.wantLockTimeout {
-				t.Errorf("StateLockTimeout = %v, want %v", got, tc.wantLockTimeout)
 			}
 		})
 	}
@@ -350,8 +290,6 @@ func TestBackend_AllFlags(t *testing.T) {
 			args: nil,
 			want: Backend{
 				IgnoreRemoteVersion: false,
-				StateLock:           true,
-				StateLockTimeout:    0,
 				ForceInitCopy:       false,
 				Reconfigure:         false,
 				MigrateState:        false,
@@ -360,16 +298,12 @@ func TestBackend_AllFlags(t *testing.T) {
 		"all flags set": {
 			args: []string{
 				"-ignore-remote-version",
-				"-lock=false",
-				"-lock-timeout=1m",
 				"-force-copy",
 				"-reconfigure",
 				"-migrate-state",
 			},
 			want: Backend{
 				IgnoreRemoteVersion: true,
-				StateLock:           false,
-				StateLockTimeout:    time.Minute,
 				ForceInitCopy:       true,
 				Reconfigure:         true,
 				MigrateState:        true,
@@ -378,13 +312,10 @@ func TestBackend_AllFlags(t *testing.T) {
 		"mixed flags": {
 			args: []string{
 				"-ignore-remote-version=true",
-				"-lock-timeout=30s",
 				"-migrate-state",
 			},
 			want: Backend{
 				IgnoreRemoteVersion: true,
-				StateLock:           true,
-				StateLockTimeout:    30 * time.Second,
 				ForceInitCopy:       false,
 				Reconfigure:         false,
 				MigrateState:        true,
@@ -397,7 +328,6 @@ func TestBackend_AllFlags(t *testing.T) {
 			backend := &Backend{}
 			fs := flag.NewFlagSet("test", flag.ContinueOnError)
 			backend.AddIgnoreRemoteVersionFlag(fs)
-			backend.AddStateFlags(fs)
 			backend.AddMigrationFlags(fs)
 
 			if err := fs.Parse(tc.args); err != nil {

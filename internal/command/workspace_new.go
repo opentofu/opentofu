@@ -52,14 +52,9 @@ func (c *WorkspaceNewCommand) Run(rawArgs []string) int {
 		return cli.RunResultHelp
 	}
 	c.Meta.variableArgs = args.Vars.All()
+	c.stateArgs = *args.State
 
 	view.WarnWhenUsedAsEnvCmd(c.LegacyName)
-
-	// TODO meta-refactor: remove these when meta state locking related fields are removed and pass the
-	//  arguments to the backend component instead
-	c.stateLock = args.StateLock
-	c.stateLockTimeout = args.StateLockTimeout
-	c.statePath = args.StatePath
 
 	configPath := c.WorkingDir.NormalizePath(c.WorkingDir.RootModuleDir())
 
@@ -143,7 +138,7 @@ func (c *WorkspaceNewCommand) Run(rawArgs []string) int {
 
 	view.WorkspaceCreated(workspace)
 
-	statePath := args.StatePath
+	statePath := args.State.StatePath
 	if statePath == "" {
 		// if we're not loading a state, then we're done
 		return 0
@@ -160,8 +155,8 @@ func (c *WorkspaceNewCommand) Run(rawArgs []string) int {
 		return 1
 	}
 
-	if args.StateLock {
-		stateLocker := clistate.NewLocker(args.StateLockTimeout, backendView.StateLocker())
+	if args.State.Lock {
+		stateLocker := clistate.NewLocker(args.State.LockTimeout, backendView.StateLocker())
 		if diags := stateLocker.Lock(stateMgr, "workspace-new"); diags.HasErrors() {
 			view.Diagnostics(diags)
 			return 1

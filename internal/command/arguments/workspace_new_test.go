@@ -108,21 +108,21 @@ func TestParseWorkspaceNew_basicValidation(t *testing.T) {
 			[]string{"-state=/path/to/state.tfstate", "target-ws"},
 			workspaceNewArgsWithDefaults(func(in *WorkspaceNew) {
 				in.WorkspaceName = "target-ws"
-				in.StatePath = "/path/to/state.tfstate"
+				in.State.StatePath = "/path/to/state.tfstate"
 			}),
 		},
 		"lock flag": {
 			[]string{"-lock=false", "target-ws"},
 			workspaceNewArgsWithDefaults(func(in *WorkspaceNew) {
 				in.WorkspaceName = "target-ws"
-				in.StateLock = false
+				in.State.Lock = false
 			}),
 		},
 		"lock timeout flag": {
 			[]string{"-lock-timeout=2s", "target-ws"},
 			workspaceNewArgsWithDefaults(func(in *WorkspaceNew) {
 				in.WorkspaceName = "target-ws"
-				in.StateLockTimeout = 2 * time.Second
+				in.State.LockTimeout = 2 * time.Second
 			}),
 		},
 	}
@@ -163,10 +163,10 @@ func TestParseWorkspaceNew_vars(t *testing.T) {
 
 func workspaceNewArgsWithDefaults(mutate func(in *WorkspaceNew)) *WorkspaceNew {
 	ret := &WorkspaceNew{
-		StatePath:        "",
-		StateLock:        true,
-		StateLockTimeout: 0,
-		Vars:             &Vars{},
+		State: &State{
+			Lock: true,
+		},
+		Vars: &Vars{},
 		ViewOptions: ViewOptions{
 			ViewType: ViewHuman,
 		},

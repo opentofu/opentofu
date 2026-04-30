@@ -41,7 +41,7 @@ func ParseValidate(args []string) (*Validate, func(), tfdiags.Diagnostics) {
 		Vars: &Vars{},
 	}
 
-	cmdFlags := extendedFlagSet("validate", nil, nil, validate.Vars)
+	cmdFlags := extendedFlagSet("validate", nil, validate.Vars)
 	cmdFlags.StringVar(&validate.TestDirectory, "test-directory", "tests", "test-directory")
 	cmdFlags.BoolVar(&validate.NoTests, "no-tests", false, "no-tests")
 

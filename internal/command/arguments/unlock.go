@@ -31,7 +31,7 @@ func ParseUnlock(args []string) (*Unlock, func(), tfdiags.Diagnostics) {
 		Vars: &Vars{},
 	}
 
-	cmdFlags := extendedFlagSet("force-unlock", nil, nil, arguments.Vars)
+	cmdFlags := extendedFlagSet("force-unlock", nil, arguments.Vars)
 	cmdFlags.BoolVar(&arguments.Force, "force", false, "force")
 	arguments.ViewOptions.AddFlags(cmdFlags, false)
 

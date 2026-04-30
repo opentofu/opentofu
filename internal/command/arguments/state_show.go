@@ -17,14 +17,13 @@ type StateShow struct {
 	// This applies only to the [views.StateHuman] since the [views.StateJSON] shows the sensitive values
 	// all the time.
 	ShowSensitive bool
-	// StatePath represents the path of the state where the [TargetRawAddr] resource information is stored in.
-	StatePath string
 
 	// ViewOptions specifies which view options to use
 	ViewOptions ViewOptions
 
-	// Vars are the common extended flags
-	Vars *Vars
+	// Vars and State are the common extended flags
+	Vars  *Vars
+	State *State
 }
 
 // ParseStateShow processes CLI arguments, returning a StateShow value, a closer function, and errors.
@@ -34,13 +33,12 @@ func ParseStateShow(args []string) (*StateShow, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	ret := &StateShow{
-		Vars: &Vars{},
+		Vars:  &Vars{},
+		State: &State{},
 	}
-	cmdFlags := extendedFlagSet("state show", nil, nil, ret.Vars)
+	cmdFlags := extendedFlagSet("state show", nil, ret.Vars)
 	cmdFlags.BoolVar(&ret.ShowSensitive, "show-sensitive", false, "displays sensitive values")
-	// TODO meta-refactor: we should use directly the [State] struct here but we cannot use it in the `extendedFlagSet`
-	//  since that registers more flags than desired by this command.
-	cmdFlags.StringVar(&ret.StatePath, "state", "", "state-path")
+	ret.State.addFlags(cmdFlags, stateFlagStateIn)
 
 	ret.ViewOptions.AddFlags(cmdFlags, false)
 

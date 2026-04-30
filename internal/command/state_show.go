@@ -51,10 +51,8 @@ func (c *StateShowCommand) Run(rawArgs []string) int {
 		return cli.RunResultHelp
 	}
 	c.View.SetShowSensitive(args.ShowSensitive)
-	// TODO meta-refactor: remove these assignments once we have a clear way to propagate these to the logic
-	//  that uses them
 	c.Meta.variableArgs = args.Vars.All()
-	c.statePath = args.StatePath
+	c.stateArgs = *args.State
 
 	// Check for user-supplied plugin path
 	var err error

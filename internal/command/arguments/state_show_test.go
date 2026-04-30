@@ -35,7 +35,7 @@ func TestParseStateShow_basicValidation(t *testing.T) {
 		"custom state path": {
 			args: []string{"-state=/path/to/state.tfstate", "resource_address"},
 			want: stateShowArgsWithDefaults(func(stateShow *StateShow) {
-				stateShow.StatePath = "/path/to/state.tfstate"
+				stateShow.State.StatePath = "/path/to/state.tfstate"
 				stateShow.TargetRawAddr = "resource_address"
 			}),
 		},
@@ -48,7 +48,7 @@ func TestParseStateShow_basicValidation(t *testing.T) {
 			},
 			want: stateShowArgsWithDefaults(func(stateShow *StateShow) {
 				stateShow.ShowSensitive = true
-				stateShow.StatePath = "/path/to/state.tfstate"
+				stateShow.State.StatePath = "/path/to/state.tfstate"
 				stateShow.TargetRawAddr = "resource_address"
 				// Vars would be updated, but we ignore it in cmp
 			}),
@@ -104,7 +104,8 @@ func stateShowArgsWithDefaults(mutate func(stateShow *StateShow)) *StateShow {
 			ViewType:     ViewHuman,
 			InputEnabled: false,
 		},
-		Vars: &Vars{},
+		Vars:  &Vars{},
+		State: &State{},
 	}
 	if mutate != nil {
 		mutate(ret)

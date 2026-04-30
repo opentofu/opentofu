@@ -48,12 +48,10 @@ func (c *StateRmCommand) Run(rawArgs []string) int {
 	}
 	// TODO meta-refactor: remove these assignments once we have a clear way to propagate these to the logic
 	//  that uses them
-	c.Meta.variableArgs = args.Vars.All()
 	c.ignoreRemoteVersion = args.Backend.IgnoreRemoteVersion
-	c.backupPath = args.BackupPath
-	c.stateLock = args.Backend.StateLock
-	c.stateLockTimeout = args.Backend.StateLockTimeout
-	c.statePath = args.StatePath
+
+	c.Meta.variableArgs = args.Vars.All()
+	c.stateArgs = *args.State
 
 	if diags := c.Meta.checkRequiredVersion(ctx); diags != nil {
 		view.Diagnostics(diags)
@@ -74,8 +72,8 @@ func (c *StateRmCommand) Run(rawArgs []string) int {
 		return 1
 	}
 
-	if c.stateLock {
-		stateLocker := clistate.NewLocker(c.stateLockTimeout, view.Backend().StateLocker())
+	if c.stateArgs.Lock {
+		stateLocker := clistate.NewLocker(c.stateArgs.LockTimeout, view.Backend().StateLocker())
 		if diags := stateLocker.Lock(stateMgr, "state-rm"); diags.HasErrors() {
 			view.Diagnostics(diags)
 			return 1

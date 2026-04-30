@@ -120,11 +120,7 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 }
 
 func (c *PlanCommand) PrepareBackend(ctx context.Context, args *arguments.State, view views.Plan, enc encryption.Encryption) (backend.Enhanced, tfdiags.Diagnostics) {
-	// FIXME: we need to apply the state arguments to the meta object here
-	// because they are later used when initializing the backend. Carving a
-	// path to pass these arguments to the functions that need them is
-	// difficult but would make their use easier to understand.
-	c.Meta.applyStateArguments(args)
+	c.stateArgs = *args
 
 	backendConfig, diags := c.loadBackendConfig(ctx, ".")
 	if diags.HasErrors() {
