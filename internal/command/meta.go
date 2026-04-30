@@ -74,10 +74,6 @@ type Meta struct {
 	// 'tofu-native' services running at a specific user-facing hostname.
 	Services *disco.Disco
 
-	// PluginCacheDir, if non-empty, enables caching of downloaded plugins
-	// into the given directory.
-	PluginCacheDir string
-
 	// PluginCacheMayBreakDependencyLockFile is a temporary CLI configuration-based
 	// opt out for the behavior of only using the plugin cache dir if its
 	// contents match checksums recorded in the dependency lock file.

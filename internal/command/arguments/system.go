@@ -21,4 +21,8 @@ type System struct {
 	// If this is empty then no configuration directory is available and
 	// commands which require one cannot proceed.
 	CLIConfigDir string
+
+	// PluginCacheDir, if non-empty, enables caching of downloaded plugins
+	// into the given directory.
+	PluginCacheDir string
 }
