@@ -46,12 +46,9 @@ func (c *StateRmCommand) Run(rawArgs []string) int {
 		}
 		return cli.RunResultHelp
 	}
-	// TODO meta-refactor: remove these assignments once we have a clear way to propagate these to the logic
-	//  that uses them
-	c.ignoreRemoteVersion = args.Backend.IgnoreRemoteVersion
-
 	c.Meta.variableArgs = args.Vars.All()
 	c.stateArgs = *args.State
+	c.backendArgs = *args.Backend
 
 	if diags := c.Meta.checkRequiredVersion(ctx); diags != nil {
 		view.Diagnostics(diags)
