@@ -68,8 +68,6 @@ type Meta struct {
 
 	View *views.View
 
-	GlobalPluginDirs []string // Additional paths to search for plugins
-
 	// Services provides access to remote endpoint information for
 	// 'tofu-native' services running at a specific user-facing hostname.
 	Services *disco.Disco

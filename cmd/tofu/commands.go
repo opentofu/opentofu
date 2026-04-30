@@ -91,9 +91,8 @@ func initCommands(
 			RunningInAutomation: inAutomation,
 			CLIConfigDir:        configDir,
 			PluginCacheDir:      config.PluginCacheDir,
+			GlobalPluginDirs:    globalPluginDirs(),
 		},
-
-		GlobalPluginDirs: globalPluginDirs(),
 
 		Services:        services,
 		BrowserLauncher: browserLauncher(),

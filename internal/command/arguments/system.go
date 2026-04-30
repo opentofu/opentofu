@@ -25,4 +25,7 @@ type System struct {
 	// PluginCacheDir, if non-empty, enables caching of downloaded plugins
 	// into the given directory.
 	PluginCacheDir string
+
+	// GlobalPluginDirs contains additional paths to search for plugins
+	GlobalPluginDirs []string
 }
