@@ -159,7 +159,7 @@ func stateReplaceProviderArgsWithDefaults(mutate func(srp *StateReplaceProvider)
 			ViewType:     ViewHuman,
 			InputEnabled: false,
 		},
-		Backend: Backend{
+		Backend: &Backend{
 			IgnoreRemoteVersion: false,
 		},
 		Vars: &Vars{},

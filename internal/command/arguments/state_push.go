@@ -21,7 +21,7 @@ type StatePush struct {
 
 	// Vars, Backend and State are the common extended flags
 	Vars    *Vars
-	Backend Backend
+	Backend *Backend
 	State   *State
 }
 
@@ -32,8 +32,9 @@ func ParseStatePush(args []string) (*StatePush, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	ret := &StatePush{
-		Vars:  &Vars{},
-		State: &State{},
+		Vars:    &Vars{},
+		Backend: &Backend{},
+		State:   &State{},
 	}
 	cmdFlags := extendedFlagSet("state push", nil, ret.Vars)
 	ret.Backend.AddIgnoreRemoteVersionFlag(cmdFlags)
