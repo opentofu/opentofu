@@ -90,14 +90,13 @@ func initCommands(
 		SystemArgs: arguments.System{
 			RunningInAutomation: inAutomation,
 			CLIConfigDir:        configDir,
+			PluginCacheDir:      config.PluginCacheDir,
 		},
 
 		GlobalPluginDirs: globalPluginDirs(),
 
 		Services:        services,
 		BrowserLauncher: browserLauncher(),
-
-		PluginCacheDir: config.PluginCacheDir,
 
 		PluginCacheMayBreakDependencyLockFile: config.PluginCacheMayBreakDependencyLockFile,
 
