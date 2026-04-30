@@ -38,7 +38,7 @@ func ParseStateShow(args []string) (*StateShow, func(), tfdiags.Diagnostics) {
 	}
 	cmdFlags := extendedFlagSet("state show", nil, ret.Vars)
 	cmdFlags.BoolVar(&ret.ShowSensitive, "show-sensitive", false, "displays sensitive values")
-	ret.State.AddFlags(cmdFlags, false, true, false, false)
+	ret.State.addFlags(cmdFlags, stateFlagStateIn)
 
 	ret.ViewOptions.AddFlags(cmdFlags, false)
 

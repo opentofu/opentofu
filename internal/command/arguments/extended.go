@@ -26,6 +26,17 @@ import (
 // operations as it walks the dependency graph.
 const DefaultParallelism = 10
 
+type stateFlag uint8
+
+const (
+	stateFlagLock stateFlag = 1 << iota
+	stateFlagStateIn
+	stateFlagStateOut
+	stateFlagBackup
+
+	stateFlagAll = stateFlagLock | stateFlagStateIn | stateFlagStateOut | stateFlagBackup
+)
+
 // State describes arguments which are used to define how OpenTofu interacts
 // with state.
 type State struct {
@@ -54,19 +65,19 @@ type State struct {
 	BackupPath string
 }
 
-// AddFlags is the sole logic of registering the state related flags in OpenTofu.
-func (s *State) AddFlags(f *flag.FlagSet, lockFlags bool, stateInPath bool, stateOutPath bool, backupPath bool) {
-	if lockFlags {
+// addFlags is the sole logic of registering the state related flags in OpenTofu.
+func (s *State) addFlags(f *flag.FlagSet, mask stateFlag) {
+	if mask&stateFlagLock != 0 {
 		f.BoolVar(&s.Lock, "lock", true, "lock")
 		f.DurationVar(&s.LockTimeout, "lock-timeout", 0, "lock-timeout")
 	}
-	if stateInPath {
+	if mask&stateFlagStateIn != 0 {
 		s.AddStateInFlag(f, "")
 	}
-	if stateOutPath {
+	if mask&stateFlagStateOut != 0 {
 		f.StringVar(&s.StateOutPath, "state-out", "", "state-path")
 	}
-	if backupPath {
+	if mask&stateFlagBackup != 0 {
 		s.AddBackupFlag(f, "")
 	}
 }

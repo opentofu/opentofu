@@ -31,7 +31,7 @@ func ParseWorkspaceNew(args []string) (*WorkspaceNew, func(), tfdiags.Diagnostic
 	}
 
 	cmdFlags := extendedFlagSet("workspace new", nil, ret.Vars)
-	ret.State.AddFlags(cmdFlags, true, true, false, false)
+	ret.State.addFlags(cmdFlags, stateFlagLock|stateFlagStateIn)
 	ret.ViewOptions.AddFlags(cmdFlags, false)
 
 	if err := cmdFlags.Parse(args); err != nil {

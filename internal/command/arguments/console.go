@@ -31,7 +31,7 @@ func ParseConsole(args []string) (*Console, func(), tfdiags.Diagnostics) {
 	}
 
 	cmdFlags := extendedFlagSet("console", nil, console.Vars)
-	console.State.AddFlags(cmdFlags, true, false, false, false)
+	console.State.addFlags(cmdFlags, stateFlagLock)
 	console.State.AddStateInFlag(cmdFlags, DefaultStateFilename)
 
 	console.ViewOptions.AddFlags(cmdFlags, true)

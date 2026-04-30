@@ -69,7 +69,7 @@ func ParseInit(args []string) (*Init, func(), tfdiags.Diagnostics) {
 	cmdFlags := extendedFlagSet("init", nil, init.Vars)
 	init.Backend.AddIgnoreRemoteVersionFlag(cmdFlags)
 	init.Backend.AddMigrationFlags(cmdFlags)
-	init.State.AddFlags(cmdFlags, true, false, false, false)
+	init.State.addFlags(cmdFlags, stateFlagLock)
 	cmdFlags.BoolVar(&init.FlagBackend, "backend", true, "")
 	cmdFlags.BoolVar(&init.FlagCloud, "cloud", true, "")
 	cmdFlags.Var(init.FlagConfigExtra, "backend-config", "")

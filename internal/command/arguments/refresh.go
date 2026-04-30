@@ -32,7 +32,7 @@ func ParseRefresh(args []string) (*Refresh, func(), tfdiags.Diagnostics) {
 	}
 
 	cmdFlags := extendedFlagSet("refresh", refresh.Operation, refresh.Vars)
-	refresh.State.AddFlags(cmdFlags, true, true, true, true)
+	refresh.State.addFlags(cmdFlags, stateFlagAll)
 	refresh.ViewOptions.AddFlags(cmdFlags, true)
 
 	if err := cmdFlags.Parse(args); err != nil {

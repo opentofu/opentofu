@@ -25,7 +25,7 @@ func TestStateFlagsParsing(t *testing.T) {
 		"defaults": {
 			args: nil,
 			register: func(s *State, f *flag.FlagSet) {
-				s.AddFlags(f, true, true, true, true)
+				s.addFlags(f, stateFlagAll)
 			},
 			want: stateArgsWithDefaults(func(v *State) {
 				v.Lock = true
@@ -34,7 +34,7 @@ func TestStateFlagsParsing(t *testing.T) {
 		"lock": {
 			args: []string{"-lock=false"},
 			register: func(s *State, f *flag.FlagSet) {
-				s.AddFlags(f, true, true, true, true)
+				s.addFlags(f, stateFlagAll)
 			},
 			want: stateArgsWithDefaults(func(v *State) {
 				v.Lock = false
@@ -43,7 +43,7 @@ func TestStateFlagsParsing(t *testing.T) {
 		"lockTimeout": {
 			args: []string{"-lock-timeout=2s"},
 			register: func(s *State, f *flag.FlagSet) {
-				s.AddFlags(f, true, true, true, true)
+				s.addFlags(f, stateFlagAll)
 			},
 			want: stateArgsWithDefaults(func(v *State) {
 				v.LockTimeout = 2 * time.Second
@@ -53,7 +53,7 @@ func TestStateFlagsParsing(t *testing.T) {
 		"state": {
 			args: []string{"-state=/path/to/state"},
 			register: func(s *State, f *flag.FlagSet) {
-				s.AddFlags(f, true, true, true, true)
+				s.addFlags(f, stateFlagAll)
 			},
 			want: stateArgsWithDefaults(func(v *State) {
 				v.StatePath = "/path/to/state"
@@ -63,7 +63,7 @@ func TestStateFlagsParsing(t *testing.T) {
 		"stateOut": {
 			args: []string{"-state-out=/path/to/output/state"},
 			register: func(s *State, f *flag.FlagSet) {
-				s.AddFlags(f, true, true, true, true)
+				s.addFlags(f, stateFlagAll)
 			},
 			want: stateArgsWithDefaults(func(v *State) {
 				v.StateOutPath = "/path/to/output/state"
@@ -73,7 +73,7 @@ func TestStateFlagsParsing(t *testing.T) {
 		"backup": {
 			args: []string{"-backup=/path/to/state/backup"},
 			register: func(s *State, f *flag.FlagSet) {
-				s.AddFlags(f, true, true, true, true)
+				s.addFlags(f, stateFlagAll)
 			},
 			want: stateArgsWithDefaults(func(v *State) {
 				v.BackupPath = "/path/to/state/backup"
@@ -89,7 +89,7 @@ func TestStateFlagsParsing(t *testing.T) {
 				"-lock=false",
 			},
 			register: func(s *State, f *flag.FlagSet) {
-				s.AddFlags(f, true, true, true, true)
+				s.addFlags(f, stateFlagAll)
 			},
 			want: stateArgsWithDefaults(func(v *State) {
 				v.BackupPath = "/path/to/state/backup"
@@ -105,7 +105,7 @@ func TestStateFlagsParsing(t *testing.T) {
 				"-unknown=foo",
 			},
 			register: func(s *State, f *flag.FlagSet) {
-				s.AddFlags(f, true, true, true, true)
+				s.addFlags(f, stateFlagAll)
 			},
 			want: stateArgsWithDefaults(func(v *State) {
 				v.BackupPath = "/path/to/state/backup"
@@ -203,7 +203,7 @@ func TestStateFlagsRegistering(t *testing.T) {
 		},
 		"only lock flags registered": {
 			register: func(s *State, f *flag.FlagSet) {
-				s.AddFlags(f, true, false, false, false)
+				s.addFlags(f, stateFlagLock)
 			},
 			want: stateArgsWithDefaults(func(v *State) {
 				v.Lock = false
@@ -213,7 +213,7 @@ func TestStateFlagsRegistering(t *testing.T) {
 		},
 		"lock and state in": {
 			register: func(s *State, f *flag.FlagSet) {
-				s.AddFlags(f, true, true, false, false)
+				s.addFlags(f, stateFlagLock|stateFlagStateIn)
 			},
 			want: stateArgsWithDefaults(func(v *State) {
 				v.Lock = false
@@ -224,7 +224,7 @@ func TestStateFlagsRegistering(t *testing.T) {
 		},
 		"lock, state in and state out": {
 			register: func(s *State, f *flag.FlagSet) {
-				s.AddFlags(f, true, true, true, false)
+				s.addFlags(f, stateFlagLock|stateFlagStateIn|stateFlagStateOut)
 			},
 			want: stateArgsWithDefaults(func(v *State) {
 				v.Lock = false
@@ -236,7 +236,7 @@ func TestStateFlagsRegistering(t *testing.T) {
 		},
 		"lock, state in, state out and backup": {
 			register: func(s *State, f *flag.FlagSet) {
-				s.AddFlags(f, true, true, true, true)
+				s.addFlags(f, stateFlagAll)
 			},
 			want: stateArgsWithDefaults(func(v *State) {
 				v.Lock = false
@@ -248,7 +248,8 @@ func TestStateFlagsRegistering(t *testing.T) {
 		},
 		"lock, state in, state out and backup with a different default": {
 			register: func(s *State, f *flag.FlagSet) {
-				s.AddFlags(f, true, true, true, false)
+				// StateFlagBackup omitted here to be added later with a different default value
+				s.addFlags(f, stateFlagLock|stateFlagStateIn|stateFlagStateOut)
 				s.AddBackupFlag(f, "-")
 			},
 			want: stateArgsWithDefaults(func(v *State) {

@@ -38,7 +38,8 @@ func ParseStateRm(args []string) (*StateRm, func(), tfdiags.Diagnostics) {
 	}
 	cmdFlags := extendedFlagSet("state rm", nil, ret.Vars)
 	ret.Backend.AddIgnoreRemoteVersionFlag(cmdFlags)
-	ret.State.AddFlags(cmdFlags, true, true, false, false)
+	// StateFlagBackup omitted here to be added later with a different default value
+	ret.State.addFlags(cmdFlags, stateFlagLock|stateFlagStateIn)
 	ret.State.AddBackupFlag(cmdFlags, "-")
 	cmdFlags.BoolVar(&ret.DryRun, "dry-run", false, "dry run")
 

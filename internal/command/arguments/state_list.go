@@ -38,7 +38,7 @@ func ParseStateList(args []string) (*StateList, func(), tfdiags.Diagnostics) {
 
 	cmdFlags := extendedFlagSet("state list", nil, ret.Vars)
 	cmdFlags.StringVar(&ret.LookupId, "id", "", "Restrict output to paths with a resource having the specified ID.")
-	ret.State.AddFlags(cmdFlags, false, true, false, false)
+	ret.State.addFlags(cmdFlags, stateFlagStateIn)
 	ret.ViewOptions.AddFlags(cmdFlags, false)
 
 	if err := cmdFlags.Parse(args); err != nil {

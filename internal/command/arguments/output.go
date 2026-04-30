@@ -37,7 +37,7 @@ func ParseOutput(args []string) (*Output, func(), tfdiags.Diagnostics) {
 	var rawOutput bool
 	cmdFlags := extendedFlagSet("output", nil, output.Vars)
 	cmdFlags.BoolVar(&rawOutput, "raw", false, "raw")
-	output.State.AddFlags(cmdFlags, false, true, false, false)
+	output.State.addFlags(cmdFlags, stateFlagStateIn)
 	cmdFlags.BoolVar(&output.ShowSensitive, "show-sensitive", false, "displays sensitive values")
 
 	output.ViewOptions.AddFlags(cmdFlags, false)

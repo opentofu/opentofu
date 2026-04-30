@@ -47,7 +47,7 @@ func ParseTaint(isTaint bool, args []string) (*Taint, func(), tfdiags.Diagnostic
 		cmd = "untaint"
 	}
 	cmdFlags := extendedFlagSet(cmd, nil, arguments.Vars)
-	arguments.State.AddFlags(cmdFlags, true, true, true, true)
+	arguments.State.addFlags(cmdFlags, stateFlagAll)
 	cmdFlags.BoolVar(&arguments.AllowMissing, "allow-missing", false, "allow missing")
 	arguments.Backend.AddIgnoreRemoteVersionFlag(cmdFlags)
 	arguments.ViewOptions.AddFlags(cmdFlags, false)

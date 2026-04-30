@@ -48,7 +48,7 @@ func ParseImport(args []string, wd *workdir.Dir) (*Import, func(), tfdiags.Diagn
 	cmdFlags.IntVar(&ret.Parallelism, "parallelism", DefaultParallelism, "parallelism")
 	cmdFlags.StringVar(&ret.ConfigPath, "config", pwd, "path")
 	ret.Backend.AddIgnoreRemoteVersionFlag(cmdFlags)
-	ret.State.AddFlags(cmdFlags, true, true, true, true)
+	ret.State.addFlags(cmdFlags, stateFlagAll)
 	ret.ViewOptions.AddFlags(cmdFlags, true)
 
 	if err := cmdFlags.Parse(args); err != nil {
