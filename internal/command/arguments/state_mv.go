@@ -27,7 +27,7 @@ type StateMv struct {
 
 	// Vars, Backend and State are the common extended flags
 	Vars    *Vars
-	Backend Backend
+	Backend *Backend
 	State   *State
 }
 
@@ -38,8 +38,9 @@ func ParseStateMv(args []string) (*StateMv, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	ret := &StateMv{
-		Vars:  &Vars{},
-		State: &State{},
+		Vars:    &Vars{},
+		Backend: &Backend{},
+		State:   &State{},
 	}
 
 	cmdFlags := extendedFlagSet("state mv", nil, ret.Vars)
