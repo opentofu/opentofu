@@ -164,7 +164,7 @@ func stateMvArgsWithDefaults(mutate func(stateMv *StateMv)) *StateMv {
 			ViewType:     ViewHuman,
 			InputEnabled: false,
 		},
-		Backend: Backend{
+		Backend: &Backend{
 			IgnoreRemoteVersion: false,
 		},
 		State: &State{

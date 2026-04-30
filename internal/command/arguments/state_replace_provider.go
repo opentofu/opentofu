@@ -25,7 +25,7 @@ type StateReplaceProvider struct {
 
 	// Vars, Backend and State are the common extended flags
 	Vars    *Vars
-	Backend Backend
+	Backend *Backend
 	State   *State
 }
 
@@ -36,8 +36,9 @@ func ParseReplaceProvider(args []string) (*StateReplaceProvider, func(), tfdiags
 	var diags tfdiags.Diagnostics
 
 	ret := &StateReplaceProvider{
-		Vars:  &Vars{},
-		State: &State{},
+		Vars:    &Vars{},
+		Backend: &Backend{},
+		State:   &State{},
 	}
 
 	cmdFlags := extendedFlagSet("state replace-provider", nil, ret.Vars)

@@ -180,23 +180,9 @@ type Meta struct {
 	//
 	// parallelism is used to control the number of concurrent operations
 	// allowed when walking the graph
-	//
-	// forceInitCopy suppresses confirmation for copying state data during
-	// init.
-	//
-	// reconfigure forces init to ignore any stored configuration.
-	//
-	// migrateState confirms the user wishes to migrate from the prior backend
-	// configuration to a new configuration.
-	stateArgs     arguments.State
-	parallelism   int
-	forceInitCopy bool
-	reconfigure   bool
-	migrateState  bool
-
-	// Used with commands which write state to allow users to write remote
-	// state even if the remote and local OpenTofu versions don't match.
-	ignoreRemoteVersion bool
+	stateArgs   arguments.State
+	backendArgs arguments.Backend
+	parallelism int
 
 	// Used to cache the root module rootModuleCallCache and known variables.
 	// This helps prevent duplicate errors/warnings.

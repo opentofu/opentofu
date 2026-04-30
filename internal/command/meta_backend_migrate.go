@@ -77,7 +77,7 @@ func (m *Meta) backendMigrateState(ctx context.Context, opts *backendMigrateOpts
 	// Set up defaults
 	opts.sourceWorkspace = backend.DefaultStateName
 	opts.destinationWorkspace = backend.DefaultStateName
-	opts.force = m.forceInitCopy
+	opts.force = m.backendArgs.ForceInitCopy
 
 	// Disregard remote OpenTofu version for the state source backend. If it's a
 	// Terraform Cloud remote backend, we don't care about the remote version,
@@ -85,7 +85,7 @@ func (m *Meta) backendMigrateState(ctx context.Context, opts *backendMigrateOpts
 	m.ignoreRemoteVersionConflict(opts.Source)
 
 	// Disregard remote OpenTofu version if instructed to do so via CLI flag.
-	if m.ignoreRemoteVersion {
+	if m.backendArgs.IgnoreRemoteVersion {
 		m.ignoreRemoteVersionConflict(opts.Destination)
 	} else {
 		// Check the remote OpenTofu version for the state destination backend. If
