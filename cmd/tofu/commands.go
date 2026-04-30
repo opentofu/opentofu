@@ -88,10 +88,11 @@ func initCommands(
 		WorkingDir: wd,
 		View:       view.SetRunningInAutomation(inAutomation),
 		SystemArgs: arguments.System{
-			RunningInAutomation: inAutomation,
-			CLIConfigDir:        configDir,
-			PluginCacheDir:      config.PluginCacheDir,
-			GlobalPluginDirs:    globalPluginDirs(),
+			RunningInAutomation:       inAutomation,
+			CLIConfigDir:              configDir,
+			PluginCacheDir:            config.PluginCacheDir,
+			GlobalPluginDirs:          globalPluginDirs(),
+			AllowExperimentalFeatures: experimentsAreAllowed(),
 		},
 
 		Services:        services,
@@ -112,8 +113,6 @@ func initCommands(
 		ProviderSource:       providerSrc,
 		ProviderDevOverrides: providerDevOverrides,
 		UnmanagedProviders:   unmanagedProviders,
-
-		AllowExperimentalFeatures: experimentsAreAllowed(),
 
 		// ProviderSourceLocationConfig is used for some commands that do not make
 		// use of the OpenTofu configuration files. Therefore, there is no way to configure

@@ -28,4 +28,18 @@ type System struct {
 
 	// GlobalPluginDirs contains additional paths to search for plugins
 	GlobalPluginDirs []string
+
+	// AllowExperimentalFeatures controls whether the current build of OpenTofu
+	// has experimental features enabled.
+	//
+	// In normal code this would be set by package main only in builds
+	// explicitly marked as being alpha releases or development snapshots,
+	// making experimental features unavailable otherwise. Test code may
+	// choose to set this if it needs to exercise experimental features.
+	//
+	// Some experiments predated the addition of this setting, and may
+	// therefore still be available even if this flag is false. Our intent
+	// is that all/most _future_ experiments will be unavailable unless this
+	// flag is set, to reinforce that experiments are not for production use.
+	AllowExperimentalFeatures bool
 }
