@@ -361,6 +361,27 @@ func ParseAbsResourceRange(traversal hcl.Traversal) (AbsResourceInstance, tfdiag
 	return parseAbsResourceInstance(traversal, true)
 }
 
+// parseAbsResourceRangeStr is copied from ParseAbsResourceInstanceStr (more or less),
+// but with functions edited to refer to ranges instead.
+func parseAbsResourceRangeStr(str string) (AbsResourceInstance, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+	expr, parseDiags := hclsyntax.ParseExpression([]byte(str), "", hcl.InitialPos)
+	diags = diags.Append(parseDiags)
+	if parseDiags.HasErrors() {
+		return AbsResourceInstance{}, diags
+	}
+
+	traversal, parseDiags := hcl.AbsTraversalPatternForExpr(expr)
+	diags = diags.Append(parseDiags)
+	if parseDiags.HasErrors() {
+		return AbsResourceInstance{}, diags
+	}
+
+	addr, addrDiags := ParseAbsResourceRange(traversal)
+	diags = diags.Append(addrDiags)
+	return addr, diags
+}
+
 // ParseAbsResourceInstance attempts to interpret the given traversal as an
 // absolute resource instance address, using the same syntax as expected by
 // ParseTarget.

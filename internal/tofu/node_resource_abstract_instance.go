@@ -3222,7 +3222,7 @@ func (n *NodeAbstractResourceInstance) getProvider(ctx context.Context, evalCtx 
 		// Overridden by the provider (overrides mocks)
 		for _, res := range n.ResolvedProvider.OverrideResources {
 			if res.TargetParsed.AffectedAbsResource().Equal(n.Addr.AffectedAbsResource()) && res.Mode == n.Addr.AffectedAbsResource().Resource.Mode {
-				trie.Set(res.TargetParsed, res.Values)
+				trie.Set(res.TargetParsed, res.Values, res.Target.SourceRange().Ptr())
 			}
 		}
 

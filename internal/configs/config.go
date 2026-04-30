@@ -1102,7 +1102,7 @@ func (c *Config) transformOverriddenResourcesForTest(run *TestRun, file *TestFil
 		if res.Overrides == nil {
 			res.Overrides = addrs.NewOverrideTrie[map[string]cty.Value]()
 		}
-		res.Overrides.Set(overrideRes.TargetParsed, overrideRes.Values)
+		res.Overrides.Set(overrideRes.TargetParsed, overrideRes.Values, overrideRes.Target.SourceRange().Ptr())
 	}
 
 	return func() {

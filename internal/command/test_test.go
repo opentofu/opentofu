@@ -1706,7 +1706,7 @@ func TestTest_InstanceOverride(t *testing.T) {
 			code:     0,
 		},
 		"mixed_syntax": {
-			expectedErr: "override address cannot contain unkeyed for-each resources if it is also using the wildcard syntax",
+			expectedErr: "Please switch overrides to wildcard syntax",
 			code:        1,
 		},
 		"uninstanced_module": {

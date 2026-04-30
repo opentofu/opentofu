@@ -6,33 +6,7 @@ package addrs
 
 import (
 	"testing"
-
-	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/opentofu/opentofu/internal/tfdiags"
 )
-
-// parseAbsResourceRangeStr is copied from ParseAbsResourceInstanceStr (more or less),
-// but with functions edited to refer to ranges instead.
-// TODO should this be outside of the test file?
-func parseAbsResourceRangeStr(str string) (AbsResourceInstance, tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-	expr, parseDiags := hclsyntax.ParseExpression([]byte(str), "", hcl.InitialPos)
-	diags = diags.Append(parseDiags)
-	if parseDiags.HasErrors() {
-		return AbsResourceInstance{}, diags
-	}
-
-	traversal, parseDiags := hcl.AbsTraversalPatternForExpr(expr)
-	diags = diags.Append(parseDiags)
-	if parseDiags.HasErrors() {
-		return AbsResourceInstance{}, diags
-	}
-
-	addr, addrDiags := ParseAbsResourceRange(traversal)
-	diags = diags.Append(addrDiags)
-	return addr, diags
-}
 
 // shorthand function to obtain known good strings.
 // Please please please do not use this outside of tests!!!
@@ -124,7 +98,7 @@ func TestOverrideTrie(t *testing.T) {
 		t.Run(test.TestName, func(t *testing.T) {
 			trie := NewOverrideTrie[string]()
 			for _, override := range test.Overrides {
-				trie.Set(override.Address, override.Values)
+				trie.Set(override.Address, override.Values, nil)
 			}
 
 			got, diags := trie.Get(test.Query)
