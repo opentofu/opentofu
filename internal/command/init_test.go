@@ -38,6 +38,7 @@ import (
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
+	tofuVersion "github.com/opentofu/opentofu/version"
 )
 
 func TestInit_empty(t *testing.T) {
@@ -3258,6 +3259,43 @@ func TestInit_skipEncryptionBackendFalse(t *testing.T) {
 			t.Fatalf("init should not run successfully\n")
 		} else if !strings.Contains(output.Stderr(), "key_provider.aws_kms.key failed with error:") {
 			t.Fatalf("generated error should contain the string \"Error: Unable to fetch encryption key data\"\ninstead got : %s\n", output.Stderr())
+		}
+	})
+}
+
+func TestInit_platformSupportWarnings(t *testing.T) {
+	// Platform support warnings only appear in official builds, so we'll
+	// pretend to be one just for the duration of this test.
+	tofuVersion.WithFakedOfficialBuild(true, func() {
+		expectWarning := runtime.GOARCH == "386" || runtime.GOARCH == "arm"
+
+		// We use an empty directory for this test, because the warning we're
+		// testing for is produced very early on in "tofu init", regardless
+		// of what's in the configuration.
+		td := t.TempDir()
+		t.Chdir(td)
+
+		view, done := testView(t)
+		m := Meta{
+			WorkingDir: workdir.NewDir("."),
+			View:       view,
+		}
+		c := &InitCommand{
+			Meta: m,
+		}
+		code := c.Run(nil)
+		output := done(t)
+		t.Log("output from init command:\n" + output.All())
+		if code != 0 {
+			t.Fatal("unexpected failure")
+		}
+
+		gotWarning := strings.Contains(output.All(), "Support for 32-bit CPU architectures is ending soon")
+		if gotWarning && !expectWarning {
+			t.Error("unexpected warning about 32-bit CPU architectures")
+		}
+		if !gotWarning && expectWarning {
+			t.Error("missing expected warning about 32-bit CPU architectures")
 		}
 	})
 }

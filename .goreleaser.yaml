@@ -24,6 +24,12 @@ builds:
     ldflags:
       - "-s -w"
       - "-X 'github.com/opentofu/opentofu/version.dev=no'"
+      # BUILD_OPENTOFU_OFFICIAL is set by the OpenTofu project's main release
+      # process. It should typically _not_ be set for builds produced by
+      # third-parties such as Linux distribution maintainers, because in that
+      # case the resulting executable might generate irrelevant warnings that
+      # are intended only for users of the official release builds.
+      - "-X 'github.com/opentofu/opentofu/version.officialBuild={{if index .Env \"BUILD_OPENTOFU_OFFICIAL\" }}{{ .Env.BUILD_OPENTOFU_OFFICIAL }}{{end}}'"
 
     goos:
       - linux
