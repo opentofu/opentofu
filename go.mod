@@ -307,6 +307,8 @@ require (
 
 replace github.com/hashicorp/hcl/v2 v2.20.1 => github.com/opentofu/hcl/v2 v2.20.2-0.20251021132045-587d123c2828
 
+replace github.com/mitchellh/cli v1.1.5 => ../cli
+
 tool (
 	github.com/hashicorp/copywrite
 	github.com/mitchellh/gox

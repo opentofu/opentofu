@@ -36,7 +36,7 @@ func TestLocal(t *testing.T) *Local {
 		t.Fatal(err)
 	}
 
-	local := New(encryption.StateEncryptionDisabled())
+	local := New(nil, encryption.StateEncryptionDisabled())
 	local.StatePath = filepath.Join(tempDir, "state.tfstate")
 	local.StateOutPath = filepath.Join(tempDir, "state.tfstate")
 	local.StateBackupPath = filepath.Join(tempDir, "state.tfstate.bak")
@@ -130,7 +130,7 @@ type TestLocalSingleState struct {
 // TestNewLocalSingle is a factory for creating a TestLocalSingleState.
 // This function matches the signature required for backend/init.
 func TestNewLocalSingle(enc encryption.StateEncryption) backend.Backend {
-	return &TestLocalSingleState{Local: New(encryption.StateEncryptionDisabled())}
+	return &TestLocalSingleState{Local: New(nil, encryption.StateEncryptionDisabled())}
 }
 
 func (b *TestLocalSingleState) Workspaces(context.Context) ([]string, error) {
@@ -160,7 +160,7 @@ type TestLocalNoDefaultState struct {
 // TestNewLocalNoDefault is a factory for creating a TestLocalNoDefaultState.
 // This function matches the signature required for backend/init.
 func TestNewLocalNoDefault(enc encryption.StateEncryption) backend.Backend {
-	return &TestLocalNoDefaultState{Local: New(encryption.StateEncryptionDisabled())}
+	return &TestLocalNoDefaultState{Local: New(nil, encryption.StateEncryptionDisabled())}
 }
 
 func (b *TestLocalNoDefaultState) Workspaces(ctx context.Context) ([]string, error) {
@@ -196,7 +196,7 @@ func (b *TestLocalNoDefaultState) StateMgr(ctx context.Context, name string) (st
 func testStateFile(t *testing.T, path string, s *states.State) {
 	t.Helper()
 
-	if err := statemgr.WriteAndPersist(t.Context(), statemgr.NewFilesystem(path, encryption.StateEncryptionDisabled()), s, nil); err != nil {
+	if err := statemgr.WriteAndPersist(t.Context(), statemgr.NewFilesystem(nil, path, encryption.StateEncryptionDisabled()), s, nil); err != nil {
 		t.Fatal(err)
 	}
 }

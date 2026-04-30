@@ -15,11 +15,11 @@ import (
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/spf13/afero"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/getproviders"
-	"github.com/opentofu/opentofu/internal/replacefile"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tracing"
 	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
@@ -37,9 +37,19 @@ import (
 //
 // If the returned diagnostics contains errors then the returned Locks may
 // be incomplete or invalid.
-func LoadLocksFromFile(filename string) (*Locks, tfdiags.Diagnostics) {
+func LoadLocksFromFile(fs afero.Fs, filename string) (*Locks, tfdiags.Diagnostics) {
 	return loadLocks(func(parser *hclparse.Parser) (*hcl.File, hcl.Diagnostics) {
-		return parser.ParseHCLFile(filename)
+		src, err := afero.Afero{fs}.ReadFile(filename)
+		if err != nil {
+			return nil, hcl.Diagnostics{
+				{
+					Severity: hcl.DiagError,
+					Summary:  "Failed to read file",
+					Detail:   fmt.Sprintf("The configuration file %q could not be read.", filename),
+				},
+			}
+		}
+		return parser.ParseHCL(src, filename)
 	})
 }
 
@@ -93,7 +103,7 @@ func loadLocks(loadParse func(*hclparse.Parser) (*hcl.File, hcl.Diagnostics)) (*
 // the file as a signal to invalidate cached metadata. Consequently, other
 // temporary files may be temporarily created in the same directory as the
 // given filename during the operation.
-func SaveLocksToFile(ctx context.Context, locks *Locks, filename string) tfdiags.Diagnostics {
+func SaveLocksToFile(ctx context.Context, fs afero.Fs, locks *Locks, filename string) tfdiags.Diagnostics {
 	_, span := tracing.Tracer().Start(ctx, "Save lockfile", tracing.SpanAttributes(
 		traceattrs.FilePath(filename),
 	))
@@ -108,7 +118,8 @@ func SaveLocksToFile(ctx context.Context, locks *Locks, filename string) tfdiags
 	span.AddEvent("Serialized lockfile")
 	span.SetAttributes(traceattrs.FileSize(len(src)))
 
-	err := replacefile.AtomicWriteFile(filename, src, 0644)
+	//err := replacefile.AtomicWriteFile(filename, src, 0644)
+	err := afero.Afero{fs}.WriteFile(filename, src, 0644)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,

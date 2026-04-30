@@ -3,7 +3,7 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-//go:build !windows
+//go:build !windows && !wasip1 && !js
 
 package flock
 

@@ -604,11 +604,12 @@ func (m *Meta) checkRequiredVersion(ctx context.Context) tfdiags.Diagnostics {
 		return diags
 	}
 
-	pwd, err := os.Getwd()
+	/*pwd, err := os.Getwd()
 	if err != nil {
 		diags = diags.Append(fmt.Errorf("Error getting pwd: %w", err))
 		return diags
-	}
+	}*/
+	pwd := "."
 
 	call, callDiags := m.rootModuleCall(ctx, pwd)
 	if callDiags.HasErrors() {

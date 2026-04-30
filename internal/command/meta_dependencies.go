@@ -58,12 +58,12 @@ func (m *Meta) lockedDependencies() (*depsfile.Locks, tfdiags.Diagnostics) {
 	// with no locks. There is in theory a race condition here in that
 	// the file could be created or removed in the meantime, but we're not
 	// promising to support two concurrent dependency installation processes.
-	_, err := os.Stat(dependencyLockFilename)
+	_, err := m.WorkingDir.FS.Stat(dependencyLockFilename)
 	if os.IsNotExist(err) {
 		return m.annotateDependencyLocksWithOverrides(depsfile.NewLocks()), nil
 	}
 
-	ret, diags := depsfile.LoadLocksFromFile(dependencyLockFilename)
+	ret, diags := depsfile.LoadLocksFromFile(m.WorkingDir.FS, dependencyLockFilename)
 	return m.annotateDependencyLocksWithOverrides(ret), diags
 }
 
@@ -129,7 +129,7 @@ func (m *Meta) lockedDependenciesWithPredecessorRegistryShimmed() (*depsfile.Loc
 // current working directory to contain the information recorded in the given
 // locks object.
 func (m *Meta) replaceLockedDependencies(ctx context.Context, new *depsfile.Locks) tfdiags.Diagnostics {
-	return depsfile.SaveLocksToFile(ctx, new, dependencyLockFilename)
+	return depsfile.SaveLocksToFile(ctx, m.WorkingDir.FS, new, dependencyLockFilename)
 }
 
 // annotateDependencyLocksWithOverrides modifies the given Locks object in-place

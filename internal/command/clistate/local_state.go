@@ -17,12 +17,14 @@ import (
 	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/opentofu/opentofu/internal/flock"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
+	"github.com/spf13/afero"
 )
 
 // LocalState manages a state storage that is local to the filesystem.
 type LocalState struct {
+	FS afero.Fs
+
 	// Path is the path to read the state from. PathOut is the path to
 	// write the state to. If PathOut is not specified, Path will be used.
 	// If PathOut already exists, it will be overwritten.
@@ -34,7 +36,7 @@ type LocalState struct {
 	DataDirOverridden bool
 
 	// the file handle corresponding to PathOut
-	stateFileOut *os.File
+	stateFileOut afero.File
 
 	// While the stateFileOut will correspond to the lock directly,
 	// store and check the lock ID to maintain a strict state.Locker
@@ -137,7 +139,7 @@ func (s *LocalState) RefreshState(_ context.Context) error {
 	// the file again.
 	if !s.written && (s.stateFileOut == nil || s.Path != s.PathOut) {
 		// we haven't written a state file yet, so load from Path
-		f, err := os.Open(s.Path)
+		f, err := s.FS.Open(s.Path)
 		if err != nil {
 			// It is okay if the file doesn't exist, we treat that as a nil state
 			if !os.IsNotExist(err) {
@@ -190,7 +192,7 @@ func (s *LocalState) Lock(_ context.Context, info *statemgr.LockInfo) (string, e
 		return "", fmt.Errorf("state %q already locked", s.stateFileOut.Name())
 	}
 
-	if err := flock.Lock(s.stateFileOut); err != nil {
+	/*if err := flock.Lock(s.stateFileOut); err != nil {
 		info, infoErr := s.lockInfo()
 		if infoErr != nil {
 			err = multierror.Append(err, infoErr)
@@ -202,7 +204,7 @@ func (s *LocalState) Lock(_ context.Context, info *statemgr.LockInfo) (string, e
 		}
 
 		return "", lockErr
-	}
+	}*/
 
 	s.lockID = info.ID
 	return s.lockID, s.writeLockInfo(info)
@@ -229,20 +231,20 @@ func (s *LocalState) Unlock(_ context.Context, id string) error {
 		}
 	}
 
-	os.Remove(s.lockInfoPath())
+	s.FS.Remove(s.lockInfoPath())
 
 	fileName := s.stateFileOut.Name()
 
-	unlockErr := flock.Unlock(s.stateFileOut)
+	unlockErr := error(nil) // flock.Unlock(s.stateFileOut)
 
 	s.stateFileOut.Close()
 	s.stateFileOut = nil
 	s.lockID = ""
 
 	// clean up the state file if we created it an never wrote to it
-	stat, err := os.Stat(fileName)
+	stat, err := s.FS.Stat(fileName)
 	if err == nil && stat.Size() == 0 && s.created {
-		os.Remove(fileName)
+		s.FS.Remove(fileName)
 	}
 
 	return unlockErr
@@ -255,16 +257,16 @@ func (s *LocalState) createStateFiles() error {
 	}
 
 	// yes this could race, but we only use it to clean up empty files
-	if _, err := os.Stat(s.PathOut); os.IsNotExist(err) {
+	if _, err := s.FS.Stat(s.PathOut); os.IsNotExist(err) {
 		s.created = true
 	}
 
 	// Create all the directories
-	if err := os.MkdirAll(filepath.Dir(s.PathOut), 0755); err != nil {
+	if err := s.FS.MkdirAll(filepath.Dir(s.PathOut), 0755); err != nil {
 		return err
 	}
 
-	f, err := os.OpenFile(s.PathOut, os.O_RDWR|os.O_CREATE, 0666)
+	f, err := s.FS.OpenFile(s.PathOut, os.O_RDWR|os.O_CREATE, 0666)
 	if err != nil {
 		return err
 	}
@@ -290,7 +292,7 @@ func (s *LocalState) lockInfoPath() string {
 // lockInfo returns the data in a lock info file
 func (s *LocalState) lockInfo() (*statemgr.LockInfo, error) {
 	path := s.lockInfoPath()
-	infoData, err := os.ReadFile(path)
+	infoData, err := afero.Afero{s.FS}.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
@@ -309,7 +311,7 @@ func (s *LocalState) writeLockInfo(info *statemgr.LockInfo) error {
 	info.Path = s.Path
 	info.Created = time.Now().UTC()
 
-	err := os.WriteFile(path, info.Marshal(), 0600)
+	err := afero.Afero{s.FS}.WriteFile(path, info.Marshal(), 0600)
 	if err != nil {
 		return fmt.Errorf("could not write lock info for %q: %w", s.Path, err)
 	}

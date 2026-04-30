@@ -7,7 +7,6 @@ package command
 
 import (
 	"context"
-	"fmt"
 	"os"
 
 	"github.com/opentofu/opentofu/internal/configs"
@@ -19,10 +18,11 @@ import (
 const encryptionConfigEnvName = "TF_ENCRYPTION"
 
 func (m *Meta) Encryption(ctx context.Context) (encryption.Encryption, tfdiags.Diagnostics) {
-	path, err := os.Getwd()
+	/*path, err := os.Getwd()
 	if err != nil {
 		return nil, tfdiags.Diagnostics{}.Append(fmt.Errorf("Error getting pwd: %w", err))
-	}
+	}*/
+	path := "."
 
 	return m.EncryptionFromPath(ctx, path)
 }

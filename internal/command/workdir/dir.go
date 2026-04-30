@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/spf13/afero"
 )
 
 const (
@@ -47,6 +49,7 @@ const (
 // is typically managed directly in the "command" package, either directly
 // inside commands or in methods of the giant command.Meta type.
 type Dir struct {
+	FS afero.Fs
 	// mainDir is the path to the directory that we present as the
 	// "working directory" in the user model, which is typically the
 	// current working directory when running OpenTofu CLI, or the
@@ -81,13 +84,16 @@ type Dir struct {
 // It gets the args that the program has been executed with, extracts the -chdir flag from it and applies it if
 // specified, returning back the args without that -chdir flag.
 // TODO meta-refactor: the args should be removed from here once the CLI library has been replaced.
-func NewWorkdir(args []string) (*Dir, []string, error) {
-	originalWd, err := os.Getwd()
-	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to determine current working directory: %s", err)
-	}
+func NewWorkdir(fs afero.Fs, args []string) (*Dir, []string, error) {
+	originalWd := "."
+	/*
+		originalWd, err := os.Getwd()
+		if err != nil {
+			return nil, nil, fmt.Errorf("Failed to determine current working directory: %s", err)
+		}
+	*/
 
-	args, err = runChdir(args)
+	args, err := runChdir(args)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -97,6 +103,7 @@ func NewWorkdir(args []string) (*Dir, []string, error) {
 	if overrideWd := os.Getenv(workingDirEnvVarKey); overrideWd != "" {
 		ret.OverrideDataDir(overrideWd)
 	}
+	ret.FS = fs
 	return ret, args, nil
 }
 

@@ -640,7 +640,7 @@ func testStatus(status moduletest.Status) string {
 // to store the state to errored_test.tfstate and handle associated diagnostics and errors with this operation
 func SaveErroredTestStateFile(state *states.State, run *moduletest.Run, file *moduletest.File, view Test) {
 	var diags tfdiags.Diagnostics
-	localFileSystem := statemgr.NewFilesystem("errored_test.tfstate", encryption.StateEncryptionDisabled())
+	localFileSystem := statemgr.NewFilesystem(nil, "errored_test.tfstate", encryption.StateEncryptionDisabled())
 	stateFile := statemgr.NewStateFile()
 	stateFile.State = state
 

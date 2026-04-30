@@ -13,7 +13,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/apparentlymart/go-userdirs/userdirs"
 	"github.com/opentofu/svchost/disco"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -186,10 +185,10 @@ func implicitProviderSource(
 	//   XDG (Unix): lowercase of the first string, "terraform"
 	//   Windows:    two-level hierarchy of first two strings, "HashiCorp\Terraform"
 	//   OS X:       reverse-DNS unique identifier, "io.terraform".
-	sysSpecificDirs := userdirs.ForApp("Terraform", "HashiCorp", "io.terraform")
+	/*sysSpecificDirs := userdirs.ForApp("Terraform", "HashiCorp", "io.terraform")
 	for _, dir := range sysSpecificDirs.DataSearchPaths("plugins") {
 		addLocalDir(dir)
-	}
+	}*/
 
 	// Anything we found in local directories above is excluded from being
 	// looked up via the registry source we're about to construct.

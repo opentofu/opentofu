@@ -345,7 +345,7 @@ func (b *Local) backupStateForError(stateFile *statefile.File, err error, view v
 		fmt.Sprintf("Error saving state: %s", err),
 	))
 
-	local := statemgr.NewFilesystem("errored.tfstate", b.encryption)
+	local := statemgr.NewFilesystem(b.fs, "errored.tfstate", b.encryption)
 	writeErr := local.WriteStateForMigration(stateFile, true)
 	if writeErr != nil {
 		diags = diags.Append(tfdiags.Sourceless(

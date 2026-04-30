@@ -49,7 +49,7 @@ func (c *ProvidersCommand) Run(rawArgs []string) int {
 	// This gets the current directory as full path.
 	configPath := c.WorkingDir.NormalizePath(c.WorkingDir.RootModuleDir())
 
-	empty, err := configs.IsEmptyDir(configPath)
+	empty, err := configs.IsEmptyDir(c.WorkingDir.FS, configPath)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,

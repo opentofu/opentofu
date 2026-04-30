@@ -23,6 +23,7 @@ import (
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
+	"github.com/spf13/afero"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -37,6 +38,8 @@ const (
 // locally. This is the "default" backend and implements normal OpenTofu
 // behavior as it is well known.
 type Local struct {
+	fs afero.Fs
+
 	// The State* paths are set from the backend config, and may be left blank
 	// to use the defaults. If the actual paths for the local backend state are
 	// needed, use the StatePaths method.
@@ -97,16 +100,20 @@ type Local struct {
 var _ backend.Backend = (*Local)(nil)
 
 // New returns a new initialized local backend.
-func New(enc encryption.StateEncryption) *Local {
+func New(fs afero.Fs, enc encryption.StateEncryption) *Local {
+	tofu.FS = fs
 	return &Local{
+		fs:         fs,
 		encryption: enc,
 	}
 }
 
 // NewWithBackend returns a new local backend initialized with a
 // dedicated backend for non-enhanced behavior.
-func NewWithBackend(backend backend.Backend, enc encryption.StateEncryption) *Local {
+func NewWithBackend(fs afero.Fs, backend backend.Backend, enc encryption.StateEncryption) *Local {
+	tofu.FS = fs
 	return &Local{
+		fs:         fs,
 		Backend:    backend,
 		encryption: enc,
 	}
@@ -203,7 +210,7 @@ func (b *Local) Workspaces(ctx context.Context) ([]string, error) {
 	// the listing always start with "default"
 	envs := []string{backend.DefaultStateName}
 
-	entries, err := os.ReadDir(b.stateWorkspaceDir())
+	entries, err := afero.Afero{b.fs}.ReadDir(b.stateWorkspaceDir())
 	// no error if there's no envs configured
 	if os.IsNotExist(err) {
 		return envs, nil
@@ -243,7 +250,7 @@ func (b *Local) DeleteWorkspace(ctx context.Context, name string, force bool) er
 	}
 
 	delete(b.states, name)
-	return os.RemoveAll(filepath.Join(b.stateWorkspaceDir(), name))
+	return b.fs.RemoveAll(filepath.Join(b.stateWorkspaceDir(), name))
 }
 
 func (b *Local) StateMgr(ctx context.Context, name string) (statemgr.Full, error) {
@@ -263,7 +270,7 @@ func (b *Local) StateMgr(ctx context.Context, name string) (statemgr.Full, error
 	statePath, stateOutPath, backupPath := b.StatePaths(name)
 	log.Printf("[TRACE] backend/local: state manager for workspace %q will:\n - read initial snapshot from %s\n - write new snapshots to %s\n - create any backup at %s", name, statePath, stateOutPath, backupPath)
 
-	s := statemgr.NewFilesystemBetweenPaths(statePath, stateOutPath, b.encryption)
+	s := statemgr.NewFilesystemBetweenPaths(b.fs, statePath, stateOutPath, b.encryption)
 	if backupPath != "" {
 		s.SetBackupPath(backupPath)
 	}
@@ -481,14 +488,14 @@ func (b *Local) createState(name string) error {
 	}
 
 	stateDir := filepath.Join(b.stateWorkspaceDir(), name)
-	s, err := os.Stat(stateDir)
+	s, err := b.fs.Stat(stateDir)
 	if err == nil && s.IsDir() {
 		// no need to check for os.IsNotExist, since that is covered by os.MkdirAll
 		// which will catch the other possible errors as well.
 		return nil
 	}
 
-	err = os.MkdirAll(stateDir, 0755)
+	err = b.fs.MkdirAll(stateDir, 0755)
 	if err != nil {
 		return err
 	}

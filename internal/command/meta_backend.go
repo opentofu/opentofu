@@ -201,7 +201,7 @@ func (m *Meta) Backend(ctx context.Context, opts *BackendOpts, enc encryption.St
 	}
 
 	// Build the local backend
-	local := backendLocal.NewWithBackend(b, enc)
+	local := backendLocal.NewWithBackend(m.WorkingDir.FS, b, enc)
 	if err := local.CLIInit(cliOpts); err != nil {
 		// Local backend isn't allowed to fail. It would be a bug.
 		panic(err)
@@ -408,7 +408,7 @@ func (m *Meta) BackendForLocalPlan(ctx context.Context, settings plans.Backend, 
 		return nil, diags
 	}
 	cliOpts.Validation = false // don't validate here in case config contains file(...) calls where the file doesn't exist
-	local := backendLocal.NewWithBackend(b, enc)
+	local := backendLocal.NewWithBackend(m.WorkingDir.FS, b, enc)
 	if err := local.CLIInit(cliOpts); err != nil {
 		// Local backend should never fail, so this is always a bug.
 		panic(err)
@@ -593,7 +593,11 @@ func (m *Meta) backendFromConfig(ctx context.Context, opts *BackendOpts, enc enc
 	// if we're using a remote backend. This may not yet exist which means
 	// we haven't used a non-local backend before. That is okay.
 	statePath := filepath.Join(m.WorkingDir.DataDir(), arguments.DefaultStateFilename)
-	sMgr := &clistate.LocalState{Path: statePath, DataDirOverridden: m.WorkingDir.DataDirOverridden()}
+	sMgr := &clistate.LocalState{
+		Path:              statePath,
+		DataDirOverridden: m.WorkingDir.DataDirOverridden(),
+		FS:                m.WorkingDir.FS,
+	}
 	if err := sMgr.RefreshState(context.TODO()); err != nil {
 		diags = diags.Append(fmt.Errorf("Failed to load backend configuration from %s: %w", statePath, err))
 		return nil, diags
@@ -819,18 +823,18 @@ func (m *Meta) backendFromState(ctx context.Context, enc encryption.StateEncrypt
 	if s == nil {
 		// no state, so return a local backend
 		log.Printf("[TRACE] Meta.Backend: backend has not previously been initialized in this working directory")
-		return backendLocal.New(enc), diags
+		return backendLocal.New(m.WorkingDir.FS, enc), diags
 	}
 	if s.Backend == nil {
 		// s.Backend is nil, so return a local backend
 		log.Printf("[TRACE] Meta.Backend: working directory was previously initialized but has no backend configuration")
-		return backendLocal.New(enc), diags
+		return backendLocal.New(m.WorkingDir.FS, enc), diags
 	}
 	log.Printf("[TRACE] Meta.Backend: working directory was previously initialized for %q backend", s.Backend.Type)
 
 	// backend init function
 	if s.Backend.Type == "" {
-		return backendLocal.New(enc), diags
+		return backendLocal.New(m.WorkingDir.FS, enc), diags
 	}
 	f, canonType := backendInit.Backend(s.Backend.Type)
 	if f == nil {

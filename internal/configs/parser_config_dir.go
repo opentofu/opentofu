@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/spf13/afero"
 )
 
 const (
@@ -396,12 +397,12 @@ func IsIgnoredFile(name string) bool {
 // Unlike the methods of the Parser type, this function always consults the
 // real filesystem, and thus it isn't appropriate to use when working with
 // configuration loaded from a plan file.
-func IsEmptyDir(path string) (bool, error) {
-	if _, err := os.Stat(path); err != nil && os.IsNotExist(err) {
+func IsEmptyDir(afs afero.Fs, path string) (bool, error) {
+	if _, err := afs.Stat(path); err != nil && os.IsNotExist(err) {
 		return true, nil
 	}
 
-	p := NewParser(nil)
+	p := NewParser(afs)
 	fs, os, _, diags := p.dirFiles(path, "")
 	if diags.HasErrors() {
 		return false, diags

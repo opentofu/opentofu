@@ -26,6 +26,7 @@ import (
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/spf13/afero"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -61,6 +62,7 @@ func SetExperimentalRuntimeAllowed(allowed bool) {
 }
 
 var experimentalRuntimeAllowed atomic.Bool
+var FS afero.Fs
 
 func experimentalRuntimeEnabled() bool {
 	if !experimentalRuntimeAllowed.Load() {
@@ -85,7 +87,9 @@ func (c *Context) newEngineShim(ctx context.Context, config *configs.Config, inp
 
 	inputValues := exprs.ConstantValuer(cty.ObjectVal(rawInput))
 
-	tempLoader, _ := configload.NewLoader(&configload.Config{})
+	tempLoader, _ := configload.NewLoader(&configload.Config{
+		FS: FS,
+	})
 
 	plugins := plugins.NewRuntimePluginsTemp(c.plugins.providers, c.plugins.provisioners)
 	evalCtx := &eval.EvalContext{

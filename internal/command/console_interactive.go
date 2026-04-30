@@ -6,22 +6,13 @@
 package command
 
 import (
-	"errors"
-	"fmt"
-	"io"
-	"os"
-	"strings"
-
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/repl"
-	"github.com/opentofu/opentofu/internal/tfdiags"
-
-	"github.com/chzyer/readline"
 )
 
 func (c *ConsoleCommand) modeInteractive(session *repl.Session, view views.Console) int {
 	// Configure input
-	l, err := readline.NewEx(&readline.Config{
+	/*l, err := readline.NewEx(&readline.Config{
 		Prompt:            "> ",
 		InterruptPrompt:   "^C",
 		EOFPrompt:         "exit",
@@ -79,7 +70,7 @@ func (c *ConsoleCommand) modeInteractive(session *repl.Session, view views.Conso
 
 			view.Output(out)
 		}
-	}
+	}*/
 
 	return 0
 }

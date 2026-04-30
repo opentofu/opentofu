@@ -11,22 +11,12 @@ import (
 	"sync"
 
 	"github.com/opentofu/svchost/disco"
+	"github.com/spf13/afero"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/backend"
 	backendLocal "github.com/opentofu/opentofu/internal/backend/local"
 	backendRemote "github.com/opentofu/opentofu/internal/backend/remote"
-	backendAzure "github.com/opentofu/opentofu/internal/backend/remote-state/azure"
-	backendConsul "github.com/opentofu/opentofu/internal/backend/remote-state/consul"
-	backendCos "github.com/opentofu/opentofu/internal/backend/remote-state/cos"
-	backendGCS "github.com/opentofu/opentofu/internal/backend/remote-state/gcs"
-	backendHTTP "github.com/opentofu/opentofu/internal/backend/remote-state/http"
-	backendInmem "github.com/opentofu/opentofu/internal/backend/remote-state/inmem"
-	backendKubernetes "github.com/opentofu/opentofu/internal/backend/remote-state/kubernetes"
-	backendOSS "github.com/opentofu/opentofu/internal/backend/remote-state/oss"
-	backendPg "github.com/opentofu/opentofu/internal/backend/remote-state/pg"
-	backendS3 "github.com/opentofu/opentofu/internal/backend/remote-state/s3"
-	backendCloud "github.com/opentofu/opentofu/internal/cloud"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -63,7 +53,7 @@ var backendsLock sync.Mutex
 var RemovedBackends map[string]string
 
 // Init initializes the backends map with all our hardcoded backends.
-func Init(services *disco.Disco) {
+func Init(services *disco.Disco, fs afero.Fs) {
 	backendsLock.Lock()
 	defer backendsLock.Unlock()
 
@@ -72,24 +62,24 @@ func Init(services *disco.Disco) {
 	// to the following table.
 
 	backends = map[string]backend.InitFn{
-		"local":  func(enc encryption.StateEncryption) backend.Backend { return backendLocal.New(enc) },
+		"local":  func(enc encryption.StateEncryption) backend.Backend { return backendLocal.New(fs, enc) },
 		"remote": func(enc encryption.StateEncryption) backend.Backend { return backendRemote.New(services, enc) },
 
 		// Remote State backends.
-		"azurerm":    func(enc encryption.StateEncryption) backend.Backend { return backendAzure.New(enc) },
-		"consul":     func(enc encryption.StateEncryption) backend.Backend { return backendConsul.New(enc) },
-		"cos":        func(enc encryption.StateEncryption) backend.Backend { return backendCos.New(enc) },
-		"gcs":        func(enc encryption.StateEncryption) backend.Backend { return backendGCS.New(enc) },
-		"http":       func(enc encryption.StateEncryption) backend.Backend { return backendHTTP.New(enc) },
-		"inmem":      func(enc encryption.StateEncryption) backend.Backend { return backendInmem.New(enc) },
-		"kubernetes": func(enc encryption.StateEncryption) backend.Backend { return backendKubernetes.New(enc) },
-		"oss":        func(enc encryption.StateEncryption) backend.Backend { return backendOSS.New(enc) },
-		"pg":         func(enc encryption.StateEncryption) backend.Backend { return backendPg.New(enc) },
-		"s3":         func(enc encryption.StateEncryption) backend.Backend { return backendS3.New(enc) },
+		//azurerm":    func(enc encryption.StateEncryption) backend.Backend { return backendAzure.New(enc) },
+		//consul":     func(enc encryption.StateEncryption) backend.Backend { return backendConsul.New(enc) },
+		//cos":        func(enc encryption.StateEncryption) backend.Backend { return backendCos.New(enc) },
+		//gcs":        func(enc encryption.StateEncryption) backend.Backend { return backendGCS.New(enc) },
+		//http":       func(enc encryption.StateEncryption) backend.Backend { return backendHTTP.New(enc) },
+		//inmem":      func(enc encryption.StateEncryption) backend.Backend { return backendInmem.New(enc) },
+		//kubernetes": func(enc encryption.StateEncryption) backend.Backend { return backendKubernetes.New(enc) },
+		//oss":        func(enc encryption.StateEncryption) backend.Backend { return backendOSS.New(enc) },
+		//pg":         func(enc encryption.StateEncryption) backend.Backend { return backendPg.New(enc) },
+		//s3":         func(enc encryption.StateEncryption) backend.Backend { return backendS3.New(enc) },
 
 		// Terraform Cloud 'backend'
 		// This is an implementation detail only, used for the cloud package
-		"cloud": func(enc encryption.StateEncryption) backend.Backend { return backendCloud.New(services, enc) },
+		//cloud": func(enc encryption.StateEncryption) backend.Backend { return backendCloud.New(services, enc) },
 	}
 	backendAliases = map[string]string{
 		// There are currently no backend aliases

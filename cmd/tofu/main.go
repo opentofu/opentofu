@@ -24,6 +24,7 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/command/workdir"
+	"github.com/spf13/afero"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/cliconfig"
@@ -46,11 +47,7 @@ const (
 	EnvCPUProfile = "TOFU_CPU_PROFILE"
 )
 
-func main() {
-	os.Exit(realMain())
-}
-
-func realMain() int {
+func realMain(fs afero.Fs) int {
 	defer logging.PanicHandler()
 
 	// First, we want to create the view to print diagnostics and errors.
@@ -197,7 +194,7 @@ func realMain() int {
 	}
 
 	// Initialize the backends.
-	backendInit.Init(services)
+	backendInit.Init(services, fs)
 
 	// Get the command line args.
 	binName := filepath.Base(os.Args[0])
@@ -205,7 +202,7 @@ func realMain() int {
 
 	// Create the workdir and apply the -chdir options.
 	// The logic inside [NewWorkdir] handles the TF_DATA_DIR env var too.
-	wd, newArgs, err := workdir.NewWorkdir(args)
+	wd, newArgs, err := workdir.NewWorkdir(fs, args)
 	if err != nil {
 		rv.Error(err.Error())
 		return 1

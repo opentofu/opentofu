@@ -9,6 +9,8 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+
+	"github.com/spf13/afero"
 )
 
 const PluginPathFilename = "plugin_path"
@@ -37,7 +39,7 @@ func (d *Dir) ProviderLocalCacheDir() string {
 // non-empty list with no errors then the result totally replaces the default
 // search directories.
 func (d *Dir) ForcedPluginDirs() ([]string, error) {
-	raw, err := os.ReadFile(filepath.Join(d.dataDir, PluginPathFilename))
+	raw, err := afero.Afero{d.FS}.ReadFile(filepath.Join(d.dataDir, PluginPathFilename))
 	if os.IsNotExist(err) {
 		return nil, nil
 	}
@@ -65,7 +67,7 @@ func (d *Dir) SetForcedPluginDirs(dirs []string) error {
 	filePath := filepath.Join(d.dataDir, PluginPathFilename)
 	switch {
 	case len(dirs) == 0:
-		err := os.Remove(filePath)
+		err := afero.Afero{d.FS}.Remove(filePath)
 		if !os.IsNotExist(err) {
 			return err
 		}
@@ -82,6 +84,6 @@ func (d *Dir) SetForcedPluginDirs(dirs []string) error {
 			return err
 		}
 
-		return os.WriteFile(filePath, raw, 0644)
+		return afero.Afero{d.FS}.WriteFile(filePath, raw, 0644)
 	}
 }

@@ -145,6 +145,10 @@ func (cl *ConfigLoader) LoadConfig(_ context.Context) (*Config, tfdiags.Diagnost
 	configVal := BuiltinConfig // copy
 	config := &configVal
 
+	if 1 == 1 {
+		return config, diags
+	}
+
 	if mainFilename, mainFileDiags := cl.cliConfigFile(); len(mainFileDiags) == 0 {
 		if _, err := cl.Stat(mainFilename); err == nil {
 			mainConfig, mainDiags := cl.loadConfigFile(mainFilename)

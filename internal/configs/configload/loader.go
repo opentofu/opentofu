@@ -42,6 +42,8 @@ type Config struct {
 	// .terraform/modules directory, in the common case where this package
 	// is being loaded from the main OpenTofu CLI package.)
 	ModulesDir string
+
+	FS afero.Fs
 }
 
 // NewLoader creates and returns a loader that reads configuration from the
@@ -51,13 +53,12 @@ type Config struct {
 // installed, which is read from disk as part of this function. If that
 // manifest cannot be read then an error will be returned.
 func NewLoader(config *Config) (*Loader, error) {
-	fs := afero.NewOsFs()
-	parser := configs.NewParser(fs)
+	parser := configs.NewParser(config.FS)
 
 	ret := &Loader{
 		parser: parser,
 		modules: moduleMgr{
-			FS:         afero.Afero{Fs: fs},
+			FS:         afero.Afero{Fs: config.FS},
 			CanInstall: true,
 			Dir:        config.ModulesDir,
 		},

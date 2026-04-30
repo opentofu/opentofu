@@ -499,7 +499,7 @@ func (m *Meta) backendMigrateNonEmptyConfirm(
 
 	// Helper to write the state
 	saveHelper := func(n, path string, s *states.State) error {
-		return statemgr.WriteAndPersist(context.TODO(), statemgr.NewFilesystem(path, encryption.StateEncryptionDisabled()), s, nil)
+		return statemgr.WriteAndPersist(context.TODO(), statemgr.NewFilesystem(m.WorkingDir.FS, path, encryption.StateEncryptionDisabled()), s, nil)
 	}
 
 	// Write the states

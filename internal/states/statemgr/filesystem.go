@@ -18,9 +18,9 @@ import (
 	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
+	"github.com/spf13/afero"
 
 	"github.com/opentofu/opentofu/internal/encryption"
-	"github.com/opentofu/opentofu/internal/flock"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/tofu"
@@ -31,6 +31,8 @@ import (
 //
 // The transient storage for Filesystem is always in-memory.
 type Filesystem struct {
+	fs afero.Fs
+
 	// path is the location where a file will be created or replaced for
 	// each persistent snapshot.
 	path string
@@ -47,7 +49,7 @@ type Filesystem struct {
 	backupPath string
 
 	// the file handle corresponding to PathOut
-	stateFileOut *os.File
+	stateFileOut afero.File
 
 	// While the stateFileOut will correspond to the lock directly,
 	// store and check the lock ID to maintain a strict statemgr.Locker
@@ -78,8 +80,12 @@ var (
 //
 // This is equivalent to calling NewFileSystemBetweenPaths with statePath as
 // both of the path arguments.
-func NewFilesystem(statePath string, enc encryption.StateEncryption) *Filesystem {
+func NewFilesystem(fs afero.Fs, statePath string, enc encryption.StateEncryption) *Filesystem {
+	if fs == nil {
+		panic("nil")
+	}
 	return &Filesystem{
+		fs:         fs,
 		path:       statePath,
 		readPath:   statePath,
 		encryption: enc,
@@ -89,8 +95,13 @@ func NewFilesystem(statePath string, enc encryption.StateEncryption) *Filesystem
 // NewFilesystemBetweenPaths creates a filesystem-based state manager that
 // reads an initial snapshot from readPath and then writes all new snapshots to
 // writePath.
-func NewFilesystemBetweenPaths(readPath, writePath string, enc encryption.StateEncryption) *Filesystem {
+func NewFilesystemBetweenPaths(fs afero.Fs, readPath, writePath string, enc encryption.StateEncryption) *Filesystem {
+	if fs == nil {
+		panic("nil")
+	}
+
 	return &Filesystem{
+		fs:         fs,
 		path:       writePath,
 		readPath:   readPath,
 		encryption: enc,
@@ -218,7 +229,7 @@ func (s *Filesystem) persistState(schemas *tofu.Schemas) error {
 	if !s.writtenBackup && s.backupFile != nil && s.backupPath != "" {
 		if !statefile.StatesMarshalEqual(state, s.backupFile.State) {
 			log.Printf("[TRACE] statemgr.Filesystem: creating backup snapshot at %s", s.backupPath)
-			bfh, err := os.Create(s.backupPath)
+			bfh, err := s.fs.Create(s.backupPath)
 			if err != nil {
 				return fmt.Errorf("failed to create local state backup file: %w", err)
 			}
@@ -329,7 +340,7 @@ func (s *Filesystem) refreshState() error {
 	if s.stateFileOut == nil || s.readPath != s.path {
 		// we haven't written a state file yet, so load from readPath
 		log.Printf("[TRACE] statemgr.Filesystem: reading initial snapshot from %s", s.readPath)
-		f, err := os.Open(s.readPath)
+		f, err := s.fs.Open(s.readPath)
 		if err != nil {
 			// It is okay if the file doesn't exist; we'll treat that as a nil state.
 			if !os.IsNotExist(err) {
@@ -393,7 +404,7 @@ func (s *Filesystem) Lock(_ context.Context, info *LockInfo) (string, error) {
 	}
 
 	log.Printf("[TRACE] statemgr.Filesystem: locking %s", s.path)
-	if err := flock.Lock(s.stateFileOut); err != nil {
+	/*if err := flock.Lock(s.stateFileOut); err != nil {
 		info, infoErr := s.lockInfo()
 		if infoErr != nil {
 			err = multierror.Append(err, infoErr)
@@ -405,7 +416,7 @@ func (s *Filesystem) Lock(_ context.Context, info *LockInfo) (string, error) {
 		}
 
 		return "", lockErr
-	}
+	}*/
 
 	if err := s.prepareBackupFile(); err != nil {
 		return "", fmt.Errorf("failed to write backup file: %w", err)
@@ -437,7 +448,7 @@ func (s *Filesystem) Unlock(_ context.Context, id string) error {
 	}
 
 	lockInfoPath := s.lockInfoPath()
-	err := os.Remove(lockInfoPath)
+	err := s.fs.Remove(lockInfoPath)
 	if err != nil {
 		log.Printf(
 			"[ERROR] statemgr.Filesystem: error removing lock metadata file %q: %s",
@@ -450,16 +461,16 @@ func (s *Filesystem) Unlock(_ context.Context, id string) error {
 	fileName := s.stateFileOut.Name()
 
 	log.Printf("[TRACE] statemgr.Filesystem: unlocking %s", s.path)
-	unlockErr := flock.Unlock(s.stateFileOut)
+	unlockErr := error(nil) //flock.Unlock(s.stateFileOut)
 
 	s.stateFileOut.Close()
 	s.stateFileOut = nil
 	s.lockID = ""
 
 	// clean up the state file if we created it an never wrote to it
-	stat, err := os.Stat(fileName)
+	stat, err := s.fs.Stat(fileName)
 	if err == nil && stat.Size() == 0 && s.created {
-		err = os.Remove(fileName)
+		err = s.fs.Remove(fileName)
 		if err != nil {
 			log.Printf("[ERROR] stagemgr.Filesystem: error removing empty state file %q: %s", fileName, err)
 		}
@@ -536,16 +547,16 @@ func (s *Filesystem) createStateFiles() error {
 	log.Printf("[TRACE] statemgr.Filesystem: preparing to manage state snapshots at %s", s.path)
 
 	// This could race, but we only use it to clean up empty files
-	if _, err := os.Stat(s.path); os.IsNotExist(err) {
+	if _, err := s.fs.Stat(s.path); os.IsNotExist(err) {
 		s.created = true
 	}
 
 	// Create all the directories
-	if err := os.MkdirAll(filepath.Dir(s.path), 0755); err != nil {
+	if err := s.fs.MkdirAll(filepath.Dir(s.path), 0755); err != nil {
 		return err
 	}
 
-	f, err := os.OpenFile(s.path, os.O_RDWR|os.O_CREATE, 0666)
+	f, err := s.fs.OpenFile(s.path, os.O_RDWR|os.O_CREATE, 0666)
 	if err != nil {
 		return err
 	}
@@ -589,7 +600,7 @@ func (s *Filesystem) lockInfoPath() string {
 // lockInfo returns the data in a lock info file
 func (s *Filesystem) lockInfo() (*LockInfo, error) {
 	path := s.lockInfoPath()
-	infoData, err := os.ReadFile(path)
+	infoData, err := afero.Afero{s.fs}.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
@@ -609,7 +620,7 @@ func (s *Filesystem) writeLockInfo(info *LockInfo) error {
 	info.Created = time.Now().UTC()
 
 	log.Printf("[TRACE] statemgr.Filesystem: writing lock metadata to %s", path)
-	err := os.WriteFile(path, info.Marshal(), 0600)
+	err := afero.Afero{s.fs}.WriteFile(path, info.Marshal(), 0600)
 	if err != nil {
 		return fmt.Errorf("could not write lock info for %q: %w", s.readPath, err)
 	}
