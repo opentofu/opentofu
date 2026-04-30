@@ -19,7 +19,6 @@ import (
 
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/go-retryablehttp"
-	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/svchost/disco"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -27,6 +26,7 @@ import (
 	"github.com/opentofu/opentofu/internal/backend/local"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/clistate"
+	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/command/webbrowser"
 	"github.com/opentofu/opentofu/internal/command/workdir"
@@ -40,6 +40,7 @@ import (
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
+	"github.com/opentofu/opentofu/version"
 )
 
 // Meta are the meta-options that are available on all or most commands.
@@ -517,6 +518,64 @@ func (m *Meta) confirm(opts *tofu.InputOpts) (bool, error) {
 		}
 	}
 	return false, nil
+}
+
+// godebugUsageWarnings returns zero or more warning diagnostics describing
+// non-default GODEBUG settings that have been previously relied on in earlier
+// execution before calling this function.
+//
+// These warnings encourage the reader to report to the OpenTofu team if they
+// find themselves relying on any GODEBUG settings, because the availability
+// and behavior of GODEBUG settings is subject to change outside our control
+// as we upgrade to newer versions of Go and so we want to deal with any
+// reliance on them early before it becomes a breaking change for the user in
+// a future version.
+//
+// Note that this can only report about the subset of GODEBUG keys for which
+// the runtime generates usage metrics. Some GODEBUG keys instead just directly
+// modify the runtime behavior without attempting the unmodified behavior first,
+// and those ones will never be mentioned here. The ones that cannot report
+// metrics are classified as "Opaque" in the table of possible godebug settings:
+//
+//	https://github.com/golang/go/blob/master/src/internal/godebugs/table.go
+func (m *Meta) godebugUsageWarnings() tfdiags.Diagnostics {
+	const summary = "Relying on unsupported Go runtime behavior"
+
+	var diags tfdiags.Diagnostics
+	for name, reportURL := range version.GodebugActivations() {
+		if reportURL != "" {
+			// This particular key name is one we had intentionally enabled
+			// to defer a breaking change from upstream Go, and so we have
+			// a dedicated place set aside to discuss reliance of it that
+			// we'll mention in the diagnostic message.
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Warning,
+				summary,
+				fmt.Sprintf(
+					"This execution of OpenTofu relied on a Go runtime workaround named %q, which is not officially supported and may be removed without notice in a future version.\n\nIf you cannot avoid relying on this workaround, please tell us more about your situation at:\n    %s",
+					name, reportURL,
+				),
+			))
+			continue
+		}
+		// This is _not_ a GODEBUG key we're expecting to encounter, and so
+		// presumably the end-user opted in to this themselves by setting
+		// the GODEBUG environment variable. Since we're never testing OpenTofu
+		// with non-default GODEBUG settings and they change outside of our
+		// control we won't be able to guarantee preserving that behavior in
+		// future releases and so we'll just make a general request for the
+		// operator to tell us what's going on for them so we can hopefully
+		// give them an officially-supported solution to their problem.
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Warning,
+			summary,
+			fmt.Sprintf(
+				"This execution of OpenTofu relied on a Go runtime workaround named %q, which is not officially supported and may be removed without notice in a future version.\n\nIf you cannot avoid relying on this workaround, please report an issue to the OpenTofu project describing your situation so we can find a more sustainable solution to this problem.",
+				name,
+			),
+		))
+	}
+	return diags
 }
 
 // WorkspaceNameEnvVar is the name of the environment variable that can be used

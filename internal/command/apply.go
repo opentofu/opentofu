@@ -122,10 +122,20 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 
 	// Run the operation
 	op, diags := c.RunOperation(ctx, be, opReq)
+
+	// Applying is one of the operations most likely to activate Go runtime
+	// behavior that's affected by GODEBUG, so we'll take this opportunity
+	// to warn about any reliance on non-default runtime behavior so that
+	// hopefully folks will report problems to us while their workaround is
+	// still available, instead of waiting until the workaround gets removed
+	// in a later Go releases.
+	diags = diags.Append(c.godebugUsageWarnings())
+
 	view.Diagnostics(diags)
 	if diags.HasErrors() {
 		return 1
 	}
+	diags = nil // avoid re-reporting any warnings below
 
 	if op.Result != backend.OperationSuccess {
 		return op.Result.ExitStatus()

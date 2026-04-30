@@ -14,6 +14,7 @@ ENHANCEMENTS:
 
 - The `cidrsubnets` function now supports prefix extensions greater than 32 bits when the base CIDR block uses an IPv6 address. ([#4042](https://github.com/opentofu/opentofu/pull/4042))
 - The `local-exec` provisioner now automatically sets the `TRACEPARENT` environment variable in child processes when OpenTelemetry tracing is active, following the W3C Trace Context specification. ([#4014](https://github.com/opentofu/opentofu/issues/4014))
+- Some commands now produce warning diagnostics when execution relied on various workarounds in the Go runtime library ("GODEBUG" settings), encouraging the reader to report any situations where those workarounds are necessary so that we can identify a more sustainable solution, because these workarounds can be removed or change behavior in future versions of Go outside of our control and are not covered by OpenTofu's compatibility promises. ([#4049](https://github.com/opentofu/opentofu/pull/4049))
 
 BUG FIXES:
 

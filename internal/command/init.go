@@ -341,6 +341,14 @@ To initialize the configuration already in this working directory, omit the
 		view.OutputNewline()
 	}
 
+	// Initialization is one of the operations most likely to activate Go
+	// runtime behavior that's affected by GODEBUG, so we'll take this
+	// opportunity to warn about any reliance on non-default runtime behavior so
+	// that hopefully folks will report problems to us while their workaround is
+	// still available, instead of waiting until the workaround gets removed
+	// in a later Go releases.
+	diags = diags.Append(c.godebugUsageWarnings())
+
 	// If we accumulated any warnings along the way that weren't accompanied
 	// by errors then we'll output them here so that the success message is
 	// still the final thing shown.
