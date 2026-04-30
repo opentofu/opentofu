@@ -6,6 +6,7 @@ package addrs
 
 import (
 	"fmt"
+	"sync/atomic"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -36,7 +37,7 @@ type OverrideTrie[T any] struct {
 	// This flag is set when there's a diagnostic is returned from
 	// a Get request. This is to ensure only one diagnostic message is returned,
 	// rather than one for each resource instance (which is pretty spammy).
-	refuse bool
+	refuse atomic.Bool
 
 	root *OverrideTrie[T]
 }
@@ -135,7 +136,7 @@ func (ot *OverrideTrie[T]) subSet(current *OverrideTrie[T], key InstanceKey) (*O
 // if the override addresses had no key in a module or resource where a key was expected,
 // this method will also produce an error for that.
 func (ot *OverrideTrie[T]) Get(addr *AbsResourceInstance) (*T, tfdiags.Diagnostics) {
-	if ot.refuse {
+	if ot.refuse.Load() {
 		return nil, nil
 	}
 	n := len(addr.Module) + 1
@@ -176,7 +177,6 @@ func (ot *OverrideTrie[T]) checkKey(i int, key InstanceKey, addrString string) t
 		return ot.root.checkKey(i, key, addrString)
 	}
 	if _, usesWildcard := key.(WildcardKey); usesWildcard {
-		ot.refuse = true
 		return tfdiags.Diagnostics{
 			tfdiags.Sourceless(
 				tfdiags.Error,
@@ -191,8 +191,11 @@ func (ot *OverrideTrie[T]) checkKey(i int, key InstanceKey, addrString string) t
 	// check if NoKey is being used in a place it shouldn't
 	// i.e. this key isn't NoKey, but the override was NoKey
 	// at this step
+	// Note: the Swap at the end prevents this error from being returned
+	// more than once per resource. We rely on logic shortcutting for it
+	// to not be executed when the first two conditions are not met.
 	var diags tfdiags.Diagnostics
-	if key != NoKey && len(ot.noKeyEvidenceMap[i]) > 0 {
+	if key != NoKey && len(ot.noKeyEvidenceMap[i]) > 0 && !ot.refuse.Swap(true) {
 		for _, noKeyRange := range ot.noKeyEvidenceMap[i] {
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
@@ -202,6 +205,5 @@ func (ot *OverrideTrie[T]) checkKey(i int, key InstanceKey, addrString string) t
 			})
 		}
 	}
-	ot.refuse = true
 	return diags
 }
