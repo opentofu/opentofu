@@ -64,7 +64,7 @@ type Meta struct {
 
 	// SystemArguments holds the configuration attributes that are global for all
 	// the commands and are used by different parts of the system.
-	SystemArgs SystemArguments
+	SystemArgs arguments.System
 
 	View *views.View
 
@@ -73,14 +73,6 @@ type Meta struct {
 	// Services provides access to remote endpoint information for
 	// 'tofu-native' services running at a specific user-facing hostname.
 	Services *disco.Disco
-
-	// CLIConfigDir is the directory from which CLI configuration files were
-	// read by the caller and the directory where any changes to CLI
-	// configuration files by commands should be made.
-	//
-	// If this is empty then no configuration directory is available and
-	// commands which require one cannot proceed.
-	CLIConfigDir string
 
 	// PluginCacheDir, if non-empty, enables caching of downloaded plugins
 	// into the given directory.
@@ -239,21 +231,6 @@ type Meta struct {
 	// In any other cases, this configuration is built and used directly in `realMain`
 	// when the providers sources are built.
 	ProviderSourceLocationConfig getproviders.LocationConfig
-}
-
-type SystemArguments struct {
-	// RunningInAutomation indicates that commands are being run by an
-	// automated system rather than directly at a command prompt.
-	//
-	// This is a hint to various command routines that it may be confusing
-	// to print out messages that suggest running specific follow-up
-	// commands, since the user consuming the output will not be
-	// in a position to run such commands.
-	//
-	// The intended use-case of this flag is when OpenTofu is running in
-	// some sort of workflow orchestration tool which is abstracting away
-	// the specific commands being run.
-	RunningInAutomation bool
 }
 
 type testingOverrides struct {
