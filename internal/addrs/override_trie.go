@@ -7,6 +7,7 @@ package addrs
 import (
 	"fmt"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -30,7 +31,12 @@ type OverrideTrie[T any] struct {
 	// noKeyEvidenceMap, for each step, provides a list of address ranges used in overrides
 	// where, at that step of the process, the instance key was NoKey. This is used
 	// for error handling to provide user feedback on which addresses to fix.
-	noKeyEvidenceMap [][]*AbsResourceInstance
+	noKeyEvidenceMap [][]*hcl.Range
+	// refuse is a boolean that, when set to true, refuses further queries.
+	// This flag is set when there's a diagnostic is returned from
+	// a Get request. This is to ensure only one diagnostic message is returned,
+	// rather than one for each resource instance (which is pretty spammy).
+	refuse bool
 
 	root *OverrideTrie[T]
 }
@@ -57,19 +63,22 @@ func NewOverrideTrie[T any]() *OverrideTrie[T] {
 //
 // val is expected to be non-nil; it might complicate overrides if no value
 // is provided but the resource is still considered "overridden"
-func (ot *OverrideTrie[T]) Set(addr *AbsResourceInstance, val T) {
+//
+// src is only used for diagnostic purposes, in the case that an override does not
+// use a key where it ought to have a key set.
+func (ot *OverrideTrie[T]) Set(addr *AbsResourceInstance, val T, src *hcl.Range) {
 	current := ot
 	for i, mod := range addr.Module {
 		next, usesNoKey := ot.subSet(current, mod.InstanceKey)
 		if usesNoKey {
-			ot.SetNoKeyEvidence(i, addr)
+			ot.SetNoKeyEvidence(i, addr, src)
 		}
 		ot.TrackModernAddressing(mod.InstanceKey)
 		current = next
 	}
 	last, usesNoKey := ot.subSet(current, addr.Resource.Key)
 	if usesNoKey {
-		ot.SetNoKeyEvidence(len(addr.Module), addr)
+		ot.SetNoKeyEvidence(len(addr.Module), addr, src)
 	}
 	ot.TrackModernAddressing(addr.Resource.Key)
 	last.value = new(val)
@@ -84,14 +93,14 @@ func (ot *OverrideTrie[T]) TrackModernAddressing(key InstanceKey) {
 // particular resource override. This is later used when getting a key; if
 // this trie uses modern address syntax, but no key is used when a key is
 // called for, this is how we obtain that evidence.
-func (ot *OverrideTrie[T]) SetNoKeyEvidence(i int, addr *AbsResourceInstance) {
+func (ot *OverrideTrie[T]) SetNoKeyEvidence(i int, addr *AbsResourceInstance, src *hcl.Range) {
 	if ot.noKeyEvidenceMap == nil {
-		ot.noKeyEvidenceMap = make([][]*AbsResourceInstance, len(addr.Module)+1)
+		ot.noKeyEvidenceMap = make([][]*hcl.Range, len(addr.Module)+1)
 		for i := range len(addr.Module) + 1 {
-			ot.noKeyEvidenceMap[i] = make([]*AbsResourceInstance, 0)
+			ot.noKeyEvidenceMap[i] = make([]*hcl.Range, 0)
 		}
 	}
-	ot.noKeyEvidenceMap[i] = append(ot.noKeyEvidenceMap[i], addr)
+	ot.noKeyEvidenceMap[i] = append(ot.noKeyEvidenceMap[i], src)
 }
 
 // subSet prepares one step in the module or resource chain
@@ -126,6 +135,9 @@ func (ot *OverrideTrie[T]) subSet(current *OverrideTrie[T], key InstanceKey) (*O
 // if the override addresses had no key in a module or resource where a key was expected,
 // this method will also produce an error for that.
 func (ot *OverrideTrie[T]) Get(addr *AbsResourceInstance) (*T, tfdiags.Diagnostics) {
+	if ot.refuse {
+		return nil, nil
+	}
 	n := len(addr.Module) + 1
 	keyList := make([]InstanceKey, n)
 	for i, mod := range addr.Module {
@@ -164,6 +176,7 @@ func (ot *OverrideTrie[T]) checkKey(i int, key InstanceKey, addrString string) t
 		return ot.root.checkKey(i, key, addrString)
 	}
 	if _, usesWildcard := key.(WildcardKey); usesWildcard {
+		ot.refuse = true
 		return tfdiags.Diagnostics{
 			tfdiags.Sourceless(
 				tfdiags.Error,
@@ -180,17 +193,15 @@ func (ot *OverrideTrie[T]) checkKey(i int, key InstanceKey, addrString string) t
 	// at this step
 	var diags tfdiags.Diagnostics
 	if key != NoKey && len(ot.noKeyEvidenceMap[i]) > 0 {
-		for _, noKeyAddr := range ot.noKeyEvidenceMap[i] {
-			// TODO this results in a crazy amount of diagnostics...
-			// Like, for every instance of every instance of every instance, and every override therein,
-			// has an error output example. How do I avoid this? Hash on AbsResource or something?
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
-				// TODO I'm open to a less-verbose version of this summary
-				"The override address cannot contain unkeyed for-each resources if it is also using the wildcard syntax (i.e. \"[*]\"). Please switch entirely to wildcard syntax for test overrides.",
-				fmt.Sprintf("Using %s to override %s", noKeyAddr.String(), addrString),
-			))
+		for _, noKeyRange := range ot.noKeyEvidenceMap[i] {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Please switch overrides to wildcard syntax (i.e. \"[*]\") to refer to for-each resources",
+				Detail:   fmt.Sprintf("When trying to override %s", addrString),
+				Subject:  noKeyRange,
+			})
 		}
 	}
+	ot.refuse = true
 	return diags
 }
