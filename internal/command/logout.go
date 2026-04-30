@@ -158,8 +158,8 @@ func (c *LogoutCommand) Synopsis() string {
 }
 
 func (c *LogoutCommand) defaultOutputFile() string {
-	if c.CLIConfigDir == "" {
+	if c.SystemArgs.CLIConfigDir == "" {
 		return "" // no default available
 	}
-	return filepath.Join(c.CLIConfigDir, "credentials.tfrc.json")
+	return filepath.Join(c.SystemArgs.CLIConfigDir, "credentials.tfrc.json")
 }

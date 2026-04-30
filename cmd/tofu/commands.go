@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/opentofu/svchost"
 	"github.com/opentofu/svchost/disco"
@@ -86,15 +87,16 @@ func initCommands(
 	meta := command.Meta{
 		WorkingDir: wd,
 		View:       view.SetRunningInAutomation(inAutomation),
-
-		GlobalPluginDirs: globalPluginDirs(),
+		SystemArgs: arguments.System{
+			RunningInAutomation:       inAutomation,
+			CLIConfigDir:              configDir,
+			PluginCacheDir:            config.PluginCacheDir,
+			GlobalPluginDirs:          globalPluginDirs(),
+			AllowExperimentalFeatures: experimentsAreAllowed(),
+		},
 
 		Services:        services,
 		BrowserLauncher: browserLauncher(),
-
-		RunningInAutomation: inAutomation,
-		CLIConfigDir:        configDir,
-		PluginCacheDir:      config.PluginCacheDir,
 
 		PluginCacheMayBreakDependencyLockFile: config.PluginCacheMayBreakDependencyLockFile,
 
@@ -111,8 +113,6 @@ func initCommands(
 		ProviderSource:       providerSrc,
 		ProviderDevOverrides: providerDevOverrides,
 		UnmanagedProviders:   unmanagedProviders,
-
-		AllowExperimentalFeatures: experimentsAreAllowed(),
 
 		// ProviderSourceLocationConfig is used for some commands that do not make
 		// use of the OpenTofu configuration files. Therefore, there is no way to configure

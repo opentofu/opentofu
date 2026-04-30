@@ -26,6 +26,14 @@ import (
 	"github.com/opentofu/opentofu/internal/tofu"
 )
 
+// Operation provides information for the main operations, like plan, apply, etc.
+//
+// This makes use of the View.runningInAutomation to know when it's executed by an
+// automated system rather than directly by a command prompt.
+// This is a hint not to produce messages that expect that a user can
+// run a follow-up command, perhaps because OpenTofu is running in
+// some sort of workflow automation tool that abstracts away the
+// exact commands that are being run.
 type Operation interface {
 	Interrupted()
 	FatalInterrupt()
@@ -41,10 +49,10 @@ type Operation interface {
 	Diagnostics(diags tfdiags.Diagnostics)
 }
 
-func NewOperation(vt arguments.ViewType, inAutomation bool, view *View) Operation {
+func NewOperation(vt arguments.ViewType, view *View) Operation {
 	switch vt {
 	case arguments.ViewHuman:
-		return &OperationHuman{view: view, inAutomation: inAutomation}
+		return &OperationHuman{view: view}
 	default:
 		panic(fmt.Sprintf("unknown view type %v", vt))
 	}
@@ -112,15 +120,6 @@ func (o OperationMulti) Diagnostics(diags tfdiags.Diagnostics) {
 
 type OperationHuman struct {
 	view *View
-
-	// inAutomation indicates that commands are being run by an
-	// automated system rather than directly at a command prompt.
-	//
-	// This is a hint not to produce messages that expect that a user can
-	// run a follow-up command, perhaps because OpenTofu is running in
-	// some sort of workflow automation tool that abstracts away the
-	// exact commands that are being run.
-	inAutomation bool // TODO meta-refactor - remove this attribute and use the v.view.runningInAutomation instead, everywhere
 }
 
 var _ Operation = (*OperationHuman)(nil)
@@ -166,7 +165,7 @@ func (v *OperationHuman) Plan(plan *plans.Plan, schemas *tofu.Schemas) {
 	renderer := jsonformat.Renderer{
 		Colorize:            v.view.colorize,
 		Streams:             v.view.streams,
-		RunningInAutomation: v.inAutomation,
+		RunningInAutomation: v.view.runningInAutomation,
 		ShowSensitive:       v.view.showSensitive,
 	}
 
@@ -202,7 +201,7 @@ func (v *OperationHuman) PlannedChange(change *plans.ResourceInstanceChangeSrc) 
 // PlanNextStep gives the user some next-steps, unless we're running in an
 // automation tool which is presumed to provide its own UI for further actions.
 func (v *OperationHuman) PlanNextStep(planPath string, genConfigPath string) {
-	if v.inAutomation {
+	if v.view.runningInAutomation {
 		return
 	}
 	v.view.outputHorizRule()

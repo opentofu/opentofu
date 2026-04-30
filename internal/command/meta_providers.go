@@ -116,7 +116,7 @@ func (m *Meta) providerCustomLocalDirectorySource(ctx context.Context, dirs []st
 // Only one object returned from this method should be live at any time,
 // because objects inside contain caches that must be maintained properly.
 func (m *Meta) providerGlobalCacheDir() *providercache.Dir {
-	dir := m.PluginCacheDir
+	dir := m.SystemArgs.PluginCacheDir
 	if dir == "" {
 		return nil // cache disabled
 	}
