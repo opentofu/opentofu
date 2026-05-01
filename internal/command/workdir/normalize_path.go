@@ -40,8 +40,23 @@ func (d *Dir) NormalizePath(given string) string {
 		return filepath.Clean(given)
 	}
 
+	// Resolve symlinks in the main directory so that paths computed relative
+	// to it are consistent regardless of whether the working directory was
+	// reached via a symlink. Without this, an absolute "given" path that was
+	// constructed using the real (non-symlink) path could produce a nonsensical
+	// relative result when the process cwd is a symlinked directory.
+	if resolved, err := filepath.EvalSymlinks(absMain); err == nil {
+		absMain = resolved
+	}
+
 	if !filepath.IsAbs(given) {
 		given = filepath.Join(absMain, given)
+	} else {
+		// Also resolve symlinks in the given absolute path so that the two
+		// paths share the same canonical form for a reliable Rel computation.
+		if resolved, err := filepath.EvalSymlinks(given); err == nil {
+			given = resolved
+		}
 	}
 
 	ret, err := filepath.Rel(absMain, given)
