@@ -9,5 +9,40 @@
             });
         </script>
     </head>
-    <body></body>
+    <body>
+	    <div style="display: flex; height: 100%">
+		    <div style="width: 60%; height:100%">
+			    <div style="width: 100%; height: 5%; border: 1px solid grey">
+				    <input type="text" style="width: 80%" placeholder="tofu plan/apply" id="command" />
+				    <input type="button" value="Execute" onclick="tofu(document.getElementById('command').value)">
+			    </div>
+			    <textarea style="width: 100%; height: 95%" id="input">
+terraform {
+	required_providers {
+		terraform = {
+			source = "terraform.io/builtin/terraform"
+		}
+	}
+}
+resource "terraform_data" "first" {
+	count = 200
+	input = count.index
+}
+
+resource "terraform_data" "second" {
+	count = 200
+	input = terraform_data.first[count.index].input
+}
+			    </textarea>
+		    </div>
+		    <div style="width: 40%; float: left">
+			    <pre style="height:50%;  border: 1px solid green; overflow: scroll" id="state">
+				    {}
+			    </pre>
+			    <pre style="height: 50%; border: 1px solid grey; overflow: scroll" id="log">
+				    Log
+			    </pre>
+		    </div>
+	    </div>
+    </body>
 </html>
