@@ -3260,45 +3260,45 @@ func TestInit_skipEncryptionBackendFalse(t *testing.T) {
 			t.Fatalf("generated error should contain the string \"Error: Unable to fetch encryption key data\"\ninstead got : %s\n", output.Stderr())
 		}
 	})
-}
 
-t.Run("init succeeds with -backend=false even when an encrypted state file is already present", func(t *testing.T) {
-	td := t.TempDir()
-	testCopyDir(t, testFixturePath("init-encryption-with-state"), td)
-	t.Chdir(td)
+	t.Run("init succeeds with -backend=false even when an encrypted state file is already present", func(t *testing.T) {
+		td := t.TempDir()
+		testCopyDir(t, testFixturePath("init-encryption-with-state"), td)
+		t.Chdir(td)
 
-	overrides := metaOverridesForProvider(testProvider())
-	view, done := testView(t)
-	providerSource, closeCallback := newMockProviderSource(t, map[string][]string{
-		"hashicorp/aws": {"5.0", "5.8"},
+		overrides := metaOverridesForProvider(testProvider())
+		view, done := testView(t)
+		providerSource, closeCallback := newMockProviderSource(t, map[string][]string{
+			"hashicorp/aws": {"5.0", "5.8"},
+		})
+		defer closeCallback()
+		m := Meta{
+			WorkingDir:       workdir.NewDir("."),
+			testingOverrides: overrides,
+			View:             view,
+			ProviderSource:   providerSource,
+		}
+
+		c := &InitCommand{
+			Meta: m,
+		}
+
+		args := []string{
+			"-backend=false",
+		}
+		code := c.Run(args)
+		output := done(t)
+		if code != 0 {
+			t.Fatalf("init should run successfully with -backend=false even with an encrypted state file present\nexit code: %d\nstderr:\n%s\nstdout:\n%s", code, output.Stderr(), output.Stdout())
+		}
+		if strings.Contains(output.Stderr(), "Error refreshing state") {
+			t.Fatalf("init must not attempt to read/refresh the local state when -backend=false is set\nstderr:\n%s", output.Stderr())
+		}
+		if strings.Contains(output.Stderr(), "can not be read without an encryption configuration") {
+			t.Fatalf("init must not attempt to decrypt the local state when -backend=false is set\nstderr:\n%s", output.Stderr())
+		}
 	})
-	defer closeCallback()
-	m := Meta{
-		WorkingDir:       workdir.NewDir("."),
-		testingOverrides: overrides,
-		View:             view,
-		ProviderSource:   providerSource,
-	}
-
-	c := &InitCommand{
-		Meta: m,
-	}
-
-	args := []string{
-		"-backend=false",
-	}
-	code := c.Run(args)
-	output := done(t)
-	if code != 0 {
-		t.Fatalf("init should run successfully with -backend=false even with an encrypted state file present\nexit code: %d\nstderr:\n%s\nstdout:\n%s", code, output.Stderr(), output.Stdout())
-	}
-	if strings.Contains(output.Stderr(), "Error refreshing state") {
-		t.Fatalf("init must not attempt to read/refresh the local state when -backend=false is set\nstderr:\n%s", output.Stderr())
-	}
-	if strings.Contains(output.Stderr(), "can not be read without an encryption configuration") {
-		t.Fatalf("init must not attempt to decrypt the local state when -backend=false is set\nstderr:\n%s", output.Stderr())
-	}
-})
+}
 
 // newMockProviderSource is a helper to succinctly construct a mock provider
 // source that contains a set of packages matching the given provider versions
