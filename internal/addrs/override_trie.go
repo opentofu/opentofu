@@ -59,7 +59,7 @@ func NewOverrideTrie[T any]() *OverrideTrie[T] {
 // containing the value for the address.
 //
 // The "NoKey" key is treated specially and made equivalent to WildCard. This is
-// to provide backwards compatibility; before this was implemented, a non-instanced
+// to provide backwards compatibility; before this was implemented, an unkeyed
 // resource address was used to refer to every instance associated with the address.
 //
 // val is expected to be non-nil; it might complicate overrides if no value
@@ -72,29 +72,29 @@ func (ot *OverrideTrie[T]) Set(addr *AbsResourceInstance, val T, src *hcl.Range)
 	for i, mod := range addr.Module {
 		next, usesNoKey := ot.subSet(current, mod.InstanceKey)
 		if usesNoKey {
-			ot.SetNoKeyEvidence(i, addr, src)
+			ot.setNoKeyEvidence(i, addr, src)
 		}
-		ot.TrackModernAddressing(mod.InstanceKey)
+		ot.trackModernAddressing(mod.InstanceKey)
 		current = next
 	}
 	last, usesNoKey := ot.subSet(current, addr.Resource.Key)
 	if usesNoKey {
-		ot.SetNoKeyEvidence(len(addr.Module), addr, src)
+		ot.setNoKeyEvidence(len(addr.Module), addr, src)
 	}
-	ot.TrackModernAddressing(addr.Resource.Key)
+	ot.trackModernAddressing(addr.Resource.Key)
 	last.value = new(val)
 }
 
-func (ot *OverrideTrie[T]) TrackModernAddressing(key InstanceKey) {
+func (ot *OverrideTrie[T]) trackModernAddressing(key InstanceKey) {
 	_, usesWildcard := key.(WildcardKey)
 	ot.usesModernAddresses = ot.usesModernAddresses || usesWildcard
 }
 
-// SetNoKeyEvidence provides evidence that the NoKey instance key was used in a
+// setNoKeyEvidence provides evidence that the NoKey instance key was used in a
 // particular resource override. This is later used when getting a key; if
 // this trie uses modern address syntax, but no key is used when a key is
 // called for, this is how we obtain that evidence.
-func (ot *OverrideTrie[T]) SetNoKeyEvidence(i int, addr *AbsResourceInstance, src *hcl.Range) {
+func (ot *OverrideTrie[T]) setNoKeyEvidence(i int, addr *AbsResourceInstance, src *hcl.Range) {
 	if ot.noKeyEvidenceMap == nil {
 		ot.noKeyEvidenceMap = make([][]*hcl.Range, len(addr.Module)+1)
 		for i := range len(addr.Module) + 1 {
@@ -118,8 +118,8 @@ func (ot *OverrideTrie[T]) subSet(current *OverrideTrie[T], key InstanceKey) (*O
 	}
 	next, ok := current.trie[key]
 	if !ok {
-		current.trie[key] = NewOverrideTrie[T]()
-		next = current.trie[key]
+		next = NewOverrideTrie[T]()
+		current.trie[key] = next
 		next.root = ot
 	}
 	return next, usesNoKey
@@ -199,8 +199,8 @@ func (ot *OverrideTrie[T]) checkKey(i int, key InstanceKey, addrString string) t
 		for _, noKeyRange := range ot.noKeyEvidenceMap[i] {
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
-				Summary:  "Please switch overrides to wildcard syntax (i.e. \"[*]\") to refer to for-each resources",
-				Detail:   fmt.Sprintf("When trying to override %s", addrString),
+				Summary:  "Invalid resource override usage",
+				Detail:   fmt.Sprintf("The mixed usage of un-keyed and wildcard references in an override is not allowed, but detected in %q. Switch overrides to wildcard syntax (i.e. \"[*]\" to refer to for-each or count resources.)", addrString),
 				Subject:  noKeyRange,
 			})
 		}

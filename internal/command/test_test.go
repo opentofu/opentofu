@@ -1706,7 +1706,7 @@ func TestTest_InstanceOverride(t *testing.T) {
 			code:     0,
 		},
 		"mixed_syntax": {
-			expectedErr: "Please switch overrides to wildcard syntax",
+			expectedErr: "Invalid resource override usage",
 			code:        1,
 		},
 		"uninstanced_module": {
