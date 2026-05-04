@@ -5,12 +5,13 @@
 package addrs
 
 import (
+	"strings"
 	"testing"
 )
 
 // shorthand function to obtain known good strings.
 // Please please please do not use this outside of tests!!!
-func getAbsResourceRangeOrPanic(str string) AbsResourceInstance {
+func mustAbsResourceRange(str string) AbsResourceInstance {
 	out, diags := parseAbsResourceRangeStr(str)
 	if diags.HasErrors() {
 		panic(diags)
@@ -20,7 +21,7 @@ func getAbsResourceRangeOrPanic(str string) AbsResourceInstance {
 
 type override struct {
 	Address *AbsResourceInstance
-	Values  string
+	Value   string
 }
 
 func TestOverrideTrie(t *testing.T) {
@@ -30,40 +31,40 @@ func TestOverrideTrie(t *testing.T) {
 		Overrides   []override
 		Query       *AbsResourceInstance
 		WantMissing bool
-		WantError   bool
+		ErrorSubstr string
 		Want        *string
 	}{
 		{
 			TestName: "basic input",
 			Overrides: []override{
 				{
-					Address: new(getAbsResourceRangeOrPanic(`module.vps["us-central1"].tofu_network.spiderweb`)),
-					Values:  "usa",
+					Address: new(mustAbsResourceRange(`module.vps["us-central1"].tofu_network.spiderweb`)),
+					Value:   "usa",
 				},
 			},
-			Query: new(getAbsResourceRangeOrPanic(`module.vps["us-central1"].tofu_network.spiderweb`)),
+			Query: new(mustAbsResourceRange(`module.vps["us-central1"].tofu_network.spiderweb`)),
 			Want:  new("usa"),
 		},
 		{
 			TestName: "wildcard override",
 			Overrides: []override{
 				{
-					Address: new(getAbsResourceRangeOrPanic(`module.vps[*].tofu_network.spiderweb`)),
-					Values:  "global",
+					Address: new(mustAbsResourceRange(`module.vps[*].tofu_network.spiderweb`)),
+					Value:   "global",
 				},
 			},
-			Query: new(getAbsResourceRangeOrPanic(`module.vps["us-central1"].tofu_network.spiderweb`)),
+			Query: new(mustAbsResourceRange(`module.vps["us-central1"].tofu_network.spiderweb`)),
 			Want:  new("global"),
 		},
 		{
 			TestName: "use default",
 			Overrides: []override{
 				{
-					Address: new(getAbsResourceRangeOrPanic(`module.vps["apac"].tofu_network.spiderweb`)),
-					Values:  "australia",
+					Address: new(mustAbsResourceRange(`module.vps["apac"].tofu_network.spiderweb`)),
+					Value:   "australia",
 				},
 			},
-			Query:       new(getAbsResourceRangeOrPanic(`module.vps["us-central1"].tofu_network.spiderweb`)),
+			Query:       new(mustAbsResourceRange(`module.vps["us-central1"].tofu_network.spiderweb`)),
 			WantMissing: true,
 			Want:        new("somewhere"),
 		},
@@ -71,26 +72,26 @@ func TestOverrideTrie(t *testing.T) {
 			TestName: "error on wildcard",
 			Overrides: []override{
 				{
-					Address: new(getAbsResourceRangeOrPanic(`module.vps["apac"].tofu_network.spiderweb`)),
-					Values:  "australia",
+					Address: new(mustAbsResourceRange(`module.vps["apac"].tofu_network.spiderweb`)),
+					Value:   "australia",
 				},
 			},
-			Query:     new(getAbsResourceRangeOrPanic(`module.vps[*].tofu_network.spiderweb`)),
-			WantError: true,
+			Query:       new(mustAbsResourceRange(`module.vps[*].tofu_network.spiderweb`)),
+			ErrorSubstr: "Wildcard key not expected",
 		},
 		{
 			TestName: "wildcard fallback",
 			Overrides: []override{
 				{
-					Address: new(getAbsResourceRangeOrPanic(`module.vps[*].module.subnet[*].tofu_network.spiderweb["a"]`)),
-					Values:  "australia",
+					Address: new(mustAbsResourceRange(`module.vps[*].module.subnet[*].tofu_network.spiderweb["a"]`)),
+					Value:   "australia",
 				},
 				{
-					Address: new(getAbsResourceRangeOrPanic(`module.vps["a"].module.subnet["a"].tofu_network.spiderweb["b"]`)),
-					Values:  "burkina faso",
+					Address: new(mustAbsResourceRange(`module.vps["a"].module.subnet["a"].tofu_network.spiderweb["b"]`)),
+					Value:   "burkina faso",
 				},
 			},
-			Query: new(getAbsResourceRangeOrPanic(`module.vps["a"].module.subnet["a"].tofu_network.spiderweb["a"]`)),
+			Query: new(mustAbsResourceRange(`module.vps["a"].module.subnet["a"].tofu_network.spiderweb["a"]`)),
 			Want:  new("australia"),
 		},
 	}
@@ -98,18 +99,23 @@ func TestOverrideTrie(t *testing.T) {
 		t.Run(test.TestName, func(t *testing.T) {
 			trie := NewOverrideTrie[string]()
 			for _, override := range test.Overrides {
-				trie.Set(override.Address, override.Values, nil)
+				trie.Set(override.Address, override.Value, nil)
 			}
 
 			got, diags := trie.Get(test.Query)
 			if diags.HasErrors() {
-				if !test.WantError {
+				if test.ErrorSubstr == "" {
 					// unexpectedly encountered an error
 					t.Errorf("got an error from trie override retrieval: %s", diags.Err().Error())
+				} else if got != nil {
+					// we always expect a nil return when there's an error
+					t.Errorf("got an error and expected no return value, but got: %s", *got)
+				} else if !strings.Contains(diags.Err().Error(), test.ErrorSubstr) {
+					t.Errorf("expected error to contain %s, but it did not: %s", test.ErrorSubstr, diags.Err().Error())
 				}
 				return
 			} else {
-				if test.WantError {
+				if test.ErrorSubstr != "" {
 					t.Fatal("expected an error, but did not get one")
 				}
 			}
