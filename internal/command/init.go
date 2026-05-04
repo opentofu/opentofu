@@ -207,6 +207,15 @@ To initialize the configuration already in this working directory, omit the
 	var backendOutput bool
 
 	switch {
+	case args.BackendFlagSet && !args.FlagBackend:
+		// The user explicitly passed -backend=false,
+		// so we must neither initialize a new backend nor load any
+		// previously-initialized one. Loading the previously-initialized
+		// backend would otherwise try to read (and, if encryption is
+		// configured, decrypt) the local state file, defeating the whole
+		// purpose of -backend=false and breaking workflows where the
+		// encryption key is intentionally unavailable.
+		back = nil
 	case args.FlagCloud && rootModEarly.CloudConfig != nil:
 		back, backendOutput, backDiags = c.initCloud(ctx, rootModEarly, args.FlagConfigExtra, enc, view.Backend())
 	case args.FlagBackend:
