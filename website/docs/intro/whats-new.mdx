@@ -1,55 +1,33 @@
 ---
 sidebar_position: 2
-sidebar_label: What's new in version 1.11?
+sidebar_label: What's new in version 1.12?
 description: |-
-  Learn all about the new features in OpenTofu 1.11.
+  Learn about the changes in OpenTofu 1.12.
 ---
 
-# What's new in OpenTofu 1.11?
+# What's new in OpenTofu 1.12?
 
-## New features
+Here are some highlights from the new features in this release:
 
-### Ephemeral Resources / Write-Only Attributes
+- **Dynamic `prevent_destroy`**: The `prevent_destroy` argument in a resource's lifecycle block can now refer to other symbols within the same module, such as input variables.
+- **Improved provider checksum handling**: `tofu init` now automatically includes a full set of checksums for all platforms using both `zh:` and `h1:` hashes, reducing the need for manually running `tofu providers lock`.
+- **Simultaneous output formats**: The new `-json-into=FILENAME` CLI option allows saving machine-readable output to a separate file while still producing human-readable output in the terminal.
+- **New `destroy` lifecycle meta-argument:** The new `destroy = false` lifecycle option for managed resources allows removing an object from the state without first destroying the remote object.
+- **Provider installer performance**: Provider installation now performs concurrent requests for faster `tofu init` completion when many providers are needed.
 
-**Ephemeral values** allow OpenTofu to work with data and resources that exist only in memory during a single OpenTofu phase, guaranteeing that those values will not be persisted in state snapshots or plan files.
+For more information, refer to [the v1.12.0 release announcement](http://opentofu.org/blog/opentofu-1-12-0/) and [the v1.12 series changelog](https://github.com/opentofu/opentofu/blob/v1.12/CHANGELOG.md).
 
-You can now declare input variables and output values as being ephemeral, and you can use provider plugins that have been updated to include ephemeral resource types (e.g. for fetching a secret) or managed resource types with write-only attributes (e.g. for setting a password without saving it in OpenTofu state).
+## Compatibility Notes
 
-For more information, refer to [Ephemerality](https://opentofu.org/docs/v1.11/language/ephemerality/).
+- **New `h1:` checksums in dependency lock file**: Due to the improved provider checksum handling in this release, the first time you run `tofu init` after upgrading you are likely to find additional `h1:` checksums have been added for any providers that were already tracked in your dependency lock file.
 
-### Enabled meta-argument
+    This behavior is an example of what's described in [New provider package checksums](../language/files/dependency-lock.mdx#new-provider-package-checksums): the newly-added checksums each match one of the `zh:` checksums previously recorded and represent the same information in a different way. In OpenTofu v1.12 this is now a one-time backfill of all of the official checksums, rather than "upgrading" them one-by-one as in earlier versions.
 
-The new **`enabled` meta-argument** offers an alternative to the existing `count` and `for_each` meta-arguments for situations where a particular resource instance or module instance has either zero or one instances.
+- **WinRM connections for provisioners are deprecated**: Provisioner connection blocks with `type = "winrm"` will now cause warnings in this release, and will no longer be supported at all in OpenTofu v1.13.
 
-The initial form of this argument is nested inside a `lifecycle` block, rather than directly inside a resource or module declaration, to avoid conflicting with existing input variables or resource type arguments named `enabled`.
+    We recommend migrating to [OpenSSH for Windows](https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse).
 
-For more information, refer to [the `enabled` meta-argument](https://opentofu.org/docs/v1.11/language/meta-arguments/enabled/).
+- **Phasing out support for 32-bit CPU architectures**: In a future release we plan to stop providing official release builds for the 32-bit `386` and `arm` CPU architectures. Support for `amd64` and `arm64` is unaffected.
 
-## Improvements to existing features
+    There is no immediate change to supported platforms in the v1.12 series, but we expect to introduce a deprecation warning in v1.13 and then stop providing official builds for these architectures completely in a future release series. If you don't expect that you'll be able to complete a migration to running on a 64-bit architecture in the next year, please tell us about your situation in [issue #3912](https://github.com/opentofu/opentofu/issues/3912)..
 
-### Tag support added to S3 backend
-
-The S3 backend now supports **object tagging** your backend, allowing you to add custom tags to your state files for better organization and cost tracking.
-
-## Deprecations
-
-- **Azure Backend (`azurerm`)**:
-
-  - The `endpoint` and `ARM_ENDPOINT` configuration options are no longer supported
-  - The `msi_endpoint` and `ARM_MSI_ENDPOINT` options are no longer supported
-  - The `environment` and `metadata_host` arguments are now mutually exclusive
-
-- **issensitive() Function**: Now correctly returns unknown results when evaluating unknown values. Code that previously relied on the incorrect behavior may need updates.
-
-- **Testing with Mocks**: Mock values generated during testing now strictly adhere to provider schemas. Test configurations with invalid mock values will need to be corrected.
-
-- **S3 Module Installation**: When installing module packages from Amazon S3 buckets using S3 source addresses OpenTofu will use the same credentials as the AWS CLI and SDK.
-
-- **TLS and SSH Security**:
-  - SHA-1 signatures are no longer accepted for TLS or SSH connections
-  - SSH certificates must comply with the `draft-miller-ssh-cert-03` specification
-
-
-## Full Changelog
-
-You can find the full changelog at https://github.com/opentofu/opentofu/blob/v1.11/CHANGELOG.md
