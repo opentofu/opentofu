@@ -371,6 +371,10 @@ func HashLegacyZipSHAFromSHA(sum [sha256.Size]byte) Hash {
 	return HashSchemeZip.New(fmt.Sprintf("%x", sum[:]))
 }
 
+// emptyPackageHashV1 is the representation of a completely empty package using
+// the V1 hashing scheme.
+const emptyPackageHashV1 = Hash("h1:47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=")
+
 // PackageHashV1 computes a hash of the contents of the package at the given
 // location using hash algorithm 1. The resulting Hash is guaranteed to have
 // the scheme HashScheme1.

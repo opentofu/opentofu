@@ -324,3 +324,14 @@ func TestHashDispositionsMerge(t *testing.T) {
 		})
 	}
 }
+
+func TestEmptyPackageHashV1(t *testing.T) {
+	emptyDir := t.TempDir()
+	realHash, err := PackageHashV1(PackageLocalDir(emptyDir))
+	if err != nil {
+		t.Fatalf("failed to calculate hash of empty package: %s", err)
+	}
+	if realHash != emptyPackageHashV1 {
+		t.Errorf("emptyPackageHashV1 does not match freshly-calculated hash of empty package\nemptyPackageHashV1: %s\ncalculated result:  %s", emptyPackageHashV1, realHash)
+	}
+}
