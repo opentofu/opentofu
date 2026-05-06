@@ -444,7 +444,7 @@ func (m *Meta) initConfigLoader() (*configload.Loader, error) {
 		if err != nil {
 			return nil, err
 		}
-		loader.AllowLanguageExperiments(m.SystemArgs.AllowExperimentalFeatures)
+		loader.AllowLanguageExperiments(m.SystemCfg.AllowExperimentalFeatures)
 		m.configLoader = loader
 		if m.View != nil {
 			m.View.SetConfigSources(loader.Sources)

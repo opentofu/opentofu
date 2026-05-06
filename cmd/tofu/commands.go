@@ -13,7 +13,7 @@ import (
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/mitchellh/cli"
-	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/command/system"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/opentofu/svchost"
 	"github.com/opentofu/svchost/disco"
@@ -87,7 +87,7 @@ func initCommands(
 	meta := command.Meta{
 		WorkingDir: wd,
 		View:       view.SetRunningInAutomation(inAutomation),
-		SystemArgs: arguments.System{
+		SystemCfg: system.Config{
 			RunningInAutomation:       inAutomation,
 			CLIConfigDir:              configDir,
 			PluginCacheDir:            config.PluginCacheDir,

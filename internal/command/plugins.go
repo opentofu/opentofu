@@ -91,7 +91,7 @@ func (m *Meta) pluginDirs(includeAutoInstalled bool) []string {
 	if includeAutoInstalled {
 		dirs = append(dirs, m.pluginDir())
 	}
-	dirs = append(dirs, m.SystemArgs.GlobalPluginDirs...)
+	dirs = append(dirs, m.SystemCfg.GlobalPluginDirs...)
 
 	return dirs
 }
