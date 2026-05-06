@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -20,6 +21,11 @@ import (
 	"github.com/opentofu/opentofu/internal/e2e"
 	"github.com/opentofu/opentofu/internal/getproviders"
 )
+
+// providerTamperingFixtureNullProviderVersion must contain a string
+// representation of the same version number used for "hashicorp/null" in the
+// "provider-tampering-base" fixture.
+const providerTamperingFixtureNullProviderVersion = "3.1.0"
 
 // TestProviderTampering tests various ways that the provider plugins in the
 // local cache directory might be modified after an initial "tofu init",
@@ -49,9 +55,16 @@ func TestProviderTampering(t *testing.T) {
 	}
 
 	seedDir := tf.WorkDir()
-	const providerVersion = "3.1.0" // must match the version in the fixture config
-	pluginDir := filepath.Join(".terraform", "providers", "registry.opentofu.org", "hashicorp", "null", providerVersion, getproviders.CurrentPlatform.String())
-	pluginExe := filepath.Join(pluginDir, "terraform-provider-null_v"+providerVersion+"_x5")
+	pluginDir := filepath.Join(
+		".terraform",
+		"providers",
+		"registry.opentofu.org",
+		"hashicorp",
+		"null",
+		providerTamperingFixtureNullProviderVersion,
+		getproviders.CurrentPlatform.String(),
+	)
+	pluginExe := filepath.Join(pluginDir, "terraform-provider-null_v"+providerTamperingFixtureNullProviderVersion+"_x5")
 	if getproviders.CurrentPlatform.OS == "windows" {
 		pluginExe += ".exe" // ugh
 	}
@@ -269,6 +282,201 @@ func TestProviderTampering(t *testing.T) {
 			t.Errorf("missing expected error message\nwant substring: %s\ngot:\n%s", want, stderr)
 		}
 	})
+}
+
+// TestProviderCacheJunkDirectory verifies our behavior for if there's already
+// a directory present where we'd want to create a provider cache entry, for
+// whatever reason: in that case, we want to fail with a clear error so that
+// the operator can decide how to fix the problem, rather than either totally
+// clobbering whatever was already there or merging the new package contents
+// into an preexisting directory.
+//
+// One way we could get into this case is if someone has intentionally modified
+// something in the provider cache directory to quickly test something and then
+// ran "tofu init" again. We prefer to fail in that case to avoid silently
+// clobbering whatever modification was made; operator should either delete
+// their modified directory or restore it to match the official package before
+// continuing.
+func TestProviderCacheJunkDirectory(t *testing.T) {
+	t.Parallel()
+
+	// This test reaches out to registry.opentofu.org to download the
+	// null provider, so it can only run if network access is allowed.
+	skipIfCannotAccessNetwork(t)
+
+	// We have a special case to allow installing into a precreated empty
+	// directory, since someone reading our documentation about directory
+	// layout might possibly try to create the empty directory manually first
+	// and there's no real harm in accepting that case because an empty
+	// directory is easy enough to recreate if that's what the operator really
+	// wanted, for some reason. (An empty provider package is never actually
+	// valid though, so that would be strange.)
+	for _, emptyDir := range []bool{true, false} {
+		t.Run(fmt.Sprintf("emptyDir=%#v", emptyDir), func(t *testing.T) {
+			t.Parallel()
+
+			// We reuse the "tampering" test fixture here even though this is a slightly
+			// different situation where the potential problem exists before init,
+			// rather than being introduced after init already ran.
+			fixturePath := filepath.Join("testdata", "provider-tampering-base")
+			tofu := e2e.NewBinary(t, tofuBin, fixturePath)
+
+			// This test starts with a strange mismatching directory at the location
+			// where the null provider package needs to be extracted, meaning that we
+			// won't be able to install the provider without clobbering it.
+			unexpectedDir := tofu.Path(
+				".terraform",
+				"providers",
+				addrs.DefaultProviderRegistryHost.String(),
+				"hashicorp",
+				"null",
+				providerTamperingFixtureNullProviderVersion,
+				getproviders.CurrentPlatform.String(),
+			)
+			err := os.MkdirAll(unexpectedDir, os.ModePerm)
+			if err != nil {
+				t.Fatalf("failed to make 'unexpected' directory: %s", err)
+			}
+			if !emptyDir {
+				// We'll make a file in the directory just to make it clear that this
+				// directory can't possibly match the expected content of the provider
+				// package, and so the provider installer definitely can't just try to
+				// use this directory as-is without clobbering it.
+				err = os.WriteFile(
+					filepath.Join(unexpectedDir, "extra.txt"),
+					[]byte("this file is not part of the hashicorp/null package"),
+					os.ModePerm,
+				)
+				if err != nil {
+					t.Fatalf("failed to make file in the 'unexpected' directory: %s", err)
+				}
+			}
+
+			// Now we run "tofu init" with the expectation that it should try to
+			// install "hashicorp/null" into the same location where we created
+			// the directory above. There's no dependency lock file to tell us
+			// that the existing directory might be enough to skip installation
+			// completely, so this should always attempt installation.
+			stdout, stderr, err := tofu.Run("init")
+			if emptyDir {
+				if err != nil {
+					t.Fatalf("unexpected failure: %s\n(installing into a preexisting empty directory should be allowed)\n%s\n%s", err, stderr, stdout)
+				}
+			} else {
+				if err == nil {
+					t.Fatalf("unexpected success; want error about conflicting cache entry\n%s\n%s", stderr, stdout)
+				}
+				if want := "does not match the content of the downloaded package"; !strings.Contains(stderr, want) {
+					t.Fatalf("stderr missing expected substring %q\n%s", want, stderr)
+				}
+			}
+		})
+	}
+}
+
+// TestProviderCacheJunkSymlink verifies our behavior for if there's already
+// a symlink present where we'd want to create a provider cache entry, for
+// whatever reason: in that case, we want to fail with a clear error so that
+// the operator can decide how to fix the problem, rather than either totally
+// clobbering their symlink or merging the package contents into whereever
+// the symlink points.
+//
+// One way we could get into this case is if someone has intentionally created
+// a symlink in their cache directory for provider development or testing
+// purposes, and then later ran "tofu init" again. We prefer to fail in that
+// case to avoid silently clobbering whatever modification was made; operator
+// should either delete their symlink or make sure it refers to a directory
+// that matches the expected package contents before continuing.
+func TestProviderCacheJunkSymlink(t *testing.T) {
+	t.Parallel()
+
+	// This test reaches out to registry.opentofu.org to download the
+	// null provider, so it can only run if network access is allowed.
+	skipIfCannotAccessNetwork(t)
+
+	// There is a special case to allow installing into a precreated empty
+	// directory which we test in [TestProviderCacheJunkDirectory] above,
+	// but that exception does not apply when what we find is a symlink _to_
+	// an empty directory: a symlink is only acceptable if it refers to a
+	// directory that was already correctly populated, because otherwise we
+	// might be writing into an existing empty directory somewhere else in
+	// the filesystem that is shared by other processes that expect it to stay
+	// empty.
+	for _, emptyDir := range []bool{true, false} {
+		t.Run(fmt.Sprintf("emptyDir=%#v", emptyDir), func(t *testing.T) {
+			t.Parallel()
+
+			// We reuse the "tampering" test fixture here even though this is a slightly
+			// different situation where the potential problem exists before init,
+			// rather than being introduced after init already ran.
+			fixturePath := filepath.Join("testdata", "provider-tampering-base")
+			tofu := e2e.NewBinary(t, tofuBin, fixturePath)
+
+			// This test starts with an unexpected symlink at the location where the
+			// null provider package needs to be extracted, meaning that we won't
+			// be able to install the provider without clobbering it.
+			targetDir := tofu.Path("symlink-target")
+			err := os.Mkdir(targetDir, os.ModePerm)
+			if err != nil {
+				t.Fatalf("failed to make symlink target directory: %s", err)
+			}
+			if !emptyDir {
+				// We'll make a file in the directory just to make it clear that this
+				// directory can't possibly match the expected content of the provider
+				// package, and so the provider installer definitely can't just try to
+				// use this directory as-is without clobbering the symlink.
+				err = os.WriteFile(
+					filepath.Join(targetDir, "extra.txt"),
+					[]byte("this file is not part of the hashicorp/null package"),
+					os.ModePerm,
+				)
+				if err != nil {
+					t.Fatalf("failed to make file in the symlink target directory: %s", err)
+				}
+			}
+
+			unexpectedSymlink := tofu.Path(
+				".terraform",
+				"providers",
+				addrs.DefaultProviderRegistryHost.String(),
+				"hashicorp",
+				"null",
+				providerTamperingFixtureNullProviderVersion,
+				getproviders.CurrentPlatform.String(),
+			)
+			symlinkParent := filepath.Dir(unexpectedSymlink)
+			err = os.MkdirAll(symlinkParent, os.ModePerm)
+			if err != nil {
+				t.Fatalf("failed to create parent directory of symlink: %s", err)
+			}
+			err = os.Symlink(targetDir, unexpectedSymlink)
+			if err != nil {
+				if runtime.GOOS == "windows" {
+					// By default Windows does not allow creation of symlinks, so
+					// we'll skip this test to avoid creating false-negative noise
+					// for anyone developing OpenTofu on Windows without their
+					// administrator having allowed symlink creation.
+					t.Skipf("can't create symlink on this Windows system: %s", err)
+				}
+				t.Fatalf("failed to make 'unexpected' symlink: %s", err)
+			}
+
+			// Now we run "tofu init" with the expectation that it should try to
+			// install "hashicorp/null" into the same location where we created
+			// the directory above. There's no dependency lock file to tell us
+			// that the existing directory might be enough to skip installation
+			// completely, so this should always attempt installation.
+			stdout, stderr, err := tofu.Run("init")
+			// Note that unlike [TestProviderCacheJunkDirectory] we expect this
+			// one to fail regardless of whether emptyDir is set.
+			if err == nil {
+				t.Fatalf("unexpected success; want error about conflicting cache entry\n%s\n%s", stderr, stdout)
+			}
+			if want := "does not match the content of the downloaded package"; !strings.Contains(stderr, want) {
+				t.Errorf("stderr missing expected substring %q\n%s", want, stderr)
+			}
+		})
+	}
 }
 
 // TestProviderLocksFromPredecessorProject is an end-to-end test of our
