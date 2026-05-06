@@ -7,10 +7,12 @@ package addrs
 import (
 	"strings"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
-// shorthand function to obtain known good strings.
-// Please please please do not use this outside of tests!!!
+// mustAbsResourceRange parses the given string into an AbsResourceInstance.
+// If the given string is not parsable, it panics.
 func mustAbsResourceRange(str string) AbsResourceInstance {
 	out, diags := parseAbsResourceRangeStr(str)
 	if diags.HasErrors() {
@@ -30,7 +32,6 @@ func TestOverrideTrie(t *testing.T) {
 		Default     string
 		Overrides   []override
 		Query       *AbsResourceInstance
-		WantMissing bool
 		ErrorSubstr string
 		Want        *string
 	}{
@@ -64,9 +65,7 @@ func TestOverrideTrie(t *testing.T) {
 					Value:   "australia",
 				},
 			},
-			Query:       new(mustAbsResourceRange(`module.vps["us-central1"].tofu_network.spiderweb`)),
-			WantMissing: true,
-			Want:        new("somewhere"),
+			Query: new(mustAbsResourceRange(`module.vps["us-central1"].tofu_network.spiderweb`)),
 		},
 		{
 			TestName: "error on wildcard",
@@ -103,30 +102,24 @@ func TestOverrideTrie(t *testing.T) {
 			}
 
 			got, diags := trie.Get(test.Query)
+			var gotErr string
 			if diags.HasErrors() {
-				if test.ErrorSubstr == "" {
-					// unexpectedly encountered an error
-					t.Errorf("got an error from trie override retrieval: %s", diags.Err().Error())
-				} else if got != nil {
-					// we always expect a nil return when there's an error
-					t.Errorf("got an error and expected no return value, but got: %s", *got)
-				} else if !strings.Contains(diags.Err().Error(), test.ErrorSubstr) {
-					t.Errorf("expected error to contain %s, but it did not: %s", test.ErrorSubstr, diags.Err().Error())
-				}
-				return
-			} else {
-				if test.ErrorSubstr != "" {
-					t.Fatal("expected an error, but did not get one")
-				}
+				gotErr = diags.Err().Error()
 			}
 
-			if test.WantMissing && got != nil {
-				t.Error("expected to get nothing, but found something")
+			// if ErrorSubstr is empty, this checks that there were no errors
+			if !strings.Contains(gotErr, test.ErrorSubstr) {
+				// this is incorrect:
+				if test.ErrorSubstr == "" {
+					// we either got an error when we didn't expect...
+					t.Errorf("unexpected error encountered: %s", gotErr)
+				} else {
+					// or got no error when we *were* expecting one
+					t.Errorf("expected error containing \"%s\", but no error was returned", test.ErrorSubstr)
+				}
 			}
-			if !test.WantMissing && got == nil {
-				t.Error("expected something, but didn't find anything")
-			} else if !test.WantMissing && *test.Want != *got {
-				t.Errorf("wrong result: expected %s, got %s\n", *test.Want, *got)
+			if diff := cmp.Diff(test.Want, got); diff != "" {
+				t.Errorf("unexpected returned value (-want,+got):\n%s", diff)
 			}
 		})
 	}
