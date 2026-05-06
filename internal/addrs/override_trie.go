@@ -97,8 +97,8 @@ func (ot *OverrideTrie[T]) trackModernAddressing(key InstanceKey) {
 func (ot *OverrideTrie[T]) setNoKeyEvidence(i int, addr *AbsResourceInstance, src *hcl.Range) {
 	if ot.noKeyEvidenceMap == nil {
 		ot.noKeyEvidenceMap = make([][]*hcl.Range, len(addr.Module)+1)
-		for i := range len(addr.Module) + 1 {
-			ot.noKeyEvidenceMap[i] = make([]*hcl.Range, 0)
+		for j := range len(addr.Module) + 1 {
+			ot.noKeyEvidenceMap[j] = make([]*hcl.Range, 0)
 		}
 	}
 	ot.noKeyEvidenceMap[i] = append(ot.noKeyEvidenceMap[i], src)
