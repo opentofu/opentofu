@@ -69,22 +69,44 @@ func (p PackageLocalArchive) InstallProviderPackage(ctx context.Context, meta Pa
 	filename := meta.Location.String()
 	span.SetAttributes(semconv.FilePath(filename))
 
-	// NOTE: Packages are immutable, but we may want to skip overwriting the existing
-	// files in due to specific scenarios defined below.
-
-	if _, err := os.Stat(targetDir); err == nil {
-		// If the package might already be installed, we should try to skip overwriting the contents.
-		// When run with TF_PLUGIN_CACHE_DIR or similar, a given provider might already be executing
-		// and therefore locking the provider binary in the target directory (preventing the overwrite below)
-		//
-		// This does incur the overhead of two additional hash computations and could be
-		// skipped with smarter checks around re-use scenarios in the future.
+	// If there is already a package at the location we would've been installing
+	// to then that's okay if the content already matches what we would've
+	// installed, but we reject it otherwise so the operator can investigate.
+	if info, err := os.Lstat(targetDir); err == nil {
+		log.Printf("[TRACE] There's already a directory entry at %s, so we'll check if it matches our expectations", targetDir)
 
 		targetHash, targetErr := PackageHashV1(PackageLocalDir(targetDir))
-		fileHash, fileErr := PackageHashV1(meta.Location)
-
-		if targetHash == fileHash && fileErr == nil && targetErr == nil {
-			// Package is properly installed, bad or missing lock file will be caught elsewhere
+		// If the existing entry is an empty directory then we permit that just
+		// because sometimes a caller might want to create the target directory
+		// themselves before installing into it, such as if the target directory
+		// is a temporary directory created with [os.MkdirTemp]. Only a direct
+		// empty directory is allowed here, not a symlink to an empty directory.
+		isEmptyDir := info.IsDir() && targetHash == emptyPackageHashV1
+		if !isEmptyDir {
+			fileHash, fileErr := PackageHashV1(meta.Location)
+			var err error
+			if fileErr != nil {
+				err = fmt.Errorf("failed to calculate checksum for temporary copy of provider package at %s: %s", meta.Location.String(), fileErr)
+			} else if targetErr != nil {
+				err = fmt.Errorf("failed to calculate checksum for existing cached provider package at %s: %s", targetDir, targetErr)
+			} else if targetHash != fileHash {
+				// This means that there's already something at the cache location
+				// where we'd need to install to but the existing content doesn't
+				// match what we're trying to install. In this case we don't want
+				// to just clobber the existing directory because the operator
+				// might have modified it for a reason and want to keep something
+				// they changed in there, and so we'll report an error so they can
+				// investigate and delete this directory themselves when they are
+				// ready.
+				err = fmt.Errorf("existing cached package at %s does not match the content of the downloaded package; does it contain local modifications?", targetDir)
+			}
+			if err != nil {
+				tracing.SetSpanError(span, err)
+				return authResult, err
+			}
+			// If the stat succeeded and we've confirmed that the contents of
+			// targetDir match the package we were about to install anyway then
+			// we don't have any more work to do here.
 			log.Printf("[INFO] Skipping local installation of provider %s %s as the existing contents already match the new contents", meta.Provider, meta.Version)
 			return authResult, nil
 		}
