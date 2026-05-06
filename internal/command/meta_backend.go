@@ -1548,7 +1548,7 @@ func (m *Meta) assertSupportedCloudInitOptions(mode cloud.ConfigChangeMode) tfdi
 			name := "-migrate-state"
 			if m.backendArgs.ForceInitCopy {
 				// -force copy implies -migrate-state in "tofu init",
-				// so m.migrateState is forced to true in this case even if
+				// so m.backendArgs.migrateState is forced to true in this case even if
 				// the user didn't actually specify it. We'll use the other
 				// name here to avoid being confusing, then.
 				name = "-force-copy"
