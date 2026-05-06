@@ -13,7 +13,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/command/system"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 
@@ -634,7 +634,7 @@ func TestStateMv_resourceToInstanceErrInAutomation(t *testing.T) {
 				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
 				View:             view,
-				SystemArgs:       arguments.System{RunningInAutomation: true},
+				SystemCfg:        system.Config{RunningInAutomation: true},
 			},
 		},
 	}

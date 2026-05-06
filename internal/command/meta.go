@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/opentofu/opentofu/internal/command/flags"
+	"github.com/opentofu/opentofu/internal/command/system"
 	"github.com/opentofu/svchost/disco"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -62,9 +63,10 @@ type Meta struct {
 	// Meta which directly read and modify paths inside the data directory.
 	WorkingDir *workdir.Dir
 
-	// SystemArguments holds the configuration attributes that are global for all
+	// SystemCfg holds the configuration attributes that are global for all
 	// the commands and are used by different parts of the system.
-	SystemArgs arguments.System
+	//SystemCfg system.Config
+	SystemCfg system.Config
 
 	View *views.View
 
