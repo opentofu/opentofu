@@ -13,6 +13,8 @@ import (
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/command/cliconfig/ociauthconfig"
+	"github.com/opentofu/opentofu/internal/command/e2etest/fakeocireg"
+	orasRemote "oras.land/oras-go/v2/registry/remote"
 )
 
 func TestOCICredentialsLookupEnv_DockerCredHelper(t *testing.T) {
@@ -95,6 +97,52 @@ func TestGetOCIRepositoryORASClient_PerRepositoryCredentials(t *testing.T) {
 			}
 
 		})
+	}
+}
+
+// TestGetOciRepository verifies that getOCIRepositoryStore can successfully
+// connect to an OCI registry that returns a 401 Unauthorized response for
+// the `GET /v2/` endpoint, which is a behavior seen with some registries.
+//
+// This test ensures that OpenTofu does not use the problematic `oras.Ping()`
+// function, which would fail against such registries. Instead, authentication
+// is handled transparently by ORAS on the first real API call.
+func TestGetOciRepository(t *testing.T) {
+	ctx := t.Context()
+
+	// No authentication, empty credentials
+	credsPolicy := ociauthconfig.NewCredentialsConfigs(nil)
+
+	registryServer, err := fakeocireg.NewServer(t.Context(), map[string]string{	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer registryServer.Close()
+
+	registryAddr := registryServer.Listener.Addr().String()
+	repositoryName := "repo-a"
+
+	store, err := getOCIRepositoryStore(ctx, registryAddr, repositoryName, credsPolicy)
+
+	if err != nil {
+		t.Fatalf("failed creating oci repository store: %s", err)
+	}
+
+	if store == nil {
+		t.Fatal("failed creating oci repository store, expected non-nil store")
+	}
+
+	repo, ok := store.(*orasRemote.Repository)
+	if !ok {
+		t.Fatal("failed creating oci repository store, expected orasRemote.Repository")
+	}
+
+	if repo.Reference.Registry != registryAddr {
+		t.Errorf("wrong registry; got %q, want %q", repo.Reference.Registry, registryAddr)
+	}
+
+	if repo.Reference.Repository != repositoryName {
+		t.Errorf("wrong repository name; got %q, want %q", repo.Reference.Repository, repositoryName)
 	}
 }
 
