@@ -44,8 +44,15 @@ func (r registryHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) 
 	}
 	if repoName == "" {
 		// This is just a "does this server even support the protocol?" discovery request.
+		// The OCI specification includes a `GET /v2/` endpoint for API version checks. Some
+		// registries incorrectly require authentication for this endpoint, even for anonymous
+		// pulls.
+		//
+		// To prevent authentication problems, OpenTofu must not use this endpoint.
+		// We intentionally fail this request to ensure that tests break if this
+		// endpoint is ever used, for example via `oras.Ping`.
 		log.Printf("[INFO] fakeocireg: protocol discovery succeeds")
-		resp.WriteHeader(http.StatusOK)
+		resp.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	store, ok := r.stores[repoName]
