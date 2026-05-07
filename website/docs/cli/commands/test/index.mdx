@@ -173,6 +173,7 @@ A test file consists of:
   current file.
 * The **[`provider` blocks](#the-providers-block)** (optional): define the providers to be used for the tests.
 * The **[`mock_provider` blocks](#the-mock_provider-blocks)** (optional): define the providers to be mocked.
+* The **[`mock_resource` and `mock_data` blocks](#the-mock_resource-and-mock_data-blocks)** (optional): define default values for computed attributes of mocked resources and data sources.
 * The **[`override_resource` blocks](#the-override_resource-and-override_data-blocks)** (optional): define the resources to be overridden.
 * The **[`override_data` blocks](#the-override_resource-and-override_data-blocks)** (optional): define the data sources to be overridden.
 * The **[`override_module` blocks](#the-override_module-block)** (optional): define the module calls to be overridden.
@@ -529,7 +530,7 @@ These blocks consist of the following elements:
 
 :::note
 
-`mock_resource` and `mock_data` blocks override all instances of the entire resource type. If you want to override a specific instance of a resource, use the `override_resource` or `override_data` blocks.
+`mock_resource` and `mock_data` blocks are overriding the entire resource or data source types. If you want to override a specific instance of a resource, use the `override_resource` or `override_data` blocks. When both are defined for the same resource instance, `override_resource`/`override_data` takes precedence because it is more specific.
 
 :::
 
