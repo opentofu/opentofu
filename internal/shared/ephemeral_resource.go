@@ -147,6 +147,10 @@ func OpenEphemeralResourceInstance(
 	closeCh := make(chan context.Context, 1)
 	diagsCh := make(chan tfdiags.Diagnostics, 1)
 	go func() {
+		// The writer is responsible with closing the channel, not the receiver.
+		defer func() {
+			close(diagsCh)
+		}()
 		var diags tfdiags.Diagnostics
 		renewAt := openResp.RenewAt
 		privateData := openResp.Private
@@ -212,15 +216,16 @@ func OpenEphemeralResourceInstance(
 			hooks.PostClose(addr, diags)
 		}
 
-		diagsCh <- diags
+		select {
+		case diagsCh <- diags:
+		case <-time.After(500 * time.Millisecond):
+			log.Printf("[ERROR] OpenEphemeralResourceInstance: Diagnostics not sent fully after closing ephemeral %s", diags)
+		}
 	}()
 
 	closeFunc := func(ctx context.Context) tfdiags.Diagnostics {
 		closeCh <- ctx
 		close(closeCh)
-		defer func() {
-			close(diagsCh)
-		}()
 
 		timeout := 10 * time.Second
 		select {
