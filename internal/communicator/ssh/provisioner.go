@@ -400,7 +400,7 @@ func buildSSHClientConfig(opts sshClientConfigOpts) (*ssh.ClientConfig, error) {
 func signCertWithPrivateKey(pk string, certificate string) (ssh.AuthMethod, error) {
 	rawPk, err := ssh.ParseRawPrivateKey([]byte(pk))
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse private key %q: %w", pk, err)
+		return nil, fmt.Errorf("failed to parse private key: %w", err)
 	}
 
 	// golang.org/x/crypto/ssh does not expose certificate parsing as a
@@ -409,7 +409,7 @@ func signCertWithPrivateKey(pk string, certificate string) (ssh.AuthMethod, erro
 	// guaranteed to be a certificate.
 	maybeCert, _, _, _, err := ssh.ParseAuthorizedKey([]byte(certificate))
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse certificate %q: %w", certificate, err)
+		return nil, fmt.Errorf("failed to parse certificate: %w", err)
 	}
 	cert, ok := maybeCert.(*ssh.Certificate)
 	if !ok {
@@ -430,12 +430,12 @@ func signCertWithPrivateKey(pk string, certificate string) (ssh.AuthMethod, erro
 
 	usigner, err := ssh.NewSignerFromKey(rawPk)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create signer from raw private key %q: %w", rawPk, err)
+		return nil, fmt.Errorf("failed to create signer from private key: %w", err)
 	}
 
 	ucertSigner, err := ssh.NewCertSigner(cert, usigner)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create cert signer %q: %w", usigner, err)
+		return nil, fmt.Errorf("failed to create cert signer: %w", err)
 	}
 
 	return ssh.PublicKeys(ucertSigner), nil
