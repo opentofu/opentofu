@@ -2,6 +2,10 @@ The v1.11.x release series is supported until **August 1 2026**.
 
 ## 1.11.7 (Unreleased)
 
+BUG FIXES:
+
+* When installing provider packages into a local cache directory, the installer will now return an error if a conflicting entry is already present in the cache that doesn't match the expected checksum. Previously OpenTofu would just silently write over the existing entry in that case. ([#4082](https://github.com/opentofu/opentofu/pull/4082))
+
 ## 1.11.6
 
 BUG FIXES:
