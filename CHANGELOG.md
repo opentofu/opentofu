@@ -2,7 +2,8 @@
 
 BUG FIXES:
 
-* Fixed provider-defined functions in `import` block `id` expressions causing "BUG: Uninitialized function provider" error. ([#3803](https://github.com/opentofu/opentofu/issues/3803))
+- When installing provider packages into a local cache directory, the installer will now return an error if a conflicting entry is already present in the cache that doesn't match the expected checksum. Previously OpenTofu would just silently write over the existing entry in that case. ([#4082](https://github.com/opentofu/opentofu/pull/4082))
+- Fixed provider-defined functions in `import` block `id` expressions causing "BUG: Uninitialized function provider" error. ([#3803](https://github.com/opentofu/opentofu/issues/3803))
 
 ## 1.10.9
 
