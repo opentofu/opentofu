@@ -9024,14 +9024,38 @@ ephemeral "test_ephemeral_resource" "a" {
 `,
 	})
 	p := testProvider("test")
-	p.OpenEphemeralResourceResponse = &providers.OpenEphemeralResourceResponse{
-		Result: cty.ObjectVal(map[string]cty.Value{
-			"id":     cty.StringVal("id val"),
-			"secret": cty.StringVal("val"),
-			"input":  cty.NullVal(cty.String),
-		}),
+
+	// To avoid race conditions, we perform the below checks only after the calls to the provider methods
+	// are performed.
+	callsCh := make(chan struct{}, 2)
+	doneCh := make(chan struct{})
+	go func() {
+		defer close(doneCh)
+		var i int
+		for {
+			select {
+			case <-callsCh:
+				i++
+				if i == 2 {
+					return
+				}
+			case <-t.Context().Done():
+				return
+			}
+		}
+	}()
+	p.OpenEphemeralResourceFn = func(request providers.OpenEphemeralResourceRequest) providers.OpenEphemeralResourceResponse {
+		defer func() { callsCh <- struct{}{} }()
+		return providers.OpenEphemeralResourceResponse{
+			Result: cty.ObjectVal(map[string]cty.Value{
+				"id":     cty.StringVal("id val"),
+				"secret": cty.StringVal("val"),
+				"input":  cty.NullVal(cty.String),
+			}),
+		}
 	}
 	p.CloseEphemeralResourceFn = func(request providers.CloseEphemeralResourceRequest) providers.CloseEphemeralResourceResponse {
+		defer func() { callsCh <- struct{}{} }()
 		<-time.After(10 * time.Second) // exactly the same with the timeout inside internal/shared/ephemeral_resource.go
 		return providers.CloseEphemeralResourceResponse{}
 	}
@@ -9052,6 +9076,11 @@ ephemeral "test_ephemeral_resource" "a" {
 			t.Fatalf("unexpected plan error: %s", diags)
 		}
 		t.Logf("Plan failed with the expected error")
+	}
+	select {
+	case <-doneCh:
+	case <-time.After(12 * time.Second):
+		t.Fatalf("timed out while waiting for the provider calls to be performed")
 	}
 	if !p.OpenEphemeralResourceCalled {
 		t.Errorf("Provider's OpenEphemeralResource wasn't called; should've been")
