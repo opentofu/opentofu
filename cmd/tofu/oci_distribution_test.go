@@ -100,14 +100,14 @@ func TestGetOCIRepositoryORASClient_PerRepositoryCredentials(t *testing.T) {
 	}
 }
 
-// TestGetOciRepository verifies that getOCIRepositoryStore can successfully
+// TestGetOciRepositoryNoPing verifies that getOCIRepositoryStore can successfully
 // connect to an OCI registry that returns a 401 Unauthorized response for
 // the `GET /v2/` endpoint, which is a behavior seen with some registries.
 //
 // This test ensures that OpenTofu does not use the problematic `oras.Ping()`
 // function, which would fail against such registries. Instead, authentication
 // is handled transparently by ORAS on the first real API call.
-func TestGetOciRepository(t *testing.T) {
+func TestGetOciRepositoryNoPing(t *testing.T) {
 	ctx := t.Context()
 
 	// No authentication, empty credentials
