@@ -211,6 +211,9 @@ func (s *SyncState) SetResourceInstanceObjectFull(addr addrs.AbsResourceInstance
 // quirk exists because changes to resource instance objects currently also
 // implicitly update resource-level and instance-level metadata.
 func (s *SyncState) RemoveResourceInstanceObjectFull(addr addrs.AbsResourceInstanceObject, providerInstAddr addrs.AbsProviderInstanceCorrect) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
 	// FIXME: Rework this so that removing an object does _not_ also implicitly
 	// update the resource-level and instance-level provider tracking, which
 	// is only currently necessary because we're trying to use preexisting
