@@ -3260,7 +3260,9 @@ func TestInit_skipEncryptionBackendFalse(t *testing.T) {
 			t.Fatalf("generated error should contain the string \"Error: Unable to fetch encryption key data\"\ninstead got : %s\n", output.Stderr())
 		}
 	})
+}
 
+func TestInit_backendFalse_skipsBackendFromStateOnPreviouslyInitializedDir(t *testing.T) {
 	t.Run("init succeeds with -backend=false even when an encrypted state file is already present", func(t *testing.T) {
 		td := t.TempDir()
 		testCopyDir(t, testFixturePath("init-encryption-with-state"), td)
@@ -3291,11 +3293,8 @@ func TestInit_skipEncryptionBackendFalse(t *testing.T) {
 		if code != 0 {
 			t.Fatalf("init should run successfully with -backend=false even with an encrypted state file present\nexit code: %d\nstderr:\n%s\nstdout:\n%s", code, output.Stderr(), output.Stdout())
 		}
-		if strings.Contains(output.Stderr(), "Error refreshing state") {
-			t.Fatalf("init must not attempt to read/refresh the local state when -backend=false is set\nstderr:\n%s", output.Stderr())
-		}
-		if strings.Contains(output.Stderr(), "can not be read without an encryption configuration") {
-			t.Fatalf("init must not attempt to decrypt the local state when -backend=false is set\nstderr:\n%s", output.Stderr())
+		if stderr := output.Stderr(); stderr != "" {
+			t.Errorf("expected to have no errors but got:\n%s", stderr)
 		}
 	})
 }
