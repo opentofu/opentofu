@@ -109,7 +109,7 @@ func (m *Meta) Backend(ctx context.Context, opts *BackendOpts, enc encryption.St
 		opts = &BackendOpts{}
 	}
 
-	if m.AllowExperimentalFeatures {
+	if m.SystemCfg.AllowExperimentalFeatures {
 		// TEMP: While we're in early development of the new language runtime
 		// we have an experimental shim to enable it using an environment
 		// variable, but that's allowed only in builds where experimental
@@ -151,7 +151,7 @@ func (m *Meta) Backend(ctx context.Context, opts *BackendOpts, enc encryption.St
 					fmt.Fprintf(&buf, "\n  - %s: %s", addr, err)
 				}
 				suggestion := "To download the plugins required for this configuration, run:\n  tofu init"
-				if m.RunningInAutomation {
+				if m.SystemCfg.RunningInAutomation {
 					// Don't mention "tofu init" specifically if we're running in an automation wrapper
 					suggestion = "You must install the required plugins before running OpenTofu operations."
 				}
@@ -327,7 +327,7 @@ func (m *Meta) selectWorkspace(ctx context.Context, b backend.Backend) error {
 func (m *Meta) BackendForLocalPlan(ctx context.Context, settings plans.Backend, enc encryption.StateEncryption) (backend.Enhanced, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	if m.AllowExperimentalFeatures {
+	if m.SystemCfg.AllowExperimentalFeatures {
 		// TEMP: While we're in early development of the new language runtime
 		// we have an experimental shim to enable it using an environment
 		// variable, but that's allowed only in builds where experimental
@@ -429,7 +429,7 @@ func (m *Meta) backendCLIOpts(ctx context.Context) (*backend.CLIOpts, error) {
 		StateArgs:           m.stateArgs,
 		ContextOpts:         contextOpts,
 		Input:               m.Input(),
-		RunningInAutomation: m.RunningInAutomation,
+		RunningInAutomation: m.SystemCfg.RunningInAutomation,
 	}, err
 }
 

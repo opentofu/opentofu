@@ -354,10 +354,10 @@ func (c *LoginCommand) Synopsis() string {
 }
 
 func (c *LoginCommand) defaultOutputFile() string {
-	if c.CLIConfigDir == "" {
+	if c.SystemCfg.CLIConfigDir == "" {
 		return "" // no default available
 	}
-	return filepath.Join(c.CLIConfigDir, "credentials.tfrc.json")
+	return filepath.Join(c.SystemCfg.CLIConfigDir, "credentials.tfrc.json")
 }
 
 func (c *LoginCommand) interactiveGetTokenByCode(ctx context.Context, hostname svchost.Hostname, credsCtx *loginCredentialsContext, clientConfig *disco.OAuthClient, view views.Login) (*oauth2.Token, tfdiags.Diagnostics) {

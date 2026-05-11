@@ -165,7 +165,7 @@ func (v *ImportHuman) Hooks() []tofu.Hook {
 }
 
 func (v *ImportHuman) Operation() Operation {
-	return NewOperation(arguments.ViewHuman, v.view.runningInAutomation, v.view)
+	return NewOperation(arguments.ViewHuman, v.view)
 }
 
 func (v *ImportHuman) Backend() Backend {
