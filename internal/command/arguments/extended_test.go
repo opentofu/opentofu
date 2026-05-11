@@ -192,12 +192,14 @@ func TestStateFlagsParsing(t *testing.T) {
 func TestStateFlagsRegistering(t *testing.T) {
 	testCases := map[string]struct {
 		register func(s *State, f *flag.FlagSet)
+		args     []string
 		want     *State
 		wantErr  error
 	}{
 		"no flag registered": {
 			register: func(s *State, f *flag.FlagSet) {
 			},
+			args:    []string{"-lock=false"},
 			want:    stateArgsWithDefaults(func(v *State) {}),
 			wantErr: fmt.Errorf("flag provided but not defined: -lock"),
 		},
@@ -205,42 +207,61 @@ func TestStateFlagsRegistering(t *testing.T) {
 			register: func(s *State, f *flag.FlagSet) {
 				s.addFlags(f, stateFlagLock)
 			},
+			args: []string{
+				"-lock=false",
+				"-lock-timeout=42ns",
+			},
 			want: stateArgsWithDefaults(func(v *State) {
 				v.Lock = false
-				v.LockTimeout = 2 * time.Second
+				v.LockTimeout = 42 * time.Nanosecond
 			}),
-			wantErr: fmt.Errorf("flag provided but not defined: -state"),
 		},
 		"lock and state in": {
 			register: func(s *State, f *flag.FlagSet) {
 				s.addFlags(f, stateFlagLock|stateFlagStateIn)
 			},
+			args: []string{
+				"-lock=false",
+				"-lock-timeout=42µs",
+				"-state=/path/to/state",
+			},
 			want: stateArgsWithDefaults(func(v *State) {
 				v.Lock = false
-				v.LockTimeout = 2 * time.Second
+				v.LockTimeout = 42 * time.Microsecond
 				v.StatePath = "/path/to/state"
 			}),
-			wantErr: fmt.Errorf("flag provided but not defined: -state-out"),
 		},
 		"lock, state in and state out": {
 			register: func(s *State, f *flag.FlagSet) {
 				s.addFlags(f, stateFlagLock|stateFlagStateIn|stateFlagStateOut)
 			},
+			args: []string{
+				"-lock=false",
+				"-lock-timeout=42ms",
+				"-state=/path/to/state",
+				"-state-out=/path/to/output/state",
+			},
 			want: stateArgsWithDefaults(func(v *State) {
 				v.Lock = false
-				v.LockTimeout = 2 * time.Second
+				v.LockTimeout = 42 * time.Millisecond
 				v.StatePath = "/path/to/state"
 				v.StateOutPath = "/path/to/output/state"
 			}),
-			wantErr: fmt.Errorf("flag provided but not defined: -backup"),
 		},
 		"lock, state in, state out and backup": {
 			register: func(s *State, f *flag.FlagSet) {
 				s.addFlags(f, stateFlagAll)
 			},
+			args: []string{
+				"-lock=false",
+				"-lock-timeout=42s",
+				"-state=/path/to/state",
+				"-state-out=/path/to/output/state",
+				"-backup=/path/to/state/backup",
+			},
 			want: stateArgsWithDefaults(func(v *State) {
 				v.Lock = false
-				v.LockTimeout = 2 * time.Second
+				v.LockTimeout = 42 * time.Second
 				v.StatePath = "/path/to/state"
 				v.StateOutPath = "/path/to/output/state"
 				v.BackupPath = "/path/to/state/backup"
@@ -252,9 +273,16 @@ func TestStateFlagsRegistering(t *testing.T) {
 				s.addFlags(f, stateFlagLock|stateFlagStateIn|stateFlagStateOut)
 				s.AddBackupFlag(f, "-")
 			},
+			args: []string{
+				"-lock=false",
+				"-lock-timeout=42m",
+				"-state=/path/to/state",
+				"-state-out=/path/to/output/state",
+				"-backup=/path/to/state/backup",
+			},
 			want: stateArgsWithDefaults(func(v *State) {
 				v.Lock = false
-				v.LockTimeout = 2 * time.Second
+				v.LockTimeout = 42 * time.Minute
 				v.StatePath = "/path/to/state"
 				v.StateOutPath = "/path/to/output/state"
 				v.BackupPath = "/path/to/state/backup"
@@ -268,13 +296,7 @@ func TestStateFlagsRegistering(t *testing.T) {
 			s := &State{}
 			f := defaultFlagSet("test")
 			tc.register(s, f)
-			err := f.Parse([]string{
-				"-lock=false",
-				"-lock-timeout=2s",
-				"-state=/path/to/state",
-				"-state-out=/path/to/output/state",
-				"-backup=/path/to/state/backup",
-			})
+			err := f.Parse(tc.args)
 			if diff := cmp.Diff(fmt.Sprintf("%s", tc.wantErr), fmt.Sprintf("%s", err)); diff != "" {
 				t.Errorf("unexpected error (-want,+got)\n%s", diff)
 			}
