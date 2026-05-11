@@ -196,7 +196,7 @@ func (c *ApplyCommand) LoadPlanFile(path string, enc encryption.Encryption) (*pl
 func (c *ApplyCommand) PrepareBackend(ctx context.Context, planFile *planfile.WrappedPlanFile, args *arguments.State, backendView views.Backend, enc encryption.StateEncryption) (backend.Enhanced, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	c.stateArgs = *args
+	c.Meta.stateArgs = *args
 
 	// Load the backend
 	var be backend.Enhanced

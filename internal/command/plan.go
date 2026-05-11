@@ -120,7 +120,7 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 }
 
 func (c *PlanCommand) PrepareBackend(ctx context.Context, args *arguments.State, view views.Plan, enc encryption.Encryption) (backend.Enhanced, tfdiags.Diagnostics) {
-	c.stateArgs = *args
+	c.Meta.stateArgs = *args
 
 	backendConfig, diags := c.loadBackendConfig(ctx, ".")
 	if diags.HasErrors() {

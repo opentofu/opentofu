@@ -32,12 +32,12 @@ type StateMeta struct {
 // backup path.
 func (c *StateMeta) State(ctx context.Context, enc encryption.Encryption, view views.State) (statemgr.Full, error) {
 	var realState statemgr.Full
-	backupPath := c.stateArgs.BackupPath
-	stateOutPath := c.stateArgs.StatePath
+	backupPath := c.Meta.stateArgs.BackupPath
+	stateOutPath := c.Meta.stateArgs.StatePath
 
 	// use the specified state
-	if c.stateArgs.StatePath != "" {
-		realState = statemgr.NewFilesystem(c.stateArgs.StatePath, encryption.StateEncryptionDisabled()) // User specified state file should not be encrypted
+	if c.Meta.stateArgs.StatePath != "" {
+		realState = statemgr.NewFilesystem(c.Meta.stateArgs.StatePath, encryption.StateEncryptionDisabled()) // User specified state file should not be encrypted
 	} else {
 		// Load the backend
 		b, backendDiags := c.Backend(ctx, nil, enc.State())

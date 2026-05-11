@@ -83,7 +83,7 @@ func (c *InitCommand) Run(rawArgs []string) int {
 		c.pluginPath = args.FlagPluginPath
 	}
 	c.Meta.variableArgs = args.Vars.All()
-	c.stateArgs = *args.State
+	c.Meta.stateArgs = *args.State
 
 	// This gets the current directory as full path.
 	path := c.WorkingDir.NormalizePath(c.WorkingDir.RootModuleDir())

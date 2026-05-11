@@ -59,7 +59,7 @@ func (c *StateMvCommand) Run(rawArgs []string) int {
 	// will have unwanted side effects, ending in writing the source state in the target state.
 	// TODO meta-refactor: when we move the backend logic to its own component, maybe there is a way to change the
 	//  arguments.State in such way to be reused with/without the stateOut.
-	c.stateArgs = arguments.State{
+	c.Meta.stateArgs = arguments.State{
 		Lock:        args.State.Lock,
 		LockTimeout: args.State.LockTimeout,
 		StatePath:   args.State.StatePath,

@@ -114,7 +114,7 @@ func (c *RefreshCommand) Run(rawArgs []string) int {
 }
 
 func (c *RefreshCommand) PrepareBackend(ctx context.Context, args *arguments.State, view views.Refresh, enc encryption.Encryption) (backend.Enhanced, tfdiags.Diagnostics) {
-	c.stateArgs = *args
+	c.Meta.stateArgs = *args
 
 	backendConfig, diags := c.loadBackendConfig(ctx, ".")
 	if diags.HasErrors() {

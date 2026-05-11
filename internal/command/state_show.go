@@ -52,7 +52,7 @@ func (c *StateShowCommand) Run(rawArgs []string) int {
 	}
 	c.View.SetShowSensitive(args.ShowSensitive)
 	c.Meta.variableArgs = args.Vars.All()
-	c.stateArgs = *args.State
+	c.Meta.stateArgs = *args.State
 
 	// Check for user-supplied plugin path
 	var err error

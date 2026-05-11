@@ -58,7 +58,7 @@ func (c *StatePushCommand) Run(rawArgs []string) int {
 	c.ignoreRemoteVersion = args.Backend.IgnoreRemoteVersion
 
 	c.Meta.variableArgs = args.Vars.All()
-	c.stateArgs = *args.State
+	c.Meta.stateArgs = *args.State
 
 	if diags := c.Meta.checkRequiredVersion(ctx); diags != nil {
 		view.Diagnostics(diags)

@@ -50,7 +50,7 @@ func (c *ConsoleCommand) Run(rawArgs []string) int {
 		}
 		return cli.RunResultHelp
 	}
-	c.stateArgs = *args.State
+	c.Meta.stateArgs = *args.State
 
 	// FIXME: the -input flag value is needed to initialize the backend and the
 	// operation, but there is no clear path to pass this value down, so we

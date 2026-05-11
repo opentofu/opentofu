@@ -330,7 +330,7 @@ func (c *ImportCommand) configureBackendFlags(args *arguments.Import) {
 	c.Meta.input = args.ViewOptions.InputEnabled
 
 	c.Meta.variableArgs = args.Vars.All()
-	c.stateArgs = *args.State
+	c.Meta.stateArgs = *args.State
 }
 
 func (c *ImportCommand) Help() string {

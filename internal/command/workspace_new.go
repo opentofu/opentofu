@@ -52,7 +52,7 @@ func (c *WorkspaceNewCommand) Run(rawArgs []string) int {
 		return cli.RunResultHelp
 	}
 	c.Meta.variableArgs = args.Vars.All()
-	c.stateArgs = *args.State
+	c.Meta.stateArgs = *args.State
 
 	view.WarnWhenUsedAsEnvCmd(c.LegacyName)
 
