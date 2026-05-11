@@ -1,6 +1,13 @@
 The v1.11.x release series is supported until **August 1 2026**.
 
 ## 1.11.8 (Unreleased)
+
+SECURITY ADVISORIES:
+
+* Previous releases in the v1.11 series could potentially take an excessive amount of time and send extraneous data to an HTTP2 server that specifies a maximum frame size of zero. This is now fixed. ([#4094](https://github.com/opentofu/opentofu/issues/4094))
+
+    An attacker that can coerce an operator to install a dependency from an attacker-controlled server could use this to cause unexpected resource consumption during `tofu init`.
+
 ## 1.11.7
 
 BUG FIXES:
