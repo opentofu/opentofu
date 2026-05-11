@@ -334,7 +334,7 @@ func TestOperation_planNoChanges(t *testing.T) {
 
 func TestOperation_plan(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
-	v := NewOperation(arguments.ViewHuman, NewView(streams))
+	v := NewOperation(arguments.ViewHuman, NewView(streams).SetRunningInAutomation(true))
 
 	plan := testPlan(t)
 	schemas := testSchemas()
@@ -363,7 +363,7 @@ Plan: 1 to add, 0 to change, 0 to destroy.
 
 func TestOperation_planWithDatasource(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
-	v := NewOperation(arguments.ViewHuman, NewView(streams))
+	v := NewOperation(arguments.ViewHuman, NewView(streams).SetRunningInAutomation(true))
 
 	plan := testPlanWithDatasource(t)
 	schemas := testSchemas()
@@ -399,7 +399,7 @@ Plan: 1 to add, 0 to change, 0 to destroy.
 
 func TestOperation_planWithDatasourceAndDrift(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
-	v := NewOperation(arguments.ViewHuman, NewView(streams))
+	v := NewOperation(arguments.ViewHuman, NewView(streams).SetRunningInAutomation(true))
 
 	plan := testPlanWithDatasource(t)
 	schemas := testSchemas()
