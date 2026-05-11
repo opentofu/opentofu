@@ -326,7 +326,7 @@ func TestMetaBackend_configureNewWithState(t *testing.T) {
 
 	// This combination should not require the extra -migrate-state flag, since
 	// there is no existing backend config
-	m.migrateState = false
+	m.backendArgs.MigrateState = false
 
 	// Get the backend
 	b, diags := m.Backend(t.Context(), &BackendOpts{Init: true}, encryption.StateEncryptionDisabled())
@@ -492,7 +492,7 @@ func TestMetaBackend_configureNewWithStateExisting(t *testing.T) {
 	// Setup the meta
 	m := testMetaBackend(t)
 	// suppress input
-	m.forceInitCopy = true
+	m.backendArgs.ForceInitCopy = true
 
 	// Get the backend
 	b, diags := m.Backend(t.Context(), &BackendOpts{Init: true}, encryption.StateEncryptionDisabled())
@@ -746,7 +746,7 @@ func TestMetaBackend_configuredUnchangedWithStaticEvalVars(t *testing.T) {
 	// _want_ to perform migration, but for this one we're behaving as if the
 	// user hasn't set the -migrate-state option and thus it should be an error
 	// if state migration is required.
-	m.migrateState = false
+	m.backendArgs.MigrateState = false
 
 	// Get the backend
 	b, diags := m.Backend(
@@ -911,7 +911,7 @@ func TestMetaBackend_reconfigureChange(t *testing.T) {
 	m.input = false
 
 	// cli flag -reconfigure
-	m.reconfigure = true
+	m.backendArgs.Reconfigure = true
 
 	// Get the backend
 	b, diags := m.Backend(t.Context(), &BackendOpts{Init: true}, encryption.StateEncryptionDisabled())
@@ -2038,7 +2038,7 @@ func TestMetaBackend_localDoesNotDeleteLocal(t *testing.T) {
 	testStateFileDefault(t, orig)
 
 	m := testMetaBackend(t)
-	m.forceInitCopy = true
+	m.backendArgs.ForceInitCopy = true
 	// init the backend
 	_, diags := m.Backend(t.Context(), &BackendOpts{Init: true}, encryption.StateEncryptionDisabled())
 	if diags.HasErrors() {
@@ -2081,7 +2081,7 @@ func TestMetaBackend_configToExtra(t *testing.T) {
 	// init the backend again with the  options
 	extras := map[string]cty.Value{"path": cty.StringVal("hello")}
 	m = testMetaBackend(t)
-	m.forceInitCopy = true
+	m.backendArgs.ForceInitCopy = true
 	_, diags := m.Backend(t.Context(), &BackendOpts{
 		ConfigOverride: configs.SynthBody("synth", extras),
 		Init:           true,
@@ -2123,18 +2123,18 @@ func TestBackendFromState(t *testing.T) {
 }
 
 func testMetaBackend(t *testing.T) *Meta {
-	var m Meta
 	view, _ := testView(t)
-	m.View = view
-	m.stateArgs = arguments.State{Lock: true}
+	m := Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       view,
+		stateArgs:  arguments.State{Lock: true},
+		// metaBackend tests are verifying migrate actions
+		backendArgs: arguments.Backend{MigrateState: true},
+	}
 
 	// TODO meta-refactor: these assignments are needed because the extendedFlagSet was used here before,
 	//   which had these with defaults as "true". In a future iteration, once these are not needed, we need to remove them.
 	m.input = true
-
-	// metaBackend tests are verifying migrate actions
-	m.migrateState = true
-	m.WorkingDir = workdir.NewDir(".")
 
 	t.Cleanup(func() {
 		// Trigger garbage collection to ensure that all open file handles are closed.

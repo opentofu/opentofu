@@ -77,13 +77,13 @@ func (c *InitCommand) Run(rawArgs []string) int {
 	// operation, but there is no clear path to pass this value down, so we
 	// continue to mutate the Meta object state for now.
 	c.Meta.input = args.ViewOptions.InputEnabled
-	c.configureBackendFlags(args.Backend)
 
 	if len(args.FlagPluginPath) > 0 {
 		c.pluginPath = args.FlagPluginPath
 	}
 	c.Meta.variableArgs = args.Vars.All()
 	c.stateArgs = *args.State
+	c.backendArgs = *args.Backend
 
 	// This gets the current directory as full path.
 	path := c.WorkingDir.NormalizePath(c.WorkingDir.RootModuleDir())
@@ -1141,17 +1141,6 @@ func (c *InitCommand) backendConfigOverrideBody(flags flags.RawFlags, schema *co
 
 func (c *InitCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictDirs("")
-}
-
-// configureBackendFlags is a temporary shim until we move the backend migration logic away from the Meta fields.
-//
-// TODO meta-refactor: remove this when the Meta fields configured here will be removed and replaced
-// with proper arguments for the backend.
-func (c *InitCommand) configureBackendFlags(args *arguments.Backend) {
-	c.forceInitCopy = args.ForceInitCopy
-	c.reconfigure = args.Reconfigure
-	c.migrateState = args.MigrateState
-	c.Meta.ignoreRemoteVersion = args.IgnoreRemoteVersion
 }
 
 func (c *InitCommand) AutocompleteFlags() complete.Flags {

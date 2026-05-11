@@ -166,7 +166,7 @@ func statePushArgsWithDefaults(mutate func(v *StatePush)) *StatePush {
 			InputEnabled: false,
 		},
 		Vars: &Vars{},
-		Backend: Backend{
+		Backend: &Backend{
 			IgnoreRemoteVersion: false,
 			Reconfigure:         false,
 			MigrateState:        false,

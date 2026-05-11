@@ -56,7 +56,18 @@ func (c *ImportCommand) Run(rawArgs []string) int {
 		}
 		return cli.RunResultHelp
 	}
-	c.configureBackendFlags(args)
+	c.Meta.variableArgs = args.Vars.All()
+	c.stateArgs = *args.State
+	c.backendArgs = *args.Backend
+
+	// TODO meta-refactor: remove this only when there is clear path of passing these from the "arguments" package to
+	// the place where these needs to be used
+	c.Meta.parallelism = args.Parallelism
+
+	// FIXME: the -input flag value is needed to initialize the backend and the
+	// operation, but there is no clear path to pass this value down, so we
+	// continue to mutate the Meta object state for now.
+	c.Meta.input = args.ViewOptions.InputEnabled
 
 	// Parse the provided resource address.
 	traversalSrc := []byte(args.ResourceAddress)
@@ -311,26 +322,6 @@ func (c *ImportCommand) Run(rawArgs []string) int {
 	}
 
 	return 0
-}
-
-// configureBackendFlags is a temporary shim until we move the flags for state management to a better place
-//
-// TODO meta-refactor: remove this when the Meta fields configured here will be removed and replaced
-// with proper arguments for the backend.
-func (c *ImportCommand) configureBackendFlags(args *arguments.Import) {
-	c.Meta.ignoreRemoteVersion = args.Backend.IgnoreRemoteVersion
-
-	// TODO meta-refactor: remove this only when there is clear path of passing these from the "arguments" package to
-	// the place where these needs to be used
-	c.Meta.parallelism = args.Parallelism
-
-	// FIXME: the -input flag value is needed to initialize the backend and the
-	// operation, but there is no clear path to pass this value down, so we
-	// continue to mutate the Meta object state for now.
-	c.Meta.input = args.ViewOptions.InputEnabled
-
-	c.Meta.variableArgs = args.Vars.All()
-	c.stateArgs = *args.State
 }
 
 func (c *ImportCommand) Help() string {

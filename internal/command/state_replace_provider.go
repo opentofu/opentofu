@@ -51,12 +51,9 @@ func (c *StateReplaceProviderCommand) Run(rawArgs []string) int {
 		}
 		return cli.RunResultHelp
 	}
-	// TODO meta-refactor: remove these assignments once there is a clear way to propagate these to the place
-	//   where are used
-	c.ignoreRemoteVersion = args.Backend.IgnoreRemoteVersion
-
-	c.stateArgs = *args.State
 	c.Meta.variableArgs = args.Vars.All()
+	c.stateArgs = *args.State
+	c.backendArgs = *args.Backend
 
 	if diags := c.Meta.checkRequiredVersion(ctx); diags != nil {
 		view.Diagnostics(diags)

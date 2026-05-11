@@ -129,7 +129,7 @@ func stateRmArgsWithDefaults(mutate func(stateRm *StateRm)) *StateRm {
 			ViewType:     ViewHuman,
 			InputEnabled: false,
 		},
-		Backend: Backend{
+		Backend: &Backend{
 			IgnoreRemoteVersion: false,
 		},
 		Vars: &Vars{},

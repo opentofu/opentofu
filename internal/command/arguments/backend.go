@@ -12,12 +12,14 @@ import (
 )
 
 type Backend struct {
+	// IgnoreRemoteVersion is used with commands which write state to allow users to write remote
+	// state even if the remote and local OpenTofu versions don't match.
 	IgnoreRemoteVersion bool
-	// ForceInitCopy controls if the prompts for state migration should be skipped or not.
+	// ForceInitCopy suppresses confirmation for copying state data during init.
 	ForceInitCopy bool
-	// Reconfigure controls if the reconfiguration of the backend should happen with discarding the old configurations.
+	// Reconfigure forces init to ignore any stored configuration.
 	Reconfigure bool
-	// MigrateState controls if during the reconfiguration of the backend a migration should be attempted.
+	// MigrateState confirms the user wishes to migrate from the prior backend configuration to a new configuration.
 	MigrateState bool
 }
 
