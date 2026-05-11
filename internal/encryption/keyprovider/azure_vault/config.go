@@ -176,8 +176,8 @@ func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
 		},
 		StorageAddresses: auth.StorageAddresses{
 			CloudConfig:    cloudConfig,
-			SubscriptionID: stringAttrEnvFallback(c.OIDCToken, "ARM_SUBSCRIPTION_ID"),
-			TenantID:       stringAttrEnvFallback(c.OIDCToken, "ARM_TENANT_ID"),
+			SubscriptionID: stringAttrEnvFallback(c.SubscriptionID, "ARM_SUBSCRIPTION_ID"),
+			TenantID:       stringAttrEnvFallback(c.TenantID, "ARM_TENANT_ID"),
 		},
 		WorkloadIdentityAuthConfig: auth.WorkloadIdentityAuthConfig{
 			UseAKSWorkloadIdentity: c.UseAKS,
