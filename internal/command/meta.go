@@ -166,7 +166,7 @@ type Meta struct {
 	// configLoader is a shared configuration loader that is used by
 	// LoadConfig and other commands that access configuration files.
 	// It is initialized on first use.
-	configLoader *configload.Loader
+	configLoader configload.Loader
 
 	// backendState is the currently active backend state
 	backendState *clistate.BackendState

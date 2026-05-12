@@ -210,7 +210,7 @@ func (c *Context) newEngineApply(ctx context.Context, config *configs.Config, pl
 // a best effort to shim to OpenTofu's current module loader, even though
 // it works in some slightly-different terms than this new API expects.
 type newRuntimeModules struct {
-	loader *configload.Loader
+	loader configload.Loader
 
 	// configload.Loader is not concurrency-safe because it wraps
 	// hclparse.Parser functionality that is not concurrency-safe, so we must

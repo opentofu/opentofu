@@ -25,7 +25,7 @@ import (
 // LoadConfigWithSnapshot is a variant of LoadConfig that also simultaneously
 // creates an in-memory snapshot of the configuration files used, which can
 // be later used to create a loader that may read only from this snapshot.
-func (l *Loader) LoadConfigWithSnapshot(ctx context.Context, rootDir string, call configs.StaticModuleCall) (*configs.Config, *Snapshot, hcl.Diagnostics) {
+func (l *loader) LoadConfigWithSnapshot(ctx context.Context, rootDir string, call configs.StaticModuleCall) (*configs.Config, *Snapshot, hcl.Diagnostics) {
 	rootMod, diags := l.parser.LoadConfigDir(rootDir, call)
 	if rootMod == nil {
 		return nil, nil, diags
@@ -54,11 +54,11 @@ func (l *Loader) LoadConfigWithSnapshot(ctx context.Context, rootDir string, cal
 // underlying parser does not have access to other files in the native
 // filesystem, such as values files. For those, either use a normal loader
 // (created by NewLoader) or use the configs.Parser API directly.
-func NewLoaderFromSnapshot(snap *Snapshot) *Loader {
+func NewLoaderFromSnapshot(snap *Snapshot) Loader {
 	fs := newSnapshotFS(snap)
 	parser := configs.NewParser(fs)
 
-	ret := &Loader{
+	ret := &loader{
 		parser: parser,
 		modules: moduleMgr{
 			FS:         afero.Afero{Fs: fs},
@@ -135,7 +135,7 @@ func (s *Snapshot) moduleManifest() modsdir.Manifest {
 // makeModuleWalkerSnapshot creates a configs.ModuleWalker that will exhibit
 // the same lookup behaviors as l.moduleWalkerLoad but will additionally write
 // source files from the referenced modules into the given snapshot.
-func (l *Loader) makeModuleWalkerSnapshot(snap *Snapshot) configs.ModuleWalker {
+func (l *loader) makeModuleWalkerSnapshot(snap *Snapshot) configs.ModuleWalker {
 	return configs.ModuleWalkerFunc(
 		func(ctx context.Context, req *configs.ModuleRequest) (*configs.Module, *version.Version, hcl.Diagnostics) {
 			mod, v, diags := l.moduleWalkerLoad(ctx, req)
@@ -160,7 +160,7 @@ func (l *Loader) makeModuleWalkerSnapshot(snap *Snapshot) configs.ModuleWalker {
 	)
 }
 
-func (l *Loader) addModuleToSnapshot(snap *Snapshot, key string, dir string, sourceAddr string, v *version.Version) hcl.Diagnostics {
+func (l *loader) addModuleToSnapshot(snap *Snapshot, key string, dir string, sourceAddr string, v *version.Version) hcl.Diagnostics {
 	var diags hcl.Diagnostics
 
 	primaryFiles, overrideFiles, moreDiags := l.parser.ConfigDirFiles(dir)

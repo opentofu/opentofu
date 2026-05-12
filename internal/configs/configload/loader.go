@@ -6,6 +6,7 @@
 package configload
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 
@@ -15,13 +16,27 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 )
 
-// A Loader instance is the main entry-point for loading configurations via
+type Loader interface {
+	AllowLanguageExperiments(allowed bool)
+	ImportSources(sources map[string][]byte)
+	ImportSourcesFromSnapshot(snap *Snapshot)
+	IsConfigDir(path string) bool
+	ModulesDir() string
+	Parser() *configs.Parser
+	RefreshModules() error
+	Sources() map[string]*hcl.File
+	LoadConfig(ctx context.Context, rootDir string, call configs.StaticModuleCall) (*configs.Config, hcl.Diagnostics)
+	LoadConfigWithTests(ctx context.Context, rootDir string, testDir string, call configs.StaticModuleCall) (*configs.Config, hcl.Diagnostics)
+	LoadConfigWithSnapshot(ctx context.Context, rootDir string, call configs.StaticModuleCall) (*configs.Config, *Snapshot, hcl.Diagnostics)
+}
+
+// A loader instance is the main entry-point for loading configurations via
 // this package.
 //
 // It extends the general config-loading functionality in the parent package
 // "configs" to support installation of modules from remote sources and
 // loading full configurations using modules that were previously installed.
-type Loader struct {
+type loader struct {
 	// parser is used to read configuration
 	parser *configs.Parser
 
@@ -46,11 +61,11 @@ type Config struct {
 // The loader has some internal state about the modules that are currently
 // installed, which is read from disk as part of this function. If that
 // manifest cannot be read then an error will be returned.
-func NewLoader(config *Config) (*Loader, error) {
+func NewLoader(config *Config) (Loader, error) {
 	fs := afero.NewOsFs()
 	parser := configs.NewParser(fs)
 
-	ret := &Loader{
+	ret := &loader{
 		parser: parser,
 		modules: moduleMgr{
 			FS:         afero.Afero{Fs: fs},
@@ -69,7 +84,7 @@ func NewLoader(config *Config) (*Loader, error) {
 
 // ModulesDir returns the path to the directory where the loader will look for
 // the local cache of remote module packages.
-func (l *Loader) ModulesDir() string {
+func (l *loader) ModulesDir() string {
 	return l.modules.Dir
 }
 
@@ -83,7 +98,7 @@ func (l *Loader) ModulesDir() string {
 // is already alive and may be used again later.
 //
 // An error is returned if the manifest file cannot be read.
-func (l *Loader) RefreshModules() error {
+func (l *loader) RefreshModules() error {
 	if l == nil {
 		// Nothing to do, then.
 		return nil
@@ -96,20 +111,20 @@ func (l *Loader) RefreshModules() error {
 // This is useful for loading other sorts of files than the module directories
 // that a loader deals with, since then they will share the source code cache
 // for this loader and can thus be shown as snippets in diagnostic messages.
-func (l *Loader) Parser() *configs.Parser {
+func (l *loader) Parser() *configs.Parser {
 	return l.parser
 }
 
 // Sources returns the source code cache for the underlying parser of this
 // loader. This is a shorthand for l.Parser().Sources().
-func (l *Loader) Sources() map[string]*hcl.File {
+func (l *loader) Sources() map[string]*hcl.File {
 	return l.parser.Sources()
 }
 
 // IsConfigDir returns true if and only if the given directory contains at
 // least one OpenTofu configuration file. This is a wrapper around calling
 // the same method name on the loader's parser.
-func (l *Loader) IsConfigDir(path string) bool {
+func (l *loader) IsConfigDir(path string) bool {
 	return l.parser.IsConfigDir(path)
 }
 
@@ -122,7 +137,7 @@ func (l *Loader) IsConfigDir(path string) bool {
 // to return source code snapshots in diagnostic messages.
 //
 //	loader.ImportSources(otherLoader.Sources())
-func (l *Loader) ImportSources(sources map[string][]byte) {
+func (l *loader) ImportSources(sources map[string][]byte) {
 	p := l.Parser()
 	for name, src := range sources {
 		p.ForceFileSource(name, src)
@@ -134,7 +149,7 @@ func (l *Loader) ImportSources(sources map[string][]byte) {
 //
 // This is similar to ImportSources but knows how to unpack and flatten a
 // snapshot data structure to get the corresponding flat source file map.
-func (l *Loader) ImportSourcesFromSnapshot(snap *Snapshot) {
+func (l *loader) ImportSourcesFromSnapshot(snap *Snapshot) {
 	p := l.Parser()
 	for _, m := range snap.Modules {
 		baseDir := m.Dir
@@ -154,7 +169,7 @@ func (l *Loader) ImportSourcesFromSnapshot(snap *Snapshot) {
 // Main code should set this only for alpha or development builds. Test code
 // is responsible for deciding for itself whether and how to call this
 // method.
-func (l *Loader) AllowLanguageExperiments(allowed bool) {
+func (l *loader) AllowLanguageExperiments(allowed bool) {
 	// We don't currently have any support for language experiments. We'll
 	// add support here later if we decide to make use of language experiments
 	// in future versions of OpenTofu.

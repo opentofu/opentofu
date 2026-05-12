@@ -267,7 +267,7 @@ type Operation struct {
 
 	// ConfigLoader is a configuration loader that can be used to load
 	// configuration from ConfigDir.
-	ConfigLoader *configload.Loader
+	ConfigLoader configload.Loader
 
 	// DependencyLocks represents the locked dependencies associated with
 	// the configuration directory given in ConfigDir.
