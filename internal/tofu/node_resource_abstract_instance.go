@@ -3204,7 +3204,7 @@ func (n *NodeAbstractResourceInstance) getProvider(ctx context.Context, evalCtx 
 		return nil, providers.ProviderSchema{}, fmt.Errorf("failed to read schema for provider %s: %w", n.ResolvedProvider.ProviderConfig, schemaDiags.Err())
 	}
 
-	var isOverridden bool
+	var isOverridden, providerOverrideUsesDefault bool
 	var overrideValues map[string]cty.Value
 
 	if n.ResolvedProvider.IsMocked {
@@ -3218,19 +3218,48 @@ func (n *NodeAbstractResourceInstance) getProvider(ctx context.Context, evalCtx 
 			}
 		}
 
+		trie := addrs.NewOverrideTrie(overrideValues)
 		// Overridden by the provider (overrides mocks)
 		for _, res := range n.ResolvedProvider.OverrideResources {
-			if res.TargetParsed.Equal(n.Addr.ConfigResource()) && res.Mode == n.Addr.Resource.Resource.Mode {
-				overrideValues = res.Values
-				break
+			if res.TargetParsed.AffectedAbsResource().Equal(n.Addr.AffectedAbsResource()) && res.Mode == n.Addr.AffectedAbsResource().Resource.Mode {
+				trie.Set(res.TargetParsed, res.Values)
 			}
+		}
+
+		var providerOverrideDiags tfdiags.Diagnostics
+		var ok bool
+		overrideValues, ok, providerOverrideDiags = trie.Get(&n.Addr)
+		providerOverrideUsesDefault = !ok
+		if providerOverrideDiags.HasErrors() {
+			return nil, providers.ProviderSchema{}, providerOverrideDiags.Err()
 		}
 	}
 
-	if n.Config != nil && n.Config.IsOverridden {
+	if n.Config != nil && n.Config.IsOverridden && n.Config.Overrides != nil {
 		// Overridden in the currently running test (overrides any provider settings)
+
+		// If we find a value in the trie, `ok` will be true, and we should override
+		// even if it was set by the provider earlier (these overrides take precedence)
+		// It may be the case that the provider had a non-default override earlier;
+		// If providerOverrideUsesDefault is false, the provider set an override
+		// and we shouldn't over-write it with this trie's default
+		// However, if providerOverrideUsesDefault is true, set the default.
+		// The following logic table shows the details of whether overrides should
+		// be set here.
+
+		// ok (non-default result from override trie) | providerOverrideUsesDefault
+		// true | true => set as override
+		// true | false => set as override
+		// false | true => set as override (prefer the resource override default over the provider default)
+		// false | false => do not set override
 		isOverridden = n.Config.IsOverridden
-		overrideValues = n.Config.OverrideValues
+		if newOverrideValues, ok, resourceOverrideDiags := n.Config.Overrides.Get(&n.Addr); ok || providerOverrideUsesDefault {
+			overrideValues = newOverrideValues
+			if resourceOverrideDiags.HasErrors() {
+				return nil, providers.ProviderSchema{}, resourceOverrideDiags.Err()
+			}
+		}
+		// TODO: should this be collapsed into one if-statement? The logic is a bit hairy...
 	}
 
 	if isOverridden {
