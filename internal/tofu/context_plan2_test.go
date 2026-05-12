@@ -16,6 +16,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/go-cmp/cmp"
@@ -9003,6 +9004,89 @@ variable "ephemeral_var" {
 	}
 	if dv, ok := plan.VariableValues["regular_var"]; !ok || !slices.Equal(expectedRegularVal, dv) {
 		t.Errorf("wrong value stored in the plan for regular_var. expected: %s; got: %s", expectedRegularVal, dv)
+	}
+}
+
+// This is to ensure that the panic encountered during closing ephemeral resources does not occur again.
+// panic: send on closed channel
+//
+//	github.com/opentofu/opentofu/internal/shared.OpenEphemeralResourceInstance.func2()
+//
+// Even with the current test setup, the error can be caught only intermittently, so if you want to
+// check it, you have to run it several times.
+// The assertions of this test are quite permissive, because we are not interested in that specifically,
+// but the focus is more on the panic. If the logic panics, the test will fail.
+func TestContext2Plan_ephemeralClosingTimeout(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+ephemeral "test_ephemeral_resource" "a" {
+}
+`,
+	})
+	p := testProvider("test")
+
+	// To avoid race conditions, we perform the below checks only after the calls to the provider methods
+	// are performed.
+	callsCh := make(chan struct{}, 2)
+	doneCh := make(chan struct{})
+	go func() {
+		defer close(doneCh)
+		var i int
+		for {
+			select {
+			case <-callsCh:
+				i++
+				if i == 2 {
+					return
+				}
+			case <-t.Context().Done():
+				return
+			}
+		}
+	}()
+	p.OpenEphemeralResourceFn = func(request providers.OpenEphemeralResourceRequest) providers.OpenEphemeralResourceResponse {
+		defer func() { callsCh <- struct{}{} }()
+		return providers.OpenEphemeralResourceResponse{
+			Result: cty.ObjectVal(map[string]cty.Value{
+				"id":     cty.StringVal("id val"),
+				"secret": cty.StringVal("val"),
+				"input":  cty.NullVal(cty.String),
+			}),
+		}
+	}
+	p.CloseEphemeralResourceFn = func(request providers.CloseEphemeralResourceRequest) providers.CloseEphemeralResourceResponse {
+		defer func() { callsCh <- struct{}{} }()
+		<-time.After(10 * time.Second) // exactly the same with the timeout inside internal/shared/ephemeral_resource.go
+		return providers.CloseEphemeralResourceResponse{}
+	}
+
+	state := states.NewState()
+
+	ctx := testContext2(t, &ContextOpts{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		}, nil),
+	})
+
+	_, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{Mode: plans.NormalMode})
+	if diags.HasErrors() {
+		// Because of the setup (10 seconds to close and 10 seconds the timeout), this test can fail intermittently.
+		// Therefore, in case there is a situation where it fails, we only expect one diagnostic.
+		if len(diags) != 1 || !strings.Contains(diags.Err().Error(), "Closing ephemeral resource timed out") {
+			t.Fatalf("unexpected plan error: %s", diags)
+		}
+		t.Logf("Plan failed with the expected error")
+	}
+	select {
+	case <-doneCh:
+	case <-time.After(12 * time.Second):
+		t.Fatalf("timed out while waiting for the provider calls to be performed")
+	}
+	if !p.OpenEphemeralResourceCalled {
+		t.Errorf("Provider's OpenEphemeralResource wasn't called; should've been")
+	}
+	if !p.CloseEphemeralResourceCalled {
+		t.Errorf("Provider's CloseEphemeralResource wasn't called; should've been")
 	}
 }
 
