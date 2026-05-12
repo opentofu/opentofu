@@ -19,7 +19,7 @@ import (
 // In the case of any errors, t.Fatal (or similar) will be called to halt
 // execution of the test, so the calling test does not need to handle errors
 // itself.
-func NewLoaderForTests(t testing.TB) *Loader {
+func NewLoaderForTests(t testing.TB) Loader {
 	t.Helper()
 
 	modulesDir := t.TempDir()

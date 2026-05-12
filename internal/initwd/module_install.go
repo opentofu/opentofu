@@ -35,7 +35,7 @@ import (
 
 type ModuleInstaller struct {
 	modsDir string
-	loader  *configload.Loader
+	loader  configload.Loader
 	reg     *registry.Client
 	fetcher *getmodules.PackageFetcher
 
@@ -72,7 +72,7 @@ type moduleVersion struct {
 // fetched from an OpenTofu module registry. This argument can be nil, in which
 // case no remote package sources are supported; this facility is included
 // primarily for unit testing where only local modules are needed.
-func NewModuleInstaller(modsDir string, loader *configload.Loader, registryClient *registry.Client, remotePackageFetcher *getmodules.PackageFetcher) *ModuleInstaller {
+func NewModuleInstaller(modsDir string, loader configload.Loader, registryClient *registry.Client, remotePackageFetcher *getmodules.PackageFetcher) *ModuleInstaller {
 	return &ModuleInstaller{
 		modsDir:                 modsDir,
 		loader:                  loader,

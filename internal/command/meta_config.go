@@ -436,7 +436,7 @@ func (m *Meta) registerSynthConfigSource(filename string, src []byte) {
 // error. Loader initialization errors will tend to prevent any further use
 // of most OpenTofu features, so callers should report any error and safely
 // terminate.
-func (m *Meta) initConfigLoader() (*configload.Loader, error) {
+func (m *Meta) initConfigLoader() (configload.Loader, error) {
 	if m.configLoader == nil {
 		loader, err := configload.NewLoader(&configload.Config{
 			ModulesDir: m.WorkingDir.ModulesDir(),

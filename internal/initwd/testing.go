@@ -28,7 +28,7 @@ import (
 // possibly-incomplete config is returned along with error diagnostics. The
 // test run is not aborted in this case, so that the caller can make assertions
 // against the returned diagnostics.
-func LoadConfigForTests(t testing.TB, rootDir string, testsDir string) (*configs.Config, *configload.Loader, tfdiags.Diagnostics) {
+func LoadConfigForTests(t testing.TB, rootDir string, testsDir string) (*configs.Config, configload.Loader, tfdiags.Diagnostics) {
 	t.Helper()
 
 	var diags tfdiags.Diagnostics
@@ -62,7 +62,7 @@ func LoadConfigForTests(t testing.TB, rootDir string, testsDir string) (*configs
 // This is useful for concisely writing tests that don't expect errors at
 // all. For tests that expect errors and need to assert against them, use
 // LoadConfigForTests instead.
-func MustLoadConfigForTests(t testing.TB, rootDir, testsDir string) (*configs.Config, *configload.Loader) {
+func MustLoadConfigForTests(t testing.TB, rootDir, testsDir string) (*configs.Config, configload.Loader) {
 	t.Helper()
 
 	config, loader, diags := LoadConfigForTests(t, rootDir, testsDir)
@@ -74,7 +74,7 @@ func MustLoadConfigForTests(t testing.TB, rootDir, testsDir string) (*configs.Co
 
 // MustLoadConfigWithSnapshot is similar with MustLoadConfigForTests, but additionally it returns also the
 // snapshot of the config that is needed to create an actual plan file for tests.
-func MustLoadConfigWithSnapshot(t testing.TB, rootDir, testsDir string) (*configs.Config, *configload.Loader, *configload.Snapshot) {
+func MustLoadConfigWithSnapshot(t testing.TB, rootDir, testsDir string) (*configs.Config, configload.Loader, *configload.Snapshot) {
 	t.Helper()
 
 	_, loader, diags := LoadConfigForTests(t, rootDir, testsDir)

@@ -52,7 +52,7 @@ const initFromModuleRootKeyPrefix = initFromModuleRootCallName + "."
 // references using ../ from that module to be unresolvable. Error diagnostics
 // are produced in that case, to prompt the user to rewrite the source strings
 // to be absolute references to the original remote module.
-func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modulesDir, sourceAddrStr string, reg *registry.Client, remoteFetcher *getmodules.PackageFetcher, hooks ModuleInstallHooks) tfdiags.Diagnostics {
+func DirFromModule(ctx context.Context, loader configload.Loader, rootDir, modulesDir, sourceAddrStr string, reg *registry.Client, remoteFetcher *getmodules.PackageFetcher, hooks ModuleInstallHooks) tfdiags.Diagnostics {
 
 	var diags tfdiags.Diagnostics
 
