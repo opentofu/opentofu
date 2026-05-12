@@ -115,6 +115,7 @@ func TestInit_fromModule_cwdDest(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("unexpected error\n%s", output.Stderr())
 	}
+	t.Logf("output from init with %#v:\n%s", args, output.All())
 
 	if _, err := os.Stat(filepath.Join(td, "hello.tf")); err != nil {
 		t.Fatalf("err: %s", err)

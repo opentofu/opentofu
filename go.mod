@@ -7,7 +7,7 @@ go 1.26.3
 // In go1.23 the godebug flag for this was named 'tlskyber', renamed in go1.24 to 'tlsmlkem'. https://tip.golang.org/doc/godebug#go-124
 godebug (
 	tlsmlkem=0
-	winsymlink=0 // See https://github.com/opentofu/opentofu/pull/3289
+	//winsymlink=0 // See https://github.com/opentofu/opentofu/pull/3289
 )
 
 require (
