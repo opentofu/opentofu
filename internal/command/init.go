@@ -390,8 +390,8 @@ func (c *InitCommand) getModules(ctx context.Context, path, testsDir string, ear
 
 	// Since module installer has modified the module manifest on disk, we need
 	// to refresh the cache of it in the loader.
-	if c.configLoader != nil {
-		if err := c.configLoader.RefreshModules(); err != nil {
+	if c.cfgLoader != nil {
+		if err := c.cfgLoader.RefreshModules(); err != nil {
 			// Should never happen
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,

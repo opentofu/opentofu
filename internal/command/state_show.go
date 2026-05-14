@@ -11,6 +11,7 @@ import (
 
 	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/views"
+	"github.com/opentofu/opentofu/internal/configs/configload"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
@@ -110,7 +111,7 @@ func (c *StateShowCommand) Run(rawArgs []string) int {
 		return 1
 	}
 
-	opReq.ConfigLoader, err = c.initConfigLoader()
+	opReq.ConfigLoader, err = configload.Initialize(c.configLoader())
 	if err != nil {
 		view.Diagnostics(diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,

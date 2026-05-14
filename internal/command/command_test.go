@@ -155,7 +155,7 @@ func testModuleWithSnapshot(t *testing.T, name string) (*configs.Config, *config
 	t.Helper()
 
 	dir := filepath.Join(fixtureDir, name)
-	loader := configload.NewLoaderForTests(t)
+	loader := configload.NewLoaderForTests(t, false)
 
 	// Test modules usually do not refer to remote sources, and for local
 	// sources only this ultimately just records all of the module paths

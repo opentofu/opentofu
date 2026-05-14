@@ -24,7 +24,7 @@ import (
 func testAnalyzer(t *testing.T, fixtureName string) *Analyzer {
 	configDir := filepath.Join("testdata", fixtureName)
 
-	loader := configload.NewLoaderForTests(t)
+	loader := configload.NewLoaderForTests(t, false)
 	inst := initwd.NewModuleInstaller(loader.ModulesDir(), loader, registry.NewClient(t.Context(), nil, nil), nil)
 	_, instDiags := inst.InstallModules(context.Background(), configDir, "tests", true, false, initwd.ModuleInstallHooksImpl{}, configs.RootModuleCallForTesting())
 	if instDiags.HasErrors() {

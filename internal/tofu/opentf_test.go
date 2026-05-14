@@ -57,10 +57,8 @@ func testModuleWithSnapshot(t testing.TB, name string) (*configs.Config, *config
 	t.Helper()
 
 	dir := filepath.Join(fixtureDir, name)
-	loader := configload.NewLoaderForTests(t)
-
 	// We need to be able to exercise experimental features in our integration tests.
-	loader.AllowLanguageExperiments(true)
+	loader := configload.NewLoaderForTests(t, true)
 
 	// Test modules usually do not refer to remote sources, and for local
 	// sources only this ultimately just records all of the module paths
@@ -113,10 +111,8 @@ func testModuleInline(t testing.TB, sources map[string]string) *configs.Config {
 		}
 	}
 
-	loader := configload.NewLoaderForTests(t)
-
 	// We need to be able to exercise experimental features in our integration tests.
-	loader.AllowLanguageExperiments(true)
+	loader := configload.NewLoaderForTests(t, true)
 
 	// Test modules usually do not refer to remote sources, and for local
 	// sources only this ultimately just records all of the module paths

@@ -38,19 +38,13 @@ func (m *Meta) loadConfig(ctx context.Context, rootDir string) (*configs.Config,
 	var diags tfdiags.Diagnostics
 	rootDir = m.WorkingDir.NormalizePath(rootDir)
 
-	loader, err := m.initConfigLoader()
-	if err != nil {
-		diags = diags.Append(err)
-		return nil, diags
-	}
-
 	call, callDiags := m.rootModuleCall(ctx, rootDir)
 	diags = diags.Append(callDiags)
 	if callDiags.HasErrors() {
 		return nil, diags
 	}
 
-	config, hclDiags := loader.LoadConfig(ctx, rootDir, call)
+	config, hclDiags := m.configLoader().LoadConfig(ctx, rootDir, call)
 	diags = diags.Append(hclDiags)
 	return config, diags
 }
@@ -61,19 +55,13 @@ func (m *Meta) loadConfigWithTests(ctx context.Context, rootDir, testDir string)
 	var diags tfdiags.Diagnostics
 	rootDir = m.WorkingDir.NormalizePath(rootDir)
 
-	loader, err := m.initConfigLoader()
-	if err != nil {
-		diags = diags.Append(err)
-		return nil, diags
-	}
-
 	call, vDiags := m.rootModuleCall(ctx, rootDir)
 	diags = diags.Append(vDiags)
 	if diags.HasErrors() {
 		return nil, diags
 	}
 
-	config, hclDiags := loader.LoadConfigWithTests(ctx, rootDir, testDir, call)
+	config, hclDiags := m.configLoader().LoadConfigWithTests(ctx, rootDir, testDir, call)
 	diags = diags.Append(hclDiags)
 	return config, diags
 }
@@ -90,19 +78,13 @@ func (m *Meta) loadSingleModule(ctx context.Context, dir string, load configs.Se
 	var diags tfdiags.Diagnostics
 	dir = m.WorkingDir.NormalizePath(dir)
 
-	loader, err := m.initConfigLoader()
-	if err != nil {
-		diags = diags.Append(err)
-		return nil, diags
-	}
-
 	call, vDiags := m.rootModuleCall(ctx, dir)
 	diags = diags.Append(vDiags)
 	if diags.HasErrors() {
 		return nil, diags
 	}
 
-	module, hclDiags := loader.Parser().LoadConfigDirSelective(dir, call, load)
+	module, hclDiags := m.configLoader().LoadConfigDirSelective(dir, call, load)
 	diags = diags.Append(hclDiags)
 	return module, diags
 }
@@ -179,19 +161,13 @@ func (m *Meta) loadSingleModuleWithTests(ctx context.Context, dir string, testDi
 	var diags tfdiags.Diagnostics
 	dir = m.WorkingDir.NormalizePath(dir)
 
-	loader, err := m.initConfigLoader()
-	if err != nil {
-		diags = diags.Append(err)
-		return nil, diags
-	}
-
 	call, vDiags := m.rootModuleCall(ctx, dir)
 	diags = diags.Append(vDiags)
 	if diags.HasErrors() {
 		return nil, diags
 	}
 
-	module, hclDiags := loader.Parser().LoadConfigDirWithTests(dir, testDir, call)
+	module, hclDiags := m.configLoader().LoadConfigDirWithTests(dir, testDir, call)
 	diags = diags.Append(hclDiags)
 	return module, diags
 }
@@ -204,14 +180,6 @@ func (m *Meta) loadSingleModuleWithTests(ctx context.Context, dir string, testDi
 // this function optimistically returns true, assuming that the caller will
 // then do some other operation that requires the config loader and get an
 // error at that point.
-func (m *Meta) dirIsConfigPath(dir string) bool {
-	loader, err := m.initConfigLoader()
-	if err != nil {
-		return true
-	}
-
-	return loader.IsConfigDir(dir)
-}
 
 // loadBackendConfig reads configuration from the given directory and returns
 // the backend configuration defined by that module, if any. Nil is returned
@@ -251,13 +219,7 @@ func (m *Meta) loadHCLFile(filename string) (hcl.Body, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	filename = m.WorkingDir.NormalizePath(filename)
 
-	loader, err := m.initConfigLoader()
-	if err != nil {
-		diags = diags.Append(err)
-		return nil, diags
-	}
-
-	body, hclDiags := loader.Parser().LoadHCLFile(filename)
+	body, hclDiags := m.configLoader().LoadHCLFile(filename)
 	diags = diags.Append(hclDiags)
 	return body, diags
 }
@@ -282,7 +244,7 @@ func (m *Meta) installModules(ctx context.Context, rootDir, testsDir string, upg
 		return true, diags
 	}
 
-	loader, err := m.initConfigLoader()
+	loader, err := configload.Initialize(m.configLoader())
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
@@ -326,7 +288,7 @@ func (m *Meta) installModules(ctx context.Context, rootDir, testsDir string, upg
 // this package has a reasonable implementation for displaying notifications
 // via a provided cli.Ui.
 func (m *Meta) initDirFromModule(ctx context.Context, targetDir string, addr string, hooks initwd.ModuleInstallHooks, view views.Basic) (abort bool, diags tfdiags.Diagnostics) {
-	loader, err := m.initConfigLoader()
+	loader, err := configload.Initialize(m.configLoader())
 	if err != nil {
 		diags = diags.Append(err)
 		return true, diags
@@ -409,48 +371,29 @@ func (m *Meta) inputForSchema(given cty.Value, schema *configschema.Block, view 
 	return cty.ObjectVal(retVals), nil
 }
 
-// registerSynthConfigSource allows commands to add synthetic additional source
-// buffers to the config loader's cache of sources (as returned by
-// configSources), which is useful when a command is directly parsing something
-// from the command line that may produce diagnostics, so that diagnostic
-// snippets can still be produced.
-//
-// If this is called before a configLoader has been initialized then it will
-// try to initialize the loader but ignore any initialization failure, turning
-// the call into a no-op. (We presume that a caller will later call a different
-// function that also initializes the config loader as a side effect, at which
-// point those errors can be returned.)
-func (m *Meta) registerSynthConfigSource(filename string, src []byte) {
-	loader, err := m.initConfigLoader()
-	if err != nil || loader == nil {
-		return // treated as no-op, since this is best-effort
-	}
-	loader.Parser().ForceFileSource(filename, src)
-}
-
-// initConfigLoader initializes the shared configuration loader if it isn't
+// configLoader initializes the shared configuration loader if it isn't
 // already initialized.
 //
-// If the loader cannot be created for some reason then an error is returned
-// and no loader is created. Subsequent calls will presumably see the same
-// error. Loader initialization errors will tend to prevent any further use
-// of most OpenTofu features, so callers should report any error and safely
-// terminate.
-func (m *Meta) initConfigLoader() (configload.Loader, error) {
-	if m.configLoader == nil {
-		loader, err := configload.NewLoader(&configload.Config{
-			ModulesDir: m.WorkingDir.ModulesDir(),
+// The configload.Loader that is initialised it's a lazy one, meaning that the
+// initialisation is defered to be executed later when a method from it that returns
+// errors can return the loading error.
+//
+// In situations where the caller wants to be sure that the initialisation will succeed
+// before proceeding further in the flow, it must pass the value returned by this method
+// to the configload.Initialize. The error returned by that method will be the initialisation
+// error of the underlying config loader.
+func (m *Meta) configLoader() configload.Loader {
+	if m.cfgLoader == nil {
+		loader := configload.NewLazy(&configload.Config{
+			ModulesDir:               m.WorkingDir.ModulesDir(),
+			AllowLanguageExperiments: m.SystemCfg.AllowExperimentalFeatures,
 		})
-		if err != nil {
-			return nil, err
-		}
-		loader.AllowLanguageExperiments(m.SystemCfg.AllowExperimentalFeatures)
-		m.configLoader = loader
+		m.cfgLoader = loader
 		if m.View != nil {
 			m.View.SetConfigSources(loader.Sources)
 		}
 	}
-	return m.configLoader, nil
+	return m.cfgLoader
 }
 
 // registryClient instantiates and returns a new Registry client.

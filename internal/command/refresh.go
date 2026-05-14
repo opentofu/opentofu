@@ -13,6 +13,7 @@ import (
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
+	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -148,7 +149,7 @@ func (c *RefreshCommand) OperationRequest(ctx context.Context, be backend.Enhanc
 	opReq.View = view.Operation()
 
 	var err error
-	opReq.ConfigLoader, err = c.initConfigLoader()
+	opReq.ConfigLoader, err = configload.Initialize(c.configLoader())
 	if err != nil {
 		diags = diags.Append(fmt.Errorf("Failed to initialize config loader: %w", err))
 		return nil, diags

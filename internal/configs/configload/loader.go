@@ -17,17 +17,22 @@ import (
 )
 
 type Loader interface {
-	AllowLanguageExperiments(allowed bool)
 	ImportSources(sources map[string][]byte)
 	ImportSourcesFromSnapshot(snap *Snapshot)
 	IsConfigDir(path string) bool
 	ModulesDir() string
-	Parser() *configs.Parser
 	RefreshModules() error
 	Sources() map[string]*hcl.File
 	LoadConfig(ctx context.Context, rootDir string, call configs.StaticModuleCall) (*configs.Config, hcl.Diagnostics)
 	LoadConfigWithTests(ctx context.Context, rootDir string, testDir string, call configs.StaticModuleCall) (*configs.Config, hcl.Diagnostics)
 	LoadConfigWithSnapshot(ctx context.Context, rootDir string, call configs.StaticModuleCall) (*configs.Config, *Snapshot, hcl.Diagnostics)
+
+	LoadConfigDirUneval(path string, load configs.SelectiveLoader) (*configs.Module, hcl.Diagnostics)
+	LoadConfigDir(path string, call configs.StaticModuleCall) (*configs.Module, hcl.Diagnostics)
+	LoadHCLFile(path string) (hcl.Body, hcl.Diagnostics)
+	LoadConfigDirSelective(path string, call configs.StaticModuleCall, load configs.SelectiveLoader) (*configs.Module, hcl.Diagnostics)
+	LoadConfigDirWithTests(path string, testDirectory string, call configs.StaticModuleCall) (*configs.Module, hcl.Diagnostics)
+	ForceFileSource(filename string, src []byte)
 }
 
 // A loader instance is the main entry-point for loading configurations via
@@ -53,6 +58,21 @@ type Config struct {
 	// .terraform/modules directory, in the common case where this package
 	// is being loaded from the main OpenTofu CLI package.)
 	ModulesDir string
+
+	// AllowLanguageExperiments specifies whether subsequent Loader.LoadConfig (and
+	// similar) calls will allow opting in to experimental language features.
+	//
+	// If this is not configured as true, any language experiments will be disallowed.
+	//
+	// Main code should set this only for alpha or development builds. Test code
+	// is responsible for deciding for itself whether and how to call this
+	// method.
+	//
+	// We don't currently have any support for language experiments. We'll
+	// add support here later if we decide to make use of language experiments
+	// in future versions of OpenTofu.
+	// This is the reason why this attribute is not used.
+	AllowLanguageExperiments bool
 }
 
 // NewLoader creates and returns a loader that reads configuration from the
@@ -106,15 +126,6 @@ func (l *loader) RefreshModules() error {
 	return l.modules.readModuleManifestSnapshot()
 }
 
-// Parser returns the underlying parser for this loader.
-//
-// This is useful for loading other sorts of files than the module directories
-// that a loader deals with, since then they will share the source code cache
-// for this loader and can thus be shown as snippets in diagnostic messages.
-func (l *loader) Parser() *configs.Parser {
-	return l.parser
-}
-
 // Sources returns the source code cache for the underlying parser of this
 // loader. This is a shorthand for l.Parser().Sources().
 func (l *loader) Sources() map[string]*hcl.File {
@@ -138,9 +149,8 @@ func (l *loader) IsConfigDir(path string) bool {
 //
 //	loader.ImportSources(otherLoader.Sources())
 func (l *loader) ImportSources(sources map[string][]byte) {
-	p := l.Parser()
 	for name, src := range sources {
-		p.ForceFileSource(name, src)
+		l.parser.ForceFileSource(name, src)
 	}
 }
 
@@ -150,27 +160,11 @@ func (l *loader) ImportSources(sources map[string][]byte) {
 // This is similar to ImportSources but knows how to unpack and flatten a
 // snapshot data structure to get the corresponding flat source file map.
 func (l *loader) ImportSourcesFromSnapshot(snap *Snapshot) {
-	p := l.Parser()
 	for _, m := range snap.Modules {
 		baseDir := m.Dir
 		for fn, src := range m.Files {
 			fullPath := filepath.Join(baseDir, fn)
-			p.ForceFileSource(fullPath, src)
+			l.parser.ForceFileSource(fullPath, src)
 		}
 	}
-}
-
-// AllowLanguageExperiments specifies whether subsequent LoadConfig (and
-// similar) calls will allow opting in to experimental language features.
-//
-// If this method is never called for a particular loader, the default behavior
-// is to disallow language experiments.
-//
-// Main code should set this only for alpha or development builds. Test code
-// is responsible for deciding for itself whether and how to call this
-// method.
-func (l *loader) AllowLanguageExperiments(allowed bool) {
-	// We don't currently have any support for language experiments. We'll
-	// add support here later if we decide to make use of language experiments
-	// in future versions of OpenTofu.
 }

@@ -18,7 +18,7 @@ import (
 )
 
 func TestMigrateStateProviderAddresses(t *testing.T) {
-	loader := configload.NewLoaderForTests(t)
+	loader := configload.NewLoaderForTests(t, false)
 	mustParseInstAddr := func(s string) addrs.AbsResourceInstance {
 		addr, err := addrs.ParseAbsResourceInstanceStr(s)
 		if err != nil {
