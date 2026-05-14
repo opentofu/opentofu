@@ -207,7 +207,7 @@ To initialize the configuration already in this working directory, omit the
 	var backendOutput bool
 
 	switch {
-	case args.BackendFlagSet && !args.FlagBackend:
+	case !args.FlagBackend && args.BackendFlagSet:
 		// The user explicitly passed -backend=false,
 		// so we must neither initialize a new backend nor load any
 		// previously-initialized one. Loading the previously-initialized
