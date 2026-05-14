@@ -231,11 +231,6 @@ git submodule update
 <details>
 <summary>
 
-## Updating govulncheck github workflow (only for stable releases)
-In [.github/workflows/govulncheck.yml](.github/workflows/govulncheck.yml), there is a matrix with the actively
-maintained versions of OpenTofu.
-When the new branch for the stable version is created, update the matrix above by adding the new branch and removing the deprecated version.
-
 ### Beta (`X.Y.Z-betaW`) and Release Candidate (`X.Y.Z-rcW`)
 
 </summary>
@@ -277,12 +272,11 @@ We do not release documentation for non-stable releases, any links should point 
      path: "",
    },
    ```
-5. After this is set, change the `lastVersion` option to point to your version.
-6. Now locate any version that is no longer supported and remove the following line to add a deprecation warning:
+5. Now locate any version that is no longer supported and remove the following line to add a deprecation warning:
    ```
      banner: "none",
    ```
-7. Finally, locate the `navbar` option and `Docs` dropdown to reflect the new version list. It should look something like this:
+6. Finally, locate the `navbar` option and `Docs` dropdown to reflect the new version list. It should look something like this:
    ```
    items: [
       {
@@ -328,6 +322,11 @@ Now you can commit your changes and open a pull request.
 </details>
 
 ---
+
+## Updating govulncheck github workflow (only for stable releases)
+In [.github/workflows/govulncheck.yml](.github/workflows/govulncheck.yml), there is a matrix with the actively
+maintained versions of OpenTofu.
+When the new branch for the stable version is created, update the matrix above by adding the new branch and removing the deprecated version.
 
 ## Testing the release
 
