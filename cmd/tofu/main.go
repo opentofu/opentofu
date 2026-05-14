@@ -134,6 +134,11 @@ func realMain() int {
 	}
 
 	log.Printf("[INFO] OpenTofu version: %s %s", Version, VersionPrerelease)
+	if version.IsOfficialBuild() {
+		log.Printf("[DEBUG] This is an official build of OpenTofu")
+	} else {
+		log.Printf("[DEBUG] This is a third-party build of OpenTofu")
+	}
 	if logging.IsDebugOrHigher() {
 		for _, depMod := range version.InterestingDependencies() {
 			log.Printf("[DEBUG] using %s %s", depMod.Path, depMod.Version)
