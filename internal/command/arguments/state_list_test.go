@@ -26,7 +26,7 @@ func TestParseStateList_basicValidation(t *testing.T) {
 		"custom state path": {
 			args: []string{"-state=/path/to/state.tfstate"},
 			want: stateListArgsWithDefaults(func(stateList *StateList) {
-				stateList.StatePath = "/path/to/state.tfstate"
+				stateList.State.StatePath = "/path/to/state.tfstate"
 			}),
 		},
 		"lookup by id": {
@@ -50,7 +50,7 @@ func TestParseStateList_basicValidation(t *testing.T) {
 		"combined flags and addresses": {
 			args: []string{"-state=/path/to/state.tfstate", "-id=i-123", "aws_instance.example", "aws_instance.example2"},
 			want: stateListArgsWithDefaults(func(stateList *StateList) {
-				stateList.StatePath = "/path/to/state.tfstate"
+				stateList.State.StatePath = "/path/to/state.tfstate"
 				stateList.LookupId = "i-123"
 				stateList.InstancesRawAddr = []string{"aws_instance.example", "aws_instance.example2"}
 			}),
@@ -137,7 +137,7 @@ func TestParseStateList_vars(t *testing.T) {
 
 func stateListArgsWithDefaults(mutate func(stateList *StateList)) *StateList {
 	ret := &StateList{
-		StatePath:        "",
+		State:            &State{},
 		LookupId:         "",
 		InstancesRawAddr: []string{},
 		ViewOptions: ViewOptions{

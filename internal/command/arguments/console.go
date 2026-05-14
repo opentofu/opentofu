@@ -11,15 +11,12 @@ import (
 
 // Console represents the command-line arguments for the console command.
 type Console struct {
-	// StatePath is the path to the state file to use for the console session.
-	StatePath string
-
 	// ViewOptions specifies which view options to use
 	ViewOptions ViewOptions
 	// Vars holds and provides information for the flags related to variables that a user can give into the process
 	Vars *Vars
-	// Backend is used here to register and parse the flags for state locking
-	Backend Backend
+	// State is used for the state related flags
+	State *State
 }
 
 // ParseConsole processes CLI arguments, returning a Console value, a closer function, and errors.
@@ -29,12 +26,13 @@ func ParseConsole(args []string) (*Console, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	console := &Console{
-		Vars: &Vars{},
+		Vars:  &Vars{},
+		State: &State{},
 	}
 
-	cmdFlags := extendedFlagSet("console", nil, nil, console.Vars)
-	console.Backend.AddStateFlags(cmdFlags)
-	cmdFlags.StringVar(&console.StatePath, "state", DefaultStateFilename, "path")
+	cmdFlags := extendedFlagSet("console", nil, console.Vars)
+	console.State.addFlags(cmdFlags, stateFlagLock)
+	console.State.AddStateInFlag(cmdFlags, DefaultStateFilename)
 
 	console.ViewOptions.AddFlags(cmdFlags, true)
 

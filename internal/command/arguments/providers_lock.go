@@ -40,7 +40,7 @@ func ParseProvidersLock(args []string) (*ProvidersLock, func(), tfdiags.Diagnost
 		Vars: &Vars{},
 	}
 
-	cmdFlags := extendedFlagSet("providers lock", nil, nil, arguments.Vars)
+	cmdFlags := extendedFlagSet("providers lock", nil, arguments.Vars)
 	cmdFlags.Var(&arguments.OptPlatforms, "platform", "target platform")
 	cmdFlags.StringVar(&arguments.FsMirrorDir, "fs-mirror", "", "filesystem mirror directory")
 	cmdFlags.StringVar(&arguments.NetMirrorURL, "net-mirror", "", "network mirror base URL")

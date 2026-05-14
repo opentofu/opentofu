@@ -39,13 +39,6 @@ func (c *UntaintCommand) Run(rawArgs []string) int {
 	// Parse and validate flags
 	args, closer, diags := arguments.ParseTaint(false, rawArgs)
 	defer closer()
-	// TODO meta-refactor: move these values to their right place once it's clear how to propagate their values to
-	//   the functionality that is using these.
-	c.Meta.backupPath = args.State.BackupPath
-	c.Meta.stateLock = args.State.Lock
-	c.Meta.stateLockTimeout = args.State.LockTimeout
-	c.Meta.statePath = args.State.StatePath
-	c.Meta.stateOutPath = args.State.StateOutPath
 
 	// Instantiate the view, even if there are flag errors, so that we render
 	// diagnostics according to the desired view
@@ -58,6 +51,8 @@ func (c *UntaintCommand) Run(rawArgs []string) int {
 		return cli.RunResultHelp
 	}
 	c.Meta.variableArgs = args.Vars.All()
+	c.Meta.stateArgs = *args.State
+
 	addr := args.TargetAddress
 
 	// Load the encryption configuration
@@ -108,8 +103,8 @@ func (c *UntaintCommand) Run(rawArgs []string) int {
 		return 1
 	}
 
-	if c.stateLock {
-		stateLocker := clistate.NewLocker(c.stateLockTimeout, view.Backend().StateLocker())
+	if c.stateArgs.Lock {
+		stateLocker := clistate.NewLocker(c.stateArgs.LockTimeout, view.Backend().StateLocker())
 		if diags := stateLocker.Lock(stateMgr, "untaint"); diags.HasErrors() {
 			view.Diagnostics(diags)
 			return 1

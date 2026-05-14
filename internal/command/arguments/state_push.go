@@ -19,9 +19,10 @@ type StatePush struct {
 	// ViewOptions specifies which view options to use
 	ViewOptions ViewOptions
 
-	// Vars and Backend are the common extended flags
+	// Vars, Backend and State are the common extended flags
 	Vars    *Vars
 	Backend Backend
+	State   *State
 }
 
 // ParseStatePush processes CLI arguments, returning a StatePush value, a closer function, and errors.
@@ -31,11 +32,12 @@ func ParseStatePush(args []string) (*StatePush, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	ret := &StatePush{
-		Vars: &Vars{},
+		Vars:  &Vars{},
+		State: &State{},
 	}
-	cmdFlags := extendedFlagSet("state push", nil, nil, ret.Vars)
+	cmdFlags := extendedFlagSet("state push", nil, ret.Vars)
 	ret.Backend.AddIgnoreRemoteVersionFlag(cmdFlags)
-	ret.Backend.AddStateFlags(cmdFlags)
+	ret.State.addFlags(cmdFlags, stateFlagLock)
 	cmdFlags.BoolVar(&ret.Force, "force", false, "")
 	ret.ViewOptions.AddFlags(cmdFlags, false)
 

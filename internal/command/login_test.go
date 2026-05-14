@@ -160,7 +160,7 @@ func TestLogin(t *testing.T) {
 		if got, want := loginOutput.Stdout(), "Welcome to the cloud backend!␀"; !strings.Contains(got, want) {
 			t.Errorf("expected output to contain %q, but was:\n%s", want, got)
 		}
-		if !c.Meta.stateLock {
+		if !c.Meta.stateArgs.Lock {
 			t.Errorf("stateLock always expected to be true for the login command")
 		}
 	}, true))

@@ -27,7 +27,7 @@ func ParseStatePull(args []string) (*StatePull, func(), tfdiags.Diagnostics) {
 	ret := &StatePull{
 		Vars: &Vars{},
 	}
-	cmdFlags := extendedFlagSet("state pull", nil, nil, ret.Vars)
+	cmdFlags := extendedFlagSet("state pull", nil, ret.Vars)
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(

@@ -26,11 +26,11 @@ func TestMetaInputMode(t *testing.T) {
 
 	m := &Meta{
 		WorkingDir: workdir.NewDir("."),
+		stateArgs:  arguments.State{Lock: true},
 	}
 	// TODO meta-refactor: these assignments are needed because the extendedFlagSet was used here before,
 	//   which had these with defaults as "true". In a future iteration, once these are not needed, we need to remove them.
 	m.input = true
-	m.stateLock = true
 
 	args := []string{}
 
@@ -50,11 +50,11 @@ func TestMetaInputMode_envVar(t *testing.T) {
 
 	m := &Meta{
 		WorkingDir: workdir.NewDir("."),
+		stateArgs:  arguments.State{Lock: true},
 	}
 	// TODO meta-refactor: these assignments are needed because the extendedFlagSet was used here before,
 	//   which had these with defaults as "true". In a future iteration, once these are not needed, we need to remove them.
 	m.input = true
-	m.stateLock = true
 
 	args := []string{}
 
@@ -89,11 +89,11 @@ func TestMetaInputMode_disable(t *testing.T) {
 
 	m := &Meta{
 		WorkingDir: workdir.NewDir("."),
+		stateArgs:  arguments.State{Lock: true},
 	}
 	// TODO meta-refactor: these assignments are needed because the extendedFlagSet was used here before,
 	//   which had these with defaults as "true". In a future iteration, once these are not needed, we need to remove them.
 	m.input = true
-	m.stateLock = true
 	args := []string{"-input=false"}
 
 	fs := flag.NewFlagSet("foo", flag.ContinueOnError)
@@ -109,49 +109,6 @@ func TestMetaInputMode_disable(t *testing.T) {
 
 	if m.InputMode() > 0 {
 		t.Fatalf("bad: %#v", m.InputMode())
-	}
-}
-
-func TestMeta_initStatePaths(t *testing.T) {
-	m := &Meta{
-		WorkingDir: workdir.NewDir("."),
-	}
-	m.initStatePaths()
-
-	if m.statePath != arguments.DefaultStateFilename {
-		t.Fatalf("bad: %#v", m)
-	}
-	if m.stateOutPath != arguments.DefaultStateFilename {
-		t.Fatalf("bad: %#v", m)
-	}
-	if m.backupPath != arguments.DefaultStateFilename+DefaultBackupExtension {
-		t.Fatalf("bad: %#v", m)
-	}
-
-	m = &Meta{
-		WorkingDir: workdir.NewDir("."),
-	}
-	m.statePath = "foo"
-	m.initStatePaths()
-
-	if m.stateOutPath != "foo" {
-		t.Fatalf("bad: %#v", m)
-	}
-	if m.backupPath != "foo"+DefaultBackupExtension {
-		t.Fatalf("bad: %#v", m)
-	}
-
-	m = &Meta{
-		WorkingDir: workdir.NewDir("."),
-	}
-	m.stateOutPath = "foo"
-	m.initStatePaths()
-
-	if m.statePath != arguments.DefaultStateFilename {
-		t.Fatalf("bad: %#v", m)
-	}
-	if m.backupPath != "foo"+DefaultBackupExtension {
-		t.Fatalf("bad: %#v", m)
 	}
 }
 

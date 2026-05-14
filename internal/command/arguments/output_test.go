@@ -6,146 +6,106 @@
 package arguments
 
 import (
-	"reflect"
+	"strings"
 	"testing"
 
-	"github.com/davecgh/go-spew/spew"
-	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
-func TestParseOutput_valid(t *testing.T) {
+func TestParseOutput_basicValidation(t *testing.T) {
 	testCases := map[string]struct {
-		args []string
-		want *Output
+		args        []string
+		want        *Output
+		wantErrText string
 	}{
 		"defaults": {
-			nil,
-			&Output{
-				Name:        "",
-				ViewOptions: ViewOptions{ViewType: ViewHuman},
-				StatePath:   "",
-			},
+			args: nil,
+			want: outputArgsWithDefaults(func(a *Output) {
+			}),
 		},
 		"json": {
-			[]string{"-json"},
-			&Output{
-				Name:        "",
-				ViewOptions: ViewOptions{ViewType: ViewJSON},
-				StatePath:   "",
-			},
+			args: []string{"-json"},
+			want: outputArgsWithDefaults(func(a *Output) {
+				a.ViewOptions.ViewType = ViewJSON
+			}),
 		},
 		"raw": {
-			[]string{"-raw", "foo"},
-			&Output{
-				Name:        "foo",
-				ViewOptions: ViewOptions{ViewType: ViewRaw},
-				StatePath:   "",
-			},
+			args: []string{"-raw", "foo"},
+			want: outputArgsWithDefaults(func(a *Output) {
+				a.Name = "foo"
+				a.ViewOptions.ViewType = ViewRaw
+			}),
 		},
 		"state": {
-			[]string{"-state=foobar.tfstate", "-raw", "foo"},
-			&Output{
-				Name:        "foo",
-				ViewOptions: ViewOptions{ViewType: ViewRaw},
-				StatePath:   "foobar.tfstate",
-			},
+			args: []string{"-state=foobar.tfstate", "-raw", "foo"},
+			want: outputArgsWithDefaults(func(a *Output) {
+				a.Name = "foo"
+				a.ViewOptions.ViewType = ViewRaw
+				a.State.StatePath = "foobar.tfstate"
+			}),
+		},
+		"unknown flag": {
+			args:        []string{"-boop"},
+			want:        outputArgsWithDefaults(func(a *Output) {}),
+			wantErrText: "Failed to parse command-line flags: flag provided but not defined: -boop",
+		},
+		"json and raw specified": {
+			args:        []string{"-json", "-raw"},
+			want:        outputArgsWithDefaults(func(a *Output) {}),
+			wantErrText: "Invalid output format: The -raw and -json options are mutually-exclusive.",
+		},
+		"raw with no name": {
+			args: []string{"-raw"},
+			want: outputArgsWithDefaults(func(a *Output) {
+				a.ViewOptions.ViewType = ViewRaw
+			}),
+			wantErrText: "Output name required: You must give the name of a single output value when using the -raw option.",
+		},
+		"too many arguments": {
+			args: []string{"-raw", "-state=foo.tfstate", "bar", "baz"},
+			want: outputArgsWithDefaults(func(a *Output) {
+				a.ViewOptions.ViewType = ViewRaw
+				a.Name = "bar"
+				a.State.StatePath = "foo.tfstate"
+			}),
+			wantErrText: "Unexpected argument: The output command expects exactly one argument with the name of an output variable or no arguments to show all outputs.",
 		},
 	}
-
+	cmpOpts := cmpopts.IgnoreUnexported(ViewOptions{}, Vars{})
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			got, _, diags := ParseOutput(tc.args)
-			if len(diags) > 0 {
-				t.Fatalf("unexpected diags: %v", diags)
+			got, closer, diags := ParseOutput(tc.args)
+			defer closer()
+			if tc.wantErrText != "" && len(diags) == 0 {
+				t.Errorf("test wanted error but got nothing")
+			} else if tc.wantErrText == "" && len(diags) > 0 {
+				t.Errorf("test didn't expect errors but got some: %s", diags.ErrWithWarnings())
+			} else if tc.wantErrText != "" && len(diags) > 0 {
+				errStr := diags.ErrWithWarnings().Error()
+				if !strings.Contains(errStr, tc.wantErrText) {
+					t.Errorf("the returned diagnostics does not contain the expected error message.\ndiags:\n%s\nwanted: %s\n", errStr, tc.wantErrText)
+				}
 			}
-			got.Vars = nil
-			got.ViewOptions.jsonFlag = tc.want.ViewOptions.jsonFlag
-			if *got != *tc.want {
-				t.Fatalf("unexpected result\n got: %#v\nwant: %#v", got, tc.want)
+			if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
+				t.Errorf("unexpected result\n%s", diff)
 			}
 		})
 	}
 }
 
-func TestParseOutput_invalid(t *testing.T) {
-	testCases := map[string]struct {
-		args      []string
-		want      *Output
-		wantDiags tfdiags.Diagnostics
-	}{
-		"unknown flag": {
-			[]string{"-boop"},
-			&Output{
-				Name:        "",
-				ViewOptions: ViewOptions{ViewType: ViewHuman},
-				StatePath:   "",
-			},
-			tfdiags.Diagnostics{
-				tfdiags.Sourceless(
-					tfdiags.Error,
-					"Failed to parse command-line flags",
-					"flag provided but not defined: -boop",
-				),
-			},
+func outputArgsWithDefaults(mutate func(a *Output)) *Output {
+	ret := &Output{
+		Name:          "",
+		ShowSensitive: false,
+		ViewOptions: ViewOptions{
+			ViewType: ViewHuman,
 		},
-		"json and raw specified": {
-			[]string{"-json", "-raw"},
-			&Output{
-				Name:        "",
-				ViewOptions: ViewOptions{ViewType: ViewHuman},
-				StatePath:   "",
-			},
-			tfdiags.Diagnostics{
-				tfdiags.Sourceless(
-					tfdiags.Error,
-					"Invalid output format",
-					"The -raw and -json options are mutually-exclusive.",
-				),
-			},
-		},
-		"raw with no name": {
-			[]string{"-raw"},
-			&Output{
-				Name:        "",
-				ViewOptions: ViewOptions{ViewType: ViewRaw},
-				StatePath:   "",
-			},
-			tfdiags.Diagnostics{
-				tfdiags.Sourceless(
-					tfdiags.Error,
-					"Output name required",
-					"You must give the name of a single output value when using the -raw option.",
-				),
-			},
-		},
-		"too many arguments": {
-			[]string{"-raw", "-state=foo.tfstate", "bar", "baz"},
-			&Output{
-				Name:        "bar",
-				ViewOptions: ViewOptions{ViewType: ViewRaw},
-				StatePath:   "foo.tfstate",
-			},
-			tfdiags.Diagnostics{
-				tfdiags.Sourceless(
-					tfdiags.Error,
-					"Unexpected argument",
-					"The output command expects exactly one argument with the name of an output variable or no arguments to show all outputs.",
-				),
-			},
-		},
+		Vars:  &Vars{},
+		State: &State{},
 	}
-
-	for name, tc := range testCases {
-		t.Run(name, func(t *testing.T) {
-			got, _, gotDiags := ParseOutput(tc.args)
-			got.Vars = nil
-			got.ViewOptions.jsonFlag = tc.want.ViewOptions.jsonFlag
-			if *got != *tc.want {
-				t.Fatalf("unexpected result\n got: %#v\nwant: %#v", got, tc.want)
-			}
-			if !reflect.DeepEqual(gotDiags, tc.wantDiags) {
-				t.Errorf("wrong result\ngot: %s\nwant: %s", spew.Sdump(gotDiags), spew.Sdump(tc.wantDiags))
-			}
-		})
+	if mutate != nil {
+		mutate(ret)
 	}
+	return ret
 }

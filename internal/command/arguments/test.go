@@ -42,7 +42,7 @@ func ParseTest(args []string) (*Test, func(), tfdiags.Diagnostics) {
 		Vars: new(Vars),
 	}
 
-	cmdFlags := extendedFlagSet("test", nil, nil, test.Vars)
+	cmdFlags := extendedFlagSet("test", nil, test.Vars)
 	cmdFlags.Var((*flags.FlagStringSlice)(&test.Filter), "filter", "filter")
 	cmdFlags.StringVar(&test.TestDirectory, "test-directory", configs.DefaultTestDirectory, "test-directory")
 	cmdFlags.BoolVar(&test.Verbose, "verbose", false, "verbose")

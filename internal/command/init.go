@@ -83,6 +83,7 @@ func (c *InitCommand) Run(rawArgs []string) int {
 		c.pluginPath = args.FlagPluginPath
 	}
 	c.Meta.variableArgs = args.Vars.All()
+	c.Meta.stateArgs = *args.State
 
 	// This gets the current directory as full path.
 	path := c.WorkingDir.NormalizePath(c.WorkingDir.RootModuleDir())
@@ -1160,10 +1161,6 @@ func (c *InitCommand) configureBackendFlags(args *arguments.Backend) {
 	c.reconfigure = args.Reconfigure
 	c.migrateState = args.MigrateState
 	c.Meta.ignoreRemoteVersion = args.IgnoreRemoteVersion
-	// TODO meta-refactor: unify these 2 args attributes with the state flags in arguments.extendedFlagSet
-	//  https://github.com/opentofu/opentofu/blob/db8c872defd8666618649ef7e29fa2b809adfd5e/internal/command/arguments/extended.go#L320-L321
-	c.Meta.stateLock = args.StateLock
-	c.Meta.stateLockTimeout = args.StateLockTimeout
 }
 
 func (c *InitCommand) AutocompleteFlags() complete.Flags {

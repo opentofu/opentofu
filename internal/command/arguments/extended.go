@@ -26,6 +26,17 @@ import (
 // operations as it walks the dependency graph.
 const DefaultParallelism = 10
 
+type stateFlag uint8
+
+const (
+	stateFlagLock stateFlag = 1 << iota
+	stateFlagStateIn
+	stateFlagStateOut
+	stateFlagBackup
+
+	stateFlagAll = stateFlagLock | stateFlagStateIn | stateFlagStateOut | stateFlagBackup
+)
+
 // State describes arguments which are used to define how OpenTofu interacts
 // with state.
 type State struct {
@@ -39,6 +50,7 @@ type State struct {
 
 	// StatePath specifies a non-default location for the state file. The
 	// default value is blank, which is interpreted as "terraform.tfstate".
+	// Represents the local path where state is read from.
 	StatePath string
 
 	// StateOutPath specifies a different path to write the final state file.
@@ -48,9 +60,36 @@ type State struct {
 
 	// BackupPath specifies the path where a backup copy of the state file will
 	// be stored before the new state is written. The default value is blank,
-	// which is interpreted as StateOutPath +
-	// ".backup".
+	// which is interpreted as StateOutPath + ".backup" or, in some cases, the backup
+	// is skipped altogether.
 	BackupPath string
+}
+
+// addFlags is the sole logic of registering the state related flags in OpenTofu.
+func (s *State) addFlags(f *flag.FlagSet, mask stateFlag) {
+	if mask&stateFlagLock != 0 {
+		f.BoolVar(&s.Lock, "lock", true, "lock")
+		f.DurationVar(&s.LockTimeout, "lock-timeout", 0, "lock-timeout")
+	}
+	if mask&stateFlagStateIn != 0 {
+		s.AddStateInFlag(f, "")
+	}
+	if mask&stateFlagStateOut != 0 {
+		f.StringVar(&s.StateOutPath, "state-out", "", "state-path")
+	}
+	if mask&stateFlagBackup != 0 {
+		s.AddBackupFlag(f, "")
+	}
+}
+
+// AddStateInFlag exists strictly because the default value can get a different value in some commands.
+func (s *State) AddStateInFlag(f *flag.FlagSet, defVal string) {
+	f.StringVar(&s.StatePath, "state", defVal, "state-path")
+}
+
+// AddBackupFlag exists strictly because the default value can get a different value in some commands.
+func (s *State) AddBackupFlag(f *flag.FlagSet, defVal string) {
+	f.StringVar(&s.BackupPath, "backup", defVal, "backup-path")
 }
 
 // Operation describes arguments which are used to configure how a OpenTofu
@@ -310,19 +349,11 @@ func (v *Vars) Empty() bool {
 // extendedFlagSet creates a FlagSet with common backend, operation, and vars
 // flags used in many commands. Target structs for each subset of flags must be
 // provided in order to support those flags.
-func extendedFlagSet(name string, state *State, operation *Operation, vars *Vars) *flag.FlagSet {
+func extendedFlagSet(name string, operation *Operation, vars *Vars) *flag.FlagSet {
 	f := defaultFlagSet(name)
 
-	if state == nil && operation == nil && vars == nil {
+	if operation == nil && vars == nil {
 		panic("use defaultFlagSet")
-	}
-
-	if state != nil {
-		f.BoolVar(&state.Lock, "lock", true, "lock")
-		f.DurationVar(&state.LockTimeout, "lock-timeout", 0, "lock-timeout")
-		f.StringVar(&state.StatePath, "state", "", "state-path")
-		f.StringVar(&state.StateOutPath, "state-out", "", "state-path")
-		f.StringVar(&state.BackupPath, "backup", "", "backup-path")
 	}
 
 	if operation != nil {

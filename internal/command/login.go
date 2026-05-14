@@ -79,17 +79,12 @@ func (c *LoginCommand) Run(rawArgs []string) int {
 		}
 		return cli.RunResultHelp
 	}
+	c.Meta.stateArgs = *args.State
 
 	// FIXME: the -input flag value is needed to initialize the backend and the
 	// operation, but there is no clear path to pass this value down, so we
 	// continue to mutate the Meta object state for now.
 	c.Meta.input = args.ViewOptions.InputEnabled
-
-	// TODO meta-refactor: when the stateLock and stateLockTimeout are extracted to be configured separately, remove
-	// these and use a common way to configure this
-	// The stateLock=true is here this way because this command used before meta.extendedFlagSet which did the same
-	// and left for the command to configure flags for this if needed.
-	c.Meta.stateLock = true
 
 	if !c.input {
 		diags = diags.Append(tfdiags.Sourceless(
