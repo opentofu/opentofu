@@ -184,14 +184,8 @@ func (m *Meta) addVarsFromFile(filename string, sourceType tofu.ValueSourceType,
 		return diags
 	}
 
-	loader, err := m.initConfigLoader()
-	if err != nil {
-		diags = diags.Append(err)
-		return diags
-	}
-
 	// Record the file source code for snippets in diagnostic messages.
-	loader.Parser().ForceFileSource(filename, src)
+	m.configLoader().ForceFileSource(filename, src)
 
 	var f *hcl.File
 

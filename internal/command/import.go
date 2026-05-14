@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/tracing"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -76,7 +77,7 @@ func (c *ImportCommand) Run(rawArgs []string) int {
 	if travDiags.HasErrors() {
 		// NOTE: The call to registerSynthConfigSource works well with the view.Diagnostics too since the view is
 		// configured in [Meta.initConfigLoader] with a callback to get the sources when it prints the diagnostics.
-		c.registerSynthConfigSource("<import-address>", traversalSrc) // so we can include a source snippet
+		c.configLoader().ForceFileSource("<import-address>", traversalSrc) // so we can include a source snippet
 		view.Diagnostics(diags)
 		view.InvalidAddressReference()
 		return 1
@@ -86,7 +87,7 @@ func (c *ImportCommand) Run(rawArgs []string) int {
 	if addrDiags.HasErrors() {
 		// NOTE: The call to registerSynthConfigSource works well with the view.Diagnostics too since the view is
 		// configured in [Meta.initConfigLoader] with a callback to get the sources when it prints the diagnostics.
-		c.registerSynthConfigSource("<import-address>", traversalSrc) // so we can include a source snippet
+		c.configLoader().ForceFileSource("<import-address>", traversalSrc) // so we can include a source snippet
 		view.Diagnostics(diags)
 		view.InvalidAddressReference()
 		return 1
@@ -111,7 +112,7 @@ func (c *ImportCommand) Run(rawArgs []string) int {
 		return 1
 	}
 
-	if !c.dirIsConfigPath(args.ConfigPath) {
+	if !c.configLoader().IsConfigDir(args.ConfigPath) {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "No OpenTofu configuration files",
@@ -216,7 +217,7 @@ func (c *ImportCommand) Run(rawArgs []string) int {
 	// Build the operation
 	opReq := c.Operation(ctx, b, view.Backend(), enc)
 	opReq.ConfigDir = args.ConfigPath
-	opReq.ConfigLoader, err = c.initConfigLoader()
+	opReq.ConfigLoader, err = configload.Initialize(c.configLoader())
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
