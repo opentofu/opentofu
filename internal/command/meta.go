@@ -163,10 +163,10 @@ type Meta struct {
 	// Private: do not set these
 	// ----------------------------------------------------------
 
-	// configLoader is a shared configuration loader that is used by
+	// cfgLoader is a shared configuration loader that is used by
 	// LoadConfig and other commands that access configuration files.
 	// It is initialized on first use.
-	configLoader configload.Loader
+	cfgLoader configload.Loader
 
 	// backendState is the currently active backend state
 	backendState *clistate.BackendState
@@ -497,12 +497,6 @@ func isAutoVarFile(path string) bool {
 func (m *Meta) checkRequiredVersion(ctx context.Context) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
-	loader, err := m.initConfigLoader()
-	if err != nil {
-		diags = diags.Append(err)
-		return diags
-	}
-
 	pwd, err := os.Getwd()
 	if err != nil {
 		diags = diags.Append(fmt.Errorf("Error getting pwd: %w", err))
@@ -515,7 +509,7 @@ func (m *Meta) checkRequiredVersion(ctx context.Context) tfdiags.Diagnostics {
 		return diags
 	}
 
-	_, configDiags := loader.LoadConfig(ctx, pwd, call)
+	_, configDiags := m.configLoader().LoadConfig(ctx, pwd, call)
 	if configDiags.HasErrors() {
 		diags = diags.Append(configDiags)
 		return diags

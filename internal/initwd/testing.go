@@ -33,7 +33,7 @@ func LoadConfigForTests(t testing.TB, rootDir string, testsDir string) (*configs
 
 	var diags tfdiags.Diagnostics
 
-	loader := configload.NewLoaderForTests(t)
+	loader := configload.NewLoaderForTests(t, false)
 	inst := NewModuleInstaller(loader.ModulesDir(), loader, registry.NewClient(t.Context(), nil, nil), nil)
 
 	call := configs.RootModuleCallForTesting()
