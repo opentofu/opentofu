@@ -487,6 +487,7 @@ func (c *RemoteClient) getLockInfoFromS3(ctx context.Context) (*statemgr.LockInf
 
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	lockInfo := &statemgr.LockInfo{}
 	err = json.NewDecoder(resp.Body).Decode(lockInfo)
