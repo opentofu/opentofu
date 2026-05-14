@@ -3262,6 +3262,43 @@ func TestInit_skipEncryptionBackendFalse(t *testing.T) {
 	})
 }
 
+func TestInit_backendFalse_skipsBackendFromStateOnPreviouslyInitializedDir(t *testing.T) {
+	t.Run("init succeeds with -backend=false even when an encrypted state file is already present", func(t *testing.T) {
+		td := t.TempDir()
+		testCopyDir(t, testFixturePath("init-encryption-with-state"), td)
+		t.Chdir(td)
+
+		overrides := metaOverridesForProvider(testProvider())
+		view, done := testView(t)
+		providerSource, closeCallback := newMockProviderSource(t, map[string][]string{
+			"hashicorp/aws": {"5.0", "5.8"},
+		})
+		defer closeCallback()
+		m := Meta{
+			WorkingDir:       workdir.NewDir("."),
+			testingOverrides: overrides,
+			View:             view,
+			ProviderSource:   providerSource,
+		}
+
+		c := &InitCommand{
+			Meta: m,
+		}
+
+		args := []string{
+			"-backend=false",
+		}
+		code := c.Run(args)
+		output := done(t)
+		if code != 0 {
+			t.Fatalf("init should run successfully with -backend=false even with an encrypted state file present\nexit code: %d\nstderr:\n%s\nstdout:\n%s", code, output.Stderr(), output.Stdout())
+		}
+		if stderr := output.Stderr(); stderr != "" {
+			t.Errorf("expected to have no errors but got:\n%s", stderr)
+		}
+	})
+}
+
 // newMockProviderSource is a helper to succinctly construct a mock provider
 // source that contains a set of packages matching the given provider versions
 // that are available for installation (from temporary local files).
