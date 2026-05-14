@@ -276,7 +276,7 @@ We do not release documentation for non-stable releases, any links should point 
    ```
      banner: "none",
    ```
-6. Finally, locate the `navbar` option and `Docs` dropdown to reflect the new version list. It should look something like this:
+6. Locate the `navbar` option and `Docs` dropdown to reflect the new version list. It should look something like this:
    ```
    items: [
       {
@@ -293,6 +293,11 @@ We do not release documentation for non-stable releases, any links should point 
         href: "/docs/main/"
       },
     ],
+   ```
+7. Add the necessary entries in the `versioned_sidebars` and `versioned_docs` directories.
+   ```shell
+   cp versioned_sidebars/version-v1.11-sidebars.json versioned_sidebars/version-vX.Y-sidebars.json
+   cd versioned_docs && ln -s ../opentofu-repo/vX.Y/website/docs version-vX.Y
    ```
 
 </details>
