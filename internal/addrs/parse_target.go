@@ -30,7 +30,11 @@ type Target struct {
 // If error diagnostics are returned then the Target value is invalid and
 // must not be used.
 func ParseTarget(traversal hcl.Traversal) (*Target, tfdiags.Diagnostics) {
-	path, remain, diags := parseModuleInstancePrefix(traversal)
+	return parseTarget(traversal, false)
+}
+
+func parseTarget(traversal hcl.Traversal, allowRanges bool) (*Target, tfdiags.Diagnostics) {
+	path, remain, diags := parseModuleInstancePrefixWithOptionalRanges(traversal, allowRanges)
 	if diags.HasErrors() {
 		return nil, diags
 	}
@@ -44,7 +48,7 @@ func ParseTarget(traversal hcl.Traversal) (*Target, tfdiags.Diagnostics) {
 		}, diags
 	}
 
-	riAddr, moreDiags := parseResourceInstanceUnderModule(path, remain)
+	riAddr, moreDiags := parseResourceInstanceUnderModule(path, remain, allowRanges)
 	diags = diags.Append(moreDiags)
 	if diags.HasErrors() {
 		return nil, diags
@@ -67,7 +71,7 @@ func ParseTarget(traversal hcl.Traversal) (*Target, tfdiags.Diagnostics) {
 	}, diags
 }
 
-func parseResourceInstanceUnderModule(moduleAddr ModuleInstance, remain hcl.Traversal) (AbsResourceInstance, tfdiags.Diagnostics) {
+func parseResourceInstanceUnderModule(moduleAddr ModuleInstance, remain hcl.Traversal, allowRanges bool) (AbsResourceInstance, tfdiags.Diagnostics) {
 	// Note that this helper is used as part of multiple public functions
 	// so its error messages should be generic enough to suit all the situations.
 
@@ -106,6 +110,9 @@ func parseResourceInstanceUnderModule(moduleAddr ModuleInstance, remain hcl.Trav
 			}
 
 			return moduleAddr.ResourceInstance(mode, typeName, name, key), diags
+
+		} else if _, ok := remain[0].(hcl.TraverseSplat); allowRanges && ok {
+			return moduleAddr.ResourceInstance(mode, typeName, name, WildcardKey{UnknownKeyType}), diags
 		} else {
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
@@ -350,6 +357,31 @@ func ParseAbsResourceStr(str string) (AbsResource, tfdiags.Diagnostics) {
 	return addr, diags
 }
 
+func ParseAbsResourceRange(traversal hcl.Traversal) (AbsResourceInstance, tfdiags.Diagnostics) {
+	return parseAbsResourceInstance(traversal, true)
+}
+
+// parseAbsResourceRangeStr is copied from ParseAbsResourceInstanceStr (more or less),
+// but with functions edited to refer to ranges instead.
+func parseAbsResourceRangeStr(str string) (AbsResourceInstance, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+	expr, parseDiags := hclsyntax.ParseExpression([]byte(str), "", hcl.InitialPos)
+	diags = diags.Append(parseDiags)
+	if parseDiags.HasErrors() {
+		return AbsResourceInstance{}, diags
+	}
+
+	traversal, parseDiags := hcl.AbsTraversalPatternForExpr(expr)
+	diags = diags.Append(parseDiags)
+	if parseDiags.HasErrors() {
+		return AbsResourceInstance{}, diags
+	}
+
+	addr, addrDiags := ParseAbsResourceRange(traversal)
+	diags = diags.Append(addrDiags)
+	return addr, diags
+}
+
 // ParseAbsResourceInstance attempts to interpret the given traversal as an
 // absolute resource instance address, using the same syntax as expected by
 // ParseTarget.
@@ -360,7 +392,11 @@ func ParseAbsResourceStr(str string) (AbsResource, tfdiags.Diagnostics) {
 // If error diagnostics are returned then the AbsResource value is invalid and
 // must not be used.
 func ParseAbsResourceInstance(traversal hcl.Traversal) (AbsResourceInstance, tfdiags.Diagnostics) {
-	addr, diags := ParseTarget(traversal)
+	return parseAbsResourceInstance(traversal, false)
+}
+
+func parseAbsResourceInstance(traversal hcl.Traversal, allowRanges bool) (AbsResourceInstance, tfdiags.Diagnostics) {
+	addr, diags := parseTarget(traversal, allowRanges)
 	if diags.HasErrors() {
 		return AbsResourceInstance{}, diags
 	}
