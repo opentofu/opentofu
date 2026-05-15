@@ -103,9 +103,11 @@ func (n *NodeApplyableProvider) Execute(ctx context.Context, evalCtx EvalContext
 	if op == walkValidate {
 		log.Printf("[TRACE] NodeApplyableProvider: validating configuration for %s", n.Addr)
 		instance, newDiags := evalCtx.Providers().NewProvider(ctx, n.Addr.Provider)
-		n.instances[addrs.NoKey] = instance
-		for key, data := range instanceData {
-			diags = diags.Append(n.ValidateProvider(ctx, evalCtx, instance, key, data))
+		if !newDiags.HasErrors() { // We can't validate if we didn't successfully start the provider plugin
+			n.instances[addrs.NoKey] = instance
+			for key, data := range instanceData {
+				diags = diags.Append(n.ValidateProvider(ctx, evalCtx, instance, key, data))
+			}
 		}
 		return diags.Append(newDiags)
 	}
