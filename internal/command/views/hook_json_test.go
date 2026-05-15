@@ -53,7 +53,8 @@ func TestJSONHook_create(t *testing.T) {
 		}),
 	})
 
-	action, err := hook.PreApply(addr, states.CurrentGen, plans.Create, priorState, plannedNewState)
+	elapsedChan := make(chan time.Duration)
+	action, err := hook.preApply(addr, states.CurrentGen, plans.Create, priorState, plannedNewState, elapsedChan)
 	testHookReturnValues(t, action, err)
 
 	action, err = hook.PreProvisionInstanceStep(addr, "local-exec")
@@ -63,8 +64,6 @@ func TestJSONHook_create(t *testing.T) {
 
 	action, err = hook.PostProvisionInstanceStep(addr, "local-exec", nil)
 	testHookReturnValues(t, action, err)
-
-	elapsedChan := hook.applying[addr.String()].elapsed
 
 	// Travel 10s into the future, notify the progress goroutine, and wait
 	// for execution via 'elapsed' progress
@@ -92,15 +91,9 @@ func TestJSONHook_create(t *testing.T) {
 	action, err = hook.PostApply(addr, states.CurrentGen, plannedNewState, nil)
 	testHookReturnValues(t, action, err)
 
-	// Shut down the progress goroutine if still active
-	hook.applyingLock.Lock()
-	for key, progress := range hook.applying {
-		close(progress.done)
-		close(progress.elapsed)
-		<-progress.heartbeatDone
-		delete(hook.applying, key)
+	// Wait for the progress goroutine to exit.
+	for range elapsedChan {
 	}
-	hook.applyingLock.Unlock()
 
 	wantResource := map[string]any{
 		"addr":             string("test_instance.boop"),
@@ -215,6 +208,7 @@ func TestJSONHook_errors(t *testing.T) {
 
 	action, err := hook.PreApply(addr, states.CurrentGen, plans.Delete, priorState, plannedNewState)
 	testHookReturnValues(t, action, err)
+	heartbeatDone := hook.applying[addr.String()].heartbeatDone
 
 	provisionError := fmt.Errorf("provisioner didn't want to")
 	action, err = hook.PostProvisionInstanceStep(addr, "local-exec", provisionError)
@@ -224,15 +218,8 @@ func TestJSONHook_errors(t *testing.T) {
 	action, err = hook.PostApply(addr, states.CurrentGen, plannedNewState, applyError)
 	testHookReturnValues(t, action, err)
 
-	// Shut down the progress goroutine
-	hook.applyingLock.Lock()
-	for key, progress := range hook.applying {
-		close(progress.done)
-		close(progress.elapsed)
-		<-progress.heartbeatDone
-		delete(hook.applying, key)
-	}
-	hook.applyingLock.Unlock()
+	// Wait for the progress goroutine to exit.
+	<-heartbeatDone
 
 	wantResource := map[string]any{
 		"addr":             string("test_instance.boop"),
