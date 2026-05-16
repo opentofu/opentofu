@@ -14,6 +14,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/dag"
 	"github.com/opentofu/opentofu/internal/logging"
+	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -35,11 +36,11 @@ func (g *Graph) DirectedGraph() dag.Grapher {
 // Walk walks the graph with the given walker for callbacks. The graph
 // will be walked with full parallelism, so the walker should expect
 // to be called in concurrently.
-func (g *Graph) Walk(ctx context.Context, walker GraphWalker) tfdiags.Diagnostics {
-	return g.walk(ctx, walker)
+func (g *Graph) Walk(ctx context.Context, walker GraphWalker, backupStateForError func(*states.State)) tfdiags.Diagnostics {
+	return g.walk(ctx, walker, backupStateForError)
 }
 
-func (g *Graph) walk(ctx context.Context, walker GraphWalker) tfdiags.Diagnostics {
+func (g *Graph) walk(ctx context.Context, walker GraphWalker, backupStateForError func(*states.State)) tfdiags.Diagnostics {
 	// The callbacks for enter/exiting a graph
 	evalCtx := walker.EvalContext()
 
@@ -47,13 +48,21 @@ func (g *Graph) walk(ctx context.Context, walker GraphWalker) tfdiags.Diagnostic
 	// spawning many go routines for vertex evaluation
 	// to minimize the performance impact of capturing
 	// the stack trace.
-	panicHandler := logging.PanicHandlerWithTraceCallerFn()
+	panicHandler := logging.PanicHandlerWithTraceHandlerFn()
+
+	hailMaryStateDump := func() {
+		if backupStateForError != nil {
+			// We will be exiting after this so no need to Unlock
+			state := walker.EvalContext().State().Lock()
+			backupStateForError(state)
+		}
+	}
 
 	// Walk the graph.
 	walkFn := func(v dag.Vertex) (diags tfdiags.Diagnostics) {
 		// the walkFn is called asynchronously, and needs to be recovered
 		// separately in the case of a panic.
-		defer panicHandler(fmt.Sprintf("Walking vertex %s - %T", dag.VertexName(v), v))
+		defer panicHandler(fmt.Sprintf("Walking vertex %s - %T", dag.VertexName(v), v), hailMaryStateDump)
 
 		log.Printf("[TRACE] vertex %q: starting visit (%T)", dag.VertexName(v), v)
 
@@ -123,7 +132,7 @@ func (g *Graph) walk(ctx context.Context, walker GraphWalker) tfdiags.Diagnostic
 
 				// Walk the subgraph
 				log.Printf("[TRACE] vertex %q: entering dynamic subgraph", dag.VertexName(v))
-				subDiags := g.walk(ctx, walker)
+				subDiags := g.walk(ctx, walker, backupStateForError)
 				diags = diags.Append(subDiags)
 				if subDiags.HasErrors() {
 					var errs []string
