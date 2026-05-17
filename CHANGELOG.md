@@ -24,6 +24,10 @@ BUG FIXES:
 - provisioner output is no longer suppressed when `-show-sensitive` is passed. ([#3927](https://github.com/opentofu/opentofu/issues/3927))
 - In the `azurerm` backend's OpenID Connect authorization method, when `audience` is provided as a query parameter in the URL, it will be passed through instead of being overwritten by a default value. ([#4037](https://github.com/opentofu/opentofu/pull/4037))
 
+DOCUMENTATION:
+
+- Added DNF as an install option alongside Yum in the RPM-based Linux install guide. ([#1205](https://github.com/opentofu/opentofu/issues/1205))
+
 ## Previous Releases
 
 For information on prior major and minor releases, refer to their changelogs:
