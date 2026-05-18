@@ -111,7 +111,7 @@ func (c *StateShowCommand) Run(rawArgs []string) int {
 		return 1
 	}
 
-	opReq.ConfigLoader, err = configload.Initialize(c.configLoader())
+	opReq.ConfigLoader, err = configload.Initialise(c.configLoader())
 	if err != nil {
 		view.Diagnostics(diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,

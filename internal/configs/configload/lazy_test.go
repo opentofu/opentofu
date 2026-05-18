@@ -1,3 +1,8 @@
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package configload
 
 import (
@@ -18,7 +23,7 @@ func TestLazyLoader_Initialize(t *testing.T) {
 		writeConfigFile(t, filepath.Join(d, "main.tf"), []byte(""))
 
 		ll := NewLazy(&Config{ModulesDir: d})
-		il, err := Initialize(ll)
+		il, err := Initialise(ll)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -33,7 +38,7 @@ func TestLazyLoader_Initialize(t *testing.T) {
 		writeManifestFile(t, d, []byte(`{"Modules":[]}`))
 
 		ll := NewLazy(&Config{ModulesDir: d})
-		il, err := Initialize(ll)
+		il, err := Initialise(ll)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -48,7 +53,7 @@ func TestLazyLoader_Initialize(t *testing.T) {
 		writeManifestFile(t, d, []byte("invalid content"))
 
 		ll := NewLazy(&Config{ModulesDir: d})
-		il, err := Initialize(ll)
+		il, err := Initialise(ll)
 		if err == nil {
 			t.Fatalf("expected but got nothing: %s", err)
 		}

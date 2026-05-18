@@ -172,15 +172,6 @@ func (m *Meta) loadSingleModuleWithTests(ctx context.Context, dir string, testDi
 	return module, diags
 }
 
-// dirIsConfigPath checks if the given path is a directory that contains at
-// least one OpenTofu configuration file (.tf or .tf.json), returning true
-// if so.
-//
-// In the unlikely event that the underlying config loader cannot be initialized,
-// this function optimistically returns true, assuming that the caller will
-// then do some other operation that requires the config loader and get an
-// error at that point.
-
 // loadBackendConfig reads configuration from the given directory and returns
 // the backend configuration defined by that module, if any. Nil is returned
 // if the specified module does not have an explicit backend configuration.
@@ -244,7 +235,7 @@ func (m *Meta) installModules(ctx context.Context, rootDir, testsDir string, upg
 		return true, diags
 	}
 
-	loader, err := configload.Initialize(m.configLoader())
+	loader, err := configload.Initialise(m.configLoader())
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
@@ -288,7 +279,7 @@ func (m *Meta) installModules(ctx context.Context, rootDir, testsDir string, upg
 // this package has a reasonable implementation for displaying notifications
 // via a provided cli.Ui.
 func (m *Meta) initDirFromModule(ctx context.Context, targetDir string, addr string, hooks initwd.ModuleInstallHooks, view views.Basic) (abort bool, diags tfdiags.Diagnostics) {
-	loader, err := configload.Initialize(m.configLoader())
+	loader, err := configload.Initialise(m.configLoader())
 	if err != nil {
 		diags = diags.Append(err)
 		return true, diags
@@ -380,7 +371,7 @@ func (m *Meta) inputForSchema(given cty.Value, schema *configschema.Block, view 
 //
 // In situations where the caller wants to be sure that the initialisation will succeed
 // before proceeding further in the flow, it must pass the value returned by this method
-// to the configload.Initialize. The error returned by that method will be the initialisation
+// to the configload.Initialise. The error returned by that method will be the initialisation
 // error of the underlying config loader.
 //
 // TODO meta-refactor: because there is no one single entry point to initialise the commands, we have

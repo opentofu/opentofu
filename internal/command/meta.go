@@ -163,6 +163,13 @@ type Meta struct {
 	// Private: do not set these
 	// ----------------------------------------------------------
 
+	// TODO meta-refactor: we need to refactor the tests to provide a config loader
+	//   and not rely on the on-the-fly initialisation of it from the Meta struct.
+	//   Once we do it, the regular logic flow should rely on having it initialised before
+	//   creating the commands, like passing it to `initCommands`.
+	//   This way, the tests will provide the config loader and the main logic will
+	//   provide one before even creating the commands. We cannot initialise this in
+	//   the Run of the commands because some autocompletion methods rely on it too.
 	// cfgLoader is a shared configuration loader that is used by
 	// LoadConfig and other commands that access configuration files.
 	// It is initialized on first use.

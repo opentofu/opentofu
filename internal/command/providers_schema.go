@@ -100,7 +100,7 @@ func (c *ProvidersSchemaCommand) Run(rawArgs []string) int {
 	// Build the operation
 	opReq := c.Operation(ctx, b, view.Backend(), enc)
 	opReq.ConfigDir = cwd
-	opReq.ConfigLoader, err = configload.Initialize(c.configLoader())
+	opReq.ConfigLoader, err = configload.Initialise(c.configLoader())
 	var callDiags tfdiags.Diagnostics
 	opReq.RootCall, callDiags = c.rootModuleCall(ctx, opReq.ConfigDir)
 	diags = diags.Append(callDiags)

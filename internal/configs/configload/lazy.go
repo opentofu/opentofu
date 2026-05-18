@@ -1,3 +1,8 @@
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package configload
 
 import (
@@ -8,10 +13,16 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 )
 
-type initializer interface {
-	init() (Loader, hcl.Diagnostics)
-}
-
+// lazyLoader implements Loader. When created, it does not initialise the
+// actual implementation of the loader but instead defers that to the first
+// call to its methods.
+//
+// Each Loader method that returns no error will return a sane default that the system
+// is known to work with in case the underlying loader initialisation will fail during
+// those methods' calls.
+// If the initialisation fails during the call on these methods, the underlying loader will
+// remain nil, retrying to do so on subsequent calls until a method that returns diagnostics
+// is finally called, returning the root cause error.
 type lazyLoader struct {
 	cached Loader
 
@@ -24,8 +35,11 @@ func NewLazy(c *Config) Loader {
 	}
 }
 
-// TODO andrei add docs
-func Initialize(l Loader) (Loader, error) {
+// Initialise provides a way for the users of Loader to forcefully initialise the instance
+// and not wait for the its methods to be called to do it.
+// This is useful in cases where the lazy loading of the loader (by calling member methods), could
+// create unexpected issues and unwanted errors in unwanted places.
+func Initialise(l Loader) (Loader, error) {
 	ll, ok := l.(*lazyLoader)
 	if !ok {
 		return l, nil
@@ -33,6 +47,7 @@ func Initialize(l Loader) (Loader, error) {
 	return ll.init()
 }
 
+// init initialises the underlying Loader by calling NewLoader.
 func (c *lazyLoader) init() (Loader, error) {
 	if c.cached == nil {
 		newLoader, err := NewLoader(c.cfg)
@@ -44,6 +59,7 @@ func (c *lazyLoader) init() (Loader, error) {
 	return c.cached, nil
 }
 
+// ImportSources implements Loader
 func (c *lazyLoader) ImportSources(sources map[string][]byte) {
 	l, err := c.init()
 	if err != nil {
@@ -52,6 +68,7 @@ func (c *lazyLoader) ImportSources(sources map[string][]byte) {
 	l.ImportSources(sources)
 }
 
+// ImportSourcesFromSnapshot implements Loader
 func (c *lazyLoader) ImportSourcesFromSnapshot(snap *Snapshot) {
 	l, err := c.init()
 	if err != nil {
@@ -60,6 +77,7 @@ func (c *lazyLoader) ImportSourcesFromSnapshot(snap *Snapshot) {
 	l.ImportSourcesFromSnapshot(snap)
 }
 
+// IsConfigDir implements Loader
 func (c *lazyLoader) IsConfigDir(path string) bool {
 	l, err := c.init()
 	if err != nil {
@@ -68,14 +86,16 @@ func (c *lazyLoader) IsConfigDir(path string) bool {
 	return l.IsConfigDir(path)
 }
 
+// ModulesDir implements Loader
 func (c *lazyLoader) ModulesDir() string {
 	l, err := c.init()
 	if err != nil {
-		return "" // TODO andrei - maybe we should panic here? If the init does not work, then it's a problem with the underlying loader init
+		return ""
 	}
 	return l.ModulesDir()
 }
 
+// RefreshModules implements Loader
 func (c *lazyLoader) RefreshModules() error {
 	l, err := c.init()
 	if err != nil {
@@ -84,6 +104,7 @@ func (c *lazyLoader) RefreshModules() error {
 	return l.RefreshModules()
 }
 
+// Sources implements Loader
 func (c *lazyLoader) Sources() map[string]*hcl.File {
 	l, err := c.init()
 	if err != nil {
@@ -92,6 +113,7 @@ func (c *lazyLoader) Sources() map[string]*hcl.File {
 	return l.Sources()
 }
 
+// LoadConfig implements Loader
 func (c *lazyLoader) LoadConfig(ctx context.Context, rootDir string, call configs.StaticModuleCall) (*configs.Config, hcl.Diagnostics) {
 	l, err := c.init()
 	if err != nil {
@@ -106,6 +128,7 @@ func (c *lazyLoader) LoadConfig(ctx context.Context, rootDir string, call config
 	return l.LoadConfig(ctx, rootDir, call)
 }
 
+// LoadConfigWithTests implements Loader
 func (c *lazyLoader) LoadConfigWithTests(ctx context.Context, rootDir string, testDir string, call configs.StaticModuleCall) (*configs.Config, hcl.Diagnostics) {
 	l, err := c.init()
 	if err != nil {
@@ -120,6 +143,7 @@ func (c *lazyLoader) LoadConfigWithTests(ctx context.Context, rootDir string, te
 	return l.LoadConfigWithTests(ctx, rootDir, testDir, call)
 }
 
+// LoadConfigWithSnapshot implements Loader
 func (c *lazyLoader) LoadConfigWithSnapshot(ctx context.Context, rootDir string, call configs.StaticModuleCall) (*configs.Config, *Snapshot, hcl.Diagnostics) {
 	l, err := c.init()
 	if err != nil {
@@ -136,6 +160,7 @@ func (c *lazyLoader) LoadConfigWithSnapshot(ctx context.Context, rootDir string,
 
 // configs.Parser related methods
 
+// LoadConfigDirUneval implements Loader
 func (c *lazyLoader) LoadConfigDirUneval(path string, load configs.SelectiveLoader) (*configs.Module, hcl.Diagnostics) {
 	l, err := c.init()
 	if err != nil {
@@ -150,6 +175,7 @@ func (c *lazyLoader) LoadConfigDirUneval(path string, load configs.SelectiveLoad
 	return l.LoadConfigDirUneval(path, load)
 }
 
+// LoadConfigDir implements Loader
 func (c *lazyLoader) LoadConfigDir(path string, call configs.StaticModuleCall) (*configs.Module, hcl.Diagnostics) {
 	l, err := c.init()
 	if err != nil {
@@ -163,6 +189,8 @@ func (c *lazyLoader) LoadConfigDir(path string, call configs.StaticModuleCall) (
 	}
 	return l.LoadConfigDir(path, call)
 }
+
+// LoadHCLFile implements Loader
 func (c *lazyLoader) LoadHCLFile(path string) (hcl.Body, hcl.Diagnostics) {
 	l, err := c.init()
 	if err != nil {
@@ -176,6 +204,8 @@ func (c *lazyLoader) LoadHCLFile(path string) (hcl.Body, hcl.Diagnostics) {
 	}
 	return l.LoadHCLFile(path)
 }
+
+// LoadConfigDirSelective implements Loader
 func (c *lazyLoader) LoadConfigDirSelective(path string, call configs.StaticModuleCall, load configs.SelectiveLoader) (*configs.Module, hcl.Diagnostics) {
 	l, err := c.init()
 	if err != nil {
@@ -189,6 +219,8 @@ func (c *lazyLoader) LoadConfigDirSelective(path string, call configs.StaticModu
 	}
 	return l.LoadConfigDirSelective(path, call, load)
 }
+
+// LoadConfigDirWithTests implements Loader
 func (c *lazyLoader) LoadConfigDirWithTests(path string, testDirectory string, call configs.StaticModuleCall) (*configs.Module, hcl.Diagnostics) {
 	l, err := c.init()
 	if err != nil {
