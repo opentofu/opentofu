@@ -148,7 +148,7 @@ func (c *GraphCommand) Run(rawArgs []string) int {
 	// Build the operation
 	opReq := c.Operation(ctx, b, view.Backend(), enc)
 	opReq.ConfigDir = configPath
-	opReq.ConfigLoader, err = configload.Initialize(c.configLoader())
+	opReq.ConfigLoader, err = configload.Initialise(c.configLoader())
 	opReq.PlanFile = planFile
 	opReq.AllowUnsetVariables = true
 

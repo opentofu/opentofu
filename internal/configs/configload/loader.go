@@ -16,6 +16,11 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 )
 
+// Loader represents all the exposed logic that it's needed by the various places of the system.
+//
+// This interface contains proxy methods for the configs.Parser and any future functionality
+// from the Parser should be accessed through a Loader instance instead of exposing the Parser
+// instance directly.
 type Loader interface {
 	ImportSources(sources map[string][]byte)
 	ImportSourcesFromSnapshot(snap *Snapshot)
@@ -26,6 +31,8 @@ type Loader interface {
 	LoadConfig(ctx context.Context, rootDir string, call configs.StaticModuleCall) (*configs.Config, hcl.Diagnostics)
 	LoadConfigWithTests(ctx context.Context, rootDir string, testDir string, call configs.StaticModuleCall) (*configs.Config, hcl.Diagnostics)
 	LoadConfigWithSnapshot(ctx context.Context, rootDir string, call configs.StaticModuleCall) (*configs.Config, *Snapshot, hcl.Diagnostics)
+
+	// configs.Parser proxy methods
 
 	LoadConfigDirUneval(path string, load configs.SelectiveLoader) (*configs.Module, hcl.Diagnostics)
 	LoadConfigDir(path string, call configs.StaticModuleCall) (*configs.Module, hcl.Diagnostics)

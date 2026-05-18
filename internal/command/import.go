@@ -217,7 +217,7 @@ func (c *ImportCommand) Run(rawArgs []string) int {
 	// Build the operation
 	opReq := c.Operation(ctx, b, view.Backend(), enc)
 	opReq.ConfigDir = args.ConfigPath
-	opReq.ConfigLoader, err = configload.Initialize(c.configLoader())
+	opReq.ConfigLoader, err = configload.Initialise(c.configLoader())
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
