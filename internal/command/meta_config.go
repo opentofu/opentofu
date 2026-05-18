@@ -382,6 +382,14 @@ func (m *Meta) inputForSchema(given cty.Value, schema *configschema.Block, view 
 // before proceeding further in the flow, it must pass the value returned by this method
 // to the configload.Initialize. The error returned by that method will be the initialisation
 // error of the underlying config loader.
+//
+// TODO meta-refactor: because there is no one single entry point to initialise the commands, we have
+// to keep this method for the time being, maybe allowing it to outlive the whole refactoring, maybe ending
+// up in keeping Meta only for a limited set of functionality like this one.
+// The intent is to create constructor-like functions to initialise each command, with clear dependencies
+// given as arguments, and then the configload.Loader will be one of those, unifying the way commands are
+// built, also for the normal execution and for the tests too. This would remove from the reasons to keep the Meta
+// struct after the whole refactor.
 func (m *Meta) configLoader() configload.Loader {
 	if m.cfgLoader == nil {
 		loader := configload.NewLazy(&configload.Config{
