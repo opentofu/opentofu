@@ -49,7 +49,7 @@ func testOperationApplyWithTimeout(t *testing.T, configDir string, timeout time.
 	view := views.NewView(streams)
 	backendView := views.NewBackendHuman(views.NewView(streams))
 	stateLockerView := backendView.StateLocker()
-	operationView := views.NewOperation(arguments.ViewHuman, false, view)
+	operationView := views.NewOperation(arguments.ViewHuman, view)
 
 	// Many of our tests use an overridden "null" provider that's just in-memory
 	// inside the test process, not a separate plugin on disk.
@@ -1010,7 +1010,7 @@ func TestRemote_applyForceLocal(t *testing.T) {
 	op.UIIn = input
 	op.Workspace = backend.DefaultStateName
 
-	op.View = views.NewOperation(arguments.ViewHuman, false, view)
+	op.View = views.NewOperation(arguments.ViewHuman, view)
 
 	run, err := b.Operation(context.Background(), op)
 	if err != nil {
@@ -1070,7 +1070,7 @@ func TestRemote_applyWorkspaceWithoutOperations(t *testing.T) {
 	op.UIIn = input
 	op.Workspace = "no-operations"
 
-	op.View = views.NewOperation(arguments.ViewHuman, false, view)
+	op.View = views.NewOperation(arguments.ViewHuman, view)
 
 	run, err := b.Operation(ctx, op)
 	if err != nil {
@@ -1627,7 +1627,7 @@ func TestRemote_applyVersionCheck(t *testing.T) {
 			// RUN: prepare the apply operation and run it
 			op, view, done := testOperationApply(t, "./testdata/apply")
 			b.View = views.NewBackendRemote(view)
-			op.View = views.NewOperation(arguments.ViewHuman, false, view)
+			op.View = views.NewOperation(arguments.ViewHuman, view)
 
 			input := testInput(t, map[string]string{
 				"approve": "yes",

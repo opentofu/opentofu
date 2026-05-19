@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/opentofu/opentofu/internal/command/flags"
+	"github.com/opentofu/opentofu/internal/command/system"
 	"github.com/opentofu/svchost/disco"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -62,38 +63,16 @@ type Meta struct {
 	// Meta which directly read and modify paths inside the data directory.
 	WorkingDir *workdir.Dir
 
-	View *views.View
+	// SystemCfg holds the configuration attributes that are global for all
+	// the commands and are used by different parts of the system.
+	//SystemCfg system.Config
+	SystemCfg system.Config
 
-	GlobalPluginDirs []string // Additional paths to search for plugins
+	View *views.View
 
 	// Services provides access to remote endpoint information for
 	// 'tofu-native' services running at a specific user-facing hostname.
 	Services *disco.Disco
-
-	// RunningInAutomation indicates that commands are being run by an
-	// automated system rather than directly at a command prompt.
-	//
-	// This is a hint to various command routines that it may be confusing
-	// to print out messages that suggest running specific follow-up
-	// commands, since the user consuming the output will not be
-	// in a position to run such commands.
-	//
-	// The intended use-case of this flag is when OpenTofu is running in
-	// some sort of workflow orchestration tool which is abstracting away
-	// the specific commands being run.
-	RunningInAutomation bool
-
-	// CLIConfigDir is the directory from which CLI configuration files were
-	// read by the caller and the directory where any changes to CLI
-	// configuration files by commands should be made.
-	//
-	// If this is empty then no configuration directory is available and
-	// commands which require one cannot proceed.
-	CLIConfigDir string
-
-	// PluginCacheDir, if non-empty, enables caching of downloaded plugins
-	// into the given directory.
-	PluginCacheDir string
 
 	// PluginCacheMayBreakDependencyLockFile is a temporary CLI configuration-based
 	// opt out for the behavior of only using the plugin cache dir if its
@@ -166,24 +145,6 @@ type Meta struct {
 	// OpenTofu doesn't even worry about how the provider server gets launched,
 	// just trusting that someone else did it before running OpenTofu.
 	UnmanagedProviders map[addrs.Provider]*plugin.ReattachConfig
-
-	// AllowExperimentalFeatures controls whether a command that embeds this
-	// Meta is permitted to make use of experimental OpenTofu features.
-	//
-	// Set this field only during the initial creation of Meta. If you change
-	// this field after calling methods of type Meta then the resulting
-	// behavior is undefined.
-	//
-	// In normal code this would be set by package main only in builds
-	// explicitly marked as being alpha releases or development snapshots,
-	// making experimental features unavailable otherwise. Test code may
-	// choose to set this if it needs to exercise experimental features.
-	//
-	// Some experiments predated the addition of this setting, and may
-	// therefore still be available even if this flag is false. Our intent
-	// is that all/most _future_ experiments will be unavailable unless this
-	// flag is set, to reinforce that experiments are not for production use.
-	AllowExperimentalFeatures bool
 
 	// ----------------------------------------------------------
 	// Protected: commands can set these

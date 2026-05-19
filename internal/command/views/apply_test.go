@@ -32,7 +32,7 @@ func TestApply_new(t *testing.T) {
 		t.Fatalf("unexpected destroy value")
 	}
 
-	if hv.inAutomation != true {
+	if hv.view.runningInAutomation != true { // redundant but changed a more relevant check that was here before
 		t.Fatalf("unexpected inAutomation value")
 	}
 }
@@ -76,7 +76,7 @@ func TestApplyHuman_operation(t *testing.T) {
 	v := NewApply(arguments.ViewOptions{ViewType: arguments.ViewHuman}, false, NewView(streams).SetRunningInAutomation(true)).Operation()
 	if hv, ok := v.(*OperationHuman); !ok {
 		t.Fatalf("unexpected return type %t", v)
-	} else if hv.inAutomation != true {
+	} else if hv.view.runningInAutomation != true { // redundant but it replaces a previously more relevant check
 		t.Fatalf("unexpected inAutomation value on Operation view")
 	}
 }

@@ -648,7 +648,7 @@ func SaveErroredTestStateFile(state *states.State, run *moduletest.Run, file *mo
 	var op Operation
 	switch v := view.(type) {
 	case *TestHuman:
-		op = NewOperation(arguments.ViewHuman, false, v.view)
+		op = NewOperation(arguments.ViewHuman, v.view)
 		v.view.streams.Eprint(format.WordWrap("\nWriting state to file: errored_test.tfstate\n", v.view.errorColumns()))
 	case *TestJSON:
 		op = &OperationJSON{
