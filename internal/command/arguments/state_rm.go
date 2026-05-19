@@ -22,7 +22,7 @@ type StateRm struct {
 
 	// Vars, Backend and State are the common extended flags
 	Vars    *Vars
-	Backend Backend
+	Backend *Backend
 	State   *State
 }
 
@@ -33,8 +33,9 @@ func ParseStateRm(args []string) (*StateRm, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	ret := &StateRm{
-		Vars:  &Vars{},
-		State: &State{},
+		Vars:    &Vars{},
+		Backend: &Backend{},
+		State:   &State{},
 	}
 	cmdFlags := extendedFlagSet("state rm", nil, ret.Vars)
 	ret.Backend.AddIgnoreRemoteVersionFlag(cmdFlags)

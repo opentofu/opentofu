@@ -49,9 +49,7 @@ func (c *StateMvCommand) Run(rawArgs []string) int {
 		}
 		return cli.RunResultHelp
 	}
-	// TODO meta-refactor: remove this assignment once there is a clear way to propagate this to the place
-	//   where is used
-	c.ignoreRemoteVersion = args.Backend.IgnoreRemoteVersion
+	c.backendArgs = *args.Backend
 
 	c.Meta.variableArgs = args.Vars.All()
 	// NOTE: We intentionally configure the stateArgs here like this, ignoring the stateOutPath, because the c.stateArgs
