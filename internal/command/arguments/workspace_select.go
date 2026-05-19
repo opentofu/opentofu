@@ -31,7 +31,7 @@ func ParseWorkspaceSelect(args []string) (*WorkspaceSelect, func(), tfdiags.Diag
 		Vars: &Vars{},
 	}
 
-	cmdFlags := extendedFlagSet("workspace select", nil, nil, ret.Vars)
+	cmdFlags := extendedFlagSet("workspace select", nil, ret.Vars)
 	cmdFlags.BoolVar(&ret.CreateIfMissing, "or-create", false, "create workspace if it does not exist")
 	ret.ViewOptions.AddFlags(cmdFlags, false)
 

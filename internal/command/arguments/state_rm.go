@@ -16,17 +16,14 @@ type StateRm struct {
 	// DryRun just validates that the arguments provided are valid and will output the possible outcome.
 	// When running in this mode, the state will suffer no change.
 	DryRun bool
-	//  BackupPath can be used by the user to configure where to save the backup file of the state file.
-	BackupPath string
-	// StatePath represents the path of the state to be used for the remove operation.
-	StatePath string
 
 	// ViewOptions specifies which view options to use
 	ViewOptions ViewOptions
 
-	// Vars and Backend are the common extended flags
+	// Vars, Backend and State are the common extended flags
 	Vars    *Vars
 	Backend Backend
+	State   *State
 }
 
 // ParseStateRm processes CLI arguments, returning a StateRm value, a closer function, and errors.
@@ -36,20 +33,15 @@ func ParseStateRm(args []string) (*StateRm, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	ret := &StateRm{
-		Vars: &Vars{},
+		Vars:  &Vars{},
+		State: &State{},
 	}
-	cmdFlags := extendedFlagSet("state rm", nil, nil, ret.Vars)
+	cmdFlags := extendedFlagSet("state rm", nil, ret.Vars)
 	ret.Backend.AddIgnoreRemoteVersionFlag(cmdFlags)
-	ret.Backend.AddStateFlags(cmdFlags)
+	// StateFlagBackup omitted here to be added later with a different default value
+	ret.State.addFlags(cmdFlags, stateFlagLock|stateFlagStateIn)
+	ret.State.AddBackupFlag(cmdFlags, "-")
 	cmdFlags.BoolVar(&ret.DryRun, "dry-run", false, "dry run")
-	// NOTE: because the `-backup` flag needs a different default value than usual,
-	// we cannot use the [State] flags extension to register and parse these.
-	// Therefore, we need to have these redefined here.
-	// TODO meta-refactor: we might want to have a separate function on the [arguments.State] to register flags,
-	//  where default value can be provided by the caller. This way we could still use those flags instead of redefining
-	//  everything again.
-	cmdFlags.StringVar(&ret.BackupPath, "backup", "-", "backup-path")
-	cmdFlags.StringVar(&ret.StatePath, "state", "", "state-path")
 
 	ret.ViewOptions.AddFlags(cmdFlags, false)
 

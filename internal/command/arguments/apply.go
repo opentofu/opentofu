@@ -47,11 +47,12 @@ func ParseApply(args []string) (*Apply, func(), tfdiags.Diagnostics) {
 		Vars:      &Vars{},
 	}
 
-	cmdFlags := extendedFlagSet("apply", apply.State, apply.Operation, apply.Vars)
+	cmdFlags := extendedFlagSet("apply", apply.Operation, apply.Vars)
 	cmdFlags.BoolVar(&apply.AutoApprove, "auto-approve", false, "auto-approve")
 	cmdFlags.BoolVar(&apply.ShowSensitive, "show-sensitive", false, "displays sensitive values")
 	cmdFlags.BoolVar(&apply.SuppressForgetErrorsDuringDestroy, "suppress-forget-errors", false, "suppress errors in destroy mode due to resources being forgotten")
 
+	apply.State.addFlags(cmdFlags, stateFlagAll)
 	apply.ViewOptions.AddFlags(cmdFlags, true)
 
 	if err := cmdFlags.Parse(args); err != nil {

@@ -54,7 +54,7 @@ func (c *OutputCommand) Run(rawArgs []string) int {
 	}
 
 	// Fetch data from state
-	outputs, diags := c.Outputs(ctx, args.StatePath, enc)
+	outputs, diags := c.Outputs(ctx, args.State.StatePath, enc)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
 		return 1
@@ -78,7 +78,7 @@ func (c *OutputCommand) Outputs(ctx context.Context, statePath string, enc encry
 
 	// Allow state path override
 	if statePath != "" {
-		c.Meta.statePath = statePath
+		c.Meta.stateArgs.StatePath = statePath
 	}
 
 	// Load the backend

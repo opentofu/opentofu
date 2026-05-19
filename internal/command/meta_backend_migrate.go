@@ -350,10 +350,10 @@ func (m *Meta) backendMigrateState_s_s(ctx context.Context, opts *backendMigrate
 		}
 	}
 
-	if m.stateLock {
+	if m.stateArgs.Lock {
 		lockCtx := context.Background()
 		view := opts.backendView(m.View).StateLocker()
-		locker := clistate.NewLocker(m.stateLockTimeout, view)
+		locker := clistate.NewLocker(m.stateArgs.LockTimeout, view)
 
 		lockerSource := locker.WithContext(lockCtx)
 		if diags := lockerSource.Lock(sourceState, "migration source state"); diags.HasErrors() {

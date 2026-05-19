@@ -38,7 +38,7 @@ func ParseGraph(args []string) (*Graph, func(), tfdiags.Diagnostics) {
 		Vars: &Vars{},
 	}
 
-	cmdFlags := extendedFlagSet("graph", nil, nil, arguments.Vars)
+	cmdFlags := extendedFlagSet("graph", nil, arguments.Vars)
 	cmdFlags.BoolVar(&arguments.DrawCycles, "draw-cycles", false, "draw-cycles")
 	cmdFlags.StringVar(&arguments.GraphType, "type", "", "type")
 	cmdFlags.IntVar(&arguments.ModuleDepth, "module-depth", -1, "module-depth")

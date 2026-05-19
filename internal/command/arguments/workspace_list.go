@@ -25,7 +25,7 @@ func ParseWorkspaceList(args []string) (*WorkspaceList, func(), tfdiags.Diagnost
 		Vars: &Vars{},
 	}
 
-	cmdFlags := extendedFlagSet("workspace list", nil, nil, ret.Vars)
+	cmdFlags := extendedFlagSet("workspace list", nil, ret.Vars)
 	ret.ViewOptions.AddFlags(cmdFlags, false)
 
 	if err := cmdFlags.Parse(args); err != nil {

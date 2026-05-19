@@ -157,3 +157,18 @@ func TestParseLogin_viewOptions(t *testing.T) {
 		})
 	}
 }
+
+func TestParseLogin_StateLock(t *testing.T) {
+	// NOTE: the command needs to have the state lock flag set as true all the time.
+	args, closer, diags := ParseLogin([]string{"host"})
+	defer closer()
+	if len(diags) > 0 {
+		t.Errorf("unexpected diagnostics: %s", diags)
+	}
+	if args.State == nil {
+		t.Fatalf("expected to have a state arguments object but got nil")
+	}
+	if !args.State.Lock {
+		t.Errorf("the state.lock should be true. This is a bug in the parsing of the arguments")
+	}
+}

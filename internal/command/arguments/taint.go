@@ -26,9 +26,6 @@ type Taint struct {
 	// Vars holds and provides information for the flags related to variables that a user can give into the process
 	Vars *Vars
 
-	// TODO meta-refactor: Backend and State have overlapping flags. Those need to be unified and
-	//  have a single point of registration of those flags
-
 	// State is used for the state related flags
 	State *State
 	// Backend is used strictly for the ignore remote version flag
@@ -49,7 +46,8 @@ func ParseTaint(isTaint bool, args []string) (*Taint, func(), tfdiags.Diagnostic
 	if !isTaint {
 		cmd = "untaint"
 	}
-	cmdFlags := extendedFlagSet(cmd, arguments.State, nil, arguments.Vars)
+	cmdFlags := extendedFlagSet(cmd, nil, arguments.Vars)
+	arguments.State.addFlags(cmdFlags, stateFlagAll)
 	cmdFlags.BoolVar(&arguments.AllowMissing, "allow-missing", false, "allow missing")
 	arguments.Backend.AddIgnoreRemoteVersionFlag(cmdFlags)
 	arguments.ViewOptions.AddFlags(cmdFlags, false)

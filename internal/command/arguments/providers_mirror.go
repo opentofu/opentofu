@@ -33,7 +33,7 @@ func ParseProvidersMirror(args []string) (*ProvidersMirror, func(), tfdiags.Diag
 		Vars: &Vars{},
 	}
 
-	cmdFlags := extendedFlagSet("providers mirror", nil, nil, arguments.Vars)
+	cmdFlags := extendedFlagSet("providers mirror", nil, arguments.Vars)
 	cmdFlags.Var(&arguments.OptPlatforms, "platform", "target platform")
 	arguments.ViewOptions.AddFlags(cmdFlags, false)
 	if err := cmdFlags.Parse(args); err != nil {

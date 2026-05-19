@@ -25,7 +25,7 @@ func ParseWorkspaceShow(args []string) (*WorkspaceShow, func(), tfdiags.Diagnost
 		Vars: &Vars{},
 	}
 
-	cmdFlags := extendedFlagSet("workspace show", nil, nil, ret.Vars)
+	cmdFlags := extendedFlagSet("workspace show", nil, ret.Vars)
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(

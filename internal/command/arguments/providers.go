@@ -29,7 +29,7 @@ func ParseProviders(args []string) (*Providers, func(), tfdiags.Diagnostics) {
 		Vars: &Vars{},
 	}
 
-	cmdFlags := extendedFlagSet("providers", nil, nil, arguments.Vars)
+	cmdFlags := extendedFlagSet("providers", nil, arguments.Vars)
 	cmdFlags.StringVar(&arguments.TestsDirectory, "test-directory", "tests", "test-directory")
 
 	if err := cmdFlags.Parse(args); err != nil {

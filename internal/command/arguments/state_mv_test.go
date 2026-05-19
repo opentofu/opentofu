@@ -46,7 +46,7 @@ func TestParseStateMv_basicValidation(t *testing.T) {
 		"custom state path": {
 			args: []string{"-state=/path/to/state.tfstate", "source", "dest"},
 			want: stateMvArgsWithDefaults(func(stateMv *StateMv) {
-				stateMv.StatePath = "/path/to/state.tfstate"
+				stateMv.State.StatePath = "/path/to/state.tfstate"
 				stateMv.RawSrcAddr = "source"
 				stateMv.RawDestAddr = "dest"
 			}),
@@ -54,7 +54,7 @@ func TestParseStateMv_basicValidation(t *testing.T) {
 		"custom state-out path": {
 			args: []string{"-state-out=/path/to/state-out.tfstate", "source", "dest"},
 			want: stateMvArgsWithDefaults(func(stateMv *StateMv) {
-				stateMv.StateOutPath = "/path/to/state-out.tfstate"
+				stateMv.State.StateOutPath = "/path/to/state-out.tfstate"
 				stateMv.RawSrcAddr = "source"
 				stateMv.RawDestAddr = "dest"
 			}),
@@ -62,7 +62,7 @@ func TestParseStateMv_basicValidation(t *testing.T) {
 		"custom backup path": {
 			args: []string{"-backup=/path/to/backup.tfstate", "source", "dest"},
 			want: stateMvArgsWithDefaults(func(stateMv *StateMv) {
-				stateMv.BackupPath = "/path/to/backup.tfstate"
+				stateMv.State.BackupPath = "/path/to/backup.tfstate"
 				stateMv.RawSrcAddr = "source"
 				stateMv.RawDestAddr = "dest"
 			}),
@@ -71,7 +71,7 @@ func TestParseStateMv_basicValidation(t *testing.T) {
 			args: []string{"-lock-timeout=10s", "source", "dest"},
 			want: stateMvArgsWithDefaults(func(stateMv *StateMv) {
 				// do not set `stateMv.State.Lock = true` since it's meant to be true already
-				stateMv.Backend.StateLockTimeout = 10 * time.Second
+				stateMv.State.LockTimeout = 10 * time.Second
 				stateMv.RawSrcAddr = "source"
 				stateMv.RawDestAddr = "dest"
 			}),
@@ -79,7 +79,7 @@ func TestParseStateMv_basicValidation(t *testing.T) {
 		"disable locking": {
 			args: []string{"-lock=false", "source", "dest"},
 			want: stateMvArgsWithDefaults(func(stateMv *StateMv) {
-				stateMv.Backend.StateLock = false
+				stateMv.State.Lock = false
 				stateMv.RawSrcAddr = "source"
 				stateMv.RawDestAddr = "dest"
 			}),
@@ -94,19 +94,21 @@ func TestParseStateMv_basicValidation(t *testing.T) {
 				"-lock-timeout=15s",
 				"-lock=true",
 				"-var=key=value",
+				"-ignore-remote-version=true",
 				"source",
 				"dest",
 			},
 			want: stateMvArgsWithDefaults(func(stateMv *StateMv) {
 				stateMv.DryRun = true
 				stateMv.BackupPathOut = "/path/to/backup-out.tfstate"
-				stateMv.StatePath = "/path/to/state.tfstate"
-				stateMv.StateOutPath = "/path/to/state-out.tfstate"
-				stateMv.BackupPath = "/path/to/backup.tfstate"
-				stateMv.Backend.StateLockTimeout = 15 * time.Second
-				stateMv.Backend.StateLock = true
+				stateMv.State.StatePath = "/path/to/state.tfstate"
+				stateMv.State.StateOutPath = "/path/to/state-out.tfstate"
+				stateMv.State.BackupPath = "/path/to/backup.tfstate"
+				stateMv.State.LockTimeout = 15 * time.Second
+				stateMv.State.Lock = true
 				stateMv.RawSrcAddr = "source"
 				stateMv.RawDestAddr = "dest"
+				stateMv.Backend.IgnoreRemoteVersion = true
 				// Vars would be updated, but we ignore it in cmp
 			}),
 		},
@@ -157,7 +159,6 @@ func TestParseStateMv_basicValidation(t *testing.T) {
 func stateMvArgsWithDefaults(mutate func(stateMv *StateMv)) *StateMv {
 	ret := &StateMv{
 		DryRun:        false,
-		BackupPath:    "-",
 		BackupPathOut: "-",
 		ViewOptions: ViewOptions{
 			ViewType:     ViewHuman,
@@ -165,11 +166,14 @@ func stateMvArgsWithDefaults(mutate func(stateMv *StateMv)) *StateMv {
 		},
 		Backend: Backend{
 			IgnoreRemoteVersion: false,
-			StateLock:           true,
-			StateLockTimeout:    0,
+		},
+		State: &State{
+			Lock: true,
 		},
 		Vars: &Vars{},
 	}
+	// Because the default value is different on this command
+	ret.State.BackupPath = "-"
 	if mutate != nil {
 		mutate(ret)
 	}

@@ -31,7 +31,7 @@ func ParseGet(args []string) (*Get, func(), tfdiags.Diagnostics) {
 		Vars: &Vars{},
 	}
 
-	cmdFlags := extendedFlagSet("get", nil, nil, arguments.Vars)
+	cmdFlags := extendedFlagSet("get", nil, arguments.Vars)
 	cmdFlags.BoolVar(&arguments.Update, "update", false, "update")
 	cmdFlags.StringVar(&arguments.TestsDirectory, "test-directory", "tests", "test-directory")
 	arguments.ViewOptions.AddFlags(cmdFlags, false)

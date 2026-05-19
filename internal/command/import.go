@@ -321,17 +321,10 @@ func (c *ImportCommand) Run(rawArgs []string) int {
 // with proper arguments for the backend.
 func (c *ImportCommand) configureBackendFlags(args *arguments.Import) {
 	c.Meta.ignoreRemoteVersion = args.Backend.IgnoreRemoteVersion
-	// TODO meta-refactor: unify these 2 args attributes with the state flags in arguments.extendedFlagSet
-	//  https://github.com/opentofu/opentofu/blob/db8c872defd8666618649ef7e29fa2b809adfd5e/internal/command/arguments/extended.go#L320-L321
-	c.Meta.stateLock = args.State.Lock
-	c.Meta.stateLockTimeout = args.State.LockTimeout
 
 	// TODO meta-refactor: remove this only when there is clear path of passing these from the "arguments" package to
 	// the place where these needs to be used
 	c.Meta.parallelism = args.Parallelism
-	c.Meta.statePath = args.State.StatePath
-	c.Meta.stateOutPath = args.State.StateOutPath
-	c.Meta.backupPath = args.State.BackupPath
 
 	// FIXME: the -input flag value is needed to initialize the backend and the
 	// operation, but there is no clear path to pass this value down, so we
@@ -339,6 +332,7 @@ func (c *ImportCommand) configureBackendFlags(args *arguments.Import) {
 	c.Meta.input = args.ViewOptions.InputEnabled
 
 	c.Meta.variableArgs = args.Vars.All()
+	c.Meta.stateArgs = *args.State
 }
 
 func (c *ImportCommand) Help() string {
