@@ -10,6 +10,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 )
 
@@ -156,6 +157,24 @@ func (c *lazyLoader) LoadConfigWithSnapshot(ctx context.Context, rootDir string,
 		}
 	}
 	return l.LoadConfigWithSnapshot(ctx, rootDir, call)
+}
+
+// IsRemoteModuleSource implements Loader
+func (c *lazyLoader) IsRemoteModuleSource(path addrs.Module) bool {
+	l, err := c.init()
+	if err != nil {
+		return false // Default as in the loader implementation
+	}
+	return l.IsRemoteModuleSource(path)
+}
+
+// ModuleSourceAddrs implements Loader
+func (c *lazyLoader) ModuleSourceAddrs(path addrs.Module) addrs.ModuleSource {
+	l, err := c.init()
+	if err != nil {
+		return nil // Default as in the loader implementation
+	}
+	return l.ModuleSourceAddrs(path)
 }
 
 // configs.Parser related methods

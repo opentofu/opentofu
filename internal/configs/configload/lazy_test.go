@@ -134,6 +134,68 @@ func TestLoaderInitializationDuringMethodCalls(t *testing.T) {
 				}
 			},
 		},
+		"loader ok - IsRemoteModuleSource": {
+			setup: func(t *testing.T, wd string) {
+				writeConfigFile(t, filepath.Join(wd, "main.tf"), []byte(`module "test" { source = "test1/test2/test3"}`))
+				writeConfigFile(t, filepath.Join(wd, ".terraform", "modules", "test1", "main.tf"), []byte(`variable "in" {}`))
+				writeManifestFile(t, wd, []byte(`{"Modules":[{"Key":"","Source":"","Dir":"."},{"Key":"test","Source":"registry.opentofu.org/test1/test2/test3","Dir":".terraform/modules/test1"}]}`))
+			},
+			act: func(t *testing.T, wd string, l Loader) {
+				c, diags := l.LoadConfig(t.Context(), wd, configs.StaticModuleCall{})
+				if diags.HasErrors() {
+					t.Errorf("unexpected error: %s", diags)
+				}
+				if c == nil {
+					t.Errorf("expected non-nil config but got nil back")
+				}
+				if got := l.IsRemoteModuleSource(addrs.Module{"test"}); !got {
+					t.Errorf("expected the module to be reported as remote but it was not")
+				}
+			},
+		},
+		"loader uninitializable - IsRemoteModuleSource": {
+			setup: func(t *testing.T, wd string) {
+				writeManifestFile(t, wd, []byte(`invalid content`))
+			},
+			act: func(t *testing.T, wd string, l Loader) {
+				if got := l.IsRemoteModuleSource(addrs.Module{"test"}); got {
+					t.Errorf("expected the module to be reported as not being remote but it was true")
+				}
+			},
+		},
+		"loader ok - ModuleSourceAddrs": {
+			setup: func(t *testing.T, wd string) {
+				writeConfigFile(t, filepath.Join(wd, "main.tf"), []byte(`module "test" { source = "test1/test2/test3"}`))
+				writeConfigFile(t, filepath.Join(wd, ".terraform", "modules", "test1", "main.tf"), []byte(`variable "in" {}`))
+				writeManifestFile(t, wd, []byte(`{"Modules":[{"Key":"","Source":"","Dir":"."},{"Key":"test","Source":"registry.opentofu.org/test1/test2/test3","Dir":".terraform/modules/test1"}]}`))
+			},
+			act: func(t *testing.T, wd string, l Loader) {
+				c, diags := l.LoadConfig(t.Context(), wd, configs.StaticModuleCall{})
+				if diags.HasErrors() {
+					t.Errorf("unexpected error: %s", diags)
+				}
+				if c == nil {
+					t.Errorf("expected non-nil config but got nil back")
+				}
+				want := addrs.MustParseModuleSource("test1/test2/test3")
+				got := l.ModuleSourceAddrs(addrs.Module{"test"})
+				if diff := cmp.Diff(want, got); diff != "" {
+					t.Errorf("invalid module source returned (-want,+got):\n%s", diff)
+				}
+			},
+		},
+		"loader uninitializable - ModuleSourceAddrs": {
+			setup: func(t *testing.T, wd string) {
+				writeManifestFile(t, wd, []byte(`invalid content`))
+			},
+			act: func(t *testing.T, wd string, l Loader) {
+				got := l.ModuleSourceAddrs(addrs.Module{"test"})
+				want := addrs.ModuleSource(nil)
+				if diff := cmp.Diff(want, got); diff != "" {
+					t.Errorf("invalid module source returned (-want,+got):\n%s", diff)
+				}
+			},
+		},
 		"loader ok - ForceFileSource": {
 			setup: func(t *testing.T, wd string) {
 				writeConfigFile(t, filepath.Join(wd, "main.tf"), []byte(`variable "in" {}`))
@@ -535,6 +597,10 @@ func writeManifestFile(t *testing.T, toDir string, content []byte) {
 }
 
 func writeConfigFile(t *testing.T, path string, content []byte) {
+	finalDir := filepath.Dir(path)
+	if err := os.MkdirAll(finalDir, 0766); err != nil {
+		t.Fatalf("failed to create the final target directory %q: %s", finalDir, err)
+	}
 	if err := os.WriteFile(path, content, 0666); err != nil {
 		t.Fatalf("unexpected error writing configuration file: %s", err)
 	}
