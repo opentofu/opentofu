@@ -29,12 +29,12 @@ func TestUnlock(t *testing.T) {
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
+		defer f.Close()
+
 		sf := statefile.New(states.NewState(), "test-lineage", 1)
 		if err := statefile.WriteForTest(sf, f); err != nil {
-			f.Close()
 			t.Fatalf("err: %s", err)
 		}
-		f.Close()
 	}
 
 	p := testProvider()
