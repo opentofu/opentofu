@@ -8,11 +8,13 @@ package configload
 import (
 	"context"
 	"fmt"
+	"log"
 	"path/filepath"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/spf13/afero"
 
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 )
 
@@ -31,6 +33,8 @@ type Loader interface {
 	LoadConfig(ctx context.Context, rootDir string, call configs.StaticModuleCall) (*configs.Config, hcl.Diagnostics)
 	LoadConfigWithTests(ctx context.Context, rootDir string, testDir string, call configs.StaticModuleCall) (*configs.Config, hcl.Diagnostics)
 	LoadConfigWithSnapshot(ctx context.Context, rootDir string, call configs.StaticModuleCall) (*configs.Config, *Snapshot, hcl.Diagnostics)
+	IsRemoteModuleSource(path addrs.Module) bool
+	ModuleSourceAddrs(path addrs.Module) addrs.ModuleSource
 
 	// configs.Parser proxy methods
 
@@ -176,4 +180,44 @@ func (l *loader) ImportSourcesFromSnapshot(snap *Snapshot) {
 			l.parser.ForceFileSource(fullPath, src)
 		}
 	}
+}
+
+// IsRemoteModuleSource returns true if any of the modules in the path remote
+func (l *loader) IsRemoteModuleSource(path addrs.Module) bool {
+	if l.lastLoadedRoot == nil {
+		log.Printf("[ERROR] Unable to determine if module source is remote due to missing config load")
+		return false
+	}
+
+	current := l.lastLoadedRoot
+	for _, part := range path {
+		child, childOk := current.Children[part]
+		if !childOk {
+			log.Printf("[ERROR] Unable to determine if module source is remote due to missing child")
+			return false
+		}
+		if child.EntersNewPackage() {
+			return true
+		}
+		current = child
+	}
+	return false
+}
+
+func (l *loader) ModuleSourceAddrs(path addrs.Module) addrs.ModuleSource {
+	if l.lastLoadedRoot == nil {
+		log.Printf("[ERROR] Unable to determine if module source is remote due to missing config load")
+		return nil
+	}
+
+	current := l.lastLoadedRoot
+	for _, part := range path {
+		child, childOk := current.Children[part]
+		if !childOk {
+			log.Printf("[ERROR] Unable to determine if module source is remote due to missing child")
+			return nil
+		}
+		current = child
+	}
+	return current.SourceAddr
 }
