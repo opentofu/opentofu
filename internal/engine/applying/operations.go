@@ -12,6 +12,7 @@ import (
 	"slices"
 	"sync"
 
+	"github.com/opentofu/opentofu/internal/engine/internal/common"
 	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/engine/internal/execgraph"
 	"github.com/opentofu/opentofu/internal/engine/plugins"
@@ -58,7 +59,7 @@ type execOperations struct {
 	// use during the apply phase.
 	plugins plugins.Plugins
 
-	providerInstances *providerInstances
+	providerInstances *common.ProviderInstances
 
 	// Stack of ephemeral and provider close functions
 	// Given the current state of the planning engine, we wait until
@@ -110,7 +111,7 @@ func compileExecutionGraph(ctx context.Context, plan *plans.Plan, oracle *eval.A
 	ops.workingState = plan.PriorState.DeepCopy().SyncWrapper()
 	ops.configOracle = oracle
 	ops.plugins = plugins
-	ops.providerInstances = newProviderInstances()
+	ops.providerInstances = newProviderInstances(ops)
 
 	return execGraph, compiledGraph, ops, diags
 }
