@@ -22,18 +22,12 @@ import (
 type mockOperations struct {
 	Calls []mockOperationsCall
 
-	DataReadFunc                       func(ctx context.Context, desired *eval.DesiredResourceInstance, plannedVal cty.Value, providerClient *exec.ProviderClient) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
-	EphemeralCloseFunc                 func(ctx context.Context, ephemeral *exec.OpenEphemeralResourceInstance) tfdiags.Diagnostics
-	EphemeralOpenFunc                  func(ctx context.Context, desired *eval.DesiredResourceInstance, providerClient *exec.ProviderClient) (*exec.OpenEphemeralResourceInstance, tfdiags.Diagnostics)
-	EphemeralStateFunc                 func(ctx context.Context, ephemeral *exec.OpenEphemeralResourceInstance) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
+	DataReadFunc                       func(ctx context.Context, desired *eval.DesiredResourceInstance, plannedVal cty.Value) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
 	ManagedAlreadyDeposedFunc          func(ctx context.Context, instAddr addrs.AbsResourceInstance, deposedKey states.DeposedKey) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
-	ManagedApplyFunc                   func(ctx context.Context, plan *exec.ManagedResourceObjectFinalPlan, fallback *exec.ResourceInstanceObject, providerClient *exec.ProviderClient) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
+	ManagedApplyFunc                   func(ctx context.Context, plan *exec.ManagedResourceObjectFinalPlan, fallback *exec.ResourceInstanceObject) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
 	ManagedChangeAddrFunc              func(ctx context.Context, currentObj *exec.ResourceInstanceObject, newAddr addrs.AbsResourceInstance) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
 	ManagedDeposeFunc                  func(ctx context.Context, currentObj *exec.ResourceInstanceObject) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
-	ManagedFinalPlanFunc               func(ctx context.Context, desired *eval.DesiredResourceInstance, prior *exec.ResourceInstanceObject, plannedVal cty.Value, providerClient *exec.ProviderClient) (*exec.ManagedResourceObjectFinalPlan, tfdiags.Diagnostics)
-	ProviderInstanceCloseFunc          func(ctx context.Context, client *exec.ProviderClient) tfdiags.Diagnostics
-	ProviderInstanceConfigFunc         func(ctx context.Context, instAddr addrs.AbsProviderInstanceCorrect) (*exec.ProviderInstanceConfig, tfdiags.Diagnostics)
-	ProviderInstanceOpenFunc           func(ctx context.Context, config *exec.ProviderInstanceConfig) (*exec.ProviderClient, tfdiags.Diagnostics)
+	ManagedFinalPlanFunc               func(ctx context.Context, desired *eval.DesiredResourceInstance, prior *exec.ResourceInstanceObject, plannedVal cty.Value) (*exec.ManagedResourceObjectFinalPlan, tfdiags.Diagnostics)
 	ResourceInstanceDesiredFunc        func(ctx context.Context, instAddr addrs.AbsResourceInstance) (*eval.DesiredResourceInstance, tfdiags.Diagnostics)
 	ResourceInstancePostconditionsFunc func(ctx context.Context, result *exec.ResourceInstanceObject) tfdiags.Diagnostics
 	ResourceInstancePriorFunc          func(ctx context.Context, instAddr addrs.AbsResourceInstance) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
@@ -44,45 +38,13 @@ type mockOperations struct {
 var _ exec.Operations = (*mockOperations)(nil)
 
 // DataRead implements [exec.Operations].
-func (m *mockOperations) DataRead(ctx context.Context, desired *eval.DesiredResourceInstance, plannedVal cty.Value, providerClient *exec.ProviderClient) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
+func (m *mockOperations) DataRead(ctx context.Context, desired *eval.DesiredResourceInstance, plannedVal cty.Value) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	var result *exec.ResourceInstanceObject
 	if m.DataReadFunc != nil {
-		result, diags = m.DataReadFunc(ctx, desired, plannedVal, providerClient)
+		result, diags = m.DataReadFunc(ctx, desired, plannedVal)
 	}
-	m.appendLog("DataRead", []any{desired, plannedVal, providerClient}, result)
-	return result, diags
-}
-
-// EphemeralClose implements [exec.Operations].
-func (m *mockOperations) EphemeralClose(ctx context.Context, ephemeral *exec.OpenEphemeralResourceInstance) tfdiags.Diagnostics {
-	var diags tfdiags.Diagnostics
-	if m.EphemeralCloseFunc != nil {
-		diags = m.EphemeralCloseFunc(ctx, ephemeral)
-	}
-	m.appendLog("EphemeralClose", []any{ephemeral}, struct{}{})
-	return diags
-}
-
-// EphemeralOpen implements [exec.Operations].
-func (m *mockOperations) EphemeralOpen(ctx context.Context, desired *eval.DesiredResourceInstance, providerClient *exec.ProviderClient) (*exec.OpenEphemeralResourceInstance, tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-	var result *exec.OpenEphemeralResourceInstance
-	if m.EphemeralOpenFunc != nil {
-		result, diags = m.EphemeralOpenFunc(ctx, desired, providerClient)
-	}
-	m.appendLog("EphemeralOpen", []any{desired, providerClient}, result)
-	return result, diags
-}
-
-// EphemeralState implements [exec.Operations].
-func (m *mockOperations) EphemeralState(ctx context.Context, ephemeral *exec.OpenEphemeralResourceInstance) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-	var result *exec.ResourceInstanceObject
-	if m.EphemeralStateFunc != nil {
-		result, diags = m.EphemeralStateFunc(ctx, ephemeral)
-	}
-	m.appendLog("EphemeralState", []any{ephemeral}, result)
+	m.appendLog("DataRead", []any{desired, plannedVal}, result)
 	return result, diags
 }
 
@@ -98,13 +60,13 @@ func (m *mockOperations) ManagedAlreadyDeposed(ctx context.Context, instAddr add
 }
 
 // ManagedApply implements [exec.Operations].
-func (m *mockOperations) ManagedApply(ctx context.Context, plan *exec.ManagedResourceObjectFinalPlan, fallback *exec.ResourceInstanceObject, providerClient *exec.ProviderClient) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
+func (m *mockOperations) ManagedApply(ctx context.Context, plan *exec.ManagedResourceObjectFinalPlan, fallback *exec.ResourceInstanceObject) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	var result *exec.ResourceInstanceObject
 	if m.ManagedApplyFunc != nil {
-		result, diags = m.ManagedApplyFunc(ctx, plan, fallback, providerClient)
+		result, diags = m.ManagedApplyFunc(ctx, plan, fallback)
 	}
-	m.appendLog("ManagedApply", []any{plan, fallback, providerClient}, result)
+	m.appendLog("ManagedApply", []any{plan, fallback}, result)
 	return result, diags
 }
 
@@ -131,45 +93,13 @@ func (m *mockOperations) ManagedDepose(ctx context.Context, currentObj *exec.Res
 }
 
 // ManagedFinalPlan implements [exec.Operations].
-func (m *mockOperations) ManagedFinalPlan(ctx context.Context, desired *eval.DesiredResourceInstance, prior *exec.ResourceInstanceObject, plannedVal cty.Value, providerClient *exec.ProviderClient) (*exec.ManagedResourceObjectFinalPlan, tfdiags.Diagnostics) {
+func (m *mockOperations) ManagedFinalPlan(ctx context.Context, desired *eval.DesiredResourceInstance, prior *exec.ResourceInstanceObject, plannedVal cty.Value) (*exec.ManagedResourceObjectFinalPlan, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	var result *exec.ManagedResourceObjectFinalPlan
 	if m.ManagedFinalPlanFunc != nil {
-		result, diags = m.ManagedFinalPlanFunc(ctx, desired, prior, plannedVal, providerClient)
+		result, diags = m.ManagedFinalPlanFunc(ctx, desired, prior, plannedVal)
 	}
-	m.appendLog("ManagedFinalPlan", []any{desired, prior, plannedVal, providerClient}, result)
-	return result, diags
-}
-
-// ProviderInstanceClose implements [exec.Operations].
-func (m *mockOperations) ProviderInstanceClose(ctx context.Context, client *exec.ProviderClient) tfdiags.Diagnostics {
-	var diags tfdiags.Diagnostics
-	if m.ProviderInstanceCloseFunc != nil {
-		diags = m.ProviderInstanceClose(ctx, client)
-	}
-	m.appendLog("ProviderInstanceClose", []any{client}, struct{}{})
-	return diags
-}
-
-// ProviderInstanceConfig implements [exec.Operations].
-func (m *mockOperations) ProviderInstanceConfig(ctx context.Context, instAddr addrs.AbsProviderInstanceCorrect) (*exec.ProviderInstanceConfig, tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-	var result *exec.ProviderInstanceConfig
-	if m.ProviderInstanceConfigFunc != nil {
-		result, diags = m.ProviderInstanceConfigFunc(ctx, instAddr)
-	}
-	m.appendLog("ProviderInstanceConfig", []any{instAddr}, result)
-	return result, diags
-}
-
-// ProviderInstanceOpen implements [exec.Operations].
-func (m *mockOperations) ProviderInstanceOpen(ctx context.Context, config *exec.ProviderInstanceConfig) (*exec.ProviderClient, tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-	var result *exec.ProviderClient
-	if m.ProviderInstanceOpenFunc != nil {
-		result, diags = m.ProviderInstanceOpenFunc(ctx, config)
-	}
-	m.appendLog("ProviderInstanceOpen", []any{config}, result)
+	m.appendLog("ManagedFinalPlan", []any{desired, prior, plannedVal}, result)
 	return result, diags
 }
 
@@ -324,7 +254,6 @@ func (m *managedResourceInstanceMockProvider) Stop(context.Context) error {
 func (m *managedResourceInstanceMockProvider) UpgradeResourceState(context.Context, providers.UpgradeResourceStateRequest) providers.UpgradeResourceStateResponse {
 	panic("unimplemented")
 }
-
 
 // UpgradeResourceIdentity implements providers.Configured.
 func (m *managedResourceInstanceMockProvider) UpgradeResourceIdentity(context.Context, providers.UpgradeResourceIdentityRequest) providers.UpgradeResourceIdentityResponse {

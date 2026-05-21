@@ -121,12 +121,6 @@ func UnmarshalGraph(src []byte) (*Graph, error) {
 
 func unmarshalOperationElem(protoOp *execgraphproto.Operation, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
 	switch c := protoOp.GetOpcode(); opCode(c) {
-	case opProviderInstanceConfig:
-		return unmarshalOpProviderInstanceConfig(protoOp.GetOperands(), prevResults, builder)
-	case opProviderInstanceOpen:
-		return unmarshalOpProviderInstanceOpen(protoOp.GetOperands(), prevResults, builder)
-	case opProviderInstanceClose:
-		return unmarshalOpProviderInstanceClose(protoOp.GetOperands(), prevResults, builder)
 	case opResourceInstanceDesired:
 		return unmarshalOpResourceInstanceDesired(protoOp.GetOperands(), prevResults, builder)
 	case opResourceInstancePrior:
@@ -143,59 +137,12 @@ func unmarshalOperationElem(protoOp *execgraphproto.Operation, prevResults []Any
 		return unmarshalOpManagedChangeAddr(protoOp.GetOperands(), prevResults, builder)
 	case opDataRead:
 		return unmarshalOpDataRead(protoOp.GetOperands(), prevResults, builder)
-	case opEphemeralOpen:
-		return unmarshalOpEphemeralOpen(protoOp.GetOperands(), prevResults, builder)
-	case opEphemeralState:
-		return unmarshalOpEphemeralState(protoOp.GetOperands(), prevResults, builder)
-	case opEphemeralClose:
-		return unmarshalOpEphemeralClose(protoOp.GetOperands(), prevResults, builder)
 	default:
 		// The above cases should cover all valid values of [opCode], so we
 		// should not get here unless the serialized graph was tampered
 		// with outside of OpenTofu.
 		return nil, fmt.Errorf("unrecognized opcode %d", c)
 	}
-}
-
-func unmarshalOpProviderInstanceConfig(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
-	if len(rawOperands) != 2 {
-		return nil, fmt.Errorf("wrong number of operands (%d) for opProviderInstanceConfig", len(rawOperands))
-	}
-	providerInstAddr, err := unmarshalGetPrevResultOf[addrs.AbsProviderInstanceCorrect](prevResults, rawOperands[0])
-	if err != nil {
-		return nil, fmt.Errorf("invalid opProviderInstanceConfig providerInstAddr: %w", err)
-	}
-	waitFor, err := unmarshalGetPrevResultWaiter(prevResults, rawOperands[1])
-	if err != nil {
-		return nil, fmt.Errorf("invalid opProviderInstanceConfig waitFor: %w", err)
-	}
-	return builder.ProviderInstanceConfig(providerInstAddr, waitFor), nil
-}
-
-func unmarshalOpProviderInstanceOpen(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
-	if len(rawOperands) != 1 {
-		return nil, fmt.Errorf("wrong number of operands (%d) for opProviderInstanceOpen", len(rawOperands))
-	}
-	config, err := unmarshalGetPrevResultOf[*exec.ProviderInstanceConfig](prevResults, rawOperands[0])
-	if err != nil {
-		return nil, fmt.Errorf("invalid opProviderInstanceOpen config: %w", err)
-	}
-	return builder.ProviderInstanceOpen(config), nil
-}
-
-func unmarshalOpProviderInstanceClose(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
-	if len(rawOperands) != 2 {
-		return nil, fmt.Errorf("wrong number of operands (%d) for opProviderInstanceClose", len(rawOperands))
-	}
-	client, err := unmarshalGetPrevResultOf[*exec.ProviderClient](prevResults, rawOperands[0])
-	if err != nil {
-		return nil, fmt.Errorf("invalid opProviderInstanceClose client: %w", err)
-	}
-	waitFor, err := unmarshalGetPrevResultWaiter(prevResults, rawOperands[1])
-	if err != nil {
-		return nil, fmt.Errorf("invalid opProviderInstanceClose waitFor: %w", err)
-	}
-	return builder.ProviderInstanceClose(client, waitFor), nil
 }
 
 func unmarshalOpResourceInstanceDesired(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
@@ -225,7 +172,7 @@ func unmarshalOpResourceInstancePrior(rawOperands []uint64, prevResults []AnyRes
 }
 
 func unmarshalOpManagedFinalPlan(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
-	if len(rawOperands) != 4 {
+	if len(rawOperands) != 3 {
 		return nil, fmt.Errorf("wrong number of operands (%d) for opManagedFinalPlan", len(rawOperands))
 	}
 	desiredInst, err := unmarshalGetPrevResultOf[*eval.DesiredResourceInstance](prevResults, rawOperands[0])
@@ -240,15 +187,11 @@ func unmarshalOpManagedFinalPlan(rawOperands []uint64, prevResults []AnyResultRe
 	if err != nil {
 		return nil, fmt.Errorf("invalid opManagedFinalPlan plannedVal: %w", err)
 	}
-	providerClient, err := unmarshalGetPrevResultOf[*exec.ProviderClient](prevResults, rawOperands[3])
-	if err != nil {
-		return nil, fmt.Errorf("invalid opManagedFinalPlan providerClient: %w", err)
-	}
-	return builder.ManagedFinalPlan(desiredInst, priorState, plannedVal, providerClient), nil
+	return builder.ManagedFinalPlan(desiredInst, priorState, plannedVal), nil
 }
 
 func unmarshalOpManagedApply(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
-	if len(rawOperands) != 4 {
+	if len(rawOperands) != 3 {
 		return nil, fmt.Errorf("wrong number of operands (%d) for opManagedApplyChanges", len(rawOperands))
 	}
 	finalPlan, err := unmarshalGetPrevResultOf[*exec.ManagedResourceObjectFinalPlan](prevResults, rawOperands[0])
@@ -259,15 +202,11 @@ func unmarshalOpManagedApply(rawOperands []uint64, prevResults []AnyResultRef, b
 	if err != nil {
 		return nil, fmt.Errorf("invalid opManagedApplyChanges fallbackObj: %w", err)
 	}
-	providerClient, err := unmarshalGetPrevResultOf[*exec.ProviderClient](prevResults, rawOperands[2])
-	if err != nil {
-		return nil, fmt.Errorf("invalid opManagedApplyChanges providerClient: %w", err)
-	}
-	waitFor, err := unmarshalGetPrevResultWaiter(prevResults, rawOperands[3])
+	waitFor, err := unmarshalGetPrevResultWaiter(prevResults, rawOperands[2])
 	if err != nil {
 		return nil, fmt.Errorf("invalid opManagedApplyChanges waitFor: %w", err)
 	}
-	return builder.ManagedApply(finalPlan, fallbackObj, providerClient, waitFor), nil
+	return builder.ManagedApply(finalPlan, fallbackObj, waitFor), nil
 }
 
 func unmarshalOpManagedDepose(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
@@ -316,7 +255,7 @@ func unmarshalOpManagedChangeAddr(rawOperands []uint64, prevResults []AnyResultR
 }
 
 func unmarshalOpDataRead(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
-	if len(rawOperands) != 3 {
+	if len(rawOperands) != 2 {
 		return nil, fmt.Errorf("wrong number of operands (%d) for opDataRead", len(rawOperands))
 	}
 	desiredInst, err := unmarshalGetPrevResultOf[*eval.DesiredResourceInstance](prevResults, rawOperands[0])
@@ -327,52 +266,7 @@ func unmarshalOpDataRead(rawOperands []uint64, prevResults []AnyResultRef, build
 	if err != nil {
 		return nil, fmt.Errorf("invalid opDataRead plannedVal: %w", err)
 	}
-	providerClient, err := unmarshalGetPrevResultOf[*exec.ProviderClient](prevResults, rawOperands[2])
-	if err != nil {
-		return nil, fmt.Errorf("invalid opDataRead providerClient: %w", err)
-	}
-	return builder.DataRead(desiredInst, plannedVal, providerClient), nil
-}
-
-func unmarshalOpEphemeralOpen(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
-	if len(rawOperands) != 2 {
-		return nil, fmt.Errorf("wrong number of operands (%d) for opDataRead", len(rawOperands))
-	}
-	desiredInst, err := unmarshalGetPrevResultOf[*eval.DesiredResourceInstance](prevResults, rawOperands[0])
-	if err != nil {
-		return nil, fmt.Errorf("invalid opDataRead desiredInst: %w", err)
-	}
-	providerClient, err := unmarshalGetPrevResultOf[*exec.ProviderClient](prevResults, rawOperands[1])
-	if err != nil {
-		return nil, fmt.Errorf("invalid opDataRead providerClient: %w", err)
-	}
-	return builder.EphemeralOpen(desiredInst, providerClient), nil
-}
-
-func unmarshalOpEphemeralState(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
-	if len(rawOperands) != 1 {
-		return nil, fmt.Errorf("wrong number of operands (%d) for opDataRead", len(rawOperands))
-	}
-	ephemeralInst, err := unmarshalGetPrevResultOf[*exec.OpenEphemeralResourceInstance](prevResults, rawOperands[0])
-	if err != nil {
-		return nil, fmt.Errorf("invalid opDataRead desiredInst: %w", err)
-	}
-	return builder.EphemeralState(ephemeralInst), nil
-}
-
-func unmarshalOpEphemeralClose(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
-	if len(rawOperands) != 2 {
-		return nil, fmt.Errorf("wrong number of operands (%d) for opDataRead", len(rawOperands))
-	}
-	ephemeralInst, err := unmarshalGetPrevResultOf[*exec.OpenEphemeralResourceInstance](prevResults, rawOperands[0])
-	if err != nil {
-		return nil, fmt.Errorf("invalid opDataRead desiredInst: %w", err)
-	}
-	waitFor, err := unmarshalGetPrevResultWaiter(prevResults, rawOperands[1])
-	if err != nil {
-		return nil, fmt.Errorf("invalid opDataRead waitFor: %w", err)
-	}
-	return builder.EphemeralClose(ephemeralInst, waitFor), nil
+	return builder.DataRead(desiredInst, plannedVal), nil
 }
 
 func unmarshalWaiterElem(protoWaiter *execgraphproto.Waiter, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {

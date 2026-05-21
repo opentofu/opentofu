@@ -31,7 +31,6 @@ import (
 func (b *execGraphBuilder) ManagedResourceInstanceSubgraph(
 	plannedChange *plans.ResourceInstanceChange,
 	effectiveReplaceOrder resourceInstanceReplaceOrder,
-	providerClientRef execgraph.ResultRef[*exec.ProviderClient],
 ) (
 	valueRef, deletionRef execgraph.ResourceInstanceResultRef, // reference to the final new value and, if addDeleteDep is not nil, the deletion result
 	addConfigDep, addDeleteDep func(execgraph.AnyResultRef), // callbacks to register explicit dependencies, or nil when not relevant
@@ -69,17 +68,17 @@ func (b *execGraphBuilder) ManagedResourceInstanceSubgraph(
 	// which change action was planned.
 	switch changeAction {
 	case plans.Create:
-		valueRef, addConfigDep = b.managedResourceInstanceSubgraphCreate(plannedChange, providerClientRef)
+		valueRef, addConfigDep = b.managedResourceInstanceSubgraphCreate(plannedChange)
 	case plans.Update:
-		valueRef, addConfigDep = b.managedResourceInstanceSubgraphUpdate(plannedChange, providerClientRef)
+		valueRef, addConfigDep = b.managedResourceInstanceSubgraphUpdate(plannedChange)
 	case plans.Delete:
-		deletionRef, addDeleteDep = b.managedResourceInstanceSubgraphDelete(plannedChange, providerClientRef)
+		deletionRef, addDeleteDep = b.managedResourceInstanceSubgraphDelete(plannedChange)
 	case plans.Forget:
-		valueRef = b.managedResourceInstanceSubgraphForget(plannedChange, providerClientRef)
+		valueRef = b.managedResourceInstanceSubgraphForget(plannedChange)
 	case plans.DeleteThenCreate, plans.ForgetThenCreate:
-		valueRef, deletionRef, addConfigDep, addDeleteDep = b.managedResourceInstanceSubgraphDeleteOrForgetThenCreate(plannedChange, providerClientRef)
+		valueRef, deletionRef, addConfigDep, addDeleteDep = b.managedResourceInstanceSubgraphDeleteOrForgetThenCreate(plannedChange)
 	case plans.CreateThenDelete:
-		valueRef, deletionRef, addConfigDep, addDeleteDep = b.managedResourceInstanceSubgraphCreateThenDelete(plannedChange, providerClientRef)
+		valueRef, deletionRef, addConfigDep, addDeleteDep = b.managedResourceInstanceSubgraphCreateThenDelete(plannedChange)
 	default:
 		// FIXME: We need to handle plans.NoOp too because that can occur if
 		// the configuration hasn't changed but the object will move to a
@@ -96,7 +95,6 @@ func (b *execGraphBuilder) ManagedResourceInstanceSubgraph(
 
 func (b *execGraphBuilder) managedResourceInstanceSubgraphCreate(
 	plannedChange *plans.ResourceInstanceChange,
-	providerClientRef execgraph.ResultRef[*exec.ProviderClient],
 ) (execgraph.ResourceInstanceResultRef, func(execgraph.AnyResultRef)) {
 	instAddrRef, _ := b.managedResourceInstanceChangeAddrAndPriorStateRefs(plannedChange)
 	plannedValRef := b.lower.ConstantValue(plannedChange.After)
@@ -106,13 +104,11 @@ func (b *execGraphBuilder) managedResourceInstanceSubgraphCreate(
 		desiredInstRef,
 		execgraph.NilResultRef[*exec.ResourceInstanceObject](),
 		plannedValRef,
-		providerClientRef,
 	), addConfigDep
 }
 
 func (b *execGraphBuilder) managedResourceInstanceSubgraphUpdate(
 	plannedChange *plans.ResourceInstanceChange,
-	providerClientRef execgraph.ResultRef[*exec.ProviderClient],
 ) (execgraph.ResourceInstanceResultRef, func(execgraph.AnyResultRef)) {
 	instAddrRef, priorStateRef := b.managedResourceInstanceChangeAddrAndPriorStateRefs(plannedChange)
 	plannedValRef := b.lower.ConstantValue(plannedChange.After)
@@ -122,7 +118,6 @@ func (b *execGraphBuilder) managedResourceInstanceSubgraphUpdate(
 		desiredInstRef,
 		priorStateRef,
 		plannedValRef,
-		providerClientRef,
 	), addConfigDep
 }
 
@@ -135,25 +130,21 @@ func (b *execGraphBuilder) managedResourceInstanceSubgraphPlanAndApply(
 	desiredInstRef execgraph.ResultRef[*eval.DesiredResourceInstance],
 	priorStateRef execgraph.ResourceInstanceResultRef,
 	plannedValRef execgraph.ResultRef[cty.Value],
-	providerClientRef execgraph.ResultRef[*exec.ProviderClient],
 ) execgraph.ResourceInstanceResultRef {
 	finalPlanRef := b.lower.ManagedFinalPlan(
 		desiredInstRef,
 		priorStateRef,
 		plannedValRef,
-		providerClientRef,
 	)
 	return b.lower.ManagedApply(
 		finalPlanRef,
 		execgraph.NilResultRef[*exec.ResourceInstanceObject](),
-		providerClientRef,
 		b.lower.Waiter(), // nothing to wait for: desiredInstRef should have the relevant dependencies itself
 	)
 }
 
 func (b *execGraphBuilder) managedResourceInstanceSubgraphDelete(
 	plannedChange *plans.ResourceInstanceChange,
-	providerClientRef execgraph.ResultRef[*exec.ProviderClient],
 ) (execgraph.ResourceInstanceResultRef, func(execgraph.AnyResultRef)) {
 	_, priorStateRef := b.managedResourceInstanceChangeAddrAndPriorStateRefs(plannedChange)
 	plannedValRef := b.lower.ConstantValue(plannedChange.After)
@@ -162,19 +153,16 @@ func (b *execGraphBuilder) managedResourceInstanceSubgraphDelete(
 		execgraph.NilResultRef[*eval.DesiredResourceInstance](),
 		priorStateRef,
 		plannedValRef,
-		providerClientRef,
 	)
 	return b.lower.ManagedApply(
 		finalPlanRef,
 		execgraph.NilResultRef[*exec.ResourceInstanceObject](),
-		providerClientRef,
 		waitFor,
 	), addDeleteDep
 }
 
 func (b *execGraphBuilder) managedResourceInstanceSubgraphForget(
 	plannedChange *plans.ResourceInstanceChange,
-	providerClientRef execgraph.ResultRef[*exec.ProviderClient],
 ) execgraph.ResourceInstanceResultRef {
 	// TODO: Add a new execgraph opcode ManagedForget and use that here.
 	panic("execgraph for Forget not yet implemented")
@@ -182,7 +170,6 @@ func (b *execGraphBuilder) managedResourceInstanceSubgraphForget(
 
 func (b *execGraphBuilder) managedResourceInstanceSubgraphDeleteOrForgetThenCreate(
 	plannedChange *plans.ResourceInstanceChange,
-	providerClientRef execgraph.ResultRef[*exec.ProviderClient],
 ) (execgraph.ResourceInstanceResultRef, execgraph.ResourceInstanceResultRef, func(execgraph.AnyResultRef), func(execgraph.AnyResultRef)) {
 	if plannedChange.Action == plans.ForgetThenCreate {
 		// TODO: Implement this action too, which is similar but with the
@@ -210,7 +197,6 @@ func (b *execGraphBuilder) managedResourceInstanceSubgraphDeleteOrForgetThenCrea
 		desiredInstRef,
 		execgraph.NilResultRef[*exec.ResourceInstanceObject](),
 		plannedValRef,
-		providerClientRef,
 	)
 	destroyPlanRef := b.lower.ManagedFinalPlan(
 		execgraph.NilResultRef[*eval.DesiredResourceInstance](),
@@ -224,18 +210,15 @@ func (b *execGraphBuilder) managedResourceInstanceSubgraphDeleteOrForgetThenCrea
 			// about the exact type of a null, so this is probably fine.
 			plannedChange.After.Type(),
 		)),
-		providerClientRef,
 	)
 	destroyResultRef := b.lower.ManagedApply(
 		destroyPlanRef,
 		execgraph.NilResultRef[*exec.ResourceInstanceObject](),
-		providerClientRef,
 		deleteWaitFor,
 	)
 	createResultRef := b.lower.ManagedApply(
 		createPlanRef,
 		execgraph.NilResultRef[*exec.ResourceInstanceObject](),
-		providerClientRef,
 		b.lower.Waiter(destroyResultRef),
 	)
 
@@ -244,7 +227,6 @@ func (b *execGraphBuilder) managedResourceInstanceSubgraphDeleteOrForgetThenCrea
 
 func (b *execGraphBuilder) managedResourceInstanceSubgraphCreateThenDelete(
 	plannedChange *plans.ResourceInstanceChange,
-	providerClientRef execgraph.ResultRef[*exec.ProviderClient],
 ) (execgraph.ResourceInstanceResultRef, execgraph.ResourceInstanceResultRef, func(execgraph.AnyResultRef), func(execgraph.AnyResultRef)) {
 	desiredWaitFor, addConfigDep := b.lower.MutableWaiter()
 	deleteWaitFor, addDeleteDep := b.lower.MutableWaiter()
@@ -265,7 +247,6 @@ func (b *execGraphBuilder) managedResourceInstanceSubgraphCreateThenDelete(
 		desiredInstRef,
 		execgraph.NilResultRef[*exec.ResourceInstanceObject](),
 		plannedValRef,
-		providerClientRef,
 	)
 	destroyPlanRef := b.lower.ManagedFinalPlan(
 		execgraph.NilResultRef[*eval.DesiredResourceInstance](),
@@ -279,7 +260,6 @@ func (b *execGraphBuilder) managedResourceInstanceSubgraphCreateThenDelete(
 			// about the exact type of a null, so this is probably fine.
 			plannedChange.After.Type(),
 		)),
-		providerClientRef,
 	)
 	deposedObjRef := b.lower.ManagedDepose(
 		priorStateRef,
@@ -288,7 +268,6 @@ func (b *execGraphBuilder) managedResourceInstanceSubgraphCreateThenDelete(
 	createResultRef := b.lower.ManagedApply(
 		createPlanRef,
 		deposedObjRef, // will be restored as current if creation completely fails
-		providerClientRef,
 		b.lower.Waiter(),
 	)
 	// No other resource instances can depend on the value from the destroy
@@ -300,7 +279,6 @@ func (b *execGraphBuilder) managedResourceInstanceSubgraphCreateThenDelete(
 	deletionRef := b.lower.ManagedApply(
 		destroyPlanRef,
 		execgraph.NilResultRef[*exec.ResourceInstanceObject](),
-		providerClientRef,
 		deleteWaitFor,
 	)
 

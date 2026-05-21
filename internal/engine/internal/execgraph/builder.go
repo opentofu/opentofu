@@ -93,35 +93,6 @@ func (b *Builder) ConstantProviderInstAddr(addr addrs.AbsProviderInstanceCorrect
 	return ret
 }
 
-// ProviderInstanceConfig registers an operation for evaluating the
-// configuration for a provider instance.
-func (b *Builder) ProviderInstanceConfig(addrRef ResultRef[addrs.AbsProviderInstanceCorrect], waitFor AnyResultRef) ResultRef[*exec.ProviderInstanceConfig] {
-	waiter := b.ensureWaiterRef(waitFor)
-	return operationRef[*exec.ProviderInstanceConfig](b, operationDesc{
-		opCode:   opProviderInstanceConfig,
-		operands: []AnyResultRef{addrRef, waiter},
-	})
-}
-
-// ProviderInstanceOpen registers an operation for opening a client for a
-// particular provider instance.
-func (b *Builder) ProviderInstanceOpen(config ResultRef[*exec.ProviderInstanceConfig]) ResultRef[*exec.ProviderClient] {
-	return operationRef[*exec.ProviderClient](b, operationDesc{
-		opCode:   opProviderInstanceOpen,
-		operands: []AnyResultRef{config},
-	})
-}
-
-// ProviderInstanceClose registers an operation for closing a provider client
-// that was previously opened through [Builder.OpenProviderInstance].
-func (b *Builder) ProviderInstanceClose(client ResultRef[*exec.ProviderClient], waitFor AnyResultRef) ResultRef[struct{}] {
-	waiter := b.ensureWaiterRef(waitFor)
-	return operationRef[struct{}](b, operationDesc{
-		opCode:   opProviderInstanceClose,
-		operands: []AnyResultRef{client, waiter},
-	})
-}
-
 func (b *Builder) ResourceInstanceDesired(
 	addr ResultRef[addrs.AbsResourceInstance],
 	waitFor AnyResultRef,
@@ -162,11 +133,10 @@ func (b *Builder) ManagedFinalPlan(
 	desiredInst ResultRef[*eval.DesiredResourceInstance],
 	priorState ResourceInstanceResultRef,
 	plannedVal ResultRef[cty.Value],
-	providerClient ResultRef[*exec.ProviderClient],
 ) ResultRef[*exec.ManagedResourceObjectFinalPlan] {
 	return operationRef[*exec.ManagedResourceObjectFinalPlan](b, operationDesc{
 		opCode:   opManagedFinalPlan,
-		operands: []AnyResultRef{desiredInst, priorState, plannedVal, providerClient},
+		operands: []AnyResultRef{desiredInst, priorState, plannedVal},
 	})
 }
 
@@ -183,12 +153,11 @@ func (b *Builder) ManagedFinalPlan(
 func (b *Builder) ManagedApply(
 	finalPlan ResultRef[*exec.ManagedResourceObjectFinalPlan],
 	fallbackObj ResourceInstanceResultRef,
-	providerClient ResultRef[*exec.ProviderClient],
 	waitFor AnyResultRef,
 ) ResourceInstanceResultRef {
 	return operationRef[*exec.ResourceInstanceObject](b, operationDesc{
 		opCode:   opManagedApply,
-		operands: []AnyResultRef{finalPlan, fallbackObj, providerClient, waitFor},
+		operands: []AnyResultRef{finalPlan, fallbackObj, waitFor},
 	})
 }
 
@@ -225,41 +194,10 @@ func (b *Builder) ManagedChangeAddr(
 func (b *Builder) DataRead(
 	desiredInst ResultRef[*eval.DesiredResourceInstance],
 	plannedVal ResultRef[cty.Value],
-	providerClient ResultRef[*exec.ProviderClient],
 ) ResourceInstanceResultRef {
 	return operationRef[*exec.ResourceInstanceObject](b, operationDesc{
 		opCode:   opDataRead,
-		operands: []AnyResultRef{desiredInst, plannedVal, providerClient},
-	})
-}
-
-func (b *Builder) EphemeralOpen(
-	desiredInst ResultRef[*eval.DesiredResourceInstance],
-	providerClient ResultRef[*exec.ProviderClient],
-) ResultRef[*exec.OpenEphemeralResourceInstance] {
-	return operationRef[*exec.OpenEphemeralResourceInstance](b, operationDesc{
-		opCode:   opEphemeralOpen,
-		operands: []AnyResultRef{desiredInst, providerClient},
-	})
-}
-
-func (b *Builder) EphemeralState(
-	ephemeralInst ResultRef[*exec.OpenEphemeralResourceInstance],
-) ResourceInstanceResultRef {
-	return operationRef[*exec.ResourceInstanceObject](b, operationDesc{
-		opCode:   opEphemeralState,
-		operands: []AnyResultRef{ephemeralInst},
-	})
-}
-
-func (b *Builder) EphemeralClose(
-	ephemeralInst ResultRef[*exec.OpenEphemeralResourceInstance],
-	waitFor AnyResultRef,
-) ResultRef[struct{}] {
-	waiter := b.ensureWaiterRef(waitFor)
-	return operationRef[struct{}](b, operationDesc{
-		opCode:   opEphemeralClose,
-		operands: []AnyResultRef{ephemeralInst, waiter},
+		operands: []AnyResultRef{desiredInst, plannedVal},
 	})
 }
 

@@ -101,12 +101,6 @@ func (c *compiler) Compile() (*CompiledGraph, tfdiags.Diagnostics) {
 		operands := newCompilerOperands(opDesc.opCode, c.compileOperands(opDesc.operands))
 		var compileFunc func(operands *compilerOperands) nodeExecuteRaw
 		switch opDesc.opCode {
-		case opProviderInstanceConfig:
-			compileFunc = c.compileOpProviderInstanceConfig
-		case opProviderInstanceOpen:
-			compileFunc = c.compileOpProviderInstanceOpen
-		case opProviderInstanceClose:
-			compileFunc = c.compileOpProviderInstanceClose
 		case opResourceInstanceDesired:
 			compileFunc = c.compileOpResourceInstanceDesired
 		case opResourceInstancePrior:
@@ -123,12 +117,6 @@ func (c *compiler) Compile() (*CompiledGraph, tfdiags.Diagnostics) {
 			compileFunc = c.compileOpManagedChangeAddr
 		case opDataRead:
 			compileFunc = c.compileOpDataRead
-		case opEphemeralOpen:
-			compileFunc = c.compileOpEphemeralOpen
-		case opEphemeralState:
-			compileFunc = c.compileOpEphemeralState
-		case opEphemeralClose:
-			compileFunc = c.compileOpEphemeralClose
 		default:
 			c.diags = c.diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,

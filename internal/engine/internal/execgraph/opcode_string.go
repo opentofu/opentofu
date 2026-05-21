@@ -8,25 +8,19 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[opProviderInstanceConfig-1]
-	_ = x[opProviderInstanceOpen-2]
-	_ = x[opProviderInstanceClose-3]
-	_ = x[opResourceInstanceDesired-4]
-	_ = x[opResourceInstancePrior-5]
-	_ = x[opManagedFinalPlan-6]
-	_ = x[opManagedApply-7]
-	_ = x[opManagedDepose-8]
-	_ = x[opManagedAlreadyDeposed-9]
-	_ = x[opManagedChangeAddr-10]
-	_ = x[opDataRead-11]
-	_ = x[opEphemeralOpen-12]
-	_ = x[opEphemeralState-13]
-	_ = x[opEphemeralClose-14]
+	_ = x[opResourceInstanceDesired-1]
+	_ = x[opResourceInstancePrior-2]
+	_ = x[opManagedFinalPlan-3]
+	_ = x[opManagedApply-4]
+	_ = x[opManagedDepose-5]
+	_ = x[opManagedAlreadyDeposed-6]
+	_ = x[opManagedChangeAddr-7]
+	_ = x[opDataRead-8]
 }
 
-const _opCode_name = "opProviderInstanceConfigopProviderInstanceOpenopProviderInstanceCloseopResourceInstanceDesiredopResourceInstancePrioropManagedFinalPlanopManagedApplyopManagedDeposeopManagedAlreadyDeposedopManagedChangeAddropDataReadopEphemeralOpenopEphemeralStateopEphemeralClose"
+const _opCode_name = "opResourceInstanceDesiredopResourceInstancePrioropManagedFinalPlanopManagedApplyopManagedDeposeopManagedAlreadyDeposedopManagedChangeAddropDataRead"
 
-var _opCode_index = [...]uint16{0, 24, 46, 69, 94, 117, 135, 149, 164, 187, 206, 216, 231, 247, 263}
+var _opCode_index = [...]uint8{0, 25, 48, 66, 80, 95, 118, 137, 147}
 
 func (i opCode) String() string {
 	idx := int(i) - 1

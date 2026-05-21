@@ -18,84 +18,6 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-func (c *compiler) compileOpProviderInstanceConfig(operands *compilerOperands) nodeExecuteRaw {
-	getAddr := nextOperand[addrs.AbsProviderInstanceCorrect](operands)
-	waitForDeps := operands.OperandWaiter()
-	diags := operands.Finish()
-	c.diags = c.diags.Append(diags)
-	if diags.HasErrors() {
-		return nil
-	}
-	ops := c.ops
-
-	return func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
-		var diags tfdiags.Diagnostics
-		if !waitForDeps(ctx) {
-			return nil, false, diags
-		}
-		addr, ok, moreDiags := getAddr(ctx)
-		diags = diags.Append(moreDiags)
-		if !ok {
-			return nil, false, diags
-		}
-
-		ret, moreDiags := ops.ProviderInstanceConfig(ctx, addr)
-		diags = diags.Append(moreDiags)
-		return ret, !diags.HasErrors(), diags
-	}
-}
-
-func (c *compiler) compileOpProviderInstanceOpen(operands *compilerOperands) nodeExecuteRaw {
-	getConfig := nextOperand[*exec.ProviderInstanceConfig](operands)
-	diags := operands.Finish()
-	c.diags = c.diags.Append(diags)
-	if diags.HasErrors() {
-		return nil
-	}
-	ops := c.ops
-
-	return func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
-		var diags tfdiags.Diagnostics
-		config, ok, moreDiags := getConfig(ctx)
-		diags = diags.Append(moreDiags)
-		if !ok {
-			return nil, false, diags
-		}
-
-		ret, moreDiags := ops.ProviderInstanceOpen(ctx, config)
-		diags = diags.Append(moreDiags)
-		return ret, !diags.HasErrors(), diags
-	}
-}
-
-func (c *compiler) compileOpProviderInstanceClose(operands *compilerOperands) nodeExecuteRaw {
-	getProviderClient := nextOperand[*exec.ProviderClient](operands)
-	waitForUsers := operands.OperandWaiter()
-	diags := operands.Finish()
-	c.diags = c.diags.Append(diags)
-	if diags.HasErrors() {
-		return nil
-	}
-	ops := c.ops
-
-	return func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
-		var diags tfdiags.Diagnostics
-		// We intentionally ignore results here because we want to close the
-		// provider even if one of its users fails.
-		waitForUsers(ctx)
-
-		providerClient, ok, moreDiags := getProviderClient(ctx)
-		diags = diags.Append(moreDiags)
-		if !ok {
-			return nil, false, diags
-		}
-
-		moreDiags = ops.ProviderInstanceClose(ctx, providerClient)
-		diags = diags.Append(moreDiags)
-		return struct{}{}, !diags.HasErrors(), diags
-	}
-}
-
 func (c *compiler) compileOpResourceInstanceDesired(operands *compilerOperands) nodeExecuteRaw {
 	ops := c.ops
 	getInstAddr := nextOperand[addrs.AbsResourceInstance](operands)
@@ -152,7 +74,6 @@ func (c *compiler) compileOpManagedFinalPlan(operands *compilerOperands) nodeExe
 	getDesired := nextOperand[*eval.DesiredResourceInstance](operands)
 	getPrior := nextOperand[*exec.ResourceInstanceObject](operands)
 	getInitialPlanned := nextOperand[cty.Value](operands)
-	getProviderClient := nextOperand[*exec.ProviderClient](operands)
 	diags := operands.Finish()
 	c.diags = c.diags.Append(diags)
 	if diags.HasErrors() {
@@ -161,11 +82,6 @@ func (c *compiler) compileOpManagedFinalPlan(operands *compilerOperands) nodeExe
 	ops := c.ops
 
 	return func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
-		providerClient, ok, moreDiags := getProviderClient(ctx)
-		diags = diags.Append(moreDiags)
-		if !ok {
-			return nil, false, diags
-		}
 		desired, ok, moreDiags := getDesired(ctx)
 		diags = diags.Append(moreDiags)
 		if !ok {
@@ -182,7 +98,7 @@ func (c *compiler) compileOpManagedFinalPlan(operands *compilerOperands) nodeExe
 			return nil, false, diags
 		}
 
-		ret, moreDiags := ops.ManagedFinalPlan(ctx, desired, prior, initialPlanned, providerClient)
+		ret, moreDiags := ops.ManagedFinalPlan(ctx, desired, prior, initialPlanned)
 		diags = diags.Append(moreDiags)
 		return ret, !diags.HasErrors(), diags
 	}
@@ -191,7 +107,6 @@ func (c *compiler) compileOpManagedFinalPlan(operands *compilerOperands) nodeExe
 func (c *compiler) compileOpManagedApply(operands *compilerOperands) nodeExecuteRaw {
 	getFinalPlan := nextOperand[*exec.ManagedResourceObjectFinalPlan](operands)
 	getFallback := nextOperand[*exec.ResourceInstanceObject](operands)
-	getProviderClient := nextOperand[*exec.ProviderClient](operands)
 	waitForDeps := operands.OperandWaiter()
 	diags := operands.Finish()
 	c.diags = c.diags.Append(diags)
@@ -205,11 +120,6 @@ func (c *compiler) compileOpManagedApply(operands *compilerOperands) nodeExecute
 		if !waitForDeps(ctx) {
 			return nil, false, diags
 		}
-		providerClient, ok, moreDiags := getProviderClient(ctx)
-		diags = diags.Append(moreDiags)
-		if !ok {
-			return nil, false, diags
-		}
 		finalPlan, ok, moreDiags := getFinalPlan(ctx)
 		diags = diags.Append(moreDiags)
 		if !ok {
@@ -221,7 +131,7 @@ func (c *compiler) compileOpManagedApply(operands *compilerOperands) nodeExecute
 			return nil, false, diags
 		}
 
-		ret, moreDiags := ops.ManagedApply(ctx, finalPlan, fallback, providerClient)
+		ret, moreDiags := ops.ManagedApply(ctx, finalPlan, fallback)
 		diags = diags.Append(moreDiags)
 		// TODO: Also call ops.ResourceInstancePostconditions if we produced a non-nil result
 		log.Printf("[WARN] opManagedApply doesn't yet handle postconditions")
@@ -320,7 +230,6 @@ func (c *compiler) compileOpManagedChangeAddr(operands *compilerOperands) nodeEx
 func (c *compiler) compileOpDataRead(operands *compilerOperands) nodeExecuteRaw {
 	getDesired := nextOperand[*eval.DesiredResourceInstance](operands)
 	getInitialPlanned := nextOperand[cty.Value](operands)
-	getProviderClient := nextOperand[*exec.ProviderClient](operands)
 	diags := operands.Finish()
 	c.diags = c.diags.Append(diags)
 	if diags.HasErrors() {
@@ -329,11 +238,6 @@ func (c *compiler) compileOpDataRead(operands *compilerOperands) nodeExecuteRaw 
 	ops := c.ops
 
 	return func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
-		providerClient, ok, moreDiags := getProviderClient(ctx)
-		diags = diags.Append(moreDiags)
-		if !ok {
-			return nil, false, diags
-		}
 		desired, ok, moreDiags := getDesired(ctx)
 		diags = diags.Append(moreDiags)
 		if !ok {
@@ -345,89 +249,10 @@ func (c *compiler) compileOpDataRead(operands *compilerOperands) nodeExecuteRaw 
 			return nil, false, diags
 		}
 
-		ret, moreDiags := ops.DataRead(ctx, desired, initialPlanned, providerClient)
+		ret, moreDiags := ops.DataRead(ctx, desired, initialPlanned)
 		diags = diags.Append(moreDiags)
 		// TODO: Also call ops.ResourceInstancePostconditions
 		log.Printf("[WARN] opDataRead doesn't yet handle postconditions")
 		return ret, !diags.HasErrors(), diags
-	}
-}
-
-func (c *compiler) compileOpEphemeralOpen(operands *compilerOperands) nodeExecuteRaw {
-	getDesired := nextOperand[*eval.DesiredResourceInstance](operands)
-	getProviderClient := nextOperand[*exec.ProviderClient](operands)
-	diags := operands.Finish()
-	c.diags = c.diags.Append(diags)
-	if diags.HasErrors() {
-		return nil
-	}
-	ops := c.ops
-
-	return func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
-		providerClient, ok, moreDiags := getProviderClient(ctx)
-		diags = diags.Append(moreDiags)
-		if !ok {
-			return nil, false, diags
-		}
-		desired, ok, moreDiags := getDesired(ctx)
-		diags = diags.Append(moreDiags)
-		if !ok {
-			return nil, false, diags
-		}
-
-		ret, moreDiags := ops.EphemeralOpen(ctx, desired, providerClient)
-		diags = diags.Append(moreDiags)
-		return ret, !diags.HasErrors(), diags
-	}
-}
-
-func (c *compiler) compileOpEphemeralState(operands *compilerOperands) nodeExecuteRaw {
-	getEphemeral := nextOperand[*exec.OpenEphemeralResourceInstance](operands)
-	diags := operands.Finish()
-	c.diags = c.diags.Append(diags)
-	if diags.HasErrors() {
-		return nil
-	}
-	ops := c.ops
-
-	return func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
-		ephemeral, ok, moreDiags := getEphemeral(ctx)
-		diags = diags.Append(moreDiags)
-		if !ok {
-			return nil, false, diags
-		}
-
-		ret, moreDiags := ops.EphemeralState(ctx, ephemeral)
-		diags = diags.Append(moreDiags)
-		// TODO: Also call ops.ResourceInstancePostconditions
-		log.Printf("[WARN] opEphemeralState doesn't yet handle postconditions")
-		return ret, !diags.HasErrors(), diags
-	}
-}
-
-func (c *compiler) compileOpEphemeralClose(operands *compilerOperands) nodeExecuteRaw {
-	getEphemeral := nextOperand[*exec.OpenEphemeralResourceInstance](operands)
-	waitForUsers := operands.OperandWaiter()
-	diags := operands.Finish()
-	c.diags = c.diags.Append(diags)
-	if diags.HasErrors() {
-		return nil
-	}
-	ops := c.ops
-
-	return func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
-		// We intentionally ignore results here because we want to close the
-		// ephemeral even if one of its users fails.
-		waitForUsers(ctx)
-
-		ephemeral, ok, moreDiags := getEphemeral(ctx)
-		diags = diags.Append(moreDiags)
-		if !ok {
-			return nil, false, diags
-		}
-
-		moreDiags = ops.EphemeralClose(ctx, ephemeral)
-		diags = diags.Append(moreDiags)
-		return struct{}{}, !diags.HasErrors(), diags
 	}
 }

@@ -9,7 +9,6 @@ import (
 	"fmt"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/engine/internal/execgraph"
 	"github.com/opentofu/opentofu/internal/plans"
 )
@@ -71,13 +70,6 @@ func (b *execGraphBuilder) AddResourceInstanceObjectSubgraphs(
 	addConfigDeps := addrs.MakeMap[addrs.AbsResourceInstanceObject, func(execgraph.AnyResultRef)]()
 	addDeleteDeps := addrs.MakeMap[addrs.AbsResourceInstanceObject, func(execgraph.AnyResultRef)]()
 
-	// providerClientRefs, addProviderConfigDeps, and addProviderCloseDeps
-	// capture the three values we need to be able to connect a resource
-	// instance with its provider instance.
-	providerClientRefs := addrs.MakeMap[addrs.AbsProviderInstanceCorrect, execgraph.ResultRef[*exec.ProviderClient]]()
-	addProviderConfigDeps := addrs.MakeMap[addrs.AbsProviderInstanceCorrect, func(execgraph.AnyResultRef)]()
-	addProviderCloseDeps := addrs.MakeMap[addrs.AbsProviderInstanceCorrect, func(execgraph.AnyResultRef)]()
-
 	// We pre-sort the keys here because that causes our execution graph
 	// operations to be in a deterministic order, for easier unit testing and
 	// easier reading of debug output.
@@ -107,24 +99,11 @@ func (b *execGraphBuilder) AddResourceInstanceObjectSubgraphs(
 		// plannedChange because we want to use our "correct" provider instance
 		// address type. The documented rules for this field are that we expect
 		// it to be valid when and only when obj.PlannedChange is not nil.
-		providerInstAddr := obj.ProviderInst
-
-		providerClientRef, ok := providerClientRefs.GetOk(providerInstAddr)
-		var addProviderCloseDep func(execgraph.AnyResultRef)
-		if !ok {
-			var addProviderConfigDep func(execgraph.AnyResultRef)
-			providerClientRef, addProviderConfigDep, addProviderCloseDep = b.ProviderInstanceSubgraph(providerInstAddr)
-			providerClientRefs.Put(providerInstAddr, providerClientRef)
-			addProviderConfigDeps.Put(providerInstAddr, addProviderConfigDep)
-			addProviderCloseDeps.Put(providerInstAddr, addProviderCloseDep)
-		} else {
-			addProviderCloseDep = addProviderCloseDeps.Get(providerInstAddr)
-		}
+		//providerInstAddr := obj.ProviderInst
 
 		valueRef, deletionRef, addConfigDep, addDeleteDep := b.resourceInstanceChangeSubgraph(
 			plannedChange,
 			effectiveReplaceOrders.Get(addr),
-			providerClientRef,
 		)
 
 		// We'll use these two add*Dep functions in the second loop below as
@@ -133,12 +112,10 @@ func (b *execGraphBuilder) AddResourceInstanceObjectSubgraphs(
 		if addConfigDep != nil {
 			resultRefs.Put(addr, valueRef)
 			addConfigDeps.Put(addr, addConfigDep)
-			addProviderCloseDep(valueRef)
 		}
 		if addDeleteDep != nil {
 			deletionRefs.Put(addr, deletionRef)
 			addDeleteDeps.Put(addr, addDeleteDep)
-			addProviderCloseDep(deletionRef)
 		}
 
 		if addr.IsCurrent() {
@@ -166,16 +143,6 @@ func (b *execGraphBuilder) AddResourceInstanceObjectSubgraphs(
 			}
 		}
 	}
-
-	// We also need explicit dependency relationships whenever a provider
-	// instance's configuration refers to information from a resource instance.
-	for _, elem := range addProviderConfigDeps.Elems {
-		providerInstAddr := elem.Key
-		addConfigDep := elem.Value
-		for dependency := range objs.ProviderInstanceDependencies(providerInstAddr) {
-			addConfigDep(ensureResourceInstanceObjectResultRef(dependency, resultRefs, b))
-		}
-	}
 }
 
 func ensureResourceInstanceObjectResultRef(addr addrs.AbsResourceInstanceObject, knownResults addrs.Map[addrs.AbsResourceInstanceObject, execgraph.ResourceInstanceResultRef], b *execGraphBuilder) execgraph.ResourceInstanceResultRef {
@@ -199,7 +166,6 @@ func ensureResourceInstanceObjectResultRef(addr addrs.AbsResourceInstanceObject,
 func (b *execGraphBuilder) resourceInstanceChangeSubgraph(
 	change *plans.ResourceInstanceChange,
 	effectiveReplaceOrder resourceInstanceReplaceOrder,
-	providerClientRef execgraph.ResultRef[*exec.ProviderClient],
 ) (
 	valueRef, deletionRef execgraph.ResourceInstanceResultRef, // reference to the final new value and, if addDeleteDep is not nil, the deletion result
 	addConfigDep, addDeleteDep func(execgraph.AnyResultRef), // callbacks to register explicit dependencies, or nil when not relevant
@@ -207,7 +173,7 @@ func (b *execGraphBuilder) resourceInstanceChangeSubgraph(
 	resourceMode := change.Addr.Resource.Resource.Mode
 	switch resourceMode {
 	case addrs.ManagedResourceMode:
-		return b.ManagedResourceInstanceSubgraph(change, effectiveReplaceOrder, providerClientRef)
+		return b.ManagedResourceInstanceSubgraph(change, effectiveReplaceOrder)
 
 	// TODO: DataResourceMode, and possibly also EphemeralResourceMode if
 	// we decide to handle those as "changes" (but it's currently looking
