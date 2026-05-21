@@ -75,8 +75,8 @@ func (c *ImportCommand) Run(rawArgs []string) int {
 	traversal, travDiags := hclsyntax.ParseTraversalAbs(traversalSrc, "<import-address>", hcl.Pos{Line: 1, Column: 1})
 	diags = diags.Append(travDiags)
 	if travDiags.HasErrors() {
-		// NOTE: The call to registerSynthConfigSource works well with the view.Diagnostics too since the view is
-		// configured in [Meta.initConfigLoader] with a callback to get the sources when it prints the diagnostics.
+		// NOTE: The call to Loader.ForceFileSource works well with the view.Diagnostics too since the view is
+		// configured in [Meta.configLoader] with a callback to get the sources when it prints the diagnostics.
 		c.configLoader().ForceFileSource("<import-address>", traversalSrc) // so we can include a source snippet
 		view.Diagnostics(diags)
 		view.InvalidAddressReference()
@@ -85,8 +85,8 @@ func (c *ImportCommand) Run(rawArgs []string) int {
 	addr, addrDiags := addrs.ParseAbsResourceInstance(traversal)
 	diags = diags.Append(addrDiags)
 	if addrDiags.HasErrors() {
-		// NOTE: The call to registerSynthConfigSource works well with the view.Diagnostics too since the view is
-		// configured in [Meta.initConfigLoader] with a callback to get the sources when it prints the diagnostics.
+		// NOTE: The call to Loader.ForceFileSource works well with the view.Diagnostics too since the view is
+		// configured in [Meta.configLoader] with a callback to get the sources when it prints the diagnostics.
 		c.configLoader().ForceFileSource("<import-address>", traversalSrc) // so we can include a source snippet
 		view.Diagnostics(diags)
 		view.InvalidAddressReference()
