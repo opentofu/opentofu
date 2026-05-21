@@ -285,6 +285,7 @@ func (c *LoginCommand) Run(rawArgs []string) int {
 			view.DefaultTFCLoginSuccess()
 			return 0
 		}
+		defer resp.Body.Close()
 
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
@@ -292,8 +293,6 @@ func (c *LoginCommand) Run(rawArgs []string) int {
 			view.DefaultTFCLoginSuccess()
 			return 0
 		}
-
-		defer resp.Body.Close()
 		if err := json.Unmarshal(body, &motd); err != nil {
 			c.logMOTDError(fmt.Errorf("platform responded with invalid motd payload: %w", err))
 			view.DefaultTFCLoginSuccess()
@@ -517,9 +516,9 @@ func (c *LoginCommand) interactiveGetTokenByCode(ctx context.Context, hostname s
 				"Current command was aborted by the calling code.",
 			),
 		)
-    if err := server.Shutdown(ctx); err != nil {
-		log.Printf("[WARN] login: callback server shutdown failed: %s", err)
-	}
+		if err := server.Shutdown(ctx); err != nil {
+			log.Printf("[WARN] login: callback server shutdown failed: %s", err)
+		}
 		wg.Wait()
 		close(codeCh)
 		return nil, diags

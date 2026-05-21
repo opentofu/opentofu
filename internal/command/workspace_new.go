@@ -178,6 +178,7 @@ func (c *WorkspaceNewCommand) Run(rawArgs []string) int {
 		)})
 		return 1
 	}
+	defer f.Close()
 
 	stateFile, err := statefile.Read(f, encryption.StateEncryptionDisabled()) // Assume given statefile is not encrypted
 	if err != nil {
