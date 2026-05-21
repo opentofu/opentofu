@@ -31,7 +31,7 @@ func (ops *execOperations) ManagedFinalPlan(
 	var diags tfdiags.Diagnostics
 
 	var instAddr addrs.AbsResourceInstance
-	var providerConfigAddr *addrs.AbsProviderInstanceCorrect
+	var providerConfigAddr addrs.AbsProviderInstanceCorrect
 	var resourceTypeName string
 	deposedKey := states.NotDeposed
 	if desired != nil {
@@ -43,12 +43,13 @@ func (ops *execOperations) ManagedFinalPlan(
 		instAddr = desired.Addr
 		// (deposed objects are never "desired")
 		resourceTypeName = desired.ResourceType
-		providerConfigAddr = desired.ProviderInstance
+		// TODO possibly nil here
+		providerConfigAddr = *desired.ProviderInstance
 	} else if prior != nil {
 		instAddr = prior.InstanceAddr
 		deposedKey = prior.DeposedKey
 		resourceTypeName = prior.State.ResourceType
-		providerConfigAddr = &prior.State.ProviderInstanceAddr
+		providerConfigAddr = prior.State.ProviderInstanceAddr
 	} else {
 		// Both should not be nil but if they are then we'll treat it the same
 		// way as if we dynamically discover that no change is actually
@@ -59,7 +60,11 @@ func (ops *execOperations) ManagedFinalPlan(
 	objAddr := instAddr.Object(deposedKey)
 	log.Printf("[TRACE] apply phase: ManagedFinalPlan %s using %s", objAddr, providerConfigAddr)
 
-	var providerClient providers.Configured // TODO
+	providerClient, moreDiags := ops.providerInstances.ProviderClient(ctx, providerConfigAddr, ops)
+	diags = diags.Append(moreDiags)
+	if diags.HasErrors() {
+		return nil, diags
+	}
 
 	providerAddr := providerConfigAddr.Config.Config.Provider
 	resourceType := resources.NewManagedResourceType(providerAddr, resourceTypeName, providerClient)
@@ -99,13 +104,14 @@ func (ops *execOperations) ManagedFinalPlan(
 	}
 
 	return &exec.ManagedResourceObjectFinalPlan{
-		InstanceAddr:    instAddr,
-		DeposedKey:      deposedKey,
-		ResourceType:    resourceTypeName,
-		PriorStateVal:   resp.Current.Value,
-		ConfigVal:       resp.DesiredValue,
-		PlannedVal:      resp.Planned.Value,
-		ProviderPrivate: resp.Planned.Private,
+		InstanceAddr:     instAddr,
+		DeposedKey:       deposedKey,
+		ResourceType:     resourceTypeName,
+		PriorStateVal:    resp.Current.Value,
+		ConfigVal:        resp.DesiredValue,
+		PlannedVal:       resp.Planned.Value,
+		ProviderInstance: providerConfigAddr,
+		ProviderPrivate:  resp.Planned.Private,
 	}, diags
 }
 
@@ -128,7 +134,7 @@ func (ops *execOperations) ManagedApply(
 		return nil, diags
 	}
 
-	var providerConfigAddr addrs.AbsProviderInstanceCorrect // TODO
+	providerConfigAddr := plan.ProviderInstance
 
 	if plan.DeposedKey == states.NotDeposed {
 		log.Printf("[TRACE] apply phase: ManagedApply %s using %s", plan.InstanceAddr, providerConfigAddr)
@@ -188,7 +194,11 @@ func (ops *execOperations) ManagedApply(
 		plannedValUnmarked = cty.NullVal(schema.Block.ImpliedType())
 	}
 
-	var providerClient providers.Configured // TODO
+	providerClient, moreDiags := ops.providerInstances.ProviderClient(ctx, providerConfigAddr, ops)
+	diags = diags.Append(moreDiags)
+	if diags.HasErrors() {
+		return nil, diags
+	}
 
 	resp := providerClient.ApplyResourceChange(ctx, providers.ApplyResourceChangeRequest{
 		TypeName:       plan.ResourceType,

@@ -40,6 +40,8 @@ type ManagedResourceObjectFinalPlan struct {
 	InstanceAddr addrs.AbsResourceInstance
 	DeposedKey   states.DeposedKey
 
+	ProviderInstance addrs.AbsProviderInstanceCorrect
+
 	// ResourceType is the resource type of the object this plan is for, as
 	// would be understood by the provider that generated this plan.
 	ResourceType string
