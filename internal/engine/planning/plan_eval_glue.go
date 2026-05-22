@@ -61,7 +61,8 @@ func (p *planGlue) PlanDesiredResourceInstance(ctx context.Context, inst *eval.D
 	case addrs.DataResourceMode:
 		obj, diags = p.planDesiredDataResourceInstance(ctx, inst)
 	case addrs.EphemeralResourceMode:
-		obj, diags = p.planDesiredEphemeralResourceInstance(ctx, inst)
+		// Ephemerals are not part of the resource graph
+		return p.planDesiredEphemeralResourceInstance(ctx, inst)
 	default:
 		// We should not get here because the cases above should always be
 		// exhaustive for all of the valid resource modes.
