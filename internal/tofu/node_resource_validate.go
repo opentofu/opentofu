@@ -366,7 +366,35 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 
 				// Validate if rest of the reference is valid. The check above does not do that,
 				// it only checks the resource type and its primary attributes.
-				remainingDiags := schemaForType.Block.StaticValidateTraversal(ref.Remaining)
+				// We must validate ref.Remaining against the schema of the *referenced*
+				// resource type, not the schema of the resource containing replace_triggered_by.
+				var refResourceType string
+				switch s := ref.Subject.(type) {
+				case addrs.Resource:
+					refResourceType = s.Type
+				case addrs.ResourceInstance:
+					refResourceType = s.Resource.Type
+				}
+
+				refSchema := schemaForType
+				if refResourceType != "" && refResourceType != n.Config.Type {
+					// First try the same provider as the containing resource — this handles
+					// the common case where both resources belong to the same provider.
+					if s, _ := providerSchema.SchemaForResourceType(addrs.ManagedResourceMode, refResourceType); s != nil {
+						refSchema = s
+					} else {
+						// Cross-provider reference: infer the provider from the resource type prefix.
+						refResource := addrs.Resource{Mode: addrs.ManagedResourceMode, Type: refResourceType}
+						refProviderAddr := addrs.ImpliedProviderForUnqualifiedType(refResource.ImpliedProvider())
+						if refProviderSchema, refSchemaDiags := evalCtx.Providers().GetProviderSchema(ctx, refProviderAddr); !refSchemaDiags.HasErrors() {
+							if s, _ := refProviderSchema.SchemaForResourceType(addrs.ManagedResourceMode, refResourceType); s != nil {
+								refSchema = s
+							}
+						}
+					}
+				}
+
+				remainingDiags := refSchema.Block.StaticValidateTraversal(ref.Remaining)
 				if remainingDiags.HasErrors() {
 					diags = diags.Append(remainingDiags)
 				}
