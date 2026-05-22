@@ -1373,10 +1373,6 @@
     ]
   },
   {
-    "title": "Upgrading to OpenTofu v1.5",
-    "path": "language/upgrade-guides/index"
-  },
-  {
     "title": "v1.x Compatibility Promises",
     "path": "language/v1-compatibility-promises"
   }
