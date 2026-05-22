@@ -763,6 +763,9 @@ func (n *NodeAbstractResourceInstance) writeResourceInstanceStateImpl(ctx contex
 	}
 
 	obj.Value = schema.Block.RemoveEphemeralFromWriteOnly(obj.Value)
+	if absAddr.Resource.Resource.Mode != addrs.EphemeralResourceMode && obj.Value.HasMarkDeep(marks.Ephemeral) {
+		return fmt.Errorf("non ephemeral resource (%q) found to be written with ephemeral values", absAddr.String())
+	}
 	src, err := obj.Encode(schema.Block.ImpliedType(), currentVersion, uint64(schema.IdentitySchemaVersion))
 	if err != nil {
 		return fmt.Errorf("failed to encode %s in state: %w", absAddr, err)

@@ -582,6 +582,19 @@ func appendInstanceObjectStateV4(rs *states.Resource, is *states.ResourceInstanc
 		providerInstance = rs.ProviderConfig.InstanceString(is.ProviderKey)
 	}
 
+	for _, mark := range obj.TransientPathValueMarks {
+		_, ok := mark.Marks[marks.Ephemeral]
+		if ok {
+			return nil, tfdiags.Diagnostics{
+				tfdiags.Sourceless(
+					tfdiags.Error,
+					"Ephemeral detected in state writing",
+					fmt.Sprintf("%q has an ephemeral value in %q. This is an OpenTofu error. Please report it", rs.Addr.String(), tfdiags.FormatCtyPath(mark.Path)),
+				),
+			}
+		}
+	}
+
 	// Extract paths from path value marks
 	var paths []cty.Path
 	for _, vm := range obj.AttrSensitivePaths {
