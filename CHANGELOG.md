@@ -2,6 +2,10 @@ The v1.12.x release series is supported until **February 1 2027**.
 
 ## 1.12.1 (Unreleased)
 
+BUG FIXES:
+
+- Address a bug introduced in v1.12.0 causing excessive memory usage by providers. ([4126](https://github.com/opentofu/opentofu/pull/4126))
+
 ## 1.12.0
 
 UPGRADE NOTES:

@@ -307,6 +307,11 @@ func (m *Meta) providerFactories() (map[addrs.Provider]providers.Factory, error)
 		checkedProvider := false
 		var checkErr error
 
+		// This should only ever be called once per provider type.
+		// It creates the schema cache to be re-used in all of the subsequent
+		// provider instances.
+		factory := providerFactory(cached)
+
 		factories[provider] = func() (providers.Interface, error) {
 			checkLock.Lock()
 			if !checkedProvider {
@@ -319,7 +324,7 @@ func (m *Meta) providerFactories() (map[addrs.Provider]providers.Factory, error)
 				return nil, checkErr
 			}
 
-			return providerFactory(cached)()
+			return factory()
 		}
 	}
 	for provider, localDir := range devOverrideProviders {
