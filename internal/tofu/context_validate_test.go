@@ -2969,3 +2969,110 @@ resource "test_instance" "b" {
 		})
 	}
 }
+
+// Test that replace_triggered_by validates attribute traversals against the
+// schema of the referenced resource type, not the schema of the resource
+// containing the lifecycle block.
+func TestContext2Validate_replaceTriggeredByCrossResourceType(t *testing.T) {
+	// "test_instance" has a "value" attribute; "test_resource" does not.
+	// "test_resource" has a "output" attribute; "test_instance" does not.
+	p := testProvider("test")
+	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+		ResourceTypes: map[string]*configschema.Block{
+			"test_instance": {
+				Attributes: map[string]*configschema.Attribute{
+					"id": {Type: cty.String, Computed: true},
+					"value": {Type: cty.String, Optional: true},
+				},
+			},
+			"test_resource": {
+				Attributes: map[string]*configschema.Attribute{
+					"id":     {Type: cty.String, Computed: true},
+					"output": {Type: cty.String, Computed: true},
+				},
+			},
+		},
+	})
+
+	tests := map[string]struct {
+		config    string
+		wantError bool
+	}{
+		"valid attribute reference on different resource type": {
+			config: `
+resource "test_instance" "a" {
+  value = "hello"
+}
+
+resource "test_resource" "b" {
+  lifecycle {
+    replace_triggered_by = [test_instance.a.value]
+  }
+}
+`,
+			wantError: false,
+		},
+		"valid computed attribute reference on different resource type": {
+			config: `
+resource "test_resource" "a" {}
+
+resource "test_instance" "b" {
+  lifecycle {
+    replace_triggered_by = [test_resource.a.output]
+  }
+}
+`,
+			wantError: false,
+		},
+		"invalid attribute reference on different resource type": {
+			config: `
+resource "test_instance" "a" {
+  value = "hello"
+}
+
+resource "test_resource" "b" {
+  lifecycle {
+    replace_triggered_by = [test_instance.a.nonexistent]
+  }
+}
+`,
+			wantError: true,
+		},
+		"attribute exists on containing resource type but not referenced resource type": {
+			config: `
+resource "test_instance" "a" {
+  value = "hello"
+}
+
+resource "test_resource" "b" {
+  lifecycle {
+    replace_triggered_by = [test_instance.a.output]
+  }
+}
+`,
+			wantError: true,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			m := testModuleInline(t, map[string]string{
+				"main.tf": tc.config,
+			})
+
+			c := testContext2(t, &ContextOpts{
+				Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
+					addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+				}, nil),
+			})
+
+			diags := c.Validate(context.Background(), m)
+			if tc.wantError && !diags.HasErrors() {
+				t.Fatal("succeeded; want error")
+			}
+			if !tc.wantError && diags.HasErrors() {
+				t.Fatalf("unexpected error: %s", diags.Err())
+			}
+		})
+	}
+}
