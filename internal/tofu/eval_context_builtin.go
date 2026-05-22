@@ -16,6 +16,7 @@ import (
 	"github.com/zclconf/go-cty/cty/function"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/encryption"
@@ -374,6 +375,14 @@ func (c *BuiltinEvalContext) Path() addrs.ModuleInstance {
 		panic("context path not set")
 	}
 	return c.PathValue
+}
+
+func (c *BuiltinEvalContext) ModuleConfig() *configs.Module {
+	cfg := c.Evaluator.Config.DescendentForInstance(c.Path())
+	if cfg == nil {
+		return nil
+	}
+	return cfg.Module
 }
 
 func (c *BuiltinEvalContext) SetRootModuleArgument(addr addrs.InputVariable, v cty.Value) {

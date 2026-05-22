@@ -14,6 +14,7 @@ import (
 	"github.com/zclconf/go-cty/cty/convert"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/encryption"
@@ -278,6 +279,10 @@ func (c *MockEvalContext) WithPath(path addrs.ModuleInstance) EvalContext {
 func (c *MockEvalContext) Path() addrs.ModuleInstance {
 	c.PathCalled = true
 	return c.PathPath
+}
+
+func (c *MockEvalContext) ModuleConfig() *configs.Module {
+	return nil
 }
 
 func (c *MockEvalContext) SetRootModuleArgument(addr addrs.InputVariable, v cty.Value) {

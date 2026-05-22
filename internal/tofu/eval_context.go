@@ -13,6 +13,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
+	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/instances"
@@ -170,6 +171,10 @@ type EvalContext interface {
 	// Its primary use is for validation at the end of a plan - To make sure all imports have been satisfied
 	// and have a configuration
 	ImportResolver() *ImportResolver
+
+	// ModuleConfig returns the configuration for the module that this context
+	// is operating within.
+	ModuleConfig() *configs.Module
 
 	// WithPath returns a copy of the context with the internal path set to the
 	// path argument.
