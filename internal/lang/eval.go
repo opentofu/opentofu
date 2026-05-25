@@ -119,6 +119,7 @@ func (s *Scope) EvalSelfBlock(ctx context.Context, body hcl.Body, self cty.Value
 
 	terraformAttrs := map[string]cty.Value{}
 	pathAttrs := map[string]cty.Value{}
+	varAttrs := map[string]cty.Value{}
 
 	// We could always load the static values for Path and Terraform values,
 	// but we want to parse the references so that we can get source ranges for
@@ -143,6 +144,13 @@ func (s *Scope) EvalSelfBlock(ctx context.Context, body hcl.Body, self cty.Value
 		case addrs.CountAttr, addrs.ForEachAttr:
 			// each and count have already been handled.
 
+		case addrs.InputVariable:
+			// TODO this needs to be added in a different way since this method is strictly for self block references.
+			//  If we decide to go forward with such an approach, we need to create a new way to inject the variables
+			//  references in the evaluation scope.
+			val, valDiags := s.Data.GetInputVariable(ctx, subj, ref.SourceRange)
+			diags = diags.Append(valDiags)
+			varAttrs[subj.Name] = val
 		default:
 			// This should have been caught in validation, but point the user
 			// to the correct location in case something slipped through.
@@ -158,6 +166,7 @@ func (s *Scope) EvalSelfBlock(ctx context.Context, body hcl.Body, self cty.Value
 	vals["path"] = cty.ObjectVal(pathAttrs)
 	vals["terraform"] = cty.ObjectVal(terraformAttrs)
 	vals["tofu"] = cty.ObjectVal(terraformAttrs)
+	vals["var"] = cty.ObjectVal(varAttrs)
 
 	hclCtx := &hcl.EvalContext{
 		Variables: vals,

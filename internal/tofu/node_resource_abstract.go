@@ -270,6 +270,23 @@ func (n *NodeAbstractResource) DestroyReferences() []*addrs.Reference {
 				refs, _ := lang.ReferencesInExpr(addrs.ParseRef, c.Managed.PreventDestroy)
 				result = append(result, refs...)
 			}
+
+			for _, p := range c.Managed.Provisioners {
+				if p.When != configs.ProvisionerWhenDestroy { // We care only about the destroy time provisioners
+					continue
+				}
+				if p.Connection != nil {
+					res, _ := lang.ReferencesInBlock(addrs.ParseRef, p.Connection.Config, shared.ConnectionBlockSupersetSchema)
+					result = append(result, res...)
+				}
+
+				schema := n.ProvisionerSchemas[p.Type]
+				if schema == nil {
+					log.Printf("[WARN] no schema for provisioner %q is attached to %s, so provisioner block references cannot be detected", p.Type, n.Name())
+				}
+				res, _ := lang.ReferencesInBlock(addrs.ParseRef, p.Config, schema)
+				result = append(result, res...)
+			}
 		}
 	}
 	return result
