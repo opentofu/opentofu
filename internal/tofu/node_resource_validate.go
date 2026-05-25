@@ -363,10 +363,19 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 				if len(ref.Remaining) == 0 {
 					continue
 				}
+				// If there are schemas registered for the replace_triggered_by references, try to use one of those because
+				// the resource referenced can be different than the current one.
+				refSchema := schemaForType.Block
+				if n.ReplaceTriggeredBySchemas != nil {
+					s, ok := n.ReplaceTriggeredBySchemas[ref.Subject.String()]
+					if ok {
+						refSchema = s
+					}
+				}
 
 				// Validate if rest of the reference is valid. The check above does not do that,
 				// it only checks the resource type and its primary attributes.
-				remainingDiags := schemaForType.Block.StaticValidateTraversal(ref.Remaining)
+				remainingDiags := refSchema.StaticValidateTraversal(ref.Remaining)
 				if remainingDiags.HasErrors() {
 					diags = diags.Append(remainingDiags)
 				}

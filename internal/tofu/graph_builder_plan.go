@@ -240,6 +240,8 @@ func (b *PlanGraphBuilder) Steps() []GraphTransformer {
 
 		&ReferenceTransformer{},
 
+		&ReplaceTriggeredBySchemaTransformer{Plugins: b.Plugins},
+
 		&AttachDependenciesTransformer{},
 
 		// Make sure data sources and ephemeral resources are aware of any
