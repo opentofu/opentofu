@@ -85,6 +85,8 @@ type NodeAbstractResource struct {
 
 	ProvisionerSchemas map[string]*configschema.Block
 
+	ReplaceTriggeredBySchemas map[string]*configschema.Block
+
 	// Set from GraphNodeTargetable
 	Targets []addrs.Targetable
 
@@ -468,6 +470,29 @@ func (n *NodeAbstractResource) AttachProvisionerSchema(name string, schema *conf
 		n.ProvisionerSchemas = make(map[string]*configschema.Block)
 	}
 	n.ProvisionerSchemas[name] = schema
+}
+
+// GraphNodeAttachReplaceTriggeredBySchema
+func (n *NodeAbstractResource) ReplaceTriggeredBy() []*addrs.Reference {
+	// If we have no configuration, then we have no replace_triggred_by
+	if n.Config == nil || len(n.Config.TriggersReplacement) == 0 {
+		return nil
+	}
+	result := make([]*addrs.Reference, 0, len(n.Config.TriggersReplacement))
+	for _, expr := range n.Config.TriggersReplacement {
+		refs, _ := lang.ReferencesInExpr(addrs.ParseRef, expr)
+		result = append(result, refs...)
+	}
+
+	return result
+}
+
+// GraphNodeAttachReplaceTriggeredBySchema
+func (n *NodeAbstractResource) AttachReplaceTriggeredBySchema(ref addrs.Reference, schema *configschema.Block) {
+	if n.ReplaceTriggeredBySchemas == nil {
+		n.ReplaceTriggeredBySchemas = make(map[string]*configschema.Block)
+	}
+	n.ReplaceTriggeredBySchemas[ref.Subject.String()] = schema
 }
 
 // GraphNodeResource
