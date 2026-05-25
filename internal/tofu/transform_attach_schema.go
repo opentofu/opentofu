@@ -73,6 +73,8 @@ func (t *AttachSchemaTransformer) Transform(ctx context.Context, g *Graph) error
 		return fmt.Errorf("AttachSchemaTransformer used with nil Plugins")
 	}
 
+	refMap := map[addrs.Resource]*configschema.Block{}
+
 	for _, v := range g.Vertices() {
 
 		if tv, ok := v.(GraphNodeAttachResourceSchema); ok {
@@ -92,6 +94,8 @@ func (t *AttachSchemaTransformer) Transform(ctx context.Context, g *Graph) error
 			}
 			log.Printf("[TRACE] AttachSchemaTransformer: attaching resource schema to %s", dag.VertexName(v))
 			tv.AttachResourceSchema(schema, version)
+
+			refMap[addr.Resource] = schema
 		}
 
 		if tv, ok := v.(GraphNodeAttachProviderConfigSchema); ok {
@@ -124,7 +128,9 @@ func (t *AttachSchemaTransformer) Transform(ctx context.Context, g *Graph) error
 				tv.AttachProvisionerSchema(name, schema)
 			}
 		}
+	}
 
+	for _, v := range g.Vertices() {
 		if tv, ok := v.(GraphNodeAttachReplaceTriggeredBySchema); ok {
 			refs := tv.ReplaceTriggeredBy()
 			for _, ref := range refs {
@@ -137,32 +143,12 @@ func (t *AttachSchemaTransformer) Transform(ctx context.Context, g *Graph) error
 				default:
 					continue
 				}
-				nodes := g.Vertices()
-				for _, e := range nodes {
-					crn, ok := e.(GraphNodeConfigResource)
-					if !ok {
-						continue
-					}
-
-					if !crn.ResourceAddr().Resource.Equal(refAddr) {
-						continue
-					}
-					pcn, ok := e.(GraphNodeProviderConsumer)
-					if !ok {
-						log.Printf("[WARN] AttachSchemaTransformer: Found GraphNodeConfigResource that is not GraphNodeProviderConsumer for %s: %s. This might suggest an underlying issue in OpenTofu.", refAddr, dag.VertexName(crn))
-						continue
-					}
-					providerFqn := pcn.Provider()
-					schema, _, err := t.Plugins.ResourceTypeSchema(ctx, providerFqn, refAddr.Mode, refAddr.Type)
-					if err != nil {
-						return fmt.Errorf("failed to read resource schema for %q: %v", refAddr, err)
-					}
-					if schema == nil {
-						log.Printf("[ERROR] AttachSchemaTransformer: No schema available for %q on %q", refAddr, dag.VertexName(crn))
-						continue
-					}
+				schema, ok := refMap[refAddr]
+				if ok {
 					log.Printf("[TRACE] AttachSchemaTransformer: attaching replace_triggered_by %q config schema to %s", refAddr, dag.VertexName(v))
 					tv.AttachReplaceTriggeredBySchema(*ref, schema)
+				} else {
+					log.Printf("[WARN] AttachSchemaTransformer: missing replace_triggered_by %q in %s", refAddr, dag.VertexName(v))
 				}
 			}
 		}
