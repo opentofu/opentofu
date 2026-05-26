@@ -360,10 +360,6 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 					continue
 				}
 
-				if len(ref.Remaining) == 0 {
-					continue
-				}
-
 				var refAddr addrs.Resource
 				switch rs := ref.Subject.(type) {
 				case addrs.Resource:
@@ -380,15 +376,16 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 						Severity: hcl.DiagError,
 						Summary:  "Resource referenced in replace_triggered_by not declared",
 						Detail:   fmt.Sprintf("Resource %s references %s in replace_triggered_by, but it has not been declared.", n.Addr, refAddr),
-						Subject:  &n.Config.TypeRange,
+						Subject:  expr.Range().Ptr(),
 					})
 					continue
 				}
-				// Validate if rest of the reference is valid. The check above does not do that,
-				// it only checks the resource type and its primary attributes.
-				remainingDiags := refSchema.StaticValidateTraversal(ref.Remaining)
-				if remainingDiags.HasErrors() {
-					diags = diags.Append(remainingDiags)
+
+				if len(ref.Remaining) != 0 {
+					remainingDiags := refSchema.StaticValidateTraversal(ref.Remaining)
+					if remainingDiags.HasErrors() {
+						diags = diags.Append(remainingDiags)
+					}
 				}
 			}
 		}
