@@ -5,6 +5,7 @@ The v1.12.x release series is supported until **February 1 2027**.
 BUG FIXES:
 
 - Address a bug introduced in v1.12.0 causing excessive memory usage by providers. ([4126](https://github.com/opentofu/opentofu/pull/4126))
+- The Azure key provider will now accept the `tenant_id`, `subscription_id`, `environment`, and `metadata_host` variables; a bug previously only allowed these to be set through environment variables. ([#4091](https://github.com/opentofu/opentofu/issues/4091))
 
 ## 1.12.0
 
