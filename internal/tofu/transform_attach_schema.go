@@ -38,11 +38,24 @@ type GraphNodeAttachProviderConfigSchema interface {
 type GraphNodeAttachProvisionerSchema interface {
 	ProvisionedBy() []string
 
-	// SetProvisionerSchema is called during transform for each provisioner
+	// AttachProvisionerSchema is called during transform for each provisioner
 	// type returned from ProvisionedBy, providing the configuration schema
 	// for each provisioner in turn. The implementer should save these for
 	// later use in evaluating provisioner configuration blocks.
 	AttachProvisionerSchema(name string, schema *configschema.Block)
+}
+
+// GraphNodeAttachReplaceTriggeredBySchema is an interface implemented by node types
+// that need one or more provider schemas attached for the replace_triggered_by.
+type GraphNodeAttachReplaceTriggeredBySchema interface {
+	GraphNodeConfigResource
+	ReplaceTriggeredBy() []*addrs.Reference
+
+	// AttachReplaceTriggeredBySchema is called during transform for each resource type
+	// type returned from ReplaceTriggeredBy, providing the configuration schema
+	// for each referenced provider in turn. The implementer should save these for
+	// later use in evaluating replace_triggered_by references.
+	AttachReplaceTriggeredBySchema(ref addrs.Resource, schema *configschema.Block)
 }
 
 // AttachSchemaTransformer finds nodes that implement
@@ -60,6 +73,8 @@ func (t *AttachSchemaTransformer) Transform(ctx context.Context, g *Graph) error
 		// proper error here anyway so that we'll fail gracefully.
 		return fmt.Errorf("AttachSchemaTransformer used with nil Plugins")
 	}
+
+	refMap := addrs.MakeMap[addrs.ConfigResource, *configschema.Block]()
 
 	for _, v := range g.Vertices() {
 
@@ -80,6 +95,8 @@ func (t *AttachSchemaTransformer) Transform(ctx context.Context, g *Graph) error
 			}
 			log.Printf("[TRACE] AttachSchemaTransformer: attaching resource schema to %s", dag.VertexName(v))
 			tv.AttachResourceSchema(schema, version)
+
+			refMap.Put(addr, schema)
 		}
 
 		if tv, ok := v.(GraphNodeAttachProviderConfigSchema); ok {
@@ -110,6 +127,31 @@ func (t *AttachSchemaTransformer) Transform(ctx context.Context, g *Graph) error
 				}
 				log.Printf("[TRACE] AttachSchemaTransformer: attaching provisioner %q config schema to %s", name, dag.VertexName(v))
 				tv.AttachProvisionerSchema(name, schema)
+			}
+		}
+	}
+
+	for _, v := range g.Vertices() {
+		if tv, ok := v.(GraphNodeAttachReplaceTriggeredBySchema); ok {
+			module := tv.ResourceAddr().Module
+			refs := tv.ReplaceTriggeredBy()
+			for _, ref := range refs {
+				var refAddr addrs.ConfigResource
+				switch rs := ref.Subject.(type) {
+				case addrs.Resource:
+					refAddr = rs.InModule(module)
+				case addrs.ResourceInstance:
+					refAddr = rs.Resource.InModule(module)
+				default:
+					continue
+				}
+				schema, ok := refMap.GetOk(refAddr)
+				if ok {
+					log.Printf("[TRACE] AttachSchemaTransformer: attaching replace_triggered_by %q config schema to %s", refAddr, dag.VertexName(v))
+					tv.AttachReplaceTriggeredBySchema(refAddr.Resource, schema)
+				} else {
+					log.Printf("[WARN] AttachSchemaTransformer: missing replace_triggered_by %q in %s", refAddr, dag.VertexName(v))
+				}
 			}
 		}
 	}
