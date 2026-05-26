@@ -10,6 +10,10 @@ SECURITY ADVISORIES:
 
     An attacker that can coerce an operator to install a dependency from an attacker-controlled server could use this to cause unexpected resource consumption during `tofu init`.
 
+BUG FIXES:
+
+* The Azure key provider will now accept the `tenant_id`, `subscription_id`, `environment`, and `metadata_host` variables; a bug previously only allowed these to be set through environment variables. ([#4091](https://github.com/opentofu/opentofu/issues/4091))
+
 ## 1.11.7
 
 BUG FIXES:
