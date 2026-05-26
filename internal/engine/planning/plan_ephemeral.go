@@ -26,11 +26,19 @@ func (p *planGlue) planDesiredEphemeralResourceInstance(ctx context.Context, ins
 		return cty.NilVal, diags
 	}
 
+	objTy := schema.Block.ImpliedType()
+	priorVal := cty.NullVal(objTy)
+
 	if inst.ProviderInstance == nil {
 		// If we don't even know which provider instance we're supposed to be
 		// talking to then we'll just return a placeholder value, because
 		// we don't have any way to generate a speculative plan.
-		return cty.NilVal, diags
+		return priorVal, diags
+	}
+
+	// TODO the old engine also looks at depends_on
+	if !inst.ConfigVal.IsWhollyKnown() {
+		return priorVal, diags
 	}
 
 	providerClient, moreDiags := p.providerClient(ctx, *inst.ProviderInstance)
@@ -44,7 +52,7 @@ func (p *planGlue) planDesiredEphemeralResourceInstance(ctx context.Context, ins
 	}
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
-		return cty.NilVal, diags
+		return priorVal, diags
 	}
 
 	newVal, closeFunc, openDiags := shared.OpenEphemeralResourceInstance(
@@ -58,7 +66,7 @@ func (p *planGlue) planDesiredEphemeralResourceInstance(ctx context.Context, ins
 	)
 	diags = diags.Append(openDiags)
 	if openDiags.HasErrors() {
-		return cty.NilVal, diags
+		return priorVal, diags
 	}
 
 	p.planCtx.closeStackMu.Lock()
