@@ -6,6 +6,14 @@ BUG FIXES:
 
 - Address a bug introduced in v1.12.0 causing excessive memory usage by providers. ([4126](https://github.com/opentofu/opentofu/pull/4126))
 
+SECURITY ADVISORIES:
+
+* Previous releases in the v1.12 series could be affected by several vulnerabilities:
+  * ssh usage through OpenTofu generate hangs or panics.
+  * Previously, a revoked 'SignatureKey' belonging to a CA was not correctly checked for revocation. Now, both the 'key' and 'key.SignatureKey' are checked for @revoked.
+
+  This is fixed now by ([#4145](https://github.com/opentofu/opentofu/pull/4145))
+
 ## 1.12.0
 
 UPGRADE NOTES:
