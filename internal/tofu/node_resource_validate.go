@@ -360,15 +360,34 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 					continue
 				}
 
-				if len(ref.Remaining) == 0 {
+				var refAddr addrs.Resource
+				switch rs := ref.Subject.(type) {
+				case addrs.Resource:
+					refAddr = rs
+				case addrs.ResourceInstance:
+					refAddr = rs.Resource
+				default:
 					continue
 				}
 
-				// Validate if rest of the reference is valid. The check above does not do that,
-				// it only checks the resource type and its primary attributes.
-				remainingDiags := schemaForType.Block.StaticValidateTraversal(ref.Remaining)
-				if remainingDiags.HasErrors() {
-					diags = diags.Append(remainingDiags)
+				refSchema, ok := n.ReplaceTriggeredBySchemas[refAddr]
+				if !ok {
+					// (We could also get here if [AttachSchemaTransformer] has a bug that
+					// makes it fail to register one of the needed schemas.)
+					diags = diags.Append(&hcl.Diagnostic{
+						Severity: hcl.DiagError,
+						Summary:  "Undeclared resource in replace_triggered_by",
+						Detail:   fmt.Sprintf("Resource %s refers to %s in replace_triggered_by, but it is not declared in this module.", n.Addr, refAddr),
+						Subject:  expr.Range().Ptr(),
+					})
+					continue
+				}
+
+				if len(ref.Remaining) != 0 {
+					remainingDiags := refSchema.StaticValidateTraversal(ref.Remaining)
+					if remainingDiags.HasErrors() {
+						diags = diags.Append(remainingDiags)
+					}
 				}
 			}
 		}

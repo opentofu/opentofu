@@ -85,6 +85,8 @@ type NodeAbstractResource struct {
 
 	ProvisionerSchemas map[string]*configschema.Block
 
+	ReplaceTriggeredBySchemas map[addrs.Resource]*configschema.Block
+
 	// Set from GraphNodeTargetable
 	Targets []addrs.Targetable
 
@@ -117,18 +119,19 @@ type NodeAbstractResource struct {
 }
 
 var (
-	_ GraphNodeReferenceable             = (*NodeAbstractResource)(nil)
-	_ GraphNodeReferencer                = (*NodeAbstractResource)(nil)
-	_ GraphNodeProviderConsumer          = (*NodeAbstractResource)(nil)
-	_ GraphNodeProvisionerConsumer       = (*NodeAbstractResource)(nil)
-	_ GraphNodeConfigResource            = (*NodeAbstractResource)(nil)
-	_ GraphNodeAttachResourceConfig      = (*NodeAbstractResource)(nil)
-	_ GraphNodeAttachResourceSchema      = (*NodeAbstractResource)(nil)
-	_ GraphNodeAttachProvisionerSchema   = (*NodeAbstractResource)(nil)
-	_ GraphNodeAttachProviderMetaConfigs = (*NodeAbstractResource)(nil)
-	_ GraphNodeTargetable                = (*NodeAbstractResource)(nil)
-	_ graphNodeAttachResourceDependsOn   = (*NodeAbstractResource)(nil)
-	_ dag.GraphNodeDotter                = (*NodeAbstractResource)(nil)
+	_ GraphNodeReferenceable                  = (*NodeAbstractResource)(nil)
+	_ GraphNodeReferencer                     = (*NodeAbstractResource)(nil)
+	_ GraphNodeProviderConsumer               = (*NodeAbstractResource)(nil)
+	_ GraphNodeProvisionerConsumer            = (*NodeAbstractResource)(nil)
+	_ GraphNodeConfigResource                 = (*NodeAbstractResource)(nil)
+	_ GraphNodeAttachResourceConfig           = (*NodeAbstractResource)(nil)
+	_ GraphNodeAttachResourceSchema           = (*NodeAbstractResource)(nil)
+	_ GraphNodeAttachReplaceTriggeredBySchema = (*NodeAbstractResource)(nil)
+	_ GraphNodeAttachProvisionerSchema        = (*NodeAbstractResource)(nil)
+	_ GraphNodeAttachProviderMetaConfigs      = (*NodeAbstractResource)(nil)
+	_ GraphNodeTargetable                     = (*NodeAbstractResource)(nil)
+	_ graphNodeAttachResourceDependsOn        = (*NodeAbstractResource)(nil)
+	_ dag.GraphNodeDotter                     = (*NodeAbstractResource)(nil)
 )
 
 // NewNodeAbstractResource creates an abstract resource graph node for
@@ -468,6 +471,29 @@ func (n *NodeAbstractResource) AttachProvisionerSchema(name string, schema *conf
 		n.ProvisionerSchemas = make(map[string]*configschema.Block)
 	}
 	n.ProvisionerSchemas[name] = schema
+}
+
+// GraphNodeAttachReplaceTriggeredBySchema
+func (n *NodeAbstractResource) ReplaceTriggeredBy() []*addrs.Reference {
+	// If we have no configuration, then we have no replace_triggred_by
+	if n.Config == nil || len(n.Config.TriggersReplacement) == 0 {
+		return nil
+	}
+	result := make([]*addrs.Reference, 0, len(n.Config.TriggersReplacement))
+	for _, expr := range n.Config.TriggersReplacement {
+		refs, _ := lang.ReferencesInExpr(addrs.ParseRef, expr)
+		result = append(result, refs...)
+	}
+
+	return result
+}
+
+// GraphNodeAttachReplaceTriggeredBySchema
+func (n *NodeAbstractResource) AttachReplaceTriggeredBySchema(addr addrs.Resource, schema *configschema.Block) {
+	if n.ReplaceTriggeredBySchemas == nil {
+		n.ReplaceTriggeredBySchemas = make(map[addrs.Resource]*configschema.Block)
+	}
+	n.ReplaceTriggeredBySchemas[addr] = schema
 }
 
 // GraphNodeResource
