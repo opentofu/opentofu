@@ -130,8 +130,8 @@ func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
 		return nil, nil, &keyprovider.ErrInvalidConfiguration{Message: "key_length must be at least 1"}
 	}
 
-	environment := stringAttrDefaultEnvFallback(c.OIDCToken, "public", "ARM_ENVIRONMENT")
-	metadataHost := stringAttrEnvFallback(c.OIDCToken, "ARM_METADATA_HOST")
+	environment := stringAttrDefaultEnvFallback(c.Environment, "public", "ARM_ENVIRONMENT")
+	metadataHost := stringAttrEnvFallback(c.MetadataHost, "ARM_METADATA_HOST")
 
 	cloudConfig, _, err := auth.CloudConfigFromAddresses(
 		ctx,
@@ -176,8 +176,8 @@ func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
 		},
 		StorageAddresses: auth.StorageAddresses{
 			CloudConfig:    cloudConfig,
-			SubscriptionID: stringAttrEnvFallback(c.OIDCToken, "ARM_SUBSCRIPTION_ID"),
-			TenantID:       stringAttrEnvFallback(c.OIDCToken, "ARM_TENANT_ID"),
+			SubscriptionID: stringAttrEnvFallback(c.SubscriptionID, "ARM_SUBSCRIPTION_ID"),
+			TenantID:       stringAttrEnvFallback(c.TenantID, "ARM_TENANT_ID"),
 		},
 		WorkloadIdentityAuthConfig: auth.WorkloadIdentityAuthConfig{
 			UseAKSWorkloadIdentity: c.UseAKS,
