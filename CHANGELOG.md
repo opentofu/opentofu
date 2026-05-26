@@ -2,6 +2,15 @@ The v1.11.x release series is supported until **August 1 2026**.
 
 ## 1.11.9 (Unreleased)
 
+SECURITY ADVISORIES:
+
+* Previous releases in the v1.11 series could be affected by several vulnerabilities:
+  * ssh usage through OpenTofu generate hangs or panics.
+  * Previously, a revoked 'SignatureKey' belonging to a CA was not correctly checked for revocation. Now, both the 'key' and 'key.SignatureKey' are checked for @revoked.
+
+  This is fixed now by ([#4145](https://github.com/opentofu/opentofu/pull/4145))
+
+
 ## 1.11.8
 
 SECURITY ADVISORIES:
