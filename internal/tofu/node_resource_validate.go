@@ -364,14 +364,25 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 					continue
 				}
 
-				// If there are schemas registered for the replace_triggered_by references, try to use one of those because
-				// the resource referenced can be different than the current one.
-				refSchema := schemaForType.Block
-				if n.ReplaceTriggeredBySchemas != nil {
-					s, ok := n.ReplaceTriggeredBySchemas[ref.Subject.String()]
-					if ok {
-						refSchema = s
-					}
+				var refAddr addrs.Resource
+				switch rs := ref.Subject.(type) {
+				case addrs.Resource:
+					refAddr = rs
+				case addrs.ResourceInstance:
+					refAddr = rs.Resource
+				default:
+					continue
+				}
+
+				refSchema, ok := n.ReplaceTriggeredBySchemas[refAddr]
+				if !ok {
+					diags = diags.Append(&hcl.Diagnostic{
+						Severity: hcl.DiagError,
+						Summary:  "Resource referenced in replace_triggered_by not declared",
+						Detail:   fmt.Sprintf("Resource %s references %s in replace_triggered_by, but it has not been declared.", n.Addr, refAddr),
+						Subject:  &n.Config.TypeRange,
+					})
+					continue
 				}
 				// Validate if rest of the reference is valid. The check above does not do that,
 				// it only checks the resource type and its primary attributes.

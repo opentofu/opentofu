@@ -85,7 +85,7 @@ type NodeAbstractResource struct {
 
 	ProvisionerSchemas map[string]*configschema.Block
 
-	ReplaceTriggeredBySchemas map[string]*configschema.Block
+	ReplaceTriggeredBySchemas map[addrs.Resource]*configschema.Block
 
 	// Set from GraphNodeTargetable
 	Targets []addrs.Targetable
@@ -489,11 +489,11 @@ func (n *NodeAbstractResource) ReplaceTriggeredBy() []*addrs.Reference {
 }
 
 // GraphNodeAttachReplaceTriggeredBySchema
-func (n *NodeAbstractResource) AttachReplaceTriggeredBySchema(ref addrs.Reference, schema *configschema.Block) {
+func (n *NodeAbstractResource) AttachReplaceTriggeredBySchema(addr addrs.Resource, schema *configschema.Block) {
 	if n.ReplaceTriggeredBySchemas == nil {
-		n.ReplaceTriggeredBySchemas = make(map[string]*configschema.Block)
+		n.ReplaceTriggeredBySchemas = make(map[addrs.Resource]*configschema.Block)
 	}
-	n.ReplaceTriggeredBySchemas[ref.Subject.String()] = schema
+	n.ReplaceTriggeredBySchemas[addr] = schema
 }
 
 // GraphNodeResource

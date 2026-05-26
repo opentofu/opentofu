@@ -48,13 +48,14 @@ type GraphNodeAttachProvisionerSchema interface {
 // GraphNodeAttachReplaceTriggeredBySchema is an interface implemented by node types
 // that need one or more provider schemas attached for the replace_triggered_by.
 type GraphNodeAttachReplaceTriggeredBySchema interface {
+	GraphNodeConfigResource
 	ReplaceTriggeredBy() []*addrs.Reference
 
 	// AttachReplaceTriggeredBySchema is called during transform for each resource type
 	// type returned from ReplaceTriggeredBy, providing the configuration schema
 	// for each referenced provider in turn. The implementer should save these for
 	// later use in evaluating replace_triggered_by references.
-	AttachReplaceTriggeredBySchema(ref addrs.Reference, schema *configschema.Block)
+	AttachReplaceTriggeredBySchema(ref addrs.Resource, schema *configschema.Block)
 }
 
 // AttachSchemaTransformer finds nodes that implement
@@ -73,7 +74,7 @@ func (t *AttachSchemaTransformer) Transform(ctx context.Context, g *Graph) error
 		return fmt.Errorf("AttachSchemaTransformer used with nil Plugins")
 	}
 
-	refMap := map[addrs.Resource]*configschema.Block{}
+	refMap := addrs.MakeMap[addrs.ConfigResource, *configschema.Block]()
 
 	for _, v := range g.Vertices() {
 
@@ -95,7 +96,7 @@ func (t *AttachSchemaTransformer) Transform(ctx context.Context, g *Graph) error
 			log.Printf("[TRACE] AttachSchemaTransformer: attaching resource schema to %s", dag.VertexName(v))
 			tv.AttachResourceSchema(schema, version)
 
-			refMap[addr.Resource] = schema
+			refMap.Put(addr, schema)
 		}
 
 		if tv, ok := v.(GraphNodeAttachProviderConfigSchema); ok {
@@ -132,21 +133,22 @@ func (t *AttachSchemaTransformer) Transform(ctx context.Context, g *Graph) error
 
 	for _, v := range g.Vertices() {
 		if tv, ok := v.(GraphNodeAttachReplaceTriggeredBySchema); ok {
+			module := tv.ResourceAddr().Module
 			refs := tv.ReplaceTriggeredBy()
 			for _, ref := range refs {
-				var refAddr addrs.Resource
+				var refAddr addrs.ConfigResource
 				switch rs := ref.Subject.(type) {
 				case addrs.Resource:
-					refAddr = rs
+					refAddr = rs.InModule(module)
 				case addrs.ResourceInstance:
-					refAddr = rs.Resource
+					refAddr = rs.Resource.InModule(module)
 				default:
 					continue
 				}
-				schema, ok := refMap[refAddr]
+				schema, ok := refMap.GetOk(refAddr)
 				if ok {
 					log.Printf("[TRACE] AttachSchemaTransformer: attaching replace_triggered_by %q config schema to %s", refAddr, dag.VertexName(v))
-					tv.AttachReplaceTriggeredBySchema(*ref, schema)
+					tv.AttachReplaceTriggeredBySchema(refAddr.Resource, schema)
 				} else {
 					log.Printf("[WARN] AttachSchemaTransformer: missing replace_triggered_by %q in %s", refAddr, dag.VertexName(v))
 				}

@@ -3103,7 +3103,7 @@ resource "test_instance" "b" {
       test_resource.a.output,
       test_resource.b.output,
       test_resource.c.output,
-      test_resource.d.value
+      test_instance.d.value
     ]
   }
 }
@@ -3133,6 +3133,18 @@ resource "test_instance" "a" {
 resource "test_resource" "b" {
   lifecycle {
     replace_triggered_by = [test_instance.a.output]
+  }
+}
+`,
+			wantError: true,
+		},
+		"missing resource referenced in replace_triggered_by": {
+			config: `
+resource "test_instance" "a" {
+  lifecycle {
+    replace_triggered_by = [
+      test_resource.missing.output,
+    ]
   }
 }
 `,
