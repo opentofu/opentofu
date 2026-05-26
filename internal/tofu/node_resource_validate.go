@@ -372,10 +372,12 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 
 				refSchema, ok := n.ReplaceTriggeredBySchemas[refAddr]
 				if !ok {
+					// (We could also get here if [AttachSchemaTransformer] has a bug that
+					// makes it fail to register one of the needed schemas.)
 					diags = diags.Append(&hcl.Diagnostic{
 						Severity: hcl.DiagError,
-						Summary:  "Resource referenced in replace_triggered_by not declared",
-						Detail:   fmt.Sprintf("Resource %s references %s in replace_triggered_by, but it has not been declared.", n.Addr, refAddr),
+						Summary:  "Undeclared resource in replace_triggered_by",
+						Detail:   fmt.Sprintf("Resource %s refers to %s in replace_triggered_by, but it is not declared in this module.", n.Addr, refAddr),
 						Subject:  expr.Range().Ptr(),
 					})
 					continue
