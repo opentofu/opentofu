@@ -1,12 +1,6 @@
 The v1.12.x release series is supported until **February 1 2027**.
 
-## 1.12.1 (Unreleased)
-
-BUG FIXES:
-
-- Address a bug introduced in v1.12.0 causing excessive memory usage by providers. ([#4126](https://github.com/opentofu/opentofu/pull/4126))
-- Address a bug introduced in v1.12.0 where `replace_triggered_by` was validated incorrectly. ([#4133](https://github.com/opentofu/opentofu/pull/4133)
-- The Azure key provider will now accept the `tenant_id`, `subscription_id`, `environment`, and `metadata_host` variables; a bug previously only allowed these to be set through environment variables. ([#4091](https://github.com/opentofu/opentofu/issues/4091))
+## 1.12.1
 
 SECURITY ADVISORIES:
 
@@ -15,6 +9,12 @@ SECURITY ADVISORIES:
   * Previously, a revoked 'SignatureKey' belonging to a CA was not correctly checked for revocation. Now, both the 'key' and 'key.SignatureKey' are checked for @revoked.
 
   This is fixed now by ([#4145](https://github.com/opentofu/opentofu/pull/4145))
+
+BUG FIXES:
+
+- Address a bug introduced in v1.12.0 causing excessive memory usage by providers. ([#4126](https://github.com/opentofu/opentofu/pull/4126))
+- Address a bug introduced in v1.12.0 where `replace_triggered_by` was validated incorrectly. ([#4133](https://github.com/opentofu/opentofu/pull/4133)
+- The Azure key provider will now accept the `tenant_id`, `subscription_id`, `environment`, and `metadata_host` variables; a bug previously only allowed these to be set through environment variables. ([#4091](https://github.com/opentofu/opentofu/issues/4091))
 
 ## 1.12.0
 
@@ -46,6 +46,7 @@ ENHANCEMENTS:
 - New `lifecycle` meta-argument `destroy`: when set to `false` OpenTofu will plan to just remove the affected object from state without asking the provider to destroy it first, similar to `destroy = false` in `removed` blocks. ([#3409](https://github.com/opentofu/opentofu/pull/3409))
 - Comparing an object or other complex-typed value to `null` using the `==` operator now returns a sensitive boolean result only if the object as a whole is sensitive, and not when the object merely contains a sensitive value nested inside one of its attributes. This means that comparisons to null can now be used in parts of the configuration where sensitive values are not allowed, such as in the `enabled` meta-argument on resources and modules. ([#3793](https://github.com/opentofu/opentofu/pull/3793))
 - Resources using `replace_triggered_by` in their `lifecycle` block are now replaced when a resource they refer to is itself being replaced, whereas before this triggered only when it was being updated. ([#3714](https://github.com/opentofu/opentofu/issues/3714))
+- `import` blocks now allow describing the object to be imported using an object matching the resource type's _identity schema_ using the `identity` argument, instead of just a plain string using the `id` argument. ([#3671](https://github.com/opentofu/opentofu/pull/3671))
 - OpenTofu now produces warnings for any references to attributes or blocks of a resource type that are marked as deprecated in the provider schema, unless disabled by the `-deprecation=` option. ([#3973](https://github.com/opentofu/opentofu/pull/3973/))
 - The `yamldecode` function now supports the "merge" tag, most commonly written as `<<` where a map key would be expected, with sequences of mappings rather than just individual mappings. ([#3607](https://github.com/opentofu/opentofu/pull/3607))
 - A new configuration block type `language` offers a more general way to define version constraints that separates OpenTofu constraints from other software. Note that module authors should delay adopting this new syntax until they are ready to require OpenTofu v1.12.0 or later, but there is an interim solution available that is backward-compatible with earlier OpenTofu versions. ([#3300](https://github.com/opentofu/opentofu/issues/3300))
