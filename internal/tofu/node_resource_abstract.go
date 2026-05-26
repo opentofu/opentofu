@@ -119,18 +119,19 @@ type NodeAbstractResource struct {
 }
 
 var (
-	_ GraphNodeReferenceable             = (*NodeAbstractResource)(nil)
-	_ GraphNodeReferencer                = (*NodeAbstractResource)(nil)
-	_ GraphNodeProviderConsumer          = (*NodeAbstractResource)(nil)
-	_ GraphNodeProvisionerConsumer       = (*NodeAbstractResource)(nil)
-	_ GraphNodeConfigResource            = (*NodeAbstractResource)(nil)
-	_ GraphNodeAttachResourceConfig      = (*NodeAbstractResource)(nil)
-	_ GraphNodeAttachResourceSchema      = (*NodeAbstractResource)(nil)
-	_ GraphNodeAttachProvisionerSchema   = (*NodeAbstractResource)(nil)
-	_ GraphNodeAttachProviderMetaConfigs = (*NodeAbstractResource)(nil)
-	_ GraphNodeTargetable                = (*NodeAbstractResource)(nil)
-	_ graphNodeAttachResourceDependsOn   = (*NodeAbstractResource)(nil)
-	_ dag.GraphNodeDotter                = (*NodeAbstractResource)(nil)
+	_ GraphNodeReferenceable                  = (*NodeAbstractResource)(nil)
+	_ GraphNodeReferencer                     = (*NodeAbstractResource)(nil)
+	_ GraphNodeProviderConsumer               = (*NodeAbstractResource)(nil)
+	_ GraphNodeProvisionerConsumer            = (*NodeAbstractResource)(nil)
+	_ GraphNodeConfigResource                 = (*NodeAbstractResource)(nil)
+	_ GraphNodeAttachResourceConfig           = (*NodeAbstractResource)(nil)
+	_ GraphNodeAttachResourceSchema           = (*NodeAbstractResource)(nil)
+	_ GraphNodeAttachReplaceTriggeredBySchema = (*NodeAbstractResource)(nil)
+	_ GraphNodeAttachProvisionerSchema        = (*NodeAbstractResource)(nil)
+	_ GraphNodeAttachProviderMetaConfigs      = (*NodeAbstractResource)(nil)
+	_ GraphNodeTargetable                     = (*NodeAbstractResource)(nil)
+	_ graphNodeAttachResourceDependsOn        = (*NodeAbstractResource)(nil)
+	_ dag.GraphNodeDotter                     = (*NodeAbstractResource)(nil)
 )
 
 // NewNodeAbstractResource creates an abstract resource graph node for

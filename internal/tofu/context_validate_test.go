@@ -3089,6 +3089,27 @@ resource "test_instance" "b" {
 `,
 			wantError: false,
 		},
+
+		"valid computed attribute references on multiple resources with the same type": {
+			config: `
+resource "test_resource" "a" {}
+resource "test_resource" "b" {}
+resource "test_resource" "c" {}
+resource "test_instance" "d" {}
+
+resource "test_instance" "b" {
+  lifecycle {
+    replace_triggered_by = [
+      test_resource.a.output,
+      test_resource.b.output,
+      test_resource.c.output,
+      test_resource.d.value
+    ]
+  }
+}
+`,
+			wantError: false,
+		},
 		"invalid attribute reference on different resource type": {
 			config: `
 resource "test_instance" "a" {
