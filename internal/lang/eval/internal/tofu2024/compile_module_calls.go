@@ -22,7 +22,7 @@ import (
 
 func compileModuleInstanceModuleCalls(
 	ctx context.Context,
-	configs map[string]*configs.ModuleCall,
+	callConfigs map[string]*configs.ModuleCall,
 	declScope exprs.Scope,
 	providersSidechannel *moduleProvidersSideChannel,
 	parentSourceAddr addrs.ModuleSource,
@@ -30,8 +30,8 @@ func compileModuleInstanceModuleCalls(
 	externalModules evalglue.ExternalModules,
 	parentCall *ModuleInstanceCall,
 ) map[addrs.ModuleCall]*configgraph.ModuleCall {
-	ret := make(map[addrs.ModuleCall]*configgraph.ModuleCall, len(configs))
-	for name, config := range configs {
+	ret := make(map[addrs.ModuleCall]*configgraph.ModuleCall, len(callConfigs))
+	for name, config := range callConfigs {
 		addr := addrs.ModuleCall{Name: name}
 		absAddr := addr.Absolute(moduleInstanceAddr)
 
@@ -105,16 +105,28 @@ func compileModuleInstanceModuleCalls(
 				instanceScope := instanceLocalScope(declScope, repData)
 
 				providersFromParent := make(map[addrs.LocalProviderConfig]*configgraph.OnceValuer)
-				for _, p := range config.Providers {
-					parentAddr := addrs.LocalProviderConfig{
-						LocalName: p.InParent.Name,
-						Alias:     p.InParent.Alias,
+
+				if config.Providers == nil {
+					// Implicit passing (legacy)
+					for addr := range providersSidechannel.instanceVals {
+						providersFromParent[addr] = configgraph.ValuerOnce(providersSidechannel.CompileProviderConfigRef(ctx, addr, &configs.ProviderConfigRef{
+							Name:  addr.LocalName,
+							Alias: addr.Alias,
+						}, instanceScope))
 					}
-					childAddr := addrs.LocalProviderConfig{
-						LocalName: p.InChild.Name,
-						Alias:     p.InChild.Alias,
+				} else {
+					// Explicit passing (modern)
+					for _, p := range config.Providers {
+						parentAddr := addrs.LocalProviderConfig{
+							LocalName: p.InParent.Name,
+							Alias:     p.InParent.Alias,
+						}
+						childAddr := addrs.LocalProviderConfig{
+							LocalName: p.InChild.Name,
+							Alias:     p.InChild.Alias,
+						}
+						providersFromParent[childAddr] = configgraph.ValuerOnce(providersSidechannel.CompileProviderConfigRef(ctx, parentAddr, p.InChild, instanceScope))
 					}
-					providersFromParent[childAddr] = configgraph.ValuerOnce(providersSidechannel.CompileProviderConfigRef(ctx, parentAddr, p.InChild, instanceScope))
 				}
 
 				// TODO: The following is kinda tangled and messy, with a
