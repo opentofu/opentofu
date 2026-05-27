@@ -89,6 +89,8 @@ func compileModuleInstanceInputVariables(_ context.Context, configs map[string]*
 						Subject:  configgraph.MaybeHCLSourceRange(defRange),
 					})
 					return cty.DynamicVal.WithSameMarks(v), diags
+				} else if vc.Default != cty.NilVal {
+					return vc.Default, diags
 				} else {
 					// For a non-required variable we'll provide a placeholder
 					// null value so that the evaluator can treat this the same
