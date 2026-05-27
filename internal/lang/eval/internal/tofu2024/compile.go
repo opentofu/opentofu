@@ -8,6 +8,7 @@ package tofu2024
 import (
 	"context"
 	"iter"
+	"time"
 
 	"github.com/zclconf/go-cty/cty/function"
 
@@ -84,7 +85,7 @@ func CompileModuleInstance(
 	// symbols and all of the available functions.
 	topScope := &moduleInstanceScope{
 		inst:          ret,
-		coreFunctions: compileCoreFunctions(ctx, call.AllowImpureFunctions, call.EvalContext.RootModuleDir),
+		coreFunctions: compileCoreFunctions(ctx, call.AllowImpureFunctions, call.EvalContext.RootModuleDir, call.EvalContext.PlanTimestamp),
 	}
 
 	// We have some shims in here to deal with the unusual way the existing
@@ -167,13 +168,13 @@ func compileCheckRules(configs []*configs.CheckRule, evalScope exprs.Scope) iter
 
 // compileCoreFunctions prepares the table of core functions for inclusion in
 // a module instance scope.
-func compileCoreFunctions(_ context.Context, allowImpureFuncs bool, baseDir string) map[string]function.Function {
+func compileCoreFunctions(_ context.Context, allowImpureFuncs bool, baseDir string, planTimestamp time.Time) map[string]function.Function {
 	// For now we just borrow the functions table setup from the previous
 	// system's concept of "scope".
 	oldScope := lang.Scope{
-		PureOnly: !allowImpureFuncs,
-		BaseDir:  baseDir,
-		// TODO: PlanTimestamp?
+		PureOnly:      !allowImpureFuncs,
+		BaseDir:       baseDir,
+		PlanTimestamp: planTimestamp,
 	}
 	return oldScope.Functions()
 }
