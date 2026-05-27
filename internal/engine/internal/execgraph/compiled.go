@@ -43,6 +43,10 @@ type CompiledGraph struct {
 	// functions have returned.
 	steps []compiledGraphStep
 
+	// resourceInstanceValuesLock protects concurrent reads/writes to
+	// resourceInstanceValues as we overwrite it's entries post resource
+	// execution
+	resourceInstanceValuesLock sync.Mutex
 	// resourceInstanceValues provides a function for each resource instance
 	// that was registered as a "sink" during graph building which blocks
 	// until the final state for that resource instance is available and then
@@ -107,26 +111,31 @@ func (c *CompiledGraph) Execute(ctx context.Context) tfdiags.Diagnostics {
 	return diags
 }
 
-// ResourceInstanceValue blocks until after changes have been applied for the
-// given resource instance address and then returns a [cty.Value] that should
-// represent that resource instance in downstream expression evaluation.
+// ResourceInstanceValue returns the final resource instance value corrsponding with
+// the given address. It expects that for any address requested, the corresponding
+// resource graph node has already executed and recorded a value.
 //
-// Calls to this method should run concurrently with a call to
-// [CompiledGraph.Execute] because otherwise the operations that generate the
-// final state for resource instances will not run and thus will return an error
-// about unplanned or incorrectly dependent resources being required during apply.
+// Calls to this method should run concurrently with a call to [CompiledGraph.Execute]
+// because otherwise the operations that generate the final state for resource
+// instances will not have been run and had it's value recorded.
+//
+// If the resource's value is not available for any reason, a [cty.DynamicVal] will
+// be returned, marked with [ResourceInstanceDependencyMissingMark]. This allows
+// the "unplanned reference" mark to propogate through the rest of the system and be
+// handled in locations where it can generate a detailed error diagnostic.
 func (c *CompiledGraph) ResourceInstanceValue(ctx context.Context, addr addrs.AbsResourceInstance) cty.Value {
+	c.resourceInstanceValuesLock.Lock()
+	defer c.resourceInstanceValuesLock.Unlock()
+
 	getter, ok := c.resourceInstanceValues.GetOk(addr)
 	if !ok {
 		// If we get asked for a resource instance address that wasn't involved
 		// in the plan then we'll assume it was excluded from the plan by
 		// something like the -target option or deferred actions, and so we'll
 		// just return a completely-unknown placeholder to let the rest of the
-		// evaluation proceed. This should be valid as long as the planning
-		// phase made valid and consistent decisions about what to exclude,
-		// such that if a particular resource instance is excluded then any
-		// other resource or provider instance that depends on it must also be
-		// excluded.
+		// evaluation proceed. This value is marked to indicate an issue providing
+		// the corresponding value and should be used to generate a detailed
+		// error message elsewhere.
 		return cty.DynamicVal.Mark(ResourceInstanceDependencyMissingMark{
 			Target: addr.String(),
 			Cause:  ResourceInstanceDependencyMissingCauseNotPlanned,

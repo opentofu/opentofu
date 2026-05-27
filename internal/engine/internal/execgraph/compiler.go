@@ -161,6 +161,7 @@ func (c *compiler) Compile() (*CompiledGraph, tfdiags.Diagnostics) {
 	// evaluation system.
 	for _, elem := range c.sourceGraph.resourceInstanceResults.Elems {
 		instAddr := elem.Key
+		// No lock needed here as the concurrent execution has not yet been started.
 		c.compiledGraph.resourceInstanceValues.Put(instAddr, func(ctx context.Context) cty.Value {
 			return cty.DynamicVal.Mark(ResourceInstanceDependencyMissingMark{
 				Target: instAddr.String(),
