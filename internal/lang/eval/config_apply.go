@@ -8,6 +8,7 @@ package eval
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/zclconf/go-cty/cty"
@@ -39,8 +40,10 @@ type ApplyGlue interface {
 	// no information is available.
 	//
 	// Diagnostics from apply-time actions must be reported through some other
-	// channel controlled by the apply engine itself.
-	ResourceInstanceFinalState(ctx context.Context, addr addrs.AbsResourceInstance) cty.Value
+	// channel controlled by the apply engine itself. The Diagnostics returned
+	// here may only be in reference to an undeclared graph dependency. This may
+	// occur due to differences in ephemerals between plan and apply.
+	ResourceInstanceFinalState(ctx context.Context, addr addrs.AbsResourceInstance) (cty.Value, tfdiags.Diagnostics)
 
 	// Not sure if this should be folded into ResourceInstanceFinalState or not...
 	OpenEphemeralResourceInstance(ctx context.Context, addr addrs.AbsResourceInstance, cfgVal cty.Value, providerInstance addrs.AbsProviderInstanceCorrect) (cty.Value, tfdiags.Diagnostics)
@@ -102,11 +105,11 @@ func (g *applyingEvalGlue) ResourceInstanceValue(ctx context.Context, ri *config
 		if providerInst, ok := configgraph.GetKnown(providerInst); ok {
 			return g.applyEngineGlue.OpenEphemeralResourceInstance(ctx, ri.Addr, cfgVal, providerInst.Addr)
 		}
-		panic("Unhandled unknown provider")
+		log.Printf("[WARN] Provider is not yet known for ephemeral resource %s", ri.Addr)
+		return cty.UnknownVal(cty.DynamicPseudoType), nil
 	}
 
-	finalValue := g.applyEngineGlue.ResourceInstanceFinalState(ctx, ri.Addr)
-	return finalValue, nil
+	return g.applyEngineGlue.ResourceInstanceFinalState(ctx, ri.Addr)
 }
 
 // ValidateProviderConfig implements [evalglue.Glue].

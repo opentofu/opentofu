@@ -142,7 +142,9 @@ func TestCompiler_resourceInstanceBasics(t *testing.T) {
 		close(diagsCh)
 	})
 
-	gotValue := compiledGraph.ResourceInstanceValue(grapheval.ContextWithNewWorker(t.Context()), resourceInstAddr)
+	wg.Wait()
+
+	gotValue, _ := compiledGraph.ResourceInstanceValue(grapheval.ContextWithNewWorker(t.Context()), resourceInstAddr)
 	wantValue := cty.ObjectVal(map[string]cty.Value{
 		"name": cty.StringVal("thingy"),
 	})
@@ -150,7 +152,6 @@ func TestCompiler_resourceInstanceBasics(t *testing.T) {
 		t.Errorf("wrong result for %s: %s", resourceInstAddr, diff)
 	}
 
-	wg.Wait()
 	diags = <-diagsCh
 	if diags.HasErrors() {
 		t.Fatal("unexpected execute errors\n" + diags.Err().Error())

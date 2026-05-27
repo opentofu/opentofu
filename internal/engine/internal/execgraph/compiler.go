@@ -32,7 +32,7 @@ import (
 // CompiledGraph object before executing the graph.
 func (g *Graph) Compile(ops exec.Operations) (*CompiledGraph, tfdiags.Diagnostics) {
 	ret := &CompiledGraph{
-		resourceInstanceValues: addrs.MakeMap[addrs.AbsResourceInstance, func(ctx context.Context) cty.Value](),
+		resourceInstanceValues: addrs.MakeMap[addrs.AbsResourceInstance, func(ctx context.Context) (cty.Value, tfdiags.Diagnostics)](),
 		cleanupWorker:          workgraph.NewWorker(),
 	}
 	c := &compiler{
@@ -161,18 +161,17 @@ func (c *compiler) Compile() (*CompiledGraph, tfdiags.Diagnostics) {
 	// evaluation system.
 	for _, elem := range c.sourceGraph.resourceInstanceResults.Elems {
 		instAddr := elem.Key
-		ref := elem.Value
-		execFunc := c.compileResultRef(ref)
-		c.compiledGraph.resourceInstanceValues.Put(instAddr, func(ctx context.Context) cty.Value {
-			rawResult, ok, _ := execFunc(ctx)
-			if !ok {
-				return cty.DynamicVal
-			}
-			finalStateObj := rawResult.(*exec.ResourceInstanceObject)
-			if finalStateObj == nil {
-				return cty.NullVal(cty.DynamicPseudoType)
-			}
-			return finalStateObj.State.Value
+		c.compiledGraph.resourceInstanceValues.Put(instAddr, func(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+			return cty.DynamicVal, tfdiags.Diagnostics{tfdiags.Sourceless(
+				tfdiags.Error,
+				"Invalid resource action",
+				`The value of resource %s was requested during apply, but was not yet present in the planned execution order. This may be caused by one of the following options:
+- Ephemeral values requiring different dependencies between plan and apply (unsupported)
+- An edge case of -target or -exclude
+- A bug in OpenTofu
+
+Please inspect your configuration and open a bug report if nessesary.`,
+			)}
 		})
 	}
 
