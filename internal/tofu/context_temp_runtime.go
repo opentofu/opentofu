@@ -11,6 +11,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -87,10 +88,15 @@ func (c *Context) newEngineShim(ctx context.Context, config *configs.Config, inp
 
 	tempLoader, _ := configload.NewLoader(&configload.Config{})
 
+	owd := "."
+	if c.meta != nil { // Hack for tests, remove someday
+		owd = c.meta.OriginalWorkingDir
+	}
+
 	plugins := plugins.NewRuntimePluginsTemp(c.plugins.providers, c.plugins.provisioners)
 	evalCtx := &eval.EvalContext{
 		RootModuleDir:      config.Module.SourceDir,
-		OriginalWorkingDir: c.meta.OriginalWorkingDir,
+		OriginalWorkingDir: owd,
 		Modules: &newRuntimeModules{
 			loader: tempLoader,
 		},
@@ -229,6 +235,14 @@ func (n *newRuntimeModules) ModuleConfig(ctx context.Context, source addrs.Modul
 	case addrs.ModuleSourceLocal:
 		sourceDir = filepath.Clean(filepath.FromSlash(string(source)))
 	default:
+		// Hack in support for file:// paths to allow existing tests to run
+		// This should be removed once support is added for [addrs.ModuleSourceRemote]
+		str := source.String()
+		if strings.HasPrefix(str, "file://") {
+			sourceDir = strings.TrimPrefix(str, "file://")
+			break
+		}
+
 		// For this early stub implementation we only support local source
 		// addresses. We'll expand this later but that'll require this codepath
 		// to have access to the information about what's in the module cache
