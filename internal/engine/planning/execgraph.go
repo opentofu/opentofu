@@ -64,16 +64,3 @@ func (b *execGraphBuilder) Finish() *execgraph.Graph {
 	defer b.mu.Unlock()
 	return b.lower.Finish()
 }
-
-// makeCloseBlocker is a helper used by [execGraphBuilder] methods that produce
-// open/close node pairs.
-//
-// Callers MUST hold a lock on b.mu throughout any call to this method, AND
-// when calling the returned callback.
-func (b *execGraphBuilder) makeCloseBlocker() (execgraph.AnyResultRef, func(execgraph.AnyResultRef)) {
-	waiter, lowerRegister := b.lower.MutableWaiter()
-	registerFunc := func(ref execgraph.AnyResultRef) {
-		lowerRegister(ref)
-	}
-	return waiter, registerFunc
-}

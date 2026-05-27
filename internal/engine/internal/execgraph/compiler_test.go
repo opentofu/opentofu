@@ -78,8 +78,7 @@ func TestCompiler_resourceInstanceBasics(t *testing.T) {
 	// only the part that relates to this package in particular since we're
 	// focused only on testing the compiler and our ability to execute what
 	// it produces.
-	var ops *mockOperations
-	ops = &mockOperations{
+	ops := &mockOperations{
 		ResourceInstanceDesiredFunc: func(ctx context.Context, addr addrs.AbsResourceInstance) (*eval.DesiredResourceInstance, tfdiags.Diagnostics) {
 			if !addr.Equal(resourceInstAddr) {
 				return nil, nil
