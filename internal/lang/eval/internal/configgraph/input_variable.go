@@ -95,11 +95,16 @@ func (i *InputVariable) Value(ctx context.Context) (cty.Value, tfdiags.Diagnosti
 			func(ruleDeclRange tfdiags.SourceRange, status checks.Status, errMsg string) tfdiags.Diagnostics {
 				var diags tfdiags.Diagnostics
 				if status == checks.StatusFail {
+					var srcRange *hcl.Range
+					valueRange := i.ValueSourceRange()
+					if valueRange != nil {
+						srcRange = valueRange.ToHCL().Ptr()
+					}
 					diags = diags.Append(&hcl.Diagnostic{
 						Severity: hcl.DiagError,
 						Summary:  "Invalid value for input variable",
 						Detail:   fmt.Sprintf("%s\n\nThis problem was reported by the validation rule at %s.", errMsg, ruleDeclRange.StartString()),
-						Subject:  i.ValueSourceRange().ToHCL().Ptr(),
+						Subject:  srcRange,
 					})
 				}
 				return diags
