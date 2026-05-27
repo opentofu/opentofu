@@ -7,7 +7,9 @@ package applying
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/internal/common"
 	"github.com/opentofu/opentofu/internal/providers"
@@ -25,6 +27,14 @@ func newProviderInstances(execOperations *execOperations) *common.ProviderInstan
 		configVal, diags := oracle.ProviderInstanceConfig(ctx, addr)
 		if diags.HasErrors() {
 			return nil, diags
+		}
+
+		if !configVal.IsWhollyKnown() {
+			return nil, tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid provider configuration",
+				Detail:   fmt.Sprintf("The configuration for %s depends on values that cannot be determined until apply.", addr),
+			})
 		}
 
 		// If _this_ call fails then unfortunately we'll end up duplicating
