@@ -69,7 +69,7 @@ type evalGlue struct {
 }
 
 // ResourceInstanceFinalState implements [eval.ApplyGlue].
-func (e *evalGlue) ResourceInstanceFinalState(ctx context.Context, addr addrs.AbsResourceInstance) (cty.Value, tfdiags.Diagnostics) {
+func (e *evalGlue) ResourceInstanceFinalState(ctx context.Context, addr addrs.AbsResourceInstance) cty.Value {
 	return e.graph.ResourceInstanceValue(ctx, addr)
 }
 

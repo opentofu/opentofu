@@ -12,10 +12,65 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/internal/exec"
+	"github.com/opentofu/opentofu/internal/engine/internal/execgraph"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/ctymarks"
 )
+
+const resourceDependencyMissingDetail = `The value of resource %s was requested by %s during apply, %s.
+This may be caused by one of the following options:
+  - Ephemeral values requiring different dependencies between plan and apply (unsupported)
+  - An edge case of -target or -exclude
+  - A bug in OpenTofu
+
+Please inspect your configuration and open a bug report if nessesary.`
+
+func (ops *execOperations) resourceDependenciesMissingCheck(idType string, idName string, cfgVal cty.Value) (cty.Value, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
+	cfgVal, marks := ops.resourceDependenciesMissingMarks(cfgVal)
+	for _, mark := range marks {
+		switch mark.Cause {
+		case execgraph.ResourceInstanceDependencyMissingCauseNotPlanned:
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				fmt.Sprintf("Invalid %s action", idType),
+				fmt.Sprintf(resourceDependencyMissingDetail, mark.Target, idName, "but was not present in the plan"),
+			))
+		case execgraph.ResourceInstanceDependencyMissingCauseNotExecuted:
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				fmt.Sprintf("Invalid %s action", idType),
+				fmt.Sprintf(resourceDependencyMissingDetail, mark.Target, idName, "but was not yet present in the planned execution order"),
+			))
+
+		}
+	}
+
+	return cfgVal, diags
+}
+
+func (ops *execOperations) resourceDependenciesMissingMarks(cfgVal cty.Value) (cty.Value, []execgraph.ResourceInstanceDependencyMissingMark) {
+	marksMap := map[execgraph.ResourceInstanceDependencyMissingMark]struct{}{}
+
+	cfgVal, _ = cfgVal.WrangleMarksDeep(func(mark any, path cty.Path) (ctymarks.WrangleAction, error) {
+		if ourMark, isOurMark := mark.(execgraph.ResourceInstanceDependencyMissingMark); isOurMark {
+			marksMap[ourMark] = struct{}{}
+			return ctymarks.WrangleDrop, nil
+		}
+		return nil, nil // leave all other marks alone
+	})
+
+	var marks []execgraph.ResourceInstanceDependencyMissingMark
+	for mark := range marksMap {
+		marks = append(marks, mark)
+	}
+
+	return cfgVal, marks
+}
 
 // ResourceInstanceDesired implements [exec.Operations].
 func (ops *execOperations) ResourceInstanceDesired(

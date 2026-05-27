@@ -18,6 +18,19 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
+type ResourceInstanceDependencyMissingCause int
+
+const (
+	ResourceInstanceDependencyMissingCauseInvalid = iota
+	ResourceInstanceDependencyMissingCauseNotPlanned
+	ResourceInstanceDependencyMissingCauseNotExecuted
+)
+
+type ResourceInstanceDependencyMissingMark struct {
+	Target string // addrs.AbsResourceInstance
+	Cause  ResourceInstanceDependencyMissingCause
+}
+
 type CompiledGraph struct {
 	// steps is the main essence of a compiled graph: a series of functions
 	// that we'll run all at once, one goroutine each, and then wait until
@@ -35,7 +48,7 @@ type CompiledGraph struct {
 	// until the final state for that resource instance is available and then
 	// returns the object value to represent the resource instance in downstream
 	// expression evaluation.
-	resourceInstanceValues addrs.Map[addrs.AbsResourceInstance, func(ctx context.Context) (cty.Value, tfdiags.Diagnostics)]
+	resourceInstanceValues addrs.Map[addrs.AbsResourceInstance, func(ctx context.Context) cty.Value]
 
 	// cleanupWorker is the workgraph worker that is initially responsible
 	// for resolving all of the workgraph requests created by the compiler,
@@ -102,7 +115,7 @@ func (c *CompiledGraph) Execute(ctx context.Context) tfdiags.Diagnostics {
 // [CompiledGraph.Execute] because otherwise the operations that generate the
 // final state for resource instances will not run and thus will return an error
 // about unplanned or incorrectly dependent resources being required during apply.
-func (c *CompiledGraph) ResourceInstanceValue(ctx context.Context, addr addrs.AbsResourceInstance) (cty.Value, tfdiags.Diagnostics) {
+func (c *CompiledGraph) ResourceInstanceValue(ctx context.Context, addr addrs.AbsResourceInstance) cty.Value {
 	getter, ok := c.resourceInstanceValues.GetOk(addr)
 	if !ok {
 		// If we get asked for a resource instance address that wasn't involved
@@ -114,17 +127,10 @@ func (c *CompiledGraph) ResourceInstanceValue(ctx context.Context, addr addrs.Ab
 		// such that if a particular resource instance is excluded then any
 		// other resource or provider instance that depends on it must also be
 		// excluded.
-		return cty.DynamicVal, tfdiags.Diagnostics{tfdiags.Sourceless(
-			tfdiags.Error,
-			"Invalid resource action",
-			`The value of resource %s was requested during apply, but was not present in the plan. This may be caused by one of the following options:
-- Ephemeral values requiring different dependencies between plan and apply (unsupported)
-- An edge case of -target or -exclude
-- A bug in OpenTofu
-
-Please inspect your configuration and open a bug report if nessesary.
-			`,
-		)}
+		return cty.DynamicVal.Mark(ResourceInstanceDependencyMissingMark{
+			Target: addr.String(),
+			Cause:  ResourceInstanceDependencyMissingCauseNotPlanned,
+		})
 	}
 	return getter(ctx)
 }

@@ -41,6 +41,11 @@ func TestCompiler_resourceInstanceBasics(t *testing.T) {
 		Type: "bar_thing",
 		Name: "example",
 	}.Absolute(addrs.RootModuleInstance).Instance(addrs.NoKey)
+	resourceInstAddrMissing := addrs.Resource{
+		Mode: addrs.ManagedResourceMode,
+		Type: "bar_thing",
+		Name: "missing",
+	}.Absolute(addrs.RootModuleInstance).Instance(addrs.NoKey)
 	providerAddr := addrs.MustParseProviderSourceString("example.com/foo/bar")
 	providerInstAddr := addrs.AbsProviderInstanceCorrect{
 		Config: addrs.AbsProviderConfigCorrect{
@@ -135,6 +140,20 @@ func TestCompiler_resourceInstanceBasics(t *testing.T) {
 		t.Fatal("unexpected compile errors\n" + diags.Err().Error())
 	}
 
+	// Simulate asking for a resource before it's executed
+	gotValue := compiledGraph.ResourceInstanceValue(grapheval.ContextWithNewWorker(t.Context()), resourceInstAddr)
+	wantValue := cty.DynamicVal.Mark(ResourceInstanceDependencyMissingMark{Target: resourceInstAddr.String(), Cause: ResourceInstanceDependencyMissingCauseNotExecuted})
+	if diff := gcmp.Diff(wantValue, gotValue, ctydebug.CmpOptions); diff != "" {
+		t.Errorf("wrong result for %s: %s", resourceInstAddr, diff)
+	}
+
+	// Simulate asking for a resource that is not in the plan
+	gotValue = compiledGraph.ResourceInstanceValue(grapheval.ContextWithNewWorker(t.Context()), resourceInstAddrMissing)
+	wantValue = cty.DynamicVal.Mark(ResourceInstanceDependencyMissingMark{Target: resourceInstAddrMissing.String(), Cause: ResourceInstanceDependencyMissingCauseNotPlanned})
+	if diff := gcmp.Diff(wantValue, gotValue, ctydebug.CmpOptions); diff != "" {
+		t.Errorf("wrong result for %s: %s", resourceInstAddr, diff)
+	}
+
 	var wg sync.WaitGroup
 	diagsCh := make(chan tfdiags.Diagnostics, 1)
 	wg.Go(func() {
@@ -144,8 +163,8 @@ func TestCompiler_resourceInstanceBasics(t *testing.T) {
 
 	wg.Wait()
 
-	gotValue, _ := compiledGraph.ResourceInstanceValue(grapheval.ContextWithNewWorker(t.Context()), resourceInstAddr)
-	wantValue := cty.ObjectVal(map[string]cty.Value{
+	gotValue = compiledGraph.ResourceInstanceValue(grapheval.ContextWithNewWorker(t.Context()), resourceInstAddr)
+	wantValue = cty.ObjectVal(map[string]cty.Value{
 		"name": cty.StringVal("thingy"),
 	})
 	if diff := gcmp.Diff(wantValue, gotValue, ctydebug.CmpOptions); diff != "" {

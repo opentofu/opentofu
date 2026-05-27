@@ -72,7 +72,11 @@ func (ops *execOperations) ManagedFinalPlan(
 	var desiredVal, currentVal cty.Value
 	var currentPrivate []byte
 	if desired != nil {
-		desiredVal = desired.ConfigVal
+		desiredVal, moreDiags = ops.resourceDependenciesMissingCheck("resource", instAddr.String(), desired.ConfigVal)
+		diags = diags.Append(moreDiags)
+		if moreDiags.HasErrors() {
+			return nil, diags
+		}
 	}
 	if prior != nil {
 		currentVal = prior.State.Value

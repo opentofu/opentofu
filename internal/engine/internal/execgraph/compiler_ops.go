@@ -136,11 +136,11 @@ func (c *compiler) compileOpManagedApply(operands *compilerOperands) nodeExecute
 		// TODO: Also call ops.ResourceInstancePostconditions if we produced a non-nil result
 		log.Printf("[WARN] opManagedApply doesn't yet handle postconditions")
 
-		c.compiledGraph.resourceInstanceValues.Put(finalPlan.InstanceAddr, func(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+		c.compiledGraph.resourceInstanceValues.Put(finalPlan.InstanceAddr, func(ctx context.Context) cty.Value {
 			if ret == nil {
-				return cty.NullVal(cty.DynamicPseudoType), nil
+				return cty.NullVal(cty.DynamicPseudoType)
 			}
-			return ret.State.Value, nil
+			return ret.State.Value
 		})
 
 		return ret, !diags.HasErrors(), diags
