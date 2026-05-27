@@ -76,3 +76,10 @@ Reference: [link](https://opentofu.org/docs/language/expressions/)
 
 ### Variable (HCL)
 Anything that's available to refer to in the current evaluation context.
+
+## General documentation
+
+### `resource` vs `object`
+In contexts discussing the relationship or interaction between the `resource` HCL block and the associated remote object that it handles, it's recommended to use "resource" for the HCL block and "object" for the remote object (handled by the provider).
+
+Reference: [link](https://github.com/opentofu/opentofu/pull/4153)
