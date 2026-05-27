@@ -7,7 +7,9 @@ package tofu2024
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -65,7 +67,16 @@ func compileModuleInstanceResource(
 		resourceAddr.Type,
 	)
 	if diags.HasErrors() {
-		configEvalable = exprs.ForcedErrorEvalable(diags, tfdiags.SourceRangeFromHCL(config.DeclRange))
+		configEvalable = exprs.ForcedErrorEvalable(diags, tfdiags.SourceRangeFromHCL(config.TypeRange))
+	} else if resourceTypeSchema == nil {
+		suggestion := "TODO suggestion" //TODO NodeValidatableResource.noResourceSchemaSuggestion
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid resource type",
+			Detail:   fmt.Sprintf("The provider %s does not support resource type %q.%s", config.Provider.ForDisplay(), resourceAddr.Type, suggestion),
+			Subject:  config.TypeRange.Ptr(),
+		})
+		configEvalable = exprs.ForcedErrorEvalable(diags, tfdiags.SourceRangeFromHCL(config.TypeRange))
 	} else {
 		spec := resourceTypeSchema.Block.DecoderSpec()
 		configEvalable = exprs.EvalableHCLBodyWithDynamicBlocks(config.Config, spec)
