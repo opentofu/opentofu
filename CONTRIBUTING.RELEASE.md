@@ -299,6 +299,12 @@ We do not release documentation for non-stable releases, any links should point 
    cp versioned_sidebars/version-v1.11-sidebars.json versioned_sidebars/version-vX.Y-sidebars.json
    cd versioned_docs && ln -s ../opentofu-repo/vX.Y/website/docs version-vX.Y
    ```
+8. Recreate the `docs` symlink in the root of the repository to refer to the `website` directory from the newly-added submodule, so that the new branch is used for unversioned doc URLs.
+   ```shell
+   # (make sure that your current working directory is the repository root)
+   rm docs
+   ln -s opentofu-repo/vX.Y/website/docs docs
+   ```
 
 </details>
 
