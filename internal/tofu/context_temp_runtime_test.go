@@ -21,17 +21,20 @@ type ExperimentalFlag string
 const (
 	ExperimentalFlagUnknown ExperimentalFlag = "Unknown"
 
-	ExperimentalBugCancel ExperimentalFlag = "Bug Context Cancel"
+	ExperimentalBugCancel        ExperimentalFlag = "Bug Context Cancel"
+	ExperimentalBugStateProvider ExperimentalFlag = "Bug State Provider"
 
-	ExperimentalFeatureCBD        ExperimentalFlag = "Missing Create Before Destroy"
-	ExperimentalFeatureDeposed    ExperimentalFlag = "Missing Deposed"
-	ExperimentalFeatureCondition  ExperimentalFlag = "Missing Pre/Post Conditions"
-	ExperimentalFeatureLocalState ExperimentalFlag = "Missing Store locals in state"
-	ExperimentalFeatureChecks     ExperimentalFlag = "Missing Checks"
-	ExperimentalFeatureChanges    ExperimentalFlag = "Missing Plan Changes"
-	ExperimentalFeatureDeprecated ExperimentalFlag = "Missing Deprecated"
-	ExperimentalFeatureImport     ExperimentalFlag = "Missing Importing"
-	ExperimentalFeatureRefresh    ExperimentalFlag = "Missing Refresh"
+	ExperimentalFeatureCBD         ExperimentalFlag = "Missing Create Before Destroy"
+	ExperimentalFeatureDeposed     ExperimentalFlag = "Missing Deposed"
+	ExperimentalFeatureCondition   ExperimentalFlag = "Missing Pre/Post Conditions"
+	ExperimentalFeatureLocalState  ExperimentalFlag = "Missing Store locals in state"
+	ExperimentalFeatureChecks      ExperimentalFlag = "Missing Checks"
+	ExperimentalFeatureChanges     ExperimentalFlag = "Missing Plan Changes"
+	ExperimentalFeatureDeprecated  ExperimentalFlag = "Missing Deprecated"
+	ExperimentalFeatureImport      ExperimentalFlag = "Missing Importing"
+	ExperimentalFeatureRefresh     ExperimentalFlag = "Missing Refresh"
+	ExperimentalFeatureRemoved     ExperimentalFlag = "Missing Removed"
+	ExperimentalFeatureSkipDestroy ExperimentalFlag = "Missing Lifecycle Destroy"
 )
 
 func SkipExperimental(t *testing.T, features ...ExperimentalFlag) {
