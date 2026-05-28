@@ -9173,3 +9173,59 @@ func TestContext2Plan_moduleDependsOnWithCheck(t *testing.T) {
 		t.Fatalf("unexpected errors: %s", diags.Err())
 	}
 }
+
+// TestContext2Plan_enabledOnDeprecatedModuleOutput is a regression test for
+// https://github.com/opentofu/opentofu/issues/4161
+// "panic: value is marked, so must be unmarked first in EvaluateEnabledExpression during plan"
+//
+// When a module output is marked as deprecated and that output value is used in another resource
+// lifecycle.enabled, a panic was encountered due to the value being still marked.
+func TestContext2Plan_enabledOnDeprecatedModuleOutput(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		"mod/main.tf": `
+output "trigger" {
+  value      = true
+  deprecated = "use other"
+}`,
+		"main.tf": `
+module "m" {
+  source = "./mod"
+}
+
+resource "test_resource" "example" {
+  lifecycle {
+    enabled = module.m.trigger
+  }
+}
+`,
+	})
+
+	p := &MockProvider{
+		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+			Provider: providers.Schema{Block: &configschema.Block{}},
+			ResourceTypes: map[string]providers.Schema{
+				"test_resource": {Block: &configschema.Block{}},
+			},
+		},
+	}
+	ctx := testContext2(t, &ContextOpts{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		}, nil),
+	})
+
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
+	if diags.HasErrors() {
+		t.Errorf("unexpected errors: %s", diags.Err())
+	}
+	if plan == nil {
+		t.Fatalf("expected a plan but got nothing")
+	}
+	if changes := len(plan.Changes.Resources); changes != 1 {
+		t.Fatalf("expected to have exactly one resource change but got %d", changes)
+	}
+	res := plan.Changes.Resources[0]
+	if got, want := res.Addr.String(), "test_resource.example"; got != want {
+		t.Errorf("unexpected resource in the changes. Wanted %q but got %q", want, got)
+	}
+}

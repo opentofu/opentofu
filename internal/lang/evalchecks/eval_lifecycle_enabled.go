@@ -61,6 +61,11 @@ func EvaluateEnabledExpression(expr hcl.Expression, hclCtxFunc ContextFunc) (boo
 		})
 	}
 
+	// At the moment of writing this, we don't care about other marks here so we strip all of them off to be able
+	// to work with the value in a safe manner.
+	// NOTE: whenever a new mark is introduce, check this function and handle the new mark properly if needed.
+	rawEnabledVal, _ = rawEnabledVal.UnmarkDeep()
+
 	if rawEnabledVal.IsNull() {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity:    hcl.DiagError,
