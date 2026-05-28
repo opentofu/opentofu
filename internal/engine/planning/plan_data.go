@@ -39,6 +39,7 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 		ret.Dependencies.Add(dep.CurrentObject())
 	}
 
+	// TODO resourceType.ValidateConfig
 	validateDiags := p.planCtx.providers.ValidateResourceConfig(ctx, inst.Provider, inst.ResourceMode, inst.ResourceType, inst.ConfigVal)
 	diags = diags.Append(validateDiags)
 	if diags.HasErrors() {
