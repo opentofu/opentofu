@@ -50,6 +50,8 @@ func PlanChanges(ctx context.Context, prevRoundState *states.State, configInst *
 		return &planGlue{
 			planCtx: planCtx,
 			oracle:  oracle,
+
+			providerInstances: newProviderInstances(planCtx, oracle),
 		}
 	})
 	diags = diags.Append(moreDiags)

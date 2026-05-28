@@ -9,7 +9,10 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"slices"
+	"sync"
 
+	"github.com/opentofu/opentofu/internal/engine/internal/common"
 	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/engine/internal/execgraph"
 	"github.com/opentofu/opentofu/internal/engine/plugins"
@@ -55,6 +58,17 @@ type execOperations struct {
 	// plugins are the provider and provisioner plugins we have available for
 	// use during the apply phase.
 	plugins plugins.Plugins
+
+	providerInstances *common.ProviderInstances
+
+	// Stack of ephemeral and provider close functions
+	// Given the current state of the planning engine, we wait until
+	// the end of the run to close all of the "opened" items.  We
+	// also need to close them in a specific order to prevent dependency
+	// conflicts. We posit that for plan, closing in the reverse order of opens
+	// will ensure that this order is correctly preserved.
+	closeStackMu sync.Mutex
+	closeStack   []func(context.Context) tfdiags.Diagnostics
 }
 
 // The main operation methods of execOperations are spread across the separate
@@ -97,6 +111,7 @@ func compileExecutionGraph(ctx context.Context, plan *plans.Plan, oracle *eval.A
 	ops.workingState = plan.PriorState.DeepCopy().SyncWrapper()
 	ops.configOracle = oracle
 	ops.plugins = plugins
+	ops.providerInstances = newProviderInstances(ops)
 
 	return execGraph, compiledGraph, ops, diags
 }
@@ -106,7 +121,9 @@ func compileExecutionGraph(ctx context.Context, plan *plans.Plan, oracle *eval.A
 // This function must be called only once execution is complete and no other
 // calls to methods of this type are running concurrently. After calling this
 // function the operations object is invalid and must not be used anymore.
-func (ops *execOperations) Finish(_ context.Context) (*states.State, tfdiags.Diagnostics) {
+func (ops *execOperations) Finish(ctx context.Context) (*states.State, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
 	finalState := ops.workingState.Close()
 
 	// This operations object is now invalid and must not be used any further,
@@ -117,8 +134,17 @@ func (ops *execOperations) Finish(_ context.Context) (*states.State, tfdiags.Dia
 	ops.plugins = nil
 	ops.configOracle = nil
 
+	// Ensure all of the opened ephemerals and providers are closed in the appropriate order.
+	ops.closeStackMu.Lock()
+	slices.Reverse(ops.closeStack)
+	for _, closer := range ops.closeStack {
+		diags = diags.Append(closer(ctx))
+	}
+	ops.closeStack = nil
+	ops.closeStackMu.Unlock()
+
 	// This function returns diagnostics to reserve the right to do fallible
 	// encoding or flushing operations here in future, but for right now we're
 	// just returning the state data structure directly and so this cannot fail.
-	return finalState, nil
+	return finalState, diags
 }

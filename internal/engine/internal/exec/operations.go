@@ -44,41 +44,6 @@ import (
 // execution grow and change.
 type Operations interface {
 	//////////////////////////////////////////////////////////////////////////////
-	//// Provider-related operations
-	//////////////////////////////////////////////////////////////////////////////
-
-	// ProviderInstanceConfig determines what configuration value should be used
-	// to configure the provider instance at the given address.
-	//
-	// Real implementations of this use the configuration evaluator to
-	// finalize the provider configuration based on other values that have been
-	// previously resolved. A valid execution graph ensures that this method is
-	// not called until all of the required upstream values are available.
-	ProviderInstanceConfig(
-		ctx context.Context,
-		instAddr addrs.AbsProviderInstanceCorrect,
-	) (*ProviderInstanceConfig, tfdiags.Diagnostics)
-
-	// ProviderInstanceOpen attempts to launch and configure a provider plugin
-	// using the given configuration.
-	ProviderInstanceOpen(
-		ctx context.Context,
-		config *ProviderInstanceConfig,
-	) (*ProviderClient, tfdiags.Diagnostics)
-
-	// ProviderInstanceClose shuts down a previously-opened provider plugin.
-	//
-	// A valid execution graph ensures that this is called only after all other
-	// operations using the given client have either completed or have been
-	// cancelled due to an upstream error, and so implementers can assume the
-	// client is not currently being used elsewhere and will not be used again
-	// after this method returns.
-	ProviderInstanceClose(
-		ctx context.Context,
-		client *ProviderClient,
-	) tfdiags.Diagnostics
-
-	//////////////////////////////////////////////////////////////////////////////
 	//// Resource-related operations that are relevant to multiple resource modes.
 	//// (mode-specific operations follow below)
 	//////////////////////////////////////////////////////////////////////////////
@@ -150,7 +115,6 @@ type Operations interface {
 		desired *eval.DesiredResourceInstance,
 		prior *ResourceInstanceObject,
 		plannedVal cty.Value,
-		providerClient *ProviderClient,
 	) (*ManagedResourceObjectFinalPlan, tfdiags.Diagnostics)
 
 	// ManagedApply uses the given provider client to apply the given plan.
@@ -188,7 +152,6 @@ type Operations interface {
 		ctx context.Context,
 		plan *ManagedResourceObjectFinalPlan,
 		fallback *ResourceInstanceObject,
-		providerClient *ProviderClient,
 	) (*ResourceInstanceObject, tfdiags.Diagnostics)
 
 	// ManagedDepose takes a "current" object for some resource instance and
@@ -284,52 +247,5 @@ type Operations interface {
 		ctx context.Context,
 		desired *eval.DesiredResourceInstance,
 		plannedVal cty.Value,
-		providerClient *ProviderClient,
 	) (*ResourceInstanceObject, tfdiags.Diagnostics)
-
-	//////////////////////////////////////////////////////////////////////////////
-	/// Resource-related operations that are relevant only for ephemeral resources.
-	//////////////////////////////////////////////////////////////////////////////
-
-	// EphemeralOpen uses the given provider client to "open" the given
-	// ephemeral resource instance, making it ready for indirect use by
-	// subsequent operations that rely on its results.
-	//
-	// If the provider requires periodic "renewal" of the ephemeral object
-	// then the implementer of this method must arrange for that to happen
-	// until either the corresponding call to [EphemeralClose] or until
-	// execution has completed without such a call, typically due to an error
-	// having occurred along the way. Renewal is considered an implementation
-	// detail of whatever is managing a provider's operation, with the execution
-	// graph just assuming that ephemeral objects remain valid _somehow_ for
-	// the full duration of their use.
-	EphemeralOpen(
-		ctx context.Context,
-		desired *eval.DesiredResourceInstance,
-		providerClient *ProviderClient,
-	) (*OpenEphemeralResourceInstance, tfdiags.Diagnostics)
-
-	// EphemeralState refines the open ephemeral resource instance into the
-	// required resource object state
-	//
-	// Execution graph processing automatically passes the result of this
-	// function to [Operations.ResourceInstancePostconditions] when appropriate,
-	// propagating any additional diagnostics it returns, and so implementers of
-	// this method should not attempt to handle postconditions themselves.
-	EphemeralState(
-		ctx context.Context,
-		ephemeral *OpenEphemeralResourceInstance,
-	) (*ResourceInstanceObject, tfdiags.Diagnostics)
-
-	// EphemeralClose calls Close on the open ephemeral resource instance
-	//
-	// A valid execution graph ensures that this is called only after all other
-	// operations using the given object have either completed or have been
-	// cancelled due to an upstream error, and so implementers can assume the
-	// object is not currently being used elsewhere and will not be used again
-	// after this method returns.
-	EphemeralClose(
-		ctx context.Context,
-		ephemeral *OpenEphemeralResourceInstance,
-	) tfdiags.Diagnostics
 }

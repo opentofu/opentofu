@@ -101,12 +101,6 @@ func (c *compiler) Compile() (*CompiledGraph, tfdiags.Diagnostics) {
 		operands := newCompilerOperands(opDesc.opCode, c.compileOperands(opDesc.operands))
 		var compileFunc func(operands *compilerOperands) nodeExecuteRaw
 		switch opDesc.opCode {
-		case opProviderInstanceConfig:
-			compileFunc = c.compileOpProviderInstanceConfig
-		case opProviderInstanceOpen:
-			compileFunc = c.compileOpProviderInstanceOpen
-		case opProviderInstanceClose:
-			compileFunc = c.compileOpProviderInstanceClose
 		case opResourceInstanceDesired:
 			compileFunc = c.compileOpResourceInstanceDesired
 		case opResourceInstancePrior:
@@ -123,12 +117,6 @@ func (c *compiler) Compile() (*CompiledGraph, tfdiags.Diagnostics) {
 			compileFunc = c.compileOpManagedChangeAddr
 		case opDataRead:
 			compileFunc = c.compileOpDataRead
-		case opEphemeralOpen:
-			compileFunc = c.compileOpEphemeralOpen
-		case opEphemeralState:
-			compileFunc = c.compileOpEphemeralState
-		case opEphemeralClose:
-			compileFunc = c.compileOpEphemeralClose
 		default:
 			c.diags = c.diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
@@ -173,18 +161,12 @@ func (c *compiler) Compile() (*CompiledGraph, tfdiags.Diagnostics) {
 	// evaluation system.
 	for _, elem := range c.sourceGraph.resourceInstanceResults.Elems {
 		instAddr := elem.Key
-		ref := elem.Value
-		execFunc := c.compileResultRef(ref)
+		// No lock needed here as the concurrent execution has not yet been started.
 		c.compiledGraph.resourceInstanceValues.Put(instAddr, func(ctx context.Context) cty.Value {
-			rawResult, ok, _ := execFunc(ctx)
-			if !ok {
-				return cty.DynamicVal
-			}
-			finalStateObj := rawResult.(*exec.ResourceInstanceObject)
-			if finalStateObj == nil {
-				return cty.NullVal(cty.DynamicPseudoType)
-			}
-			return finalStateObj.State.Value
+			return cty.DynamicVal.Mark(ResourceInstanceDependencyMissingMark{
+				Target: instAddr.String(),
+				Cause:  ResourceInstanceDependencyMissingCauseNotExecuted,
+			})
 		})
 	}
 

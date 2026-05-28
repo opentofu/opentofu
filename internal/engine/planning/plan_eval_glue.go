@@ -15,6 +15,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/collections"
+	"github.com/opentofu/opentofu/internal/engine/internal/common"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
@@ -30,6 +31,8 @@ import (
 type planGlue struct {
 	planCtx *planContext
 	oracle  *eval.PlanningOracle
+
+	providerInstances *common.ProviderInstances
 }
 
 var _ eval.PlanGlue = (*planGlue)(nil)
@@ -58,7 +61,8 @@ func (p *planGlue) PlanDesiredResourceInstance(ctx context.Context, inst *eval.D
 	case addrs.DataResourceMode:
 		obj, diags = p.planDesiredDataResourceInstance(ctx, inst)
 	case addrs.EphemeralResourceMode:
-		obj, diags = p.planDesiredEphemeralResourceInstance(ctx, inst)
+		// Ephemerals are not part of the resource graph
+		return p.planDesiredEphemeralResourceInstance(ctx, inst)
 	default:
 		// We should not get here because the cases above should always be
 		// exhaustive for all of the valid resource modes.
@@ -289,7 +293,7 @@ func (p *planGlue) PlanResourceOrphans(ctx context.Context, moduleInstAddr addrs
 // that the corresponding resource cannot be planned because its associated
 // provider has an invalid configuration.
 func (p *planGlue) providerClient(ctx context.Context, addr addrs.AbsProviderInstanceCorrect) (providers.Configured, tfdiags.Diagnostics) {
-	return p.planCtx.providerInstances.ProviderClient(ctx, addr, p)
+	return p.providerInstances.ProviderClient(ctx, addr)
 }
 
 func (p *planGlue) desiredResourceInstanceMustBeDeferred(inst *eval.DesiredResourceInstance) bool {

@@ -8,6 +8,7 @@ package eval
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/zclconf/go-cty/cty"
@@ -41,6 +42,9 @@ type ApplyGlue interface {
 	// Diagnostics from apply-time actions must be reported through some other
 	// channel controlled by the apply engine itself.
 	ResourceInstanceFinalState(ctx context.Context, addr addrs.AbsResourceInstance) cty.Value
+
+	// Not sure if this should be folded into ResourceInstanceFinalState or not...
+	OpenEphemeralResourceInstance(ctx context.Context, addr addrs.AbsResourceInstance, cfgVal cty.Value, providerInstance addrs.AbsProviderInstanceCorrect) (cty.Value, tfdiags.Diagnostics)
 
 	// ValidateProviderConfig asks the provider of the given address to validate
 	// the given value as being suitable to use when instantiating a configured
@@ -94,7 +98,15 @@ type applyingEvalGlue struct {
 }
 
 // ResourceInstanceValue implements [evalglue.Glue].
-func (g *applyingEvalGlue) ResourceInstanceValue(ctx context.Context, ri *configgraph.ResourceInstance, _ cty.Value, _ configgraph.Maybe[*configgraph.ProviderInstance], _ addrs.Set[addrs.AbsResourceInstance]) (cty.Value, tfdiags.Diagnostics) {
+func (g *applyingEvalGlue) ResourceInstanceValue(ctx context.Context, ri *configgraph.ResourceInstance, cfgVal cty.Value, providerInst configgraph.Maybe[*configgraph.ProviderInstance], _ addrs.Set[addrs.AbsResourceInstance]) (cty.Value, tfdiags.Diagnostics) {
+	if ri.Addr.Resource.Resource.Mode == addrs.EphemeralResourceMode {
+		if providerInst, ok := configgraph.GetKnown(providerInst); ok {
+			return g.applyEngineGlue.OpenEphemeralResourceInstance(ctx, ri.Addr, cfgVal, providerInst.Addr)
+		}
+		log.Printf("[WARN] Provider is not yet known for ephemeral resource %s", ri.Addr)
+		return cty.UnknownVal(cty.DynamicPseudoType), nil
+	}
+
 	finalValue := g.applyEngineGlue.ResourceInstanceFinalState(ctx, ri.Addr)
 	return finalValue, nil
 }

@@ -48,6 +48,7 @@ func ApplyPlannedChanges(ctx context.Context, plan *plans.Plan, configInst *eval
 		return nil, diags
 	}
 	glue.graph = execGraph
+	glue.ops = execOps
 
 	reqTracker := newRequestTracker(execGraphSrc, execOps)
 	ctx = grapheval.ContextWithRequestTracker(ctx, reqTracker)
@@ -63,6 +64,7 @@ func ApplyPlannedChanges(ctx context.Context, plan *plans.Plan, configInst *eval
 
 type evalGlue struct {
 	graph   *execgraph.CompiledGraph
+	ops     *execOperations
 	plugins plugins.Plugins
 }
 
