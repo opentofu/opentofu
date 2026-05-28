@@ -37,6 +37,8 @@ import (
 )
 
 func TestContext2Plan_removedDuringRefresh(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureUpgradeState)
+
 	// This tests the situation where an object tracked in the previous run
 	// state has been deleted outside OpenTofu, which we should detect
 	// during the refresh step and thus ultimately produce a plan to recreate
@@ -928,6 +930,8 @@ resource "test_resource" "b" {
 }
 
 func TestContext2Plan_destroyWithRefresh(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureUpgradeState)
+
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 resource "test_object" "a" {
@@ -1054,6 +1058,8 @@ resource "test_object" "a" {
 }
 
 func TestContext2Plan_destroyWithRefresh_skipImport(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureImport)
+
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 resource "test_object" "a" {
@@ -1128,6 +1134,8 @@ import {
 }
 
 func TestContext2Plan_destroySkipRefresh(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureUpgradeState)
+
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 resource "test_object" "a" {
@@ -2487,6 +2495,7 @@ resource "test_object" "b" {
 }
 
 func TestContext2Plan_movedResourceRefreshOnly(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureMoved)
 	addrA := mustResourceInstanceAddr("test_object.a")
 	addrB := mustResourceInstanceAddr("test_object.b")
 	m := testModuleInline(t, map[string]string{

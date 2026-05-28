@@ -7341,6 +7341,7 @@ func TestContext2Plan_excludedModuleInstance(t *testing.T) {
 }
 
 func TestContext2Plan_dataRefreshedInPlan(t *testing.T) {
+	SkipExperimental(t, ExperimentalFlagUnknown)
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 data "test_data_source" "d" {
