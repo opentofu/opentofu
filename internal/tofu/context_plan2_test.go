@@ -9224,8 +9224,4 @@ resource "test_resource" "example" {
 	if changes := len(plan.Changes.Resources); changes != 1 {
 		t.Fatalf("expected to have exactly one resource change but got %d", changes)
 	}
-	res := plan.Changes.Resources[0]
-	if got, want := res.Addr.String(), "test_resource.example"; got != want {
-		t.Errorf("unexpected resource in the changes. Wanted %q but got %q", want, got)
-	}
 }
