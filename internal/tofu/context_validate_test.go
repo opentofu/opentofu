@@ -1887,6 +1887,7 @@ func TestContext2Validate_sensitiveProvisionerConfig(t *testing.T) {
 }
 
 func TestContext2Plan_validateMinMaxDynamicBlock(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureValidate)
 	p := new(MockProvider)
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
 		ResourceTypes: map[string]*configschema.Block{

@@ -9452,6 +9452,8 @@ func TestContext2Apply_scaleInMultivarRef(t *testing.T) {
 }
 
 func TestContext2Apply_inconsistentWithPlan(t *testing.T) {
+	SkipExperimental(t, ExperimentalFlagUnknown)
+
 	m := testModule(t, "apply-inconsistent-with-plan")
 	p := testProvider("test")
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
