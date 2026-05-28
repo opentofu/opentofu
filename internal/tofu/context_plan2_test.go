@@ -27,6 +27,7 @@ import (
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/plugins"
+	"github.com/opentofu/opentofu/internal/shared"
 
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/lang/marks"
@@ -9161,6 +9162,12 @@ variable "ephemeral_var" {
 // The assertions of this test are quite permissive, because we are not interested in that specifically,
 // but the focus is more on the panic. If the logic panics, the test will fail.
 func TestContext2Plan_ephemeralClosingTimeout(t *testing.T) {
+	oldCloseTimeout := shared.EphemeralResourceCloseTimeout
+	defer func() {
+		shared.EphemeralResourceCloseTimeout = oldCloseTimeout
+	}()
+	shared.EphemeralResourceCloseTimeout = 1 * time.Second
+
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 ephemeral "test_ephemeral_resource" "a" {
@@ -9200,7 +9207,7 @@ ephemeral "test_ephemeral_resource" "a" {
 	}
 	p.CloseEphemeralResourceFn = func(request providers.CloseEphemeralResourceRequest) providers.CloseEphemeralResourceResponse {
 		defer func() { callsCh <- struct{}{} }()
-		<-time.After(10 * time.Second) // exactly the same with the timeout inside internal/shared/ephemeral_resource.go
+		<-time.After(shared.EphemeralResourceCloseTimeout)
 		return providers.CloseEphemeralResourceResponse{}
 	}
 

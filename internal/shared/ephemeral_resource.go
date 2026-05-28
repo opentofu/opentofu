@@ -19,6 +19,9 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
+// This may be modified to expedite tests
+var EphemeralResourceCloseTimeout = 10 * time.Second
+
 type EphemeralResourceHooks struct {
 	PreOpen   func(addrs.AbsResourceInstance)
 	PostOpen  func(addrs.AbsResourceInstance, tfdiags.Diagnostics)
@@ -227,7 +230,7 @@ func OpenEphemeralResourceInstance(
 		closeCh <- ctx
 		close(closeCh)
 
-		timeout := 10 * time.Second
+		timeout := EphemeralResourceCloseTimeout
 		select {
 		case d := <-diagsCh:
 			return d
