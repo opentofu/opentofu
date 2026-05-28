@@ -73,7 +73,7 @@ func compileModuleInstanceInputVariables(_ context.Context, configs map[string]*
 				return cty.DynamicVal.WithSameMarks(v), diags
 			}
 
-			if !ty.HasAttribute(name) {
+			if !ty.HasAttribute(name) || v.GetAttr(name).IsNull() {
 				if vc.Required() {
 					// We don't actually _need_ to handle an error here because
 					// the final evaluation of the variables must deal with the
@@ -92,6 +92,7 @@ func compileModuleInstanceInputVariables(_ context.Context, configs map[string]*
 				} else if vc.Default != cty.NilVal {
 					return vc.Default, diags
 				} else {
+					// TODO handle nullable correctly
 					// For a non-required variable we'll provide a placeholder
 					// null value so that the evaluator can treat this the same
 					// as if there was an explicit definition evaluating to null.
