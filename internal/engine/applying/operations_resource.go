@@ -46,7 +46,8 @@ func (ops *execOperations) resourceDependenciesMissingCheck(idType string, idNam
 				fmt.Sprintf("Invalid %s action", idType),
 				fmt.Sprintf(resourceDependencyMissingDetail, mark.Target, idName, "but was not yet present in the planned execution order"),
 			))
-
+		default:
+			panic(fmt.Sprintf("BUG: unhandled ResourceInstanceDependencyMissingCause(%v) for %s", mark.Cause, idName))
 		}
 	}
 

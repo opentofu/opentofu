@@ -7,6 +7,7 @@ package common
 
 import (
 	"context"
+	"log"
 	"sync"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -67,10 +68,11 @@ func (pi *ProviderInstances) ProviderClient(ctx context.Context, addr addrs.AbsP
 
 	once := pi.active.Get(addr)
 	return once.Do(ctx, func(ctx context.Context) (ret providers.Configured, diags tfdiags.Diagnostics) {
+		log.Printf("[INFO] Opening Provider %s", addr)
 
 		closeCh := make(chan struct{})
 		closer := func(ctx context.Context) tfdiags.Diagnostics {
-			println("CLOSING PROVIDER " + addr.String())
+			log.Printf("[INFO] Closing Provider %s", addr)
 			closeCh <- struct{}{}
 			if ret != nil {
 				return tfdiags.Diagnostics{}.Append(ret.Close(ctx))
@@ -93,6 +95,7 @@ func (pi *ProviderInstances) ProviderClient(ctx context.Context, addr addrs.AbsP
 					// No further actions are nessesary
 					return
 				case <-cancelCtx.Done():
+					log.Printf("[INFO] Stopping Provider %s", addr)
 					// If the context we were given is cancelled then we'll
 					// ask the provider to perform a graceful stop so that
 					// active requests to the provider are more likely to

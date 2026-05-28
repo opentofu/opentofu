@@ -94,12 +94,6 @@ func (b *execGraphBuilder) AddResourceInstanceObjectSubgraphs(
 			// on them.
 			continue
 		}
-		// FIXME: We're currenly keeping the provider instance address in a
-		// direct field of resourceInstanceObject instead of as part of the
-		// plannedChange because we want to use our "correct" provider instance
-		// address type. The documented rules for this field are that we expect
-		// it to be valid when and only when obj.PlannedChange is not nil.
-		//providerInstAddr := obj.ProviderInst
 
 		valueRef, deletionRef, addConfigDep, addDeleteDep := b.resourceInstanceChangeSubgraph(
 			plannedChange,
