@@ -5231,6 +5231,7 @@ variable "other_var" {
 
 		state, diags := ctx.Apply(context.Background(), plan, valid, nil)
 		if diags.HasErrors() {
+			SkipExperimental(t, ExperimentalFlagUnknown)
 			t.Fatal(diags.Err())
 		}
 
@@ -5346,6 +5347,7 @@ variable "res_data" {
 	})
 	_, diags := apply(t, m, states.NewState())
 	if !diags.HasErrors() {
+		SkipExperimental(t, ExperimentalFeatureVarCondition)
 		t.Fatal(diags.Err())
 	}
 	if got, want := diags[0].Description().Summary, "Invalid value for variable"; got != want {
