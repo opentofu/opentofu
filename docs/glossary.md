@@ -52,6 +52,11 @@ It is recommended to use the following terms when discussing about "resource" bl
 
 Reference: [link](./diagnostics.md#diagnostic-description-writing-style)
 
+### `resource` vs `object`
+In contexts discussing the relationship or interaction between the `resource` HCL block and the associated remote object that it handles, it's recommended to use "resource" for the HCL block and "object" for the remote object (handled by the provider).
+
+Reference: [link](https://github.com/opentofu/opentofu/pull/4153)
+
 ### Unknown value/Computed value
 * Unknown value - Unknown values are the result of expressions that have unknown inputs. E.g.: a value that will not be known until a resource is created.
   Right now the main source of this type of values is resources, but we are considering adding others like unknown inputs.
@@ -76,3 +81,4 @@ Reference: [link](https://opentofu.org/docs/language/expressions/)
 
 ### Variable (HCL)
 Anything that's available to refer to in the current evaluation context.
+
