@@ -118,6 +118,7 @@ func TestContext2Plan_createBefore_deposed(t *testing.T) {
 		}, nil),
 	})
 
+	SkipExperimental(t, ExperimentalFeatureCBD)
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %s", diags.Err())
@@ -1676,6 +1677,7 @@ func TestContext2Plan_preventDestroy_dynamicDeprecated(t *testing.T) {
 
 	_, diags := ctx.Plan(context.Background(), m, state, SimplePlanOpts(plans.NormalMode, nil))
 	assertNoErrors(t, diags)
+	SkipExperimental(t, ExperimentalFeatureDeprecated)
 	gotErr := diags.ErrWithWarnings().Error()
 	wantErr := `This value is derived from module.child.prevent_destroy`
 	if !strings.Contains(gotErr, wantErr) {
@@ -5380,7 +5382,7 @@ func TestContext2Plan_varListErr(t *testing.T) {
 
 	_, err := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 
-	if err == nil {
+	if !err.HasErrors() {
 		t.Fatal("should error")
 	}
 }

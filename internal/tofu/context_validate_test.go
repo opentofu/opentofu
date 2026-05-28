@@ -2478,6 +2478,7 @@ locals {
 	})
 
 	diags := ctx.Validate(context.Background(), m)
+	SkipExperimental(t, ExperimentalFeatureDeprecated)
 	warn := diags.ErrWithWarnings().Error()
 	if !strings.Contains(warn, `This value is derived from aws_instance.test.foo`) {
 		t.Fatalf("expected deprecated warning, got: %q\n", warn)
@@ -2932,12 +2933,12 @@ resource "test_instance" "b" {
 		"each.key": {
 			config: `
 resource "test_instance" "a" {
-  for_each = to_set([])
+  for_each = toset([])
   value = "hello"
 }
 
 resource "test_instance" "b" {
-  for_each = to_set([])
+  for_each = toset([])
   lifecycle {
     replace_triggered_by = [test_instance.a[each.key].value]
   }

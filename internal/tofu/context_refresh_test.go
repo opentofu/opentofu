@@ -1205,6 +1205,8 @@ func TestContext2Refresh_dataState(t *testing.T) {
 
 	mod := s.RootModule()
 
+	SkipExperimental(t, ExperimentalFeatureRefresh)
+
 	newState, err := mod.Resources["data.null_data_source.testing"].Instances[addrs.NoKey].Current.Decode(schema.ImpliedType())
 	if err != nil {
 		t.Fatal(err)

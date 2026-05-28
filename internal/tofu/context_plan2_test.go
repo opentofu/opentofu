@@ -269,6 +269,7 @@ output "out" {
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
+	SkipExperimental(t, ExperimentalFeatureChanges)
 	change, err := plan.Changes.Outputs[0].Decode()
 	if err != nil {
 		t.Fatal(err)
@@ -2767,6 +2768,7 @@ func TestContext2Plan_refreshOnlyMode_deposed(t *testing.T) {
 		}, nil),
 	})
 
+	SkipExperimental(t, ExperimentalFeatureCBD)
 	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.RefreshOnlyMode,
 	})
@@ -3996,6 +3998,7 @@ resource "test_resource" "a" {
 		}
 
 		addr := mustResourceInstanceAddr("data.test_data_source.a")
+		SkipExperimental(t, ExperimentalFeatureChecks)
 		if gotResult := plan.Checks.GetObjectResult(addr); gotResult == nil {
 			t.Errorf("no check result for %s", addr)
 		} else {
@@ -4385,6 +4388,7 @@ func TestContext2Plan_preconditionErrors(t *testing.T) {
 				t.Errorf("unexpected summary\ngot: %s\nwant to contain %q", got, want)
 			}
 
+			SkipExperimental(t, ExperimentalFeatureChecks)
 			for _, kv := range plan.Checks.ConfigResults.Elements() {
 				// All these are configuration or evaluation errors
 				if kv.Value.Status != checks.StatusError {
@@ -4868,6 +4872,7 @@ resource "test_object" "b" {
 		}, nil),
 	})
 
+	SkipExperimental(t, ExperimentalFeatureCBD)
 	_, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 	})
@@ -5301,6 +5306,7 @@ import {
 			if got, want := instPlan.ActionReason, plans.ResourceInstanceChangeNoReason; got != want {
 				t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
 			}
+			SkipExperimental(t, ExperimentalFeatureImport)
 			if instPlan.Importing.ID != "123" {
 				t.Errorf("expected import change from \"123\", got non-import change")
 			}
@@ -5634,6 +5640,7 @@ import {
 				if got, want := instPlan.ActionReason, plans.ResourceInstanceChangeNoReason; got != want {
 					t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
 				}
+				SkipExperimental(t, ExperimentalFeatureImport)
 				if instPlan.Importing.ID != strconv.Itoa(importId) {
 					t.Errorf("expected import change from \"%d\", got non-import change", importId)
 				}
@@ -5989,6 +5996,7 @@ import {
 					if got, want := instPlan.ActionReason, plans.ResourceInstanceChangeNoReason; got != want {
 						t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
 					}
+					SkipExperimental(t, ExperimentalFeatureImport)
 					if instPlan.Importing.ID != importResult.ResolvedId {
 						t.Errorf("expected import change from \"%s\", got non-import change", importResult.ResolvedId)
 					}
@@ -6446,6 +6454,7 @@ import {
 		if got, want := instPlan.ActionReason, plans.ResourceInstanceChangeNoReason; got != want {
 			t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
 		}
+		SkipExperimental(t, ExperimentalFeatureImport)
 		if instPlan.Importing.ID != "123" {
 			t.Errorf("expected import change from \"123\", got non-import change")
 		}
@@ -6514,6 +6523,7 @@ import {
 		if got, want := instPlan.Action, plans.DeleteThenCreate; got != want {
 			t.Errorf("wrong planned action\ngot:  %s\nwant: %s", got, want)
 		}
+		SkipExperimental(t, ExperimentalFeatureImport)
 		if instPlan.Importing.ID != "123" {
 			t.Errorf("expected import change from \"123\", got non-import change")
 		}
@@ -7966,7 +7976,7 @@ locals {
 		t.Errorf("expected no resources in the state but found %d", len(module.LocalValues))
 	}
 
-	if plan == nil {
+	if plan == nil || plan.PlannedState == nil {
 		t.Fatal("plan returned nil result; expected a non-nil plan marked as errored")
 	}
 
@@ -8831,6 +8841,7 @@ func TestContext2Plan_importResourceWithSensitiveDataSource(t *testing.T) {
 		if got, want := instPlan.ActionReason, plans.ResourceInstanceChangeNoReason; got != want {
 			t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
 		}
+		SkipExperimental(t, ExperimentalFeatureImport)
 		if instPlan.Importing.ID != "123" {
 			t.Errorf("expected import change from \"123\", got non-import change")
 		}

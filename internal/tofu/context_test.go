@@ -37,12 +37,6 @@ import (
 	"github.com/opentofu/opentofu/internal/tracing"
 )
 
-func init() {
-	// Allow running experimental engine tests with:
-	// TOFU_X_EXPERIMENTAL_RUNTIME=1 go test ./internal/tofu
-	SetExperimentalRuntimeAllowed(true)
-}
-
 var (
 	equateEmpty   = cmpopts.EquateEmpty()
 	typeComparer  = cmp.Comparer(cty.Type.Equals)

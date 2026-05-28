@@ -74,6 +74,8 @@ func TestContext2Apply_basic(t *testing.T) {
 func TestContext2Apply_stop(t *testing.T) {
 	t.Parallel()
 
+	SkipExperimental(t, ExperimentalBugCancel)
+
 	m := testModule(t, "apply-stop")
 	stopCh := make(chan struct{})
 	waitCh := make(chan struct{})
@@ -988,6 +990,7 @@ func TestContext2Apply_createBeforeDestroy(t *testing.T) {
 }
 
 func TestContext2Apply_createBeforeDestroyUpdate(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureCBD)
 	m := testModule(t, "apply-good-create-before-update")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
@@ -1254,6 +1257,7 @@ func TestContext2Apply_createBeforeDestroy_deposedCount(t *testing.T) {
 		}, nil),
 	})
 
+	SkipExperimental(t, ExperimentalFeatureCBD)
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
@@ -1316,6 +1320,7 @@ func TestContext2Apply_createBeforeDestroy_deposedOnly(t *testing.T) {
 		}, nil),
 	})
 
+	SkipExperimental(t, ExperimentalFeatureCBD)
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
@@ -3731,6 +3736,9 @@ func TestContext2Apply_multiVar(t *testing.T) {
 
 	actual := state.RootModule().OutputValues["output"]
 	expected := cty.StringVal("bar0,bar1,bar2")
+	if actual == nil {
+		t.Fatalf("wrong value\ngot:  %#v\nwant: %#v", nil, expected)
+	}
 	if actual == nil || actual.Value != expected {
 		t.Fatalf("wrong value\ngot:  %#v\nwant: %#v", actual.Value, expected)
 	}
@@ -4028,7 +4036,10 @@ func TestContext2Apply_multiVarOrder(t *testing.T) {
 
 	actual := state.RootModule().OutputValues["should-be-11"]
 	expected := cty.StringVal("index-11")
-	if actual == nil || actual.Value != expected {
+	if actual == nil {
+		t.Fatalf("wrong value\ngot:  %#v\nwant: %#v", nil, expected)
+	}
+	if actual.Value != expected {
 		t.Fatalf("wrong value\ngot:  %#v\nwant: %#v", actual.Value, expected)
 	}
 }
@@ -4059,7 +4070,10 @@ func TestContext2Apply_multiVarOrderInterp(t *testing.T) {
 
 	actual := state.RootModule().OutputValues["should-be-11"]
 	expected := cty.StringVal("baz-index-11")
-	if actual == nil || actual.Value != expected {
+	if actual == nil {
+		t.Fatalf("wrong value\ngot:  %#v\nwant: %#v", nil, expected)
+	}
+	if actual.Value != expected {
 		t.Fatalf("wrong value\ngot:  %#v\nwant: %#v", actual.Value, expected)
 	}
 }
@@ -8126,6 +8140,7 @@ func TestContext2Apply_createBefore_depends(t *testing.T) {
 }
 
 func TestContext2Apply_singleDestroy(t *testing.T) {
+	SkipExperimental(t, ExperimentalFlagUnknown)
 	m := testModule(t, "apply-depends-create-before")
 	h := new(HookRecordApplyOrder)
 	p := testProvider("aws")
@@ -9133,6 +9148,8 @@ func TestContext2Apply_destroyWithProviders(t *testing.T) {
 
 func TestContext2Apply_providersFromState(t *testing.T) {
 	m := configs.NewEmptyConfig()
+	// Hack for new engine
+	m.Module.SourceDir = "."
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
 
@@ -11378,6 +11395,7 @@ output "myoutput" {
 }
 
 func TestContext2Apply_scaleInCBD(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureCBD)
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 variable "ct" {

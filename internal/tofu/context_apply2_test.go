@@ -78,6 +78,7 @@ func TestContext2Apply_createBeforeDestroy_deposedKeyPreApply(t *testing.T) {
 		}, nil),
 	})
 
+	SkipExperimental(t, ExperimentalFeatureCBD)
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
@@ -289,6 +290,8 @@ output "data" {
 }
 
 func TestContext2Apply_destroyThenUpdate(t *testing.T) {
+	SkipExperimental(t, ExperimentalFlagUnknown)
+
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 resource "test_instance" "a" {
@@ -807,6 +810,7 @@ resource "test_object" "x" {
 		}, nil),
 	})
 
+	SkipExperimental(t, ExperimentalFeatureCBD)
 	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 	})
@@ -863,6 +867,7 @@ resource "test_object" "x" {
 		}, nil),
 	})
 
+	SkipExperimental(t, ExperimentalFeatureCBD)
 	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 	})
@@ -1431,6 +1436,8 @@ resource "test_resource" "c" {
 }
 
 func TestContext2Apply_outputValuePrecondition(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureCondition)
+
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 			variable "input" {
@@ -2716,6 +2723,8 @@ locals {
 }
 
 func TestContext2Apply_withExternalReferences(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureLocalState)
+
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 resource "test_object" "a" {
@@ -2870,6 +2879,7 @@ func TestContext2Apply_forgetOrphanAndDeposedWithDynamicProvider(t *testing.T) {
 
 	p.PlanResourceChangeFn = testDiffFn
 
+	SkipExperimental(t, ExperimentalFeatureCBD)
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
@@ -5238,6 +5248,7 @@ variable "other_var" {
 	})
 
 	t.Run("circular", func(t *testing.T) {
+		SkipExperimental(t, ExperimentalFlagUnknown)
 		input := InputValuesFromCaller(map[string]cty.Value{
 			"root_var":  cty.NumberIntVal(10),
 			"other_var": cty.NumberIntVal(10),
@@ -6232,7 +6243,7 @@ output "regular_optional" {
 			slices.Sort(gotErrors)
 			slices.Sort(tt.expectedApplyErrors)
 			if diff := cmp.Diff(tt.expectedApplyErrors, gotErrors); diff != "" {
-				t.Errorf("wrong errors received:\n%s", diff)
+				t.Fatalf("wrong errors received:\n%s", diff)
 			}
 			if tt.expectedOutputs != nil {
 				cp := newState.DeepCopy()
