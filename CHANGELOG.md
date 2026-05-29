@@ -1,5 +1,11 @@
 The v1.12.x release series is supported until **February 1 2027**.
 
+## 1.12.2 (Unreleased)
+
+BUG FIXES:
+
+- Properly handle EDEADLK during provider installation. On Unix systems, the kernel may erroniously detect a deadlock between tofu processes using the global plugin cache. ([#4166](https://github.com/opentofu/opentofu/pull/4166))
+
 ## 1.12.1
 
 SECURITY ADVISORIES:
