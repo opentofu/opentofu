@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/tracing"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -74,9 +75,9 @@ func (c *ImportCommand) Run(rawArgs []string) int {
 	traversal, travDiags := hclsyntax.ParseTraversalAbs(traversalSrc, "<import-address>", hcl.Pos{Line: 1, Column: 1})
 	diags = diags.Append(travDiags)
 	if travDiags.HasErrors() {
-		// NOTE: The call to registerSynthConfigSource works well with the view.Diagnostics too since the view is
-		// configured in [Meta.initConfigLoader] with a callback to get the sources when it prints the diagnostics.
-		c.registerSynthConfigSource("<import-address>", traversalSrc) // so we can include a source snippet
+		// NOTE: The call to Loader.ForceFileSource works well with the view.Diagnostics too since the view is
+		// configured in [Meta.configLoader] with a callback to get the sources when it prints the diagnostics.
+		c.configLoader().ForceFileSource("<import-address>", traversalSrc) // so we can include a source snippet
 		view.Diagnostics(diags)
 		view.InvalidAddressReference()
 		return 1
@@ -84,9 +85,9 @@ func (c *ImportCommand) Run(rawArgs []string) int {
 	addr, addrDiags := addrs.ParseAbsResourceInstance(traversal)
 	diags = diags.Append(addrDiags)
 	if addrDiags.HasErrors() {
-		// NOTE: The call to registerSynthConfigSource works well with the view.Diagnostics too since the view is
-		// configured in [Meta.initConfigLoader] with a callback to get the sources when it prints the diagnostics.
-		c.registerSynthConfigSource("<import-address>", traversalSrc) // so we can include a source snippet
+		// NOTE: The call to Loader.ForceFileSource works well with the view.Diagnostics too since the view is
+		// configured in [Meta.configLoader] with a callback to get the sources when it prints the diagnostics.
+		c.configLoader().ForceFileSource("<import-address>", traversalSrc) // so we can include a source snippet
 		view.Diagnostics(diags)
 		view.InvalidAddressReference()
 		return 1
@@ -111,7 +112,7 @@ func (c *ImportCommand) Run(rawArgs []string) int {
 		return 1
 	}
 
-	if !c.dirIsConfigPath(args.ConfigPath) {
+	if !c.configLoader().IsConfigDir(args.ConfigPath) {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "No OpenTofu configuration files",
@@ -216,7 +217,7 @@ func (c *ImportCommand) Run(rawArgs []string) int {
 	// Build the operation
 	opReq := c.Operation(ctx, b, view.Backend(), enc)
 	opReq.ConfigDir = args.ConfigPath
-	opReq.ConfigLoader, err = c.initConfigLoader()
+	opReq.ConfigLoader, err = configload.Initialise(c.configLoader())
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,

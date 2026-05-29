@@ -85,14 +85,12 @@ func (c *Context) newEngineShim(ctx context.Context, config *configs.Config, inp
 
 	inputValues := exprs.ConstantValuer(cty.ObjectVal(rawInput))
 
-	tempLoader, _ := configload.NewLoader(&configload.Config{})
-
 	plugins := plugins.NewRuntimePluginsTemp(c.plugins.providers, c.plugins.provisioners)
 	evalCtx := &eval.EvalContext{
 		RootModuleDir:      config.Module.SourceDir,
 		OriginalWorkingDir: c.meta.OriginalWorkingDir,
 		Modules: &newRuntimeModules{
-			loader: tempLoader,
+			loader: configload.NewLazy(&configload.Config{}),
 		},
 		Providers:    plugins,
 		Provisioners: plugins,
@@ -210,7 +208,7 @@ func (c *Context) newEngineApply(ctx context.Context, config *configs.Config, pl
 // a best effort to shim to OpenTofu's current module loader, even though
 // it works in some slightly-different terms than this new API expects.
 type newRuntimeModules struct {
-	loader *configload.Loader
+	loader configload.Loader
 
 	// configload.Loader is not concurrency-safe because it wraps
 	// hclparse.Parser functionality that is not concurrency-safe, so we must
@@ -243,7 +241,7 @@ func (n *newRuntimeModules) ModuleConfig(ctx context.Context, source addrs.Modul
 	log.Printf("[TRACE] backend/local: Loading module from %q from local path %q", source, sourceDir)
 
 	n.mu.Lock()
-	mod, hclDiags := n.loader.Parser().LoadConfigDirUneval(sourceDir, configs.SelectiveLoadAll)
+	mod, hclDiags := n.loader.LoadConfigDirUneval(sourceDir, configs.SelectiveLoadAll)
 	n.mu.Unlock()
 	diags = diags.Append(hclDiags)
 	if hclDiags.HasErrors() {

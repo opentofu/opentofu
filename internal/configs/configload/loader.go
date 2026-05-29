@@ -6,6 +6,7 @@
 package configload
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"path/filepath"
@@ -17,13 +18,41 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 )
 
-// A Loader instance is the main entry-point for loading configurations via
+// Loader represents all the exposed logic that it's needed by the various places of the system.
+//
+// This interface contains proxy methods for the configs.Parser and any future functionality
+// from the Parser should be accessed through a Loader instance instead of exposing the Parser
+// instance directly.
+type Loader interface {
+	ImportSources(sources map[string][]byte)
+	ImportSourcesFromSnapshot(snap *Snapshot)
+	IsConfigDir(path string) bool
+	ModulesDir() string
+	RefreshModules() error
+	Sources() map[string]*hcl.File
+	LoadConfig(ctx context.Context, rootDir string, call configs.StaticModuleCall) (*configs.Config, hcl.Diagnostics)
+	LoadConfigWithTests(ctx context.Context, rootDir string, testDir string, call configs.StaticModuleCall) (*configs.Config, hcl.Diagnostics)
+	LoadConfigWithSnapshot(ctx context.Context, rootDir string, call configs.StaticModuleCall) (*configs.Config, *Snapshot, hcl.Diagnostics)
+	IsRemoteModuleSource(path addrs.Module) bool
+	ModuleSourceAddrs(path addrs.Module) addrs.ModuleSource
+
+	// configs.Parser proxy methods
+
+	LoadConfigDirUneval(path string, load configs.SelectiveLoader) (*configs.Module, hcl.Diagnostics)
+	LoadConfigDir(path string, call configs.StaticModuleCall) (*configs.Module, hcl.Diagnostics)
+	LoadHCLFile(path string) (hcl.Body, hcl.Diagnostics)
+	LoadConfigDirSelective(path string, call configs.StaticModuleCall, load configs.SelectiveLoader) (*configs.Module, hcl.Diagnostics)
+	LoadConfigDirWithTests(path string, testDirectory string, call configs.StaticModuleCall) (*configs.Module, hcl.Diagnostics)
+	ForceFileSource(filename string, src []byte)
+}
+
+// A loader instance is the main entry-point for loading configurations via
 // this package.
 //
 // It extends the general config-loading functionality in the parent package
 // "configs" to support installation of modules from remote sources and
 // loading full configurations using modules that were previously installed.
-type Loader struct {
+type loader struct {
 	// parser is used to read configuration
 	parser *configs.Parser
 
@@ -42,6 +71,21 @@ type Config struct {
 	// .terraform/modules directory, in the common case where this package
 	// is being loaded from the main OpenTofu CLI package.)
 	ModulesDir string
+
+	// AllowLanguageExperiments specifies whether subsequent Loader.LoadConfig (and
+	// similar) calls will allow opting in to experimental language features.
+	//
+	// If this is not configured as true, any language experiments will be disallowed.
+	//
+	// Main code should set this only for alpha or development builds. Test code
+	// is responsible for deciding for itself whether and how to call this
+	// method.
+	//
+	// We don't currently have any support for language experiments. We'll
+	// add support here later if we decide to make use of language experiments
+	// in future versions of OpenTofu.
+	// This is the reason why this attribute is not used.
+	AllowLanguageExperiments bool
 }
 
 // NewLoader creates and returns a loader that reads configuration from the
@@ -50,11 +94,11 @@ type Config struct {
 // The loader has some internal state about the modules that are currently
 // installed, which is read from disk as part of this function. If that
 // manifest cannot be read then an error will be returned.
-func NewLoader(config *Config) (*Loader, error) {
+func NewLoader(config *Config) (Loader, error) {
 	fs := afero.NewOsFs()
 	parser := configs.NewParser(fs)
 
-	ret := &Loader{
+	ret := &loader{
 		parser: parser,
 		modules: moduleMgr{
 			FS:         afero.Afero{Fs: fs},
@@ -73,7 +117,7 @@ func NewLoader(config *Config) (*Loader, error) {
 
 // ModulesDir returns the path to the directory where the loader will look for
 // the local cache of remote module packages.
-func (l *Loader) ModulesDir() string {
+func (l *loader) ModulesDir() string {
 	return l.modules.Dir
 }
 
@@ -87,7 +131,7 @@ func (l *Loader) ModulesDir() string {
 // is already alive and may be used again later.
 //
 // An error is returned if the manifest file cannot be read.
-func (l *Loader) RefreshModules() error {
+func (l *loader) RefreshModules() error {
 	if l == nil {
 		// Nothing to do, then.
 		return nil
@@ -95,25 +139,16 @@ func (l *Loader) RefreshModules() error {
 	return l.modules.readModuleManifestSnapshot()
 }
 
-// Parser returns the underlying parser for this loader.
-//
-// This is useful for loading other sorts of files than the module directories
-// that a loader deals with, since then they will share the source code cache
-// for this loader and can thus be shown as snippets in diagnostic messages.
-func (l *Loader) Parser() *configs.Parser {
-	return l.parser
-}
-
 // Sources returns the source code cache for the underlying parser of this
 // loader. This is a shorthand for l.Parser().Sources().
-func (l *Loader) Sources() map[string]*hcl.File {
+func (l *loader) Sources() map[string]*hcl.File {
 	return l.parser.Sources()
 }
 
 // IsConfigDir returns true if and only if the given directory contains at
 // least one OpenTofu configuration file. This is a wrapper around calling
 // the same method name on the loader's parser.
-func (l *Loader) IsConfigDir(path string) bool {
+func (l *loader) IsConfigDir(path string) bool {
 	return l.parser.IsConfigDir(path)
 }
 
@@ -126,10 +161,9 @@ func (l *Loader) IsConfigDir(path string) bool {
 // to return source code snapshots in diagnostic messages.
 //
 //	loader.ImportSources(otherLoader.Sources())
-func (l *Loader) ImportSources(sources map[string][]byte) {
-	p := l.Parser()
+func (l *loader) ImportSources(sources map[string][]byte) {
 	for name, src := range sources {
-		p.ForceFileSource(name, src)
+		l.parser.ForceFileSource(name, src)
 	}
 }
 
@@ -138,34 +172,18 @@ func (l *Loader) ImportSources(sources map[string][]byte) {
 //
 // This is similar to ImportSources but knows how to unpack and flatten a
 // snapshot data structure to get the corresponding flat source file map.
-func (l *Loader) ImportSourcesFromSnapshot(snap *Snapshot) {
-	p := l.Parser()
+func (l *loader) ImportSourcesFromSnapshot(snap *Snapshot) {
 	for _, m := range snap.Modules {
 		baseDir := m.Dir
 		for fn, src := range m.Files {
 			fullPath := filepath.Join(baseDir, fn)
-			p.ForceFileSource(fullPath, src)
+			l.parser.ForceFileSource(fullPath, src)
 		}
 	}
 }
 
-// AllowLanguageExperiments specifies whether subsequent LoadConfig (and
-// similar) calls will allow opting in to experimental language features.
-//
-// If this method is never called for a particular loader, the default behavior
-// is to disallow language experiments.
-//
-// Main code should set this only for alpha or development builds. Test code
-// is responsible for deciding for itself whether and how to call this
-// method.
-func (l *Loader) AllowLanguageExperiments(allowed bool) {
-	// We don't currently have any support for language experiments. We'll
-	// add support here later if we decide to make use of language experiments
-	// in future versions of OpenTofu.
-}
-
 // IsRemoteModuleSource returns true if any of the modules in the path remote
-func (l *Loader) IsRemoteModuleSource(path addrs.Module) bool {
+func (l *loader) IsRemoteModuleSource(path addrs.Module) bool {
 	if l.lastLoadedRoot == nil {
 		log.Printf("[ERROR] Unable to determine if module source is remote due to missing config load")
 		return false
@@ -186,9 +204,9 @@ func (l *Loader) IsRemoteModuleSource(path addrs.Module) bool {
 	return false
 }
 
-func (l *Loader) ModuleSourceAddrs(path addrs.Module) addrs.ModuleSource {
+func (l *loader) ModuleSourceAddrs(path addrs.Module) addrs.ModuleSource {
 	if l.lastLoadedRoot == nil {
-		log.Printf("[ERROR] Unable to determine if module source is remote due to missing config load")
+		log.Printf("[ERROR] Unable to determine the module source due to missing config load")
 		return nil
 	}
 
@@ -196,7 +214,7 @@ func (l *Loader) ModuleSourceAddrs(path addrs.Module) addrs.ModuleSource {
 	for _, part := range path {
 		child, childOk := current.Children[part]
 		if !childOk {
-			log.Printf("[ERROR] Unable to determine if module source is remote due to missing child")
+			log.Printf("[ERROR] Unable to determine the module source due to missing child")
 			return nil
 		}
 		current = child

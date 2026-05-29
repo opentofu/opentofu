@@ -35,7 +35,7 @@ import (
 
 type ModuleInstaller struct {
 	modsDir string
-	loader  *configload.Loader
+	loader  configload.Loader
 	reg     *registry.Client
 	fetcher *getmodules.PackageFetcher
 
@@ -72,7 +72,7 @@ type moduleVersion struct {
 // fetched from an OpenTofu module registry. This argument can be nil, in which
 // case no remote package sources are supported; this facility is included
 // primarily for unit testing where only local modules are needed.
-func NewModuleInstaller(modsDir string, loader *configload.Loader, registryClient *registry.Client, remotePackageFetcher *getmodules.PackageFetcher) *ModuleInstaller {
+func NewModuleInstaller(modsDir string, loader configload.Loader, registryClient *registry.Client, remotePackageFetcher *getmodules.PackageFetcher) *ModuleInstaller {
 	return &ModuleInstaller{
 		modsDir:                 modsDir,
 		loader:                  loader,
@@ -161,7 +161,7 @@ func (i *ModuleInstaller) InstallModules(ctx context.Context, rootDir, testsDir 
 	log.Printf("[TRACE] ModuleInstaller: installing child modules for %s into %s", rootDir, i.modsDir)
 	var diags tfdiags.Diagnostics
 
-	rootMod, mDiags := i.loader.Parser().LoadConfigDirWithTests(rootDir, testsDir, call)
+	rootMod, mDiags := i.loader.LoadConfigDirWithTests(rootDir, testsDir, call)
 	diags = diags.Append(mDiags)
 
 	manifest, err := modsdir.ReadManifestSnapshotForDir(i.modsDir)
@@ -303,7 +303,7 @@ func (i *ModuleInstaller) moduleInstallWalker(_ context.Context, manifest modsdi
 				// keep our existing record.
 				info, err := os.Stat(record.Dir)
 				if err == nil && info.IsDir() {
-					mod, mDiags := i.loader.Parser().LoadConfigDir(record.Dir, req.Call)
+					mod, mDiags := i.loader.LoadConfigDir(record.Dir, req.Call)
 					if mod == nil {
 						// nil indicates an unreadable module, which should never happen,
 						// so we return the full loader diagnostics here.
@@ -447,7 +447,7 @@ func (i *ModuleInstaller) installLocalModule(ctx context.Context, req *configs.M
 	}
 
 	// Finally we are ready to try actually loading the module.
-	mod, mDiags := i.loader.Parser().LoadConfigDir(newDir, req.Call)
+	mod, mDiags := i.loader.LoadConfigDir(newDir, req.Call)
 	if mod == nil {
 		// nil indicates missing or unreadable directory, so we'll
 		// discard the returned diags and return a more specific
@@ -798,7 +798,7 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 	log.Printf("[TRACE] ModuleInstaller: %s %q was downloaded to %s", key, packageLocation.UILabel(), modDir)
 
 	// Finally we are ready to try actually loading the module.
-	mod, mDiags := i.loader.Parser().LoadConfigDir(modDir, req.Call)
+	mod, mDiags := i.loader.LoadConfigDir(modDir, req.Call)
 	if mod == nil {
 
 		subDir := packageLocation.Subdir()
@@ -918,7 +918,7 @@ func (i *ModuleInstaller) installGoGetterModule(ctx context.Context, req *config
 	log.Printf("[TRACE] ModuleInstaller: %s %q was downloaded to %s", key, addr, modDir)
 
 	// Finally we are ready to try actually loading the module.
-	mod, mDiags := i.loader.Parser().LoadConfigDir(modDir, req.Call)
+	mod, mDiags := i.loader.LoadConfigDir(modDir, req.Call)
 	if mod == nil {
 		// nil indicates missing or unreadable directory, so we'll
 		// discard the returned diags and return a more specific
