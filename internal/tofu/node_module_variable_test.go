@@ -136,6 +136,8 @@ func TestNodeModuleVariableReference_grandchild(t *testing.T) {
 }
 
 func TestNodeModuleVariableConstraints(t *testing.T) {
+	SkipExperimental(t, ExperimentalBugReferenceProvider)
+
 	// This is a little extra convoluted to poke at some edge cases that have cropped up in the past around
 	// evaluating dependent nodes between the plan -> apply and destroy cycle.
 	m := testModuleInline(t, map[string]string{

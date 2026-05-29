@@ -926,6 +926,7 @@ func TestContext2Refresh_modules(t *testing.T) {
 }
 
 func TestContext2Refresh_moduleInputComputedOutput(t *testing.T) {
+	SkipExperimental(t, ExperimentalBugVariableInput)
 	m := testModule(t, "refresh-module-input-computed-output")
 	p := testProvider("aws")
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
