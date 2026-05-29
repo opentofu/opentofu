@@ -522,6 +522,12 @@ type OutputChange struct {
 	// should elide the actual values while still indicating the action of the
 	// change.
 	Sensitive bool
+
+	// SensitiveBefore is true if the prior state value was sensitive.
+	SensitiveBefore bool
+
+	// SensitiveAfter is true if the planned new value will be sensitive.
+	SensitiveAfter bool
 }
 
 // Encode produces a variant of the receiver that has its change values
@@ -531,10 +537,18 @@ func (oc *OutputChange) Encode() (*OutputChangeSrc, error) {
 	if err != nil {
 		return nil, err
 	}
+	sensitiveBefore := oc.SensitiveBefore
+	sensitiveAfter := oc.SensitiveAfter
+	if oc.Sensitive && !sensitiveBefore && !sensitiveAfter {
+		sensitiveBefore = true
+		sensitiveAfter = true
+	}
 	return &OutputChangeSrc{
-		Addr:      oc.Addr,
-		ChangeSrc: *cs,
-		Sensitive: oc.Sensitive,
+		Addr:            oc.Addr,
+		ChangeSrc:       *cs,
+		Sensitive:       oc.Sensitive,
+		SensitiveBefore: sensitiveBefore,
+		SensitiveAfter:  sensitiveAfter,
 	}, err
 }
 
