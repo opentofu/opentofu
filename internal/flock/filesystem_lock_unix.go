@@ -11,6 +11,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"syscall"
 )
@@ -34,6 +35,22 @@ func Lock(f *os.File) error {
 // If the given context is cancelled then it returns early with the cancellation
 // error.
 func LockBlocking(ctx context.Context, f *os.File) error {
+	err := lockBlockingInner(ctx, f)
+
+	// On some platforms (MacOS, Linux, ...?), fcntl tries to detect deadlocks. Unfortunately with multiple
+	// processes and multiple goroutines, we may trip the detector erroniously. It thinks that
+	// because different processes are installing different providers and have a mix of goroutines
+	// (sleeping trying to lock) / (active locked), there must be a deadlock.
+	//
+	// https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/fcntl.2.html
+	for err == syscall.EDEADLK {
+		log.Printf("[INFO] Locking deadlock incorrectly detected by the kernel on %s", f.Name())
+		err = lockBlockingInner(ctx, f)
+	}
+
+	return err
+}
+func lockBlockingInner(ctx context.Context, f *os.File) error {
 	flock := &syscall.Flock_t{
 		Type:   syscall.F_RDLCK | syscall.F_WRLCK,
 		Whence: int16(io.SeekStart),
