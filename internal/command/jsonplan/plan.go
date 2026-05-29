@@ -729,15 +729,14 @@ func MarshalOutputChanges(changes *plans.Changes) (map[string]Change, error) {
 			return nil, err
 		}
 
-		// The only information we have in the plan about output sensitivity is
-		// a boolean which is true if the output was or is marked sensitive. As
-		// a result, BeforeSensitive and AfterSensitive will be identical, and
-		// either false or true.
-		outputSensitive := cty.False
-		if oc.Sensitive {
-			outputSensitive = cty.True
+		// Use the distinct before/after sensitivity values so that the renderer
+		// can detect when sensitivity has changed (e.g. NoOp value but
+		// sensitive flag toggled) and promote the action to Update.
+		beforeSens, err := ctyjson.Marshal(cty.BoolVal(oc.SensitiveBefore), cty.Bool)
+		if err != nil {
+			return nil, err
 		}
-		sensitive, err := ctyjson.Marshal(outputSensitive, outputSensitive.Type())
+		afterSens, err := ctyjson.Marshal(cty.BoolVal(oc.SensitiveAfter), cty.Bool)
 		if err != nil {
 			return nil, err
 		}
@@ -748,8 +747,8 @@ func MarshalOutputChanges(changes *plans.Changes) (map[string]Change, error) {
 		}
 
 		change.Actions = actionString(oc.Action.String())
-		change.BeforeSensitive = json.RawMessage(sensitive)
-		change.AfterSensitive = json.RawMessage(sensitive)
+		change.BeforeSensitive = json.RawMessage(beforeSens)
+		change.AfterSensitive = json.RawMessage(afterSens)
 
 		outputChanges[oc.Addr.OutputValue.Name] = *change
 	}

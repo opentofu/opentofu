@@ -9173,3 +9173,142 @@ func TestContext2Plan_moduleDependsOnWithCheck(t *testing.T) {
 		t.Fatalf("unexpected errors: %s", diags.Err())
 	}
 }
+
+func TestContext2Plan_outputSensitivityChange(t *testing.T) {
+	// Regression test for https://github.com/opentofu/opentofu/issues/2680
+	// When only the sensitive flag on an output changes (value stays the same),
+	// tofu should detect this as an Update, not NoOp.
+
+	p := simpleMockProvider()
+
+	// First, create state with a non-sensitive output
+	addr := mustResourceInstanceAddr("test_object.a")
+	state := states.BuildState(func(s *states.SyncState) {
+		s.SetResourceInstanceCurrent(addr, &states.ResourceInstanceObjectSrc{
+			AttrsJSON: []byte(`{"test_string":"test-value"}`),
+			Status:    states.ObjectReady,
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
+		// Set the output value in state as non-sensitive
+		s.SetOutputValue(addrs.OutputValue{Name: "test"}.Absolute(addrs.RootModuleInstance), cty.StringVal("test-value"), false, "")
+	})
+
+	// Now plan with the same value but sensitive=true
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+resource "test_object" "a" {
+  test_string = "test-value"
+}
+
+output "test" {
+  value     = test_object.a.test_string
+  sensitive = true
+}
+`,
+	})
+
+	ctx := testContext2(t, &ContextOpts{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		}, nil),
+	})
+
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
+	assertNoErrors(t, diags)
+
+	// There should be exactly one output change
+	if len(plan.Changes.Outputs) != 1 {
+		t.Fatalf("expected 1 output change, got %d", len(plan.Changes.Outputs))
+	}
+
+	oc := plan.Changes.Outputs[0]
+	if oc.Addr.OutputValue.Name != "test" {
+		t.Fatalf("expected output 'test', got %s", oc.Addr.OutputValue.Name)
+	}
+
+	decoded, err := oc.Decode()
+	if err != nil {
+		t.Fatalf("failed to decode output change: %s", err)
+	}
+
+	// The action should be Update, not NoOp, because sensitivity changed
+	if decoded.Action != plans.Update {
+		t.Errorf("expected action to be Update for sensitivity change, got %v", decoded.Action)
+	}
+
+	// Verify sensitivity fields
+	if decoded.SensitiveBefore != false {
+		t.Errorf("expected SensitiveBefore to be false, got %v", decoded.SensitiveBefore)
+	}
+	if decoded.SensitiveAfter != true {
+		t.Errorf("expected SensitiveAfter to be true, got %v", decoded.SensitiveAfter)
+	}
+}
+
+func TestContext2Plan_outputSensitivityRemoval(t *testing.T) {
+	// Regression test for https://github.com/opentofu/opentofu/issues/2680
+	// Test the reverse: removing sensitive flag should also be detected as Update.
+
+	p := simpleMockProvider()
+
+	// First, create state with a sensitive output
+	addr := mustResourceInstanceAddr("test_object.a")
+	state := states.BuildState(func(s *states.SyncState) {
+		s.SetResourceInstanceCurrent(addr, &states.ResourceInstanceObjectSrc{
+			AttrsJSON: []byte(`{"test_string":"test-value"}`),
+			Status:    states.ObjectReady,
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
+		// Set the output value in state as sensitive
+		s.SetOutputValue(addrs.OutputValue{Name: "test"}.Absolute(addrs.RootModuleInstance), cty.StringVal("test-value"), true, "")
+	})
+
+	// Now plan with the same value but sensitive=false
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+resource "test_object" "a" {
+  test_string = "test-value"
+}
+
+output "test" {
+  value     = test_object.a.test_string
+  sensitive = false
+}
+`,
+	})
+
+	ctx := testContext2(t, &ContextOpts{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		}, nil),
+	})
+
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
+	assertNoErrors(t, diags)
+
+	// There should be exactly one output change
+	if len(plan.Changes.Outputs) != 1 {
+		t.Fatalf("expected 1 output change, got %d", len(plan.Changes.Outputs))
+	}
+
+	oc := plan.Changes.Outputs[0]
+	if oc.Addr.OutputValue.Name != "test" {
+		t.Fatalf("expected output 'test', got %s", oc.Addr.OutputValue.Name)
+	}
+
+	decoded, err := oc.Decode()
+	if err != nil {
+		t.Fatalf("failed to decode output change: %s", err)
+	}
+
+	// The action should be Update, not NoOp, because sensitivity changed
+	if decoded.Action != plans.Update {
+		t.Errorf("expected action to be Update for sensitivity removal, got %v", decoded.Action)
+	}
+
+	// Verify sensitivity fields
+	if decoded.SensitiveBefore != true {
+		t.Errorf("expected SensitiveBefore to be true, got %v", decoded.SensitiveBefore)
+	}
+	if decoded.SensitiveAfter != false {
+		t.Errorf("expected SensitiveAfter to be false, got %v", decoded.SensitiveAfter)
+	}
+}

@@ -61,7 +61,20 @@ func TestTFPlanRoundTrip(t *testing.T) {
 						Before: mustDynamicOutputValue("old secret value"),
 						After:  mustDynamicOutputValue("new secret value"),
 					},
-					Sensitive: true,
+					Sensitive:       true,
+					SensitiveBefore: true,
+					SensitiveAfter:  true,
+				},
+				{
+					Addr: addrs.OutputValue{Name: "toggle"}.Absolute(addrs.RootModuleInstance),
+					ChangeSrc: plans.ChangeSrc{
+						Action: plans.Update,
+						Before: mustDynamicOutputValue("value"),
+						After:  mustDynamicOutputValue("value"),
+					},
+					Sensitive:       true,
+					SensitiveBefore: false,
+					SensitiveAfter:  true,
 				},
 			},
 			Resources: []*plans.ResourceInstanceChangeSrc{

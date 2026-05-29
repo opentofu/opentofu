@@ -162,3 +162,75 @@ func TestChangeEncodeSensitive(t *testing.T) {
 		})
 	}
 }
+
+// TestOutputChangeSensitivityRoundTrip verifies that SensitiveBefore and
+// SensitiveAfter fields survive a round-trip through Encode() → Decode().
+//
+// Regression test for https://github.com/opentofu/opentofu/issues/2680
+// Before the fix, sensitivity changes would be lost during encoding/decoding.
+func TestOutputChangeSensitivityRoundTrip(t *testing.T) {
+	tests := []struct {
+		name             string
+		beforeSensitive bool
+		afterSensitive  bool
+	}{
+		{"no change: both not sensitive", false, false},
+		{"add sensitivity", false, true},
+		{"remove sensitivity", true, false},
+		{"no change: both sensitive", true, true},
+	}
+
+	root := addrs.RootModuleInstance
+	addr := root.OutputValue("test_output")
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create an OutputChange with the sensitivity values
+			oc := &OutputChange{
+				Addr:            addr,
+				Sensitive:       tc.beforeSensitive || tc.afterSensitive, // legacy field
+				SensitiveBefore: tc.beforeSensitive,
+				SensitiveAfter:  tc.afterSensitive,
+				Change: Change{
+					Action: NoOp,
+					Before: cty.StringVal("test_value"),
+					After:  cty.StringVal("test_value"),
+				},
+			}
+
+			// Encode to OutputChangeSrc
+			encoded, err := oc.Encode()
+			if err != nil {
+				t.Fatalf("unexpected error during encode: %s", err)
+			}
+
+			// Verify the encoded values
+			if encoded.SensitiveBefore != tc.beforeSensitive {
+				t.Errorf("encoded.SensitiveBefore = %v, want %v", encoded.SensitiveBefore, tc.beforeSensitive)
+			}
+			if encoded.SensitiveAfter != tc.afterSensitive {
+				t.Errorf("encoded.SensitiveAfter = %v, want %v", encoded.SensitiveAfter, tc.afterSensitive)
+			}
+
+			// Decode back to OutputChange
+			decoded, err := encoded.Decode()
+			if err != nil {
+				t.Fatalf("unexpected error during decode: %s", err)
+			}
+
+			// Verify the decoded values
+			if decoded.SensitiveBefore != tc.beforeSensitive {
+				t.Errorf("decoded.SensitiveBefore = %v, want %v", decoded.SensitiveBefore, tc.beforeSensitive)
+			}
+			if decoded.SensitiveAfter != tc.afterSensitive {
+				t.Errorf("decoded.SensitiveAfter = %v, want %v", decoded.SensitiveAfter, tc.afterSensitive)
+			}
+
+			// Verify the legacy Sensitive field is still populated correctly
+			expectedSensitive := tc.beforeSensitive || tc.afterSensitive
+			if decoded.Sensitive != expectedSensitive {
+				t.Errorf("decoded.Sensitive = %v, want %v", decoded.Sensitive, expectedSensitive)
+			}
+		})
+	}
+}

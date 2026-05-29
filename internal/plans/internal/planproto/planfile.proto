@@ -281,6 +281,12 @@ message OutputChange {
     // in "change" is sensitive and should not be shown directly in any
     // rendered plan.
     bool sensitive = 3;
+
+    // sensitive_before is true if the prior state value was sensitive.
+    bool sensitive_before = 4;
+
+    // sensitive_after is true if the planned new value will be sensitive.
+    bool sensitive_after = 5;
 }
 
 message CheckResults {
