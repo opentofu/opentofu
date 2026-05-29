@@ -27,18 +27,16 @@ import (
 // there should be no assumptions about e.g. there being exactly one final
 // plan per resource instance, etc.
 type ManagedResourceObjectFinalPlan struct {
-	// InstanceAddr and DeposedKey together describe which resource instance
-	// object this plan was created for.
+	// Addr describes which resource instance object this plan was created for.
 	//
-	// These are to be used only for recording the new state of the object
+	// This is to be used only for recording the new state of the object
 	// after applying this plan, and should be treated opaquely. In particular,
 	// nothing from these fields should be sent to a provider as part of
 	// applying the plan because how we track resource instance objects between
 	// rounds is an implementation detail that providers should not rely on so
 	// that we can potentially change it in future while staying compatible
 	// with existing provider plugins.
-	InstanceAddr addrs.AbsResourceInstance
-	DeposedKey   states.DeposedKey
+	Addr addrs.AbsResourceInstanceObject
 
 	ProviderInstance addrs.AbsProviderInstanceCorrect
 
@@ -88,8 +86,7 @@ type ManagedResourceObjectFinalPlan struct {
 // change of address is modelled in the data flow between operations rather than
 // as global mutable state.
 type ResourceInstanceObject struct {
-	InstanceAddr addrs.AbsResourceInstance
-	DeposedKey   states.DeposedKey
+	Addr addrs.AbsResourceInstanceObject
 
 	// State is the object currently associated with the given address.
 	State *states.ResourceInstanceObjectFull
@@ -99,9 +96,8 @@ type ResourceInstanceObject struct {
 // State as the receiver but has DeposedKey set to [states.NotDeposed].
 func (o *ResourceInstanceObject) IntoCurrent() *ResourceInstanceObject {
 	return &ResourceInstanceObject{
-		InstanceAddr: o.InstanceAddr,
-		DeposedKey:   states.NotDeposed,
-		State:        o.State,
+		Addr:  o.Addr.InstanceAddr.CurrentObject(),
+		State: o.State,
 	}
 }
 
@@ -113,9 +109,8 @@ func (o *ResourceInstanceObject) IntoCurrent() *ResourceInstanceObject {
 // allocate a unique deposed key to use.
 func (o *ResourceInstanceObject) IntoDeposed(key states.DeposedKey) *ResourceInstanceObject {
 	return &ResourceInstanceObject{
-		InstanceAddr: o.InstanceAddr,
-		DeposedKey:   key,
-		State:        o.State,
+		Addr:  o.Addr.InstanceAddr.Object(key),
+		State: o.State,
 	}
 }
 
@@ -123,9 +118,8 @@ func (o *ResourceInstanceObject) IntoDeposed(key states.DeposedKey) *ResourceIns
 // State as the receiver but has InstanceAddr set to the given address.
 func (o *ResourceInstanceObject) WithNewAddr(addr addrs.AbsResourceInstance) *ResourceInstanceObject {
 	return &ResourceInstanceObject{
-		InstanceAddr: addr,
-		DeposedKey:   o.DeposedKey,
-		State:        o.State,
+		Addr:  addr.Object(o.Addr.DeposedKey),
+		State: o.State,
 	}
 }
 
@@ -140,8 +134,7 @@ func (o *ResourceInstanceObject) WithNewState(newState *states.ResourceInstanceO
 		return nil
 	}
 	return &ResourceInstanceObject{
-		InstanceAddr: o.InstanceAddr,
-		DeposedKey:   o.DeposedKey,
-		State:        newState,
+		Addr:  o.Addr,
+		State: newState,
 	}
 }
