@@ -106,6 +106,7 @@ func TestContext2Apply_createBeforeDestroy_deposedKeyPreApply(t *testing.T) {
 // This tests that when a CBD (C) resource depends on a non-CBD (B) resource that depends on another CBD resource (A)
 // Check that create_before_destroy is still set on the B resource after only the B resource is updated
 func TestContext2Apply_createBeforeDestroy_dependsNonCBDUpdate(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureCBD)
 	m := testModule(t, "apply-cbd-depends-non-cbd-update")
 	p := simpleMockProvider()
 
@@ -186,7 +187,8 @@ func TestContext2Apply_createBeforeDestroy_dependsNonCBDUpdate(t *testing.T) {
 }
 
 func TestContext2Apply_destroyWithDataSourceExpansion(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
+	SkipExperimental(t, ExperimentalFeatureDestroy, ExperimentalBugStateProvider)
+
 	// While managed resources store their destroy-time dependencies, data
 	// sources do not. This means that if a provider were only included in a
 	// destroy graph because of data sources, it could have dependencies which
@@ -360,6 +362,8 @@ resource "test_instance" "a" {
 
 // verify that dependencies are updated in the state during refresh and apply
 func TestApply_updateDependencies(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureStateDependencies)
+
 	state := states.NewState()
 	root := state.EnsureModule(addrs.RootModuleInstance)
 
@@ -478,6 +482,8 @@ resource "aws_instance" "bin" {
 }
 
 func TestContext2Apply_additionalSensitiveFromState(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureSensitivity)
+
 	// Ensure we're not trying to double-mark values decoded from state
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
@@ -551,6 +557,8 @@ resource "test_resource" "b" {
 }
 
 func TestContext2Apply_sensitiveOutputPassthrough(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureSensitivity)
+
 	// Ensure we're not trying to double-mark values decoded from state
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
@@ -613,6 +621,8 @@ output "out" {
 //
 // For additional context, refer to https://github.com/opentofu/opentofu/issues/3367 .
 func TestContext2Apply_sensitiveInsideUnknown(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureSensitivity)
+
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 			terraform {
@@ -883,6 +893,8 @@ resource "test_object" "x" {
 }
 
 func TestContext2Apply_nullableVariables(t *testing.T) {
+	SkipExperimental(t, ExperimentalBugVariableInput)
+
 	m := testModule(t, "apply-nullable-variables")
 	state := states.NewState()
 	ctx := testContext2(t, &ContextOpts{})
@@ -916,6 +928,8 @@ func TestContext2Apply_nullableVariables(t *testing.T) {
 }
 
 func TestContext2Apply_targetedDestroyWithMoved(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureMoved, ExperimentalBugDeclareProvider)
+
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 module "modb" {
@@ -966,6 +980,8 @@ resource "test_object" "s" {
 
 // This test is inspired by the above test TestContext2Apply_targetedDestroyWithMoved
 func TestContext2Apply_excludedDestroyWithMoved(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureMoved, ExperimentalBugDeclareProvider)
+
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 module "modb" {
@@ -1075,6 +1091,8 @@ resource "test_object" "b" {
 }
 
 func TestContext2Apply_resourcePostcondition(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureCondition)
+
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 variable "boop" {
@@ -1250,6 +1268,8 @@ resource "test_resource" "c" {
 }
 
 func TestContext2Apply_ephemeralResourceLifecycleConditions(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureCondition)
+
 	const cfgTpl = `
 variable "boop" {
   type = string
@@ -1552,6 +1572,8 @@ func TestContext2Apply_outputValuePrecondition(t *testing.T) {
 }
 
 func TestContext2Apply_resourceConditionApplyTimeFail(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureCondition)
+
 	// This tests the less common situation where a condition fails due to
 	// a change in a resource other than the one the condition is attached to,
 	// and the condition result is unknown during planning.
@@ -1710,6 +1732,8 @@ func TestContext2Apply_resourceConditionApplyTimeFail(t *testing.T) {
 // pass an input through some expanded values, and back to a provider to make
 // sure we can fully evaluate a provider configuration during a destroy plan.
 func TestContext2Apply_destroyWithConfiguredProvider(t *testing.T) {
+	SkipExperimental(t, ExperimentalBugDeclareProvider)
+
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 variable "in" {
@@ -1893,6 +1917,8 @@ got:      %#v`,
 
 // check that a provider can verify a planned destroy
 func TestContext2Apply_plannedDestroy(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureDestroy)
+
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 resource "test_object" "x" {
@@ -2012,6 +2038,8 @@ resource "test_object" "y" {
 // Check eval from both root level outputs and module outputs, which are
 // handled differently during apply.
 func TestContext2Apply_outputsNotToEvaluate(t *testing.T) {
+	SkipExperimental(t, ExperimentalBugDeclareProvider, ExperimentalFeatureRootOutput)
+
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 module "mod" {
@@ -2112,6 +2140,8 @@ output "data" {
 
 // don't evaluate conditions on outputs when destroying
 func TestContext2Apply_noOutputChecksOnDestroy(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureCondition)
+
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 module "mod" {
@@ -2167,6 +2197,8 @@ output "from_resource" {
 
 // -refresh-only should update checks
 func TestContext2Apply_refreshApplyUpdatesChecks(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureRefresh)
+
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 resource "test_object" "x" {
@@ -2312,6 +2344,8 @@ resource "test_object" "y" {
 
 // ensure all references from preconditions are tracked through plan and apply
 func TestContext2Apply_preconditionErrorMessageRef(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureCondition)
+
 	p := testProvider("test")
 	ctx := testContext2(t, &ContextOpts{
 		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
@@ -2359,6 +2393,8 @@ output "a" {
 }
 
 func TestContext2Apply_destroyNullModuleOutput(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureRootOutput)
+
 	p := testProvider("test")
 	ctx := testContext2(t, &ContextOpts{
 		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
@@ -2569,6 +2605,8 @@ resource "test_resource" "b" {
 }
 
 func TestContext2Apply_destroyUnusedModuleProvider(t *testing.T) {
+	SkipExperimental(t, ExperimentalBugStateProvider)
+
 	// an unused provider within a module should not be called during destroy
 	unusedProvider := testProvider("unused")
 	testProvider := testProvider("test")
@@ -2612,6 +2650,8 @@ resource "unused_resource" "test" {
 }
 
 func TestContext2Apply_import(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureImport, ExperimentalFeatureHooks)
+
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 resource "test_resource" "a" {
@@ -2770,6 +2810,8 @@ locals {
 }
 
 func TestContext2Apply_forgetOrphanAndDeposed(t *testing.T) {
+	SkipExperimental(t, ExperimentalBugStateProvider)
+
 	desposedKey := states.DeposedKey("deposed")
 	addr := "aws_instance.baz"
 	m := testModuleInline(t, map[string]string{
@@ -2895,6 +2937,8 @@ func TestContext2Apply_forgetOrphanAndDeposedWithDynamicProvider(t *testing.T) {
 }
 
 func TestContext2Apply_providerExpandWithTargetOrExclude(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureTarget)
+
 	// This test is covering a potentially-tricky interaction between the
 	// logic that updates the provider instance references for resource
 	// instances in state snapshots, and the -target/-exclude features which
@@ -3263,6 +3307,8 @@ func TestContext2Apply_providerExpandWithTargetOrExclude(t *testing.T) {
 // All exclude flag tests in this file, from here forward, are inspired by some counterpart target flag test
 // either from this file or from context_apply_test.go
 func TestContext2Apply_moduleProviderAliasExcludes(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureTarget)
+
 	m := testModule(t, "apply-module-provider-alias")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
@@ -3303,6 +3349,8 @@ func TestContext2Apply_moduleProviderAliasExcludes(t *testing.T) {
 }
 
 func TestContext2Apply_moduleProviderAliasExcludesNonExistent(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureTarget)
+
 	m := testModule(t, "apply-module-provider-alias")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
@@ -3343,6 +3391,8 @@ func TestContext2Apply_moduleProviderAliasExcludesNonExistent(t *testing.T) {
 // Tests that a module can be excluded and everything is properly created.
 // This adds to the plan test to also just verify that apply works.
 func TestContext2Apply_moduleExclude(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureTarget)
+
 	m := testModule(t, "plan-targeted-cross-module")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
@@ -3379,6 +3429,8 @@ module.A:
 // Tests that a module can be excluded, and dependent resources and modules are excluded as well
 // This adds to the plan test to also just verify that apply works.
 func TestContext2Apply_moduleExcludeDependent(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureTarget)
+
 	m := testModule(t, "plan-targeted-cross-module")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
@@ -3410,6 +3462,8 @@ func TestContext2Apply_moduleExcludeDependent(t *testing.T) {
 // Tests that non-existent module can be excluded, and that the apply happens fully
 // This adds to the plan test to also just verify that apply works.
 func TestContext2Apply_moduleExcludeNonExistent(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureTarget)
+
 	m := testModule(t, "plan-targeted-cross-module")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
@@ -3458,6 +3512,8 @@ module.B:
 }
 
 func TestContext2Apply_destroyExcludedNonExistentWithModuleVariableAndCount(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureTarget)
+
 	m := testModule(t, "apply-destroy-mod-var-and-count")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
@@ -3547,6 +3603,8 @@ module.child:
 }
 
 func TestContext2Apply_destroyExcludedWithModuleVariableAndCount(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureTarget)
+
 	m := testModule(t, "apply-destroy-mod-var-and-count")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
@@ -3622,6 +3680,8 @@ func TestContext2Apply_destroyExcludedWithModuleVariableAndCount(t *testing.T) {
 }
 
 func TestContext2Apply_excluded(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureTarget)
+
 	m := testModule(t, "apply-targeted")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
@@ -3662,6 +3722,8 @@ aws_instance.foo:
 }
 
 func TestContext2Apply_excludedCount(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureTarget)
+
 	m := testModule(t, "apply-targeted-count")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
@@ -3704,6 +3766,8 @@ aws_instance.foo.2:
 }
 
 func TestContext2Apply_excludedCountIndex(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureTarget)
+
 	m := testModule(t, "apply-targeted-count")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
@@ -3753,6 +3817,8 @@ aws_instance.foo.2:
 }
 
 func TestContext2Apply_excludedDestroy(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureTarget)
+
 	m := testModule(t, "destroy-targeted")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
@@ -3817,6 +3883,8 @@ out = foo`)
 }
 
 func TestContext2Apply_excludedDestroyDependent(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureTarget)
+
 	m := testModule(t, "destroy-targeted")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
@@ -3889,6 +3957,8 @@ module.child:
 }
 
 func TestContext2Apply_excludedDestroyCountDeps(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureTarget)
+
 	m := testModule(t, "apply-destroy-targeted-count")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
@@ -3967,6 +4037,8 @@ aws_instance.foo.2:
 }
 
 func TestContext2Apply_excludedDependentDestroyCountDeps(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureTarget)
+
 	m := testModule(t, "apply-destroy-targeted-count")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
@@ -4051,6 +4123,8 @@ aws_instance.foo.2:
 }
 
 func TestContext2Apply_excludedDestroyModule(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureTarget)
+
 	m := testModule(t, "apply-targeted-module")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
@@ -4125,6 +4199,8 @@ module.child:
 }
 
 func TestContext2Apply_excludedDestroyCountIndex(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureTarget)
+
 	m := testModule(t, "apply-targeted-count")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
@@ -4212,6 +4288,8 @@ aws_instance.foo.2:
 }
 
 func TestContext2Apply_excludedModule(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureTarget)
+
 	m := testModule(t, "apply-targeted-module")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
@@ -4255,6 +4333,8 @@ aws_instance.foo:
 }
 
 func TestContext2Apply_excludedModuleResourceDep(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureTarget)
+
 	m := testModule(t, "apply-targeted-module-dep")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
@@ -4290,6 +4370,8 @@ func TestContext2Apply_excludedModuleResourceDep(t *testing.T) {
 }
 
 func TestContext2Apply_excludedResourceDependentOnModule(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureTarget)
+
 	m := testModule(t, "apply-targeted-module-dep")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
@@ -4328,6 +4410,8 @@ module.child:
 }
 
 func TestContext2Apply_excludedModuleDep(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureTarget)
+
 	m := testModule(t, "apply-targeted-module-dep")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
@@ -4361,6 +4445,8 @@ func TestContext2Apply_excludedModuleDep(t *testing.T) {
 }
 
 func TestContext2Apply_excludedModuleUnrelatedOutputs(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureTarget)
+
 	m := testModule(t, "apply-targeted-module-unrelated-outputs")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
@@ -4411,6 +4497,8 @@ module.child2:
 }
 
 func TestContext2Apply_excludedModuleResource(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureTarget)
+
 	m := testModule(t, "apply-targeted-module-resource")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
@@ -4458,6 +4546,8 @@ module.child:
 }
 
 func TestContext2Apply_excludedResourceOrphanModule(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureTarget)
+
 	m := testModule(t, "apply-targeted-resource-orphan-module")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
@@ -4511,6 +4601,8 @@ module.parent:
 }
 
 func TestContext2Apply_excludedOrphanModule(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureTarget)
+
 	m := testModule(t, "apply-targeted-resource-orphan-module")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
@@ -4562,6 +4654,8 @@ module.parent:
 }
 
 func TestContext2Apply_excludedWithTaintedInState(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureTarget)
+
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
 	p.ApplyResourceChangeFn = testApplyFn
@@ -4633,6 +4727,8 @@ aws_instance.ifailedprovisioners: (tainted)
 }
 
 func TestContext2Apply_excludedModuleRecursive(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureTarget)
+
 	m := testModule(t, "apply-targeted-module-recursive")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
@@ -4669,6 +4765,8 @@ func TestContext2Apply_excludedModuleRecursive(t *testing.T) {
 }
 
 func TestContext2Apply_providerResourceIteration(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureProviderInstances, ExperimentalFlagUnknown)
+
 	localComplete := `
 locals {
 	direct = "primary"
@@ -4892,6 +4990,8 @@ data "test_data_source" "b_direct" {
 }
 
 func TestContext2Apply_providerModuleIteration(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureProviderInstances)
+
 	localComplete := `
 locals {
 	direct = "primary"
@@ -5392,6 +5492,8 @@ variable "res_data" {
 }
 
 func TestContext2Apply_deprecationWarnings(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureDeprecated)
+
 	const singleDeprecatedOutput = `
 output "test-child" {
 	value = "test-child"
@@ -5638,6 +5740,8 @@ module "modfe" {
 }
 
 func TestContext2Apply_variableDeprecation(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureDeprecated)
+
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 variable "var" {
@@ -5699,6 +5803,8 @@ module "call" {
 
 // Test if check block is being expanded right when module count is zero
 func TestContext2Apply_moduleCountZeroChecks(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureChecks)
+
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 module "check_module" {
@@ -5780,6 +5886,8 @@ check "http_check" {
 
 // Test if check block is being expanded right when module count is zero (nested)
 func TestContext2Apply_moduleCountZeroChecksNested(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureChecks)
+
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 module "sub_module" {
@@ -5867,6 +5975,8 @@ check "http_check" {
 
 // Test if check block is being expanded right when module for_each is empty
 func TestContext2Apply_moduleEmptyForEachChecks(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureChecks)
+
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 module "check_module" {
@@ -5949,6 +6059,8 @@ check "http_check" {
 // TestContext2Apply_ephemeralResourcesLifecycleCheck is checking the hook calls
 // and the state to be sure that the expected information is there.
 func TestContext2Apply_ephemeralResourcesLifecycleCheck(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureHooks)
+
 	addr := mustAbsResourceAddr("ephemeral.test_ephemeral_resource.a")
 	cases := map[string]struct {
 		cfg               *configs.Config
@@ -6081,6 +6193,8 @@ resource "test_instance" "a" {
 // the variable values given in ApplyArgs are getting merged correctly with
 // the plan ones.
 func TestContext2Apply_planVariablesAndApplyArgsGetMergedCorrectly(t *testing.T) {
+	SkipExperimental(t, ExperimentalFlagUnknown)
+
 	m := testModuleInline(t, map[string]string{
 		`main.tf`: `
 # NOTE: When a variable do have a default value as null it is not written to the plan, doesn't matter if it's ephemeral or not
@@ -6564,6 +6678,8 @@ func TestMergePlanAndApplyVariables(t *testing.T) {
 }
 
 func TestContext2Apply_enabledForResource(t *testing.T) {
+	SkipExperimental(t, ExperimentalFlagUnknown)
+
 	m := testModule(t, "apply-enabled-resource")
 	p := &MockProvider{
 		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
@@ -6721,6 +6837,8 @@ func TestContext2Apply_enabledForResource(t *testing.T) {
 }
 
 func TestContext2Apply_enabledForModule(t *testing.T) {
+	SkipExperimental(t, ExperimentalFlagUnknown)
+
 	m := testModule(t, "apply-enabled-module")
 
 	provider := testProvider("test")
@@ -6826,6 +6944,8 @@ func TestContext2Apply_enabledForModule(t *testing.T) {
 // provider function can be used by referencing it in a dynamic block inside
 // a resource.
 func TestContext2Apply_callingProviderFunctionFromDynamicBlock(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureProviderFunctions)
+
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 terraform {
@@ -6935,6 +7055,8 @@ resource "test_resource" "res" {
 // This test has been added when a fix for https://github.com/opentofu/opentofu/issues/3489
 // was provided.
 func TestContext2Apply_ephemeralInModuleWithExpansion(t *testing.T) {
+	SkipExperimental(t, ExperimentalFlagUnknown)
+
 	cfgs := map[string]map[string]string{
 		"1 level deep with for_each on module call": {
 			`mod/main.tf`: `
