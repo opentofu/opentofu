@@ -136,8 +136,7 @@ func (ops *execOperations) resourceInstanceStateObject(
 		return nil, diags
 	}
 	return &exec.ResourceInstanceObject{
-		InstanceAddr: instAddr,
-		DeposedKey:   deposedKey,
-		State:        state,
+		Addr:  instAddr.Object(deposedKey),
+		State: state,
 	}, diags
 }

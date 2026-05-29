@@ -96,7 +96,7 @@ func TestCompiler_resourceInstanceBasics(t *testing.T) {
 		},
 		ResourceInstancePriorFunc: func(ctx context.Context, addr addrs.AbsResourceInstance) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
 			return &exec.ResourceInstanceObject{
-				InstanceAddr: addr,
+				Addr: addr.CurrentObject(),
 				State: &states.ResourceInstanceObjectFull{
 					Status: states.ObjectReady,
 					Value: cty.ObjectVal(map[string]cty.Value{
@@ -115,7 +115,7 @@ func TestCompiler_resourceInstanceBasics(t *testing.T) {
 		},
 		ManagedFinalPlanFunc: func(ctx context.Context, desired *eval.DesiredResourceInstance, prior *exec.ResourceInstanceObject, plannedVal cty.Value) (*exec.ManagedResourceObjectFinalPlan, tfdiags.Diagnostics) {
 			return &exec.ManagedResourceObjectFinalPlan{
-				InstanceAddr:  desired.Addr,
+				Addr:          desired.Addr.CurrentObject(),
 				ResourceType:  desired.ResourceType,
 				ConfigVal:     desired.ConfigVal,
 				PriorStateVal: prior.State.Value,
@@ -124,7 +124,7 @@ func TestCompiler_resourceInstanceBasics(t *testing.T) {
 		},
 		ManagedApplyFunc: func(ctx context.Context, plan *exec.ManagedResourceObjectFinalPlan, fallback *exec.ResourceInstanceObject) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
 			return &exec.ResourceInstanceObject{
-				InstanceAddr: plan.InstanceAddr,
+				Addr: plan.Addr,
 				State: &states.ResourceInstanceObjectFull{
 					Status:               states.ObjectReady,
 					Value:                plan.PlannedVal,
@@ -180,7 +180,7 @@ func TestCompiler_resourceInstanceBasics(t *testing.T) {
 			MethodName: "ManagedApply",
 			Args: []any{
 				&exec.ManagedResourceObjectFinalPlan{
-					InstanceAddr: resourceInstAddr,
+					Addr:         resourceInstAddr.CurrentObject(),
 					ResourceType: resourceInstAddr.Resource.Resource.Type,
 					ConfigVal:    wantValue,
 					PlannedVal:   wantValue,
@@ -191,7 +191,7 @@ func TestCompiler_resourceInstanceBasics(t *testing.T) {
 				(*exec.ResourceInstanceObject)(nil),
 			},
 			Result: &exec.ResourceInstanceObject{
-				InstanceAddr: resourceInstAddr,
+				Addr: resourceInstAddr.CurrentObject(),
 				State: &states.ResourceInstanceObjectFull{
 					Status:               states.ObjectReady,
 					Value:                wantValue,
@@ -212,7 +212,7 @@ func TestCompiler_resourceInstanceBasics(t *testing.T) {
 					ResourceType:     resourceInstAddr.Resource.Resource.Type,
 				},
 				&exec.ResourceInstanceObject{
-					InstanceAddr: resourceInstAddr,
+					Addr: resourceInstAddr.CurrentObject(),
 					State: &states.ResourceInstanceObjectFull{
 						Status: states.ObjectReady,
 						Value: cty.ObjectVal(map[string]cty.Value{
@@ -231,7 +231,7 @@ func TestCompiler_resourceInstanceBasics(t *testing.T) {
 				wantValue,
 			},
 			Result: &exec.ManagedResourceObjectFinalPlan{
-				InstanceAddr: resourceInstAddr,
+				Addr:         resourceInstAddr.CurrentObject(),
 				ResourceType: resourceInstAddr.Resource.Resource.Type,
 				ConfigVal:    wantValue,
 				PriorStateVal: cty.ObjectVal(map[string]cty.Value{
@@ -260,7 +260,7 @@ func TestCompiler_resourceInstanceBasics(t *testing.T) {
 				resourceInstAddr,
 			},
 			Result: &exec.ResourceInstanceObject{
-				InstanceAddr: resourceInstAddr,
+				Addr: resourceInstAddr.CurrentObject(),
 				State: &states.ResourceInstanceObjectFull{
 					Status: states.ObjectReady,
 					Value: cty.ObjectVal(map[string]cty.Value{
