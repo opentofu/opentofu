@@ -18,17 +18,8 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-type ResourceInstanceDependencyMissingCause int
-
-const (
-	ResourceInstanceDependencyMissingCauseInvalid = iota
-	ResourceInstanceDependencyMissingCauseNotPlanned
-	ResourceInstanceDependencyMissingCauseNotExecuted
-)
-
 type ResourceInstanceDependencyMissingMark struct {
 	Target string // addrs.AbsResourceInstance
-	Cause  ResourceInstanceDependencyMissingCause
 }
 
 type CompiledGraph struct {
@@ -43,10 +34,6 @@ type CompiledGraph struct {
 	// functions have returned.
 	steps []compiledGraphStep
 
-	// resourceInstanceValuesLock protects concurrent reads/writes to
-	// resourceInstanceValues as we overwrite it's entries post resource
-	// execution
-	resourceInstanceValuesLock sync.Mutex
 	// resourceInstanceValues provides a function for each resource instance
 	// that was registered as a "sink" during graph building which blocks
 	// until the final state for that resource instance is available and then
@@ -116,17 +103,15 @@ func (c *CompiledGraph) Execute(ctx context.Context) tfdiags.Diagnostics {
 // resource graph node has already executed and recorded a value.
 //
 // Calls to this method should run concurrently with a call to [CompiledGraph.Execute]
-// because otherwise the operations that generate the final state for resource
-// instances will not have been run and had it's value recorded.
+// because otherwise the operations that generate the final state for resource instances
+// will not run and thus this will block indefinitely waiting for results that will never
+// arrive.
 //
 // If the resource's value is not available for any reason, a [cty.DynamicVal] will
 // be returned, marked with [ResourceInstanceDependencyMissingMark]. This allows
 // the "unplanned reference" mark to propogate through the rest of the system and be
 // handled in locations where it can generate a detailed error diagnostic.
 func (c *CompiledGraph) ResourceInstanceValue(ctx context.Context, addr addrs.AbsResourceInstance) cty.Value {
-	c.resourceInstanceValuesLock.Lock()
-	defer c.resourceInstanceValuesLock.Unlock()
-
 	getter, ok := c.resourceInstanceValues.GetOk(addr)
 	if !ok {
 		// If we get asked for a resource instance address that wasn't involved
@@ -138,7 +123,6 @@ func (c *CompiledGraph) ResourceInstanceValue(ctx context.Context, addr addrs.Ab
 		// error message elsewhere.
 		return cty.DynamicVal.Mark(ResourceInstanceDependencyMissingMark{
 			Target: addr.String(),
-			Cause:  ResourceInstanceDependencyMissingCauseNotPlanned,
 		})
 	}
 	return getter(ctx)

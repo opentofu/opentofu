@@ -161,12 +161,18 @@ func (c *compiler) Compile() (*CompiledGraph, tfdiags.Diagnostics) {
 	// evaluation system.
 	for _, elem := range c.sourceGraph.resourceInstanceResults.Elems {
 		instAddr := elem.Key
-		// No lock needed here as the concurrent execution has not yet been started.
+		ref := elem.Value
+		execFunc := c.compileResultRef(ref)
 		c.compiledGraph.resourceInstanceValues.Put(instAddr, func(ctx context.Context) cty.Value {
-			return cty.DynamicVal.Mark(ResourceInstanceDependencyMissingMark{
-				Target: instAddr.String(),
-				Cause:  ResourceInstanceDependencyMissingCauseNotExecuted,
-			})
+			rawResult, ok, _ := execFunc(ctx)
+			if !ok {
+				return cty.DynamicVal
+			}
+			finalStateObj := rawResult.(*exec.ResourceInstanceObject)
+			if finalStateObj == nil {
+				return cty.NullVal(cty.DynamicPseudoType)
+			}
+			return finalStateObj.State.Value
 		})
 	}
 
