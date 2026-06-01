@@ -29,7 +29,6 @@ const (
 	ExperimentalBugDataResource      ExperimentalFlag = "Bug Data Resource"
 	ExperimentalBugVariableInput     ExperimentalFlag = "Bug Variable Input"
 	ExperimentalBugForEach           ExperimentalFlag = "Bug For Each" // TODO run existing evalchecks tests against new engine
-	ExperimentalBugExecGraph         ExperimentalFlag = "Bug in generated Exec Graph"
 
 	ExperimentalChangeDiagWording ExperimentalFlag = "Change Different Diagnostic Wording"
 	ExperimentalChangeErrorEarly  ExperimentalFlag = "Change Detect Error Earlier"
@@ -69,14 +68,23 @@ const (
 	ExperimentalFeatureStateDependencies ExperimentalFlag = "Missing State Dependencies"
 	ExperimentalFeatureProviderFunctions ExperimentalFlag = "Missing Provider Defined Functions"
 	ExperimentalFeatureProviderInstances ExperimentalFlag = "Missing Provider Instances"
+
+	// Fixed
+	ExperimentalBugExecGraph ExperimentalFlag = "Bug in generated Exec Graph"
 )
 
 func SkipExperimental(t *testing.T, features ...ExperimentalFlag) {
 	if experimentalRuntimeEnabled() {
 		var strs []string
 		for _, feature := range features {
-			strs = append(strs, string(feature))
+			switch feature {
+			case ExperimentalBugExecGraph:
+			default:
+				strs = append(strs, string(feature))
+			}
 		}
-		t.Skip("New Engine: " + strings.Join(strs, ", "))
+		if len(strs) > 0 {
+			t.Skip("New Engine: " + strings.Join(strs, ", "))
+		}
 	}
 }
