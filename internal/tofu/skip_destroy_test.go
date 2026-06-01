@@ -246,6 +246,7 @@ func TestSkipDestroy_DestroyMode(t *testing.T) {
 }
 
 func TestSkipDestroy_DestroyMode_Deposed(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureDeposed)
 	tests := []skipDestroyTestCase{
 		{
 			// Deposed objects are a special case, since they correspond to old instances.
@@ -553,6 +554,7 @@ func TestSkipDestroy_Replace(t *testing.T) {
 // 4. Neither with attribute -> Delete
 // 5. Orphaned deposed instance with attribute -> Forget
 func TestSkipDestroy_Deposed(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureDeposed)
 	tests := []skipDestroyTestCase{
 		{
 			// Config has destroy=true (no attribute). Deposed instance having SkipDestroy=true in state.
@@ -1355,6 +1357,8 @@ func TestSkipDestroy_RemovedBlock(t *testing.T) {
 // TestSkipDestroy_RemovedBlock_DeposedInstance tests removed block interactions with deposed instances.
 // Deposed instances follow the same rules as current instances for removed blocks.
 func TestSkipDestroy_RemovedBlock_DeposedInstance(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureDeposed)
+
 	tests := []skipDestroyTestCase{
 		{
 			// Config: removed block with destroy=true, State: Deposed with SkipDestroy=true

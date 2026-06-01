@@ -778,6 +778,7 @@ func validateCheckDiagnostics(t *testing.T, stage string, expectedWarning, expec
 }
 
 func validateCheckResults(t *testing.T, stage string, expected map[string]checksTestingStatus, actual *states.CheckResults) {
+	SkipExperimental(t, ExperimentalFeatureChecks)
 
 	// Just a quick sanity check that the plan or apply process didn't create
 	// some non-existent checks.

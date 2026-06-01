@@ -11,8 +11,10 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/apparentlymart/go-versions/versions"
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -73,7 +75,7 @@ func experimentalRuntimeEnabled() bool {
 	return optIn != ""
 }
 
-func (c *Context) newEngineShim(ctx context.Context, config *configs.Config, inputValuesRaw InputValues) (*eval.ConfigInstance, plugins.Plugins, func(), tfdiags.Diagnostics) {
+func (c *Context) newEngineShim(ctx context.Context, config *configs.Config, inputValuesRaw InputValues, planTimestamp time.Time, allowImpureFunctions bool) (*eval.ConfigInstance, plugins.Plugins, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	rawInput := map[string]cty.Value{}
@@ -87,15 +89,21 @@ func (c *Context) newEngineShim(ctx context.Context, config *configs.Config, inp
 
 	tempLoader, _ := configload.NewLoader(&configload.Config{})
 
+	owd := "."
+	if c.meta != nil && c.meta.OriginalWorkingDir != "" {
+		owd = c.meta.OriginalWorkingDir
+	}
+
 	plugins := plugins.NewRuntimePluginsTemp(c.plugins.providers, c.plugins.provisioners)
 	evalCtx := &eval.EvalContext{
 		RootModuleDir:      config.Module.SourceDir,
-		OriginalWorkingDir: c.meta.OriginalWorkingDir,
+		OriginalWorkingDir: owd,
 		Modules: &newRuntimeModules{
 			loader: tempLoader,
 		},
-		Providers:    plugins,
-		Provisioners: plugins,
+		Providers:     plugins,
+		Provisioners:  plugins,
+		PlanTimestamp: planTimestamp,
 	}
 	done := func() {
 		// We'll call close with a cancel-free context because we do still
@@ -105,7 +113,9 @@ func (c *Context) newEngineShim(ctx context.Context, config *configs.Config, inp
 		// If a provider fails to close there isn't really much we can do
 		// about that... this shouldn't really be possible unless the
 		// plugin process already exited for some other reason anyway.
-		log.Printf("[ERROR] plugin shutdown failed: %s", err)
+		if err != nil {
+			log.Printf("[ERROR] plugin shutdown failed: %s", err.Error())
+		}
 	}
 
 	// The new config-loading system wants to work in terms of module source
@@ -129,7 +139,7 @@ func (c *Context) newEngineShim(ctx context.Context, config *configs.Config, inp
 	configCall := &eval.ConfigCall{
 		RootModuleSource:     rootModuleSource,
 		InputValues:          inputValues,
-		AllowImpureFunctions: false,
+		AllowImpureFunctions: allowImpureFunctions,
 		EvalContext:          evalCtx,
 	}
 	configInst, moreDiags := eval.NewConfigInstance(ctx, configCall)
@@ -145,7 +155,7 @@ func (c *Context) newEngineValidate(ctx context.Context, config *configs.Config,
 
 	log.Println("[WARN] Using validate implementation from the experimental language runtime")
 
-	configInst, _, done, moreDiags := c.newEngineShim(ctx, config, inputValues)
+	configInst, _, done, moreDiags := c.newEngineShim(ctx, config, inputValues, time.Time{}, false)
 	diags = diags.Append(moreDiags)
 
 	if diags.HasErrors() {
@@ -164,7 +174,9 @@ func (c *Context) newEnginePlan(ctx context.Context, config *configs.Config, pre
 
 	log.Println("[WARN] Using plan implementation from the experimental language runtime")
 
-	configInst, plugins, done, moreDiags := c.newEngineShim(ctx, config, opts.SetVariables)
+	timestamp := time.Now().UTC()
+
+	configInst, plugins, done, moreDiags := c.newEngineShim(ctx, config, opts.SetVariables, timestamp, false)
 	diags = diags.Append(moreDiags)
 
 	if diags.HasErrors() {
@@ -174,6 +186,9 @@ func (c *Context) newEnginePlan(ctx context.Context, config *configs.Config, pre
 	defer done()
 
 	plan, moreDiags := planning.PlanChanges(ctx, prevRoundState, configInst, plugins)
+	if plan != nil {
+		plan.Timestamp = timestamp
+	}
 	diags = diags.Append(moreDiags)
 	return plan, diags
 }
@@ -192,7 +207,7 @@ func (c *Context) newEngineApply(ctx context.Context, config *configs.Config, pl
 		return nil, diags
 	}
 
-	configInst, plugins, done, moreDiags := c.newEngineShim(ctx, config, variables)
+	configInst, plugins, done, moreDiags := c.newEngineShim(ctx, config, variables, plan.Timestamp, true)
 	diags = diags.Append(moreDiags)
 
 	if diags.HasErrors() {
@@ -229,6 +244,14 @@ func (n *newRuntimeModules) ModuleConfig(ctx context.Context, source addrs.Modul
 	case addrs.ModuleSourceLocal:
 		sourceDir = filepath.Clean(filepath.FromSlash(string(source)))
 	default:
+		// Hack in support for file:// paths to allow existing tests to run
+		// This should be removed once support is added for [addrs.ModuleSourceRemote]
+		str := source.String()
+		if strings.HasPrefix(str, "file://") {
+			sourceDir = strings.TrimPrefix(str, "file://")
+			break
+		}
+
 		// For this early stub implementation we only support local source
 		// addresses. We'll expand this later but that'll require this codepath
 		// to have access to the information about what's in the module cache

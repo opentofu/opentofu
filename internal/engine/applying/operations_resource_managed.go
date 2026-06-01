@@ -229,16 +229,18 @@ func (ops *execOperations) ManagedApply(
 		// If we were given a "fallback" object then we need to restore it
 		// back to being the current object for our resource instance before
 		// we return.
-		ok := ops.workingState.MaybeRestoreResourceInstanceDeposed(fallback.InstanceAddr, fallback.DeposedKey)
-		if !ok {
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
-				"Failed to restore deposed object",
-				fmt.Sprintf(
-					"Failed to restore %s deposed object %s as the current object after failing to create its replacement.\n\nThe next plan will propose to destroy this deposed object. This is a bug in OpenTofu.",
-					fallback.InstanceAddr, fallback.DeposedKey,
-				),
-			))
+		if fallback != nil {
+			ok := ops.workingState.MaybeRestoreResourceInstanceDeposed(fallback.InstanceAddr, fallback.DeposedKey)
+			if !ok {
+				diags = diags.Append(tfdiags.Sourceless(
+					tfdiags.Error,
+					"Failed to restore deposed object",
+					fmt.Sprintf(
+						"Failed to restore %s deposed object %s as the current object after failing to create its replacement.\n\nThe next plan will propose to destroy this deposed object. This is a bug in OpenTofu.",
+						fallback.InstanceAddr, fallback.DeposedKey,
+					),
+				))
+			}
 		}
 		result, moreDiags := ops.resourceInstanceStateObject(ctx, ops.workingState, plan.InstanceAddr, states.NotDeposed)
 		diags = diags.Append(moreDiags)

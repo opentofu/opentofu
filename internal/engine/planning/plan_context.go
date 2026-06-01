@@ -66,6 +66,7 @@ func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, pro
 	return &planContext{
 		evalCtx:          evalCtx,
 		resourceInstObjs: newResourceInstanceObjectsBuilder(),
+		deferred:         addrs.MakeMap[addrs.AbsResourceInstance, struct{}](),
 		prevRoundState:   prevRoundState,
 		refreshedState:   refreshedState.SyncWrapper(),
 		providers:        providers,

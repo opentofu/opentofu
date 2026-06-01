@@ -7,6 +7,7 @@ package evalglue
 
 import (
 	"testing"
+	"time"
 )
 
 // EvalContext is a collection of contextual information provided by an
@@ -49,6 +50,8 @@ type EvalContext struct {
 	// the "-chdir" command line option, which causes RootModuleDir to change
 	// but leaves OriginalWorkingDir unchanged.
 	RootModuleDir, OriginalWorkingDir string
+
+	PlanTimestamp time.Time
 }
 
 // AssertValid must be called early on entry to any exported function that
