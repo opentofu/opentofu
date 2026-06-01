@@ -2795,7 +2795,7 @@ func TestContext2Apply_moduleBasic(t *testing.T) {
 }
 
 func TestContext2Apply_moduleDestroyOrder(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugExecGraph)
+	SkipExperimental(t, ExperimentalBugExecGraph, ExperimentalFeatureDestroy)
 
 	m := testModule(t, "apply-module-destroy-order")
 	p := testProvider("aws")
@@ -3367,7 +3367,7 @@ func TestContext2Apply_moduleProviderCloseNested(t *testing.T) {
 // accessing "non-existent" resources (they existed, just not in the graph
 // cause they weren't in the diff).
 func TestContext2Apply_moduleVarRefExisting(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugExecGraph)
+	SkipExperimental(t, ExperimentalBugExecGraph, ExperimentalFeatureStateDependencies)
 
 	m := testModule(t, "apply-ref-existing")
 	p := testProvider("aws")
@@ -4149,7 +4149,7 @@ func TestContext2Apply_multiVarOrder(t *testing.T) {
 // Test that multi-var (splat) access is ordered by count, not by
 // value, through interpolations.
 func TestContext2Apply_multiVarOrderInterp(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugExecGraph)
+	SkipExperimental(t, ExperimentalBugExecGraph, ExperimentalFlagUnknown)
 
 	m := testModule(t, "apply-multi-var-order-interp")
 	p := testProvider("aws")
@@ -4185,7 +4185,7 @@ func TestContext2Apply_multiVarOrderInterp(t *testing.T) {
 // Based on GH-10440 where a graph edge wasn't properly being created
 // between a modified resource and a count instance being destroyed.
 func TestContext2Apply_multiVarCountDec(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugExecGraph)
+	SkipExperimental(t, ExperimentalBugExecGraph, ExperimentalFeatureDestroy)
 
 	var s *states.State
 
@@ -7340,7 +7340,7 @@ func TestContext2Apply_taintDep(t *testing.T) {
 }
 
 func TestContext2Apply_taintDepRequiresNew(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugExecGraph)
+	SkipExperimental(t, ExperimentalBugExecGraph, ExperimentalFlagUnknown)
 
 	m := testModule(t, "apply-taint-dep-requires-new")
 	p := testProvider("aws")
@@ -8533,7 +8533,7 @@ func TestContext2Apply_issue7824(t *testing.T) {
 // This deals with the situation where a splat expression is used referring
 // to another resource whose count is non-constant.
 func TestContext2Apply_issue5254(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugExecGraph)
+	SkipExperimental(t, ExperimentalBugExecGraph, ExperimentalFeatureStateDependencies)
 
 	// Create a provider. We use "template" here just to match the repro
 	// we got from the issue itself.
