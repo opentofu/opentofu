@@ -53,11 +53,6 @@ func setupSkipTestState(t *testing.T, instances []skipStateInstance) *states.Sta
 			inst.attrsJSON = `{"id":"baz","type":"aws_instance"}`
 		}
 
-		instanceKey := inst.instanceKey
-		if instanceKey == nil {
-			instanceKey = addrs.NoKey
-		}
-
 		obj := &states.ResourceInstanceObjectSrc{
 			Status:      states.ObjectReady,
 			AttrsJSON:   []byte(inst.attrsJSON),
