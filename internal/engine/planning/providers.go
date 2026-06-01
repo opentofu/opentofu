@@ -7,9 +7,7 @@ package planning
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/internal/common"
 	"github.com/opentofu/opentofu/internal/lang/eval"
@@ -45,14 +43,6 @@ func newProviderInstances(planCtx *planContext, oracle *eval.PlanningOracle) *co
 			return nil, nil
 		}
 		configVal := config.ConfigVal
-
-		if !configVal.IsWhollyKnown() {
-			return nil, tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid provider configuration",
-				Detail:   fmt.Sprintf("The configuration for %s depends on values that cannot be determined until apply.", addr),
-			})
-		}
 
 		// Since we've already evaluated the configuration now anyway, we'll
 		// take this opportunity to record what it depends on for the benefit
