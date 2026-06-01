@@ -127,7 +127,7 @@ func OpenTelemetryInit(ctx context.Context) (context.Context, error) {
 		propCarrier.Set("traceparent", traceparent)
 
 		if tracestate := os.Getenv(traceStateEnvVar); tracestate != "" {
-			log.Printf("[TRACE] OpenTelemetry: found trace state in environment: %s", traceparent)
+			log.Printf("[TRACE] OpenTelemetry: found trace state in environment: %s", tracestate)
 			propCarrier.Set("tracestate", tracestate)
 		}
 
