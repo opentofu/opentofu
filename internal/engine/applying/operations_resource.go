@@ -20,7 +20,7 @@ import (
 	"github.com/zclconf/go-cty/cty/ctymarks"
 )
 
-const resourceDependencyMissingDetail = `The value of resource %s was requested by %s during apply, %s.
+const resourceDependencyMissingDetail = `The value of resource %s was requested by %s during apply, but was not present in the plan.
 This may be caused by one of the following options:
   - Ephemeral values requiring different dependencies between plan and apply (unsupported)
   - An edge case of -target or -exclude
@@ -33,22 +33,11 @@ func (ops *execOperations) resourceDependenciesMissingCheck(idType string, idNam
 
 	cfgVal, marks := ops.resourceDependenciesMissingMarks(cfgVal)
 	for _, mark := range marks {
-		switch mark.Cause {
-		case execgraph.ResourceInstanceDependencyMissingCauseNotPlanned:
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
-				fmt.Sprintf("Invalid %s action", idType),
-				fmt.Sprintf(resourceDependencyMissingDetail, mark.Target, idName, "but was not present in the plan"),
-			))
-		case execgraph.ResourceInstanceDependencyMissingCauseNotExecuted:
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
-				fmt.Sprintf("Invalid %s action", idType),
-				fmt.Sprintf(resourceDependencyMissingDetail, mark.Target, idName, "but was not yet present in the planned execution order"),
-			))
-		default:
-			panic(fmt.Sprintf("BUG: unhandled ResourceInstanceDependencyMissingCause(%v) for %s", mark.Cause, idName))
-		}
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			fmt.Sprintf("Invalid %s action", idType),
+			fmt.Sprintf(resourceDependencyMissingDetail, mark.Target, idName),
+		))
 	}
 
 	return cfgVal, diags

@@ -139,16 +139,9 @@ func TestCompiler_resourceInstanceBasics(t *testing.T) {
 		t.Fatal("unexpected compile errors\n" + diags.Err().Error())
 	}
 
-	// Simulate asking for a resource before it's executed
-	gotValue := compiledGraph.ResourceInstanceValue(grapheval.ContextWithNewWorker(t.Context()), resourceInstAddr)
-	wantValue := cty.DynamicVal.Mark(ResourceInstanceDependencyMissingMark{Target: resourceInstAddr.String(), Cause: ResourceInstanceDependencyMissingCauseNotExecuted})
-	if diff := gcmp.Diff(wantValue, gotValue, ctydebug.CmpOptions); diff != "" {
-		t.Errorf("wrong result for %s: %s", resourceInstAddr, diff)
-	}
-
 	// Simulate asking for a resource that is not in the plan
-	gotValue = compiledGraph.ResourceInstanceValue(grapheval.ContextWithNewWorker(t.Context()), resourceInstAddrMissing)
-	wantValue = cty.DynamicVal.Mark(ResourceInstanceDependencyMissingMark{Target: resourceInstAddrMissing.String(), Cause: ResourceInstanceDependencyMissingCauseNotPlanned})
+	gotValue := compiledGraph.ResourceInstanceValue(grapheval.ContextWithNewWorker(t.Context()), resourceInstAddrMissing)
+	wantValue := cty.DynamicVal.Mark(ResourceInstanceDependencyMissingMark{Target: resourceInstAddrMissing.String()})
 	if diff := gcmp.Diff(wantValue, gotValue, ctydebug.CmpOptions); diff != "" {
 		t.Errorf("wrong result for %s: %s", resourceInstAddr, diff)
 	}
