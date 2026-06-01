@@ -3760,7 +3760,7 @@ func TestContext2Plan_moduleDestroy(t *testing.T) {
 
 // GH-1835
 func TestContext2Plan_moduleDestroyCycle(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDeclareProvider)
+	SkipExperimental(t, ExperimentalBugDeclareProvider, ExperimentalFeatureDestroy)
 
 	m := testModule(t, "plan-module-destroy-gh-1835")
 	p := testProvider("aws")
@@ -3825,7 +3825,7 @@ func TestContext2Plan_moduleDestroyCycle(t *testing.T) {
 }
 
 func TestContext2Plan_moduleDestroyMultivar(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDeclareProvider)
+	SkipExperimental(t, ExperimentalBugDeclareProvider, ExperimentalFeatureDestroy)
 
 	m := testModule(t, "plan-module-destroy-multivar")
 	p := testProvider("aws")
@@ -4319,7 +4319,7 @@ func TestContext2Plan_requiresReplace(t *testing.T) {
 }
 
 func TestContext2Plan_taint(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDeclareProvider)
+	SkipExperimental(t, ExperimentalBugDeclareProvider, ExperimentalFeatureChanges)
 
 	m := testModule(t, "plan-taint")
 	p := testProvider("aws")
@@ -6601,7 +6601,7 @@ func TestContext2Plan_variableSensitivity(t *testing.T) {
 }
 
 func TestContext2Plan_variableSensitivityModule(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDeclareProvider)
+	SkipExperimental(t, ExperimentalBugDeclareProvider, ExperimentalFeatureSensitivity)
 
 	m := testModule(t, "plan-variable-sensitivity-module")
 
@@ -6831,7 +6831,7 @@ func TestContext2Plan_requiredModuleObject(t *testing.T) {
 }
 
 func TestContext2Plan_expandOrphan(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDeclareProvider)
+	SkipExperimental(t, ExperimentalBugDeclareProvider, ExperimentalFeatureChanges)
 
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `

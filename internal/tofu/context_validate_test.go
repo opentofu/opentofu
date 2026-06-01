@@ -383,6 +383,8 @@ func TestContext2Validate_moduleGood(t *testing.T) {
 }
 
 func TestContext2Validate_moduleBadResource(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureValidate)
+
 	m := testModule(t, "validate-module-bad-rc")
 	p := testProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
@@ -412,7 +414,7 @@ func TestContext2Validate_moduleBadResource(t *testing.T) {
 }
 
 func TestContext2Validate_moduleDepsShouldNotCycle(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDeclareProvider)
+	SkipExperimental(t, ExperimentalBugDeclareProvider, ExperimentalBugVariableInput)
 
 	m := testModule(t, "validate-module-deps-cycle")
 	p := testProvider("aws")
@@ -1636,7 +1638,7 @@ resource "aws_instance" "foo" {
 }
 
 func TestContext2Validate_expandMultipleNestedModules(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDeclareProvider)
+	SkipExperimental(t, ExperimentalBugDeclareProvider, ExperimentalBugVariableInput)
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 module "modA" {

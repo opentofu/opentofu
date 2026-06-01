@@ -8,6 +8,7 @@ package tofu2024
 import (
 	"context"
 	"iter"
+	"sync"
 	"time"
 
 	"github.com/zclconf/go-cty/cty/function"
@@ -102,7 +103,49 @@ func CompileModuleInstance(
 		call.EvalContext.Providers,
 		call.EvaluationGlue.ValidateProviderConfig,
 	)
-	providersSidechannel := compileModuleProvidersSidechannel(ctx, call.ProvidersFromParent, ret.providerConfigNodes)
+	if call.AddRootProvider == nil {
+		if !call.CalleeAddr.IsRoot() {
+			panic("BUG: missing provider transformer simulator")
+		}
+		// Missing provider transformer stand-in
+		// This allows the legacy flow of resources being able to add "fake" provider configs to the root
+		// module. This only works for hashicorp namespaced providers and breaks on provider name changes
+		// between modules.
+		var addRootProviderLock sync.Mutex
+		// TODO we don't check any of these temporary nodes as we don't have a good way of reporting them to
+		// the ret [CompiledModuleInstance]. As CheckAll collects error diagnostics, this could potentially
+		// drop some on the floor in these legacy paths.
+		providerConfigNodes := map[addrs.LocalProviderConfig]*configgraph.ProviderConfig{}
+		call.AddRootProvider = func(pc addrs.LocalProviderConfig) exprs.Valuer {
+			addRootProviderLock.Lock()
+			defer addRootProviderLock.Unlock()
+
+			// Already populated by this "transformer"
+			if found, ok := providerConfigNodes[pc]; ok {
+				return found
+			}
+
+			temp := compileModuleInstanceProviderConfigs(ctx,
+				nil,
+				nil,
+				// This is a fragile hack
+				func(yield func(*configs.Resource) bool) {
+					yield(&configs.Resource{Type: pc.LocalName})
+				},
+				topScope,
+				module.ProviderRequirements.RequiredProviders,
+				call.CalleeAddr,
+				call.EvalContext.Providers,
+				call.EvaluationGlue.ValidateProviderConfig,
+			)
+			if created, ok := temp[pc]; ok {
+				providerConfigNodes[pc] = created
+				return created
+			}
+			panic("BUG: MissingProviderTransformer simulator did not work")
+		}
+	}
+	providersSidechannel := compileModuleProvidersSidechannel(ctx, call.ProvidersFromParent, ret.providerConfigNodes, call.AddRootProvider)
 
 	ret.inputVariableNodes = compileModuleInstanceInputVariables(ctx, module.Variables, call.InputValues, topScope, call.CalleeAddr, call.DeclRange)
 	ret.localValueNodes = compileModuleInstanceLocalValues(ctx, module.Locals, topScope, call.CalleeAddr)

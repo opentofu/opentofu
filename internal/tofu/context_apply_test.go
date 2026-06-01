@@ -664,7 +664,7 @@ func TestContext2Apply_resourceDependsOnModuleGrandchild(t *testing.T) {
 }
 
 func TestContext2Apply_resourceDependsOnModuleInModule(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDeclareProvider)
+	SkipExperimental(t, ExperimentalBugDeclareProvider, ExperimentalFeatureDependsOn)
 
 	m := testModule(t, "apply-resource-depends-on-module-in-module")
 	p := testProvider("aws")
@@ -717,7 +717,7 @@ func TestContext2Apply_resourceDependsOnModuleInModule(t *testing.T) {
 }
 
 func TestContext2Apply_mapVarBetweenModules(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDeclareProvider)
+	SkipExperimental(t, ExperimentalBugDeclareProvider, ExperimentalFeatureRootOutput)
 
 	m := testModule(t, "apply-map-var-through-module")
 	p := testProvider("null")
@@ -6134,7 +6134,7 @@ func TestContext2Apply_destroyNestedModule(t *testing.T) {
 }
 
 func TestContext2Apply_destroyDeeplyNestedModule(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugStateProvider)
+	SkipExperimental(t, ExperimentalBugStateProvider, ExperimentalFeatureDestroy)
 
 	m := testModule(t, "apply-destroy-deeply-nested-module")
 	p := testProvider("aws")
@@ -6175,7 +6175,7 @@ func TestContext2Apply_destroyDeeplyNestedModule(t *testing.T) {
 
 // https://github.com/hashicorp/terraform/issues/5440
 func TestContext2Apply_destroyModuleWithAttrsReferencingResource(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDeclareProvider)
+	SkipExperimental(t, ExperimentalBugDeclareProvider, ExperimentalFeatureDestroy)
 
 	m, snap := testModuleWithSnapshot(t, "apply-destroy-module-with-attrs")
 	p := testProvider("aws")
@@ -6255,7 +6255,7 @@ func TestContext2Apply_destroyModuleWithAttrsReferencingResource(t *testing.T) {
 }
 
 func TestContext2Apply_destroyWithModuleVariableAndCount(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDeclareProvider)
+	SkipExperimental(t, ExperimentalBugDeclareProvider, ExperimentalFeatureDestroy)
 
 	m, snap := testModuleWithSnapshot(t, "apply-destroy-mod-var-and-count")
 	p := testProvider("aws")
@@ -6329,7 +6329,7 @@ func TestContext2Apply_destroyWithModuleVariableAndCount(t *testing.T) {
 }
 
 func TestContext2Apply_destroyTargetWithModuleVariableAndCount(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDeclareProvider)
+	SkipExperimental(t, ExperimentalBugDeclareProvider, ExperimentalFeatureDestroy)
 
 	m := testModule(t, "apply-destroy-mod-var-and-count")
 	p := testProvider("aws")
@@ -6405,7 +6405,7 @@ func TestContext2Apply_destroyTargetWithModuleVariableAndCount(t *testing.T) {
 }
 
 func TestContext2Apply_destroyWithModuleVariableAndCountNested(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDeclareProvider)
+	SkipExperimental(t, ExperimentalBugDeclareProvider, ExperimentalFeatureDestroy)
 
 	m, snap := testModuleWithSnapshot(t, "apply-destroy-mod-var-and-count-nested")
 	p := testProvider("aws")
@@ -8897,7 +8897,7 @@ aws_instance.foo:
 
 // https://github.com/hashicorp/terraform/issues/7378
 func TestContext2Apply_destroyNestedModuleWithAttrsReferencingResource(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDeclareProvider)
+	SkipExperimental(t, ExperimentalBugDeclareProvider, ExperimentalFeatureDestroy)
 
 	m, snap := testModuleWithSnapshot(t, "apply-destroy-nested-module-with-attrs")
 	p := testProvider("null")
@@ -11374,7 +11374,7 @@ func TestContext2Apply_ProviderMeta_refreshdata_setInvalid(t *testing.T) {
 }
 
 func TestContext2Apply_expandModuleVariables(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDeclareProvider)
+	SkipExperimental(t, ExperimentalBugDeclareProvider, ExperimentalFeatureStateDependencies)
 
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `

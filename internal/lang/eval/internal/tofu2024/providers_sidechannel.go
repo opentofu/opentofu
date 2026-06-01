@@ -45,9 +45,12 @@ type moduleProvidersSideChannel struct {
 	// within this module. We don't distinguish those two cases here
 	// because both are mapped together into a single namespace per module.
 	instanceVals map[addrs.LocalProviderConfig]exprs.Valuer
+
+	// MissingProviderTransformer, legacy stuff that was not properly restricted.
+	addRootProvider func(addrs.LocalProviderConfig) exprs.Valuer
 }
 
-func compileModuleProvidersSidechannel(_ context.Context, fromParent map[addrs.LocalProviderConfig]exprs.Valuer, local map[addrs.LocalProviderConfig]*configgraph.ProviderConfig) *moduleProvidersSideChannel {
+func compileModuleProvidersSidechannel(_ context.Context, fromParent map[addrs.LocalProviderConfig]exprs.Valuer, local map[addrs.LocalProviderConfig]*configgraph.ProviderConfig, addRootProvider func(addrs.LocalProviderConfig) exprs.Valuer) *moduleProvidersSideChannel {
 	instanceVals := make(map[addrs.LocalProviderConfig]exprs.Valuer, len(fromParent)+len(local))
 	maps.Copy(instanceVals, fromParent)
 	for addr, node := range local {
@@ -55,7 +58,8 @@ func compileModuleProvidersSidechannel(_ context.Context, fromParent map[addrs.L
 	}
 
 	return &moduleProvidersSideChannel{
-		instanceVals: instanceVals,
+		instanceVals:    instanceVals,
+		addRootProvider: addRootProvider,
 	}
 }
 
@@ -76,19 +80,25 @@ func (psc *moduleProvidersSideChannel) CompileProviderConfigRef(ctx context.Cont
 
 	mainValuer, ok := psc.instanceVals[providerInstAddr]
 	if !ok {
-		var diags tfdiags.Diagnostics
-		// TODO: Make this error message better by talking about what's missing
-		// in config in terms more familiar to a module author, including the
-		// various ways provider instances can be implied or inherited, and try
-		// using "didyoumean" to see if we have something similar they might
-		// have been trying to refer to.
-		diags = diags.Append(&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Reference to undeclared provider configuration",
-			Detail:   fmt.Sprintf("There is no provider configuration %s declared in this module.", providerInstAddr.StringCompact()),
-			Subject:  wholeRange,
-		})
-		return exprs.ForcedErrorValuer(diags)
+		if ref != nil {
+			var diags tfdiags.Diagnostics
+			// TODO: Make this error message better by talking about what's missing
+			// in config in terms more familiar to a module author, including the
+			// various ways provider instances can be implied or inherited, and try
+			// using "didyoumean" to see if we have something similar they might
+			// have been trying to refer to.
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Reference to undeclared provider configuration",
+				Detail:   fmt.Sprintf("There is no provider configuration %s declared in this module.", providerInstAddr.StringCompact()),
+				Subject:  wholeRange,
+			})
+			return exprs.ForcedErrorValuer(diags)
+		} else {
+			// Hack in a root provider, mirroring logic in MissingProviderTransformer
+			// This still has the massive problem that a provider with a different alias in root won't work.
+			mainValuer = psc.addRootProvider(providerInstAddr)
+		}
 	}
 
 	// If we have a key expression then we'll compile it into a closure to

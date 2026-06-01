@@ -960,7 +960,7 @@ func TestContext2Refresh_moduleInputComputedOutput(t *testing.T) {
 }
 
 func TestContext2Refresh_moduleVarModule(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDeclareProvider)
+	SkipExperimental(t, ExperimentalBugDeclareProvider, ExperimentalBugStateProvider)
 
 	m := testModule(t, "refresh-module-var-module")
 	p := testProvider("aws")
@@ -1450,7 +1450,7 @@ func TestContext2Refresh_vars(t *testing.T) {
 }
 
 func TestContext2Refresh_orphanModule(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDeclareProvider)
+	SkipExperimental(t, ExperimentalBugDeclareProvider, ExperimentalBugStateProvider)
 	p := testProvider("aws")
 	m := testModule(t, "refresh-module-orphan")
 

@@ -428,7 +428,7 @@ resource "test_resource" "b" {
 }
 
 func TestContext2Plan_resourceChecksInExpandedModule(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDeclareProvider)
+	SkipExperimental(t, ExperimentalBugDeclareProvider, ExperimentalFeatureChecks)
 
 	// When a resource is in a nested module we have two levels of expansion
 	// to do: first expand the module the resource is declared in, and then
@@ -3413,7 +3413,7 @@ output "output" {
 }
 
 func TestContext2Plan_moduleImplicitMove(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDeclareProvider)
+	SkipExperimental(t, ExperimentalBugDeclareProvider, ExperimentalFeatureMoved)
 
 	// Modules are being moved implicitly to use the `enabled` field when nothing
 	// is declared on the block. Alternatively, they are implicitly being moved from

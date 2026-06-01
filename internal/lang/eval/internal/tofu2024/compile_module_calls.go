@@ -157,6 +157,7 @@ func compileModuleInstanceModuleCalls(
 							EvalContext:          parentCall.EvalContext,
 							EvaluationGlue:       parentCall.EvaluationGlue,
 							ProvidersFromParent:  providersFromParent,
+							AddRootProvider:      parentCall.AddRootProvider,
 						})
 						if diags.HasErrors() {
 							return nil, diags

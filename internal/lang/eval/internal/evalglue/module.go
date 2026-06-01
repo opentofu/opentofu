@@ -89,6 +89,12 @@ type ModuleCall struct {
 	// between old-style and new-style modules.)
 	ProvidersFromParent map[addrs.LocalProviderConfig]exprs.Valuer
 
+	// Legacy path of creating a hashicorp provider config in the root
+	// module from within child modules. This mirrors the functionality
+	// of older versions of OpenTofu/Terraform and was original implemented
+	// in the MissingProviderTransformer
+	AddRootProvider func(addrs.LocalProviderConfig) exprs.Valuer
+
 	// AllowImpureFunctions controls whether to allow full use of a small
 	// number of functions that produce different results each time they are
 	// called, such as "timestamp".

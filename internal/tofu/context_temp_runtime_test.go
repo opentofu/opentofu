@@ -23,7 +23,6 @@ const (
 
 	ExperimentalBugCancel            ExperimentalFlag = "Bug Context Cancel"
 	ExperimentalBugStateProvider     ExperimentalFlag = "Bug State Provider"
-	ExperimentalBugDeclareProvider   ExperimentalFlag = "Bug Declare Provider"
 	ExperimentalBugReferenceProvider ExperimentalFlag = "Bug Reference Provider"
 	ExperimentalBugResourceReadNull  ExperimentalFlag = "Bug Read Resource Deleted"
 	ExperimentalBugDataResource      ExperimentalFlag = "Bug Data Resource"
@@ -69,14 +68,24 @@ const (
 	ExperimentalFeatureStateDependencies ExperimentalFlag = "Missing State Dependencies"
 	ExperimentalFeatureProviderFunctions ExperimentalFlag = "Missing Provider Defined Functions"
 	ExperimentalFeatureProviderInstances ExperimentalFlag = "Missing Provider Instances"
+
+	// Fixed
+	ExperimentalBugDeclareProvider ExperimentalFlag = "Bug Declare Provider"
 )
 
 func SkipExperimental(t *testing.T, features ...ExperimentalFlag) {
 	if experimentalRuntimeEnabled() {
 		var strs []string
 		for _, feature := range features {
-			strs = append(strs, string(feature))
+			switch feature {
+			case ExperimentalBugDeclareProvider:
+				// Fixed?
+			default:
+				strs = append(strs, string(feature))
+			}
 		}
-		t.Skip("New Engine: " + strings.Join(strs, ", "))
+		if len(strs) > 0 {
+			t.Skip("New Engine: " + strings.Join(strs, ", "))
+		}
 	}
 }
