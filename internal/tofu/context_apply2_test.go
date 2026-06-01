@@ -186,6 +186,7 @@ func TestContext2Apply_createBeforeDestroy_dependsNonCBDUpdate(t *testing.T) {
 }
 
 func TestContext2Apply_destroyWithDataSourceExpansion(t *testing.T) {
+	SkipExperimental(t, ExperimentalFlagUnknown)
 	// While managed resources store their destroy-time dependencies, data
 	// sources do not. This means that if a provider were only included in a
 	// destroy graph because of data sources, it could have dependencies which
