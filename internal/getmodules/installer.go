@@ -94,7 +94,7 @@ func (f *PackageFetcher) FetchPackage(ctx context.Context, instDir string, packa
 	defer span.End()
 	err := f.getter.getWithGoGetter(ctx, instDir, packageAddr)
 	if err != nil {
-		span.RecordError(err)
+		tracing.SetSpanError(span, err)
 		return err
 	}
 	return nil

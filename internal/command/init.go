@@ -271,6 +271,7 @@ To initialize the configuration already in this working directory, omit the
 		modsOutput, modsAbort, modsDiags := c.getModules(ctx, path, args.TestsDirectory, rootModEarly, args.FlagUpgrade, view)
 		diags = diags.Append(modsDiags)
 		if modsAbort || modsDiags.HasErrors() {
+			tracing.SetSpanError(span, modsDiags)
 			view.Diagnostics(diags)
 			return 1
 		}
@@ -410,6 +411,7 @@ func (c *InitCommand) getModules(ctx context.Context, path, testsDir string, ear
 		}
 	}
 
+	tracing.SetSpanError(span, diags)
 	return true, installAbort, diags
 }
 

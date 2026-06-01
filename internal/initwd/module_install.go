@@ -233,7 +233,10 @@ func (i *ModuleInstaller) moduleInstallWalker(_ context.Context, manifest modsdi
 					traceattrs.OpenTofuModuleSource(req.SourceAddr.String()),
 				),
 			)
-			defer span.End()
+			defer func() {
+				tracing.SetSpanError(span, diags)
+				span.End()
+			}()
 
 			log.Printf("[DEBUG] Module installer: begin %s", key)
 
