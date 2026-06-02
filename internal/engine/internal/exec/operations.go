@@ -174,6 +174,7 @@ type Operations interface {
 	ManagedPerformDepose(
 		ctx context.Context,
 		object *ResourceInstanceObject,
+		deletePlan *ManagedResourceObjectFinalPlan,
 	) (*ResourceInstanceObject, tfdiags.Diagnostics)
 
 	// ManagedAlreadyDeposed returns a deposed object from the prior state,

@@ -6,6 +6,7 @@
 package planning
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -246,11 +247,12 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 				r[1] = ResourceInstanceDesired(test.placeholder, await());
 				r[2] = ManagedFinalPlan(r[1], nil, v[0]);
 				r[3] = ManagedFinalPlan(nil, r[0], v[1]);
-				r[4] = ManagedPerformDepose(r[0], await(r[2], r[3]));
-				r[5] = ManagedApply(r[2], r[4], await());
-				r[6] = ManagedApply(r[3], nil, await(r[5]));
+				r[4] = ManagedPrepareDepose(r[3], "00000001");
+				r[5] = ManagedPerformDepose(r[0], r[4], await(r[2]));
+				r[6] = ManagedApply(r[2], r[5], await());
+				r[7] = ManagedApply(r[4], nil, await(r[6]));
 
-				test.placeholder = r[5];
+				test.placeholder = r[6];
 			`,
 		},
 		"create then delete with move": {
@@ -282,18 +284,26 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 				r[2] = ResourceInstanceDesired(test.placeholder, await());
 				r[3] = ManagedFinalPlan(r[2], nil, v[0]);
 				r[4] = ManagedFinalPlan(nil, r[1], v[1]);
-				r[5] = ManagedPerformDepose(r[1], await(r[3], r[4]));
-				r[6] = ManagedApply(r[3], r[5], await());
-				r[7] = ManagedApply(r[4], nil, await(r[6]));
+				r[5] = ManagedPrepareDepose(r[4], "00000001");
+				r[6] = ManagedPerformDepose(r[1], r[5], await(r[3]));
+				r[7] = ManagedApply(r[3], r[6], await());
+				r[8] = ManagedApply(r[5], nil, await(r[7]));
 
-				test.placeholder = r[6];
+				test.placeholder = r[7];
 			`,
 		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			builder := newExecGraphBuilder()
+			var placeholderDeposedKey uint32
+			builder := newExecGraphBuilder(func(_ addrs.AbsResourceInstance) addrs.DeposedKey {
+				// For testing purposes we just allocate sequential integers
+				// so that we have predictable keys to include in the expected
+				// output of each test.
+				placeholderDeposedKey++
+				return addrs.DeposedKey(fmt.Sprintf("%08x", placeholderDeposedKey))
+			})
 			// FIXME: We're currently ignoring all but the first result
 			// because this test was originally written for an older variant
 			// of this function which only had one result. We should find a

@@ -189,11 +189,12 @@ func (b *Builder) ManagedPrepareDepose(
 
 func (b *Builder) ManagedPerformDepose(
 	currentObj ResourceInstanceResultRef,
+	finalDeletePlan ResultRef[*exec.ManagedResourceObjectFinalPlan],
 	waitFor AnyResultRef,
 ) ResourceInstanceResultRef {
 	return operationRef[*exec.ResourceInstanceObject](b, operationDesc{
 		opCode:   opManagedPerformDepose,
-		operands: []AnyResultRef{currentObj, waitFor},
+		operands: []AnyResultRef{currentObj, finalDeletePlan, waitFor},
 	})
 }
 

@@ -300,13 +300,22 @@ func (ops *execOperations) ManagedApply(
 func (ops *execOperations) ManagedPerformDepose(
 	ctx context.Context,
 	currentObj *exec.ResourceInstanceObject,
+	deletePlan *exec.ManagedResourceObjectFinalPlan,
 ) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	if currentObj == nil {
 		log.Println("[TRACE] apply phase: ManagedPerformDepose with nil object (ignored)")
 		return nil, diags
 	}
-	log.Printf("[TRACE] apply phase: ManagedPerformDepose %s", currentObj.Addr)
+	if deletePlan == nil || deletePlan.Addr.IsCurrent() || !deletePlan.PlannedVal.IsNull() || !deletePlan.Addr.InstanceAddr.Equal(currentObj.Addr.InstanceAddr) {
+		// None of these situations should arise for a correct execution graph.
+		diags = diags.Append(fmt.Errorf(
+			"invalid delete plan for %s; this is a bug in OpenTofu",
+			currentObj.Addr.InstanceAddr,
+		))
+		return nil, diags
+	}
+	log.Printf("[TRACE] apply phase: ManagedPerformDepose %s as %s", currentObj.Addr, deletePlan.Addr.DeposedKey)
 	if currentObj.Addr.IsDeposed() {
 		diags = diags.Append(fmt.Errorf(
 			"attempting do depose %s when it's already deposed; this is a bug in OpenTofu",
@@ -315,17 +324,8 @@ func (ops *execOperations) ManagedPerformDepose(
 		return nil, diags
 	}
 
-	deposedKey := ops.workingState.DeposeResourceInstanceObject(currentObj.Addr.InstanceAddr)
-	if deposedKey == states.NotDeposed {
-		// We should not get here with a correctly-constructed execution graph
-		// because currentObj being non-nil means that there should definitely
-		// be something to depose.
-		diags = diags.Append(fmt.Errorf(
-			"failed to depose the current object for %s; this is a bug in OpenTofu",
-			currentObj.Addr.InstanceAddr,
-		))
-		return nil, diags
-	}
+	deposedKey := deletePlan.Addr.DeposedKey
+	ops.workingState.DeposeResourceInstanceObjectForceKey(deletePlan.Addr.InstanceAddr, deposedKey)
 	return currentObj.IntoDeposed(deposedKey), diags
 }
 
