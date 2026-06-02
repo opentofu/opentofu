@@ -126,8 +126,9 @@ func compileModuleInstanceResource(
 			}
 
 			inst := &configgraph.ResourceInstance{
-				Addr:     absAddr.Instance(key),
-				Provider: config.Provider,
+				Addr:           absAddr.Instance(key),
+				Provider:       config.Provider,
+				RepetitionData: repData,
 				ConfigValuer: configgraph.ValuerOnce(exprs.NewClosure(
 					configEvalable, localScope,
 				)),

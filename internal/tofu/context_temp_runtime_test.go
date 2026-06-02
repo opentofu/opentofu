@@ -23,7 +23,6 @@ const (
 
 	ExperimentalBugCancel            ExperimentalFlag = "Bug Context Cancel"
 	ExperimentalBugStateProvider     ExperimentalFlag = "Bug State Provider"
-	ExperimentalBugDeclareProvider   ExperimentalFlag = "Bug Declare Provider"
 	ExperimentalBugReferenceProvider ExperimentalFlag = "Bug Reference Provider"
 	ExperimentalBugResourceReadNull  ExperimentalFlag = "Bug Read Resource Deleted"
 	ExperimentalBugDataResource      ExperimentalFlag = "Bug Data Resource"
@@ -31,8 +30,9 @@ const (
 	ExperimentalBugForEach           ExperimentalFlag = "Bug For Each"         // TODO run existing evalchecks tests against new engine
 	ExperimentalBugSpuriousReplace   ExperimentalFlag = "Bug Spurious Replace" // New runtime proposes replace where old runtime would've called for update
 
-	ExperimentalChangeDiagWording ExperimentalFlag = "Change Different Diagnostic Wording"
-	ExperimentalChangeErrorEarly  ExperimentalFlag = "Change Detect Error Earlier"
+	ExperimentalChangeDiagWording  ExperimentalFlag = "Change Different Diagnostic Wording"
+	ExperimentalChangeErrorEarly   ExperimentalFlag = "Change Detect Error Earlier"
+	ExperimentalChangeDependencies ExperimentalFlag = "Change Precise Dependencies"
 
 	ExperimentalFeatureCBD               ExperimentalFlag = "Missing Create Before Destroy"
 	ExperimentalFeatureDeposed           ExperimentalFlag = "Missing Deposed"
@@ -66,12 +66,15 @@ const (
 	ExperimentalFeatureProviderMeta      ExperimentalFlag = "Missing Provider Meta"
 	ExperimentalFeatureTaint             ExperimentalFlag = "Missing Taint"
 	ExperimentalFeatureErrorHandling     ExperimentalFlag = "Missing Error Handling"
-	ExperimentalFeatureStateDependencies ExperimentalFlag = "Missing State Dependencies"
 	ExperimentalFeatureProviderFunctions ExperimentalFlag = "Missing Provider Defined Functions"
 	ExperimentalFeatureProviderInstances ExperimentalFlag = "Missing Provider Instances"
 
 	// Fixed
-	ExperimentalBugExecGraph ExperimentalFlag = "Bug in generated Exec Graph"
+	ExperimentalBugExecGraph       ExperimentalFlag = "Bug in generated Exec Graph"
+	ExperimentalBugDeclareProvider ExperimentalFlag = "Bug Declare Provider"
+
+	// Implemented
+	ExperimentalFeatureStateDependencies ExperimentalFlag = "Missing State Dependencies"
 )
 
 func SkipExperimental(t *testing.T, features ...ExperimentalFlag) {
@@ -79,7 +82,8 @@ func SkipExperimental(t *testing.T, features ...ExperimentalFlag) {
 		var strs []string
 		for _, feature := range features {
 			switch feature {
-			case ExperimentalBugExecGraph, ExperimentalBugDeclareProvider, ExperimentalFeatureProviderInstances:
+			case ExperimentalBugExecGraph, ExperimentalBugDeclareProvider, ExperimentalFeatureProviderInstances, ExperimentalFeatureStateDependencies:
+				// Fixed
 			default:
 				strs = append(strs, string(feature))
 			}
