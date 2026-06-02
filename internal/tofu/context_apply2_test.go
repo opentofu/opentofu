@@ -1991,6 +1991,7 @@ resource "test_object" "x" {
 }
 
 func TestContext2Apply_missingOrphanedResource(t *testing.T) {
+	SkipExperimental(t, ExperimentalBugStateProvider)
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 # changed resource address to create a new object
@@ -5133,6 +5134,7 @@ data "test_data_source" "b" {
 
 		_, diags = destroy(t, complete, state)
 		if diags.HasErrors() {
+			SkipExperimental(t, ExperimentalFeatureDestroy)
 			t.Fatal(diags.Err())
 		}
 	})
@@ -5179,6 +5181,7 @@ data "test_data_source" "b" {
 
 		_, diags = destroy(t, partial, state)
 		if diags.HasErrors() {
+			SkipExperimental(t, ExperimentalFeatureDestroy)
 			t.Fatal(diags.Err())
 		}
 	})
@@ -5198,6 +5201,7 @@ data "test_data_source" "b" {
 				return
 			}
 		}
+		SkipExperimental(t, ExperimentalChangeDiagWording)
 		t.Fatal(diags.Err())
 	})
 
@@ -5216,7 +5220,8 @@ data "test_data_source" "b" {
 				return
 			}
 		}
-		t.Fatal(diags)
+		SkipExperimental(t, ExperimentalBugStateProvider, ExperimentalChangeDiagWording)
+		t.Fatal(diags.Err())
 	})
 }
 

@@ -35,6 +35,8 @@ type CompiledModuleInstance struct {
 	moduleCallNodes     map[addrs.ModuleCall]*configgraph.ModuleCall
 	providerConfigNodes map[addrs.LocalProviderConfig]*configgraph.ProviderConfig
 	providerLocalNames  map[addrs.Provider]string
+
+	missingProviders *rootMissingProviders
 }
 
 var _ evalglue.CompiledModuleInstance = (*CompiledModuleInstance)(nil)
@@ -190,6 +192,10 @@ func (c *CompiledModuleInstance) ProviderInstance(ctx context.Context, addr addr
 		Alias:     addr.Config.Alias,
 	}
 	node, ok := c.providerConfigNodes[localAddr]
+	if !ok && c.missingProviders != nil {
+		// Try root fallback
+		node, ok = c.missingProviders.getOk(localAddr)
+	}
 	if !ok {
 		return nil
 	}

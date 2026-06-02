@@ -8,14 +8,16 @@ package tofu2024
 import (
 	"context"
 	"fmt"
-	"maps"
+	"sync"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
+	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -31,41 +33,177 @@ import (
 // can continue to treat providers in this weird special way while [configgraph]
 // _thinks_ they are just normal values of a special type.
 
-type moduleProvidersSideChannel struct {
-	// instanceVals are [exprs.Valuers] that produce values that are either
-	// individual provider instance references or objects whose attribute
-	// values are provider instance references. This is where we look to
-	// handle the weirdo sidechannel provider reference syntax, like
-	// "aws.foo" to refer to a configuration for whatever provider has the
-	// local name "aws" that has the alias "foo".
-	//
-	// In practice this can contain a mixture of valuers that were passed
-	// in from a parent module (using the "providers" argument in a module
-	// block) and valuers that refer to provider configurations declared
-	// within this module. We don't distinguish those two cases here
-	// because both are mapped together into a single namespace per module.
-	instanceVals map[addrs.LocalProviderConfig]exprs.Valuer
+// rootMissingProviders is used to ferry the dynamically injected missing providers
+// into the root module's ProviderConfig lookup
+type rootMissingProviders struct {
+	lock            sync.Mutex
+	providerConfigs map[addrs.LocalProviderConfig]*configgraph.ProviderConfig
 }
 
-func compileModuleProvidersSidechannel(_ context.Context, fromParent map[addrs.LocalProviderConfig]exprs.Valuer, local map[addrs.LocalProviderConfig]*configgraph.ProviderConfig) *moduleProvidersSideChannel {
-	instanceVals := make(map[addrs.LocalProviderConfig]exprs.Valuer, len(fromParent)+len(local))
-	maps.Copy(instanceVals, fromParent)
-	for addr, node := range local {
-		instanceVals[addr] = node
-	}
-
-	return &moduleProvidersSideChannel{
-		instanceVals: instanceVals,
-	}
+func (r *rootMissingProviders) getOk(localAddr addrs.LocalProviderConfig) (*configgraph.ProviderConfig, bool) {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	ret, ok := r.providerConfigs[localAddr]
+	return ret, ok
 }
 
-// CompileProviderConfigRef compiles the given provider config reference into
-// an [exprs.Valuer] that returns a provider instance reference value.
+// compileProviderConfigRefMissingInRoot builds the "base" provider ref compiler used by the root module
+// This specifically handles the legacy edge cases where a resource references a provider that does not
+// have a corresponding provider configuration. This path injects an implicit "fake/empty" provider config
+// in the root module.
 //
-// evalScope is the scope to be used if the reference includes a dynamic
-// instance key. It should be a scope that includes instance-specific symbols
-// like each.key for whatever object the provider config reference belongs to.
-func (psc *moduleProvidersSideChannel) CompileProviderConfigRef(ctx context.Context, providerInstAddr addrs.LocalProviderConfig, ref *configs.ProviderConfigRef, evalScope exprs.Scope) exprs.Valuer {
+// This matches some complex interdependencies of the existing [tofu.MissingProviderTransformer], combined
+// with a nice ball of spaghetti logic throughout the tofu package.
+//
+// We return both the compiler function and the map of references that will be updated dynamically. The
+// map of references should be used in the root module for ProviderConfig lookups.
+func compileProviderConfigRefMissingInRoot(
+	requiredProviders map[string]*configs.RequiredProvider,
+	providers evalglue.ProvidersSchema,
+	validateProviderConfig func(context.Context, addrs.Provider, cty.Value) tfdiags.Diagnostics,
+) (configgraph.CompileProviderConfigRef, *rootMissingProviders) {
+	missing := &rootMissingProviders{
+		providerConfigs: map[addrs.LocalProviderConfig]*configgraph.ProviderConfig{},
+	}
+
+	return func(ctx context.Context, providerInstAddr addrs.LocalProviderConfig) exprs.Valuer {
+		missing.lock.Lock()
+		defer missing.lock.Unlock()
+
+		// Check to see if we have a corresponding required_providers entry with an alias. This is
+		// explicitly to support validating a non-root module.
+		//
+		// TODO: only enable this during the validation pass and forbid for other operations
+		for _, required := range requiredProviders {
+			for _, alias := range required.Aliases {
+				if alias == providerInstAddr {
+					providerInstAddr.Alias = ""
+					break
+				}
+			}
+		}
+
+		// Aliases are not supported in the provider fallback case
+		if providerInstAddr.Alias != "" {
+			diags := tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Reference to undeclared provider configuration",
+				Detail:   fmt.Sprintf("There is no provider configuration %s declared in this module.", providerInstAddr.StringCompact()),
+			})
+			return exprs.ForcedErrorValuer(diags)
+		}
+
+		// Have we already seen this one before?
+		if missingConfig, ok := missing.providerConfigs[providerInstAddr]; ok {
+			return &sidechannelProviderInstanceRefValuer{
+				localAddr:  providerInstAddr,
+				mainValuer: missingConfig,
+			}
+		}
+
+		// Assume this provider is within the hashicorp namespace and construct an empty provider config
+		// TODO ensure this chain works with google vs google-beta
+		emptyConfig := &configs.Provider{
+			Name:   providerInstAddr.LocalName,
+			Config: hcl2shim.SynthBody(providerInstAddr.String(), make(map[string]cty.Value)),
+		}
+		missingConfig := compileProviderConfig(ctx, emptyConfig, nil, requiredProviders, addrs.RootModuleInstance, providers, validateProviderConfig)
+		missing.providerConfigs[providerInstAddr] = missingConfig
+
+		return &sidechannelProviderInstanceRefValuer{
+			localAddr:  providerInstAddr,
+			mainValuer: missingConfig,
+		}
+	}, missing
+}
+
+// compileProviderConfigRefModule adds the provider configs declared in the module to the ref lookup chain
+func compileProviderConfigRefModule(
+	parentCompiler configgraph.CompileProviderConfigRef,
+	local map[addrs.LocalProviderConfig]*configgraph.ProviderConfig,
+) configgraph.CompileProviderConfigRef {
+	return func(ctx context.Context, providerInstAddr addrs.LocalProviderConfig) exprs.Valuer {
+
+		if localConfig, ok := local[providerInstAddr]; ok {
+			return &sidechannelProviderInstanceRefValuer{
+				localAddr:   providerInstAddr,
+				mainValuer:  localConfig,
+				sourceRange: localConfig.DeclRange.ToHCL().Ptr(),
+			}
+		}
+
+		// Not a local config, let's look back up the tree
+		return parentCompiler(ctx, providerInstAddr)
+	}
+}
+
+// compileProviderConfigRefProxy applies the `providers = { ... }` logic to the ref lookup chain.
+// TODO consider if this should have additional validation using the required_providers block. It's currently handled in the configs package directly.
+func compileProviderConfigRefProxy(
+	parentCompiler configgraph.CompileProviderConfigRef,
+	passed []configs.PassedProviderConfig,
+	evalScope exprs.Scope,
+) configgraph.CompileProviderConfigRef {
+	if passed == nil {
+		// Legacy (implicit)
+		return parentCompiler
+	}
+
+	return func(ctx context.Context, providerInstAddr addrs.LocalProviderConfig) exprs.Valuer {
+
+		// modern (explicit)
+		for _, p := range passed {
+			// This works because InChild can't have a key expression
+			if p.InChild.Name == providerInstAddr.LocalName && p.InChild.Alias == providerInstAddr.Alias {
+				parentLocalAddr := addrs.LocalProviderConfig{
+					LocalName: p.InParent.Name,
+					Alias:     p.InParent.Alias,
+				}
+
+				return newProviderInstanceRefValuer(parentCompiler(ctx, parentLocalAddr), providerInstAddr, p.InParent, evalScope)
+			}
+		}
+		// Fallback to legacy, this seems to match the current behavior?
+		return parentCompiler(ctx, providerInstAddr)
+
+		// TODO: Make this error message better by talking about what's missing
+		// in config in terms more familiar to a module author, including the
+		// various ways provider instances can be implied or inherited, and try
+		// using "didyoumean" to see if we have something similar they might
+		// have been trying to refer to.
+		/*diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Reference to undeclared provider configuration",
+			Detail:   fmt.Sprintf("There is no provider configuration %s declared in this module.", providerInstAddr.StringCompact()),
+			Subject:  wholeRange,
+		})
+		return exprs.ForcedErrorValuer(diags)*/
+	}
+}
+
+// compileProviderConfigRef uses a resource's provider config ref to dereference the
+func compileProviderConfigRef(
+	ctx context.Context,
+	parentCompiler configgraph.CompileProviderConfigRef,
+	providerInstAddr addrs.LocalProviderConfig,
+	ref *configs.ProviderConfigRef,
+	evalScope exprs.Scope,
+) exprs.Valuer {
+	return newProviderInstanceRefValuer(
+		parentCompiler(ctx, providerInstAddr),
+		providerInstAddr,
+		ref,
+		evalScope,
+	)
+}
+
+// Helper function to turn a [configs.ProviderConfigRef] into a [sidechannelProviderInstanceRefValuer]
+func newProviderInstanceRefValuer(
+	mainValuer exprs.Valuer,
+	localAddr addrs.LocalProviderConfig,
+	ref *configs.ProviderConfigRef,
+	keyScope exprs.Scope,
+) exprs.Valuer {
 	var wholeRange *hcl.Range
 	if ref != nil {
 		wholeRange = &ref.NameRange
@@ -74,30 +212,13 @@ func (psc *moduleProvidersSideChannel) CompileProviderConfigRef(ctx context.Cont
 		}
 	}
 
-	mainValuer, ok := psc.instanceVals[providerInstAddr]
-	if !ok {
-		var diags tfdiags.Diagnostics
-		// TODO: Make this error message better by talking about what's missing
-		// in config in terms more familiar to a module author, including the
-		// various ways provider instances can be implied or inherited, and try
-		// using "didyoumean" to see if we have something similar they might
-		// have been trying to refer to.
-		diags = diags.Append(&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Reference to undeclared provider configuration",
-			Detail:   fmt.Sprintf("There is no provider configuration %s declared in this module.", providerInstAddr.StringCompact()),
-			Subject:  wholeRange,
-		})
-		return exprs.ForcedErrorValuer(diags)
-	}
-
 	// If we have a key expression then we'll compile it into a closure to
-	// be resolved in our "normal" scope.
+	// be resolved in our "key" scope.
 	var instanceKeyValuer exprs.Valuer
 	if ref != nil && ref.KeyExpression != nil {
 		instanceKeyValuer = exprs.NewClosure(
 			exprs.EvalableHCLExpression(ref.KeyExpression),
-			evalScope,
+			keyScope,
 		)
 	}
 
@@ -105,7 +226,7 @@ func (psc *moduleProvidersSideChannel) CompileProviderConfigRef(ctx context.Cont
 		mainValuer:        mainValuer,
 		instanceKeyValuer: instanceKeyValuer,
 		sourceRange:       wholeRange,
-		localAddr:         providerInstAddr,
+		localAddr:         localAddr,
 	}
 }
 
@@ -127,7 +248,18 @@ func (s *sidechannelProviderInstanceRefValuer) StaticCheckTraversal(traversal hc
 
 // Value implements exprs.Valuer.
 func (s *sidechannelProviderInstanceRefValuer) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
-	firstVal, diags := s.mainValuer.Value(ctx)
+	return s.value(ctx, true)
+}
+
+// value allows us to only check the "last" provider in the lookup chain for missing key value expressions.
+func (s *sidechannelProviderInstanceRefValuer) value(ctx context.Context, directProviderReferenceRequired bool) (cty.Value, tfdiags.Diagnostics) {
+	var firstVal cty.Value
+	var diags tfdiags.Diagnostics
+	if sideChannelProvider, ok := s.mainValuer.(*sidechannelProviderInstanceRefValuer); ok {
+		firstVal, diags = sideChannelProvider.value(ctx, false)
+	} else {
+		firstVal, diags = s.mainValuer.Value(ctx)
+	}
 	if diags.HasErrors() {
 		return exprs.AsEvalError(cty.DynamicVal), diags
 	}
@@ -146,13 +278,17 @@ func (s *sidechannelProviderInstanceRefValuer) Value(ctx context.Context) (cty.V
 		return firstVal, diags
 	} else if firstTy.IsObjectType() {
 		if s.instanceKeyValuer == nil {
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid provider instance reference",
-				Detail:   fmt.Sprintf("Provider configuration %s uses for_each, so a reference to it must specify which instance to select using syntax like %s[\"example\"].", s.localAddr, s.localAddr),
-				Subject:  s.sourceRange,
-			})
-			return exprs.AsEvalError(cty.DynamicVal), diags
+			if directProviderReferenceRequired {
+				// Configuration error, user did not specify a key expression where required
+				diags = diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Invalid provider instance reference",
+					Detail:   fmt.Sprintf("Provider configuration %s uses for_each, so a reference to it must specify which instance to select using syntax like %s[\"example\"].", s.localAddr, s.localAddr),
+					Subject:  s.sourceRange,
+				})
+				return exprs.AsEvalError(cty.DynamicVal), diags
+			}
+			return firstVal, diags
 		}
 		keyVal, moreDiags := s.instanceKeyValuer.Value(ctx)
 		diags = diags.Append(moreDiags)

@@ -78,7 +78,7 @@ func SkipExperimental(t *testing.T, features ...ExperimentalFlag) {
 		var strs []string
 		for _, feature := range features {
 			switch feature {
-			case ExperimentalBugExecGraph:
+			case ExperimentalBugExecGraph, ExperimentalBugDeclareProvider, ExperimentalFeatureProviderInstances:
 			default:
 				strs = append(strs, string(feature))
 			}
