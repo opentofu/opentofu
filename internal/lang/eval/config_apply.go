@@ -171,14 +171,22 @@ func (o *ApplyOracle) DesiredResourceInstance(ctx context.Context, addr addrs.Ab
 	providerInstAddr, _ := configgraph.GetKnown(configgraph.MapMaybe(providerInst, func(pi *configgraph.ProviderInstance) addrs.AbsProviderInstanceCorrect {
 		return pi.Addr
 	}))
-	return &DesiredResourceInstance{
-		Addr:             inst.Addr,
-		ConfigVal:        configVal,
-		Provider:         inst.Provider,
-		ProviderInstance: &providerInstAddr,
-		ResourceMode:     addr.Resource.Resource.Mode,
-		ResourceType:     addr.Resource.Resource.Type,
-	}, diags
+
+	riDeps := addrs.MakeSet[addrs.AbsResourceInstance]()
+	for depInst := range inst.ResourceInstanceDependencies(ctx) {
+		riDeps.Add(depInst.Addr)
+	}
+
+	ret := &DesiredResourceInstance{
+		Addr:                      inst.Addr,
+		ConfigVal:                 configVal,
+		Provider:                  inst.Provider,
+		ProviderInstance:          &providerInstAddr,
+		ResourceMode:              addr.Resource.Resource.Mode,
+		ResourceType:              addr.Resource.Resource.Type,
+		RequiredResourceInstances: riDeps,
+	}
+	return ret, diags
 }
 
 // ProviderInstanceConfig returns the configuration value for the given

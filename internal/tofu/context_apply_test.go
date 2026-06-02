@@ -757,7 +757,7 @@ module.test:
 }
 
 func TestContext2Apply_refCount(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureStateDependencies)
+	SkipExperimental(t, ExperimentalFeatureStateDependencies, ExperimentalChangeDependencies)
 
 	m := testModule(t, "apply-ref-count")
 	p := testProvider("aws")
@@ -2582,7 +2582,7 @@ func TestContext2Apply_countVariable(t *testing.T) {
 }
 
 func TestContext2Apply_countVariableRef(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureStateDependencies)
+	SkipExperimental(t, ExperimentalFeatureStateDependencies, ExperimentalChangeDependencies)
 
 	m := testModule(t, "apply-count-variable-ref")
 	p := testProvider("aws")
@@ -3368,7 +3368,7 @@ func TestContext2Apply_moduleProviderCloseNested(t *testing.T) {
 // accessing "non-existent" resources (they existed, just not in the graph
 // cause they weren't in the diff).
 func TestContext2Apply_moduleVarRefExisting(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugExecGraph, ExperimentalFeatureStateDependencies)
+	SkipExperimental(t, ExperimentalBugExecGraph, ExperimentalFeatureStateDependencies, ExperimentalFeatureUpgradeState)
 
 	m := testModule(t, "apply-ref-existing")
 	p := testProvider("aws")

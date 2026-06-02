@@ -16,6 +16,7 @@ import (
 	"github.com/zclconf/go-cty/cty/convert"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/lang/marks"
@@ -36,6 +37,9 @@ type ResourceInstance struct {
 	// Provider is the provider that this resource's type belongs to. This
 	// is the provider to use when asking for config validation, etc.
 	Provider addrs.Provider
+
+	// Used to ensure marks
+	RepetitionData instances.RepetitionData
 
 	// ConfigValuer is a valuer for producing the object value representing
 	// the configuration for this object. How the final configuration value
@@ -109,6 +113,13 @@ func (ri *ResourceInstance) ConfigValue(ctx context.Context) (v cty.Value, diags
 		// will only ever receive validated configuration values.
 		return exprs.AsEvalError(cty.DynamicVal), diags
 	}
+
+	// Ensure marks from repetition data make it into the config value
+	configVal = configVal.WithMarks(
+		ri.RepetitionData.CountIndex.Marks(),
+		ri.RepetitionData.EachKey.Marks(),
+		ri.RepetitionData.EachValue.Marks(),
+	)
 
 	return configVal, diags
 }
@@ -262,7 +273,8 @@ func (ri *ResourceInstance) ResourceInstanceDependencies(ctx context.Context) it
 	// We ignore diagnostics here because callers should always perform a
 	// CheckAll tree walk, including a visit to this resource instance object,
 	// before trusting anything else that any configgraph nodes report.
-	resultVal := diagsHandledElsewhere(ri.Value(ctx))
+	// TODO consider if this should be ConfigValue vs Value based on the usages of this function
+	resultVal := diagsHandledElsewhere(ri.ConfigValue(ctx))
 
 	// Our Value method always marks its result as depending on this
 	// resource instance so that any expressions that refer to it will

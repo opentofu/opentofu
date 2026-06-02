@@ -44,6 +44,16 @@ type ManagedResourceObjectFinalPlan struct {
 	// would be understood by the provider that generated this plan.
 	ResourceType string
 
+	// RequiredResourceInstances are the addresses of zero or more resource
+	// instances that must exist and must be fully converged before the
+	// final plan for this resource instance could be calculated.
+	//
+	// These addresses can potentially contain unknown instance keys if the
+	// configuration for this resource instance was derived from placeholders
+	// for upstream resource instances that had unknown keys in their own
+	// addresses.
+	RequiredResourceInstances addrs.Set[addrs.AbsResourceInstance]
+
 	// ConfigVal is the value representing the configuration for this
 	// object, but only if it's a "desired" object. This is always a null
 	// value for "orphan" instances and deposed objects, because they have

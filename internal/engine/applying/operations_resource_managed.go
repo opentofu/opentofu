@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"slices"
 
 	"github.com/zclconf/go-cty/cty"
 
@@ -33,6 +34,7 @@ func (ops *execOperations) ManagedFinalPlan(
 	var instAddr addrs.AbsResourceInstance
 	var providerConfigAddr addrs.AbsProviderInstanceCorrect
 	var resourceTypeName string
+	var requiredConfigResources addrs.Set[addrs.AbsResourceInstance]
 	deposedKey := states.NotDeposed
 	if desired != nil {
 		// By the time we're in the apply phase the desired and prior addresses
@@ -45,6 +47,7 @@ func (ops *execOperations) ManagedFinalPlan(
 		resourceTypeName = desired.ResourceType
 		// TODO possibly nil here
 		providerConfigAddr = *desired.ProviderInstance
+		requiredConfigResources = desired.RequiredResourceInstances
 	} else if prior != nil {
 		instAddr = prior.Addr.InstanceAddr
 		deposedKey = prior.Addr.DeposedKey
@@ -108,13 +111,14 @@ func (ops *execOperations) ManagedFinalPlan(
 	}
 
 	return &exec.ManagedResourceObjectFinalPlan{
-		Addr:             instAddr.Object(deposedKey),
-		ResourceType:     resourceTypeName,
-		PriorStateVal:    resp.Current.Value,
-		ConfigVal:        resp.DesiredValue,
-		PlannedVal:       resp.Planned.Value,
-		ProviderInstance: providerConfigAddr,
-		ProviderPrivate:  resp.Planned.Private,
+		Addr:                      instAddr.Object(deposedKey),
+		ResourceType:              resourceTypeName,
+		RequiredResourceInstances: requiredConfigResources,
+		PriorStateVal:             resp.Current.Value,
+		ConfigVal:                 resp.DesiredValue,
+		PlannedVal:                resp.Planned.Value,
+		ProviderInstance:          providerConfigAddr,
+		ProviderPrivate:           resp.Planned.Private,
 	}, diags
 }
 
@@ -283,6 +287,14 @@ func (ops *execOperations) ManagedApply(
 			// "create_before_destroy" set into the final plan and then
 			// populate CreateBeforeDestroy here.
 		}
+
+		// FIXME: This translates abs resource instances to config resources
+		configDeps := addrs.MakeSet[addrs.ConfigResource]()
+		for inst := range plan.RequiredResourceInstances.All() {
+			configDeps.Add(inst.ConfigResource())
+		}
+		state.Dependencies = slices.Collect(configDeps.All())
+
 		stateSrc, err := states.EncodeResourceInstanceObjectFull(state, schema.Block.ImpliedType())
 		if err != nil {
 			// This is a worst-case scenario where we've successfully changed

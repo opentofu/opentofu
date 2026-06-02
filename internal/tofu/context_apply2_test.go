@@ -362,7 +362,7 @@ resource "test_instance" "a" {
 
 // verify that dependencies are updated in the state during refresh and apply
 func TestApply_updateDependencies(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureStateDependencies)
+	SkipExperimental(t, ExperimentalFeatureStateDependencies, ExperimentalFeatureRefresh)
 
 	state := states.NewState()
 	root := state.EnsureModule(addrs.RootModuleInstance)
