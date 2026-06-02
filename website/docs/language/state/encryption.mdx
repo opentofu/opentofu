@@ -62,6 +62,8 @@ When you enable encryption, consider who needs access to your state file directl
 
 You will also need to decide what kind of key you would like to use based on your security requirements. You can either opt for a static passphrase or you can choose a key management system. If you opt for a key management system, it is imperative to configure automatic key rotation for some encryption methods. This is particularly crucial if the encryption algorithm you choose has the potential to reach a point of 'key saturation', where the maximum safe usage limit of the key is approached, such as AES-GCM. You can find more information about this in the [encryption methods](#methods) section below.
 
+If you use a key management system (AWS KMS, GCP KMS, Azure Vault, or OpenBao), use a separate key for each state file rather than sharing one key across many states. See [Key providers](#key-providers) for the reasoning.
+
 Finally, before enabling encryption, please exercise your disaster recovery plan and make a temporary backup of your unencrypted state file. Also, make sure you have backups of your keys. Once you enable encryption, OpenTofu cannot read your state file without the correct key.
 
 
@@ -171,6 +173,16 @@ Then you can reference it in project "B" as follows:
 <CodeBlock language="hcl">{RemoteStateFullB}</CodeBlock>
 
 ## Key providers
+
+When you use a key management system as your key provider (AWS KMS, GCP KMS, Azure Vault, or OpenBao), OpenTofu generates a fresh data encryption key for each state or plan file and wraps it with the key you reference.
+
+:::warning
+
+**Use a separate key management key for each state file.**
+
+We recommend provisioning a dedicated key management key per state file rather than sharing a single key across many states. A distinct key per state keeps the states cryptographically isolated from one another and lets you scope access to each state independently through your key management system's access controls, which limits the blast radius if any single key or credential is compromised.
+
+:::
 
 ### PBKDF2
 
