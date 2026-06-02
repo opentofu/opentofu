@@ -94,15 +94,29 @@ func CompileModuleInstance(
 	// in future but we want to keep existing modules working for now.
 	ret.providerConfigNodes = compileModuleInstanceProviderConfigs(ctx,
 		module.ProviderConfigs,
-		module.ModuleCalls,
-		allResourcesFromModule(module),
 		topScope,
 		module.ProviderRequirements.RequiredProviders,
 		call.CalleeAddr,
 		call.EvalContext.Providers,
 		call.EvaluationGlue.ValidateProviderConfig,
 	)
-	providersSidechannel := compileModuleProvidersSidechannel(ctx, call.ProvidersFromParent, ret.providerConfigNodes)
+
+	providersFromParent := call.ProvidersFromParent
+	if providersFromParent == nil {
+		if !call.CalleeAddr.IsRoot() {
+			panic("OpenTofu Compilation Bug: Missing providers from parent in non-root module")
+		}
+		// Wrap providersFromParent to handle provider config refs that make it back to the root
+		// module without an explicitly declared provider. Store the providers discovered
+		// through followed references for later use.
+		providersFromParent, ret.missingProviders = compileProviderConfigRefMissingInRoot(
+			module.ProviderRequirements.RequiredProviders,
+			call.EvalContext.Providers,
+			call.EvaluationGlue.ValidateProviderConfig,
+		)
+	}
+	// Add all of our local providerConfigNodes to the provider ref chain.
+	providersSidechannel := compileProviderConfigRefModule(providersFromParent, ret.providerConfigNodes)
 
 	ret.inputVariableNodes = compileModuleInstanceInputVariables(ctx, module.Variables, call.InputValues, topScope, call.CalleeAddr, call.DeclRange)
 	ret.localValueNodes = compileModuleInstanceLocalValues(ctx, module.Locals, topScope, call.CalleeAddr)

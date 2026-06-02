@@ -27,22 +27,22 @@ func compileModuleInstanceResources(
 	dataConfigs map[string]*configs.Resource,
 	ephemeralConfigs map[string]*configs.Resource,
 	declScope exprs.Scope,
-	providersSideChannel *moduleProvidersSideChannel,
+	moduleProviders configgraph.CompileProviderConfigRef,
 	moduleInstanceAddr addrs.ModuleInstance,
 	providers evalglue.ProvidersSchema,
 	getResultValue func(context.Context, *configgraph.ResourceInstance, cty.Value, configgraph.Maybe[*configgraph.ProviderInstance], addrs.Set[addrs.AbsResourceInstance]) (cty.Value, tfdiags.Diagnostics),
 ) map[addrs.Resource]*configgraph.Resource {
 	ret := make(map[addrs.Resource]*configgraph.Resource, len(managedConfigs)+len(dataConfigs)+len(ephemeralConfigs))
 	for _, rc := range managedConfigs {
-		addr, rsrc := compileModuleInstanceResource(ctx, rc, declScope, providersSideChannel, moduleInstanceAddr, providers, getResultValue)
+		addr, rsrc := compileModuleInstanceResource(ctx, rc, declScope, moduleProviders, moduleInstanceAddr, providers, getResultValue)
 		ret[addr] = rsrc
 	}
 	for _, rc := range dataConfigs {
-		addr, rsrc := compileModuleInstanceResource(ctx, rc, declScope, providersSideChannel, moduleInstanceAddr, providers, getResultValue)
+		addr, rsrc := compileModuleInstanceResource(ctx, rc, declScope, moduleProviders, moduleInstanceAddr, providers, getResultValue)
 		ret[addr] = rsrc
 	}
 	for _, rc := range ephemeralConfigs {
-		addr, rsrc := compileModuleInstanceResource(ctx, rc, declScope, providersSideChannel, moduleInstanceAddr, providers, getResultValue)
+		addr, rsrc := compileModuleInstanceResource(ctx, rc, declScope, moduleProviders, moduleInstanceAddr, providers, getResultValue)
 		ret[addr] = rsrc
 	}
 	return ret
@@ -52,7 +52,7 @@ func compileModuleInstanceResource(
 	ctx context.Context,
 	config *configs.Resource,
 	declScope exprs.Scope,
-	providersSideChannel *moduleProvidersSideChannel,
+	moduleProviders configgraph.CompileProviderConfigRef,
 	moduleInstanceAddr addrs.ModuleInstance,
 	providers evalglue.ProvidersSchema,
 	getResultValue func(context.Context, *configgraph.ResourceInstance, cty.Value, configgraph.Maybe[*configgraph.ProviderInstance], addrs.Set[addrs.AbsResourceInstance]) (cty.Value, tfdiags.Diagnostics),
@@ -97,17 +97,15 @@ func compileModuleInstanceResource(
 		// of this resource.
 		CompileResourceInstance: func(ctx context.Context, key addrs.InstanceKey, repData instances.RepetitionData) *configgraph.ResourceInstance {
 			localScope := instanceLocalScope(declScope, repData)
+			providerRef := compileProviderConfigRef(ctx, moduleProviders, config.ProviderConfigAddr(), config.ProviderConfigRef, localScope)
+
 			inst := &configgraph.ResourceInstance{
 				Addr:     absAddr.Instance(key),
 				Provider: config.Provider,
 				ConfigValuer: configgraph.ValuerOnce(exprs.NewClosure(
 					configEvalable, localScope,
 				)),
-				ProviderInstanceValuer: configgraph.ValuerOnce(
-					providersSideChannel.CompileProviderConfigRef(
-						ctx, config.ProviderConfigAddr(), config.ProviderConfigRef, localScope,
-					),
-				),
+				ProviderInstanceValuer: configgraph.ValuerOnce(providerRef),
 			}
 			// Again the [ResourceInstance] implementation will call back
 			// through this object so we can help it interact with the

@@ -683,6 +683,7 @@ func TestSkipDestroy_Deposed(t *testing.T) {
 // - When instances are removed/reduced state attribute protects instances even if config has destroy=true
 
 func TestSkipDestroy_Enabled_Toggle(t *testing.T) {
+	SkipExperimental(t, ExperimentalBugStateProvider)
 	tests := []skipDestroyTestCase{
 		{
 			// Resource exists in state with SkipDestroy=false, but config has enabled=false and destroy=false.

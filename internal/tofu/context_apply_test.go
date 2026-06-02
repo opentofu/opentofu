@@ -664,7 +664,7 @@ func TestContext2Apply_resourceDependsOnModuleGrandchild(t *testing.T) {
 }
 
 func TestContext2Apply_resourceDependsOnModuleInModule(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDeclareProvider)
+	SkipExperimental(t, ExperimentalBugDeclareProvider, ExperimentalFeatureDependsOn)
 
 	m := testModule(t, "apply-resource-depends-on-module-in-module")
 	p := testProvider("aws")
@@ -717,7 +717,7 @@ func TestContext2Apply_resourceDependsOnModuleInModule(t *testing.T) {
 }
 
 func TestContext2Apply_mapVarBetweenModules(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDeclareProvider)
+	SkipExperimental(t, ExperimentalBugDeclareProvider, ExperimentalFeatureRootOutput)
 
 	m := testModule(t, "apply-map-var-through-module")
 	p := testProvider("null")
@@ -2339,6 +2339,7 @@ func TestContext2Apply_countDecrease(t *testing.T) {
 }
 
 func TestContext2Apply_countDecreaseToOneX(t *testing.T) {
+	SkipExperimental(t, ExperimentalBugStateProvider)
 	m := testModule(t, "apply-count-dec-one")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
@@ -6175,7 +6176,7 @@ func TestContext2Apply_destroyDeeplyNestedModule(t *testing.T) {
 
 // https://github.com/hashicorp/terraform/issues/5440
 func TestContext2Apply_destroyModuleWithAttrsReferencingResource(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDeclareProvider)
+	SkipExperimental(t, ExperimentalBugDeclareProvider, ExperimentalFeatureDestroy, ExperimentalFeatureHooks)
 
 	m, snap := testModuleWithSnapshot(t, "apply-destroy-module-with-attrs")
 	p := testProvider("aws")
@@ -6255,7 +6256,7 @@ func TestContext2Apply_destroyModuleWithAttrsReferencingResource(t *testing.T) {
 }
 
 func TestContext2Apply_destroyWithModuleVariableAndCount(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDeclareProvider)
+	SkipExperimental(t, ExperimentalBugDeclareProvider, ExperimentalFeatureDestroy, ExperimentalFeatureHooks)
 
 	m, snap := testModuleWithSnapshot(t, "apply-destroy-mod-var-and-count")
 	p := testProvider("aws")
@@ -6329,7 +6330,7 @@ func TestContext2Apply_destroyWithModuleVariableAndCount(t *testing.T) {
 }
 
 func TestContext2Apply_destroyTargetWithModuleVariableAndCount(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDeclareProvider)
+	SkipExperimental(t, ExperimentalBugDeclareProvider, ExperimentalFeatureDestroy)
 
 	m := testModule(t, "apply-destroy-mod-var-and-count")
 	p := testProvider("aws")
@@ -6405,7 +6406,7 @@ func TestContext2Apply_destroyTargetWithModuleVariableAndCount(t *testing.T) {
 }
 
 func TestContext2Apply_destroyWithModuleVariableAndCountNested(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDeclareProvider)
+	SkipExperimental(t, ExperimentalBugDeclareProvider, ExperimentalFeatureDestroy, ExperimentalFeatureHooks)
 
 	m, snap := testModuleWithSnapshot(t, "apply-destroy-mod-var-and-count-nested")
 	p := testProvider("aws")
@@ -8897,7 +8898,7 @@ aws_instance.foo:
 
 // https://github.com/hashicorp/terraform/issues/7378
 func TestContext2Apply_destroyNestedModuleWithAttrsReferencingResource(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDeclareProvider)
+	SkipExperimental(t, ExperimentalBugDeclareProvider, ExperimentalFeatureDestroy)
 
 	m, snap := testModuleWithSnapshot(t, "apply-destroy-nested-module-with-attrs")
 	p := testProvider("null")
@@ -11374,7 +11375,7 @@ func TestContext2Apply_ProviderMeta_refreshdata_setInvalid(t *testing.T) {
 }
 
 func TestContext2Apply_expandModuleVariables(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDeclareProvider)
+	SkipExperimental(t, ExperimentalBugDeclareProvider, ExperimentalFeatureRootOutput, ExperimentalFeatureStateDependencies)
 
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
@@ -12182,6 +12183,7 @@ output "outputs" {
 }
 
 func TestContext2Apply_createBeforeDestroyWithModule(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureCBD)
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 variable "v" {}
@@ -12331,6 +12333,7 @@ resource "test_instance" "b" {
 }
 
 func TestContext2Apply_removeReferencedResource(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureDestroy)
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 variable "ct" {

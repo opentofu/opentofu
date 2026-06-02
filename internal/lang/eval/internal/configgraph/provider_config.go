@@ -19,6 +19,13 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
+// CompileProviderConfigRef represents the lookup of a local provider config within a given
+// "scope". This is a side channel given the legacy inheritence of providers between modules
+//
+// Each valuer returned is expected to evaluate to a value of a type
+// returned by [ProviderInstanceRefType].
+type CompileProviderConfigRef func(ctx context.Context, providerInstAddr addrs.LocalProviderConfig) exprs.Valuer
+
 type ProviderConfig struct {
 	// FIXME: The current form of AbsProviderConfig is weird and not quite
 	// right, because the "Abs" prefix is supposed to represent something

@@ -24,7 +24,7 @@ func compileModuleInstanceModuleCalls(
 	ctx context.Context,
 	callConfigs map[string]*configs.ModuleCall,
 	declScope exprs.Scope,
-	providersSidechannel *moduleProvidersSideChannel,
+	parentProviders configgraph.CompileProviderConfigRef,
 	parentSourceAddr addrs.ModuleSource,
 	moduleInstanceAddr addrs.ModuleInstance,
 	externalModules evalglue.ExternalModules,
@@ -95,7 +95,7 @@ func compileModuleInstanceModuleCalls(
 						validateInputs: func(ctx context.Context, v cty.Value) tfdiags.Diagnostics {
 							return diags
 						},
-						compileChild: func(ctx context.Context, inputs cty.Value, providersFromParent map[addrs.LocalProviderConfig]exprs.Valuer) (configgraph.Maybe[evalglue.CompiledModuleInstance], tfdiags.Diagnostics) {
+						compileChild: func(ctx context.Context, inputs cty.Value, providersFromParent configgraph.CompileProviderConfigRef) (configgraph.Maybe[evalglue.CompiledModuleInstance], tfdiags.Diagnostics) {
 							return nil, nil
 						},
 					}
@@ -104,30 +104,9 @@ func compileModuleInstanceModuleCalls(
 
 				instanceScope := instanceLocalScope(declScope, repData)
 
-				providersFromParent := make(map[addrs.LocalProviderConfig]*configgraph.OnceValuer)
-
-				if config.Providers == nil {
-					// Implicit passing (legacy)
-					for addr := range providersSidechannel.instanceVals {
-						providersFromParent[addr] = configgraph.ValuerOnce(providersSidechannel.CompileProviderConfigRef(ctx, addr, &configs.ProviderConfigRef{
-							Name:  addr.LocalName,
-							Alias: addr.Alias,
-						}, instanceScope))
-					}
-				} else {
-					// Explicit passing (modern)
-					for _, p := range config.Providers {
-						parentAddr := addrs.LocalProviderConfig{
-							LocalName: p.InParent.Name,
-							Alias:     p.InParent.Alias,
-						}
-						childAddr := addrs.LocalProviderConfig{
-							LocalName: p.InChild.Name,
-							Alias:     p.InChild.Alias,
-						}
-						providersFromParent[childAddr] = configgraph.ValuerOnce(providersSidechannel.CompileProviderConfigRef(ctx, parentAddr, p.InChild, instanceScope))
-					}
-				}
+				// Apply passed providers to the provider ref chain.
+				// TODO: consider using the required_providers block to validate this further.
+				proxyProviderCompiler := compileProviderConfigRefProxy(parentProviders, config.Providers, instanceScope)
 
 				// TODO: The following is kinda tangled and messy, with a
 				// mutual dependency between the [configgraph.ModuleCallInstance]
@@ -143,20 +122,20 @@ func compileModuleInstanceModuleCalls(
 						exprs.EvalableHCLBodyJustAttributes(config.Config),
 						instanceScope,
 					)),
-					ProvidersFromParentValuers: providersFromParent,
+					ProvidersFromParent: proxyProviderCompiler,
 				}
 				inst.Glue = &moduleCallInstanceGlue{
 					callInstNode: inst,
 					validateInputs: func(ctx context.Context, v cty.Value) tfdiags.Diagnostics {
 						return mod.ValidateModuleInputs(ctx, v)
 					},
-					compileChild: func(ctx context.Context, inputs cty.Value, providersFromParent map[addrs.LocalProviderConfig]exprs.Valuer) (configgraph.Maybe[evalglue.CompiledModuleInstance], tfdiags.Diagnostics) {
+					compileChild: func(ctx context.Context, inputs cty.Value, providersFromParent configgraph.CompileProviderConfigRef) (configgraph.Maybe[evalglue.CompiledModuleInstance], tfdiags.Diagnostics) {
 						modInst, diags := mod.CompileModuleInstance(ctx, calleeAddr, &evalglue.ModuleCall{
 							InputValues:          exprs.ConstantValuer(inputs),
 							AllowImpureFunctions: parentCall.AllowImpureFunctions,
 							EvalContext:          parentCall.EvalContext,
 							EvaluationGlue:       parentCall.EvaluationGlue,
-							ProvidersFromParent:  providersFromParent,
+							ProvidersFromParent:  proxyProviderCompiler,
 						})
 						if diags.HasErrors() {
 							return nil, diags
@@ -175,7 +154,7 @@ type moduleCallInstanceGlue struct {
 	callInstNode *configgraph.ModuleCallInstance
 
 	validateInputs func(context.Context, cty.Value) tfdiags.Diagnostics
-	compileChild   func(ctx context.Context, inputs cty.Value, providersFromParent map[addrs.LocalProviderConfig]exprs.Valuer) (configgraph.Maybe[evalglue.CompiledModuleInstance], tfdiags.Diagnostics)
+	compileChild   func(ctx context.Context, inputs cty.Value, providersFromParent configgraph.CompileProviderConfigRef) (configgraph.Maybe[evalglue.CompiledModuleInstance], tfdiags.Diagnostics)
 
 	// FIXME: This isn't exposed in the tree of AnnounceAllGraphevalRequests
 	// method calls we use to collect up user-friendly names for all of our
@@ -214,7 +193,7 @@ func (g *moduleCallInstanceGlue) compiledModuleInstance(ctx context.Context) (co
 		if !configVal.IsKnown() {
 			return nil, diags
 		}
-		providersFromParent := g.callInstNode.ProvidersFromParent(ctx)
+		providersFromParent := g.callInstNode.ProvidersFromParent
 		ret, moreDiags := g.compileChild(ctx, configVal, providersFromParent)
 		diags = diags.Append(moreDiags)
 		return ret, diags
