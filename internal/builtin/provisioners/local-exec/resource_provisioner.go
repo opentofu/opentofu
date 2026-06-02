@@ -167,6 +167,7 @@ func (p *provisioner) ProvisionResource(ctx context.Context, req provisioners.Pr
 		))
 		return resp
 	}
+	defer pr.Close()
 
 	var cmdEnv []string
 	cmdEnv = os.Environ()
