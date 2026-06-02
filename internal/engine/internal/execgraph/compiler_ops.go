@@ -7,6 +7,7 @@ package execgraph
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/zclconf/go-cty/cty"
@@ -136,6 +137,60 @@ func (c *compiler) compileOpManagedApply(operands *compilerOperands) nodeExecute
 		// TODO: Also call ops.ResourceInstancePostconditions if we produced a non-nil result
 		log.Printf("[WARN] opManagedApply doesn't yet handle postconditions")
 
+		return ret, !diags.HasErrors(), diags
+	}
+}
+
+func (c *compiler) compileOpManagedPrepareDepose(operands *compilerOperands) nodeExecuteRaw {
+	getFinalPlan := nextOperand[*exec.ManagedResourceObjectFinalPlan](operands)
+	getDeposedKey := nextOperand[addrs.DeposedKey](operands)
+	diags := operands.Finish()
+	c.diags = c.diags.Append(diags)
+	if diags.HasErrors() {
+		return nil
+	}
+
+	// This operation is an intrinsic, which means that its behavior is
+	// fixed directly inline here rather than being delegated to the
+	// [exec.Operations] object in c.ops. We use an intrinsic here because
+	// this operation doesn't have any externally-visible side effects and so
+	// there's no need for its behavior to vary; if implemented as a real
+	// operation then every test using mock operations would need to
+	// re-implement essentially the same logic.
+	return func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
+		var diags tfdiags.Diagnostics
+		finalPlan, ok, moreDiags := getFinalPlan(ctx)
+		diags = diags.Append(moreDiags)
+		if !ok {
+			return nil, false, diags
+		}
+
+		// The following checks are just to catch situations where the execution
+		// graph was constructed incorrectly. No user input (valid or otherwise)
+		// should cause these situations to arise, so if either of these
+		// messages appear then that suggests a bug in the planning engine.
+		const errSummary = "Invalid execution graph"
+		if finalPlan.Addr.IsDeposed() {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				errSummary,
+				fmt.Sprintf("Operation ManagedPrepareDeposed was called with a plan for already-deposed object %s. This is a bug in OpenTofu.", finalPlan.Addr),
+			))
+		}
+		if !finalPlan.PlannedVal.IsNull() {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				errSummary,
+				fmt.Sprintf("Operation ManagedPrepareDeposed was called with a non-destroy plan for %s. This is a bug in OpenTofu.", finalPlan.Addr),
+			))
+		}
+
+		deposedKey, ok, moreDiags := getDeposedKey(ctx)
+		diags = diags.Append(moreDiags)
+		if !ok {
+			return nil, false, diags
+		}
+		ret := finalPlan.IntoDeposed(deposedKey)
 		return ret, !diags.HasErrors(), diags
 	}
 }
