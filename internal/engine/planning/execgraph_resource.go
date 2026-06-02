@@ -112,7 +112,7 @@ func (b *execGraphBuilder) AddResourceInstanceObjectSubgraphs(
 			addDeleteDeps.Put(addr, addDeleteDep)
 		}
 
-		if addr.IsCurrent() {
+		if addr.IsCurrent() && valueRef != nil {
 			b.SetResourceInstanceFinalStateResult(addr.InstanceAddr, valueRef)
 		}
 	}
