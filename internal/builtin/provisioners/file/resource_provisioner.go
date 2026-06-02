@@ -162,6 +162,12 @@ func getSrc(v cty.Value) (string, bool, error) {
 		}
 
 		if _, err = file.WriteString(content.AsString()); err != nil {
+			file.Close()
+			return "", true, err
+		}
+
+		err = file.Close()
+		if err != nil {
 			return "", true, err
 		}
 
