@@ -42,16 +42,27 @@ type execGraphBuilder struct {
 	// we throw these away after building is complete because the graph
 	// becomes immutable at that point.
 	resourceInstAddrRefs addrs.Map[addrs.AbsResourceInstance, execgraph.ResultRef[addrs.AbsResourceInstance]]
+
+	// makeDeposedKey is a function provided by the caller for allocating the
+	// tracking keys for objects that will become newly-deposed during the
+	// apply phase.
+	//
+	// The implementer is required to make sure that the returned key does not
+	// overlap with any already-deposed object for the given resource instance
+	// or with any other keys previously returned for the same resource instance
+	// address during the same graph-build.
+	makeDeposedKey func(addrs.AbsResourceInstance) addrs.DeposedKey
 }
 
 // NOTE: There are additional methods for [execGraphBuilder] declared in
 // the other files named execgraph_*.go , grouped by what kinds of objects they
 // primarily work with.
 
-func newExecGraphBuilder() *execGraphBuilder {
+func newExecGraphBuilder(makeDeposedKey func(addrs.AbsResourceInstance) addrs.DeposedKey) *execGraphBuilder {
 	return &execGraphBuilder{
 		lower:                execgraph.NewBuilder(),
 		resourceInstAddrRefs: addrs.MakeMap[addrs.AbsResourceInstance, execgraph.ResultRef[addrs.AbsResourceInstance]](),
+		makeDeposedKey:       makeDeposedKey,
 	}
 }
 

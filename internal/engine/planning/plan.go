@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/collections"
 	"github.com/opentofu/opentofu/internal/engine/plugins"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
@@ -160,7 +161,48 @@ func finalizePlan(ctx context.Context, intermediate *planContextResult, provider
 	)
 	diags = diags.Append(moreDiags)
 
-	egb := newExecGraphBuilder()
+	// newDeposedKeys tracks any new deposed keys we allocate while constructing
+	// the execution graph, so we can avoid returning the same key twice.
+	newDeposedKeys := addrs.MakeMap[addrs.AbsResourceInstance, collections.Set[addrs.DeposedKey]]()
+
+	egb := newExecGraphBuilder(func(instAddr addrs.AbsResourceInstance) addrs.DeposedKey {
+		// TODO: We should probably factor this out somewhere else, once
+		// the rest of the nearby code has settled down.
+		var existingDeposed map[addrs.DeposedKey]*states.ResourceInstanceObjectSrc
+		newDeposed := newDeposedKeys.Get(instAddr)
+		inst := intermediate.RefreshedState.ResourceInstance(instAddr)
+		if inst != nil {
+			existingDeposed = inst.Deposed
+		}
+
+		// We'll just keep trying to allocate new keys until we get a
+		// unique one. Deposed keys are effectively 32-bit unsigned integers
+		// and so with 1000 deposed objects per instance there'd only be 0.01%
+		// probability of colliding here, and that would be a ridiculous
+		// number of deposed objects.
+		i := 0
+		for {
+			i++
+			if i == 8192 {
+				// Something seems to have gone very wrong! We should not get here.
+				panic(fmt.Sprintf("failed to allocate a unique deposed key for %s", instAddr))
+			}
+
+			key := addrs.NewDeposedKey()
+			if _, exists := existingDeposed[key]; exists {
+				continue
+			}
+			if newDeposed.Has(key) {
+				continue
+			}
+			if newDeposed == nil {
+				newDeposed = make(collections.Set[addrs.DeposedKey])
+			}
+			newDeposed[key] = struct{}{}
+			return key
+		}
+
+	})
 	egb.AddResourceInstanceObjectSubgraphs(
 		intermediate.ResourceInstanceObjects,
 		effectiveReplaceOrders,

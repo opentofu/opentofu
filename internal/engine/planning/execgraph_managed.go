@@ -271,9 +271,16 @@ func (b *execGraphBuilder) managedResourceInstanceSubgraphCreateThenDelete(
 			plannedChange.After.Type(),
 		)),
 	)
+	// We'll now reinterpret the destroy plan as being for the deposed key
+	// that we'll retain this object under until the new object has been
+	// created, or failed to be created.
+	deposedKey := b.lower.ConstantDeposedKey(b.makeDeposedKey(plannedChange.Addr))
+	destroyPlanRef = b.lower.ManagedPrepareDepose(destroyPlanRef, deposedKey)
+
 	deposedObjRef := b.lower.ManagedPerformDepose(
 		priorStateRef,
-		b.lower.Waiter(createPlanRef, destroyPlanRef),
+		destroyPlanRef,
+		b.lower.Waiter(createPlanRef),
 	)
 	createResultRef := b.lower.ManagedApply(
 		createPlanRef,

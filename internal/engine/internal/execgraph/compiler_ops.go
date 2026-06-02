@@ -198,6 +198,7 @@ func (c *compiler) compileOpManagedPrepareDepose(operands *compilerOperands) nod
 func (c *compiler) compileOpManagedPerformDepose(operands *compilerOperands) nodeExecuteRaw {
 	ops := c.ops
 	getCurrentObj := nextOperand[*exec.ResourceInstanceObject](operands)
+	getDeletePlan := nextOperand[*exec.ManagedResourceObjectFinalPlan](operands)
 	waitForDeps := operands.OperandWaiter()
 	diags := operands.Finish()
 	c.diags = c.diags.Append(diags)
@@ -216,8 +217,13 @@ func (c *compiler) compileOpManagedPerformDepose(operands *compilerOperands) nod
 		if !ok {
 			return nil, false, diags
 		}
+		deletePlan, ok, moreDiags := getDeletePlan(ctx)
+		diags = diags.Append(moreDiags)
+		if !ok {
+			return nil, false, diags
+		}
 
-		ret, moreDiags := ops.ManagedPerformDepose(ctx, currentObj)
+		ret, moreDiags := ops.ManagedPerformDepose(ctx, currentObj, deletePlan)
 		diags = diags.Append(moreDiags)
 		return ret, !diags.HasErrors(), diags
 	}

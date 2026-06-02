@@ -227,18 +227,22 @@ func unmarshalOpManagedPrepareDepose(rawOperands []uint64, prevResults []AnyResu
 }
 
 func unmarshalOpManagedPerformDepose(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
-	if len(rawOperands) != 2 {
+	if len(rawOperands) != 3 {
 		return nil, fmt.Errorf("wrong number of operands (%d) for opManagedPerformDepose", len(rawOperands))
 	}
 	currentObj, err := unmarshalGetPrevResultOf[*exec.ResourceInstanceObject](prevResults, rawOperands[0])
 	if err != nil {
 		return nil, fmt.Errorf("invalid opManagedPerformDepose currentObj: %w", err)
 	}
-	waitFor, err := unmarshalGetPrevResultWaiter(prevResults, rawOperands[1])
+	finalDeletePlan, err := unmarshalGetPrevResultOf[*exec.ManagedResourceObjectFinalPlan](prevResults, rawOperands[1])
+	if err != nil {
+		return nil, fmt.Errorf("invalid opManagedPerformDepose finalDeletePlan: %w", err)
+	}
+	waitFor, err := unmarshalGetPrevResultWaiter(prevResults, rawOperands[2])
 	if err != nil {
 		return nil, fmt.Errorf("invalid opManagedPerformDepose waitFor: %w", err)
 	}
-	return builder.ManagedPerformDepose(currentObj, waitFor), nil
+	return builder.ManagedPerformDepose(currentObj, finalDeletePlan, waitFor), nil
 }
 
 func unmarshalOpManagedAlreadyDeposed(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
