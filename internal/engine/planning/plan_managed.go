@@ -116,6 +116,8 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		return ret, diags
 	}
 
+	// FIXME: Need to "upgrade" the previous round state before we try to decode it.
+
 	var prevRoundVal cty.Value
 	var prevRoundPrivate []byte
 	prevRoundState := p.planCtx.prevRoundState.SyncWrapper().ResourceInstanceObjectFull(inst.Addr.CurrentObject())
@@ -300,6 +302,23 @@ func (p *planGlue) planOrphanManagedResourceInstance(
 	addr addrs.AbsResourceInstance,
 	stateSrc *states.ResourceInstanceObjectFullSrc,
 ) (*resourceInstanceObject, tfdiags.Diagnostics) {
+	return p.planUnwantedManagedResourceInstanceObject(ctx, addr.CurrentObject(), stateSrc)
+}
+
+func (p *planGlue) planDeposedManagedResourceInstanceObject(
+	ctx context.Context,
+	addr addrs.AbsResourceInstance,
+	deposedKey states.DeposedKey,
+	stateSrc *states.ResourceInstanceObjectFullSrc,
+) (*resourceInstanceObject, tfdiags.Diagnostics) {
+	return p.planUnwantedManagedResourceInstanceObject(ctx, addr.Object(deposedKey), stateSrc)
+}
+
+func (p *planGlue) planUnwantedManagedResourceInstanceObject(
+	ctx context.Context,
+	addr addrs.AbsResourceInstanceObject,
+	stateSrc *states.ResourceInstanceObjectFullSrc,
+) (*resourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// TODO: This currently has a lot of inline logic that's quite similar to
@@ -309,12 +328,12 @@ func (p *planGlue) planOrphanManagedResourceInstance(
 	// so that this'll be easier to maintain in future as requirements change.
 
 	ret := &resourceInstanceObject{
-		Addr:         addr.CurrentObject(),
+		Addr:         addr,
 		Dependencies: addrs.MakeSet[addrs.AbsResourceInstanceObject](),
 		Provider:     stateSrc.ProviderInstanceAddr.Config.Config.Provider,
 
-		// Orphan objects are always planned for deletion, so we can assume
-		// the result will be always be some kind of null.
+		// Orphan and deposed objects are always planned for deletion, so we can
+		// assume the result will be always be some kind of null.
 		PlaceholderValue: cty.NullVal(cty.DynamicPseudoType),
 
 		// NOTE: PlannedChange remains nil until we actually produce a plan,
@@ -327,14 +346,17 @@ func (p *planGlue) planOrphanManagedResourceInstance(
 	// dependencies with the actual resource instance objects in the prior state
 	// to get a comprehensive set of everything we ought to depend on.
 
-	// TODO: Ask the planning oracle whether there are any "moved" blocks
-	// that begin at inst.Addr, and if so check whether the chain of moves
-	// starting there will end up at a currently-unbound resource instance
-	// address. If so, we should do nothing here because
-	// [planGlue.planOrphanManagedResourceInstance] for that target address
-	// should notice the opposite end of the same chain of moves and so
-	// handle it as an object that is in both the prior and desired state,
-	// albeit with different addresses in each.
+	if addr.IsCurrent() {
+		// TODO: Ask the planning oracle whether there are any "moved" blocks
+		// that begin at inst.Addr, and if so check whether the chain of moves
+		// starting there will end up at a currently-unbound resource instance
+		// address. If so, we should do nothing here because
+		// [planGlue.planOrphanManagedResourceInstance] for that target address
+		// should notice the opposite end of the same chain of moves and so
+		// handle it as an object that is in both the prior and desired state,
+		// albeit with different addresses in each.
+		_ = 0 // just to quiet staticcheck about this empty branch until we complete it
+	}
 
 	// FIXME: Currently this fails if the only mention of a particular provider
 	// instance is in the state, because this function relies on provider
@@ -361,7 +383,7 @@ func (p *planGlue) planOrphanManagedResourceInstance(
 		return ret, diags
 	}
 
-	resourceType := resources.NewManagedResourceType(providerAddr, addr.Resource.Resource.Type, providerClient)
+	resourceType := resources.NewManagedResourceType(providerAddr, addr.InstanceAddr.Resource.Resource.Type, providerClient)
 	schema, schemaDiags := resourceType.LoadSchema(ctx)
 	if schemaDiags.HasErrors() {
 		// We don't return the schema-loading diagnostics directly here because
@@ -373,12 +395,15 @@ func (p *planGlue) planOrphanManagedResourceInstance(
 			"Resource type schema unavailable",
 			fmt.Sprintf(
 				"Cannot plan %s because provider %s failed to return the schema for its resource type %q.",
-				addr, providerAddr, addr.Resource.Resource.Type,
+				addr, providerAddr, addr.InstanceAddr.Resource.Resource.Type,
 			),
 			nil, // this error belongs to the whole resource config
 		))
 		return ret, diags
 	}
+
+	// FIXME: Need to "upgrade" the previous run state and then refresh it
+	// before we try to decode it.
 
 	var prevRoundVal cty.Value
 	var prevRoundPrivate []byte
@@ -435,15 +460,16 @@ func (p *planGlue) planOrphanManagedResourceInstance(
 		// to keep supporting that, and if so design a way for the relevant
 		// meta value to get from the evaluator into here.
 		ProviderMetaValue: cty.NilVal,
-	}, addr.CurrentObject())
+	}, addr)
 	diags = diags.Append(planDiags)
 	if planDiags.HasErrors() {
 		return ret, diags
 	}
 
 	ret.PlannedChange = &plans.ResourceInstanceChange{
-		Addr:        addr,
-		PrevRunAddr: addr,
+		Addr:        addr.InstanceAddr,
+		PrevRunAddr: addr.InstanceAddr,
+		DeposedKey:  addr.DeposedKey,
 		ProviderAddr: addrs.AbsProviderConfig{
 			// FIXME: This is a lossy shim to the old-style provider instance
 			// address representation, since our old models aren't yet updated
@@ -471,14 +497,4 @@ func (p *planGlue) planOrphanManagedResourceInstance(
 	}
 	ret.ProviderInst = prevRoundState.ProviderInstanceAddr
 	return ret, diags
-}
-
-func (p *planGlue) planDeposedManagedResourceInstanceObject(
-	ctx context.Context,
-	addr addrs.AbsResourceInstance,
-	deposedKey states.DeposedKey,
-	state *states.ResourceInstanceObjectFullSrc,
-) (*resourceInstanceObject, tfdiags.Diagnostics) {
-	// TODO: Implement
-	panic("unimplemented")
 }
