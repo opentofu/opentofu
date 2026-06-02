@@ -1409,6 +1409,8 @@ aws_instance_thing.foo-1:
 `
 
 func TestContextImport_multiInstanceProviderIdentity(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureImport)
+
 	// This test verifies that identity-based import blocks correctly resolve
 	// the provider instance key when the provider uses for_each and also an alias.
 

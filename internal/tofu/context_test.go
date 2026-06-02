@@ -939,6 +939,7 @@ func assertNoErrors(t testing.TB, diags tfdiags.Diagnostics) {
 // before comparing them, though diagnostics only have a partial order so that
 // will not totally normalize the ordering of all diagnostics sets.
 func assertDiagnosticsMatch(t testing.TB, got, want tfdiags.Diagnostics) {
+	t.Helper()
 	got = got.ForRPC()
 	want = want.ForRPC()
 	got.Sort()

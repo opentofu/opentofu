@@ -24,6 +24,7 @@ import (
 func compileModuleInstanceProviderConfigs(
 	ctx context.Context,
 	configs map[string]*configs.Provider,
+	moduleCalls map[string]*configs.ModuleCall,
 	allResources iter.Seq[*configs.Resource],
 	declScope exprs.Scope,
 	reqdProviders map[string]*configs.RequiredProvider,
@@ -101,8 +102,21 @@ func compileModuleInstanceProviderConfigs(
 	// in the root module because implied configs are not supposed to appear
 	// in other modules.
 	if moduleInstanceAddr.IsRoot() {
+		implicits := map[addrs.LocalProviderConfig]hcl.Range{}
 		for resourceConfig := range allResources {
-			localAddr := resourceConfig.ProviderConfigAddr()
+			// TODO better range when available
+			implicits[resourceConfig.ProviderConfigAddr()] = resourceConfig.DeclRange
+		}
+		for _, moduleCall := range moduleCalls {
+			for _, provider := range moduleCall.Providers {
+				localAddr := addrs.LocalProviderConfig{
+					LocalName: provider.InParent.Name,
+					Alias:     provider.InParent.Alias,
+				}
+				implicits[localAddr] = provider.InParent.NameRange
+			}
+		}
+		for localAddr, sourceRange := range implicits {
 			if _, ok := ret[localAddr]; ok {
 				continue // we already have an instance for this local address
 			}
@@ -125,7 +139,7 @@ func compileModuleInstanceProviderConfigs(
 				// reporting for these situations being poor has been a classic
 				// problem even in the previous implementation so hopefully we
 				// can think of a better idea for this at some point...
-				configEvalable = exprs.ForcedErrorEvalable(diags, tfdiags.SourceRangeFromHCL(resourceConfig.DeclRange))
+				configEvalable = exprs.ForcedErrorEvalable(diags, tfdiags.SourceRangeFromHCL(sourceRange))
 			} else {
 				spec := configSchema.Block.DecoderSpec()
 				configEvalable = exprs.EvalableHCLBodyWithDynamicBlocks(hcl.EmptyBody(), spec)

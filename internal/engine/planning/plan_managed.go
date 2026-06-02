@@ -108,6 +108,14 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		return ret, diags
 	}
 
+	unmarkedConfigVal, _ := inst.ConfigVal.UnmarkDeep()
+
+	validateDiags = p.planCtx.providers.ValidateResourceConfig(ctx, inst.Provider, inst.ResourceMode, inst.ResourceType, unmarkedConfigVal)
+	diags = diags.Append(validateDiags)
+	if diags.HasErrors() {
+		return ret, diags
+	}
+
 	var prevRoundVal cty.Value
 	var prevRoundPrivate []byte
 	prevRoundState := p.planCtx.prevRoundState.SyncWrapper().ResourceInstanceObjectFull(inst.Addr.CurrentObject())
@@ -154,7 +162,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 	// TODO: If inst.IgnoreChangesPaths has any entries then we need to
 	// transform effectiveConfigVal so that any paths specified in there are
 	// forced to match the corresponding value from prevRoundVal, if any.
-	effectiveConfigVal := inst.ConfigVal
+	effectiveConfigVal := unmarkedConfigVal
 
 	// TODO: Call resourceType.RefreshObject, update the "refreshed state",
 	// and reassign this refreshedVal to the refreshed result.

@@ -39,7 +39,10 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 		ret.Dependencies.Add(dep.CurrentObject())
 	}
 
-	validateDiags := p.planCtx.providers.ValidateResourceConfig(ctx, inst.Provider, inst.ResourceMode, inst.ResourceType, inst.ConfigVal)
+	unmarkedConfigVal, _ := inst.ConfigVal.UnmarkDeep()
+
+	// TODO resourceType.ValidateConfig
+	validateDiags := p.planCtx.providers.ValidateResourceConfig(ctx, inst.Provider, inst.ResourceMode, inst.ResourceType, unmarkedConfigVal)
 	diags = diags.Append(validateDiags)
 	if diags.HasErrors() {
 		return ret, diags
@@ -84,7 +87,7 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 
 	resp := providerClient.ReadDataSource(ctx, providers.ReadDataSourceRequest{
 		TypeName: inst.ResourceType,
-		Config:   inst.ConfigVal,
+		Config:   unmarkedConfigVal,
 
 		// TODO: ProviderMeta is a rarely-used feature that only really makes
 		// sense when the module and provider are both written by the same

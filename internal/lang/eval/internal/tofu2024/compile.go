@@ -94,6 +94,7 @@ func CompileModuleInstance(
 	// in future but we want to keep existing modules working for now.
 	ret.providerConfigNodes = compileModuleInstanceProviderConfigs(ctx,
 		module.ProviderConfigs,
+		module.ModuleCalls,
 		allResourcesFromModule(module),
 		topScope,
 		module.ProviderRequirements.RequiredProviders,
