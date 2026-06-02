@@ -26,7 +26,7 @@ type mockOperations struct {
 	ManagedAlreadyDeposedFunc          func(ctx context.Context, instAddr addrs.AbsResourceInstance, deposedKey states.DeposedKey) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
 	ManagedApplyFunc                   func(ctx context.Context, plan *exec.ManagedResourceObjectFinalPlan, fallback *exec.ResourceInstanceObject) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
 	ManagedChangeAddrFunc              func(ctx context.Context, currentObj *exec.ResourceInstanceObject, newAddr addrs.AbsResourceInstance) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
-	ManagedDeposeFunc                  func(ctx context.Context, currentObj *exec.ResourceInstanceObject) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
+	ManagedPerformDeposeFunc           func(ctx context.Context, currentObj *exec.ResourceInstanceObject) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
 	ManagedFinalPlanFunc               func(ctx context.Context, desired *eval.DesiredResourceInstance, prior *exec.ResourceInstanceObject, plannedVal cty.Value) (*exec.ManagedResourceObjectFinalPlan, tfdiags.Diagnostics)
 	ResourceInstanceDesiredFunc        func(ctx context.Context, instAddr addrs.AbsResourceInstance) (*eval.DesiredResourceInstance, tfdiags.Diagnostics)
 	ResourceInstancePostconditionsFunc func(ctx context.Context, result *exec.ResourceInstanceObject) tfdiags.Diagnostics
@@ -81,14 +81,14 @@ func (m *mockOperations) ManagedChangeAddr(ctx context.Context, currentObj *exec
 	return result, diags
 }
 
-// ManagedDepose implements [exec.Operations].
-func (m *mockOperations) ManagedDepose(ctx context.Context, currentObj *exec.ResourceInstanceObject) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
+// ManagedPerformDepose implements [exec.Operations].
+func (m *mockOperations) ManagedPerformDepose(ctx context.Context, currentObj *exec.ResourceInstanceObject) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	var result *exec.ResourceInstanceObject
-	if m.ManagedDeposeFunc != nil {
-		result, diags = m.ManagedDeposeFunc(ctx, currentObj)
+	if m.ManagedPerformDeposeFunc != nil {
+		result, diags = m.ManagedPerformDeposeFunc(ctx, currentObj)
 	}
-	m.appendLog("ManagedDepose", []any{currentObj}, result)
+	m.appendLog("ManagedPerformDepose", []any{currentObj}, result)
 	return result, diags
 }
 

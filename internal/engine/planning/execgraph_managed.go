@@ -271,7 +271,7 @@ func (b *execGraphBuilder) managedResourceInstanceSubgraphCreateThenDelete(
 			plannedChange.After.Type(),
 		)),
 	)
-	deposedObjRef := b.lower.ManagedDepose(
+	deposedObjRef := b.lower.ManagedPerformDepose(
 		priorStateRef,
 		b.lower.Waiter(createPlanRef, destroyPlanRef),
 	)

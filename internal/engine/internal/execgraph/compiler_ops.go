@@ -140,7 +140,7 @@ func (c *compiler) compileOpManagedApply(operands *compilerOperands) nodeExecute
 	}
 }
 
-func (c *compiler) compileOpManagedDepose(operands *compilerOperands) nodeExecuteRaw {
+func (c *compiler) compileOpManagedPerformDepose(operands *compilerOperands) nodeExecuteRaw {
 	ops := c.ops
 	getCurrentObj := nextOperand[*exec.ResourceInstanceObject](operands)
 	waitForDeps := operands.OperandWaiter()
@@ -162,7 +162,7 @@ func (c *compiler) compileOpManagedDepose(operands *compilerOperands) nodeExecut
 			return nil, false, diags
 		}
 
-		ret, moreDiags := ops.ManagedDepose(ctx, currentObj)
+		ret, moreDiags := ops.ManagedPerformDepose(ctx, currentObj)
 		diags = diags.Append(moreDiags)
 		return ret, !diags.HasErrors(), diags
 	}

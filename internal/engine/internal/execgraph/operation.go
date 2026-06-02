@@ -30,7 +30,8 @@ const (
 
 	opManagedFinalPlan
 	opManagedApply
-	opManagedDepose
+	opManagedPrepareDepose
+	opManagedPerformDepose
 	opManagedAlreadyDeposed
 	opManagedChangeAddr
 

@@ -148,8 +148,9 @@ func (b *Builder) ManagedFinalPlan(
 //
 // fallbackObj is usually a [NilResultRef], but should be set for the "create"
 // leg of a "create then destroy" replace operation to be the result of a
-// call to [Builder.ManagedDepose] so that the deposed object can be restored
-// to current if the create call completely fails to create a new object.
+// call to [Builder.ManagedPerformDepose] so that the deposed object can be
+// restored to current if the create call completely fails to create a new
+// object.
 func (b *Builder) ManagedApply(
 	finalPlan ResultRef[*exec.ManagedResourceObjectFinalPlan],
 	fallbackObj ResourceInstanceResultRef,
@@ -161,12 +162,12 @@ func (b *Builder) ManagedApply(
 	})
 }
 
-func (b *Builder) ManagedDepose(
+func (b *Builder) ManagedPerformDepose(
 	currentObj ResourceInstanceResultRef,
 	waitFor AnyResultRef,
 ) ResourceInstanceResultRef {
 	return operationRef[*exec.ResourceInstanceObject](b, operationDesc{
-		opCode:   opManagedDepose,
+		opCode:   opManagedPerformDepose,
 		operands: []AnyResultRef{currentObj, waitFor},
 	})
 }

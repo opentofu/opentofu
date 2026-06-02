@@ -296,17 +296,17 @@ func (ops *execOperations) ManagedApply(
 	return ret, diags
 }
 
-// ManagedDepose implements [exec.Operations].
-func (ops *execOperations) ManagedDepose(
+// ManagedPerformDepose implements [exec.Operations].
+func (ops *execOperations) ManagedPerformDepose(
 	ctx context.Context,
 	currentObj *exec.ResourceInstanceObject,
 ) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	if currentObj == nil {
-		log.Println("[TRACE] apply phase: ManagedDepose with nil object (ignored)")
+		log.Println("[TRACE] apply phase: ManagedPerformDepose with nil object (ignored)")
 		return nil, diags
 	}
-	log.Printf("[TRACE] apply phase: ManagedDepose %s", currentObj.Addr)
+	log.Printf("[TRACE] apply phase: ManagedPerformDepose %s", currentObj.Addr)
 	if currentObj.Addr.IsDeposed() {
 		diags = diags.Append(fmt.Errorf(
 			"attempting do depose %s when it's already deposed; this is a bug in OpenTofu",

@@ -134,7 +134,7 @@ type Operations interface {
 	// occurs when performing a "create then destroy" replace operation, so
 	// that a total failure of the "create" step leaves OpenTofu still tracking
 	// the previous object (which was presumably deposed earlier in the same
-	// apply phase using ManagedDepose) as the current object.
+	// apply phase using ManagedPerformDepose) as the current object.
 	//
 	// This method must return whatever object was left as "current" in the
 	// state, including possibly returning the "current-ized" version of
@@ -154,8 +154,8 @@ type Operations interface {
 		fallback *ResourceInstanceObject,
 	) (*ResourceInstanceObject, tfdiags.Diagnostics)
 
-	// ManagedDepose takes a "current" object for some resource instance and
-	// changes it to be a "deposed" object for the same resource instance,
+	// ManagedPerformDepose takes a "current" object for some resource instance
+	// and changes it to be a "deposed" object for the same resource instance,
 	// returning a new representation of the object with its
 	// pseudorandomly-chosen unique DeposedKey.
 	//
@@ -171,7 +171,7 @@ type Operations interface {
 	// anything. In practice though the planning engine should not include
 	// this operation unless it found an existing current object that needs to
 	// be deposed as part of a create-then-destroy "replace" change.
-	ManagedDepose(
+	ManagedPerformDepose(
 		ctx context.Context,
 		object *ResourceInstanceObject,
 	) (*ResourceInstanceObject, tfdiags.Diagnostics)
@@ -189,7 +189,7 @@ type Operations interface {
 	// [Operations.ResourceInstancePrior] but returns a deposed object rather
 	// than a current object.
 	//
-	// [Operations.ManagedDepose] deals with the more common case where a
+	// [Operations.ManagedPerformDepose] deals with the more common case where a
 	// previously-"current" object becomes deposed during the apply phase as
 	// part of handling a "create then destroy' replace operation.
 	ManagedAlreadyDeposed(

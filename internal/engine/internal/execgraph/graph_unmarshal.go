@@ -129,8 +129,8 @@ func unmarshalOperationElem(protoOp *execgraphproto.Operation, prevResults []Any
 		return unmarshalOpManagedFinalPlan(protoOp.GetOperands(), prevResults, builder)
 	case opManagedApply:
 		return unmarshalOpManagedApply(protoOp.GetOperands(), prevResults, builder)
-	case opManagedDepose:
-		return unmarshalOpManagedDepose(protoOp.GetOperands(), prevResults, builder)
+	case opManagedPerformDepose:
+		return unmarshalOpManagedPerformDepose(protoOp.GetOperands(), prevResults, builder)
 	case opManagedAlreadyDeposed:
 		return unmarshalOpManagedAlreadyDeposed(protoOp.GetOperands(), prevResults, builder)
 	case opManagedChangeAddr:
@@ -209,19 +209,19 @@ func unmarshalOpManagedApply(rawOperands []uint64, prevResults []AnyResultRef, b
 	return builder.ManagedApply(finalPlan, fallbackObj, waitFor), nil
 }
 
-func unmarshalOpManagedDepose(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
+func unmarshalOpManagedPerformDepose(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
 	if len(rawOperands) != 2 {
-		return nil, fmt.Errorf("wrong number of operands (%d) for opManagedDepose", len(rawOperands))
+		return nil, fmt.Errorf("wrong number of operands (%d) for opManagedPerformDepose", len(rawOperands))
 	}
 	currentObj, err := unmarshalGetPrevResultOf[*exec.ResourceInstanceObject](prevResults, rawOperands[0])
 	if err != nil {
-		return nil, fmt.Errorf("invalid opManagedDepose currentObj: %w", err)
+		return nil, fmt.Errorf("invalid opManagedPerformDepose currentObj: %w", err)
 	}
 	waitFor, err := unmarshalGetPrevResultWaiter(prevResults, rawOperands[1])
 	if err != nil {
-		return nil, fmt.Errorf("invalid opManagedDepose waitFor: %w", err)
+		return nil, fmt.Errorf("invalid opManagedPerformDepose waitFor: %w", err)
 	}
-	return builder.ManagedDepose(currentObj, waitFor), nil
+	return builder.ManagedPerformDepose(currentObj, waitFor), nil
 }
 
 func unmarshalOpManagedAlreadyDeposed(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
