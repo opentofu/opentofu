@@ -129,6 +129,8 @@ func unmarshalOperationElem(protoOp *execgraphproto.Operation, prevResults []Any
 		return unmarshalOpManagedFinalPlan(protoOp.GetOperands(), prevResults, builder)
 	case opManagedApply:
 		return unmarshalOpManagedApply(protoOp.GetOperands(), prevResults, builder)
+	case opManagedPrepareDepose:
+		return unmarshalOpManagedPrepareDepose(protoOp.GetOperands(), prevResults, builder)
 	case opManagedPerformDepose:
 		return unmarshalOpManagedPerformDepose(protoOp.GetOperands(), prevResults, builder)
 	case opManagedAlreadyDeposed:
@@ -207,6 +209,21 @@ func unmarshalOpManagedApply(rawOperands []uint64, prevResults []AnyResultRef, b
 		return nil, fmt.Errorf("invalid opManagedApplyChanges waitFor: %w", err)
 	}
 	return builder.ManagedApply(finalPlan, fallbackObj, waitFor), nil
+}
+
+func unmarshalOpManagedPrepareDepose(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
+	if len(rawOperands) != 2 {
+		return nil, fmt.Errorf("wrong number of operands (%d) for opManagedPrepareDepose", len(rawOperands))
+	}
+	deletePlan, err := unmarshalGetPrevResultOf[*exec.ManagedResourceObjectFinalPlan](prevResults, rawOperands[0])
+	if err != nil {
+		return nil, fmt.Errorf("invalid opManagedPrepareDepose deletePlan: %w", err)
+	}
+	deposedKey, err := unmarshalGetPrevResultOf[addrs.DeposedKey](prevResults, rawOperands[1])
+	if err != nil {
+		return nil, fmt.Errorf("invalid opManagedPrepareDepose deposedKey: %w", err)
+	}
+	return builder.ManagedPrepareDepose(deletePlan, deposedKey), nil
 }
 
 func unmarshalOpManagedPerformDepose(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {

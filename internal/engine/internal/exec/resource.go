@@ -66,6 +66,22 @@ type ManagedResourceObjectFinalPlan struct {
 	// request to the associated provider.
 }
 
+// IntoDeposed returns a new [ManagedResourceObjectFinalPlan] that represents
+// the same change as the receiver but has DeposedKey set the given value.
+//
+// Note that the result is only a shallow copy of the reciever, so nothing
+// reachable through pointers should be modified in either object. Final plan
+// objects are immutable by convention.
+//
+// This function does not (and cannot) verify that the chosen deposed key is
+// unique for the resource instance. It's the caller's responsibility to
+// allocate a unique deposed key to use.
+func (p *ManagedResourceObjectFinalPlan) IntoDeposed(key states.DeposedKey) *ManagedResourceObjectFinalPlan {
+	ret := *p // shallow copy
+	ret.Addr.DeposedKey = key
+	return &ret
+}
+
 // ResourceInstanceObject associates a [states.ResourceInstanceObjectFull] with
 // a resource instance address and optional deposed key.
 //
@@ -101,7 +117,7 @@ func (o *ResourceInstanceObject) IntoCurrent() *ResourceInstanceObject {
 	}
 }
 
-// IntoCurrent returns a new [ResourceInstanceObject] that has the same
+// IntoDeposed returns a new [ResourceInstanceObject] that has the same
 // State as the receiver but has DeposedKey set the given value.
 //
 // This function does not (and cannot) verify that the chosen deposed key is

@@ -162,6 +162,31 @@ func (b *Builder) ManagedApply(
 	})
 }
 
+// ManagedPrepareDepose performs the first half of the work to "depose" a
+// resource instance object as part of a create-before-destroy replace
+// operation.
+//
+// The final plan given as input must be a plan to destroy a "current" object.
+// The result is an equivalent plan whose only difference is that it's set
+// up to destroy the deposed object which has the given deposed key.
+//
+// The result of this operation should then be sent to both
+// [Builder.ManagedPerformDepose] and [Builder.ManagedApply] as part of the
+// overall subgraph handling the replace operation.
+//
+// This operation is an intrinsic, meaning that its behavior lives directly
+// in the execution graph runner rather than being delegated to an external
+// [exec.Operations] implementation.
+func (b *Builder) ManagedPrepareDepose(
+	finalPlan ResultRef[*exec.ManagedResourceObjectFinalPlan],
+	deposedKey ResultRef[addrs.DeposedKey],
+) ResultRef[*exec.ManagedResourceObjectFinalPlan] {
+	return operationRef[*exec.ManagedResourceObjectFinalPlan](b, operationDesc{
+		opCode:   opManagedPrepareDepose,
+		operands: []AnyResultRef{finalPlan, deposedKey},
+	})
+}
+
 func (b *Builder) ManagedPerformDepose(
 	currentObj ResourceInstanceResultRef,
 	waitFor AnyResultRef,
