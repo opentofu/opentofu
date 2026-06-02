@@ -6993,8 +6993,6 @@ func TestContext2Plan_importIdModule(t *testing.T) {
 func TestContext2Plan_importIdInvalidNull(t *testing.T) {
 	SkipExperimental(t, ExperimentalFeatureImport)
 
-	SkipExperimental(t, ExperimentalFeatureImport)
-
 	p := testProvider("test")
 	m := testModule(t, "import-id-invalid-null")
 	ctx := testContext2(t, &ContextOpts{
