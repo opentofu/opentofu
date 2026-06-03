@@ -62,7 +62,7 @@ func TestRoundtrip(t *testing.T) {
 			}
 
 			var buf bytes.Buffer
-			err = Write(f, &buf, encryption.StateEncryptionDisabled())
+			err = WriteIndent(f, &buf, encryption.StateEncryptionDisabled())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -103,7 +103,7 @@ func TestRoundtripEncryption(t *testing.T) {
 
 	// Write encrypted
 	var encrypted bytes.Buffer
-	err = Write(originalState, &encrypted, enc)
+	err = WriteIndent(originalState, &encrypted, enc)
 	if err != nil {
 		t.Fatal(err)
 	}
