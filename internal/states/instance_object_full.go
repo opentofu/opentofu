@@ -134,7 +134,8 @@ func (s *SyncState) ResourceInstanceObjectFull(addr addrs.AbsResourceInstanceObj
 		ProviderInstanceAddr: providerInstAddr,
 		ResourceType:         addr.InstanceAddr.Resource.Resource.Type,
 		SchemaVersion:        srcObj.SchemaVersion,
-		Dependencies:         slices.Clone(srcObj.Dependencies),
+		ConfigDependencies:   slices.Clone(srcObj.Dependencies),
+		Dependencies:         slices.Clone(srcObj.DependsOn),
 		CreateBeforeDestroy:  srcObj.CreateBeforeDestroy,
 	}
 }
@@ -182,7 +183,8 @@ func (s *SyncState) SetResourceInstanceObjectFull(addr addrs.AbsResourceInstance
 		SchemaVersion:       obj.SchemaVersion,
 		Status:              obj.Status,
 		Private:             obj.Private,
-		Dependencies:        obj.Dependencies,
+		Dependencies:        obj.ConfigDependencies,
+		DependsOn:           obj.Dependencies,
 		CreateBeforeDestroy: obj.CreateBeforeDestroy,
 	}
 	if len(obj.Value.SensitivePaths) != 0 {
@@ -279,25 +281,29 @@ type resourceInstanceObjectRepr[V interface {
 	// reported by the corresponding provider.
 	SchemaVersion uint64
 
-	// Dependencies is a set of absolute address to other resources this
+	// ConfigDependencies is a set of absolute address to other resources this
 	// instance depended on when it was applied. This is used to construct
 	// the dependency relationships for an object whose configuration is no
 	// longer available, such as if it has been removed from configuration
 	// altogether, or is now deposed.
-	//
-	// FIXME: In the long run under the new runtime this should probably be
-	// []addrs.AbsResourceInstance instead because the new runtime can track
-	// dependencies more precisely, but this is using ConfigResource for now
-	// just because that needs less shimming from the current underlying
-	// representation, and so we can wait until we better understand what the
-	// caller needs before we spend time implementing that.
 	//
 	// Use [State.InstancesMatchingConfigResource] to find all of the
 	// instances that match an address in this slice, which should include
 	// _at least_ the same instances that ought to have been recorded here,
 	// along with some spurious extras that we match due to the lossiness
 	// of this representation.
-	Dependencies []addrs.ConfigResource
+	//
+	// This exists to keep compatibility with older versions of OpenTofu
+	// not yet using is more precise runtime and will only be used
+	// if Dependencies is not present.
+	ConfigDependencies []addrs.ConfigResource
+
+	// Dependencies is a set of absolute resource instance addresses this
+	// instance depended on when it was applied. This is used to construct
+	// the dependency relationships for an object whose configuration is no
+	// longer available, such as if it has been removed from configuration
+	// altogether, or is now deposed.
+	Dependencies []addrs.AbsResourceInstance
 
 	// CreateBeforeDestroy reflects the status of the lifecycle
 	// create_before_destroy option when this instance was last updated.
@@ -317,6 +323,7 @@ func mapResourceInstanceObjectReprValue[V1, V2 interface {
 		ProviderInstanceAddr: input.ProviderInstanceAddr,
 		ResourceType:         input.ResourceType,
 		SchemaVersion:        input.SchemaVersion,
+		ConfigDependencies:   input.ConfigDependencies,
 		Dependencies:         input.Dependencies,
 		CreateBeforeDestroy:  input.CreateBeforeDestroy,
 	}

@@ -288,12 +288,15 @@ func (ops *execOperations) ManagedApply(
 			// populate CreateBeforeDestroy here.
 		}
 
-		// FIXME: This translates abs resource instances to config resources
+		// Legacy: This translates abs resource instances to config resources
 		configDeps := addrs.MakeSet[addrs.ConfigResource]()
 		for inst := range plan.RequiredResourceInstances.All() {
 			configDeps.Add(inst.ConfigResource())
 		}
-		state.Dependencies = slices.Collect(configDeps.All())
+		state.ConfigDependencies = slices.Collect(configDeps.All())
+
+		// Modern: Precise dependencies
+		state.Dependencies = slices.Collect(plan.RequiredResourceInstances.All())
 
 		stateSrc, err := states.EncodeResourceInstanceObjectFull(state, schema.Block.ImpliedType())
 		if err != nil {

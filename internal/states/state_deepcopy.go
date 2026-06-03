@@ -7,6 +7,7 @@ package states
 
 import (
 	"maps"
+	"slices"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/zclconf/go-cty/cty"
@@ -168,11 +169,8 @@ func (os *ResourceInstanceObjectSrc) DeepCopy() *ResourceInstanceObjectSrc {
 
 	// Some addrs.Referenceable implementations are technically mutable, but
 	// we treat them as immutable by convention and so we don't deep-copy here.
-	var dependencies []addrs.ConfigResource
-	if os.Dependencies != nil {
-		dependencies = make([]addrs.ConfigResource, len(os.Dependencies))
-		copy(dependencies, os.Dependencies)
-	}
+	dependencies := slices.Clone(os.Dependencies)
+	absDependencies := slices.Clone(os.DependsOn)
 
 	var identityJSON []byte
 	if os.IdentityJSON != nil {
@@ -195,6 +193,7 @@ func (os *ResourceInstanceObjectSrc) DeepCopy() *ResourceInstanceObjectSrc {
 		AttrSensitivePaths:      attrPaths,
 		TransientPathValueMarks: allAttrPaths,
 		Dependencies:            dependencies,
+		DependsOn:               absDependencies,
 		CreateBeforeDestroy:     os.CreateBeforeDestroy,
 		SkipDestroy:             os.SkipDestroy,
 		Deferred:                os.Deferred,
