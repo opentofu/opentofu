@@ -99,13 +99,40 @@ func compileModuleInstanceResource(
 			localScope := instanceLocalScope(declScope, repData)
 			providerRef := compileProviderConfigRef(ctx, moduleProviders, config.ProviderConfigAddr(), config.ProviderConfigRef, localScope)
 
+			// For now we require a literal boolean constant in
+			// create_before_destroy to match how the old implementation treated
+			// this, but this is designed to grow to support arbitrary
+			// expressions in future once we're ready to implement this issue:
+			//    https://github.com/opentofu/opentofu/issues/2523
+			var cbdVal cty.Value
+			if config.Managed != nil {
+				if !config.Managed.CreateBeforeDestroySet {
+					cbdVal = cty.NullVal(cty.Bool)
+				} else if config.Managed.CreateBeforeDestroy {
+					cbdVal = cty.True
+				} else {
+					cbdVal = cty.False
+				}
+			}
+			var cbdValuer *configgraph.OnceValuer
+			if cbdVal != cty.NilVal {
+				// We don't currently track the source location of the
+				// create_before_destroy argument in particular, but when
+				// we make this support arbitrary expressions in future
+				// the expression's source range will be used here instead.
+				cbdValuer = configgraph.ValuerOnce(
+					exprs.ConstantValuerWithSourceRange(cbdVal, tfdiags.SourceRangeFromHCL(config.DeclRange)),
+				)
+			}
+
 			inst := &configgraph.ResourceInstance{
 				Addr:     absAddr.Instance(key),
 				Provider: config.Provider,
 				ConfigValuer: configgraph.ValuerOnce(exprs.NewClosure(
 					configEvalable, localScope,
 				)),
-				ProviderInstanceValuer: configgraph.ValuerOnce(providerRef),
+				ProviderInstanceValuer:    configgraph.ValuerOnce(providerRef),
+				CreateBeforeDestroyValuer: cbdValuer,
 			}
 			// Again the [ResourceInstance] implementation will call back
 			// through this object so we can help it interact with the
