@@ -216,6 +216,12 @@ func (c *compiler) compileResultRef(ref AnyResultRef) nodeExecuteRaw {
 		return func(_ context.Context) (any, bool, tfdiags.Diagnostics) {
 			return resourceInstAddrs[index], true, nil
 		}
+	case deposedKeyResultRef:
+		deposedKeys := c.sourceGraph.deposedKeys
+		index := ref.index
+		return func(_ context.Context) (any, bool, tfdiags.Diagnostics) {
+			return deposedKeys[index], true, nil
+		}
 	case providerInstAddrResultRef:
 		providerInstAddrs := c.sourceGraph.providerInstAddrs
 		index := ref.index
