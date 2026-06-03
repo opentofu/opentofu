@@ -59,7 +59,7 @@ var (
 	ExperimentalFeatureMoved             = ExperimentalFlag{"Missing Moved", false}
 	ExperimentalFeatureRemoved           = ExperimentalFlag{"Missing Removed", false}
 	ExperimentalFeatureSkipDestroy       = ExperimentalFlag{"Missing Lifecycle Destroy", false}
-	ExperimentalFeatureUpgradeState      = ExperimentalFlag{"Missing Upgrade Resource State", false}
+	ExperimentalFeatureUpgradeState      = ExperimentalFlag{"Missing Upgrade Resource State", true}
 	ExperimentalFeatureHooks             = ExperimentalFlag{"Missing Hooks", false}
 	ExperimentalFeatureTarget            = ExperimentalFlag{"Missing Targeting", false}
 	ExperimentalFeatureReplaceTB         = ExperimentalFlag{"Missing replace_triggered_by", false}

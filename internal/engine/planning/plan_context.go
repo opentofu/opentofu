@@ -45,6 +45,10 @@ type planContext struct {
 	// of prevRoundState.
 	refreshedState *states.SyncState
 
+	// upgradedState is the state returned by UpgradeResourceState.
+	// Each resource instance should modify it once.
+	upgradedState *states.SyncState
+
 	providers plugins.Providers
 
 	// Stack of ephemeral and provider close functions
@@ -62,6 +66,7 @@ func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, pro
 		prevRoundState = states.NewState()
 	}
 	refreshedState := prevRoundState.DeepCopy()
+	upgradedState := prevRoundState.DeepCopy()
 
 	return &planContext{
 		evalCtx:          evalCtx,
@@ -69,6 +74,7 @@ func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, pro
 		deferred:         addrs.MakeMap[addrs.AbsResourceInstance, struct{}](),
 		prevRoundState:   prevRoundState,
 		refreshedState:   refreshedState.SyncWrapper(),
+		upgradedState:    upgradedState.SyncWrapper(),
 		providers:        providers,
 	}
 }
@@ -90,7 +96,7 @@ func (p *planContext) Close(ctx context.Context) (*planContextResult, tfdiags.Di
 
 	return &planContextResult{
 		ResourceInstanceObjects: p.resourceInstObjs.Close(),
-		PrevRoundState:          p.prevRoundState,
+		PrevRoundState:          p.upgradedState.Close(),
 		RefreshedState:          p.refreshedState.Close(),
 	}, diags
 }

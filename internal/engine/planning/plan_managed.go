@@ -14,9 +14,11 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/resources"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	ctyjson "github.com/zclconf/go-cty/cty/json"
 )
 
 func (p *planGlue) planDesiredManagedResourceInstance(
@@ -154,6 +156,67 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 				}
 			}
 		}
+		// TODO do version comparison before upgrade
+		// Current schema version: schema.Version
+		// previous schema version: prevRoundState.SchemaVersion
+
+		// while we know prevRoundState is non-nil, let's upgrade state, too.
+		upgradeReq := providers.UpgradeResourceStateRequest{
+			TypeName: inst.Addr.Resource.Resource.Type,
+
+			// TODO: The internal schema version representations are all using
+			// uint64 instead of int64, but unsigned integers aren't friendly
+			// to all protobuf target languages so in practice we use int64
+			// on the wire. In future we will change all of our internal
+			// representations to int64 too.
+			Version: int64(prevRoundState.SchemaVersion),
+
+			// We'll make the same assumption as [ResourceInstanceObjectFullSrc] and
+			// assume we'll never encounter a legacy state snapshot that uses AttrsFlat.
+			RawStateJSON: prevRoundState.Value.ValueJSON,
+		}
+
+		// TODO check upgradeResp.diags
+		upgradeResp := providerClient.UpgradeResourceState(ctx, upgradeReq)
+		newState := upgradeResp.UpgradedState
+
+		// After upgrading, the new value must conform to the current schema. When
+		// going over RPC this is actually already ensured by the
+		// marshaling/unmarshaling of the new value, but we'll check it here
+		// anyway for robustness, e.g. for in-process providers.
+		if errs := newState.Type().TestConformance(schema.Block.ImpliedType()); len(errs) > 0 {
+			providerType := inst.Addr.Resource.Resource.ImpliedProvider()
+			for _, err := range errs {
+				diags = diags.Append(tfdiags.Sourceless(
+					tfdiags.Error,
+					"Invalid resource state transformation",
+					fmt.Sprintf("The %s provider changed the state for %s, but produced an invalid result: %s.", providerType, inst.Addr, tfdiags.FormatError(err)),
+				))
+			}
+			return nil, diags
+		}
+
+		// TODO check err here
+		src, _ := ctyjson.Marshal(newState, schema.Block.ImpliedType())
+
+		upgradedPrevState := &states.ResourceInstanceObjectFullSrc{
+			Value: states.ValueJSONWithMetadata{
+				ValueJSON:      src,
+				SensitivePaths: prevRoundState.Value.SensitivePaths,
+			},
+			Private:              prevRoundState.Private,
+			Status:               prevRoundState.Status,
+			ProviderInstanceAddr: prevRoundState.ProviderInstanceAddr,
+			ResourceType:         prevRoundState.ResourceType,
+			SchemaVersion:        uint64(schema.Version),
+			Dependencies:         prevRoundState.Dependencies,
+			CreateBeforeDestroy:  prevRoundState.CreateBeforeDestroy,
+		}
+
+		prevRoundVal = newState
+
+		p.planCtx.upgradedState.SetResourceInstanceObjectFull(inst.Addr.CurrentObject(), upgradedPrevState)
+		p.planCtx.refreshedState.SetResourceInstanceObjectFull(inst.Addr.CurrentObject(), upgradedPrevState)
 	} else {
 		// TODO: Ask the planning oracle whether there are any "moved" blocks
 		// that ultimately end up at inst.Addr (possibly through a chain of
