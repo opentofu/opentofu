@@ -582,6 +582,12 @@ func appendInstanceObjectStateV4(rs *states.Resource, is *states.ResourceInstanc
 		providerInstance = rs.ProviderConfig.InstanceString(is.ProviderKey)
 	}
 
+	// This is a guardrail added to ensure that no ephemeral value will ever get in this part of the system.
+	// Before, by configuring different configschema.Attribute (with WriteOnly=true) or configschema.Schema (with Ephemeral=true)
+	// we could have values ending up in here.
+	// This check was added proactively as a safety net for future development and was not added reactively to a found issue.
+	// Before this change, the only values that could have been marked as ephemeral and written into state were already
+	// nullified and unmarked (see usage of Block.RemoveEphemeralFromWriteOnly)
 	for _, mark := range obj.TransientPathValueMarks {
 		_, ok := mark.Marks[marks.Ephemeral]
 		if ok {
