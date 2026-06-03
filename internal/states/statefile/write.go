@@ -18,7 +18,15 @@ func Write(s *File, w io.Writer, enc encryption.StateEncryption) error {
 	// Always record the current tofu version in the state.
 	s.TerraformVersion = tfversion.SemVer
 
-	diags := writeStateV4(s, w, enc)
+	diags := writeStateV4(s, w, enc, false)
+	return diags.Err()
+}
+
+func WriteIndent(s *File, w io.Writer, enc encryption.StateEncryption) error {
+	// Always record the current tofu version in the state.
+	s.TerraformVersion = tfversion.SemVer
+
+	diags := writeStateV4(s, w, enc, true)
 	return diags.Err()
 }
 
@@ -27,6 +35,6 @@ func Write(s *File, w io.Writer, enc encryption.StateEncryption) error {
 // intended for use in tests that need to override the current tofu
 // version.
 func WriteForTest(s *File, w io.Writer) error {
-	diags := writeStateV4(s, w, encryption.StateEncryptionDisabled())
+	diags := writeStateV4(s, w, encryption.StateEncryptionDisabled(), true)
 	return diags.Err()
 }
