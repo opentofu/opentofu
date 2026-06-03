@@ -1143,7 +1143,7 @@ import {
 }
 
 func TestContext2Plan_destroySkipRefresh(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureUpgradeState)
+	SkipExperimental(t, ExperimentalFeatureDestroy)
 
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
