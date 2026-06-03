@@ -197,7 +197,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 	// that case, but we would need to mark it as deferred and _not_ record a
 	// proposed change for it.
 
-	if eq, _ := planResp.Planned.Value.Equals(refreshedVal).Unmark(); !eq.IsKnown() || eq.True() {
+	if eq, _ := planResp.Planned.Value.Equals(refreshedVal).Unmark(); eq.IsKnown() && eq.True() {
 		// There is no change to make, so we'll return early without actually
 		// recording any change. In this case our resource instance will be
 		// included in the execution graph only if some other resource instance
