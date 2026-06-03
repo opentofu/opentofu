@@ -1583,6 +1583,9 @@ aws_instance.bar:
 
 func TestContext2Refresh_schemaUpgradeFlatmap(t *testing.T) {
 	SkipExperimental(t, ExperimentalFeatureUpgradeState)
+	if experimentalRuntimeEnabled() {
+		t.Skip("Flatmap attributes are a relic of version 0.11, and will not be accepted in the new engine.")
+	}
 
 	m := testModule(t, "refresh-schema-upgrade")
 	p := testProvider("test")
