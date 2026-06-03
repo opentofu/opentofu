@@ -1012,7 +1012,7 @@ func TestContext2Apply_createBeforeDestroy(t *testing.T) {
 }
 
 func TestContext2Apply_createBeforeDestroyUpdate(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureCBD)
+	SkipExperimental(t, ExperimentalBugSpuriousReplace)
 	m := testModule(t, "apply-good-create-before-update")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
