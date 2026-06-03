@@ -763,6 +763,9 @@ func (n *NodeAbstractResourceInstance) writeResourceInstanceStateImpl(ctx contex
 	}
 
 	obj.Value = schema.Block.RemoveEphemeralFromWriteOnly(obj.Value)
+	// Because on the line above we remove ephemeral marks from the other place where these are allowed (write-only attributes),
+	// then the resulted value should have no ephemeral marks on any of its attributes if it's a value for a resource
+	// other than an ephemeral resource.
 	if absAddr.Resource.Resource.Mode != addrs.EphemeralResourceMode && obj.Value.HasMarkDeep(marks.Ephemeral) {
 		return fmt.Errorf("non ephemeral resource (%q) found to be written with ephemeral values", absAddr.String())
 	}

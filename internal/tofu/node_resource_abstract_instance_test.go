@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -188,6 +189,45 @@ aws_instance.foo:
   ID = i-abc123
   provider = provider["registry.opentofu.org/hashicorp/aws"]
 	`)
+}
+
+func TestNodeAbstractResourceInstance_WriteResourceInstanceState_WithDataSourceContainingEphemeralMarks(t *testing.T) {
+	state := states.NewState()
+	evalCtx := new(MockEvalContext)
+	evalCtx.StateState = state.SyncWrapper()
+	evalCtx.PathPath = addrs.RootModuleInstance
+
+	mockProvider := mockProviderWithDataSourceTypeSchema("aws_region", &configschema.Block{
+		Attributes: map[string]*configschema.Attribute{
+			"region": {
+				Type:     cty.String,
+				Optional: true,
+			},
+		},
+	})
+
+	obj := &states.ResourceInstanceObject{
+		Value: cty.ObjectVal(map[string]cty.Value{
+			"region": cty.StringVal("us-east-1").Mark(marks.Ephemeral), // this is what is tested here
+		}),
+	}
+
+	node := &NodeAbstractResourceInstance{
+		Addr: mustResourceInstanceAddr("data.aws_region.foo"),
+		NodeAbstractResource: NodeAbstractResource{
+			ResolvedProvider: mustResolvedProviderInRoot("aws", mockProvider),
+		},
+	}
+	evalCtx.installProvider(addrs.NewDefaultProvider("aws"), mockProvider)
+
+	err := node.writeResourceInstanceState(t.Context(), evalCtx, obj, workingState)
+	if err == nil {
+		t.Fatalf("expected error but got nothing")
+	}
+	expectedErr := `non ephemeral resource ("data.aws_region.foo") found to be written with ephemeral values`
+	if diff := cmp.Diff(expectedErr, err.Error()); diff != "" {
+		t.Fatalf("expected a particular error bug got the wrong one (-want,+got):\n%s", diff)
+	}
 }
 
 func TestFilterResourceProvisioners(t *testing.T) {

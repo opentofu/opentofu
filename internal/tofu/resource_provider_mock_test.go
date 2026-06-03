@@ -51,6 +51,36 @@ func mockProviderWithResourceTypeSchema(name string, schema *configschema.Block)
 	}
 }
 
+// mockProviderWithDataSourceTypeSchema is a test helper to concisely create a mock
+// provider with a schema containing a single data source type.
+func mockProviderWithDataSourceTypeSchema(name string, schema *configschema.Block) *MockProvider {
+	return &MockProvider{
+		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+			Provider: providers.Schema{
+				Block: &configschema.Block{
+					Attributes: map[string]*configschema.Attribute{
+						"string": {
+							Type:     cty.String,
+							Optional: true,
+						},
+						"list": {
+							Type:     cty.List(cty.String),
+							Optional: true,
+						},
+						"root": {
+							Type:     cty.Map(cty.String),
+							Optional: true,
+						},
+					},
+				},
+			},
+			DataSources: map[string]providers.Schema{
+				name: providers.Schema{Block: schema},
+			},
+		},
+	}
+}
+
 // simpleMockProvider returns a MockProvider that is pre-configured
 // with schema for its own config, for a resource type called "test_object" and
 // for a data source also called "test_object".

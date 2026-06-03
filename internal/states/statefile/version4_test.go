@@ -10,6 +10,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/encryption"
+	"github.com/opentofu/opentofu/internal/lang/marks"
+	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -260,4 +265,104 @@ func TestVersion4_marshalPaths(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestVersion4_writeStateWithEphemeralMarks(t *testing.T) {
+	cases := map[string]struct {
+		buildState     func() *states.State
+		expectedErrMsg string
+	}{
+		"data source": {
+			buildState: func() *states.State {
+				s := states.NewState()
+				m := s.EnsureModule(addrs.RootModuleInstance)
+				m.SetResourceInstance(addrs.ResourceInstance{
+					Resource: addrs.Resource{
+						Mode: addrs.DataResourceMode,
+						Type: "test",
+						Name: "test",
+					},
+					Key: addrs.NoKey,
+				}, &states.ResourceInstance{
+					Current: &states.ResourceInstanceObjectSrc{
+						TransientPathValueMarks: []cty.PathValueMarks{
+							{
+								Path:  cty.GetAttrPath("test_attr"),
+								Marks: map[any]struct{}{marks.Ephemeral: {}},
+							},
+						},
+					},
+				}, addrs.MustParseAbsProviderConfigStr(`provider["testorg/test"]`))
+				return s
+			},
+			expectedErrMsg: `Ephemeral detected in state writing: "data.test.test" has an ephemeral value in ".test_attr". This is an OpenTofu error. Please report it`,
+		},
+		"ephemeral resource": {
+			buildState: func() *states.State {
+				s := states.NewState()
+				m := s.EnsureModule(addrs.RootModuleInstance)
+				m.SetResourceInstance(addrs.ResourceInstance{
+					Resource: addrs.Resource{
+						Mode: addrs.EphemeralResourceMode,
+						Type: "test",
+						Name: "test",
+					},
+					Key: addrs.NoKey,
+				}, &states.ResourceInstance{
+					Current: &states.ResourceInstanceObjectSrc{
+						TransientPathValueMarks: []cty.PathValueMarks{
+							{
+								Path:  cty.GetAttrPath("test_attr"),
+								Marks: map[any]struct{}{marks.Ephemeral: {}},
+							},
+						},
+					},
+				}, addrs.MustParseAbsProviderConfigStr(`provider["testorg/test"]`))
+				return s
+			},
+		},
+		"managed resource": {
+			buildState: func() *states.State {
+				s := states.NewState()
+				m := s.EnsureModule(addrs.RootModuleInstance)
+				m.SetResourceInstance(addrs.ResourceInstance{
+					Resource: addrs.Resource{
+						Mode: addrs.ManagedResourceMode,
+						Type: "test",
+						Name: "test",
+					},
+					Key: addrs.NoKey,
+				}, &states.ResourceInstance{
+					Current: &states.ResourceInstanceObjectSrc{
+						TransientPathValueMarks: []cty.PathValueMarks{
+							{
+								Path:  cty.GetAttrPath("test_attr"),
+								Marks: map[any]struct{}{marks.Ephemeral: {}},
+							},
+						},
+					},
+				}, addrs.MustParseAbsProviderConfigStr(`provider["testorg/test"]`))
+				return s
+			},
+			expectedErrMsg: `Ephemeral detected in state writing: "test.test" has an ephemeral value in ".test_attr". This is an OpenTofu error. Please report it`,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			f := new(File)
+			var s strings.Builder
+			f.State = tc.buildState()
+			diags := writeStateV4(f, &s, encryption.StateEncryptionDisabled())
+
+			var gotErrMsg string
+			if diags.HasErrors() {
+				gotErrMsg = diags.Err().Error()
+			}
+			if diff := cmp.Diff(tc.expectedErrMsg, gotErrMsg); diff != "" {
+				t.Fatalf("unexpected returned error (-want,+got):\n%s", diff)
+			}
+		})
+	}
+
 }

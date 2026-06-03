@@ -258,6 +258,15 @@ func ParseAbsProviderConfigStr(str string) (AbsProviderConfig, tfdiags.Diagnosti
 	diags = diags.Append(addrDiags)
 	return addr, diags
 }
+
+func MustParseAbsProviderConfigStr(str string) AbsProviderConfig {
+	ret, diags := ParseAbsProviderConfigStr(str)
+	if diags.HasErrors() {
+		panic(fmt.Errorf("could not parse %q as AbsProviderConfig: %s", str, diags))
+	}
+	return ret
+}
+
 func ParseAbsProviderConfigInstanceStr(str string) (AbsProviderConfig, InstanceKey, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	traversal, parseDiags := hclsyntax.ParseTraversalAbs([]byte(str), "", hcl.Pos{Line: 1, Column: 1})
