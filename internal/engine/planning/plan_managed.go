@@ -181,8 +181,6 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 			CreateBeforeDestroy:  prevRoundState.CreateBeforeDestroy,
 		}
 
-		prevRoundVal = newState
-
 		p.planCtx.upgradedState.SetResourceInstanceObjectFull(inst.Addr.CurrentObject(), upgradedPrevState)
 		p.planCtx.refreshedState.SetResourceInstanceObjectFull(inst.Addr.CurrentObject(), upgradedPrevState)
 
