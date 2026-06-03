@@ -10,6 +10,8 @@ SECURITY ADVISORIES:
 
   This is fixed now by ([#4145](https://github.com/opentofu/opentofu/pull/4145))
 
+* If for state encryption, OpenBao key provider is used with wrapping algorithms, it could generate panics or hangs on compromised systems where the JWE is specifically crafted. ([#4177](https://github.com/opentofu/opentofu/pull/4177))
+
 
 ## 1.11.8
 
