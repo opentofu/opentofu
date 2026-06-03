@@ -19,6 +19,7 @@ import (
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
+	"github.com/opentofu/opentofu/version"
 	regaddr "github.com/opentofu/registry-address/v2"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -532,7 +533,7 @@ resource "test_resource" "foo" {
 			wantJson: []map[string]any{
 				{
 					"format_version":    "1.0",
-					"terraform_version": "1.12.0",
+					"terraform_version": version.SemVer.String(),
 					"values": map[string]any{
 						"root_module": map[string]any{
 							"resources": []any{
