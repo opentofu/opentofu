@@ -124,6 +124,9 @@ func (o *ResourceInstanceObject) IntoCurrent() *ResourceInstanceObject {
 // unique for the resource instance. It's the caller's responsibility to
 // allocate a unique deposed key to use.
 func (o *ResourceInstanceObject) IntoDeposed(key states.DeposedKey) *ResourceInstanceObject {
+	if key == states.NotDeposed {
+		panic("ResourceInstanceObject.IntoDeposed called without a deposed key")
+	}
 	return &ResourceInstanceObject{
 		Addr:  o.Addr.InstanceAddr.Object(key),
 		State: o.State,

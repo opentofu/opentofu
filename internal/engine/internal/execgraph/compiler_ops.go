@@ -225,6 +225,17 @@ func (c *compiler) compileOpManagedPerformDepose(operands *compilerOperands) nod
 
 		ret, moreDiags := ops.ManagedPerformDepose(ctx, currentObj, deletePlan)
 		diags = diags.Append(moreDiags)
+
+		if !diags.HasErrors() {
+			// Some correctness checks just to help us catch bugs in the
+			// operations implementation before they cause confusion downstream.
+			if !ret.Addr.IsDeposed() {
+				diags = diags.Append(fmt.Errorf("opManagedPerformDepose result has non-deposed object address %s; this is a bug in OpenTofu", ret.Addr))
+			}
+			if !ret.Addr.InstanceAddr.Equal(currentObj.Addr.InstanceAddr) {
+				diags = diags.Append(fmt.Errorf("opManagedPerformDepose for %s result has wrong instance address %s; this is a bug in OpenTofu", currentObj.Addr.InstanceAddr, ret.Addr.InstanceAddr))
+			}
+		}
 		return ret, !diags.HasErrors(), diags
 	}
 }
@@ -255,6 +266,17 @@ func (c *compiler) compileOpManagedAlreadyDeposed(operands *compilerOperands) no
 
 		ret, moreDiags := ops.ManagedAlreadyDeposed(ctx, instAddr, deposedKey)
 		diags = diags.Append(moreDiags)
+
+		if !diags.HasErrors() {
+			// Some correctness checks just to help us catch bugs in the
+			// operations implementation before they cause confusion downstream.
+			if !ret.Addr.IsDeposed() {
+				diags = diags.Append(fmt.Errorf("opManagedAlreadyDeposed result has non-deposed object address %s; this is a bug in OpenTofu", ret.Addr))
+			}
+			if !ret.Addr.InstanceAddr.Equal(instAddr) {
+				diags = diags.Append(fmt.Errorf("opManagedAlreadyDeposed for %s result has wrong instance address %s; this is a bug in OpenTofu", instAddr.Object(deposedKey), ret.Addr.InstanceAddr))
+			}
+		}
 		return ret, !diags.HasErrors(), diags
 	}
 }

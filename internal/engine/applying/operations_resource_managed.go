@@ -140,15 +140,31 @@ func (ops *execOperations) ManagedApply(
 	providerConfigAddr := plan.ProviderInstance
 
 	log.Printf("[TRACE] apply phase: ManagedApply %s using %s", plan.Addr, providerConfigAddr)
-	if fallback != nil && plan.Addr.IsDeposed() {
-		// This should not happen: we can't have a fallback deposed object
-		// when the object we're applying is already deposed itself.
-		// (This is just a safety check because below we're still using the
-		// old states.SyncState API that wants to model the fallback as
-		// "maybe restore the deposed object to current" instead of just
-		// generically rewriting the fallback object's address to not be deposed.
-		diags = diags.Append(fmt.Errorf("can't apply changes to %s with fallback to deposed object %s", plan.Addr, fallback.Addr.DeposedKey))
-		return nil, diags
+	if fallback != nil {
+		if plan.Addr.IsDeposed() {
+			// This should not happen: we can't have a fallback deposed object
+			// when the object we're applying is already deposed itself.
+			// (This is just a safety check because below we're still using the
+			// old states.SyncState API that wants to model the fallback as
+			// "maybe restore the deposed object to current" instead of just
+			// generically rewriting the fallback object's address to not be deposed.
+			diags = diags.Append(fmt.Errorf("can't apply changes to %s with fallback to deposed object %s", plan.Addr, fallback.Addr.DeposedKey))
+			return nil, diags
+		}
+		if !fallback.Addr.IsDeposed() {
+			// This should also not happen: the fallback object must always
+			// be a deposed object that would become current again if we
+			// fail to create the new object.
+			diags = diags.Append(fmt.Errorf("can't apply changes to %s with fallback to non-deposed object %s", plan.Addr, fallback.Addr))
+			return nil, diags
+		}
+		if !fallback.Addr.InstanceAddr.Equal(plan.Addr.InstanceAddr) {
+			// This should also not happen: we should always be falling back
+			// to a deposed object from the same resource instance we're trying
+			// to create a new current object for here, since the fallback
+			// will become the current instead if creation fails.
+			diags = diags.Append(fmt.Errorf("can't apply changes to %s with fallback to %s: resource instance must match", plan.Addr, fallback.Addr))
+		}
 	}
 
 	// This particular operation has a broader scope than most of them because
