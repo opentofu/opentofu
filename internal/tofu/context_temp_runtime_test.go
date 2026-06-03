@@ -28,7 +28,8 @@ const (
 	ExperimentalBugResourceReadNull  ExperimentalFlag = "Bug Read Resource Deleted"
 	ExperimentalBugDataResource      ExperimentalFlag = "Bug Data Resource"
 	ExperimentalBugVariableInput     ExperimentalFlag = "Bug Variable Input"
-	ExperimentalBugForEach           ExperimentalFlag = "Bug For Each" // TODO run existing evalchecks tests against new engine
+	ExperimentalBugForEach           ExperimentalFlag = "Bug For Each"         // TODO run existing evalchecks tests against new engine
+	ExperimentalBugSpuriousReplace   ExperimentalFlag = "Bug Spurious Replace" // New runtime proposes replace where old runtime would've called for update
 
 	ExperimentalChangeDiagWording ExperimentalFlag = "Change Different Diagnostic Wording"
 	ExperimentalChangeErrorEarly  ExperimentalFlag = "Change Detect Error Earlier"

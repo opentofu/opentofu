@@ -216,6 +216,12 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 	if prevRoundState == nil {
 		plannedAction = plans.Create
 	} else if len(planResp.RequiresReplace) != 0 {
+		// FIXME: The mere presence of RequiresReplace items is not sufficient
+		// because existing providers often generate spurious entries in there
+		// for paths that aren't actually changing. We need to filter out
+		// any paths whose values are equal between prior and planned in order
+		// to get the expected behavior for real-world providers.
+
 		// For "replace" actions the execution graph will include two separate
 		// plan and apply operations, where one handles deletion and the other
 		// handles creation. There is therefore an implicit third intermediate
