@@ -59,21 +59,15 @@ ephemeral "example" "example" {
 The following arguments and nested block types are supported in the `lifecycle`
 block for an ephemeral resource:
 
-* `enabled` (bool) - Controls whether the ephemeral resource will be used by
-  OpenTofu. When set to `false`, the resource is excluded from the configuration
-  as if it didn't exist. When set to `true` (the default), the resource operates
-  normally.
-
-  For ephemeral resources in particular, you can use the boolean
-  `terraform.applying` value with `enabled` to specify that a particular
-  ephemeral resource should be active only during the apply phase, which can
-  be useful for values used only by managed resource provisioners because
-  provisioners are active only during the apply phase.
-
-  For more information, refer to [the `enabled` meta-argument](../../language/meta-arguments/enabled.mdx).
-
 * `precondition` and `postcondition` blocks, as described in
   [Custom Conditions](../../language/expressions/custom-conditions.mdx#preconditions-and-postconditions).
+
+With the recent introduction of the `lifecycle.enabled` option, we decided to have it aligned
+with the other repetition meta-arguments (`count`, `for_each`) and disallow usage of ephemeral
+values, including `terraform.applying` too.
+This is a decision that we still pondering upon and might change change in the future.
+
+For more information, refer to [the `enabled` meta-argument](../../language/meta-arguments/enabled.mdx).
 
 ## Deferred opening
 By design, the ephemeral resources cannot be opened if the configuration is not fully known.
