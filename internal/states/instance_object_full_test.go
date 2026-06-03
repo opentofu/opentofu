@@ -96,7 +96,7 @@ func TestSyncStateResourceInstanceObjectFull(t *testing.T) {
 			SchemaVersion:        5,
 			ProviderInstanceAddr: providerInstAddr,
 			ResourceType:         "foo",
-			Dependencies: []addrs.ConfigResource{
+			ConfigDependencies: []addrs.ConfigResource{
 				depAddr,
 			},
 		}
@@ -168,7 +168,7 @@ func TestSyncStateSetResourceInstanceObjectFull(t *testing.T) {
 		SchemaVersion:        5,
 		ProviderInstanceAddr: providerInstAddr,
 		ResourceType:         "foo",
-		Dependencies: []addrs.ConfigResource{
+		ConfigDependencies: []addrs.ConfigResource{
 			depAddr,
 		},
 	}

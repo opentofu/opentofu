@@ -6,6 +6,7 @@
 package states
 
 import (
+	"slices"
 	"sort"
 
 	"github.com/zclconf/go-cty/cty"
@@ -46,6 +47,13 @@ type ResourceInstanceObject struct {
 	// longer available, such as if it has been removed from configuration
 	// altogether, or is now deposed.
 	Dependencies []addrs.ConfigResource
+
+	// DependsOn is a set of absolute address instances to other resources this
+	// instance depended on when it was applied. This is used to construct
+	// the dependency relationships for an object whose configuration is no
+	// longer available, such as if it has been removed from configuration
+	// altogether, or is now deposed.
+	DependsOn []addrs.AbsResourceInstance
 
 	// CreateBeforeDestroy reflects the status of the lifecycle
 	// create_before_destroy option when this instance was last updated.
@@ -145,6 +153,7 @@ func (o *ResourceInstanceObject) Encode(ty cty.Type, schemaVersion uint64, ident
 	// dependencies to avoid mutating what may be a shared array of values.
 	dependencies := make([]addrs.ConfigResource, len(o.Dependencies))
 	copy(dependencies, o.Dependencies)
+	absDependencies := slices.Clone(o.DependsOn)
 
 	sort.Slice(dependencies, func(i, j int) bool { return dependencies[i].String() < dependencies[j].String() })
 
@@ -172,6 +181,7 @@ func (o *ResourceInstanceObject) Encode(ty cty.Type, schemaVersion uint64, ident
 		IdentityJSON:            identityJSON,
 		Status:                  o.Status,
 		Dependencies:            dependencies,
+		DependsOn:               absDependencies,
 		CreateBeforeDestroy:     o.CreateBeforeDestroy,
 		SkipDestroy:             o.SkipDestroy,
 		Deferred:                o.Deferred,

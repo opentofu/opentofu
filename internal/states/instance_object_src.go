@@ -70,6 +70,7 @@ type ResourceInstanceObjectSrc struct {
 	Private             []byte
 	Status              ObjectStatus
 	Dependencies        []addrs.ConfigResource
+	DependsOn           []addrs.AbsResourceInstance
 	CreateBeforeDestroy bool
 	SkipDestroy         bool
 	// Deferred is meant for the ephemeral resources state information.
@@ -166,6 +167,11 @@ func (os *ResourceInstanceObjectSrc) Equal(other *ResourceInstanceObjectSrc) boo
 		return false
 	}
 
+	// This represents a set of dependencies.  They must all be resolved before executing and therefore the order does not matter.
+	if !equalSlicesIgnoreOrder(os.DependsOn, other.DependsOn, addrs.AbsResourceInstance.Equal) {
+		return false
+	}
+
 	if os.CreateBeforeDestroy != other.CreateBeforeDestroy {
 		return false
 	}
@@ -247,6 +253,7 @@ func (os *ResourceInstanceObjectSrc) Decode(ty cty.Type) (*ResourceInstanceObjec
 		Value:               val,
 		Status:              os.Status,
 		Dependencies:        os.Dependencies,
+		DependsOn:           os.DependsOn,
 		Private:             os.Private,
 		Identity:            identity,
 		CreateBeforeDestroy: os.CreateBeforeDestroy,
