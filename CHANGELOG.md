@@ -2,9 +2,16 @@ The v1.12.x release series is supported until **February 1 2027**.
 
 ## 1.12.2 (Unreleased)
 
+SECURITY ADVISORIES:
+
+* Previous releases in the v1.12 series could be affected by several vulnerabilities:
+  * If for state encryption, OpenBao key provider is used with wrapping algorithms, it could generate panics or hangs on compromised systems where the JWE is specifically crafted.
+
+  This is fixed now by ([#4177](https://github.com/opentofu/opentofu/pull/4177))
+
 BUG FIXES:
 
-- Properly handle EDEADLK during provider installation. On Unix systems, the kernel may erroniously detect a deadlock between tofu processes using the global plugin cache. ([#4166](https://github.com/opentofu/opentofu/pull/4166))
+- Properly handle EDEADLK during provider installation. On Unix systems, the kernel may erroneously detect a deadlock between tofu processes using the global plugin cache. ([#4166](https://github.com/opentofu/opentofu/pull/4166))
 
 ## 1.12.1
 
