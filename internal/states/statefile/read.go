@@ -99,18 +99,6 @@ func Read(r io.Reader, enc encryption.StateEncryption) (*File, error) {
 func readState(src []byte) (*File, error) {
 	var diags tfdiags.Diagnostics
 
-	if looksLikeVersion0(src) {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			unsupportedFormat,
-			// This is a user-facing usage of OpenTofu but refers to a very old historical version of OpenTofu
-			// which has no corresponding OpenTofu version, and is unlikely to get one.
-			// If we ever get OpenTofu 0.6.16 and 0.7.x, we should update this message to mention OpenTofu instead.
-			"The state is stored in a legacy binary format that is not supported since Terraform v0.7. To continue, first upgrade the state using Terraform 0.6.16 or earlier.",
-		))
-		return nil, errUnusable(diags.Err())
-	}
-
 	version, versionDiags := sniffJSONStateVersion(src)
 	diags = diags.Append(versionDiags)
 	if versionDiags.HasErrors() {
@@ -129,12 +117,6 @@ func readState(src []byte) (*File, error) {
 			unsupportedFormat,
 			"The state file uses JSON syntax but has a version number of zero. There was never a JSON-based state format zero, so this state file is invalid and cannot be processed.",
 		))
-	case 1:
-		result, diags = readStateV1(src)
-	case 2:
-		result, diags = readStateV2(src)
-	case 3:
-		result, diags = readStateV3(src)
 	case 4:
 		result, diags = readStateV4(src)
 	default:
@@ -256,5 +238,3 @@ func sniffJSONStateTerraformVersion(src []byte) string {
 // Use invalidFormat instead for the subtly-different case of "this looks like
 // it's intended to be a state file but it's not structured correctly".
 const unsupportedFormat = "Unsupported state file format"
-
-const upgradeFailed = "State format upgrade failed"
