@@ -28,83 +28,7 @@ func compileModuleInstanceInputVariables(_ context.Context, configs map[string]*
 		// The valuer for an individual input variable derives from the
 		// valuer for the single object representing all of the input
 		// variables together.
-		rawValuer := exprs.DerivedValuer(values, func(v cty.Value, _ tfdiags.Diagnostics) (cty.Value, tfdiags.Diagnostics) {
-			// We intentionally avoid passing on the diagnostics from the
-			// "values" valuer here both because they will be about the
-			// entire object rather than the individual attribute we're
-			// interested in and because whatever produced the "values"
-			// valuer should've already reported its own errors when
-			// it was checked directly.
-			//
-			// We might return additional diagnostics about the individual
-			// atribute we're extracting, though.
-			var diags tfdiags.Diagnostics
-
-			defRange := missingDefRange
-			if valueRange := values.ValueSourceRange(); valueRange != nil {
-				defRange = valueRange
-			}
-
-			ty := v.Type()
-			if ty == cty.DynamicPseudoType {
-				return cty.DynamicVal.WithSameMarks(v), diags
-			}
-			if !ty.IsObjectType() {
-				// Should not get here because the caller should always pass
-				// us an object type based on the arguments in the module
-				// call, but we'll deal with it anyway for robustness.
-				diags = diags.Append(&hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Invalid input values",
-					Detail:   fmt.Sprintf("Input variable values for %s module must be provided as an object value, not %s.", moduleInstAddr, ty.FriendlyName()),
-					Subject:  configgraph.MaybeHCLSourceRange(defRange),
-				})
-				return cty.DynamicVal.WithSameMarks(v), diags
-			}
-			if v.IsNull() {
-				// Again this suggests a bug in the caller, but we'll handle
-				// it for robustness.
-				diags = diags.Append(&hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Invalid input values",
-					Detail:   fmt.Sprintf("The object describing the input values for %s must not be null.", moduleInstAddr),
-					Subject:  configgraph.MaybeHCLSourceRange(defRange),
-				})
-				return cty.DynamicVal.WithSameMarks(v), diags
-			}
-
-			if !ty.HasAttribute(name) || v.GetAttr(name).IsNull() {
-				if vc.Required() {
-					// We don't actually _need_ to handle an error here because
-					// the final evaluation of the variables must deal with the
-					// possibility of the final value being null anyway, but
-					// by handling this here we can produce a more helpful error
-					// message that talks about the definition being statically
-					// absent instead of dynamically null.
-					var diags tfdiags.Diagnostics
-					diags = diags.Append(&hcl.Diagnostic{
-						Severity: hcl.DiagError,
-						Summary:  "Missing definition for required input variable",
-						Detail:   fmt.Sprintf("Input variable %q is required, and so it must be provided as an argument to this module.", name),
-						Subject:  configgraph.MaybeHCLSourceRange(defRange),
-					})
-					return cty.DynamicVal.WithSameMarks(v), diags
-				} else if vc.Default != cty.NilVal {
-					return vc.Default, diags
-				} else {
-					// TODO handle nullable correctly
-					// For a non-required variable we'll provide a placeholder
-					// null value so that the evaluator can treat this the same
-					// as if there was an explicit definition evaluating to null.
-					return cty.NullVal(cty.DynamicPseudoType).WithSameMarks(v), diags
-				}
-			}
-			// After all of the checks above we should now be able to call
-			// GetAttr for this name without panicking. (If v is unknown
-			// or marked then cty will automatically return a derived unknown
-			// or marked value.)
-			return v.GetAttr(name), diags
-		})
+		rawValuer := compileInputVariableValuer(values, vc, moduleInstAddr, missingDefRange)
 		ret[addr] = &configgraph.InputVariable{
 			Addr:           moduleInstAddr.InputVariable(name),
 			RawValue:       configgraph.ValuerOnce(rawValuer),
@@ -128,4 +52,99 @@ func compileModuleInstanceInputVariables(_ context.Context, configs map[string]*
 		}
 	}
 	return ret
+}
+
+func compileInputVariableValuer(valuesValuer exprs.Valuer, config *configs.Variable, moduleInstAddr addrs.ModuleInstance, missingDefRange *tfdiags.SourceRange) exprs.Valuer {
+	name := config.Name
+	return exprs.DerivedValuer(valuesValuer, func(values cty.Value, _ tfdiags.Diagnostics) (cty.Value, tfdiags.Diagnostics) {
+		// We intentionally avoid passing on the diagnostics from the
+		// "values" valuer here both because they will be about the
+		// entire object rather than the individual attribute we're
+		// interested in and because whatever produced the "values"
+		// valuer should've already reported its own errors when
+		// it was checked directly.
+		//
+		// We might return additional diagnostics about the individual
+		// atribute we're extracting, though.
+		var diags tfdiags.Diagnostics
+
+		defRange := missingDefRange
+		if valueRange := valuesValuer.ValueSourceRange(); valueRange != nil {
+			defRange = valueRange
+		}
+
+		ty := values.Type()
+		if ty == cty.DynamicPseudoType {
+			return cty.DynamicVal.WithSameMarks(values), diags
+		}
+		if !ty.IsObjectType() {
+			// Should not get here because the caller should always pass
+			// us an object type based on the arguments in the module
+			// call, but we'll deal with it anyway for robustness.
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid input values",
+				Detail:   fmt.Sprintf("Input variable values for %s module must be provided as an object value, not %s.", moduleInstAddr, ty.FriendlyName()),
+				Subject:  configgraph.MaybeHCLSourceRange(defRange),
+			})
+			return cty.DynamicVal.WithSameMarks(values), diags
+		}
+		if values.IsNull() {
+			// Again this suggests a bug in the caller, but we'll handle
+			// it for robustness.
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid input values",
+				Detail:   fmt.Sprintf("The object describing the input values for %s must not be null.", moduleInstAddr),
+				Subject:  configgraph.MaybeHCLSourceRange(defRange),
+			})
+			return cty.DynamicVal.WithSameMarks(values), diags
+		}
+
+		// "Required" and "Nullable" are related but separate:
+		//
+		// "Required" means that an attribute representing the variable
+		// must be present in the object that's representing all of the
+		// input variables, but still allows the explicit definition to
+		// assign it the value "null". A non-required (i.e. optional) input
+		// variable always has a default value, which is allowed to be null
+		// if the variable is nullable.
+		//
+		// "Nullable" means that the value of the attribute may not be
+		// null, regardless of whether that null is explicitly set or
+		// implied by omission. If assigned null when a default is available
+		// then the default value is used instead of failing.
+
+		if !ty.HasAttribute(name) {
+			if config.Required() {
+				var diags tfdiags.Diagnostics
+				diags = diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Missing definition for required input variable",
+					Detail:   fmt.Sprintf("Input variable %q is required, and so it must be provided as an argument to this module.", name),
+					Subject:  configgraph.MaybeHCLSourceRange(defRange),
+				})
+				return cty.DynamicVal.WithSameMarks(values), diags
+			}
+			return config.Default, diags
+		}
+
+		// If we get here then the variable is definitely defined, but we don't
+		// yet know if it's null or not.
+		v := values.GetAttr(name)
+		if !config.Nullable && v.IsNull() {
+			if config.Required() {
+				var diags tfdiags.Diagnostics
+				diags = diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Invalid value for input variable",
+					Detail:   fmt.Sprintf("Input variable %q is required and not nullable, and so it cannot be set to null.", name),
+					Subject:  configgraph.MaybeHCLSourceRange(defRange),
+				})
+				return cty.DynamicVal.WithSameMarks(values), diags
+			}
+			return config.Default, diags
+		}
+		return v, diags
+	})
 }
