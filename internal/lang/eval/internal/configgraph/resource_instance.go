@@ -273,7 +273,6 @@ func (ri *ResourceInstance) ResourceInstanceDependencies(ctx context.Context) it
 	// We ignore diagnostics here because callers should always perform a
 	// CheckAll tree walk, including a visit to this resource instance object,
 	// before trusting anything else that any configgraph nodes report.
-	// TODO consider if this should be ConfigValue vs Value based on the usages of this function
 	resultVal := diagsHandledElsewhere(ri.ConfigValue(ctx))
 
 	// Our Value method always marks its result as depending on this
