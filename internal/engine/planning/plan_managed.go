@@ -174,7 +174,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 			},
 			Private:              prevRoundState.Private,
 			Status:               prevRoundState.Status,
-			ProviderInstanceAddr: prevRoundState.ProviderInstanceAddr,
+			ProviderInstanceAddr: *inst.ProviderInstance,
 			ResourceType:         prevRoundState.ResourceType,
 			SchemaVersion:        uint64(schema.Version),
 			Dependencies:         prevRoundState.Dependencies,
