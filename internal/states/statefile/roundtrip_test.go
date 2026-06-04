@@ -9,15 +9,68 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"runtime"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/encryption/enctest"
+	"github.com/opentofu/opentofu/internal/states"
 )
+
+// This is a bit cursed, but we need to remove .Equals() in order to do a deep comparison.
+// Benefits include: full comparsion of all fields, better diff output, ability to strip '\r' on windows.
+type noEqualsState states.State
+type noEqualsResource states.Resource
+type noEqualsResourceInstance states.ResourceInstance
+type noEqualsResourceInstanceObjectSrc states.ResourceInstanceObjectSrc
+
+var cmpTransformers = []cmp.Option{
+	cmp.Transformer("StateEquals", func(in *states.State) *noEqualsState {
+		if in == nil {
+			return nil
+		}
+		nes := noEqualsState(*in)
+		return &nes
+	}),
+	cmp.Transformer("ResourceEquals", func(in *states.Resource) *noEqualsResource {
+		if in == nil {
+			return nil
+		}
+		nes := noEqualsResource(*in)
+		return &nes
+	}),
+	cmp.Transformer("ResourceInstanceEquals", func(in *states.ResourceInstance) *noEqualsResourceInstance {
+		if in == nil {
+			return nil
+		}
+		nes := noEqualsResourceInstance(*in)
+		return &nes
+	}),
+	cmp.Transformer("ResourceInstanceObjectSrcEquals", func(in *states.ResourceInstanceObjectSrc) *noEqualsResourceInstanceObjectSrc {
+		if in == nil {
+			return nil
+		}
+		nes := noEqualsResourceInstanceObjectSrc(*in)
+
+		if runtime.GOOS == "windows" {
+			// Unify AttrsJSON line endings by stripping \r
+			nes.AttrsJSON = slices.DeleteFunc(slices.Clone(nes.AttrsJSON), func(b byte) bool { return b == '\r' })
+
+		}
+
+		return &nes
+	}),
+	cmp.Transformer("CTYVALUE", func(in cty.Value) string {
+		return in.GoString()
+	}),
+	cmpopts.IgnoreFields(File{}, "TerraformVersion"),
+}
 
 func TestRoundtrip(t *testing.T) {
 	const dir = "testdata/roundtrip"
@@ -73,7 +126,7 @@ func TestRoundtrip(t *testing.T) {
 				t.Fatal(diags.Err())
 			}
 
-			if diff := cmp.Diff(oWant, oGot, cmpopts.IgnoreFields(File{}, "TerraformVersion")); diff != "" {
+			if diff := cmp.Diff(oWant, oGot, cmpTransformers...); diff != "" {
 				t.Error("wrong result:\n" + diff)
 			}
 		})
@@ -129,7 +182,7 @@ func TestRoundtripEncryption(t *testing.T) {
 	originalState.EncryptionStatus = newState.EncryptionStatus
 
 	// Compare before/after encryption workflow
-	if diff := cmp.Diff(originalState, newState, cmpopts.IgnoreFields(File{}, "TerraformVersion")); diff != "" {
+	if diff := cmp.Diff(originalState, newState, cmpTransformers...); diff != "" {
 		t.Error("wrong result:\n" + diff)
 	}
 }
