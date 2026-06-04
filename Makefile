@@ -28,6 +28,16 @@ EXT := $(shell go env GOEXE)
 build:
 	go build -ldflags "-X main.version=$(shell git describe --tags --always --dirty)" -o tofu$(EXT) ./cmd/tofu
 
+# Experimental engine building
+.PHONY: build-experimental
+build-experimental:
+	TOFU_X_EXPERIMENTAL_RUNTIME=1 go build -ldflags "-X main.version=$(shell git describe --tags --always --dirty) -X main.experimentsAllowed=yes" -o tofu$(EXT) ./cmd/tofu
+
+# Experimental engine testing
+.PHONY: test-experimental
+test-experimental:
+	TOFU_X_EXPERIMENTAL_RUNTIME=1 go test -ldflags "-X main.experimentsAllowed=yes" -v ./...
+
 # generate runs `go generate` to build the dynamically generated
 # source files, except the protobuf stubs which are built instead with
 # "make protobuf".
