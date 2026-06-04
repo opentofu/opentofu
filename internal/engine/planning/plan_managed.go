@@ -124,9 +124,8 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 	var prevRoundPrivate []byte
 	prevRoundState := p.planCtx.prevRoundState.SyncWrapper().ResourceInstanceObjectFull(inst.Addr.CurrentObject())
 	if prevRoundState != nil {
-		// TODO do version comparison before upgrade
-		// Current schema version: schema.Version
-		// previous schema version: prevRoundState.SchemaVersion
+		// While we know prevRoundState is non-nil, let's upgrade state, too.
+		// Let's do a schema version comparison before upgrade
 
 		if prevRoundState.SchemaVersion > uint64(schema.Version) {
 			return nil, diags.Append(tfdiags.Sourceless(
@@ -141,7 +140,6 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 			))
 		}
 
-		// while we know prevRoundState is non-nil, let's upgrade state, too.
 		upgradeReq := providers.UpgradeResourceStateRequest{
 			TypeName: inst.Addr.Resource.Resource.Type,
 
