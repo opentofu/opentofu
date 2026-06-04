@@ -26,6 +26,19 @@ import (
 // diagnostics to report at all.
 type Diagnostics []Diagnostic
 
+// New constructs a new [Diagnostics] that initially contains diagnostic
+// representations of all of the given values.
+//
+// This is just a shorthand for calling [Diagnostics.Append] on a nil
+// Diagnostics, and so the initial values are interpreted just as Append would
+// interpret them.
+func New(initial ...any) Diagnostics {
+	if len(initial) == 0 {
+		return nil
+	}
+	return Diagnostics(nil).Append(initial...)
+}
+
 // Append is the main interface for constructing Diagnostics lists, taking
 // an existing list (which may be nil) and appending the new objects to it
 // after normalizing them to be implementations of Diagnostic.
@@ -49,7 +62,7 @@ type Diagnostics []Diagnostic
 // a multierror.Error into separate error diagnostics. It can be passed
 // another Diagnostics to concatenate the two lists. If given something
 // it cannot handle, this function will panic.
-func (diags Diagnostics) Append(new ...interface{}) Diagnostics {
+func (diags Diagnostics) Append(new ...any) Diagnostics {
 	for _, item := range new {
 		if item == nil {
 			continue
