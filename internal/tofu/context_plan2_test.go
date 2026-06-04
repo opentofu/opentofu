@@ -38,7 +38,7 @@ import (
 )
 
 func TestContext2Plan_removedDuringRefresh(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureUpgradeState)
+	SkipExperimental(t, ExperimentalFeatureUpgradeState, ExperimentalFeatureTaint)
 
 	// This tests the situation where an object tracked in the previous run
 	// state has been deleted outside OpenTofu, which we should detect
