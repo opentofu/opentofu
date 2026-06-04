@@ -128,6 +128,19 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		// Current schema version: schema.Version
 		// previous schema version: prevRoundState.SchemaVersion
 
+		if prevRoundState.SchemaVersion > uint64(schema.Version) {
+			return nil, diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Resource instance managed by newer provider version",
+				// This is not a very good error message, but we don't retain enough
+				// information in state to give good feedback on what provider
+				// version might be required here. :(
+				// Or maybe we do. I dunno, I just copied the comment+diag from
+				// upgrade_resource_state.go:upgradeResourceStateTransform :P
+				fmt.Sprintf("The current state of %s was created by a newer provider version than is currently selected. Upgrade the %s provider to work with this state.", inst.Addr, inst.Provider.Type),
+			))
+		}
+
 		// while we know prevRoundState is non-nil, let's upgrade state, too.
 		upgradeReq := providers.UpgradeResourceStateRequest{
 			TypeName: inst.Addr.Resource.Resource.Type,
@@ -144,8 +157,11 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 			RawStateJSON: prevRoundState.Value.ValueJSON,
 		}
 
-		// TODO check upgradeResp.diags
 		upgradeResp := providerClient.UpgradeResourceState(ctx, upgradeReq)
+		diags = diags.Append(upgradeResp.Diagnostics)
+		if diags.HasErrors() {
+			return ret, diags
+		}
 		newState := upgradeResp.UpgradedState
 
 		// After upgrading, the new value must conform to the current schema. When
@@ -164,8 +180,16 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 			return nil, diags
 		}
 
-		// TODO check err here
-		src, _ := ctyjson.Marshal(newState, schema.Block.ImpliedType())
+		src, err := ctyjson.Marshal(newState, schema.Block.ImpliedType())
+		if err != nil {
+			// We just checked for type conformance above, so getting into this
+			// codepath is probably a bug.
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Failed to encode result of resource state transformation",
+				fmt.Sprintf("Failed to encode state for %s after resource schema upgrade: %s.", inst.Addr, tfdiags.FormatError(err)),
+			))
+		}
 
 		upgradedPrevState := &states.ResourceInstanceObjectFullSrc{
 			Value: states.ValueJSONWithMetadata{
