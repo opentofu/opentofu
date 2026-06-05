@@ -33,7 +33,8 @@ var (
 	ExperimentalBugMissingProvider   = ExperimentalFlag{"Bug Missing Configuration For Provider", false}
 	ExperimentalBugResourceReadNull  = ExperimentalFlag{"Bug Read Resource Deleted", false}
 	ExperimentalBugDataResource      = ExperimentalFlag{"Bug Data Resource", false}
-	ExperimentalBugVariableSensitive = ExperimentalFlag{"Bug Variables Declared as Sensitive", false}
+	ExperimentalBugVariableSensitive = ExperimentalFlag{"Bug Variables Declared as Sensitive", true}
+	ExperimentalBugResourceMarks     = ExperimentalFlag{"Bug Not Transferring Marks from Resource Instance Config Value to Final Value", false}
 	ExperimentalBugForEach           = ExperimentalFlag{"Bug For Each", false}         // TODO run existing evalchecks tests against new engine
 	ExperimentalBugSpuriousReplace   = ExperimentalFlag{"Bug Spurious Replace", false} // New runtime proposes replace where old runtime would've called for update
 
