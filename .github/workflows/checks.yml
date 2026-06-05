@@ -186,13 +186,13 @@ jobs:
           # exactly the same run in their local development environment.
           make golangci-lint
 
-      - name: "Copyright headers"
-        run: |
-          go tool github.com/hashicorp/copywrite headers --plan
-          if [[ $? != 0 ]]; then
-            echo >&2 "ERROR: some files are missing required copyright headers. Run `scripts/add-copyright-headers.sh` locally and then commit the updated files."
-            exit 1
-          fi
+  copyright:
+    permissions:
+      contents: read
+    uses: opentofu/scripts/.github/workflows/copyright.yml@copyright-workflow
+    with:
+      args: '-ignore "website/**"'
+
 
   license-checks:
     name: "License Checks"
