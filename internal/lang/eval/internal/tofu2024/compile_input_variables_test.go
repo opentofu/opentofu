@@ -18,6 +18,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -141,6 +142,69 @@ func TestCompileInputVariable(t *testing.T) {
 				Nullable: false,
 			},
 			wantValue: cty.StringVal("not Timothy"),
+		},
+
+		"sensitive": {
+			values: map[string]cty.Value{
+				"name": cty.StringVal("Rumpelstiltskin"),
+			},
+			config: &configs.Variable{
+				Name:      "name",
+				Type:      cty.String,
+				Sensitive: true,
+			},
+			wantValue: cty.StringVal("Rumpelstiltskin").Mark(marks.Sensitive),
+		},
+		"sensitive undeclared": {
+			values: map[string]cty.Value{
+				"name": cty.StringVal("Rumpelstiltskin").Mark(marks.Sensitive),
+			},
+			config: &configs.Variable{
+				Name: "name",
+				Type: cty.String,
+			},
+			wantValue: cty.StringVal("Rumpelstiltskin").Mark(marks.Sensitive),
+		},
+		"ephemeral": {
+			values: map[string]cty.Value{
+				"name": cty.StringVal("Lavender Gooms"),
+			},
+			config: &configs.Variable{
+				Name:      "name",
+				Type:      cty.String,
+				Ephemeral: true,
+			},
+			wantValue: cty.StringVal("Lavender Gooms").Mark(marks.Ephemeral),
+		},
+		"sensitive and ephemeral together": {
+			values: map[string]cty.Value{
+				"name": cty.StringVal("Burton Guster"),
+			},
+			config: &configs.Variable{
+				Name:      "name",
+				Type:      cty.String,
+				Ephemeral: true,
+				Sensitive: true,
+			},
+			wantValue: cty.StringVal("Burton Guster").Mark(marks.Sensitive).Mark(marks.Ephemeral),
+		},
+		"ephemeral unwanted": {
+			values: map[string]cty.Value{
+				"name": cty.StringVal("Gus T.T. Showbiz").Mark(marks.Ephemeral),
+			},
+			config: &configs.Variable{
+				Name: "name",
+				Type: cty.String,
+			},
+			wantValue: exprs.AsEvalError(cty.UnknownVal(cty.String)),
+			wantDiags: tfdiags.New(
+				&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Invalid value for input variable",
+					Detail:   `The given value is derived from an ephemeral object, but var.name is not declared as ephemeral.`,
+					Subject:  presentDefRange.ToHCL().Ptr(),
+				},
+			),
 		},
 	}
 
