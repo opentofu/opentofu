@@ -10,16 +10,18 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/ext/typeexpr"
 	"github.com/zclconf/go-cty-debug/ctydebug"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
+	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-func TestCompileInputVariableValuer(t *testing.T) {
+func TestCompileInputVariable(t *testing.T) {
 	missingDefRange := tfdiags.SourceRange{
 		Filename: "<missing-def-range>",
 		Start:    tfdiags.SourcePos{Line: 1, Column: 1, Byte: 1},
@@ -44,6 +46,7 @@ func TestCompileInputVariableValuer(t *testing.T) {
 			},
 			config: &configs.Variable{
 				Name: "name",
+				Type: cty.String,
 			},
 			wantValue: cty.StringVal("Timothy"),
 		},
@@ -53,6 +56,7 @@ func TestCompileInputVariableValuer(t *testing.T) {
 			},
 			config: &configs.Variable{
 				Name:        "name",
+				Type:        cty.String,
 				Nullable:    true,
 				NullableSet: true,
 			},
@@ -62,8 +66,9 @@ func TestCompileInputVariableValuer(t *testing.T) {
 			values: map[string]cty.Value{},
 			config: &configs.Variable{
 				Name: "name",
+				Type: cty.String,
 			},
-			wantValue: cty.DynamicVal,
+			wantValue: exprs.AsEvalError(cty.UnknownVal(cty.String)),
 			wantDiags: tfdiags.New(
 				&hcl.Diagnostic{
 					Severity: hcl.DiagError,
@@ -79,9 +84,10 @@ func TestCompileInputVariableValuer(t *testing.T) {
 			},
 			config: &configs.Variable{
 				Name:     "name",
+				Type:     cty.String,
 				Nullable: false,
 			},
-			wantValue: cty.DynamicVal,
+			wantValue: exprs.AsEvalError(cty.UnknownVal(cty.String)),
 			wantDiags: tfdiags.New(
 				&hcl.Diagnostic{
 					Severity: hcl.DiagError,
@@ -98,6 +104,7 @@ func TestCompileInputVariableValuer(t *testing.T) {
 			},
 			config: &configs.Variable{
 				Name:    "name",
+				Type:    cty.String,
 				Default: cty.StringVal("not Timothy"),
 			},
 			wantValue: cty.StringVal("Timothy"),
@@ -106,6 +113,7 @@ func TestCompileInputVariableValuer(t *testing.T) {
 			values: map[string]cty.Value{},
 			config: &configs.Variable{
 				Name:    "name",
+				Type:    cty.String,
 				Default: cty.StringVal("not Timothy"),
 			},
 			wantValue: cty.StringVal("not Timothy"),
@@ -116,6 +124,7 @@ func TestCompileInputVariableValuer(t *testing.T) {
 			},
 			config: &configs.Variable{
 				Name:     "name",
+				Type:     cty.String,
 				Default:  cty.StringVal("not Timothy"),
 				Nullable: true,
 			},
@@ -127,6 +136,7 @@ func TestCompileInputVariableValuer(t *testing.T) {
 			},
 			config: &configs.Variable{
 				Name:     "name",
+				Type:     cty.String,
 				Default:  cty.StringVal("not Timothy"),
 				Nullable: false,
 			},
@@ -136,10 +146,40 @@ func TestCompileInputVariableValuer(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			valuesValuer := exprs.ConstantValuerWithSourceRange(cty.ObjectVal(test.values), presentDefRange)
-			resultValuer := compileInputVariableValuer(valuesValuer, test.config, addrs.RootModuleInstance, &missingDefRange)
+			if test.config.Type == cty.NilType {
+				t.Fatal("input variable declaration has no type") // omitting this causes confusing downstream errors, and never occurs in practice
+			}
+			if test.config.ConstraintType == cty.NilType {
+				// This emulates some fixup that the config loader would normally do
+				// in the simple case where no optional attributes are present,
+				// since we're not actually running the config loader here.
+				test.config.ConstraintType = test.config.Type
+				test.config.TypeDefaults = &typeexpr.Defaults{
+					Type: test.config.Type,
+				}
+			}
 
-			gotValue, gotDiags := resultValuer.Value(t.Context())
+			// This test is oriented around testing one variable at a time,
+			// but it uses the function that compiles all of the variables
+			// in a module at once so we'll pretend like we're compiling
+			// a module that only has this one variable declaration.
+			configs := map[string]*configs.Variable{
+				test.config.Name: test.config,
+			}
+			valuesValuer := exprs.ConstantValuerWithSourceRange(cty.ObjectVal(test.values), presentDefRange)
+			emptyScope := exprs.FlatScopeForTesting(nil)
+
+			compiled := compileModuleInstanceInputVariables(t.Context(), configs, valuesValuer, emptyScope, addrs.RootModuleInstance, &missingDefRange)
+			if compiled == nil {
+				t.Fatal("compileModuleInstanceInputVariables returned nil")
+			}
+			vn, ok := compiled[test.config.Addr()]
+			if !ok {
+				t.Fatalf("compileModuleInstanceInputVariables result does not include entry for %s", test.config.Addr())
+			}
+
+			ctx := grapheval.ContextWithNewWorker(t.Context())
+			gotValue, gotDiags := vn.Value(ctx)
 			if diff := cmp.Diff(test.wantValue, gotValue, ctydebug.CmpOptions); diff != "" {
 				t.Error("wrong result value\n" + diff)
 			}
