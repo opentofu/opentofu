@@ -16,57 +16,65 @@ func init() {
 	SetExperimentalRuntimeAllowed(true)
 }
 
-type ExperimentalFlag string
+type ExperimentalFlag struct {
+	name    string
+	enabled bool
+}
 
-const (
-	ExperimentalFlagUnknown ExperimentalFlag = "Unknown"
+var (
+	ExperimentalFlagUnknown = ExperimentalFlag{"Unknown", false}
 
-	ExperimentalBugCancel            ExperimentalFlag = "Bug Context Cancel"
-	ExperimentalBugStateProvider     ExperimentalFlag = "Bug State Provider"
-	ExperimentalBugReferenceProvider ExperimentalFlag = "Bug Reference Provider"
-	ExperimentalBugResourceReadNull  ExperimentalFlag = "Bug Read Resource Deleted"
-	ExperimentalBugDataResource      ExperimentalFlag = "Bug Data Resource"
-	ExperimentalBugVariableSensitive ExperimentalFlag = "Bug Variables Declared as Sensitive"
-	ExperimentalBugForEach           ExperimentalFlag = "Bug For Each"         // TODO run existing evalchecks tests against new engine
-	ExperimentalBugSpuriousReplace   ExperimentalFlag = "Bug Spurious Replace" // New runtime proposes replace where old runtime would've called for update
+	ExperimentalBugExecGraph         = ExperimentalFlag{"Bug in generated Exec Graph", true}
+	ExperimentalBugDeclareProvider   = ExperimentalFlag{"Bug Declare Provider", true}
+	ExperimentalBugVariableInput     = ExperimentalFlag{"Bug Variable Input", true}
+	ExperimentalBugCancel            = ExperimentalFlag{"Bug Context Cancel", false}
+	ExperimentalBugStateProvider     = ExperimentalFlag{"Bug State Provider", false}
+	ExperimentalBugReferenceProvider = ExperimentalFlag{"Bug Reference Provider", false}
+	ExperimentalBugResourceReadNull  = ExperimentalFlag{"Bug Read Resource Deleted", false}
+	ExperimentalBugDataResource      = ExperimentalFlag{"Bug Data Resource", false}
+	ExperimentalBugVariableSensitive = ExperimentalFlag{"Bug Variables Declared as Sensitive", false}
+	ExperimentalBugForEach           = ExperimentalFlag{"Bug For Each", false}         // TODO run existing evalchecks tests against new engine
+	ExperimentalBugSpuriousReplace   = ExperimentalFlag{"Bug Spurious Replace", false} // New runtime proposes replace where old runtime would've called for update
 
-	ExperimentalChangeDiagWording  ExperimentalFlag = "Change Different Diagnostic Wording"
-	ExperimentalChangeErrorEarly   ExperimentalFlag = "Change Detect Error Earlier"
-	ExperimentalChangeDependencies ExperimentalFlag = "Change Precise Dependencies"
+	ExperimentalChangeDiagWording  = ExperimentalFlag{"Change Different Diagnostic Wording", false}
+	ExperimentalChangeErrorEarly   = ExperimentalFlag{"Change Detect Error Earlier", false}
+	ExperimentalChangeDependencies = ExperimentalFlag{"Change Precise Dependencies", false}
 
-	ExperimentalFeatureCBD               ExperimentalFlag = "Missing Create Before Destroy"
-	ExperimentalFeatureDeposed           ExperimentalFlag = "Missing Deposed"
-	ExperimentalFeatureCondition         ExperimentalFlag = "Missing Pre/Post Conditions"
-	ExperimentalFeatureLocalState        ExperimentalFlag = "Missing Store locals in state"
-	ExperimentalFeatureChecks            ExperimentalFlag = "Missing Checks"
-	ExperimentalFeatureChanges           ExperimentalFlag = "Missing Plan Changes"
-	ExperimentalFeatureDeprecated        ExperimentalFlag = "Missing Deprecated"
-	ExperimentalFeatureImport            ExperimentalFlag = "Missing Importing"
-	ExperimentalFeatureRefresh           ExperimentalFlag = "Missing Refresh"
-	ExperimentalFeatureValidate          ExperimentalFlag = "Missing Validate"
-	ExperimentalFeatureDestroy           ExperimentalFlag = "Missing Destroy"
-	ExperimentalFeatureMoved             ExperimentalFlag = "Missing Moved"
-	ExperimentalFeatureRemoved           ExperimentalFlag = "Missing Removed"
-	ExperimentalFeatureSkipDestroy       ExperimentalFlag = "Missing Lifecycle Destroy"
-	ExperimentalFeatureUpgradeState      ExperimentalFlag = "Missing Upgrade Resource State"
-	ExperimentalFeatureHooks             ExperimentalFlag = "Missing Hooks"
-	ExperimentalFeatureTarget            ExperimentalFlag = "Missing Targeting"
-	ExperimentalFeatureReplaceTB         ExperimentalFlag = "Missing replace_triggered_by"
-	ExperimentalFeatureProvisioner       ExperimentalFlag = "Missing Provisioners"
-	ExperimentalFeatureDependsOn         ExperimentalFlag = "Missing Depends On"
-	ExperimentalFeatureIgnoreChanges     ExperimentalFlag = "Missing Ignore Changes"
-	ExperimentalFeatureVarCondition      ExperimentalFlag = "Missing Variable Condiitions"
-	ExperimentalFeaturePathAttrs         ExperimentalFlag = "Missing Path/Terraform/Tofu Attrs"
-	ExperimentalFeaturePreventDestroy    ExperimentalFlag = "Missing Prevent Destroy"
-	ExperimentalFeaturePlannedState      ExperimentalFlag = "Missing Planned State"
-	ExperimentalFeatureForceReplace      ExperimentalFlag = "Missing Force Replace"
-	ExperimentalFeatureRootOutput        ExperimentalFlag = "Missing Root Output"
-	ExperimentalFeatureSensitivity       ExperimentalFlag = "Missing Sensitivity Handling"
-	ExperimentalFeatureSelfReference     ExperimentalFlag = "Missing Self Reference"
-	ExperimentalFeatureProviderMeta      ExperimentalFlag = "Missing Provider Meta"
-	ExperimentalFeatureTaint             ExperimentalFlag = "Missing Taint"
-	ExperimentalFeatureErrorHandling     ExperimentalFlag = "Missing Error Handling"
-	ExperimentalFeatureProviderFunctions ExperimentalFlag = "Missing Provider Defined Functions"
+	ExperimentalFeatureStateDependencies = ExperimentalFlag{"Missing State Dependencies", true}
+	ExperimentalFeatureProviderInstances = ExperimentalFlag{"Missing Provider Instances", true}
+	ExperimentalFeatureCBD               = ExperimentalFlag{"Missing Create Before Destroy", false}
+	ExperimentalFeatureDeposed           = ExperimentalFlag{"Missing Deposed", false}
+	ExperimentalFeatureCondition         = ExperimentalFlag{"Missing Pre/Post Conditions", false}
+	ExperimentalFeatureLocalState        = ExperimentalFlag{"Missing Store locals in state", false}
+	ExperimentalFeatureChecks            = ExperimentalFlag{"Missing Checks", false}
+	ExperimentalFeatureChanges           = ExperimentalFlag{"Missing Plan Changes", false}
+	ExperimentalFeatureDeprecated        = ExperimentalFlag{"Missing Deprecated", false}
+	ExperimentalFeatureImport            = ExperimentalFlag{"Missing Importing", false}
+	ExperimentalFeatureRefresh           = ExperimentalFlag{"Missing Refresh", false}
+	ExperimentalFeatureValidate          = ExperimentalFlag{"Missing Validate", false}
+	ExperimentalFeatureDestroy           = ExperimentalFlag{"Missing Destroy", false}
+	ExperimentalFeatureMoved             = ExperimentalFlag{"Missing Moved", false}
+	ExperimentalFeatureRemoved           = ExperimentalFlag{"Missing Removed", false}
+	ExperimentalFeatureSkipDestroy       = ExperimentalFlag{"Missing Lifecycle Destroy", false}
+	ExperimentalFeatureUpgradeState      = ExperimentalFlag{"Missing Upgrade Resource State", false}
+	ExperimentalFeatureHooks             = ExperimentalFlag{"Missing Hooks", false}
+	ExperimentalFeatureTarget            = ExperimentalFlag{"Missing Targeting", false}
+	ExperimentalFeatureReplaceTB         = ExperimentalFlag{"Missing replace_triggered_by", false}
+	ExperimentalFeatureProvisioner       = ExperimentalFlag{"Missing Provisioners", false}
+	ExperimentalFeatureDependsOn         = ExperimentalFlag{"Missing Depends On", false}
+	ExperimentalFeatureIgnoreChanges     = ExperimentalFlag{"Missing Ignore Changes", false}
+	ExperimentalFeatureVarCondition      = ExperimentalFlag{"Missing Variable Condiitions", false}
+	ExperimentalFeaturePathAttrs         = ExperimentalFlag{"Missing Path/Terraform/Tofu Attrs", false}
+	ExperimentalFeaturePreventDestroy    = ExperimentalFlag{"Missing Prevent Destroy", false}
+	ExperimentalFeaturePlannedState      = ExperimentalFlag{"Missing Planned State", false}
+	ExperimentalFeatureForceReplace      = ExperimentalFlag{"Missing Force Replace", false}
+	ExperimentalFeatureRootOutput        = ExperimentalFlag{"Missing Root Output", false}
+	ExperimentalFeatureSensitivity       = ExperimentalFlag{"Missing Sensitivity Handling", false}
+	ExperimentalFeatureSelfReference     = ExperimentalFlag{"Missing Self Reference", false}
+	ExperimentalFeatureProviderMeta      = ExperimentalFlag{"Missing Provider Meta", false}
+	ExperimentalFeatureTaint             = ExperimentalFlag{"Missing Taint", false}
+	ExperimentalFeatureErrorHandling     = ExperimentalFlag{"Missing Error Handling", false}
+	ExperimentalFeatureProviderFunctions = ExperimentalFlag{"Missing Provider Defined Functions", false}
 
 	// ExperimentalNewStrategyNeeded is a special experimental flag that
 	// represents that a test is failing not because the underlying behavior
@@ -75,33 +83,17 @@ const (
 	// poking is ineffective with the new runtime. If you use this one,
 	// include a comment above the [SkipExperimental] call explaining what
 	// aspect of the testing strategy is flawed in the new implementation.
-	ExperimentalNewStrategyNeeded ExperimentalFlag = "New testing strategy needed"
-
-	// Fixed
-	ExperimentalBugExecGraph       ExperimentalFlag = "Bug in generated Exec Graph"
-	ExperimentalBugDeclareProvider ExperimentalFlag = "Bug Declare Provider"
-	ExperimentalBugVariableInput   ExperimentalFlag = "Bug Variable Input"
-
-	// Implemented
-	ExperimentalFeatureStateDependencies ExperimentalFlag = "Missing State Dependencies"
-	ExperimentalFeatureProviderInstances ExperimentalFlag = "Missing Provider Instances"
+	ExperimentalNewStrategyNeeded = ExperimentalFlag{"New testing strategy needed", false}
 )
 
 func SkipExperimental(t *testing.T, features ...ExperimentalFlag) {
 	if experimentalRuntimeEnabled() {
 		var strs []string
 		for _, feature := range features {
-			switch feature {
-			case
-				ExperimentalBugExecGraph,
-				ExperimentalBugDeclareProvider,
-				ExperimentalFeatureProviderInstances,
-				ExperimentalFeatureStateDependencies,
-				ExperimentalBugVariableInput:
-				// These ones are expected to be fixed already, so we don't skip.
-			default:
-				strs = append(strs, string(feature))
+			if feature.enabled {
+				continue
 			}
+			strs = append(strs, feature.name)
 		}
 		if len(strs) > 0 {
 			t.Skip("New Engine: " + strings.Join(strs, ", "))
