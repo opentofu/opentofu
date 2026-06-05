@@ -729,6 +729,8 @@ func TestContext2Apply_sensitiveInsideUnknown(t *testing.T) {
 }
 
 func TestContext2Apply_ignoreImpureFunctionChanges(t *testing.T) {
+	SkipExperimental(t, ExperimentalBugVariableSensitive)
+
 	// The impure function call should not cause a planned change with
 	// ignore_changes
 	m := testModuleInline(t, map[string]string{
@@ -782,7 +784,7 @@ resource "test_object" "y" {
 		if c.Action != plans.NoOp {
 			t.Logf("marks before: %#v", c.BeforeValMarks)
 			t.Logf("marks after:  %#v", c.AfterValMarks)
-			t.Errorf("Unexpcetd %s change for %s", c.Action, c.Addr)
+			t.Errorf("Unexpected %s change for %s", c.Action, c.Addr)
 		}
 	}
 }
@@ -893,7 +895,7 @@ resource "test_object" "x" {
 }
 
 func TestContext2Apply_nullableVariables(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugVariableInput)
+	SkipExperimental(t, ExperimentalFeatureRootOutput)
 
 	m := testModule(t, "apply-nullable-variables")
 	state := states.NewState()
@@ -1078,6 +1080,14 @@ resource "test_object" "b" {
 	if diags.HasErrors() {
 		t.Fatalf("plan: %s", diags.Err())
 	}
+
+	// This test tries to create a synthetic failure by tampering with the
+	// plan's prior state in a way that cannot occur in normal usage of
+	// OpenTofu, and then expecting the old-style apply graph builder to choke
+	// on it. That can't work for the new runtime because the equivalent of
+	// the apply graph (the execution graph) is constructed during the planning
+	// phase instead.
+	SkipExperimental(t, ExperimentalNewStrategyNeeded)
 
 	// We're going to corrupt the stored state so that the dependencies will
 	// cause a cycle when building the apply graph.

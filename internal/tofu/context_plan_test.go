@@ -6542,7 +6542,8 @@ resource "aws_instance" "foo" {
 }
 
 func TestContext2Plan_variableSensitivity(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugVariableInput) // Sensitivity
+	SkipExperimental(t, ExperimentalBugVariableSensitive)
+
 	m := testModule(t, "plan-variable-sensitivity")
 
 	p := testProvider("aws")
