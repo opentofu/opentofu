@@ -186,12 +186,18 @@ jobs:
           # exactly the same run in their local development environment.
           make golangci-lint
 
+#  copyright:
+#    permissions:
+#      contents: read
+#    uses: opentofu/scripts/.github/workflows/copyright.yml@copyright-workflow
+#    with:
+#      args: '-ignore "website/**"'
   copyright:
     permissions:
       contents: read
-    uses: opentofu/scripts/.github/workflows/copyright.yml@copyright-workflow
+    uses: opentofu/scripts/.github/workflows/copyright.yml@copyright-workflow-nwa
     with:
-      args: '-ignore "website/**"'
+      ignore-flags: '-s ".git/**/*" -s "**/.workdir/**" -s "**/website/**"'
 
 
   license-checks:
