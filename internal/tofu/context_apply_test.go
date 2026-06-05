@@ -8629,6 +8629,7 @@ template_file.parent.0:
 }
 
 func TestContext2Apply_targetedWithTaintedInState(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureProvisioner)
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
 	p.ApplyResourceChangeFn = testApplyFn
