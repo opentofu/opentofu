@@ -17,6 +17,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -34,6 +35,38 @@ func compileModuleInstanceInputVariables(_ context.Context, configs map[string]*
 			RawValue:       configgraph.ValuerOnce(rawValuer),
 			TargetType:     vc.ConstraintType,
 			TargetDefaults: vc.TypeDefaults,
+			FinalizeValue: func(_ context.Context, v cty.Value) (cty.Value, tfdiags.Diagnostics) {
+				var diags tfdiags.Diagnostics
+				if vc.Sensitive {
+					v = v.Mark(marks.Sensitive)
+				}
+				if vc.Ephemeral {
+					v = v.Mark(marks.Ephemeral)
+				} else {
+					// At the boundary between modules we treat ephemerality
+					// as a static concern, so that module authors don't need to
+					// defensively handle ephemeral values in all input
+					// variables. An input variable is either entirely ephemeral
+					// or not ephemeral at all.
+					if v.HasMarkDeep(marks.Ephemeral) {
+						diags = diags.Append(&hcl.Diagnostic{
+							Severity: hcl.DiagError,
+							Summary:  "Invalid value for input variable",
+							Detail:   fmt.Sprintf("The given value is derived from an ephemeral object, but %s is not declared as ephemeral.", addr),
+							Subject:  configgraph.MaybeHCLSourceRange(rawValuer.ValueSourceRange()),
+						})
+					}
+				}
+				// TODO: Do we want to do something with "const" here too?
+				// In our new runtime we don't have an explicit concept of
+				// "early evaluation" and so if we want to support this we'll
+				// need to find a more nuanced definition of what it means for
+				// a variable to be "constant", such as disallowing it being
+				// derived from any resource instances, having any unknown
+				// values inside it and/or having ephemeral values anywhere.
+				// TODO: Handle "Deprecated" in here too.
+				return v, diags
+			},
 			CompileValidationRules: func(ctx context.Context, value cty.Value) iter.Seq[*configgraph.CheckRule] {
 				// For variable validation we need to use a special overlay
 				// scope that resolves the single variable we are validating
