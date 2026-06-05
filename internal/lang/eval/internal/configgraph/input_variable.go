@@ -37,8 +37,21 @@ type InputVariable struct {
 	TargetType     cty.Type
 	TargetDefaults *typeexpr.Defaults
 
-	// TODO: Default value
-	// TODO: ForceEphemeral, ForceSensitive
+	// FinalizeValue is an optional callback which, if provided, is called
+	// during [InputVariable.Value] returns to allow
+	// language-edition-specific code to apply any final checks or
+	// transformations to the value. The provided value has already been
+	// subjected to type conversion, but has not yet had the validation
+	// rules applied to it. The result of this function is passed to the
+	// validation checks.
+	//
+	// For example, this is used by package tofu2024 to deal with the various
+	// arguments in a variable declaration that affect the interpretation of
+	// the value, such as marking it as sensitive.
+	//
+	// The given context has the values needed to support potentially evaluating
+	// other expressions inside the callback.
+	FinalizeValue func(context.Context, cty.Value) (cty.Value, tfdiags.Diagnostics)
 
 	// Validation rules are user-defined checks that must succeed for the
 	// final value to be considered valid for use in downstream expressions.
@@ -83,7 +96,24 @@ func (i *InputVariable) Value(ctx context.Context) (cty.Value, tfdiags.Diagnosti
 			Detail:   fmt.Sprintf("Unsuitable value for variable %q: %s.", i.Addr.Variable.Name, tfdiags.FormatError(err)),
 			Subject:  MaybeHCLSourceRange(i.ValueSourceRange()),
 		})
-		finalV = cty.UnknownVal(i.TargetType.WithoutOptionalAttributesDeep())
+		finalV = exprs.AsEvalError(cty.UnknownVal(i.TargetType.WithoutOptionalAttributesDeep()))
+	}
+
+	// Apply any language-edition-specific transforms or checks to the value
+	// before we handle the author-provided validation rules, so that they
+	// are always validating the final form of the value.
+	if i.FinalizeValue != nil {
+		finalV, moreDiags = i.FinalizeValue(ctx, finalV)
+		diags = diags.Append(moreDiags)
+		if moreDiags.HasErrors() {
+			// If finalization failed then the result is likely to be something
+			// surprising to any author-provided validation rules, and so we'll
+			// proceed with an unknown value of the expected type meaning we
+			// can still catch static-type-related problems in the validation
+			// rules but won't trigger confusing additional responses to
+			// whatever was wrong with finalV.
+			finalV = exprs.AsEvalError(cty.UnknownVal(i.TargetType.WithoutOptionalAttributesDeep()))
+		}
 	}
 
 	// Once we have our converted and prepared value we can finally compile
