@@ -729,7 +729,7 @@ func TestContext2Apply_sensitiveInsideUnknown(t *testing.T) {
 }
 
 func TestContext2Apply_ignoreImpureFunctionChanges(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugVariableSensitive)
+	SkipExperimental(t, ExperimentalFeatureIgnoreChanges)
 
 	// The impure function call should not cause a planned change with
 	// ignore_changes

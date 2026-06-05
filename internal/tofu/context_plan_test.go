@@ -6542,7 +6542,11 @@ resource "aws_instance" "foo" {
 }
 
 func TestContext2Plan_variableSensitivity(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugVariableSensitive)
+	// This test relies on marks like "sensitive" being transferred from the
+	// configuration of a resource instance into the final value returned by
+	// the provider when planning it, which the new implementation is not
+	// currently doing.
+	SkipExperimental(t, ExperimentalBugResourceMarks)
 
 	m := testModule(t, "plan-variable-sensitivity")
 
