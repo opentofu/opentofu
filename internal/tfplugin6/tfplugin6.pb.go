@@ -1,4 +1,6 @@
-// Copyright IBM Corp. 2014, 2026
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 // Terraform Plugin RPC protocol version 6.10
