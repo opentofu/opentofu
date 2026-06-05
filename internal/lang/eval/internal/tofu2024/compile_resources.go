@@ -8,6 +8,7 @@ package tofu2024
 import (
 	"context"
 	"fmt"
+	"maps"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
@@ -125,10 +126,16 @@ func compileModuleInstanceResource(
 				)
 			}
 
+			additionalMarks := cty.ValueMarks{}
+			// This adds an implicit depends_on from marks in repetition data
+			maps.Copy(additionalMarks, repData.CountIndex.Marks())
+			maps.Copy(additionalMarks, repData.EachKey.Marks())
+			maps.Copy(additionalMarks, repData.EachValue.Marks())
+
 			inst := &configgraph.ResourceInstance{
-				Addr:           absAddr.Instance(key),
-				Provider:       config.Provider,
-				RepetitionData: repData,
+				Addr:            absAddr.Instance(key),
+				Provider:        config.Provider,
+				AdditionalMarks: additionalMarks,
 				ConfigValuer: configgraph.ValuerOnce(exprs.NewClosure(
 					configEvalable, localScope,
 				)),

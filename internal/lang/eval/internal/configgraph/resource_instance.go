@@ -16,7 +16,6 @@ import (
 	"github.com/zclconf/go-cty/cty/convert"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/lang/marks"
@@ -39,7 +38,7 @@ type ResourceInstance struct {
 	Provider addrs.Provider
 
 	// Used to ensure marks
-	RepetitionData instances.RepetitionData
+	AdditionalMarks cty.ValueMarks
 
 	// ConfigValuer is a valuer for producing the object value representing
 	// the configuration for this object. How the final configuration value
@@ -114,12 +113,8 @@ func (ri *ResourceInstance) ConfigValue(ctx context.Context) (v cty.Value, diags
 		return exprs.AsEvalError(cty.DynamicVal), diags
 	}
 
-	// Ensure marks from repetition data make it into the config value
-	configVal = configVal.WithMarks(
-		ri.RepetitionData.CountIndex.Marks(),
-		ri.RepetitionData.EachKey.Marks(),
-		ri.RepetitionData.EachValue.Marks(),
-	)
+	// Ensure marks from repetition data (and other sources) make it into the config value
+	configVal = configVal.WithMarks(ri.AdditionalMarks)
 
 	return configVal, diags
 }
