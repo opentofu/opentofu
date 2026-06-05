@@ -5867,6 +5867,18 @@ func TestContext2Apply_Provisioner_Diff(t *testing.T) {
 }
 
 func TestContext2Apply_outputDiffVars(t *testing.T) {
+	// Unfortunately in experimental mode this test is currently flaking with
+	// errors like this, but not consistently on every run:
+	//
+	//     [ERROR] Provider instance not available: Cannot plan aws_instance.bar because its associated provider instance provider["registry.opentofu.org/hashicorp/aws"] cannot initialize.
+	//     [ERROR] Provider instance not available: Cannot plan aws_instance.bar because its associated provider instance provider["registry.opentofu.org/hashicorp/aws"] cannot initialize.
+	//     [ERROR] Provider instance not available: Cannot plan aws_instance.bar because its associated provider instance provider["registry.opentofu.org/hashicorp/aws"] cannot initialize.
+	//
+	// When this occurs it's raised from the check for diagnostics just after
+	// the call to ctx.Plan below, so it seems like something's not working
+	// quite right in how the plan phase handles provider configurations.
+	SkipExperimental(t, ExperimentalBugMissingProvider)
+
 	m := testModule(t, "apply-good")
 	p := testProvider("aws")
 
@@ -8534,7 +8546,18 @@ func TestContext2Apply_issue7824(t *testing.T) {
 // This deals with the situation where a splat expression is used referring
 // to another resource whose count is non-constant.
 func TestContext2Apply_issue5254(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugExecGraph, ExperimentalFeatureStateDependencies)
+	// Unfortunately in experimental mode this test is currently flaking with
+	// errors like this, but not consistently on every run:
+	//
+	//     err: 2 problems:
+	//
+	//     - missing configuration for provider["registry.opentofu.org/hashicorp/template"]
+	//     - missing configuration for provider["registry.opentofu.org/hashicorp/template"]
+	//
+	// When this occurs it's raised from the check for diagnostics just after
+	// the call to ctx.Apply below, so it seems like something's not working
+	// quite right in how the apply phase handles provider configurations.
+	SkipExperimental(t, ExperimentalBugMissingProvider)
 
 	// Create a provider. We use "template" here just to match the repro
 	// we got from the issue itself.
@@ -9514,6 +9537,20 @@ func TestContext2Apply_providersFromState(t *testing.T) {
 }
 
 func TestContext2Apply_plannedInterpolatedCount(t *testing.T) {
+	// Unfortunately in experimental mode this test is currently flaking with
+	// errors like this, but not consistently on every run:
+	//
+	//     err: 3 problems:
+	//
+	//     - missing configuration for provider["registry.opentofu.org/hashicorp/aws"]
+	//     - missing configuration for provider["registry.opentofu.org/hashicorp/aws"]
+	//     - missing configuration for provider["registry.opentofu.org/hashicorp/aws"]
+	//
+	// When this occurs it's raised from the check for diagnostics just after
+	// the call to ctx.Apply below, so it seems like something's not working
+	// quite right in how the apply phase handles provider configurations.
+	SkipExperimental(t, ExperimentalBugMissingProvider)
+
 	m, snap := testModuleWithSnapshot(t, "apply-interpolated-count")
 
 	p := testProvider("aws")
@@ -12272,6 +12309,19 @@ resource "test_resource" "a" {
 }
 
 func TestContext2Apply_forcedCBD(t *testing.T) {
+	// Unfortunately in experimental mode this test is currently flaking with
+	// errors like this, but not consistently on every run:
+	//
+	//     err: 2 problems:
+	//
+	//     - missing configuration for provider["registry.opentofu.org/hashicorp/template"]
+	//     - missing configuration for provider["registry.opentofu.org/hashicorp/template"]
+	//
+	// When this occurs it's raised from the check for diagnostics just after
+	// the call to ctx.Apply below, so it seems like something's not working
+	// quite right in how the apply phase handles provider configurations.
+	SkipExperimental(t, ExperimentalBugMissingProvider)
+
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 variable "v" {}

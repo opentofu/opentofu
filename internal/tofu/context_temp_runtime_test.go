@@ -30,6 +30,7 @@ var (
 	ExperimentalBugCancel            = ExperimentalFlag{"Bug Context Cancel", false}
 	ExperimentalBugStateProvider     = ExperimentalFlag{"Bug State Provider", false}
 	ExperimentalBugReferenceProvider = ExperimentalFlag{"Bug Reference Provider", false}
+	ExperimentalBugMissingProvider   = ExperimentalFlag{"Bug Missing Configuration For Provider", false}
 	ExperimentalBugResourceReadNull  = ExperimentalFlag{"Bug Read Resource Deleted", false}
 	ExperimentalBugDataResource      = ExperimentalFlag{"Bug Data Resource", false}
 	ExperimentalBugVariableSensitive = ExperimentalFlag{"Bug Variables Declared as Sensitive", false}
