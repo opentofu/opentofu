@@ -186,13 +186,11 @@ jobs:
           # exactly the same run in their local development environment.
           make golangci-lint
 
+      - name: "Lint shell scripts"
+        run: shellcheck scripts/check-copyright-headers.sh scripts/add-copyright-headers.sh
+
       - name: "Copyright headers"
-        run: |
-          go tool github.com/hashicorp/copywrite headers --plan
-          if [[ $? != 0 ]]; then
-            echo >&2 "ERROR: some files are missing required copyright headers. Run `scripts/add-copyright-headers.sh` locally and then commit the updated files."
-            exit 1
-          fi
+        run: bash scripts/check-copyright-headers.sh
 
   license-checks:
     name: "License Checks"
