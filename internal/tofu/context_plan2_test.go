@@ -7965,7 +7965,12 @@ import {
 }
 
 func TestContext2Plan_providerForEachWithOrphanResourceInstanceNotUsingForEach(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugForEach)
+	// This currently fails in the new runtime because it doesn't have the
+	// special check for the situation where prior state has a resource instance
+	// belonging to a provider instance that isn't in the latest configuration.
+	// It just treats it as a general provider initialization failure:
+	//    Cannot plan test_thing.a["orphaned"] because its associated provider instance provider["terraform.io/builtin/test"].multi cannot initialize.
+	SkipExperimental(t, ExperimentalBugMissingProvider)
 
 	// This test is to cover the bug reported in this issue:
 	//    https://github.com/opentofu/opentofu/issues/2334

@@ -35,12 +35,13 @@ var (
 	ExperimentalBugDataResource      = ExperimentalFlag{"Bug Data Resource", false}
 	ExperimentalBugVariableSensitive = ExperimentalFlag{"Bug Variables Declared as Sensitive", true}
 	ExperimentalBugResourceMarks     = ExperimentalFlag{"Bug Not Transferring Marks from Resource Instance Config Value to Final Value", false}
-	ExperimentalBugForEach           = ExperimentalFlag{"Bug For Each", false}         // TODO run existing evalchecks tests against new engine
+	ExperimentalBugForEach           = ExperimentalFlag{"Bug For Each", true}
 	ExperimentalBugSpuriousReplace   = ExperimentalFlag{"Bug Spurious Replace", false} // New runtime proposes replace where old runtime would've called for update
 
-	ExperimentalChangeDiagWording  = ExperimentalFlag{"Change Different Diagnostic Wording", false}
-	ExperimentalChangeErrorEarly   = ExperimentalFlag{"Change Detect Error Earlier", false}
-	ExperimentalChangeDependencies = ExperimentalFlag{"Change Precise Dependencies", false}
+	ExperimentalChangeDiagWording     = ExperimentalFlag{"Change Different Diagnostic Wording", false}
+	ExperimentalChangeErrorEarly      = ExperimentalFlag{"Change Detect Error Earlier", false}
+	ExperimentalChangeDependencies    = ExperimentalFlag{"Change Precise Dependencies", false}
+	ExperimentalChangeDeferredActions = ExperimentalFlag{"Change New Runtime Supports Deferred Actions", false}
 
 	ExperimentalFeatureStateDependencies = ExperimentalFlag{"Missing State Dependencies", true}
 	ExperimentalFeatureProviderInstances = ExperimentalFlag{"Missing Provider Instances", true}
