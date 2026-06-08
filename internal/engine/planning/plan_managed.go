@@ -118,8 +118,6 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		return ret, diags
 	}
 
-	// FIXME: Need to "upgrade" the previous round state before we try to decode it.
-
 	var prevRoundVal cty.Value
 	var prevRoundPrivate []byte
 	prevRoundState := p.planCtx.prevRoundState.SyncWrapper().ResourceInstanceObjectFull(inst.Addr.CurrentObject())
@@ -196,7 +194,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 			},
 			Private:              prevRoundState.Private,
 			Status:               prevRoundState.Status,
-			ProviderInstanceAddr: *inst.ProviderInstance,
+			ProviderInstanceAddr: prevRoundState.ProviderInstanceAddr,
 			ResourceType:         prevRoundState.ResourceType,
 			SchemaVersion:        uint64(schema.Version),
 			Dependencies:         prevRoundState.Dependencies,
@@ -204,6 +202,8 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		}
 
 		p.planCtx.upgradedState.SetResourceInstanceObjectFull(inst.Addr.CurrentObject(), upgradedPrevState)
+		// Update the provider instance for the refreshed state only, not the upgraded state
+		upgradedPrevState.ProviderInstanceAddr = *inst.ProviderInstance
 		p.planCtx.refreshedState.SetResourceInstanceObjectFull(inst.Addr.CurrentObject(), upgradedPrevState)
 
 		obj, err := states.DecodeResourceInstanceObjectFull(upgradedPrevState, schema.Block.ImpliedType())
