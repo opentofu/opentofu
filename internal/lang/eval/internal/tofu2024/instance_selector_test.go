@@ -93,6 +93,16 @@ func TestCompileInstanceSelectorForEach(t *testing.T) {
 				nil,
 				nil,
 			},
+			// This test covers what would be produced by:
+			//    for_each = tomap({})
+			// ...because in that case we don't have enough information to
+			// predict the element type, so we just leave it unspecified.
+			"empty map of unknown type inline": {
+				hcl.StaticExpr(cty.MapValEmpty(cty.DynamicPseudoType), rng),
+				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{}),
+				nil,
+				nil,
+			},
 			"map with one element from scope": {
 				hcltest.MockExprTraversalSrc(`map_with_a`),
 				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{
@@ -289,6 +299,16 @@ func TestCompileInstanceSelectorForEach(t *testing.T) {
 				nil,
 				nil,
 			},
+			"empty set of unknown type inline": {
+				// This test covers what would be produced by:
+				//    for_each = toset([])
+				// ...because in that case we don't have enough information to
+				// predict the element type, so we just leave it unspecified.
+				hcl.StaticExpr(cty.SetValEmpty(cty.DynamicPseudoType), rng),
+				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{}),
+				nil,
+				nil,
+			},
 			"set with one element from scope": {
 				hcltest.MockExprTraversalSrc(`set_with_a`),
 				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{
@@ -311,6 +331,15 @@ func TestCompileInstanceSelectorForEach(t *testing.T) {
 				nil, // instances are unknown
 				nil,
 				diagsHasError("The for_each value must not be null."),
+			},
+			"set with null in it": {
+				hcl.StaticExpr(cty.SetVal([]cty.Value{
+					cty.StringVal("not null"),
+					cty.NullVal(cty.String),
+				}), rng),
+				nil, // instances are unknown
+				nil,
+				diagsHasError("a null element is not allowed"),
 			},
 			"set of non-string values": {
 				hcl.StaticExpr(cty.SetVal([]cty.Value{cty.True}), rng),
