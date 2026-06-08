@@ -209,7 +209,13 @@ func compileInstanceSelectorForEach(_ context.Context, forEachValuer exprs.Value
 
 			typ := rawVal.Type()
 			if typ.IsSetType() {
-				if !typ.ElementType().Equals(cty.String) {
+				// We accept only sets of string or of unknown element type.
+				// We must accept unknown element type so that it's valid to
+				// write:
+				//   for_each = toset([])
+				// ...since the toset function can't infer an element type
+				// automatically in that case, so it leaves it unspecified.
+				if !typ.ElementType().Equals(cty.String) && !typ.ElementType().Equals(cty.DynamicPseudoType) {
 					diags = diags.Append(&hcl.Diagnostic{
 						Severity: hcl.DiagError,
 						Summary:  errSummary,
@@ -220,6 +226,21 @@ func compileInstanceSelectorForEach(_ context.Context, forEachValuer exprs.Value
 				}
 				if !rawVal.IsWhollyKnown() {
 					return nil, marks, diags
+				}
+				// For sets it's also possible for an author to provide a null
+				// element, so we need to screen for that and reject it here
+				// to avoid problems below when we try to treat every element
+				// as a non-null string.
+				for k := range rawVal.Elements() {
+					if k.IsNull() {
+						diags = diags.Append(&hcl.Diagnostic{
+							Severity: hcl.DiagError,
+							Summary:  errSummary,
+							Detail:   "When using a set with for_each, a null element is not allowed because the element values will be used as instance keys.",
+							Subject:  forEachValuer.ValueSourceRange().ToHCL().Ptr(),
+						})
+						return nil, marks, diags
+					}
 				}
 			} else if typ.IsMapType() {
 				if !rawVal.IsKnown() {
