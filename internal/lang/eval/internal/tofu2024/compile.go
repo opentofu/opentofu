@@ -10,12 +10,14 @@ import (
 	"iter"
 	"time"
 
+	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
+	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -130,6 +132,24 @@ func CompileModuleInstance(
 		call.EvalContext.Modules,
 		call,
 	)
+
+	legacyDependsOnModuleCall := func(callName string) *configgraph.OnceValuer {
+		// TODO cache
+		// TODO make sure we are workgraphing correctly
+		return configgraph.ValuerOnce(exprs.DerivedValuer(exprs.ConstantValuer(cty.DynamicVal), func(cty.Value, tfdiags.Diagnostics) (cty.Value, tfdiags.Diagnostics) {
+			var values []cty.Value
+			children := ret.ChildModuleInstancesForCall(ctx, addrs.ModuleCall{Name: callName})
+			for _, child := range children {
+				resources := evalglue.ResourceInstancesDeep(ctx, child)
+				for resource := range resources {
+					value, _ := resource.Value(ctx)
+					values = append(values, value)
+				}
+			}
+			return cty.TupleVal(values), nil
+		}))
+	}
+
 	ret.resourceNodes = compileModuleInstanceResources(ctx,
 		module.ManagedResources,
 		module.DataResources,
@@ -138,6 +158,7 @@ func CompileModuleInstance(
 		providersSidechannel,
 		call.CalleeAddr,
 		call.EvalContext.Providers,
+		legacyDependsOnModuleCall,
 		call.EvaluationGlue.ResourceInstanceValue,
 	)
 

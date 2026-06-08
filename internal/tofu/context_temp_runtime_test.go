@@ -62,7 +62,7 @@ var (
 	ExperimentalFeatureTarget            = ExperimentalFlag{"Missing Targeting", false}
 	ExperimentalFeatureReplaceTB         = ExperimentalFlag{"Missing replace_triggered_by", false}
 	ExperimentalFeatureProvisioner       = ExperimentalFlag{"Missing Provisioners", false}
-	ExperimentalFeatureDependsOn         = ExperimentalFlag{"Missing Depends On", false}
+	ExperimentalFeatureDependsOn         = ExperimentalFlag{"Missing Depends On", true}
 	ExperimentalFeatureIgnoreChanges     = ExperimentalFlag{"Missing Ignore Changes", false}
 	ExperimentalFeatureVarCondition      = ExperimentalFlag{"Missing Variable Condiitions", false}
 	ExperimentalFeaturePathAttrs         = ExperimentalFlag{"Missing Path/Terraform/Tofu Attrs", false}

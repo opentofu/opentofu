@@ -1418,6 +1418,7 @@ func TestContext2Apply_destroyDependsOn(t *testing.T) {
 }
 
 func testContext2Apply_destroyDependsOn(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureDestroy)
 	m := testModule(t, "apply-destroy-depends-on")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn

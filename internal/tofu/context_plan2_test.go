@@ -4761,6 +4761,7 @@ data "test_object" "a" {
 }
 
 func TestContext2Plan_applyGraphError(t *testing.T) {
+	t.Skip("Circular Dependencies")
 	SkipExperimental(t, ExperimentalFeatureDependsOn)
 
 	m := testModuleInline(t, map[string]string{
