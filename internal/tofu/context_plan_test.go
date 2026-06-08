@@ -2730,7 +2730,7 @@ func TestContext2Plan_countComputed(t *testing.T) {
 }
 
 func TestContext2Plan_countComputedModule(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugForEach)
+	SkipExperimental(t, ExperimentalChangeDeferredActions)
 
 	m := testModule(t, "plan-count-computed-module")
 	p := testProvider("aws")
