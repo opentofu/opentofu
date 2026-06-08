@@ -502,9 +502,22 @@ func extractChdirOption(args []string) (string, []string, error) {
 			// non-option before we find -chdir then we are finished.
 			break
 		}
-		if arg == argName || arg == argPrefix {
+		if arg == argName {
+			if i+1 >= len(args) {
+				return "", args, fmt.Errorf("must include a directory path after -chdir")
+			}
+			argPos = i
+			argValue = args[i+1]
+
+			// remove both "-chdir" and directory
+			newArgs := append(args[:i], args[i+2:]...)
+			return argValue, newArgs, nil
+		}
+
+		if arg == argPrefix {
 			return "", args, fmt.Errorf("must include an equals sign followed by a directory path, like -chdir=example")
 		}
+
 		if strings.HasPrefix(arg, argPrefix) {
 			argPos = i
 			argValue = arg[len(argPrefix):]

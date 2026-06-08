@@ -367,3 +367,62 @@ func TestMkConfigDir_noparent(t *testing.T) {
 		t.Fatalf("Expected error: %s, but got: %v", expectedError, err)
 	}
 }
+
+func TestExtractChdirOption(t *testing.T) {
+	tests := []struct {
+		name      string
+		args      []string
+		wantDir   string
+		wantArgs  []string
+		expectErr bool
+	}{
+		{
+			name:     "equals syntax",
+			args:     []string{"-chdir=mydir", "init"},
+			wantDir:  "mydir",
+			wantArgs: []string{"init"},
+		},
+		{
+			name:     "space syntax",
+			args:     []string{"-chdir", "mydir", "init"},
+			wantDir:  "mydir",
+			wantArgs: []string{"init"},
+		},
+		{
+			name:      "missing dir",
+			args:      []string{"-chdir"},
+			expectErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotDir, gotArgs, err := extractChdirOption(tt.args)
+
+			if tt.expectErr {
+				if err == nil {
+					t.Fatalf("Expected an error but got none")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			if gotDir != tt.wantDir {
+				t.Fatalf("got dir %q, want %q", gotDir, tt.wantDir)
+			}
+
+			if len(gotArgs) != len(tt.wantArgs) {
+				t.Fatalf("got args %v, want %v", gotArgs, tt.wantArgs)
+			}
+
+			for i := range gotArgs {
+				if gotArgs[i] != tt.wantArgs[i] {
+					t.Fatalf("got args %v, want %v", gotArgs, tt.wantArgs)
+				}
+			}
+		})
+	}
+}
