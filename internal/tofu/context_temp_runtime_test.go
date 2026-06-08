@@ -79,6 +79,10 @@ var (
 	ExperimentalFeatureErrorHandling     = ExperimentalFlag{"Missing Error Handling", false}
 	ExperimentalFeatureProviderFunctions = ExperimentalFlag{"Missing Provider Defined Functions", false}
 
+	// Obsolete flags indicate a test which depends on a feature we do not
+	// intend to carry forward into the new engine
+	ExperimentalObsoleteFlatAttrs = ExperimentalFlag{"Obsolete Flat Mapped Attributes", false}
+
 	// ExperimentalNewStrategyNeeded is a special experimental flag that
 	// represents that a test is failing not because the underlying behavior
 	// is wrong but because the test was relying on poking around in the
