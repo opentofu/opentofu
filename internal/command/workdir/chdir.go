@@ -19,9 +19,6 @@ import (
 // TODO meta-refactor: this is a temporary solution until we will switch the CLI library that
 // will be able to handle root-only flags in a similar fashion with what we are doing here manually.
 func runChdir(args []string) ([]string, error) {
-	// The arguments can begin with a -chdir option to ask OpenTofu to switch
-	// to a different working directory for the rest of its work. If that
-	// option is present then extractChdirOption returns a trimmed args with that option removed.
 	overrideWd, args, err := extractChdirOption(args)
 	if err != nil {
 		return nil, fmt.Errorf("Invalid -chdir option: %s", err)
@@ -41,49 +38,66 @@ func runChdir(args []string) ([]string, error) {
 // It returns back the list of arguments without the -chdir flag and value to be used later by the invoked command.
 // This returns also an error in case the -chdir flag is given with the wrong values.
 //
+// Supported syntaxes:
+//   - -chdir=<dir>
+//   - --chdir=<dir>
+//   - -chdir <dir>
+//   - --chdir <dir>
+//
 // TODO meta-refactor: remove this once the current CLI library is replaced.
 func extractChdirOption(args []string) (string, []string, error) {
 	if len(args) == 0 {
 		return "", args, nil
 	}
 
-	const argName = "-chdir"
-	const argPrefix = argName + "="
+	const argNameSingle = "-chdir"
+	const argNameDouble = "--chdir"
+	const argPrefixSingle = argNameSingle + "="
+	const argPrefixDouble = argNameDouble + "="
+
 	var argValue string
 	var argPos int
+	var argLen int // 1 for -chdir=x, 2 for -chdir x
 
 	for i, arg := range args {
 		if !strings.HasPrefix(arg, "-") {
-			// Because the chdir option is a subcommand-agnostic one, we require
-			// it to appear before any subcommand argument, so if we find a
-			// non-option before we find -chdir then we are finished.
+			// chdir must appear before any subcommand, so stop
+			// as soon as we see a non-option argument.
 			break
 		}
-		if arg == argName || arg == argPrefix {
-			return "", args, fmt.Errorf("must include an equals sign followed by a directory path, like -chdir=example")
-		}
-		if strings.HasPrefix(arg, argPrefix) {
+
+		// Handle -chdir=<dir> and --chdir=<dir>
+		if strings.HasPrefix(arg, argPrefixSingle) || strings.HasPrefix(arg, argPrefixDouble) {
+			value := arg[strings.Index(arg, "=")+1:]
+			if value == "" {
+				return "", args, fmt.Errorf("must include a directory path after the equals sign, like -chdir=example")
+			}
 			argPos = i
-			argValue = arg[len(argPrefix):]
+			argValue = value
+			argLen = 1
+			break
+		}
+
+		// Handle bare -chdir or --chdir (space separated)
+		if arg == argNameSingle || arg == argNameDouble {
+			if i+1 >= len(args) || strings.HasPrefix(args[i+1], "-") {
+				return "", args, fmt.Errorf("must include a directory path, like -chdir=example or -chdir example")
+			}
+			argPos = i
+			argValue = args[i+1]
+			argLen = 2
+			break
 		}
 	}
 
-	// When we fall out here, we'll have populated argValue with a non-empty
-	// string if the -chdir=... option was present and valid, or left it
-	// empty if it wasn't present.
 	if argValue == "" {
 		return "", args, nil
 	}
 
-	// If we did find the option then we'll need to produce a new args that
-	// doesn't include it anymore.
-	if argPos == 0 {
-		// Easy case: we can just slice off the front
-		return argValue, args[1:], nil
-	}
-	// Otherwise we need to construct a new array and copy to it.
-	newArgs := make([]string, len(args)-1)
-	copy(newArgs, args[:argPos])
-	copy(newArgs[argPos:], args[argPos+1:])
+	// Build new args slice with the -chdir flag (and value if space-separated) removed.
+	newArgs := make([]string, 0, len(args)-argLen)
+	newArgs = append(newArgs, args[:argPos]...)
+	newArgs = append(newArgs, args[argPos+argLen:]...)
+
 	return argValue, newArgs, nil
 }
