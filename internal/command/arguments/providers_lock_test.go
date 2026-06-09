@@ -63,13 +63,21 @@ func TestParseProvidersLock_basicValidation(t *testing.T) {
 				v.NetMirrorURL = "https://example.com/mirror"
 			}),
 		},
-		"both mirrors error": {
-			args: []string{"-fs-mirror=/path", "-net-mirror=https://example.com"},
+		"oci-mirror flag": {
+			args: []string{"-oci-mirror=https://example.com/mirror"},
+			want: providersLockArgsWithDefaults(func(v *ProvidersLock) {
+				v.Providers = []string{}
+				v.OciMirrorTemplate = "https://example.com/mirror"
+			}),
+		},
+		"all mirrors error": {
+			args: []string{"-fs-mirror=/path", "-net-mirror=https://example.com", "-oci-mirror=https://example.com/mirror"},
 			want: providersLockArgsWithDefaults(func(v *ProvidersLock) {
 				v.FsMirrorDir = "/path"
 				v.NetMirrorURL = "https://example.com"
+				v.OciMirrorTemplate = "https://example.com/mirror"
 			}),
-			wantErrText: "The -fs-mirror and -net-mirror command line options are mutually-exclusive.",
+			wantErrText: "The mirror command line options are mutually-exclusive.",
 		},
 		"mixed flags and providers": {
 			args: []string{"-platform=linux_amd64", "-platform=darwin_arm64", "test_ns/test_provider", "test_ns2/test_provider2"},

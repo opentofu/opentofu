@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/opentofu/internal/command/system"
+	"github.com/opentofu/opentofu/internal/oci"
 	"github.com/opentofu/svchost/disco"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -195,6 +196,7 @@ type Meta struct {
 	// In any other cases, this configuration is built and used directly in `realMain`
 	// when the providers sources are built.
 	ProviderSourceLocationConfig getproviders.LocationConfig
+	OCICredentialsPolicyBuilder  oci.OCICredsPolicyBuilder
 }
 
 type testingOverrides struct {

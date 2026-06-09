@@ -24,6 +24,9 @@ type ProvidersLock struct {
 	// NetMirrorURL represents a URL to a mirrored registry from where OpenTofu should check for
 	// providers instead to reach out for the registry.
 	NetMirrorURL string
+	// OciMirrorTemplate represents a URI-style template string that evaluates to an OCI repository address
+	// to use for the providers.
+	OciMirrorTemplate string
 
 	// ViewOptions specifies which view options to use
 	ViewOptions ViewOptions
@@ -44,6 +47,7 @@ func ParseProvidersLock(args []string) (*ProvidersLock, func(), tfdiags.Diagnost
 	cmdFlags.Var(&arguments.OptPlatforms, "platform", "target platform")
 	cmdFlags.StringVar(&arguments.FsMirrorDir, "fs-mirror", "", "filesystem mirror directory")
 	cmdFlags.StringVar(&arguments.NetMirrorURL, "net-mirror", "", "network mirror base URL")
+	cmdFlags.StringVar(&arguments.OciMirrorTemplate, "oci-mirror", "", "oci mirror URI template")
 	arguments.ViewOptions.AddFlags(cmdFlags, false)
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -52,12 +56,20 @@ func ParseProvidersLock(args []string) (*ProvidersLock, func(), tfdiags.Diagnost
 			err.Error(),
 		))
 	}
-	if arguments.FsMirrorDir != "" && arguments.NetMirrorURL != "" {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Invalid installation method options",
-			"The -fs-mirror and -net-mirror command line options are mutually-exclusive.",
-		))
+	mirrorSet := false
+	for _, mirror := range []string{arguments.FsMirrorDir, arguments.NetMirrorURL, arguments.OciMirrorTemplate} {
+		if mirror == "" {
+			continue
+		}
+		if mirrorSet {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Invalid installation method options",
+				"The mirror command line options are mutually-exclusive.",
+			))
+			break
+		}
+		mirrorSet = true
 	}
 
 	closer, moreDiags := arguments.ViewOptions.Parse()

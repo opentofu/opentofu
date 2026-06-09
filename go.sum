@@ -656,8 +656,8 @@ github.com/opentofu/hcl/v2 v2.20.2-0.20251021132045-587d123c2828 h1:r2WiJxljn/Cx
 github.com/opentofu/hcl/v2 v2.20.2-0.20251021132045-587d123c2828/go.mod h1:k+HgkLpoWu9OS81sy4j1XKDXaWm/rLysG33v5ibdDnc=
 github.com/opentofu/registry-address/v2 v2.0.0-20260307135325-45f3562374e4 h1:k5ODrqBcfHzccrsiiKKRcqvtMgDw1yo1W53K7LYFBlA=
 github.com/opentofu/registry-address/v2 v2.0.0-20260307135325-45f3562374e4/go.mod h1:7M92SvuJm1WBriIpa4j0XmruU9pxkgPXmRdc6FfAvAk=
-github.com/opentofu/svchost v0.0.0-20250610175836-86c9e5e3d8c8 h1:J3pmsVB+nGdfNp5HWdEAC96asYgc7S6J724ICrYDCTk=
-github.com/opentofu/svchost v0.0.0-20250610175836-86c9e5e3d8c8/go.mod h1:0kKTcD9hUrbAz41GWp8USa/+OuI8QKirU3qdCWNa3jI=
+github.com/opentofu/svchost v0.0.0-20260410171206-1a42986aa3f4 h1:BhB8EYO7kGYQS64iSAsCrz5t1ZILAmQBCxlAI4iXK2c=
+github.com/opentofu/svchost v0.0.0-20260410171206-1a42986aa3f4/go.mod h1:0kKTcD9hUrbAz41GWp8USa/+OuI8QKirU3qdCWNa3jI=
 github.com/opentracing/opentracing-go v1.2.1-0.20220228012449-10b1cf09e00b h1:FfH+VrHHk6Lxt9HdVS0PXzSXFyS2NbZKXv33FYPol0A=
 github.com/opentracing/opentracing-go v1.2.1-0.20220228012449-10b1cf09e00b/go.mod h1:AC62GU6hc0BrNm+9RK9VSiwa/EUe1bkIeFORAMcHvJU=
 github.com/pascaldekloe/goe v0.0.0-20180627143212-57f6aae5913c/go.mod h1:lzWF7FIEvWOWxwDKqyGYQf6ZUaNfKdP144TG7ZOy1lc=
