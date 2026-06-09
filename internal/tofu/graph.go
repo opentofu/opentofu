@@ -36,11 +36,11 @@ func (g *Graph) DirectedGraph() dag.Grapher {
 // Walk walks the graph with the given walker for callbacks. The graph
 // will be walked with full parallelism, so the walker should expect
 // to be called in concurrently.
-func (g *Graph) Walk(ctx context.Context, walker GraphWalker, backupStateForError func(*states.State)) tfdiags.Diagnostics {
-	return g.walk(ctx, walker, backupStateForError)
+func (g *Graph) Walk(ctx context.Context, walker GraphWalker, backupStateForPanic func(*states.State)) tfdiags.Diagnostics {
+	return g.walk(ctx, walker, backupStateForPanic)
 }
 
-func (g *Graph) walk(ctx context.Context, walker GraphWalker, backupStateForError func(*states.State)) tfdiags.Diagnostics {
+func (g *Graph) walk(ctx context.Context, walker GraphWalker, backupStateForPanic func(*states.State)) tfdiags.Diagnostics {
 	// The callbacks for enter/exiting a graph
 	evalCtx := walker.EvalContext()
 
@@ -51,10 +51,10 @@ func (g *Graph) walk(ctx context.Context, walker GraphWalker, backupStateForErro
 	panicHandler := logging.PanicHandlerWithTraceHandlerFn()
 
 	hailMaryStateDump := func() {
-		if backupStateForError != nil {
+		if backupStateForPanic != nil {
 			// We will be exiting after this so no need to Unlock
 			state := walker.EvalContext().State().Lock()
-			backupStateForError(state)
+			backupStateForPanic(state)
 		}
 	}
 
@@ -132,7 +132,7 @@ func (g *Graph) walk(ctx context.Context, walker GraphWalker, backupStateForErro
 
 				// Walk the subgraph
 				log.Printf("[TRACE] vertex %q: entering dynamic subgraph", dag.VertexName(v))
-				subDiags := g.walk(ctx, walker, backupStateForError)
+				subDiags := g.walk(ctx, walker, backupStateForPanic)
 				diags = diags.Append(subDiags)
 				if subDiags.HasErrors() {
 					var errs []string
