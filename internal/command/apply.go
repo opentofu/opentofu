@@ -264,6 +264,9 @@ func (c *ApplyCommand) OperationRequest(
 	opReq.ConfigDir = "."
 	opReq.PlanMode = applyArgs.Operation.PlanMode
 	opReq.Hooks = view.Hooks()
+	if c.SystemCfg.E2ETestingFeaturesEnabled {
+		opReq.Hooks = append(opReq.Hooks, &e2eTestingApplyHook{})
+	}
 	opReq.PlanFile = planFile
 	opReq.PlanRefresh = applyArgs.Operation.Refresh
 	opReq.Targets = applyArgs.Operation.Targets
