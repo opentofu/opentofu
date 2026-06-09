@@ -217,7 +217,7 @@ func (b *Local) localRunDirect(ctx context.Context, stopCtx context.Context, op 
 	// Set ApplyOpts for direct runs to pass through the CLI flag
 	run.ApplyOpts = &tofu.ApplyOpts{
 		SuppressForgetErrorsDuringDestroy: op.SuppressForgetErrorsDuringDestroy,
-		BackupStateForError: func(state *states.State) {
+		BackupStateForPanic: func(state *states.State) {
 			stateFile := statemgr.Export(s)
 			if stateFile == nil {
 				stateFile = statefile.New(state, "", 0)
@@ -300,7 +300,7 @@ func (b *Local) localRunForPlanFile(ctx context.Context, op *backend.Operation, 
 	run.ApplyOpts = &tofu.ApplyOpts{
 		SetVariables:                      declaredVars,
 		SuppressForgetErrorsDuringDestroy: op.SuppressForgetErrorsDuringDestroy,
-		BackupStateForError: func(state *states.State) {
+		BackupStateForPanic: func(state *states.State) {
 			var stateFile *statefile.File
 			if currentStateMeta != nil {
 				stateFile = statefile.New(state, currentStateMeta.Lineage, currentStateMeta.Serial)

@@ -42,7 +42,9 @@ type ApplyOpts struct {
 	// be raised when a destroy operation completes with forgotten instances remaining.
 	SuppressForgetErrorsDuringDestroy bool
 
-	BackupStateForError func(*states.State)
+	// BackupStateForPanic is an optional handler that is called if a panic is encountered
+	// during the graph walk.
+	BackupStateForPanic func(*states.State)
 }
 
 // Apply performs the actions described by the given Plan object and returns
@@ -136,7 +138,7 @@ func (c *Context) Apply(ctx context.Context, plan *plans.Plan, config *configs.C
 
 	var backupStateFunc func(*states.State)
 	if opts != nil {
-		backupStateFunc = opts.BackupStateForError
+		backupStateFunc = opts.BackupStateForPanic
 	}
 
 	workingState := plan.PriorState.DeepCopy()
@@ -155,7 +157,7 @@ func (c *Context) Apply(ctx context.Context, plan *plans.Plan, config *configs.C
 		ProviderFunctionTracker: providerFunctionTracker,
 
 		// Include state backup handler in case of panic
-		BackupStateForError: backupStateFunc,
+		BackupStateForPanic: backupStateFunc,
 	})
 	diags = diags.Append(walker.NonFatalDiagnostics)
 	diags = diags.Append(walkDiags)
