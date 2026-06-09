@@ -19,6 +19,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/cliconfig"
 	"github.com/opentofu/opentofu/internal/getproviders"
+	"github.com/opentofu/opentofu/internal/oci"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -31,7 +32,7 @@ func providerSource(
 	configs []*cliconfig.ProviderInstallation,
 	registryClientConfig *cliconfig.RegistryProtocolsConfig,
 	services *disco.Disco,
-	getOCICredsPolicy ociCredsPolicyBuilder,
+	getOCICredsPolicy oci.OCICredsPolicyBuilder,
 	originalWorkingDir string,
 ) (getproviders.Source, tfdiags.Diagnostics) {
 	if len(configs) == 0 {
@@ -53,7 +54,7 @@ func explicitProviderSource(
 	config *cliconfig.ProviderInstallation,
 	registryClientConfig *cliconfig.RegistryProtocolsConfig,
 	services *disco.Disco,
-	getOCICredsPolicy ociCredsPolicyBuilder,
+	getOCICredsPolicy oci.OCICredsPolicyBuilder,
 ) (getproviders.Source, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	var searchRules []getproviders.MultiSourceSelector
@@ -222,7 +223,7 @@ func providerSourceForCLIConfigLocation(
 	trustedSource cliconfig.ProviderInstallationMethodTrusted,
 	registryClientConfig *cliconfig.RegistryProtocolsConfig,
 	services *disco.Disco,
-	makeOCICredsPolicy ociCredsPolicyBuilder,
+	makeOCICredsPolicy oci.OCICredsPolicyBuilder,
 ) (getproviders.Source, tfdiags.Diagnostics) {
 	if loc == cliconfig.ProviderInstallationDirect {
 		return getproviders.NewMemoizeSource(
@@ -278,7 +279,7 @@ func providerSourceForCLIConfigLocation(
 					// This deals with only a small number of errors that we can't catch during CLI config validation
 					return nil, fmt.Errorf("invalid credentials configuration for OCI registries: %w", err)
 				}
-				return getOCIRepositoryStore(ctx, registryDomain, repositoryName, credsPolicy)
+				return oci.GetOCIRepositoryStore(ctx, registryDomain, repositoryName, credsPolicy)
 			},
 		), nil
 

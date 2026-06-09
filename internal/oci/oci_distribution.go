@@ -3,7 +3,7 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package main
+package oci
 
 // This file deals with our cross-cutting concerns relating to the OCI Distribution
 // protocol, shared across both the provider and module installers, and potentially
@@ -28,7 +28,7 @@ import (
 	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 )
 
-// ociCredsPolicyBuilder is the type of a callback function that the [providerSource]
+// OCICredsPolicyBuilder is the type of a callback function that the [providerSource]
 // and [remoteModulePackageFetcher] functions will use if any of the configured
 // provider installation methods or the module installer need to interact with
 // OCI Distribution registries.
@@ -36,7 +36,7 @@ import (
 // We represent this indirectly as a callback function so that we can skip doing
 // this work in the common case where we won't need to interact with OCI registries
 // at all.
-type ociCredsPolicyBuilder func(context.Context) (ociauthconfig.CredentialsConfigs, error)
+type OCICredsPolicyBuilder func(context.Context) (ociauthconfig.CredentialsConfigs, error)
 
 var ociReposMu sync.Mutex
 var ociRepos map[ociRepoKey]ociRepositoryStore
@@ -45,7 +45,7 @@ type ociRepoKey struct {
 	registryDomain, repositoryName string
 }
 
-// getOCIRepositoryStore instantiates a [getproviders.OCIRepositoryStore] implementation to use
+// GetOCIRepositoryStore instantiates a [getproviders.OCIRepositoryStore] implementation to use
 // when accessing the given repository on the given registry, using the given OCI credentials
 // policy to decide which credentials to use.
 //
@@ -54,7 +54,7 @@ type ociRepoKey struct {
 // life of the program will have the same credsPolicy argument. That assumption should
 // hold because in practice we only create a single credsPolicy per execution, based on
 // the CLI Configuration, and use it in both module_source.go and provider_source.go.
-func getOCIRepositoryStore(ctx context.Context, registryDomain, repositoryName string, credsPolicy ociauthconfig.CredentialsConfigs) (ociRepositoryStore, error) {
+func GetOCIRepositoryStore(ctx context.Context, registryDomain, repositoryName string, credsPolicy ociauthconfig.CredentialsConfigs) (ociRepositoryStore, error) {
 	// We currently use the ORAS-Go library to satisfy both the [getproviders.OCIRepositoryStore]
 	// and [getmodules.OCIRepositoryStore] interfaces, which is easy because those interfaces
 	// were designed to match a subset of the ORAS-Go API since we had no particular need to

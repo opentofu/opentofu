@@ -10,9 +10,10 @@ import (
 	"fmt"
 
 	"github.com/opentofu/opentofu/internal/getmodules"
+	"github.com/opentofu/opentofu/internal/oci"
 )
 
-func remoteModulePackageFetcher(ctx context.Context, getOCICredsPolicy ociCredsPolicyBuilder) *getmodules.PackageFetcher {
+func remoteModulePackageFetcher(ctx context.Context, getOCICredsPolicy oci.OCICredsPolicyBuilder) *getmodules.PackageFetcher {
 	// TODO: Pass in a real getmodules.PackageFetcherEnvironment here,
 	// which knows how to make use of the OCI authentication policy.
 	return getmodules.NewPackageFetcher(ctx, &modulePackageFetcherEnvironment{
@@ -21,7 +22,7 @@ func remoteModulePackageFetcher(ctx context.Context, getOCICredsPolicy ociCredsP
 }
 
 type modulePackageFetcherEnvironment struct {
-	getOCICredsPolicy ociCredsPolicyBuilder
+	getOCICredsPolicy oci.OCICredsPolicyBuilder
 }
 
 // OCIRepositoryStore implements getmodules.PackageFetcherEnvironment.
@@ -36,5 +37,5 @@ func (m *modulePackageFetcherEnvironment) OCIRepositoryStore(ctx context.Context
 		// This deals with only a small number of errors that we can't catch during CLI config validation
 		return nil, fmt.Errorf("invalid credentials configuration for OCI registries: %w", err)
 	}
-	return getOCIRepositoryStore(ctx, registryDomainName, repositoryPath, credsPolicy)
+	return oci.GetOCIRepositoryStore(ctx, registryDomainName, repositoryPath, credsPolicy)
 }
