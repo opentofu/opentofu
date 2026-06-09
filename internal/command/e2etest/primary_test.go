@@ -683,6 +683,53 @@ func TestEphemeralRepetitionData(t *testing.T) {
 
 }
 
+func TestApplyPanic(t *testing.T) {
+	t.Parallel()
+
+	tf := e2e.NewBinary(t, tofuBin, "testdata/apply-panic")
+	buildSimpleProvider(t, "6", tf.WorkDir(), "simple")
+	{ // INIT
+		_, stderr, err := tf.Run("init", "-plugin-dir=./cache")
+		if err != nil {
+			t.Fatalf("unexpected init error: %s\nstderr:\n%s", err, stderr)
+		}
+	}
+
+	{ // APPLY
+		// Force panic on the second resource
+		tf.AddEnv("TOFU_E2E_APPLY_RESOURCE_PANIC=simple_resource.bar")
+
+		_, stderr, err := tf.Run("apply", "-auto-approve")
+		if err == nil {
+			t.Errorf("expected to have an error during apply but got nothing. output:\n%s", stderr)
+		}
+
+		if !strings.Contains(stderr, "Graph Traversal Panic") {
+			t.Errorf("Expected graph panic, got %s", stderr)
+		}
+		if !strings.Contains(stderr, "Crash simulating a critical programming error in the apply process, this should produce an errored.tfstate file") {
+			t.Errorf("Expected graph panic, got %s", stderr)
+		}
+		_, err = tf.LocalState()
+		if err == nil {
+			t.Error("Expected empty local state due to crash")
+		}
+
+		state, err := tf.StateFromFile("errored.tfstate")
+		if err != nil {
+			t.Errorf("Expected errored.tfstate to exist: %s", err.Error())
+		}
+
+		stateResources := state.RootModule().Resources
+		if _, ok := stateResources["simple_resource.foo"]; !ok {
+			t.Error("Expected simple_resource.foo in state")
+		}
+		if _, ok := stateResources["simple_resource.bar"]; !ok {
+			t.Error("Expected simple_resource.bar (stub) in state")
+		}
+	}
+}
+
 // This function builds and moves to a directory called "cache" inside the workdir,
 // the version of the provider passed as argument.
 // Instead of using this function directly, the pre-configured functions buildV5TestProvider and

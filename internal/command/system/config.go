@@ -53,4 +53,8 @@ type Config struct {
 	// is that all/most _future_ experiments will be unavailable unless this
 	// flag is set, to reinforce that experiments are not for production use.
 	AllowExperimentalFeatures bool
+
+	// E2ETestingFeaturesEnabled controls functionality related to replicating
+	// odd edge cases in OpenTofu, such as programming errors.
+	E2ETestingFeaturesEnabled bool
 }

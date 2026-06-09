@@ -253,6 +253,7 @@ func GoBuild(pkgPath, tmpPrefix string) string {
 	args := []string{
 		"go",
 		"build",
+		`-ldflags=-X 'main.e2eTestingFeatures=yes'`,
 	}
 
 	if len(os.Getenv("GOCOVERDIR")) != 0 {
