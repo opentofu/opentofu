@@ -686,6 +686,10 @@ func TestEphemeralRepetitionData(t *testing.T) {
 func TestApplyPanic(t *testing.T) {
 	t.Parallel()
 
+	if runtime.GOOS == "windows" {
+		t.Skip("due to locked file descriptors not being immediately cleaned up on panic")
+	}
+
 	tf := e2e.NewBinary(t, tofuBin, "testdata/apply-panic")
 	buildSimpleProvider(t, "6", tf.WorkDir(), "simple")
 	{ // INIT
