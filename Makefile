@@ -63,6 +63,12 @@ license-check:
 	rm -rf vendor/
 	git diff --exit-code
 
+# This runs the copyright checks against the files in this repository.
+# This is the same script that is used also in the .github/workflows/checks.yml. If this or that configuration is ever changed,
+# be sure that the changes are reflected in both places.
+copyright:
+	curl -fsSL https://raw.githubusercontent.com/opentofu/scripts/copyright-workflow-bash/sh/copyright_check.sh | bash -s -- "" "*.go *.proto" "*/.git* */vendor/* */node_modules/* */.workdir* */website/*"
+
 # Install dependencies
 deps: bin/licensei
 deps:
