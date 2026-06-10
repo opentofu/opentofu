@@ -9,6 +9,12 @@ SECURITY ADVISORIES:
 
   This is fixed now by ([#4177](https://github.com/opentofu/opentofu/pull/4177))
 
+* Previous releases in the v1.12 series could be affected by several vulnerabilities:
+  * When using SSH connections through OpenTofu, the errors that were returned from attempting a connection could include unescaped input bytes.
+  * If using an attacker-controlled server to run `tofu` against, it might end up in high CPU consumption.
+  
+  These are now fixed by ([#4247](https://github.com/opentofu/opentofu/pull/4247))
+
 BUG FIXES:
 
 - Properly handle EDEADLK during provider installation. On Unix systems, the kernel may erroneously detect a deadlock between tofu processes using the global plugin cache. ([#4166](https://github.com/opentofu/opentofu/pull/4166))
