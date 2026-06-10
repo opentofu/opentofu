@@ -110,4 +110,6 @@ type ModuleCall struct {
 	// setting in the parent module, because EvalContext holds cross-cutting
 	// concerns from the environment in which OpenTofu is running.
 	EvalContext *EvalContext
+
+	AdditionalMarks cty.ValueMarks
 }

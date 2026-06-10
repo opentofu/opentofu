@@ -8,10 +8,8 @@ package tofu2024
 import (
 	"context"
 	"fmt"
-	"maps"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -32,20 +30,20 @@ func compileModuleInstanceResources(
 	moduleProviders configgraph.CompileProviderConfigRef,
 	moduleInstanceAddr addrs.ModuleInstance,
 	providers evalglue.ProvidersSchema,
-	legacyDependsOnModuleCall func(callName string) hcl.Expression,
+	compileDependsOn dependsOnCompiler,
 	getResultValue func(context.Context, *configgraph.ResourceInstance, cty.Value, configgraph.Maybe[*configgraph.ProviderInstance], addrs.Set[addrs.AbsResourceInstance]) (cty.Value, tfdiags.Diagnostics),
 ) map[addrs.Resource]*configgraph.Resource {
 	ret := make(map[addrs.Resource]*configgraph.Resource, len(managedConfigs)+len(dataConfigs)+len(ephemeralConfigs))
 	for _, rc := range managedConfigs {
-		addr, rsrc := compileModuleInstanceResource(ctx, rc, declScope, moduleProviders, moduleInstanceAddr, providers, legacyDependsOnModuleCall, getResultValue)
+		addr, rsrc := compileModuleInstanceResource(ctx, rc, declScope, moduleProviders, moduleInstanceAddr, providers, compileDependsOn, getResultValue)
 		ret[addr] = rsrc
 	}
 	for _, rc := range dataConfigs {
-		addr, rsrc := compileModuleInstanceResource(ctx, rc, declScope, moduleProviders, moduleInstanceAddr, providers, legacyDependsOnModuleCall, getResultValue)
+		addr, rsrc := compileModuleInstanceResource(ctx, rc, declScope, moduleProviders, moduleInstanceAddr, providers, compileDependsOn, getResultValue)
 		ret[addr] = rsrc
 	}
 	for _, rc := range ephemeralConfigs {
-		addr, rsrc := compileModuleInstanceResource(ctx, rc, declScope, moduleProviders, moduleInstanceAddr, providers, legacyDependsOnModuleCall, getResultValue)
+		addr, rsrc := compileModuleInstanceResource(ctx, rc, declScope, moduleProviders, moduleInstanceAddr, providers, compileDependsOn, getResultValue)
 		ret[addr] = rsrc
 	}
 	return ret
@@ -58,7 +56,7 @@ func compileModuleInstanceResource(
 	moduleProviders configgraph.CompileProviderConfigRef,
 	moduleInstanceAddr addrs.ModuleInstance,
 	providers evalglue.ProvidersSchema,
-	legacyDependsOnModuleCall func(callName string) hcl.Expression,
+	compileDependsOn dependsOnCompiler,
 	getResultValue func(context.Context, *configgraph.ResourceInstance, cty.Value, configgraph.Maybe[*configgraph.ProviderInstance], addrs.Set[addrs.AbsResourceInstance]) (cty.Value, tfdiags.Diagnostics),
 ) (addrs.Resource, *configgraph.Resource) {
 	resourceAddr := config.Addr()
@@ -86,28 +84,7 @@ func compileModuleInstanceResource(
 		configEvalable = exprs.EvalableHCLBodyWithDynamicBlocks(config.Config, spec)
 	}
 
-	// Explicit "depends_on"
-	var dependsOn []hcl.Expression
-	for _, trav := range config.DependsOn {
-		// This implements legacy "depends_on" behavior, where 'module.callname' would imply a dependency on
-		// all resources within the module and it's children
-		//
-		// Long term, we want to switch from hcl.Traversal to hcl.Expression for config.DependsOn. This legacy
-		// functionality will need to be re-evaluated when that occurs. As written this workaround prevents
-		// anything after 'module.callname' from being utilized to select dependencies (like instances)
-		if len(trav) >= 2 {
-			if root, ok := trav[0].(hcl.TraverseRoot); ok && root.Name == "module" {
-				if inst, ok := trav[1].(hcl.TraverseAttr); ok {
-					dependsOn = append(dependsOn, legacyDependsOnModuleCall(inst.Name))
-					continue
-				}
-			}
-		}
-		dependsOn = append(dependsOn, &hclsyntax.ScopeTraversalExpr{
-			Traversal: trav,
-			SrcRange:  config.DeclRange, // TODO better range
-		})
-	}
+	dependsOn := compileDependsOn(config.DependsOn, config.DeclRange) // TODO better range
 
 	ret := &configgraph.Resource{
 		Addr:      absAddr,
@@ -151,12 +128,6 @@ func compileModuleInstanceResource(
 					exprs.ConstantValuerWithSourceRange(cbdVal, tfdiags.SourceRangeFromHCL(config.DeclRange)),
 				)
 			}
-
-			// This adds an implicit depends_on from marks in repetition data
-			// TODO merge these with  DependsOn
-			maps.Copy(additionalMarks, repData.CountIndex.Marks())
-			maps.Copy(additionalMarks, repData.EachKey.Marks())
-			maps.Copy(additionalMarks, repData.EachValue.Marks())
 
 			inst := &configgraph.ResourceInstance{
 				Addr:            absAddr.Instance(key),

@@ -56,6 +56,11 @@ func seqBuilder(ctx context.Context, declScope exprs.Scope, repData instances.Re
 		maps.Copy(marks, moreMarks)
 	}
 
+	// This adds an implicit depends_on from marks in repetition data
+	maps.Copy(marks, repData.CountIndex.Marks())
+	maps.Copy(marks, repData.EachKey.Marks())
+	maps.Copy(marks, repData.EachValue.Marks())
+
 	return configgraph.InstanceSeq{repData, marks}
 }
 

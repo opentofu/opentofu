@@ -78,7 +78,7 @@ type ModuleCall struct {
 	// This should only be called with a [ModuleSourceArguments] that was
 	// accepted by [ModuleCall.ValidateSourceArguments] without returning any
 	// errors.
-	CompileCallInstance func(ctx context.Context, sourceArgs ModuleSourceArguments, key addrs.InstanceKey, repData instances.RepetitionData) *ModuleCallInstance
+	CompileCallInstance func(ctx context.Context, sourceArgs ModuleSourceArguments, key addrs.InstanceKey, repData instances.RepetitionData, additionalMarks cty.ValueMarks) *ModuleCallInstance
 
 	// instancesResult tracks the process of deciding which instances are
 	// currently declared for this provider config, and the result of that process.
@@ -264,7 +264,7 @@ func (c *ModuleCall) decideInstances(ctx context.Context) (*compiledInstances[*M
 			}, nil
 		}
 		return compileInstances(ctx, c.InstanceSelector, func(ctx context.Context, key addrs.InstanceKey, repData instances.RepetitionData, additionalMarks cty.ValueMarks) *ModuleCallInstance {
-			return c.CompileCallInstance(ctx, sourceArgs, key, repData)
+			return c.CompileCallInstance(ctx, sourceArgs, key, repData, additionalMarks)
 		})
 	})
 }

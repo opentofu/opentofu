@@ -28,6 +28,7 @@ func compileModuleInstanceModuleCalls(
 	parentSourceAddr addrs.ModuleSource,
 	moduleInstanceAddr addrs.ModuleInstance,
 	externalModules evalglue.ExternalModules,
+	compileDependsOn dependsOnCompiler,
 	parentCall *ModuleInstanceCall,
 ) map[addrs.ModuleCall]*configgraph.ModuleCall {
 	ret := make(map[addrs.ModuleCall]*configgraph.ModuleCall, len(callConfigs))
@@ -45,11 +46,13 @@ func compileModuleInstanceModuleCalls(
 			versionConstraintValuer = exprs.ConstantValuer(cty.NullVal(cty.String))
 		}
 
+		dependsOn := compileDependsOn(config.DependsOn, config.DeclRange)
+
 		ret[addr] = &configgraph.ModuleCall{
 			Addr:             addr.Absolute(moduleInstanceAddr),
 			DeclRange:        tfdiags.SourceRangeFromHCL(config.DeclRange),
 			ParentSourceAddr: parentSourceAddr,
-			InstanceSelector: compileInstanceSelector(ctx, declScope, config.ForEach, config.Count, config.Enabled, nil),
+			InstanceSelector: compileInstanceSelector(ctx, declScope, config.ForEach, config.Count, config.Enabled, dependsOn),
 			SourceAddrValuer: configgraph.ValuerOnce(exprs.NewClosure(
 				exprs.EvalableHCLExpression(config.Source),
 				declScope,
@@ -70,7 +73,7 @@ func compileModuleInstanceModuleCalls(
 				_, diags := externalModules.ModuleConfig(ctx, sourceArgs.Source, sourceArgs.AllowedVersions, &absAddr)
 				return diags
 			},
-			CompileCallInstance: func(ctx context.Context, sourceArgs configgraph.ModuleSourceArguments, key addrs.InstanceKey, repData instances.RepetitionData) *configgraph.ModuleCallInstance {
+			CompileCallInstance: func(ctx context.Context, sourceArgs configgraph.ModuleSourceArguments, key addrs.InstanceKey, repData instances.RepetitionData, additionalMarks cty.ValueMarks) *configgraph.ModuleCallInstance {
 				calleeAddr := moduleInstanceAddr.Child(addr.Name, key)
 
 				// The contract for [configgraph.ModuleCall] is that it should only
@@ -136,6 +139,7 @@ func compileModuleInstanceModuleCalls(
 							EvalContext:          parentCall.EvalContext,
 							EvaluationGlue:       parentCall.EvaluationGlue,
 							ProvidersFromParent:  proxyProviderCompiler,
+							AdditionalMarks:      additionalMarks,
 						})
 						if diags.HasErrors() {
 							return nil, diags
