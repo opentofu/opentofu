@@ -12,6 +12,12 @@ SECURITY ADVISORIES:
 
 * If for state encryption, OpenBao key provider is used with wrapping algorithms, it could generate panics or hangs on compromised systems where the JWE is specifically crafted. ([#4177](https://github.com/opentofu/opentofu/pull/4177))
 
+* Previous releases in the v1.11 series could be affected by several vulnerabilities:
+  * When using SSH connections through OpenTofu, the errors that were returned from attempting a connection could include unescaped input bytes.
+  * If using an attacker-controlled server to run `tofu` against, it might end up in high CPU consumption.
+  
+  These are now fixed by ([#4248](https://github.com/opentofu/opentofu/pull/4248))
+
 
 ## 1.11.8
 
