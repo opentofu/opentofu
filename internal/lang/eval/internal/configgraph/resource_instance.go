@@ -40,8 +40,6 @@ type ResourceInstance struct {
 	// Used to ensure marks
 	AdditionalMarks cty.ValueMarks
 
-	DependsOn []*OnceValuer
-
 	// ConfigValuer is a valuer for producing the object value representing
 	// the configuration for this object. How the final configuration value
 	// is chosen is decided by whatever created this object, but most typically
@@ -204,15 +202,6 @@ func (ri *ResourceInstance) Value(ctx context.Context) (v cty.Value, diags tfdia
 			}
 		}
 
-		for _, depends := range ri.DependsOn {
-			depVal := diagsHandledElsewhere(depends.Value(ctx))
-			for depInst := range ContributingResourceInstances(depVal) {
-				if depInst != ri {
-					riDeps.Add(depInst.Addr)
-				}
-			}
-		}
-
 		// We also need help from our caller to prepare the final value to
 		// return here, because it should reflect the outcome of whatever
 		// resource-instance-related side effects we're doing this evaluation in
@@ -294,18 +283,6 @@ func (ri *ResourceInstance) ResourceInstanceDependencies(ctx context.Context) it
 				}
 			}
 		}
-
-		// TODO figure out what deps go where
-		for _, depends := range ri.DependsOn {
-			depVal := diagsHandledElsewhere(depends.Value(ctx))
-			for depInst := range ContributingResourceInstances(depVal) {
-				if depInst != ri {
-					if !yield(depInst) {
-						return
-					}
-				}
-			}
-		}
 	}
 }
 
@@ -333,7 +310,6 @@ func (ri *ResourceInstance) AnnounceAllGraphevalRequests(announce func(workgraph
 			SourceRange: ri.CreateBeforeDestroyValuer.ValueSourceRange(),
 		})
 	}
-	// TODO announce DependsOn
 	announce(ri.valueOnce.RequestID(), grapheval.RequestInfo{
 		Name:        fmt.Sprintf("final value for %s", ri.Addr),
 		SourceRange: ri.ConfigValuer.ValueSourceRange(),

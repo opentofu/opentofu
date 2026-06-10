@@ -32,7 +32,7 @@ func compileModuleInstanceResources(
 	moduleProviders configgraph.CompileProviderConfigRef,
 	moduleInstanceAddr addrs.ModuleInstance,
 	providers evalglue.ProvidersSchema,
-	legacyDependsOnModuleCall func(callName string) *configgraph.OnceValuer,
+	legacyDependsOnModuleCall func(callName string) hcl.Expression,
 	getResultValue func(context.Context, *configgraph.ResourceInstance, cty.Value, configgraph.Maybe[*configgraph.ProviderInstance], addrs.Set[addrs.AbsResourceInstance]) (cty.Value, tfdiags.Diagnostics),
 ) map[addrs.Resource]*configgraph.Resource {
 	ret := make(map[addrs.Resource]*configgraph.Resource, len(managedConfigs)+len(dataConfigs)+len(ephemeralConfigs))
@@ -58,7 +58,7 @@ func compileModuleInstanceResource(
 	moduleProviders configgraph.CompileProviderConfigRef,
 	moduleInstanceAddr addrs.ModuleInstance,
 	providers evalglue.ProvidersSchema,
-	legacyDependsOnModuleCall func(callName string) *configgraph.OnceValuer,
+	legacyDependsOnModuleCall func(callName string) hcl.Expression,
 	getResultValue func(context.Context, *configgraph.ResourceInstance, cty.Value, configgraph.Maybe[*configgraph.ProviderInstance], addrs.Set[addrs.AbsResourceInstance]) (cty.Value, tfdiags.Diagnostics),
 ) (addrs.Resource, *configgraph.Resource) {
 	resourceAddr := config.Addr()
@@ -86,6 +86,29 @@ func compileModuleInstanceResource(
 		configEvalable = exprs.EvalableHCLBodyWithDynamicBlocks(config.Config, spec)
 	}
 
+	// Explicit "depends_on"
+	var dependsOn []hcl.Expression
+	for _, trav := range config.DependsOn {
+		// This implements legacy "depends_on" behavior, where 'module.callname' would imply a dependency on
+		// all resources within the module and it's children
+		//
+		// Long term, we want to switch from hcl.Traversal to hcl.Expression for config.DependsOn. This legacy
+		// functionality will need to be re-evaluated when that occurs. As written this workaround prevents
+		// anything after 'module.callname' from being utilized to select dependencies (like instances)
+		if len(trav) >= 2 {
+			if root, ok := trav[0].(hcl.TraverseRoot); ok && root.Name == "module" {
+				if inst, ok := trav[1].(hcl.TraverseAttr); ok {
+					dependsOn = append(dependsOn, legacyDependsOnModuleCall(inst.Name))
+					continue
+				}
+			}
+		}
+		dependsOn = append(dependsOn, &hclsyntax.ScopeTraversalExpr{
+			Traversal: trav,
+			SrcRange:  config.DeclRange, // TODO better range
+		})
+	}
+
 	ret := &configgraph.Resource{
 		Addr:      absAddr,
 		DeclRange: tfdiags.SourceRangeFromHCL(config.DeclRange),
@@ -93,13 +116,13 @@ func compileModuleInstanceResource(
 		// Our instance selector depends on which of the repetition metaarguments
 		// are set, if any. We assume that package configs allows at most one
 		// of these to be set for each resource config.
-		InstanceSelector: compileInstanceSelector(ctx, declScope, config.ForEach, config.Count, config.Enabled),
+		InstanceSelector: compileInstanceSelector(ctx, declScope, config.ForEach, config.Count, config.Enabled, dependsOn),
 
 		// The [configgraph.Resource] implementation will call back to this
 		// for each child instance it discovers through [InstanceSelector],
 		// allowing us to finalize all of the details for a specific instance
 		// of this resource.
-		CompileResourceInstance: func(ctx context.Context, key addrs.InstanceKey, repData instances.RepetitionData) *configgraph.ResourceInstance {
+		CompileResourceInstance: func(ctx context.Context, key addrs.InstanceKey, repData instances.RepetitionData, additionalMarks cty.ValueMarks) *configgraph.ResourceInstance {
 			localScope := instanceLocalScope(declScope, repData)
 			providerRef := compileProviderConfigRef(ctx, moduleProviders, config.ProviderConfigAddr(), config.ProviderConfigRef, localScope)
 
@@ -129,44 +152,16 @@ func compileModuleInstanceResource(
 				)
 			}
 
-			additionalMarks := cty.ValueMarks{}
 			// This adds an implicit depends_on from marks in repetition data
 			// TODO merge these with  DependsOn
 			maps.Copy(additionalMarks, repData.CountIndex.Marks())
 			maps.Copy(additionalMarks, repData.EachKey.Marks())
 			maps.Copy(additionalMarks, repData.EachValue.Marks())
 
-			// Explicit "depends_on"
-			var dependsOn []*configgraph.OnceValuer
-			for _, trav := range config.DependsOn {
-				// This implements legacy "depends_on" behavior, where 'module.callname' would imply a dependency on
-				// all resources within the module and it's children
-				//
-				// Long term, we want to switch from hcl.Traversal to hcl.Expression for config.DependsOn. This legacy
-				// functionality will need to be re-evaluated when that occurs. As written this workaround prevents
-				// anything after 'module.callname' from being utilized to select dependencies (like instances)
-				if len(trav) >= 2 {
-					if root, ok := trav[0].(hcl.TraverseRoot); ok && root.Name == "module" {
-						if inst, ok := trav[1].(hcl.TraverseAttr); ok {
-							dependsOn = append(dependsOn, legacyDependsOnModuleCall(inst.Name))
-							continue
-						}
-					}
-				}
-				depExpr := exprs.EvalableHCLExpression(&hclsyntax.ScopeTraversalExpr{
-					Traversal: trav,
-					SrcRange:  config.DeclRange, // TODO better range
-				})
-				dependsOn = append(dependsOn, configgraph.ValuerOnce(exprs.NewClosure(
-					depExpr, localScope,
-				)))
-			}
-
 			inst := &configgraph.ResourceInstance{
 				Addr:            absAddr.Instance(key),
 				Provider:        config.Provider,
 				AdditionalMarks: additionalMarks,
-				DependsOn:       dependsOn,
 				ConfigValuer: configgraph.ValuerOnce(exprs.NewClosure(
 					configEvalable, localScope,
 				)),

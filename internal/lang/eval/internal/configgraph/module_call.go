@@ -263,7 +263,7 @@ func (c *ModuleCall) decideInstances(ctx context.Context) (*compiledInstances[*M
 				ValueMarks: nil,
 			}, nil
 		}
-		return compileInstances(ctx, c.InstanceSelector, func(ctx context.Context, key addrs.InstanceKey, repData instances.RepetitionData) *ModuleCallInstance {
+		return compileInstances(ctx, c.InstanceSelector, func(ctx context.Context, key addrs.InstanceKey, repData instances.RepetitionData, additionalMarks cty.ValueMarks) *ModuleCallInstance {
 			return c.CompileCallInstance(ctx, sourceArgs, key, repData)
 		})
 	})

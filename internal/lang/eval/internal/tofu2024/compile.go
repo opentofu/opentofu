@@ -10,6 +10,7 @@ import (
 	"iter"
 	"time"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 
@@ -133,21 +134,25 @@ func CompileModuleInstance(
 		call,
 	)
 
-	legacyDependsOnModuleCall := func(callName string) *configgraph.OnceValuer {
+	legacyDependsOnModuleCall := func(callName string) hcl.Expression {
 		// TODO cache
 		// TODO make sure we are workgraphing correctly
-		return configgraph.ValuerOnce(exprs.DerivedValuer(exprs.ConstantValuer(cty.DynamicVal), func(cty.Value, tfdiags.Diagnostics) (cty.Value, tfdiags.Diagnostics) {
-			var values []cty.Value
-			children := ret.ChildModuleInstancesForCall(ctx, addrs.ModuleCall{Name: callName})
-			for _, child := range children {
-				resources := evalglue.ResourceInstancesDeep(ctx, child)
-				for resource := range resources {
-					value, _ := resource.Value(ctx)
-					values = append(values, value)
+		return &derivedExpression{
+			value: func() (cty.Value, hcl.Diagnostics) {
+				var values []cty.Value
+				children := ret.ChildModuleInstancesForCall(ctx, addrs.ModuleCall{Name: callName})
+				for _, child := range children {
+					resources := evalglue.ResourceInstancesDeep(ctx, child)
+					for resource := range resources {
+						value, _ := resource.Value(ctx)
+						values = append(values, value)
+					}
 				}
-			}
-			return cty.TupleVal(values), nil
-		}))
+				combined := cty.TupleVal(values)
+				return combined, nil
+			},
+			rng: hcl.Range{}, // TODO
+		}
 	}
 
 	ret.resourceNodes = compileModuleInstanceResources(ctx,
@@ -213,4 +218,30 @@ func compileCoreFunctions(_ context.Context, allowImpureFuncs bool, baseDir stri
 		PlanTimestamp: planTimestamp,
 	}
 	return oldScope.Functions()
+}
+
+type derivedExpression struct {
+	value func() (cty.Value, hcl.Diagnostics)
+	rng   hcl.Range
+}
+
+func (d *derivedExpression) Value(ctx *hcl.EvalContext) (cty.Value, hcl.Diagnostics) {
+	return d.value()
+}
+
+// Variables returns a list of variables referenced in the receiving
+// expression. These are expressed as absolute Traversals, so may include
+// additional information about how the variable is used, such as
+// attribute lookups, which the calling application can potentially use
+// to only selectively populate the scope.
+func (d *derivedExpression) Variables() []hcl.Traversal {
+	return nil
+}
+
+func (d *derivedExpression) Range() hcl.Range {
+	return d.rng
+}
+
+func (d *derivedExpression) StartRange() hcl.Range {
+	return d.rng
 }

@@ -69,7 +69,12 @@ type InstanceSelector interface {
 	InstancesSourceRange() *tfdiags.SourceRange
 }
 
-type InstancesSeq = func(yield func(addrs.InstanceKey, instances.RepetitionData) bool)
+type InstanceSeq struct {
+	instances.RepetitionData
+	Marks cty.ValueMarks
+}
+
+type InstancesSeq = func(yield func(addrs.InstanceKey, InstanceSeq) bool)
 
 type compiledInstances[T any] struct {
 	KeyType addrs.InstanceKeyType
@@ -121,7 +126,7 @@ func compileInstances[T any](
 		if repData.CountIndex != cty.NilVal {
 			repData.CountIndex = repData.CountIndex.WithMarks(valueMarks)
 		}
-		obj := compileInstance(ctx, key, repData)
+		obj := compileInstance(ctx, key, repData.RepetitionData, repData.Marks)
 		ret.Instances[key] = obj
 	}
 	return ret, diags
@@ -148,7 +153,7 @@ func compilePlaceholderInstance[T any](
 		repData.CountIndex = cty.UnknownVal(cty.Number).WithMarks(valueMarks)
 	}
 	key := addrs.WildcardKey{keyType}
-	placeholder := compileInstance(ctx, key, repData)
+	placeholder := compileInstance(ctx, key, repData, valueMarks)
 	return &compiledInstances[T]{
 		KeyType: keyType,
 		Instances: map[addrs.InstanceKey]T{
@@ -158,7 +163,7 @@ func compilePlaceholderInstance[T any](
 	}
 }
 
-type instanceCompiler[T any] func(ctx context.Context, key addrs.InstanceKey, repData instances.RepetitionData) T
+type instanceCompiler[T any] func(ctx context.Context, key addrs.InstanceKey, repData instances.RepetitionData, additionalMarks cty.ValueMarks) T
 
 // valueForInstances turns a compiled set of instances of a type that implements
 // [Valuer] into our conventional representation of a particular set of

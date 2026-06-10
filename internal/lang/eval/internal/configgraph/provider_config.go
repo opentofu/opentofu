@@ -53,7 +53,7 @@ type ProviderConfig struct {
 	// This indirection allows the caller to take into account the same
 	// context it had available when it built this [Provider] object, while
 	// incorporating the new information about this specific instance.
-	CompileProviderInstance func(ctx context.Context, key addrs.InstanceKey, repData instances.RepetitionData) *ProviderInstance
+	CompileProviderInstance func(ctx context.Context, key addrs.InstanceKey, repData instances.RepetitionData, additionalMarks cty.ValueMarks) *ProviderInstance
 
 	// instancesResult tracks the process of deciding which instances are
 	// currently declared for this provider config, and the result of that process.
