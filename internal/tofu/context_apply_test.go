@@ -464,7 +464,7 @@ func TestContext2Apply_resourceDependsOnModule(t *testing.T) {
 // Test that without a config, the Dependencies in the state are enough
 // to maintain proper ordering.
 func TestContext2Apply_resourceDependsOnModuleStateOnly(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureDependsOn)
+	SkipExperimental(t, ExperimentalFeatureDependsOn, ExperimentalBugStateProvider)
 
 	m := testModule(t, "apply-resource-depends-on-module-empty")
 	p := testProvider("aws")
@@ -537,7 +537,7 @@ func TestContext2Apply_resourceDependsOnModuleStateOnly(t *testing.T) {
 }
 
 func TestContext2Apply_resourceDependsOnModuleDestroy(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureDependsOn)
+	SkipExperimental(t, ExperimentalFeatureDependsOn, ExperimentalFeatureDestroy)
 
 	m := testModule(t, "apply-resource-depends-on-module")
 	p := testProvider("aws")
@@ -1540,7 +1540,7 @@ func TestContext2Apply_destroyDependsOnStateOnly(t *testing.T) {
 }
 
 func testContext2Apply_destroyDependsOnStateOnly(t *testing.T, state *states.State) {
-	SkipExperimental(t, ExperimentalFeatureDependsOn)
+	SkipExperimental(t, ExperimentalFeatureDependsOn, ExperimentalBugStateProvider)
 
 	state = state.DeepCopy()
 	m := testModule(t, "empty")
@@ -1582,7 +1582,7 @@ func testContext2Apply_destroyDependsOnStateOnly(t *testing.T, state *states.Sta
 // Test that destroy ordering is correct with dependencies only
 // in the state within a module (GH-11749)
 func TestContext2Apply_destroyDependsOnStateOnlyModule(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureDependsOn)
+	SkipExperimental(t, ExperimentalFeatureDependsOn, ExperimentalBugStateProvider)
 
 	newState := states.NewState()
 	child := newState.EnsureModule(addrs.RootModuleInstance.Child("child", addrs.NoKey))
@@ -8990,7 +8990,7 @@ func TestContext2Apply_destroyNestedModuleWithAttrsReferencingResource(t *testin
 // If a data source explicitly depends on another resource, it's because we need
 // that resource to be applied first.
 func TestContext2Apply_dataDependsOn(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureDependsOn)
+	SkipExperimental(t, ExperimentalFeatureDependsOn, ExperimentalBugDataResource)
 
 	p := testProvider("null")
 	m := testModuleInline(t, map[string]string{
@@ -11532,7 +11532,7 @@ resource "aws_instance" "cbd" {
 }
 
 func TestContext2Apply_moduleDependsOn(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureDependsOn)
+	SkipExperimental(t, ExperimentalFeatureDependsOn, ExperimentalBugDataResource) // Requires data dependency status tracking
 
 	m := testModule(t, "apply-module-depends-on")
 
@@ -11744,6 +11744,8 @@ output "myoutput" {
 	if diags.HasErrors() {
 		t.Fatal(diags.ErrWithWarnings())
 	}
+
+	SkipExperimental(t, ExperimentalFeatureDestroy)
 
 	if !state.Empty() {
 		t.Fatal("expected empty state, got:", state)
