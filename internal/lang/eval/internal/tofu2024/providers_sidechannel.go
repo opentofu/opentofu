@@ -61,6 +61,7 @@ func compileProviderConfigRefMissingInRoot(
 	requiredProviders map[string]*configs.RequiredProvider,
 	providers evalglue.ProvidersSchema,
 	validateProviderConfig func(context.Context, addrs.Provider, cty.Value) tfdiags.Diagnostics,
+	extraMarks cty.ValueMarks,
 ) (configgraph.CompileProviderConfigRef, *rootMissingProviders) {
 	missing := &rootMissingProviders{
 		providerConfigs: map[addrs.LocalProviderConfig]*configgraph.ProviderConfig{},
@@ -107,7 +108,7 @@ func compileProviderConfigRefMissingInRoot(
 			Name:   providerInstAddr.LocalName,
 			Config: hcl2shim.SynthBody(providerInstAddr.String(), make(map[string]cty.Value)),
 		}
-		missingConfig := compileProviderConfig(ctx, emptyConfig, nil, requiredProviders, addrs.RootModuleInstance, providers, validateProviderConfig)
+		missingConfig := compileProviderConfig(ctx, emptyConfig, nil, requiredProviders, addrs.RootModuleInstance, providers, validateProviderConfig, extraMarks)
 		missing.providerConfigs[providerInstAddr] = missingConfig
 
 		return &sidechannelProviderInstanceRefValuer{

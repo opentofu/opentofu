@@ -49,7 +49,7 @@ func compileModuleInstanceModuleCalls(
 			Addr:             addr.Absolute(moduleInstanceAddr),
 			DeclRange:        tfdiags.SourceRangeFromHCL(config.DeclRange),
 			ParentSourceAddr: parentSourceAddr,
-			InstanceSelector: compileInstanceSelector(ctx, declScope, config.ForEach, config.Count, config.Enabled),
+			InstanceSelector: compileInstanceSelector(ctx, declScope, config.ForEach, config.Count, config.Enabled, parentCall.DependencyMarks),
 			SourceAddrValuer: configgraph.ValuerOnce(exprs.NewClosure(
 				exprs.EvalableHCLExpression(config.Source),
 				declScope,
@@ -133,9 +133,10 @@ func compileModuleInstanceModuleCalls(
 						modInst, diags := mod.CompileModuleInstance(ctx, calleeAddr, &evalglue.ModuleCall{
 							InputValues:          exprs.ConstantValuer(inputs),
 							AllowImpureFunctions: parentCall.AllowImpureFunctions,
-							EvalContext:          parentCall.EvalContext,
-							EvaluationGlue:       parentCall.EvaluationGlue,
-							ProvidersFromParent:  proxyProviderCompiler,
+							// TODO: DependencyMarks, combining parentCall.DependencyMarks and new marks from our own depends_on
+							EvalContext:         parentCall.EvalContext,
+							EvaluationGlue:      parentCall.EvaluationGlue,
+							ProvidersFromParent: proxyProviderCompiler,
 						})
 						if diags.HasErrors() {
 							return nil, diags
