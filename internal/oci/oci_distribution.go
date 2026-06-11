@@ -6,8 +6,7 @@
 package oci
 
 // This file deals with our cross-cutting concerns relating to the OCI Distribution
-// protocol, shared across both the provider and module installers, and potentially
-// other OCI Registry concerns in future.
+// protocol, shared across both the provider and module installers.
 
 import (
 	"context"
