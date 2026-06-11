@@ -37,9 +37,6 @@ type ResourceInstance struct {
 	// is the provider to use when asking for config validation, etc.
 	Provider addrs.Provider
 
-	// Used to ensure marks
-	AdditionalMarks cty.ValueMarks
-
 	// ConfigValuer is a valuer for producing the object value representing
 	// the configuration for this object. How the final configuration value
 	// is chosen is decided by whatever created this object, but most typically
@@ -112,9 +109,6 @@ func (ri *ResourceInstance) ConfigValue(ctx context.Context) (v cty.Value, diags
 		// will only ever receive validated configuration values.
 		return exprs.AsEvalError(cty.DynamicVal), diags
 	}
-
-	// Ensure marks from repetition data (and other sources) make it into the config value
-	configVal = configVal.WithMarks(ri.AdditionalMarks)
 
 	return configVal, diags
 }

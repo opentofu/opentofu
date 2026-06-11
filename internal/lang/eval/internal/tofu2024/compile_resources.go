@@ -132,13 +132,26 @@ func compileModuleInstanceResource(
 			maps.Copy(additionalMarks, repData.EachKey.Marks())
 			maps.Copy(additionalMarks, repData.EachValue.Marks())
 
-			inst := &configgraph.ResourceInstance{
-				Addr:            absAddr.Instance(key),
-				Provider:        config.Provider,
-				AdditionalMarks: additionalMarks,
-				ConfigValuer: configgraph.ValuerOnce(exprs.NewClosure(
+			// Some language features related to resource blocks cause extra
+			// transformations of the configuration value, so we'll deal
+			// with those by transforming what we get from just evaluating
+			// the main config body.
+			configValuer := configgraph.ValuerOnce(exprs.DerivedValuer(
+				exprs.NewClosure(
 					configEvalable, localScope,
-				)),
+				),
+				func(v cty.Value, diags tfdiags.Diagnostics) (cty.Value, tfdiags.Diagnostics) {
+					if len(additionalMarks) != 0 {
+						return v.WithMarks(additionalMarks), diags
+					}
+					return v, diags
+				},
+			))
+
+			inst := &configgraph.ResourceInstance{
+				Addr:                      absAddr.Instance(key),
+				Provider:                  config.Provider,
+				ConfigValuer:              configValuer,
 				ProviderInstanceValuer:    configgraph.ValuerOnce(providerRef),
 				CreateBeforeDestroyValuer: cbdValuer,
 			}
