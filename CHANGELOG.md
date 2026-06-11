@@ -19,6 +19,7 @@ BUG FIXES:
 
 - Properly handle EDEADLK during provider installation. On Unix systems, the kernel may erroneously detect a deadlock between tofu processes using the global plugin cache. ([#4166](https://github.com/opentofu/opentofu/pull/4166))
 - Fix race condition while handling closing signals during `tofu login`, both when the signal is sent by the user and when the browser fails to successfully connect. ([4016](https://github.com/opentofu/opentofu/pull/4016))
+- Prevent panic when using ephemeral resources during tofu test`. ([#4254](https://github.com/opentofu/opentofu/pull/4253))
 
 ## 1.12.1
 

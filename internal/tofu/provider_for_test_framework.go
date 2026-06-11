@@ -116,19 +116,28 @@ func (p providerForTest) ReadDataSource(_ context.Context, r providers.ReadDataS
 	return resp
 }
 
-func (p providerForTest) OpenEphemeralResource(_ context.Context, _ providers.OpenEphemeralResourceRequest) (resp providers.OpenEphemeralResourceResponse) {
-	// TODO ephemeral testing support - implement me when adding testing support
-	panic("implement me")
+func (p providerForTest) OpenEphemeralResource(_ context.Context, r providers.OpenEphemeralResourceRequest) (resp providers.OpenEphemeralResourceResponse) {
+	resSchema, _ := p.schema.SchemaForResourceType(addrs.EphemeralResourceMode, r.TypeName)
+
+	resp.Result, resp.Diagnostics = newMockValueComposer(r.TypeName).ComposeBySchema(resSchema.Block, r.Config, p.overrideValues)
+	return resp
 }
 
 func (p providerForTest) RenewEphemeralResource(_ context.Context, _ providers.RenewEphemeralResourceRequest) (resp providers.RenewEphemeralResourceResponse) {
 	// TODO ephemeral testing support - implement me when adding testing support
+
+	// In order to fix the issue reported in https://github.com/opentofu/opentofu/issues/4251, OpenEphemeralResource and CloseEphemeralResource
+	// had their `panic` call removed and implemented properly to ensure that `tofu test` can be executed against a
+	// configuration containing `ephemeral` blocks. The fix provided just fixed the panic without implementing any
+	// testing functionality for ephemeral resources. Therefore, RenewEphemeralResource has no reason to be implemented
+	// because it cannot be reached as it relies on OpenEphemeralResource to return a specific value in the RenewAt to
+	// have this called. Without any testing functionality to mock the value for RenewAt, this will never be called so
+	// we want to have the panic in place.
 	panic("implement me")
 }
 
 func (p providerForTest) CloseEphemeralResource(_ context.Context, _ providers.CloseEphemeralResourceRequest) (resp providers.CloseEphemeralResourceResponse) {
-	// TODO ephemeral testing support - implement me when adding testing support
-	panic("implement me")
+	return resp
 }
 
 // ValidateProviderConfig is irrelevant when provider is mocked or overridden.
@@ -148,7 +157,6 @@ func (p providerForTest) GetProviderSchema(ctx context.Context) providers.GetPro
 	providerSchema.ProviderMeta = providers.Schema{}
 	return providerSchema
 }
-
 
 // providerForTest doesn't configure its internal provider because it is mocked.
 func (p providerForTest) ConfigureProvider(context.Context, providers.ConfigureProviderRequest) providers.ConfigureProviderResponse {
