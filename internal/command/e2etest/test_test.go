@@ -120,3 +120,35 @@ func TestMockProviderComputedBlockCleanup(t *testing.T) {
 		t.Errorf("output doesn't have expected success string:\n%s", stdout)
 	}
 }
+
+func TestMockProviderWhenEphemeralInConfiguration(t *testing.T) {
+	// This test fetches providers from registry.
+	skipIfCannotAccessNetwork(t)
+
+	tf := e2e.NewBinary(t, tofuBin, filepath.Join("testdata", "mock-test-with-ephemeral-in-configuration"))
+
+	stdout, stderr, err := tf.Run("init")
+	if err != nil {
+		t.Errorf("unexpected error on 'init': %v", err)
+	}
+	if stderr != "" {
+		t.Errorf("unexpected stderr output on 'init':\n%s", stderr)
+	}
+	if stdout == "" {
+		t.Errorf("expected some output on 'init', got nothing")
+	}
+
+	stdout, stderr, err = tf.Run("test")
+	if err != nil {
+		if strings.Contains(stdout, "OpenTofu crashed! This is always indicative of a bug within OpenTofu.") {
+			t.Errorf("Bug reproduced: running `tofu test` against a configuration that has an ephemeral resource.\n"+
+				"This is the bug from https://github.com/opentofu/opentofu/issues/4251\n"+
+				"stdout:\n%s", stdout)
+			return
+		}
+		t.Errorf("unexpected error on 'tofu test': %v\nstderr:\n%s\nstdout:\n%s", err, stderr, stdout)
+	}
+	if !strings.Contains(stdout, "1 passed, 0 failed") {
+		t.Errorf("output doesn't have the expected success string:\n%s", stdout)
+	}
+}
