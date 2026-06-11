@@ -191,8 +191,7 @@ jobs:
       contents: read
     uses: opentofu/scripts/.github/workflows/copyright.yml@copyright-workflow-bash
     with:
-      ignore-patterns: "*/.git* */vendor/* */node_modules/* */.workdir* */website/*"
-
+      ignore-patterns: "*/.git* */vendor/* */node_modules/* */.workdir* */website/* */tfplugin*.proto"
 
   license-checks:
     name: "License Checks"
