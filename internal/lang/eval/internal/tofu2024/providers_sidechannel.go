@@ -60,6 +60,7 @@ func (r *rootMissingProviders) getOk(localAddr addrs.LocalProviderConfig) (*conf
 func compileProviderConfigRefMissingInRoot(
 	requiredProviders map[string]*configs.RequiredProvider,
 	providers evalglue.Providers,
+	extraMarks cty.ValueMarks,
 ) (configgraph.CompileProviderConfigRef, *rootMissingProviders) {
 	missing := &rootMissingProviders{
 		providerConfigs: map[addrs.LocalProviderConfig]*configgraph.ProviderConfig{},
@@ -106,7 +107,7 @@ func compileProviderConfigRefMissingInRoot(
 			Name:   providerInstAddr.LocalName,
 			Config: hcl2shim.SynthBody(providerInstAddr.String(), make(map[string]cty.Value)),
 		}
-		missingConfig := compileProviderConfig(ctx, emptyConfig, nil, requiredProviders, addrs.RootModuleInstance, providers)
+		missingConfig := compileProviderConfig(ctx, emptyConfig, nil, requiredProviders, addrs.RootModuleInstance, providers, extraMarks)
 		missing.providerConfigs[providerInstAddr] = missingConfig
 
 		return &sidechannelProviderInstanceRefValuer{

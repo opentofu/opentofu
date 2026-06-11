@@ -32,18 +32,19 @@ func compileModuleInstanceResources(
 	moduleInstanceAddr addrs.ModuleInstance,
 	providers evalglue.ProvidersSchema,
 	getResultValue func(context.Context, *configgraph.ResourceInstance, cty.Value, configgraph.Maybe[*configgraph.ProviderInstance], addrs.Set[addrs.AbsResourceInstance]) (cty.Value, tfdiags.Diagnostics),
+	extraMarks cty.ValueMarks,
 ) map[addrs.Resource]*configgraph.Resource {
 	ret := make(map[addrs.Resource]*configgraph.Resource, len(managedConfigs)+len(dataConfigs)+len(ephemeralConfigs))
 	for _, rc := range managedConfigs {
-		addr, rsrc := compileModuleInstanceResource(ctx, rc, declScope, moduleProviders, moduleInstanceAddr, providers, getResultValue)
+		addr, rsrc := compileModuleInstanceResource(ctx, rc, declScope, moduleProviders, moduleInstanceAddr, providers, getResultValue, extraMarks)
 		ret[addr] = rsrc
 	}
 	for _, rc := range dataConfigs {
-		addr, rsrc := compileModuleInstanceResource(ctx, rc, declScope, moduleProviders, moduleInstanceAddr, providers, getResultValue)
+		addr, rsrc := compileModuleInstanceResource(ctx, rc, declScope, moduleProviders, moduleInstanceAddr, providers, getResultValue, extraMarks)
 		ret[addr] = rsrc
 	}
 	for _, rc := range ephemeralConfigs {
-		addr, rsrc := compileModuleInstanceResource(ctx, rc, declScope, moduleProviders, moduleInstanceAddr, providers, getResultValue)
+		addr, rsrc := compileModuleInstanceResource(ctx, rc, declScope, moduleProviders, moduleInstanceAddr, providers, getResultValue, extraMarks)
 		ret[addr] = rsrc
 	}
 	return ret
@@ -57,6 +58,7 @@ func compileModuleInstanceResource(
 	moduleInstanceAddr addrs.ModuleInstance,
 	providers evalglue.ProvidersSchema,
 	getResultValue func(context.Context, *configgraph.ResourceInstance, cty.Value, configgraph.Maybe[*configgraph.ProviderInstance], addrs.Set[addrs.AbsResourceInstance]) (cty.Value, tfdiags.Diagnostics),
+	extraMarks cty.ValueMarks,
 ) (addrs.Resource, *configgraph.Resource) {
 	resourceAddr := config.Addr()
 	absAddr := moduleInstanceAddr.Resource(resourceAddr.Mode, resourceAddr.Type, resourceAddr.Name)
@@ -90,7 +92,7 @@ func compileModuleInstanceResource(
 		// Our instance selector depends on which of the repetition metaarguments
 		// are set, if any. We assume that package configs allows at most one
 		// of these to be set for each resource config.
-		InstanceSelector: compileInstanceSelector(ctx, declScope, config.ForEach, config.Count, config.Enabled),
+		InstanceSelector: compileInstanceSelector(ctx, declScope, config.ForEach, config.Count, config.Enabled, extraMarks),
 
 		// The [configgraph.Resource] implementation will call back to this
 		// for each child instance it discovers through [InstanceSelector],
@@ -126,23 +128,22 @@ func compileModuleInstanceResource(
 				)
 			}
 
-			additionalMarks := cty.ValueMarks{}
+			inheritedMarks := cty.ValueMarks{}
 			// This adds an implicit depends_on from marks in repetition data
-			maps.Copy(additionalMarks, repData.CountIndex.Marks())
-			maps.Copy(additionalMarks, repData.EachKey.Marks())
-			maps.Copy(additionalMarks, repData.EachValue.Marks())
+			maps.Copy(inheritedMarks, repData.CountIndex.Marks())
+			maps.Copy(inheritedMarks, repData.EachKey.Marks())
+			maps.Copy(inheritedMarks, repData.EachValue.Marks())
+			maps.Copy(inheritedMarks, extraMarks) // preserve the extra marks from our caller too
 
 			// Some language features related to resource blocks cause extra
 			// transformations of the configuration value, so we'll deal
 			// with those by transforming what we get from just evaluating
 			// the main config body.
 			configValuer := configgraph.ValuerOnce(exprs.DerivedValuer(
-				exprs.NewClosure(
-					configEvalable, localScope,
-				),
+				exprs.NewClosure(configEvalable, localScope),
 				func(v cty.Value, diags tfdiags.Diagnostics) (cty.Value, tfdiags.Diagnostics) {
-					if len(additionalMarks) != 0 {
-						return v.WithMarks(additionalMarks), diags
+					if len(inheritedMarks) != 0 {
+						return v.WithMarks(inheritedMarks), diags
 					}
 					return v, diags
 				},

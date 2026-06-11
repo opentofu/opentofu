@@ -103,10 +103,11 @@ func (u *uncompiledModule) CompileModuleInstance(ctx context.Context, calleeAddr
 	rootModuleCall := &ModuleInstanceCall{
 		CalleeAddr:           calleeAddr,
 		InputValues:          call.InputValues,
+		ProvidersFromParent:  call.ProvidersFromParent,
+		DependencyMarks:      call.DependencyMarks,
 		EvaluationGlue:       call.EvaluationGlue,
 		AllowImpureFunctions: call.AllowImpureFunctions,
 		EvalContext:          call.EvalContext,
-		ProvidersFromParent:  call.ProvidersFromParent,
 	}
 	rootModuleInstance := CompileModuleInstance(ctx, u.mod, u.sourceAddr, rootModuleCall)
 	return rootModuleInstance, nil

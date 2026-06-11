@@ -94,6 +94,7 @@ func CompileModuleInstance(
 		module.ProviderRequirements.RequiredProviders,
 		call.CalleeAddr,
 		call.EvalContext.Providers,
+		call.DependencyMarks,
 	)
 
 	providersFromParent := call.ProvidersFromParent
@@ -107,6 +108,7 @@ func CompileModuleInstance(
 		providersFromParent, ret.missingProviders = compileProviderConfigRefMissingInRoot(
 			module.ProviderRequirements.RequiredProviders,
 			call.EvalContext.Providers,
+			call.DependencyMarks,
 		)
 	}
 	// Add all of our local providerConfigNodes to the provider ref chain.
@@ -141,6 +143,7 @@ func CompileModuleInstance(
 		call.CalleeAddr,
 		call.EvalContext.Providers,
 		call.EvaluationGlue.ResourceInstanceValue,
+		call.DependencyMarks,
 	)
 
 	// Now that we've assembled all of the innards of the module instance,
