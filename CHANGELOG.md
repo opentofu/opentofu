@@ -18,6 +18,10 @@ SECURITY ADVISORIES:
   
   These are now fixed by ([#4248](https://github.com/opentofu/opentofu/pull/4248))
 
+BUG FIXES:
+
+- Prevent panic when using ephemeral resources during tofu test`. ([#4254](https://github.com/opentofu/opentofu/pull/4253))
+
 
 ## 1.11.8
 
