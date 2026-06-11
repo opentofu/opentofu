@@ -27,7 +27,7 @@ import (
 
 func TestCompileInstanceSelectorSingleton(t *testing.T) {
 	ctx := grapheval.ContextWithNewWorker(t.Context())
-	selector := compileInstanceSelector(ctx, exprs.FlatScopeForTesting(nil), nil, nil, nil, nil)
+	selector := compileInstanceSelector(ctx, exprs.FlatScopeForTesting(nil), nil, nil, nil, dependsOn{})
 	instsSeq, marks, diags := selector.Instances(ctx)
 	insts := configgraph.MapMaybe(instsSeq, func(s configgraph.InstancesSeq) map[addrs.InstanceKey]instances.RepetitionData {
 		return maps.Collect(s)
@@ -83,14 +83,14 @@ func TestCompileInstanceSelectorForEach(t *testing.T) {
 			// Maps
 			"empty map inline": {
 				hcl.StaticExpr(cty.MapValEmpty(cty.String), rng),
-				nil,
+				dependsOn{},
 				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{}),
 				nil,
 				nil,
 			},
 			"empty map from scope": {
 				hcltest.MockExprTraversalSrc(`empty_map`),
-				nil,
+				dependsOn{},
 				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{}),
 				nil,
 				nil,
@@ -101,14 +101,14 @@ func TestCompileInstanceSelectorForEach(t *testing.T) {
 			// predict the element type, so we just leave it unspecified.
 			"empty map of unknown type inline": {
 				hcl.StaticExpr(cty.MapValEmpty(cty.DynamicPseudoType), rng),
-				nil,
+				dependsOn{},
 				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{}),
 				nil,
 				nil,
 			},
 			"map with one element from scope": {
 				hcltest.MockExprTraversalSrc(`map_with_a`),
-				nil,
+				dependsOn{},
 				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{
 					addrs.StringKey("a"): {
 						EachKey:   cty.StringVal("a"),
@@ -123,7 +123,7 @@ func TestCompileInstanceSelectorForEach(t *testing.T) {
 					"a": cty.StringVal("value of a"),
 					"b": cty.StringVal("value of b"),
 				}), rng),
-				nil,
+				dependsOn{},
 				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{
 					addrs.StringKey("a"): {
 						EachKey:   cty.StringVal("a"),
@@ -139,7 +139,7 @@ func TestCompileInstanceSelectorForEach(t *testing.T) {
 			},
 			"empty map marked": {
 				hcl.StaticExpr(cty.MapValEmpty(cty.String).Mark("!"), rng),
-				nil,
+				dependsOn{},
 				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{}),
 				// For this layer of the system we just have general-purpose
 				// preservation of whatever marks were present. It's the caller's
@@ -153,7 +153,7 @@ func TestCompileInstanceSelectorForEach(t *testing.T) {
 			},
 			"map that is marked with one element": {
 				hcl.StaticExpr(cty.MapVal(map[string]cty.Value{"a": cty.True}).Mark("!"), rng),
-				nil,
+				dependsOn{},
 				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{
 					addrs.StringKey("a"): {
 						// TODO: Should we transfer the marks onto these nested values automatically?
@@ -166,7 +166,7 @@ func TestCompileInstanceSelectorForEach(t *testing.T) {
 			},
 			"map that is unmarked with one marked element": {
 				hcl.StaticExpr(cty.MapVal(map[string]cty.Value{"a": cty.True.Mark("!")}), rng),
-				nil,
+				dependsOn{},
 				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{
 					addrs.StringKey("a"): {
 						EachKey:   cty.StringVal("a"),
@@ -178,14 +178,14 @@ func TestCompileInstanceSelectorForEach(t *testing.T) {
 			},
 			"unknown map": {
 				hcl.StaticExpr(cty.UnknownVal(cty.Map(cty.String)), rng),
-				nil,
+				dependsOn{},
 				nil, // instances are unknown
 				nil,
 				nil,
 			},
 			"null map": {
 				hcl.StaticExpr(cty.NullVal(cty.Map(cty.String)), rng),
-				nil,
+				dependsOn{},
 				nil, // instances are unknown
 				nil,
 				diagsHasError("The for_each value must not be null."),
@@ -194,7 +194,7 @@ func TestCompileInstanceSelectorForEach(t *testing.T) {
 			// Objects
 			"empty object": {
 				hcl.StaticExpr(cty.EmptyObjectVal, rng),
-				nil,
+				dependsOn{},
 				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{}),
 				nil,
 				nil,
@@ -203,7 +203,7 @@ func TestCompileInstanceSelectorForEach(t *testing.T) {
 				hcl.StaticExpr(cty.ObjectVal(map[string]cty.Value{
 					"a": cty.StringVal("value of a"),
 				}), rng),
-				nil,
+				dependsOn{},
 				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{
 					addrs.StringKey("a"): {
 						EachKey:   cty.StringVal("a"),
@@ -218,7 +218,7 @@ func TestCompileInstanceSelectorForEach(t *testing.T) {
 					"a": cty.StringVal("value of a"),
 					"b": cty.StringVal("value of b"),
 				}), rng),
-				nil,
+				dependsOn{},
 				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{
 					addrs.StringKey("a"): {
 						EachKey:   cty.StringVal("a"),
@@ -234,7 +234,7 @@ func TestCompileInstanceSelectorForEach(t *testing.T) {
 			},
 			"empty object marked": {
 				hcl.StaticExpr(cty.EmptyObjectVal.Mark("!"), rng),
-				nil,
+				dependsOn{},
 				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{}),
 				// For this layer of the system we just have general-purpose
 				// preservation of whatever marks were present. It's the caller's
@@ -248,7 +248,7 @@ func TestCompileInstanceSelectorForEach(t *testing.T) {
 			},
 			"object that is marked with one attribute": {
 				hcl.StaticExpr(cty.ObjectVal(map[string]cty.Value{"a": cty.True}).Mark("!"), rng),
-				nil,
+				dependsOn{},
 				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{
 					addrs.StringKey("a"): {
 						// TODO: Should we transfer the marks onto these nested values automatically?
@@ -261,7 +261,7 @@ func TestCompileInstanceSelectorForEach(t *testing.T) {
 			},
 			"object that is unmarked with one marked attribute": {
 				hcl.StaticExpr(cty.ObjectVal(map[string]cty.Value{"a": cty.True.Mark("!")}), rng),
-				nil,
+				dependsOn{},
 				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{
 					addrs.StringKey("a"): {
 						EachKey:   cty.StringVal("a"),
@@ -273,7 +273,7 @@ func TestCompileInstanceSelectorForEach(t *testing.T) {
 			},
 			"unknown empty object": {
 				hcl.StaticExpr(cty.UnknownVal(cty.EmptyObject), rng),
-				nil,
+				dependsOn{},
 				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{}),
 				nil,
 				nil,
@@ -283,7 +283,7 @@ func TestCompileInstanceSelectorForEach(t *testing.T) {
 					"a": cty.String,
 					"b": cty.Bool,
 				})), rng),
-				nil,
+				dependsOn{},
 				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{
 					addrs.StringKey("a"): {
 						EachKey:   cty.StringVal("a"),
@@ -299,7 +299,7 @@ func TestCompileInstanceSelectorForEach(t *testing.T) {
 			},
 			"null object": {
 				hcl.StaticExpr(cty.NullVal(cty.EmptyObject), rng),
-				nil,
+				dependsOn{},
 				nil, // instances are unknown
 				nil,
 				diagsHasError("The for_each value must not be null."),
@@ -308,14 +308,14 @@ func TestCompileInstanceSelectorForEach(t *testing.T) {
 			// Sets
 			"empty set inline": {
 				hcl.StaticExpr(cty.SetValEmpty(cty.String), rng),
-				nil,
+				dependsOn{},
 				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{}),
 				nil,
 				nil,
 			},
 			"empty set from scope": {
 				hcltest.MockExprTraversalSrc(`empty_set`),
-				nil,
+				dependsOn{},
 				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{}),
 				nil,
 				nil,
@@ -326,14 +326,14 @@ func TestCompileInstanceSelectorForEach(t *testing.T) {
 				// ...because in that case we don't have enough information to
 				// predict the element type, so we just leave it unspecified.
 				hcl.StaticExpr(cty.SetValEmpty(cty.DynamicPseudoType), rng),
-				nil,
+				dependsOn{},
 				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{}),
 				nil,
 				nil,
 			},
 			"set with one element from scope": {
 				hcltest.MockExprTraversalSrc(`set_with_a`),
-				nil,
+				dependsOn{},
 				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{
 					addrs.StringKey("a"): {
 						EachKey:   cty.StringVal("a"),
@@ -345,14 +345,14 @@ func TestCompileInstanceSelectorForEach(t *testing.T) {
 			},
 			"unknown set": {
 				hcl.StaticExpr(cty.UnknownVal(cty.Set(cty.String)), rng),
-				nil,
+				dependsOn{},
 				nil, // instances are unknown
 				nil,
 				nil,
 			},
 			"null set": {
 				hcl.StaticExpr(cty.NullVal(cty.Set(cty.String)), rng),
-				nil,
+				dependsOn{},
 				nil, // instances are unknown
 				nil,
 				diagsHasError("The for_each value must not be null."),
@@ -362,14 +362,14 @@ func TestCompileInstanceSelectorForEach(t *testing.T) {
 					cty.StringVal("not null"),
 					cty.NullVal(cty.String),
 				}), rng),
-				nil,
+				dependsOn{},
 				nil, // instances are unknown
 				nil,
 				diagsHasError("a null element is not allowed"),
 			},
 			"set of non-string values": {
 				hcl.StaticExpr(cty.SetVal([]cty.Value{cty.True}), rng),
-				nil,
+				dependsOn{},
 				nil,
 				nil,
 				diagsHasError("When using a set with for_each, the element type must be string because the element values will be used as instance keys."),
@@ -378,21 +378,21 @@ func TestCompileInstanceSelectorForEach(t *testing.T) {
 			// Various other weird situations
 			"empty list": {
 				hcl.StaticExpr(cty.ListValEmpty(cty.String), rng),
-				nil,
+				dependsOn{},
 				nil,
 				nil,
 				diagsHasError("The for_each value must be either a mapping or a set of strings."),
 			},
 			"string": {
 				hcl.StaticExpr(cty.StringVal("nope"), rng),
-				nil,
+				dependsOn{},
 				nil,
 				nil,
 				diagsHasError("The for_each value must be either a mapping or a set of strings."),
 			},
 			"unknown string": {
 				hcl.StaticExpr(cty.UnknownVal(cty.String), rng),
-				nil,
+				dependsOn{},
 				nil,
 				nil,
 				// Value should be type-checked even when it's unknown
@@ -400,14 +400,30 @@ func TestCompileInstanceSelectorForEach(t *testing.T) {
 			},
 			"unknown type": {
 				hcl.StaticExpr(cty.DynamicVal, rng),
-				nil,
+				dependsOn{},
 				nil, // instances are unknown
 				nil,
 				nil,
 			},
+			"marks from depends_on": {
+				hcl.StaticExpr(cty.SetVal([]cty.Value{cty.StringVal("...")}), rng),
+				dependsOnForTesting("marked"),
+				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{
+					addrs.StringKey("..."): {
+						// Note that neither of these is marked, but once these
+						// results pass through the configgraph instance
+						// compilation code _it_ will mark them both with the
+						// same marks as the instance expander returned.
+						EachKey:   cty.StringVal("..."),
+						EachValue: cty.StringVal("..."),
+					},
+				}),
+				cty.NewValueMarks("marked"),
+				nil,
+			},
 		},
-		func(ctx context.Context, e hcl.Expression, extraMarks cty.ValueMarks) configgraph.InstanceSelector {
-			return compileInstanceSelector(ctx, scope, e, nil, nil, extraMarks)
+		func(ctx context.Context, e hcl.Expression, deps dependsOn) configgraph.InstanceSelector {
+			return compileInstanceSelector(ctx, scope, e, nil, nil, deps)
 		},
 	)
 }
@@ -441,21 +457,21 @@ func TestCompileInstanceSelectorCount(t *testing.T) {
 		map[string]compileInstanceSelectorTest{
 			"zero inline": {
 				hcl.StaticExpr(cty.Zero, rng),
-				nil,
+				dependsOn{},
 				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{}),
 				nil,
 				nil,
 			},
 			"zero from scope": {
 				hcltest.MockExprTraversalSrc(`zero`),
-				nil,
+				dependsOn{},
 				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{}),
 				nil,
 				nil,
 			},
 			"one inline": {
 				hcl.StaticExpr(cty.NumberIntVal(1), rng),
-				nil,
+				dependsOn{},
 				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{
 					addrs.IntKey(0): {
 						CountIndex: cty.Zero,
@@ -466,7 +482,7 @@ func TestCompileInstanceSelectorCount(t *testing.T) {
 			},
 			"one from scope": {
 				hcltest.MockExprTraversalSrc(`one`),
-				nil,
+				dependsOn{},
 				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{
 					addrs.IntKey(0): {
 						CountIndex: cty.Zero,
@@ -477,7 +493,7 @@ func TestCompileInstanceSelectorCount(t *testing.T) {
 			},
 			"three": {
 				hcl.StaticExpr(cty.NumberIntVal(3), rng),
-				nil,
+				dependsOn{},
 				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{
 					addrs.IntKey(0): {
 						CountIndex: cty.Zero,
@@ -494,7 +510,7 @@ func TestCompileInstanceSelectorCount(t *testing.T) {
 			},
 			"three marked": {
 				hcl.StaticExpr(cty.NumberIntVal(3).Mark("!"), rng),
-				nil,
+				dependsOn{},
 				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{
 					// TODO: Should we automatically propagate the mark to the
 					// CountIndex values in here too?
@@ -513,49 +529,49 @@ func TestCompileInstanceSelectorCount(t *testing.T) {
 			},
 			"unknown number": {
 				hcl.StaticExpr(cty.UnknownVal(cty.Number), rng),
-				nil,
+				dependsOn{},
 				nil, // instances are unknown
 				nil,
 				nil,
 			},
 			"unknown type": {
 				hcl.StaticExpr(cty.DynamicVal, rng),
-				nil,
+				dependsOn{},
 				nil, // instances are unknown
 				nil,
 				nil,
 			},
 			"not a number": {
 				hcl.StaticExpr(cty.EmptyObjectVal, rng),
-				nil,
+				dependsOn{},
 				nil,
 				nil,
 				diagsHasError("number required, but have object."),
 			},
 			"unknown and not a number": {
 				hcl.StaticExpr(cty.UnknownVal(cty.Bool), rng),
-				nil,
+				dependsOn{},
 				nil,
 				nil,
 				diagsHasError("number required, but have bool."),
 			},
 			"null number": {
 				hcl.StaticExpr(cty.NullVal(cty.Number), rng),
-				nil,
+				dependsOn{},
 				nil,
 				nil,
 				diagsHasError("must not be null."),
 			},
 			"negative number": {
 				hcl.StaticExpr(cty.NumberIntVal(-1), rng),
-				nil,
+				dependsOn{},
 				nil,
 				nil,
 				diagsHasError("must not be a negative number."),
 			},
 			"fractional number": {
 				hcl.StaticExpr(cty.NumberFloatVal(0.5), rng),
-				nil,
+				dependsOn{},
 				nil,
 				nil,
 				diagsHasError("must be a whole number."),
@@ -564,7 +580,7 @@ func TestCompileInstanceSelectorCount(t *testing.T) {
 				// This number is definitely out of range on both 32-bit and
 				// 64-bit targets.
 				hcl.StaticExpr(cty.MustParseNumberVal("99999999999999999999"), rng),
-				nil,
+				dependsOn{},
 				nil,
 				nil,
 				// The exact upper bound in this error message differs between
@@ -573,9 +589,16 @@ func TestCompileInstanceSelectorCount(t *testing.T) {
 				// of the other errors this function could return.
 				diagsHasError("must be between 0 and "),
 			},
+			"marks from depends_on": {
+				hcl.StaticExpr(cty.NumberIntVal(0), rng),
+				dependsOnForTesting("marked"),
+				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{}),
+				cty.NewValueMarks("marked"),
+				nil,
+			},
 		},
-		func(ctx context.Context, e hcl.Expression, extraMarks cty.ValueMarks) configgraph.InstanceSelector {
-			return compileInstanceSelector(ctx, scope, nil, e, nil, extraMarks)
+		func(ctx context.Context, e hcl.Expression, deps dependsOn) configgraph.InstanceSelector {
+			return compileInstanceSelector(ctx, scope, nil, e, nil, deps)
 		},
 	)
 }
@@ -609,21 +632,21 @@ func TestCompileInstanceSelectorEnabled(t *testing.T) {
 		map[string]compileInstanceSelectorTest{
 			"false inline": {
 				hcl.StaticExpr(cty.False, rng),
-				nil,
+				dependsOn{},
 				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{}),
 				nil,
 				nil,
 			},
 			"false from scope": {
 				hcltest.MockExprTraversalSrc(`f`),
-				nil,
+				dependsOn{},
 				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{}),
 				nil,
 				nil,
 			},
 			"true inline": {
 				hcl.StaticExpr(cty.True, rng),
-				nil,
+				dependsOn{},
 				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{
 					addrs.NoKey: {},
 				}),
@@ -632,7 +655,7 @@ func TestCompileInstanceSelectorEnabled(t *testing.T) {
 			},
 			"true from scope": {
 				hcltest.MockExprTraversalSrc(`t`),
-				nil,
+				dependsOn{},
 				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{
 					addrs.NoKey: {},
 				}),
@@ -641,7 +664,7 @@ func TestCompileInstanceSelectorEnabled(t *testing.T) {
 			},
 			"true marked": {
 				hcl.StaticExpr(cty.True.Mark("!"), rng),
-				nil,
+				dependsOn{},
 				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{
 					addrs.NoKey: {},
 				}),
@@ -650,56 +673,63 @@ func TestCompileInstanceSelectorEnabled(t *testing.T) {
 			},
 			"false marked": {
 				hcl.StaticExpr(cty.False.Mark("!"), rng),
-				nil,
+				dependsOn{},
 				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{}),
 				cty.NewValueMarks("!"),
 				nil,
 			},
 			"unknown bool": {
 				hcl.StaticExpr(cty.UnknownVal(cty.Bool), rng),
-				nil,
+				dependsOn{},
 				nil, // instances are unknown
 				nil,
 				nil,
 			},
 			"unknown type": {
 				hcl.StaticExpr(cty.DynamicVal, rng),
-				nil,
+				dependsOn{},
 				nil, // instances are unknown
 				nil,
 				nil,
 			},
 			"not a bool": {
 				hcl.StaticExpr(cty.EmptyObjectVal, rng),
-				nil,
+				dependsOn{},
 				nil,
 				nil,
 				diagsHasError("bool required, but have object."),
 			},
 			"unknown and not a bool": {
 				hcl.StaticExpr(cty.UnknownVal(cty.EmptyObject), rng),
-				nil,
+				dependsOn{},
 				nil,
 				nil,
 				diagsHasError("bool required, but have object."),
 			},
 			"null bool": {
 				hcl.StaticExpr(cty.NullVal(cty.Bool), rng),
-				nil,
+				dependsOn{},
 				nil,
 				nil,
 				diagsHasError("must not be null."),
 			},
+			"marks from depends_on": {
+				hcl.StaticExpr(cty.False, rng),
+				dependsOnForTesting("marked"),
+				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{}),
+				cty.NewValueMarks("marked"),
+				nil,
+			},
 		},
-		func(ctx context.Context, e hcl.Expression, extraMarks cty.ValueMarks) configgraph.InstanceSelector {
-			return compileInstanceSelector(ctx, scope, nil, nil, e, extraMarks)
+		func(ctx context.Context, e hcl.Expression, deps dependsOn) configgraph.InstanceSelector {
+			return compileInstanceSelector(ctx, scope, nil, nil, e, deps)
 		},
 	)
 }
 
 type compileInstanceSelectorTest struct {
 	expr       hcl.Expression
-	extraMarks cty.ValueMarks
+	deps       dependsOn
 	wantInsts  configgraph.Maybe[map[addrs.InstanceKey]instances.RepetitionData]
 	wantMarks  cty.ValueMarks
 	checkDiags func(*testing.T, tfdiags.Diagnostics)
@@ -708,7 +738,7 @@ type compileInstanceSelectorTest struct {
 func testCompileInstanceSelector(
 	t *testing.T,
 	tests map[string]compileInstanceSelectorTest,
-	compile func(context.Context, hcl.Expression, cty.ValueMarks) configgraph.InstanceSelector,
+	compile func(context.Context, hcl.Expression, dependsOn) configgraph.InstanceSelector,
 ) {
 	t.Helper()
 
@@ -716,7 +746,7 @@ func testCompileInstanceSelector(
 		t.Run(name, func(t *testing.T) {
 			ctx := grapheval.ContextWithNewWorker(t.Context())
 
-			selector := compile(ctx, test.expr, test.extraMarks)
+			selector := compile(ctx, test.expr, test.deps)
 			instsSeq, marks, diags := selector.Instances(ctx)
 			insts := configgraph.MapMaybe(instsSeq, func(s configgraph.InstancesSeq) map[addrs.InstanceKey]instances.RepetitionData {
 				return maps.Collect(s)

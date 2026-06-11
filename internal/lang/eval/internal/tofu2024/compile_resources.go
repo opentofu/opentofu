@@ -8,7 +8,6 @@ package tofu2024
 import (
 	"context"
 	"fmt"
-	"maps"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
@@ -85,6 +84,14 @@ func compileModuleInstanceResource(
 		configEvalable = exprs.EvalableHCLBodyWithDynamicBlocks(config.Config, spec)
 	}
 
+	// We compile the depends_on argument here but don't evaluate it yet.
+	// It actually gets evaluated inside the "instance selector" we'll
+	// construct below, when it gets asked for its instances, and include
+	// the resulting marks on the count.index, each.key, and/or each.value
+	// results because that means it'll get evaluated only once per resource
+	// instead of separately for each resource instance.
+	deps := compileDependsOn(config.DependsOn, declScope, extraMarks)
+
 	ret := &configgraph.Resource{
 		Addr:      absAddr,
 		DeclRange: tfdiags.SourceRangeFromHCL(config.DeclRange),
@@ -92,7 +99,7 @@ func compileModuleInstanceResource(
 		// Our instance selector depends on which of the repetition metaarguments
 		// are set, if any. We assume that package configs allows at most one
 		// of these to be set for each resource config.
-		InstanceSelector: compileInstanceSelector(ctx, declScope, config.ForEach, config.Count, config.Enabled, extraMarks),
+		InstanceSelector: compileInstanceSelector(ctx, declScope, config.ForEach, config.Count, config.Enabled, deps),
 
 		// The [configgraph.Resource] implementation will call back to this
 		// for each child instance it discovers through [InstanceSelector],
@@ -128,12 +135,10 @@ func compileModuleInstanceResource(
 				)
 			}
 
-			inheritedMarks := cty.ValueMarks{}
-			// This adds an implicit depends_on from marks in repetition data
-			maps.Copy(inheritedMarks, repData.CountIndex.Marks())
-			maps.Copy(inheritedMarks, repData.EachKey.Marks())
-			maps.Copy(inheritedMarks, repData.EachValue.Marks())
-			maps.Copy(inheritedMarks, extraMarks) // preserve the extra marks from our caller too
+			// Note that repetitionMarks also incorporates any marks from the
+			// depends_on argument, which got evaluated as part of the instance
+			// selector just as a convenient once-per-resource evaluation hook.
+			repetitionMarks := repData.AllValueMarks()
 
 			// Some language features related to resource blocks cause extra
 			// transformations of the configuration value, so we'll deal
@@ -142,8 +147,8 @@ func compileModuleInstanceResource(
 			configValuer := configgraph.ValuerOnce(exprs.DerivedValuer(
 				exprs.NewClosure(configEvalable, localScope),
 				func(v cty.Value, diags tfdiags.Diagnostics) (cty.Value, tfdiags.Diagnostics) {
-					if len(inheritedMarks) != 0 {
-						return v.WithMarks(inheritedMarks), diags
+					if len(repetitionMarks) != 0 {
+						return v.WithMarks(repetitionMarks), diags
 					}
 					return v, diags
 				},
