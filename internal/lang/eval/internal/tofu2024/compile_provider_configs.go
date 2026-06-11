@@ -7,7 +7,6 @@ package tofu2024
 
 import (
 	"context"
-	"maps"
 
 	"github.com/zclconf/go-cty/cty"
 
@@ -65,6 +64,14 @@ func compileProviderConfig(
 		configEvalable = exprs.EvalableHCLBodyWithDynamicBlocks(config.Config, spec)
 	}
 
+	// Provider configuration blocks don't have an explicit depends_on argument,
+	// but to make this as similar as possible to how we handle other similar
+	// block types we'll use the depends_on compiler with an always-empty
+	// traversal set as our vehicle for getting the extraMarks into the
+	// instance selector and then into the CompileProviderInstance callback
+	// below.
+	deps := compileDependsOn(nil, declScope, extraMarks)
+
 	return &configgraph.ProviderConfig{
 		Addr: addrs.AbsProviderConfigCorrect{
 			Module: moduleInstanceAddr,
@@ -74,16 +81,14 @@ func compileProviderConfig(
 			},
 		},
 		ProviderAddr:     providerAddr,
-		InstanceSelector: compileInstanceSelector(ctx, declScope, config.ForEach, nil, nil, extraMarks),
+		InstanceSelector: compileInstanceSelector(ctx, declScope, config.ForEach, nil, nil, deps),
 		CompileProviderInstance: func(ctx context.Context, key addrs.InstanceKey, repData instances.RepetitionData) *configgraph.ProviderInstance {
 			instanceScope := instanceLocalScope(declScope, repData)
 
-			inheritedMarks := cty.ValueMarks{}
-			// This adds an implicit depends_on from marks in repetition data
-			maps.Copy(inheritedMarks, repData.CountIndex.Marks())
-			maps.Copy(inheritedMarks, repData.EachKey.Marks())
-			maps.Copy(inheritedMarks, repData.EachValue.Marks())
-			maps.Copy(inheritedMarks, extraMarks) // preserve the extra marks from our caller too
+			// Note that repetitionMarks also incorporates any marks from the
+			// depends_on argument, which got evaluated as part of the instance
+			// selector just as a convenient once-per-resource evaluation hook.
+			repetitionMarks := repData.AllValueMarks()
 
 			// Some language features related to resource blocks cause extra
 			// transformations of the configuration value, so we'll deal
@@ -92,8 +97,8 @@ func compileProviderConfig(
 			configValuer := configgraph.ValuerOnce(exprs.DerivedValuer(
 				exprs.NewClosure(configEvalable, instanceScope),
 				func(v cty.Value, diags tfdiags.Diagnostics) (cty.Value, tfdiags.Diagnostics) {
-					if len(inheritedMarks) != 0 {
-						return v.WithMarks(inheritedMarks), diags
+					if len(repetitionMarks) != 0 {
+						return v.WithMarks(repetitionMarks), diags
 					}
 					return v, diags
 				},

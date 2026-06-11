@@ -45,11 +45,19 @@ func compileModuleInstanceModuleCalls(
 			versionConstraintValuer = exprs.ConstantValuer(cty.NullVal(cty.String))
 		}
 
+		// We compile the depends_on argument here but don't evaluate it yet.
+		// It actually gets evaluated inside the "instance selector" we'll
+		// construct below, when it gets asked for its instances, and include
+		// the resulting marks on the count.index, each.key, and/or each.value
+		// results because that means it'll get evaluated only once per resource
+		// instead of separately for each resource instance.
+		deps := compileDependsOn(config.DependsOn, declScope, parentCall.DependencyMarks)
+
 		ret[addr] = &configgraph.ModuleCall{
 			Addr:             addr.Absolute(moduleInstanceAddr),
 			DeclRange:        tfdiags.SourceRangeFromHCL(config.DeclRange),
 			ParentSourceAddr: parentSourceAddr,
-			InstanceSelector: compileInstanceSelector(ctx, declScope, config.ForEach, config.Count, config.Enabled, parentCall.DependencyMarks),
+			InstanceSelector: compileInstanceSelector(ctx, declScope, config.ForEach, config.Count, config.Enabled, deps),
 			SourceAddrValuer: configgraph.ValuerOnce(exprs.NewClosure(
 				exprs.EvalableHCLExpression(config.Source),
 				declScope,
@@ -104,6 +112,17 @@ func compileModuleInstanceModuleCalls(
 
 				instanceScope := instanceLocalScope(declScope, repData)
 
+				// We passed the marks from depends_on through the instance
+				// selector and so any dependency-related marks from there
+				// should be passed down to the child module as inherited
+				// dependency marks.
+				// TODO: This also includes any dependencies that come directly
+				// from expressions written in the count, for_each, or enabled
+				// argument. Is that acceptable or do we need to constrain this
+				// only what came from the depends_on argument?
+				childDependencyMarks := repData.AllValueMarks()
+				configgraph.RemoveNonDependencyMarks(childDependencyMarks)
+
 				// Apply passed providers to the provider ref chain.
 				// TODO: consider using the required_providers block to validate this further.
 				proxyProviderCompiler := compileProviderConfigRefProxy(parentProviders, config.Providers, instanceScope)
@@ -133,10 +152,10 @@ func compileModuleInstanceModuleCalls(
 						modInst, diags := mod.CompileModuleInstance(ctx, calleeAddr, &evalglue.ModuleCall{
 							InputValues:          exprs.ConstantValuer(inputs),
 							AllowImpureFunctions: parentCall.AllowImpureFunctions,
-							// TODO: DependencyMarks, combining parentCall.DependencyMarks and new marks from our own depends_on
-							EvalContext:         parentCall.EvalContext,
-							EvaluationGlue:      parentCall.EvaluationGlue,
-							ProvidersFromParent: proxyProviderCompiler,
+							DependencyMarks:      childDependencyMarks,
+							EvalContext:          parentCall.EvalContext,
+							EvaluationGlue:       parentCall.EvaluationGlue,
+							ProvidersFromParent:  proxyProviderCompiler,
 						})
 						if diags.HasErrors() {
 							return nil, diags
