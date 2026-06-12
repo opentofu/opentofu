@@ -8,11 +8,14 @@ package tofu2024
 import (
 	"context"
 	"fmt"
+	"iter"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/instances"
+	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
+	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
@@ -584,5 +587,109 @@ func (i *instanceLocalSymbolTable) ResolveAttr(ref hcl.TraverseAttr) (exprs.Attr
 			Subject:  &ref.SrcRange,
 		})
 		return nil, diags
+	}
+}
+
+// moduleCallResourceInstances is a shim that allows a caller that is holding
+// an [exprs.Scope] whose concrete type is [*moduleInstanceScope] (or one of
+// our several wrappers of it) to enumerate all of the resource instances
+// declared beneath the given module call, using direct analysis of the compiled
+// module structure instead of using expression evaluation.
+//
+// This function needs to be able to resolve instance selection expressions
+// for any module calls and resources starting at the given call address and
+// so the given context must have a valid grapheval worker.
+//
+// This is here to help deal with the special treatment we give to module call
+// references in a depends_on argument, where we treat that as depending on
+// every resource instance declared inside the module regardless of whether
+// any of the output values depend on those resource instances. This is a quirky
+// oddity we inherited from the old language runtime that we're preserving for
+// backward-compatibility.
+//
+// If the given scope is not a known wrapper of [*moduleInstanceScope] then this
+// just returns a zero-length sequence so that tests which don't involve this
+// special behavior can safely use a testing-specific fake scope instead of the
+// full scope implementation.
+func moduleCallResourceInstancesDeep(ctx context.Context, scope exprs.Scope, callAddr addrs.ModuleCall) iter.Seq[*configgraph.ResourceInstance] {
+	thisModuleInst := compiledModuleInstanceFromScope(scope)
+	if thisModuleInst == nil {
+		return func(yield func(*configgraph.ResourceInstance) bool) {}
+	}
+
+	return func(yield func(*configgraph.ResourceInstance) bool) {
+		for _, calledModuleInst := range thisModuleInst.ChildModuleInstancesForCall(ctx, callAddr) {
+			// TODO: using evalglue.ResourceInstancesDeep here is probably not right
+			// because it immediately starts a new grapheval worker without also
+			// starting a new goroutine. We need to figure out how the non-goroutine
+			// coroutines started by for loops over iter.Seq fit in to the grapheval
+			// rules: they have some characteristics in common with goroutines but
+			// are not capable of running asynchronously with the calling goroutine.
+			for resourceInst := range evalglue.ResourceInstancesDeep(ctx, calledModuleInst) {
+				if !yield(resourceInst) {
+					return
+				}
+			}
+		}
+	}
+}
+
+// moduleCallResourceInstances is a shim that allows a caller that is holding
+// an [exprs.Scope] whose concrete type is [*moduleInstanceScope] (or one of
+// our several wrappers of it) to enumerate all of the resource instances
+// declared beneath the given module call instance, using direct analysis of
+// the compiled module structure instead of using expression evaluation.
+//
+// This function needs to be able to resolve instance selection expressions
+// for any module calls and resources starting at the given call address and
+// so the given context must have a valid grapheval worker.
+//
+// This is here to help deal with the special treatment we give to module call
+// references in a depends_on argument, where we treat that as depending on
+// every resource instance declared inside the module regardless of whether
+// any of the output values depend on those resource instances. This is a quirky
+// oddity we inherited from the old language runtime that we're preserving for
+// backward-compatibility.
+//
+// If the given scope is not a known wrapper of [*moduleInstanceScope] then this
+// just returns a zero-length sequence so that tests which don't involve this
+// special behavior can safely use a testing-specific fake scope instead of the
+// full scope implementation.
+func moduleCallInstanceResourceInstancesDeep(ctx context.Context, scope exprs.Scope, callInstAddr addrs.ModuleCallInstance) iter.Seq[*configgraph.ResourceInstance] {
+	thisModuleInst := compiledModuleInstanceFromScope(scope)
+	if thisModuleInst == nil {
+		return func(yield func(*configgraph.ResourceInstance) bool) {}
+	}
+
+	calledModuleInst := thisModuleInst.ChildModuleInstance(ctx, callInstAddr)
+	if calledModuleInst == nil {
+		// No such instance then, and so no resource instances beneath it.
+		return func(yield func(*configgraph.ResourceInstance) bool) {}
+	}
+	// TODO: using evalglue.ResourceInstancesDeep here is probably not right
+	// because it immediately starts a new grapheval worker without also
+	// starting a new goroutine. We need to figure out how the non-goroutine
+	// coroutines started by for loops over iter.Seq fit in to the grapheval
+	// rules: they have some characteristics in common with goroutines but
+	// are not capable of running asynchronously with the calling goroutine.
+	return evalglue.ResourceInstancesDeep(ctx, calledModuleInst)
+}
+
+// compiledModuleInstanceFromScope knows how to extract a
+// *CompiledModuleInstance from the various concrete [exprs.Scope]
+// implementations in this package.
+//
+// If the given scope is not one this function knows how to handle then it
+// returns nil.
+func compiledModuleInstanceFromScope(scope exprs.Scope) *CompiledModuleInstance {
+	switch scope := scope.(type) {
+	case *moduleInstanceScope:
+		return scope.inst
+	case *instanceOverlayScope:
+		return compiledModuleInstanceFromScope(scope.parent)
+	case *inputVariableValidationScope:
+		return compiledModuleInstanceFromScope(scope.parentScope)
+	default:
+		return nil
 	}
 }
