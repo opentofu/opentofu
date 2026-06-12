@@ -37,6 +37,15 @@ type ResourceInstanceMark struct {
 	instance *ResourceInstance
 }
 
+// NewResourceInstanceMark constructs a new [ResourceInstanceMark] referring
+// to the given resource instance.
+//
+// This is here so that code in other packages can describe dependencies caused
+// by language features that this package is not aware of.
+func NewResourceInstanceMark(inst *ResourceInstance) ResourceInstanceMark {
+	return ResourceInstanceMark{inst}
+}
+
 // ContributingResourceInstances returns an iterable sequence of all of the
 // resource instances whose result values may have contributed to the
 // given value.

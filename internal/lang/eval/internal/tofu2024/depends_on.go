@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
@@ -151,7 +152,7 @@ func (d *dependsOnValuer) ValueSourceRange() *tfdiags.SourceRange {
 func (d *dependsOnValuer) StaticCheckTraversal(traversal hcl.Traversal) tfdiags.Diagnostics {
 	// We don't expect to use this valuer implementation in any context where
 	// it would make sense to call this method.
-	panic("unimplemented")
+	return nil
 }
 
 func compileDependsOnItem(traversal hcl.Traversal, scope exprs.Scope) exprs.Valuer {
@@ -176,41 +177,93 @@ func compileDependsOnItem(traversal hcl.Traversal, scope exprs.Scope) exprs.Valu
 		return exprs.ForcedErrorValuerWithSourceRange(compileDiags, tfdiags.SourceRangeFromHCL(traversal.SourceRange()))
 	}
 
-	// We'll use a synthetic scope traversal expression here just so we can
-	// reuse our existing expression evaluation machinery instead of making
-	// a special case for naked traversals.
-	evalable := exprs.EvalableHCLExpression(&hclsyntax.ScopeTraversalExpr{
-		Traversal: traversal,
-		SrcRange:  traversal.SourceRange(),
-	})
-	ret := exprs.Valuer(exprs.NewClosure(evalable, scope))
-
 	// To emulate some special behaviors from the old language runtime we will
-	// collect some additional marks for certain expression types.
-	var moreMarks cty.ValueMarks
+	// use different behavior for certain expression types.
 	switch subj := ref.Subject.(type) {
 	case addrs.ModuleCall:
-		moreMarks = dependsOnMarksForModuleCall(subj)
+		return dependsOnModuleCallItemValuer{
+			addr:  subj,
+			scope: scope,
+		}
 	case addrs.ModuleCallOutput:
-		moreMarks = dependsOnMarksForModuleCall(subj.Call)
+		return dependsOnModuleCallItemValuer{
+			addr:  subj.Call,
+			scope: scope,
+		}
 	case addrs.ModuleCallInstance:
-		moreMarks = dependsOnMarksForModuleCallInstance(subj)
+		return dependsOnModuleCallInstanceItemValuer{
+			addr:  subj,
+			scope: scope,
+		}
 	case addrs.ModuleCallInstanceOutput:
-		moreMarks = dependsOnMarksForModuleCallInstance(subj.Call)
-	}
-	if len(moreMarks) != 0 {
-		ret = exprs.DerivedValuer(ret, func(v cty.Value, diags tfdiags.Diagnostics) (cty.Value, tfdiags.Diagnostics) {
-			return v.WithMarks(moreMarks), diags
+		return dependsOnModuleCallInstanceItemValuer{
+			addr:  subj.Call,
+			scope: scope,
+		}
+	default:
+		// We'll use a synthetic scope traversal expression here just so we can
+		// reuse our existing expression evaluation machinery instead of making
+		// a special case for naked traversals.
+		evalable := exprs.EvalableHCLExpression(&hclsyntax.ScopeTraversalExpr{
+			Traversal: traversal,
+			SrcRange:  traversal.SourceRange(),
 		})
+		return exprs.NewClosure(evalable, scope)
 	}
-
-	return ret
 }
 
-func dependsOnMarksForModuleCall(addr addrs.ModuleCall) cty.ValueMarks {
-	return nil // TODO: Implement
+type dependsOnModuleCallItemValuer struct {
+	addr  addrs.ModuleCall
+	scope exprs.Scope
+	rng   tfdiags.SourceRange
 }
 
-func dependsOnMarksForModuleCallInstance(addr addrs.ModuleCallInstance) cty.ValueMarks {
-	return nil // TODO: Implement
+// Value implements [exprs.Valuer].
+func (v dependsOnModuleCallItemValuer) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+	marks := make(cty.ValueMarks)
+	for resourceInst := range moduleCallResourceInstancesDeep(ctx, v.scope, v.addr) {
+		mark := configgraph.NewResourceInstanceMark(resourceInst)
+		marks[mark] = struct{}{}
+	}
+	return cty.NullVal(cty.DynamicPseudoType).WithMarks(marks), nil
+}
+
+// ValueSourceRange implements [exprs.Valuer].
+func (v dependsOnModuleCallItemValuer) ValueSourceRange() *tfdiags.SourceRange {
+	return &v.rng
+}
+
+// StaticCheckTraversal implements [exprs.Valuer].
+func (v dependsOnModuleCallItemValuer) StaticCheckTraversal(traversal hcl.Traversal) tfdiags.Diagnostics {
+	// We don't expect to use this valuer implementation in any context where
+	// it would make sense to call this method.
+	return nil
+}
+
+type dependsOnModuleCallInstanceItemValuer struct {
+	addr  addrs.ModuleCallInstance
+	scope exprs.Scope
+	rng   tfdiags.SourceRange
+}
+
+// Value implements [exprs.Valuer].
+func (v dependsOnModuleCallInstanceItemValuer) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+	marks := make(cty.ValueMarks)
+	for resourceInst := range moduleCallInstanceResourceInstancesDeep(ctx, v.scope, v.addr) {
+		mark := configgraph.NewResourceInstanceMark(resourceInst)
+		marks[mark] = struct{}{}
+	}
+	return cty.NullVal(cty.DynamicPseudoType).WithMarks(marks), nil
+}
+
+// ValueSourceRange implements [exprs.Valuer].
+func (v dependsOnModuleCallInstanceItemValuer) ValueSourceRange() *tfdiags.SourceRange {
+	return &v.rng
+}
+
+// StaticCheckTraversal implements [exprs.Valuer].
+func (v dependsOnModuleCallInstanceItemValuer) StaticCheckTraversal(traversal hcl.Traversal) tfdiags.Diagnostics {
+	// We don't expect to use this valuer implementation in any context where
+	// it would make sense to call this method.
+	return nil
 }
