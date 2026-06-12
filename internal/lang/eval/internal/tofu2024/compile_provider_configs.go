@@ -73,8 +73,8 @@ func compileProviderConfig(
 			},
 		},
 		ProviderAddr:     providerAddr,
-		InstanceSelector: compileInstanceSelector(ctx, declScope, config.ForEach, nil, nil),
-		CompileProviderInstance: func(ctx context.Context, key addrs.InstanceKey, repData instances.RepetitionData) *configgraph.ProviderInstance {
+		InstanceSelector: compileInstanceSelector(ctx, declScope, config.ForEach, nil, nil, nil),
+		CompileProviderInstance: func(ctx context.Context, key addrs.InstanceKey, repData instances.RepetitionData, additionalMarks cty.ValueMarks) *configgraph.ProviderInstance {
 			instanceScope := instanceLocalScope(declScope, repData)
 			return &configgraph.ProviderInstance{
 				Addr: addrs.AbsProviderInstanceCorrect{

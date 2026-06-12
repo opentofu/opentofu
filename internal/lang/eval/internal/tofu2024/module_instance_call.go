@@ -11,6 +11,7 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/zclconf/go-cty/cty"
 )
 
 type ModuleInstanceCall struct {
@@ -80,4 +81,6 @@ type ModuleInstanceCall struct {
 	// apply phases, whereas evaluationGlue is where we deal with behaviors
 	// that need to vary between phases.
 	EvalContext *evalglue.EvalContext
+
+	AdditionalMarks cty.ValueMarks
 }

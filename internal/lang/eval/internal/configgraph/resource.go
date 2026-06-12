@@ -43,7 +43,7 @@ type Resource struct {
 	// This indirection allows the caller to take into account the same
 	// context it had available when it built this [Resource] object, while
 	// incorporating the new information about this specific instance.
-	CompileResourceInstance func(ctx context.Context, key addrs.InstanceKey, repData instances.RepetitionData) *ResourceInstance
+	CompileResourceInstance func(ctx context.Context, key addrs.InstanceKey, repData instances.RepetitionData, additionalMarks cty.ValueMarks) *ResourceInstance
 
 	DeclRange tfdiags.SourceRange
 

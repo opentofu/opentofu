@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"math/big"
 
@@ -24,46 +25,65 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-func compileInstanceSelector(ctx context.Context, declScope exprs.Scope, forEachExpr hcl.Expression, countExpr hcl.Expression, enabledExpr hcl.Expression) configgraph.InstanceSelector {
+func compileInstanceSelector(ctx context.Context, declScope exprs.Scope, forEachExpr hcl.Expression, countExpr hcl.Expression, enabledExpr hcl.Expression, dependsOn []hcl.Expression) configgraph.InstanceSelector {
 	// We don't current verify that only one of the given expressions is set
 	// because we expect the configs package to check that.
 
 	if forEachExpr != nil {
-		return compileInstanceSelectorForEach(ctx, exprs.NewClosure(
-			exprs.EvalableHCLExpression(forEachExpr),
-			declScope,
-		))
+		return compileInstanceSelectorForEach(ctx, declScope, forEachExpr, dependsOn)
 	}
 	if countExpr != nil {
-		return compileInstanceSelectorCount(ctx, exprs.NewClosure(
-			exprs.EvalableHCLExpression(countExpr),
-			declScope,
-		))
+		return compileInstanceSelectorCount(ctx, declScope, countExpr, dependsOn)
 	}
 	if enabledExpr != nil {
-		return compileInstanceSelectorEnabled(ctx, exprs.NewClosure(
-			exprs.EvalableHCLExpression(enabledExpr),
-			declScope,
-		))
+		return compileInstanceSelectorEnabled(ctx, declScope, enabledExpr, dependsOn)
 	}
-	return compileInstanceSelectorSingleton(ctx)
+	return compileInstanceSelectorSingleton(ctx, declScope, dependsOn)
 }
 
-func compileInstanceSelectorSingleton(_ context.Context) configgraph.InstanceSelector {
+func seqBuilder(ctx context.Context, declScope exprs.Scope, repData instances.RepetitionData, dependsOn []hcl.Expression) configgraph.InstanceSeq {
+	localScope := instanceLocalScope(declScope, repData)
+
+	marks := cty.ValueMarks{}
+	for _, dep := range dependsOn {
+		// we don't care about error diags here, just any marks provided on the value
+		val, _ := exprs.NewClosure(
+			exprs.EvalableHCLExpression(dep),
+			localScope,
+		).Value(ctx)
+		// ValueMarksOfTypeDeep is probably more efficient
+		_, moreMarks := val.UnmarkDeep()
+		maps.Copy(marks, moreMarks)
+	}
+
+	// This adds an implicit depends_on from marks in repetition data
+	maps.Copy(marks, repData.CountIndex.Marks())
+	maps.Copy(marks, repData.EachKey.Marks())
+	maps.Copy(marks, repData.EachValue.Marks())
+
+	return configgraph.InstanceSeq{repData, marks}
+}
+
+func compileInstanceSelectorSingleton(ctx context.Context, declScope exprs.Scope, dependsOn []hcl.Expression) configgraph.InstanceSelector {
 	return &instanceSelector{
 		keyType:     addrs.NoKeyType,
 		sourceRange: nil,
 		selectInstances: func(ctx context.Context) (configgraph.Maybe[configgraph.InstancesSeq], cty.ValueMarks, tfdiags.Diagnostics) {
-			seq := func(yield func(addrs.InstanceKey, instances.RepetitionData) bool) {
-				yield(addrs.NoKey, instances.RepetitionData{})
+			seq := func(yield func(addrs.InstanceKey, configgraph.InstanceSeq) bool) {
+				repData := instances.RepetitionData{}
+				yield(addrs.NoKey, seqBuilder(ctx, declScope, repData, dependsOn))
 			}
+
 			return configgraph.Known(seq), nil, nil
 		},
 	}
 }
 
-func compileInstanceSelectorCount(_ context.Context, countValuer exprs.Valuer) configgraph.InstanceSelector {
-	countValuer = configgraph.ValuerOnce(countValuer)
+func compileInstanceSelectorCount(ctx context.Context, declScope exprs.Scope, countExpr hcl.Expression, dependsOn []hcl.Expression) configgraph.InstanceSelector {
+	countValuer := configgraph.ValuerOnce(exprs.NewClosure(
+		exprs.EvalableHCLExpression(countExpr),
+		declScope,
+	))
 	return &instanceSelector{
 		keyType:     addrs.IntKeyType,
 		sourceRange: countValuer.ValueSourceRange(),
@@ -118,23 +138,28 @@ func compileInstanceSelectorCount(_ context.Context, countValuer exprs.Valuer) c
 			// If we manage to get here then "count" is the desired number of
 			// instances, and so we'll yield incrementing integers up to
 			// that number, exclusive.
-			seq := func(yield func(addrs.InstanceKey, instances.RepetitionData) bool) {
+			seq := func(yield func(addrs.InstanceKey, configgraph.InstanceSeq) bool) {
 				for i := range count {
-					more := yield(addrs.IntKey(i), instances.RepetitionData{
+					repData := instances.RepetitionData{
 						CountIndex: cty.NumberIntVal(int64(i)),
-					})
+					}
+					more := yield(addrs.IntKey(i), seqBuilder(ctx, declScope, repData, dependsOn))
 					if !more {
 						break
 					}
 				}
 			}
+
 			return configgraph.Known(seq), marks, nil
 		},
 	}
 }
 
-func compileInstanceSelectorEnabled(_ context.Context, enabledValuer exprs.Valuer) configgraph.InstanceSelector {
-	enabledValuer = configgraph.ValuerOnce(enabledValuer)
+func compileInstanceSelectorEnabled(ctx context.Context, declScope exprs.Scope, enabledExpr hcl.Expression, dependsOn []hcl.Expression) configgraph.InstanceSelector {
+	enabledValuer := configgraph.ValuerOnce(exprs.NewClosure(
+		exprs.EvalableHCLExpression(enabledExpr),
+		declScope,
+	))
 	return &instanceSelector{
 		keyType:     addrs.NoKeyType,
 		sourceRange: nil,
@@ -169,18 +194,23 @@ func compileInstanceSelectorEnabled(_ context.Context, enabledValuer exprs.Value
 			}
 			// If we manage to get here then "enabled" is true only if there
 			// should be an instance of this resource.
-			seq := func(yield func(addrs.InstanceKey, instances.RepetitionData) bool) {
+			seq := func(yield func(addrs.InstanceKey, configgraph.InstanceSeq) bool) {
 				if enabled {
-					yield(addrs.NoKey, instances.RepetitionData{})
+					repData := instances.RepetitionData{}
+					yield(addrs.NoKey, seqBuilder(ctx, declScope, repData, dependsOn))
 				}
 			}
+
 			return configgraph.Known(seq), marks, nil
 		},
 	}
 }
 
-func compileInstanceSelectorForEach(_ context.Context, forEachValuer exprs.Valuer) configgraph.InstanceSelector {
-	forEachValuer = configgraph.ValuerOnce(forEachValuer)
+func compileInstanceSelectorForEach(ctx context.Context, declScope exprs.Scope, forEachExpr hcl.Expression, dependsOn []hcl.Expression) configgraph.InstanceSelector {
+	forEachValuer := configgraph.ValuerOnce(exprs.NewClosure(
+		exprs.EvalableHCLExpression(forEachExpr),
+		declScope,
+	))
 	return &instanceSelector{
 		keyType:     addrs.StringKeyType,
 		sourceRange: forEachValuer.ValueSourceRange(),
@@ -255,12 +285,13 @@ func compileInstanceSelectorForEach(_ context.Context, forEachValuer exprs.Value
 				// result differently by iterating the attributes from the
 				// type instead of from the value.
 				if !rawVal.IsKnown() {
-					seq := func(yield func(addrs.InstanceKey, instances.RepetitionData) bool) {
+					seq := func(yield func(addrs.InstanceKey, configgraph.InstanceSeq) bool) {
 						for name, ty := range typ.AttributeTypes() {
-							more := yield(addrs.StringKey(name), instances.RepetitionData{
+							repData := instances.RepetitionData{
 								EachKey:   cty.StringVal(name),
 								EachValue: cty.UnknownVal(ty),
-							})
+							}
+							more := yield(addrs.StringKey(name), seqBuilder(ctx, declScope, repData, dependsOn))
 							if !more {
 								break
 							}
@@ -289,18 +320,20 @@ func compileInstanceSelectorForEach(_ context.Context, forEachValuer exprs.Value
 			// of the behavior of HCL's 'for' expressions and they also
 			// rely on cty.Value.Elements. In particular, the rules above
 			// should ensure that the key is always a known, non-null string.
-			seq := func(yield func(addrs.InstanceKey, instances.RepetitionData) bool) {
+			seq := func(yield func(addrs.InstanceKey, configgraph.InstanceSeq) bool) {
 				for k, v := range rawVal.Elements() {
-					keyStr := k.AsString()
-					more := yield(addrs.StringKey(keyStr), instances.RepetitionData{
+					repData := instances.RepetitionData{
 						EachKey:   k,
 						EachValue: v,
-					})
+					}
+					keyStr := k.AsString()
+					more := yield(addrs.StringKey(keyStr), seqBuilder(ctx, declScope, repData, dependsOn))
 					if !more {
 						break
 					}
 				}
 			}
+
 			return configgraph.Known(seq), marks, nil
 		},
 	}

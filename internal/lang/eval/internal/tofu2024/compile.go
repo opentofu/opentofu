@@ -10,12 +10,16 @@ import (
 	"iter"
 	"time"
 
+	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
+	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -80,6 +84,60 @@ func CompileModuleInstance(
 		},
 	}
 
+	legacyDependsOnModuleCall := func(callName string, rng hcl.Range) hcl.Expression {
+		// TODO cache for performance
+		return &derivedExpression{
+			value: func() (cty.Value, hcl.Diagnostics) {
+				var values []cty.Value
+				// TODO make sure we are workgraphing correctly (ctx)
+				children := ret.ChildModuleInstancesForCall(ctx, addrs.ModuleCall{Name: callName})
+				for _, child := range children {
+					resources := evalglue.ResourceInstancesDeep(ctx, child)
+					for resource := range resources {
+						value, _ := resource.Value(ctx)
+						values = append(values, value)
+					}
+				}
+				combined := cty.TupleVal(values)
+				return combined, nil
+			},
+			rng: rng,
+		}
+	}
+
+	compileDependsOn := func(traversals []hcl.Traversal, rng hcl.Range) []hcl.Expression {
+		var dependsOn []hcl.Expression
+		for _, trav := range traversals {
+			// This implements legacy "depends_on" behavior, where 'module.callname' would imply a dependency on
+			// all resources within the module and it's children
+			//
+			// Long term, we want to switch from hcl.Traversal to hcl.Expression for config.DependsOn. This legacy
+			// functionality will need to be re-evaluated when that occurs. As written this workaround prevents
+			// anything after 'module.callname' from being utilized to select dependencies (like instances)
+			if len(trav) >= 2 {
+				if root, ok := trav[0].(hcl.TraverseRoot); ok && root.Name == "module" {
+					if inst, ok := trav[1].(hcl.TraverseAttr); ok {
+						dependsOn = append(dependsOn, legacyDependsOnModuleCall(inst.Name, rng))
+						continue
+					}
+				}
+			}
+			dependsOn = append(dependsOn, &hclsyntax.ScopeTraversalExpr{
+				Traversal: trav,
+				SrcRange:  rng,
+			})
+		}
+		if len(call.AdditionalMarks) != 0 {
+			dependsOn = append(dependsOn, &derivedExpression{
+				value: func() (cty.Value, hcl.Diagnostics) {
+					return cty.DynamicVal.WithMarks(call.AdditionalMarks), nil
+				},
+				rng: rng,
+			})
+		}
+		return dependsOn
+	}
+
 	// topScope is the top-level scope that defines what all normal expressions
 	// within the module can refer to, such as the top-level "var" and "local"
 	// symbols and all of the available functions.
@@ -128,8 +186,10 @@ func CompileModuleInstance(
 		moduleSourceAddr,
 		call.CalleeAddr,
 		call.EvalContext.Modules,
+		compileDependsOn,
 		call,
 	)
+
 	ret.resourceNodes = compileModuleInstanceResources(ctx,
 		module.ManagedResources,
 		module.DataResources,
@@ -138,6 +198,7 @@ func CompileModuleInstance(
 		providersSidechannel,
 		call.CalleeAddr,
 		call.EvalContext.Providers,
+		compileDependsOn,
 		call.EvaluationGlue.ResourceInstanceValue,
 	)
 
@@ -192,4 +253,32 @@ func compileCoreFunctions(_ context.Context, allowImpureFuncs bool, baseDir stri
 		PlanTimestamp: planTimestamp,
 	}
 	return oldScope.Functions()
+}
+
+type dependsOnCompiler func(traversals []hcl.Traversal, rng hcl.Range) []hcl.Expression
+
+type derivedExpression struct {
+	value func() (cty.Value, hcl.Diagnostics)
+	rng   hcl.Range
+}
+
+func (d *derivedExpression) Value(ctx *hcl.EvalContext) (cty.Value, hcl.Diagnostics) {
+	return d.value()
+}
+
+// Variables returns a list of variables referenced in the receiving
+// expression. These are expressed as absolute Traversals, so may include
+// additional information about how the variable is used, such as
+// attribute lookups, which the calling application can potentially use
+// to only selectively populate the scope.
+func (d *derivedExpression) Variables() []hcl.Traversal {
+	return nil
+}
+
+func (d *derivedExpression) Range() hcl.Range {
+	return d.rng
+}
+
+func (d *derivedExpression) StartRange() hcl.Range {
+	return d.rng
 }
