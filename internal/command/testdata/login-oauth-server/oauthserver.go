@@ -1,3 +1,8 @@
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 // Package oauthserver is a very simplistic OAuth server used only for
 // the testing of the "tofu login" and "tofu logout" commands.
 package oauthserver
