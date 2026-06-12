@@ -4761,7 +4761,15 @@ data "test_object" "a" {
 }
 
 func TestContext2Plan_applyGraphError(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureDependsOn)
+	// This test is trying to exercise the old runtime's behavior where the
+	// plan phase quietly tries to run the apply graph builder against the
+	// generated plan so we can fail earlier if the plan is wrong in a way
+	// that the apply phase would reject. It's reasonable to test that
+	// but the new runtime doesn't guarantee that yet so we'll need to first
+	// figure out exactly how our new-style planning phase will catch the
+	// situation where the plan is invalid, and then figure out how to cause
+	// that to happen for testing purposes.
+	SkipExperimental(t, ExperimentalNewStrategyNeeded)
 
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
