@@ -6,6 +6,7 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"os"
@@ -13,13 +14,16 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/command/cliconfig/ociauthconfig"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/depsfile"
 	"github.com/opentofu/opentofu/internal/getproviders"
+	"github.com/opentofu/opentofu/internal/oci"
 	"github.com/opentofu/opentofu/internal/providercache"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tracing"
 	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
+	"github.com/opentofu/svchost/uritemplates"
 )
 
 type providersLockChangeType string
@@ -77,6 +81,9 @@ func (c *ProvidersLockCommand) Run(rawArgs []string) int {
 	}
 	if args.NetMirrorURL != "" {
 		span.SetAttributes(traceattrs.String("opentofu.provider.lock.netmirror", args.NetMirrorURL))
+	}
+	if args.OciMirrorTemplate != "" {
+		span.SetAttributes(traceattrs.String("opentofu.provider.lock.ocimirror", args.OciMirrorTemplate))
 	}
 
 	providerStrs := args.Providers
@@ -137,6 +144,42 @@ func (c *ProvidersLockCommand) Run(rawArgs []string) int {
 		// don't use this client directly.
 		httpTimeout := c.registryHTTPClient(ctx).HTTPClient.Timeout
 		source = getproviders.NewHTTPMirrorSource(ctx, u, c.Services.CredentialsSource(), httpTimeout, c.ProviderSourceLocationConfig)
+	case args.OciMirrorTemplate != "":
+		template := args.OciMirrorTemplate
+		if err := uritemplates.ValidateLevel1(template); err != nil {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Invalid OCI mirror URI template",
+				"The -oci-mirror option requires a valid OCI mirror URI template.",
+			))
+			tracing.SetSpanError(span, diags)
+			view.Diagnostics(diags)
+			return 1
+		}
+
+		source = getproviders.NewOCIRegistryMirrorSource(
+			ctx,
+			func(addr addrs.Provider) (registryDomain string, repositoryName string, err error) {
+				uri, err := uritemplates.ExpandLevel1(template, map[string]string{
+					"hostname":  addr.Hostname.String(),
+					"namespace": addr.Namespace,
+					"type":      addr.Type,
+				})
+				if err != nil {
+					return "", "", fmt.Errorf("error while expanding uri template: %w", err)
+				}
+
+				return ociauthconfig.ParseRepositoryAddressPrefix(uri)
+			},
+			func(ctx context.Context, registryDomain, repositoryName string) (getproviders.OCIRepositoryStore, error) {
+				credsPolicy, err := c.OCICredentialsPolicyBuilder(ctx)
+				if err != nil {
+					// This deals with only a small number of errors that we can't catch during CLI config validation
+					return nil, fmt.Errorf("invalid credentials configuration for OCI registries: %w", err)
+				}
+				return oci.GetOCIRepositoryStore(ctx, registryDomain, repositoryName, credsPolicy)
+			},
+		)
 	default:
 		// With no special options we consult upstream registries directly,
 		// because that gives us the most information to produce as complete
@@ -396,6 +439,19 @@ Options:
                      of valid checksums will be limited only to what OpenTofu
                      can learn from the data in the mirror indices.
 
+  -oci-mirror=tmpl   Consult the given OCI registry mirror (given as a template)
+					 instead of the origin registry for each of the given
+					 providers.
+
+                     This would be necessary to generate lock file entries for
+                     a provider that is available only via an OCI mirror, and
+                     not published in an upstream registry.
+
+					 The argument is a Level 1 URI template as defined by RFC 6570,
+					 used to map provider source addresses to OCI repository
+					 addresses. The template can contain {hostname} {namespace}
+					 and {type}.
+
   -platform=os_arch  Choose a target platform to request package checksums
                      for.
 
@@ -419,8 +475,8 @@ Options:
                      Use this option more than once to include more than one
                      variables file.
 
-  -json               Produce output in a machine-readable JSON format, 
-                      suitable for use in text editor integrations and other 
+  -json               Produce output in a machine-readable JSON format,
+                      suitable for use in text editor integrations and other
                       automated systems. Always disables color.
 
   -json-into=out.json Produce the same output as -json, but sent directly

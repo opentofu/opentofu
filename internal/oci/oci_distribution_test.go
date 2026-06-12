@@ -3,7 +3,7 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package main
+package oci
 
 import (
 	"context"
@@ -113,7 +113,7 @@ func TestGetOciRepositoryNoPing(t *testing.T) {
 	// No authentication, empty credentials
 	credsPolicy := ociauthconfig.NewCredentialsConfigs(nil)
 
-	registryServer, err := fakeocireg.NewServer(t.Context(), map[string]string{	})
+	registryServer, err := fakeocireg.NewServer(t.Context(), map[string]string{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,7 +122,7 @@ func TestGetOciRepositoryNoPing(t *testing.T) {
 	registryAddr := registryServer.Listener.Addr().String()
 	repositoryName := "repo-a"
 
-	store, err := getOCIRepositoryStore(ctx, registryAddr, repositoryName, credsPolicy)
+	store, err := GetOCIRepositoryStore(ctx, registryAddr, repositoryName, credsPolicy)
 
 	if err != nil {
 		t.Fatalf("failed creating oci repository store: %s", err)

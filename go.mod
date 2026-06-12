@@ -79,7 +79,7 @@ require (
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/opentofu/registry-address/v2 v2.0.0-20260307135325-45f3562374e4
-	github.com/opentofu/svchost v0.0.0-20250610175836-86c9e5e3d8c8
+	github.com/opentofu/svchost v0.0.0-20260410171206-1a42986aa3f4
 	github.com/pkg/errors v0.9.1
 	github.com/posener/complete v1.2.3
 	github.com/spf13/afero v1.15.0

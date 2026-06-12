@@ -114,6 +114,10 @@ func initCommands(
 		ProviderDevOverrides: providerDevOverrides,
 		UnmanagedProviders:   unmanagedProviders,
 
+		// OCICredentialsPolicyBuilder is passed here for some commands (e.g. providers lock) that cannot
+		// use ProvidersSource but still might need OCICredentials provided by the config
+		OCICredentialsPolicyBuilder: config.OCICredentialsPolicy,
+
 		// ProviderSourceLocationConfig is used for some commands that do not make
 		// use of the OpenTofu configuration files. Therefore, there is no way to configure
 		// the retries from other places than env vars.

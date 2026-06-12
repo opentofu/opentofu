@@ -133,6 +133,7 @@ func TestProvidersLock_args(t *testing.T) {
 		args := []string{
 			"-fs-mirror=/foo/",
 			"-net-mirror=www.foo.com",
+			"-oci-mirror=www.foo.com",
 		}
 		code := c.Run(args)
 		cmdOutput := done(t)
@@ -140,7 +141,7 @@ func TestProvidersLock_args(t *testing.T) {
 			t.Fatalf("wrong exit code; got %d", code)
 		}
 		output := cmdOutput.Stderr()
-		if !strings.Contains(output, "The -fs-mirror and -net-mirror command line options are mutually-exclusive.") {
+		if !strings.Contains(output, "The mirror command line options are mutually-exclusive.") {
 			t.Fatalf("missing expected error message: %s", output)
 		}
 	})
