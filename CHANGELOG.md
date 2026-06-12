@@ -20,6 +20,7 @@ SECURITY ADVISORIES:
 
 BUG FIXES:
 
+- Fix race condition while handling closing signals during `tofu login`, both when the signal is sent by the user and when the browser fails to successfully connect. ([4016](https://github.com/opentofu/opentofu/pull/4016))
 - Prevent panic when using ephemeral resources during tofu test`. ([#4254](https://github.com/opentofu/opentofu/pull/4253))
 
 
