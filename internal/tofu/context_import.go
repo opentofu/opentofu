@@ -325,10 +325,14 @@ func (ri *ImportResolver) resolveImport(ctx context.Context, importTarget *Impor
 		Identity: importIdentity,
 	})
 
-	if keyData == EvalDataForNoInstanceKey {
-		log.Printf("[TRACE] importResolver: resolved a singular import target %s", importAddress)
-	} else {
+	// Just for trace logging purposes we'll generate a slightly different log
+	// message when each.key/each.value are not being set, making the assumption
+	// that this means for_each wasn't used. This is an imprecise signal that
+	// should not be used for anything other than debug logging.
+	if keyData.HasSymbolValues() {
 		log.Printf("[TRACE] importResolver: resolved an expanded import target %s", importAddress)
+	} else {
+		log.Printf("[TRACE] importResolver: resolved a singular import target %s", importAddress)
 	}
 
 	return diags

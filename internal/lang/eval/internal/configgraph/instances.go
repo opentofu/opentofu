@@ -105,6 +105,7 @@ func compileInstances[T any](
 		ValueMarks: valueMarks,
 	}
 	for key, repData := range insts {
+		repData.DecisionMarks = valueMarks
 		// We transfer valueMarks to the each.key, each.value and count.index
 		// values because valueMarks are the marks on whatever value we used to
 		// decide which instances exist, and so any reference to those
