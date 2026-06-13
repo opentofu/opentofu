@@ -142,7 +142,7 @@ func ParseMoveEndpoint(traversal hcl.Traversal) (*MoveEndpoint, tfdiags.Diagnost
 		}, diags
 	}
 
-	riAddr, moreDiags := parseResourceInstanceUnderModule(path, remain)
+	riAddr, moreDiags := parseResourceInstanceUnderModule(path, remain, false)
 	diags = diags.Append(moreDiags)
 	if diags.HasErrors() {
 		return nil, diags

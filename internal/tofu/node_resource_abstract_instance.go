@@ -3218,19 +3218,36 @@ func (n *NodeAbstractResourceInstance) getProvider(ctx context.Context, evalCtx 
 			}
 		}
 
+		trie := addrs.NewOverrideTrie[map[string]cty.Value]()
 		// Overridden by the provider (overrides mocks)
 		for _, res := range n.ResolvedProvider.OverrideResources {
-			if res.TargetParsed.Equal(n.Addr.ConfigResource()) && res.Mode == n.Addr.Resource.Resource.Mode {
-				overrideValues = res.Values
-				break
+			if res.TargetParsed.AffectedAbsResource().Equal(n.Addr.AffectedAbsResource()) && res.Mode == n.Addr.AffectedAbsResource().Resource.Mode {
+				trie.Set(res.TargetParsed, res.Values, res.Target.SourceRange().Ptr())
 			}
+		}
+
+		overrideValuesP, providerOverrideDiags := trie.Get(&n.Addr)
+		if overrideValuesP != nil {
+			overrideValues = *overrideValuesP
+		}
+
+		if providerOverrideDiags.HasErrors() {
+			return nil, providers.ProviderSchema{}, providerOverrideDiags.Err()
 		}
 	}
 
-	if n.Config != nil && n.Config.IsOverridden {
+	if n.Config != nil && n.Config.IsOverridden && n.Config.Overrides != nil {
 		// Overridden in the currently running test (overrides any provider settings)
-		isOverridden = n.Config.IsOverridden
-		overrideValues = n.Config.OverrideValues
+		isOverridden = true
+
+		newOverrideValues, resourceOverrideDiags := n.Config.Overrides.Get(&n.Addr)
+		if resourceOverrideDiags.HasErrors() {
+			return nil, providers.ProviderSchema{}, resourceOverrideDiags.Err()
+		}
+		// set resource override, if it exists
+		if newOverrideValues != nil {
+			overrideValues = *newOverrideValues
+		}
 	}
 
 	if isOverridden {
