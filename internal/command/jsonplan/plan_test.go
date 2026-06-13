@@ -445,6 +445,58 @@ func TestOutputs(t *testing.T) {
 				},
 			},
 		},
+		"sensitivity change with same value": {
+			// Regression test for https://github.com/opentofu/opentofu/issues/2680
+			// When only sensitivity changes (value stays the same), BeforeSensitive
+			// and AfterSensitive must differ, allowing the renderer to promote NoOp to Update.
+			changes: &plans.Changes{
+				Outputs: []*plans.OutputChangeSrc{
+					{
+						Addr: root.OutputValue("sensitive_output"),
+						ChangeSrc: plans.ChangeSrc{
+							Action: plans.NoOp,
+						},
+						SensitiveBefore: false,
+						SensitiveAfter:  true,
+					},
+				},
+			},
+			expected: map[string]Change{
+				"sensitive_output": {
+					Actions:         []string{"no-op"},
+					Before:          json.RawMessage("null"),
+					After:           json.RawMessage("null"),
+					AfterUnknown:    json.RawMessage("false"),
+					BeforeSensitive: json.RawMessage("false"),
+					AfterSensitive:  json.RawMessage("true"),
+				},
+			},
+		},
+		"sensitivity removed with same value": {
+			// Regression test for https://github.com/opentofu/opentofu/issues/2680
+			changes: &plans.Changes{
+				Outputs: []*plans.OutputChangeSrc{
+					{
+						Addr: root.OutputValue("was_sensitive"),
+						ChangeSrc: plans.ChangeSrc{
+							Action: plans.NoOp,
+						},
+						SensitiveBefore: true,
+						SensitiveAfter:  false,
+					},
+				},
+			},
+			expected: map[string]Change{
+				"was_sensitive": {
+					Actions:         []string{"no-op"},
+					Before:          json.RawMessage("null"),
+					After:           json.RawMessage("null"),
+					AfterUnknown:    json.RawMessage("false"),
+					BeforeSensitive: json.RawMessage("true"),
+					AfterSensitive:  json.RawMessage("false"),
+				},
+			},
+		},
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
