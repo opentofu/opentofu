@@ -93,6 +93,7 @@ func initCommands(
 			PluginCacheDir:            config.PluginCacheDir,
 			GlobalPluginDirs:          globalPluginDirs(),
 			AllowExperimentalFeatures: experimentsAreAllowed(),
+			E2ETestingFeaturesEnabled: e2eTestingFeaturesEnabled(),
 		},
 
 		Services:        services,
