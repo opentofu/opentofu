@@ -43,6 +43,7 @@ func dataSourceRemoteStateGetSchema() providers.Schema {
 						"block.",
 					DescriptionKind: configschema.StringMarkdown,
 					Optional:        true,
+					WriteOnly:       true,
 				},
 				"defaults": {
 					Type: cty.DynamicPseudoType,
