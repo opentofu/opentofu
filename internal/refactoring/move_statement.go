@@ -64,6 +64,30 @@ func findMoveStatements(cfg *configs.Config, into []MoveStatement) []MoveStateme
 	return into
 }
 
+// FindMoveStatementsShallow gets only the move statements declared within a
+// single module call. It explicitly does not obtain move statements in child modules.
+// The modAddr should be the address of this module relative to the root module.
+func FindMoveStatementsShallow(module *configs.Module, modAddr addrs.Module) []MoveStatement {
+	output := make([]MoveStatement, len(module.Moved))
+	for i, mc := range module.Moved {
+		fromAddr, toAddr := addrs.UnifyMoveEndpoints(modAddr, mc.From, mc.To)
+		if fromAddr == nil || toAddr == nil {
+			// Invalid combination should've been caught during original
+			// configuration decoding, in the configs package.
+			panic(fmt.Sprintf("incompatible move endpoints in %s", mc.DeclRange))
+		}
+
+		output[i] = MoveStatement{
+			From:      fromAddr,
+			To:        toAddr,
+			DeclRange: tfdiags.SourceRangeFromHCL(mc.DeclRange),
+			Implied:   false,
+		}
+	}
+
+	return output
+}
+
 // ImpliedMoveStatements compares addresses in the given state with addresses
 // in the given configuration and potentially returns additional MoveStatement
 // objects representing moves we infer automatically, even though they aren't
@@ -230,6 +254,9 @@ func impliedMoveStatementsForModuleResources(cfg *configs.Config, modState *stat
 			// wrote an explicit statement referring to this resource,
 			// because they may wish to select an instance key other than
 			// zero as the one to retain.
+			// Fun fact! Since implicit moves require that no explicit
+			// move statement involve the AbsAddress of the resource,
+			// they can never create a cycle.
 			if !haveMoveStatementForResource(rAddr, explicitStmts) {
 				into = append(into, MoveStatement{
 					From:      addrs.ImpliedMoveStatementEndpoint(rAddr.Instance(fromKey), approxSrcRange),
