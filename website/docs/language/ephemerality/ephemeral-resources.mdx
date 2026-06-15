@@ -62,8 +62,8 @@ block for an ephemeral resource:
 * `precondition` and `postcondition` blocks, as described in
   [Custom Conditions](../../language/expressions/custom-conditions.mdx#preconditions-and-postconditions).
 
-With the recent introduction of the `lifecycle.enabled` option, the `lifecycle.enabled` is related to repetition meta-args
-and ephemeral values are similarly disallowed here, including `terraform.applying`.
+Following the same rule of not allowing ephemeral values in repetition meta arguments (`count`, `for_each`),
+`lifecycle.enabled` disallows usage of such values too, including the usage of [`tofu.applying`](../expressions/references.mdx#filesystem-and-workspace-info).
 
 For more information, refer to [the `enabled` meta-argument](../../language/meta-arguments/enabled.mdx).
 
