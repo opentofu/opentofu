@@ -183,12 +183,25 @@ func (f forcedErrorValuer) ResultTypeConstraint() cty.Type {
 //
 // The source range of the returned valuer is the same as the source valuer.
 func DerivedValuer(source Valuer, project func(cty.Value, tfdiags.Diagnostics) (cty.Value, tfdiags.Diagnostics)) Valuer {
+	return derivedValuer{
+		source,
+		func(_ context.Context, v cty.Value, diags tfdiags.Diagnostics) (cty.Value, tfdiags.Diagnostics) {
+			// We just discard the context argument in this case.
+			return project(v, diags)
+		},
+	}
+}
+
+// DerivedValuerContext is a variant of [DerivedValuer] for situations where
+// the projection function needs to perform additional evaluation and therefore
+// needs access to a properly-annotated [context.Context] to evaluate in.
+func DerivedValuerContext(source Valuer, project func(context.Context, cty.Value, tfdiags.Diagnostics) (cty.Value, tfdiags.Diagnostics)) Valuer {
 	return derivedValuer{source, project}
 }
 
 type derivedValuer struct {
 	source  Valuer
-	project func(cty.Value, tfdiags.Diagnostics) (cty.Value, tfdiags.Diagnostics)
+	project func(context.Context, cty.Value, tfdiags.Diagnostics) (cty.Value, tfdiags.Diagnostics)
 }
 
 // StaticCheckTraversal implements Valuer.
@@ -200,7 +213,8 @@ func (d derivedValuer) StaticCheckTraversal(traversal hcl.Traversal) tfdiags.Dia
 
 // Value implements Valuer.
 func (d derivedValuer) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
-	return d.project(d.source.Value(ctx))
+	v, diags := d.source.Value(ctx)
+	return d.project(ctx, v, diags)
 }
 
 // ValueSourceRange implements Valuer.
