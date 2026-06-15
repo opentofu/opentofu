@@ -10,7 +10,7 @@ terraform {
     }
     sleep = {
       source  = "yottta/sleep"
-      version = "0.0.4"
+      version = "~> 0.0.5"
     }
   }
 }
@@ -21,7 +21,6 @@ resource "random_id" "test" {
 
 ephemeral "random_password" "test" {
   length = 10
-
 }
 
 resource "sleep_sleeper" "test" {
