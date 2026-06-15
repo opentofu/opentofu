@@ -6006,12 +6006,6 @@ func TestContext2Plan_ignoreChanges(t *testing.T) {
 
 	schema := p.GetProviderSchemaResponse.ResourceTypes["aws_instance"]
 
-	if experimentalRuntimeEnabled() {
-		if len(plan.Changes.Resources) != 0 {
-			t.Fatal("expected 0 changes, got", len(plan.Changes.Resources))
-		}
-		return
-	}
 	if len(plan.Changes.Resources) != 1 {
 		t.Fatal("expected 1 changes, got", len(plan.Changes.Resources))
 	}
@@ -6207,12 +6201,6 @@ func TestContext2Plan_ignoreChangesSensitive(t *testing.T) {
 
 	schema := p.GetProviderSchemaResponse.ResourceTypes["aws_instance"]
 
-	if experimentalRuntimeEnabled() {
-		if len(plan.Changes.Resources) != 0 {
-			t.Fatal("expected 0 changes, got", len(plan.Changes.Resources))
-		}
-		return
-	}
 	if len(plan.Changes.Resources) != 1 {
 		t.Fatal("expected 1 changes, got", len(plan.Changes.Resources))
 	}

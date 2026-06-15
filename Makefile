@@ -31,13 +31,13 @@ build:
 # Experimental engine building
 .PHONY: build-experimental
 build-experimental:
-	TOFU_X_EXPERIMENTAL_RUNTIME=1 go build -ldflags "-X main.version=$(shell git describe --tags --always --dirty) -X main.experimentsAllowed=yes" -o tofu$(EXT) ./cmd/tofu
+	TOFU_X_EXPERIMENTAL_RUNTIME=1 go build -gcflags=all="-N -l" -ldflags "-X main.version=$(shell git describe --tags --always --dirty) -X main.experimentsAllowed=yes" -o tofu$(EXT) ./cmd/tofu
 
 # Experimental engine testing
 .PHONY: test-experimental
 test-experimental:
 # 	TOFU_X_EXPERIMENTAL_RUNTIME=1 go test -ldflags "-X main.experimentsAllowed=yes" -v ./...
-	TOFU_X_EXPERIMENTAL_RUNTIME=1 go test -v -ldflags "-X main.experimentsAllowed=yes" -v ./internal/tofu
+	TOFU_X_EXPERIMENTAL_RUNTIME=1 go test -count=1 -v -ldflags "-X main.experimentsAllowed=yes" -v ./internal/tofu
 
 # generate runs `go generate` to build the dynamically generated
 # source files, except the protobuf stubs which are built instead with
