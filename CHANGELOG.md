@@ -2,6 +2,11 @@ The v1.12.x release series is supported until **February 1 2027**.
 
 ## 1.12.3 (Unreleased)
 
+BUG FIXES:
+
+- Properly handle `TF_ENCRYPTION` with only blank spaces. ([#4265](https://github.com/opentofu/opentofu/pull/4265))
+
+
 ## 1.12.2
 
 SECURITY ADVISORIES:
