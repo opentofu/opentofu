@@ -70,7 +70,7 @@ func compileProviderConfig(
 	// traversal set as our vehicle for getting the extraMarks into the
 	// instance selector and then into the CompileProviderInstance callback
 	// below.
-	deps := compileDependsOn(nil, declScope, extraMarks)
+	sharedDeps, compileInstanceDeps := compileDependsOn(nil, declScope, extraMarks)
 
 	return &configgraph.ProviderConfig{
 		Addr: addrs.AbsProviderConfigCorrect{
@@ -81,9 +81,10 @@ func compileProviderConfig(
 			},
 		},
 		ProviderAddr:     providerAddr,
-		InstanceSelector: compileInstanceSelector(ctx, declScope, config.ForEach, nil, nil, deps),
+		InstanceSelector: compileInstanceSelector(ctx, declScope, config.ForEach, nil, nil, sharedDeps),
 		CompileProviderInstance: func(ctx context.Context, key addrs.InstanceKey, repData instances.RepetitionData) *configgraph.ProviderInstance {
 			instanceScope := instanceLocalScope(declScope, repData)
+			instanceDeps := compileInstanceDeps(instanceScope)
 
 			// Note that repetitionMarks also incorporates any marks from the
 			// depends_on argument, which got evaluated as part of the instance
@@ -94,11 +95,16 @@ func compileProviderConfig(
 			// transformations of the configuration value, so we'll deal
 			// with those by transforming what we get from just evaluating
 			// the main config body.
-			configValuer := configgraph.ValuerOnce(exprs.DerivedValuer(
+			configValuer := configgraph.ValuerOnce(exprs.DerivedValuerContext(
 				exprs.NewClosure(configEvalable, instanceScope),
-				func(v cty.Value, diags tfdiags.Diagnostics) (cty.Value, tfdiags.Diagnostics) {
+				func(ctx context.Context, v cty.Value, diags tfdiags.Diagnostics) (cty.Value, tfdiags.Diagnostics) {
 					if len(repetitionMarks) != 0 {
-						return v.WithMarks(repetitionMarks), diags
+						v = v.WithMarks(repetitionMarks)
+					}
+					instDepMarks, moreDiags := instanceDeps.Marks(ctx)
+					diags = diags.Append(moreDiags)
+					if len(instDepMarks) != 0 {
+						v = v.WithMarks(instDepMarks)
 					}
 					return v, diags
 				},

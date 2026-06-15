@@ -90,7 +90,7 @@ func compileModuleInstanceResource(
 	// the resulting marks on the count.index, each.key, and/or each.value
 	// results because that means it'll get evaluated only once per resource
 	// instead of separately for each resource instance.
-	deps := compileDependsOn(config.DependsOn, declScope, extraMarks)
+	sharedDeps, compileInstanceDeps := compileDependsOn(config.DependsOn, declScope, extraMarks)
 
 	ret := &configgraph.Resource{
 		Addr:      absAddr,
@@ -99,7 +99,7 @@ func compileModuleInstanceResource(
 		// Our instance selector depends on which of the repetition metaarguments
 		// are set, if any. We assume that package configs allows at most one
 		// of these to be set for each resource config.
-		InstanceSelector: compileInstanceSelector(ctx, declScope, config.ForEach, config.Count, config.Enabled, deps),
+		InstanceSelector: compileInstanceSelector(ctx, declScope, config.ForEach, config.Count, config.Enabled, sharedDeps),
 
 		// The [configgraph.Resource] implementation will call back to this
 		// for each child instance it discovers through [InstanceSelector],
@@ -108,6 +108,7 @@ func compileModuleInstanceResource(
 		CompileResourceInstance: func(ctx context.Context, key addrs.InstanceKey, repData instances.RepetitionData) *configgraph.ResourceInstance {
 			localScope := instanceLocalScope(declScope, repData)
 			providerRef := compileProviderConfigRef(ctx, moduleProviders, config.ProviderConfigAddr(), config.ProviderConfigRef, localScope)
+			instanceDeps := compileInstanceDeps(localScope)
 
 			// For now we require a literal boolean constant in
 			// create_before_destroy to match how the old implementation treated
@@ -144,11 +145,16 @@ func compileModuleInstanceResource(
 			// transformations of the configuration value, so we'll deal
 			// with those by transforming what we get from just evaluating
 			// the main config body.
-			configValuer := configgraph.ValuerOnce(exprs.DerivedValuer(
+			configValuer := configgraph.ValuerOnce(exprs.DerivedValuerContext(
 				exprs.NewClosure(configEvalable, localScope),
-				func(v cty.Value, diags tfdiags.Diagnostics) (cty.Value, tfdiags.Diagnostics) {
+				func(ctx context.Context, v cty.Value, diags tfdiags.Diagnostics) (cty.Value, tfdiags.Diagnostics) {
 					if len(repetitionMarks) != 0 {
-						return v.WithMarks(repetitionMarks), diags
+						v = v.WithMarks(repetitionMarks)
+					}
+					instDepMarks, moreDiags := instanceDeps.Marks(ctx)
+					diags = diags.Append(moreDiags)
+					if len(instDepMarks) != 0 {
+						v = v.WithMarks(instDepMarks)
 					}
 					return v, diags
 				},

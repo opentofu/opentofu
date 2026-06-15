@@ -13,25 +13,39 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/zclconf/go-cty/cty"
 )
+
+// emptyDependsOn is a predefined [dependsOn] that always reports no additional
+// marks at all, used in the common case where no depends_on argument was
+// present.
+var emptyDependsOn = dependsOn{
+	valuer: exprs.ConstantValuer(cty.NullVal(cty.DynamicPseudoType)),
+}
 
 // compileDependsOn compiles a set of traversals decoded from a "depends_on"
 // argument into an object that can be used to obtain marks describing the
 // depends_on elements once the caller is ready to evaluate expressions.
+//
+// The result is split into two parts: the direct dependsOn value represents
+// the subset of the dependencies that are immediately resolvable because
+// they don't involve per-instance symbols like "each.key", while the second
+// result is a function that should be called once the per-instance scope is
+// constructed to deal with any items that might vary on a per-instance basis.
 func compileDependsOn(
 	traversals []hcl.Traversal,
 	declScope exprs.Scope,
 	extraMarks cty.ValueMarks,
-) dependsOn {
+) (dependsOn, func(instanceScope exprs.Scope) dependsOn) {
 	if len(traversals) == 0 && len(extraMarks) == 0 {
-		return dependsOn{
-			// No marks at all, then.
-			valuer: exprs.ConstantValuer(cty.NullVal(cty.DynamicPseudoType)),
+		// No marks at all, then.
+		return emptyDependsOn, func(instanceScope exprs.Scope) dependsOn {
+			return emptyDependsOn
 		}
 	}
 
@@ -43,12 +57,25 @@ func compileDependsOn(
 		}
 	}
 
-	return dependsOn{
+	sharedDeps := dependsOn{
 		valuer: &dependsOnValuer{
 			items:      items,
 			extraMarks: extraMarks,
 		},
 	}
+	compileInstDeps := func(instanceScope exprs.Scope) dependsOn {
+		// TODO: Collect those which refer to each.key, etc into here.
+		// That's pointless right now though because for the hcl.Traversal
+		// representation only a direct reference like this would be possible:
+		//    depends_on = [each.key]
+		// ...and so compileDependsOnItem just rejects use of these altogether
+		// and we're returning this function only as a placeholder for future
+		// expansion once we change package configs to represent depends_on
+		// as a list of arbitrary expressions, instead of forcing traversals.
+		return emptyDependsOn
+	}
+
+	return sharedDeps, compileInstDeps
 }
 
 // dependsOn is the compiled form of a "depends_on" argument, as produced by
@@ -200,6 +227,22 @@ func compileDependsOnItem(traversal hcl.Traversal, scope exprs.Scope) exprs.Valu
 			addr:  subj.Call,
 			scope: scope,
 		}
+	case addrs.CountAttr, addrs.ForEachAttr:
+		// We just forbid these for now because the traversal-based depends_on
+		// could only include these if referred to directly, like this:
+		//     depends_on = [each.key]
+		// ...and that's not particularly useful. Later we do intend to
+		// generalize to treat depends_on as a set of arbitrary expressions to
+		// be evaluated instead of forcing only traversals, and so the
+		// [compiledDependsOn] API is set up to allow for referring to these
+		// symbols in future but currently it just never reports any additional
+		// per-instance marks.
+		return exprs.ForcedErrorValuerWithSourceRange(compileDiags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid explicit dependency",
+			Detail:   "The depends_on argument must not include references to the per-instance symbols each.key, each.value, or count.index.",
+			Subject:  ref.SourceRange.ToHCL().Ptr(),
+		}), ref.SourceRange)
 	default:
 		// We'll use a synthetic scope traversal expression here just so we can
 		// reuse our existing expression evaluation machinery instead of making

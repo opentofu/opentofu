@@ -7,6 +7,7 @@ package tofu2024
 
 import (
 	"context"
+	"maps"
 
 	"github.com/zclconf/go-cty/cty"
 
@@ -51,13 +52,13 @@ func compileModuleInstanceModuleCalls(
 		// the resulting marks on the count.index, each.key, and/or each.value
 		// results because that means it'll get evaluated only once per resource
 		// instead of separately for each resource instance.
-		deps := compileDependsOn(config.DependsOn, declScope, parentCall.DependencyMarks)
+		sharedDeps, compileInstanceDeps := compileDependsOn(config.DependsOn, declScope, parentCall.DependencyMarks)
 
 		ret[addr] = &configgraph.ModuleCall{
 			Addr:             addr.Absolute(moduleInstanceAddr),
 			DeclRange:        tfdiags.SourceRangeFromHCL(config.DeclRange),
 			ParentSourceAddr: parentSourceAddr,
-			InstanceSelector: compileInstanceSelector(ctx, declScope, config.ForEach, config.Count, config.Enabled, deps),
+			InstanceSelector: compileInstanceSelector(ctx, declScope, config.ForEach, config.Count, config.Enabled, sharedDeps),
 			SourceAddrValuer: configgraph.ValuerOnce(exprs.NewClosure(
 				exprs.EvalableHCLExpression(config.Source),
 				declScope,
@@ -111,17 +112,7 @@ func compileModuleInstanceModuleCalls(
 				}
 
 				instanceScope := instanceLocalScope(declScope, repData)
-
-				// We passed the marks from depends_on through the instance
-				// selector and so any dependency-related marks from there
-				// should be passed down to the child module as inherited
-				// dependency marks.
-				// TODO: This also includes any dependencies that come directly
-				// from expressions written in the count, for_each, or enabled
-				// argument. Is that acceptable or do we need to constrain this
-				// only what came from the depends_on argument?
-				childDependencyMarks := repData.AllValueMarks()
-				configgraph.RemoveNonDependencyMarks(childDependencyMarks)
+				instanceDeps := compileInstanceDeps(instanceScope)
 
 				// Apply passed providers to the provider ref chain.
 				// TODO: consider using the required_providers block to validate this further.
@@ -149,7 +140,26 @@ func compileModuleInstanceModuleCalls(
 						return mod.ValidateModuleInputs(ctx, v)
 					},
 					compileChild: func(ctx context.Context, inputs cty.Value, providersFromParent configgraph.CompileProviderConfigRef) (configgraph.Maybe[evalglue.CompiledModuleInstance], tfdiags.Diagnostics) {
-						modInst, diags := mod.CompileModuleInstance(ctx, calleeAddr, &evalglue.ModuleCall{
+						var diags tfdiags.Diagnostics
+
+						// We passed the marks from depends_on through the instance
+						// selector and so any dependency-related marks from there
+						// should be passed down to the child module as inherited
+						// dependency marks.
+						// TODO: This also includes any dependencies that come directly
+						// from expressions written in the count, for_each, or enabled
+						// argument. Is that acceptable or do we need to constrain this
+						// only what came from the depends_on argument?
+						childDependencyMarks := repData.AllValueMarks()
+
+						// We also need to add the per-instance marks.
+						instanceChildDependencyMarks, moreDiags := instanceDeps.Marks(ctx)
+						diags = diags.Append(moreDiags)
+						maps.Copy(childDependencyMarks, instanceChildDependencyMarks)
+
+						configgraph.RemoveNonDependencyMarks(childDependencyMarks)
+
+						modInst, moreDiags := mod.CompileModuleInstance(ctx, calleeAddr, &evalglue.ModuleCall{
 							InputValues:          exprs.ConstantValuer(inputs),
 							AllowImpureFunctions: parentCall.AllowImpureFunctions,
 							DependencyMarks:      childDependencyMarks,
@@ -157,7 +167,8 @@ func compileModuleInstanceModuleCalls(
 							EvaluationGlue:       parentCall.EvaluationGlue,
 							ProvidersFromParent:  proxyProviderCompiler,
 						})
-						if diags.HasErrors() {
+						diags = diags.Append(moreDiags)
+						if moreDiags.HasErrors() {
 							return nil, diags
 						}
 						return configgraph.Known(modInst), diags
