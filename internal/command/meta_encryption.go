@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/encryption"
@@ -43,7 +44,7 @@ func (m *Meta) EncryptionFromModule(ctx context.Context, module *configs.Module)
 	cfg := module.Encryption
 	var diags tfdiags.Diagnostics
 
-	env := os.Getenv(encryptionConfigEnvName)
+	env := strings.TrimSpace(os.Getenv(encryptionConfigEnvName))
 	if len(env) != 0 {
 		envCfg, envDiags := config.LoadConfigFromString(encryptionConfigEnvName, env)
 		diags = diags.Append(envDiags)
