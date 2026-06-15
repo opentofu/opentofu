@@ -95,7 +95,17 @@ var _ exprs.Valuer = (*ModuleCall)(nil)
 func (c *ModuleCall) Instances(ctx context.Context) map[addrs.InstanceKey]*ModuleCallInstance {
 	// We ignore the diagnostics here because they will be returned by
 	// the Value method instead.
-	result, _ := c.decideInstances(ctx)
+	result, diags := c.decideInstances(ctx)
+	if diags.HasErrors() && result == nil {
+		// If decideInstances fails for grapheval-related reasons, such as a
+		// dependency cycle, then it won't produce any result at all. The
+		// errors from that would be collected by a concurrent
+		// [Resource.CheckAll] and so we just report no instances here to
+		// allow things to unwind and report that error.
+		// (If decideInstances returns nil without returning any errors then
+		// that's a bug in decideInstances that should be fixed there.)
+		return nil
+	}
 	return result.Instances
 }
 
@@ -304,6 +314,13 @@ func (c *ModuleCall) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics)
 	// we have and then collect their individual results into our overall
 	// return value.
 	selection, diags := c.decideInstances(ctx)
+	if diags.HasErrors() && selection == nil {
+		// If decideInstances fails for grapheval-related reasons, such as a
+		// dependency cycle, then it won't produce any result at all, but we
+		// still want to let the diagnostics propagate upwards so that the
+		// error gets reported.
+		return exprs.AsEvalError(cty.DynamicVal), diags
+	}
 	return valueForInstances(ctx, selection).WithMarks(sourceMarks), diags
 }
 

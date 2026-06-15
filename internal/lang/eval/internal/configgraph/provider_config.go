@@ -75,7 +75,17 @@ var _ exprs.Valuer = (*ProviderConfig)(nil)
 func (p *ProviderConfig) Instances(ctx context.Context) map[addrs.InstanceKey]*ProviderInstance {
 	// We ignore the diagnostics here because they will be returned by
 	// the Value method instead.
-	result, _ := p.decideInstances(ctx)
+	result, diags := p.decideInstances(ctx)
+	if diags.HasErrors() && result == nil {
+		// If decideInstances fails for grapheval-related reasons, such as a
+		// dependency cycle, then it won't produce any result at all. The
+		// errors from that would be collected by a concurrent
+		// [Resource.CheckAll] and so we just report no instances here to
+		// allow things to unwind and report that error.
+		// (If decideInstances returns nil without returning any errors then
+		// that's a bug in decideInstances that should be fixed there.)
+		return nil
+	}
 	return result.Instances
 }
 
@@ -93,6 +103,13 @@ func (p *ProviderConfig) StaticCheckTraversal(traversal hcl.Traversal) tfdiags.D
 // Value implements exprs.Valuer.
 func (p *ProviderConfig) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
 	selection, diags := p.decideInstances(ctx)
+	if diags.HasErrors() && selection == nil {
+		// If decideInstances fails for grapheval-related reasons, such as a
+		// dependency cycle, then it won't produce any result at all, but we
+		// still want to let the diagnostics propagate upwards so that the
+		// error gets reported.
+		return exprs.AsEvalError(cty.DynamicVal), diags
+	}
 	return valueForInstances(ctx, selection), diags
 }
 
