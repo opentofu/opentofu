@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/opentofu/svchost"
 	"github.com/opentofu/svchost/disco"
 
@@ -362,6 +363,10 @@ func TestLoginOAuthCallbackRace(t *testing.T) {
 	s := httptest.NewServer(oauthserver.Handler)
 	defer s.Close()
 
+	// Do not use the NewMockUi initializer here, as we want to delay
+	// the call to init until after setting up the input mocks
+	ui := new(cli.MockUi)
+
 	const iterations = 200
 
 	for i := range iterations {
@@ -402,6 +407,7 @@ func TestLoginOAuthCallbackRace(t *testing.T) {
 					BrowserLauncher: webbrowser.NewMockLauncher(ctx),
 					Services:        svcs,
 					ShutdownCh:      abortCh,
+					Ui:              ui,
 				},
 			}
 
@@ -469,6 +475,7 @@ func TestLoginOAuthCallbackNoPanicOnAbort(t *testing.T) {
 				},
 			})
 
+			ui := new(cli.MockUi)
 			// No MockLauncher: the OAuth callback will never arrive, so ShutdownCh
 			// is the only way to unblock the command.
 			abortCh := make(chan struct{})
@@ -478,6 +485,7 @@ func TestLoginOAuthCallbackNoPanicOnAbort(t *testing.T) {
 					View:       loginView,
 					Services:   svcs,
 					ShutdownCh: abortCh,
+					Ui:         ui,
 				},
 			}
 
