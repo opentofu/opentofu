@@ -8,7 +8,9 @@ package applying
 import (
 	"context"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/function"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/internal/execgraph"
@@ -73,7 +75,17 @@ func (e *evalGlue) ResourceInstanceFinalState(ctx context.Context, addr addrs.Ab
 	return e.graph.ResourceInstanceValue(ctx, addr)
 }
 
-// ValidateProviderConfig implements [eval.ApplyGlue].
-func (e *evalGlue) ValidateProviderConfig(ctx context.Context, provider addrs.Provider, configVal cty.Value) tfdiags.Diagnostics {
-	return e.plugins.ValidateProviderConfig(ctx, provider, configVal)
+// ProviderFunction implements [eval.ApplyGlue].
+func (e *evalGlue) ProviderFunction(ctx context.Context, provider addrs.Provider, providerInstance *addrs.AbsProviderInstanceCorrect, pf addrs.ProviderFunction, rng hcl.Range) (function.Function, tfdiags.Diagnostics) {
+	// Configured
+	if providerInstance != nil {
+		inst, diags := e.ops.providerInstances.ProviderClient(ctx, *providerInstance)
+		if diags.HasErrors() {
+			return function.Function{}, diags
+		}
+		return plugins.BuildProviderFunction(ctx, inst, pf, false, rng)
+	}
+
+	// Unconfigured
+	return e.plugins.BuildFunction(ctx, provider, pf, false, rng)
 }

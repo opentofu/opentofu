@@ -25,8 +25,7 @@ func compileModuleInstanceProviderConfigs(
 	declScope exprs.Scope,
 	reqdProviders map[string]*configs.RequiredProvider,
 	moduleInstanceAddr addrs.ModuleInstance,
-	providers evalglue.ProvidersSchema,
-	validateProviderConfig func(context.Context, addrs.Provider, cty.Value) tfdiags.Diagnostics,
+	providers evalglue.Providers,
 ) map[addrs.LocalProviderConfig]*configgraph.ProviderConfig {
 	ret := make(map[addrs.LocalProviderConfig]*configgraph.ProviderConfig, len(configs))
 
@@ -35,7 +34,7 @@ func compileModuleInstanceProviderConfigs(
 			LocalName: config.Name,
 			Alias:     config.Alias,
 		}
-		ret[localAddr] = compileProviderConfig(ctx, config, declScope, reqdProviders, moduleInstanceAddr, providers, validateProviderConfig)
+		ret[localAddr] = compileProviderConfig(ctx, config, declScope, reqdProviders, moduleInstanceAddr, providers)
 	}
 
 	return ret
@@ -47,8 +46,7 @@ func compileProviderConfig(
 	declScope exprs.Scope,
 	reqdProviders map[string]*configs.RequiredProvider,
 	moduleInstanceAddr addrs.ModuleInstance,
-	providers evalglue.ProvidersSchema,
-	validateProviderConfig func(context.Context, addrs.Provider, cty.Value) tfdiags.Diagnostics,
+	providers evalglue.Providers,
 ) *configgraph.ProviderConfig {
 	providerAddr := addrs.NewDefaultProvider(config.Name)
 	if reqd, ok := reqdProviders[config.Name]; ok {
@@ -92,7 +90,7 @@ func compileProviderConfig(
 					exprs.NewClosure(configEvalable, instanceScope),
 				),
 				ValidateConfig: func(ctx context.Context, v cty.Value) tfdiags.Diagnostics {
-					return validateProviderConfig(ctx, providerAddr, v)
+					return providers.ValidateProviderConfig(ctx, providerAddr, v)
 				},
 			}
 		},

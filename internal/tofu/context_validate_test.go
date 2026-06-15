@@ -118,6 +118,8 @@ func TestContext2Validate_varNoDefaultExplicitType(t *testing.T) {
 }
 
 func TestContext2Validate_computedVar(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureValidate)
+
 	p := testProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		Provider: providers.Schema{

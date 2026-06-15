@@ -11,7 +11,9 @@ import (
 	"log"
 
 	"github.com/apparentlymart/go-workgraph/workgraph"
+	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/function"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
@@ -46,10 +48,12 @@ type ApplyGlue interface {
 	// Not sure if this should be folded into ResourceInstanceFinalState or not...
 	OpenEphemeralResourceInstance(ctx context.Context, addr addrs.AbsResourceInstance, cfgVal cty.Value, providerInstance addrs.AbsProviderInstanceCorrect) (cty.Value, tfdiags.Diagnostics)
 
-	// ValidateProviderConfig asks the provider of the given address to validate
-	// the given value as being suitable to use when instantiating a configured
-	// instance of that provider.
-	ValidateProviderConfig(ctx context.Context, provider addrs.Provider, configVal cty.Value) tfdiags.Diagnostics
+	// ProviderFunction constructs a cty function given a provider and a function address.
+	//
+	// This is a bit odd due to how we support functions on configured providers. We pass in both
+	// a provider address and a provider instance, preferring a call on the configured provider
+	// instance if available.
+	ProviderFunction(ctx context.Context, provider addrs.Provider, providerInstance *addrs.AbsProviderInstanceCorrect, pf addrs.ProviderFunction, rng hcl.Range) (function.Function, tfdiags.Diagnostics)
 }
 
 // ApplyOracle creates an [ApplyOracle] object that can be used to support an
@@ -111,9 +115,14 @@ func (g *applyingEvalGlue) ResourceInstanceValue(ctx context.Context, ri *config
 	return finalValue, nil
 }
 
-// ValidateProviderConfig implements [evalglue.Glue].
-func (g *applyingEvalGlue) ValidateProviderConfig(ctx context.Context, provider addrs.Provider, configVal cty.Value) tfdiags.Diagnostics {
-	return g.applyEngineGlue.ValidateProviderConfig(ctx, provider, configVal)
+// ProviderFunction implements [evalglue.Glue]
+func (g *applyingEvalGlue) ProviderFunction(ctx context.Context, provider addrs.Provider, providerInst configgraph.Maybe[*configgraph.ProviderInstance], pf addrs.ProviderFunction, rng hcl.Range) (function.Function, tfdiags.Diagnostics) {
+	var providerInstance *addrs.AbsProviderInstanceCorrect
+	if providerInst, ok := configgraph.GetKnown(providerInst); ok {
+		providerInstance = &(providerInst.Addr)
+	}
+
+	return g.applyEngineGlue.ProviderFunction(ctx, provider, providerInstance, pf, rng)
 }
 
 // An ApplyOracle is returned by [ConfigInstance.ApplyOracle] to give the main

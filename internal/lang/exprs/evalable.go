@@ -235,8 +235,21 @@ func (h hclBody) FunctionCalls() iter.Seq[*hcl.StaticCall] {
 	// them but it would be nice to update HCL to return [hcl.StaticCall]
 	// for the function analysis instead, for consistency with how
 	// [hcl.ExprCall] works.
+
 	return func(yield func(*hcl.StaticCall) bool) {
-		for _, traversal := range hcldec.Functions(h.body, h.spec) {
+		var calls []hcl.Traversal
+		if h.dynblock {
+			// When we're doing dynblock expansion we need to do a little
+			// more work to also detect functions from the for_each
+			// arguments in the "dynamic" blocks. The dynblock package
+			// does this additional work for us as long as we ask its
+			// wrapper function instead of hcldec.Functions directly.
+			calls = dynblock.FunctionsHCLDec(h.body, h.spec)
+		} else {
+			calls = hcldec.Functions(h.body, h.spec)
+		}
+
+		for _, traversal := range calls {
 			wantMore := yield(&hcl.StaticCall{
 				Name:      traversal.RootName(),
 				NameRange: traversal.SourceRange(),

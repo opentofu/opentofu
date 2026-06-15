@@ -8,7 +8,9 @@ package eval
 import (
 	"context"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/function"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
@@ -52,14 +54,13 @@ type preparationGlue struct {
 	// preparationGlue uses provider schema information to prepare placeholder
 	// "final state" values for resource instances because validation does
 	// not use information from the state.
-	providers ProvidersSchema
+	providers Providers
 }
 
-// ValidateProviderConfig implements evalglue.Glue.
-func (v *preparationGlue) ValidateProviderConfig(ctx context.Context, provider addrs.Provider, configVal cty.Value) tfdiags.Diagnostics {
-	// TODO maybe this is why we create validation glue?
-	//return v.providers.ValidateProviderConfig(ctx, provider, configVal)
-	return nil
+// ProviderFunction implements evalglue.Glue.
+func (v *preparationGlue) ProviderFunction(ctx context.Context, provider addrs.Provider, providerInst configgraph.Maybe[*configgraph.ProviderInstance], pf addrs.ProviderFunction, rng hcl.Range) (function.Function, tfdiags.Diagnostics) {
+	_, isConfigured := configgraph.GetKnown(providerInst)
+	return v.providers.BuildFunction(ctx, provider, pf, isConfigured, rng)
 }
 
 // ResourceInstanceValue implements evaluationGlue.
@@ -75,13 +76,13 @@ func (v *preparationGlue) ResourceInstanceValue(ctx context.Context, ri *configg
 		return cty.DynamicVal, diags
 	}
 
-	/* TODO maybe this is why we create validation glue?
-	validateDiags := v.providers.ValidateResourceConfig(ctx, ri.Provider, ri.Addr.Resource.Resource.Mode, ri.Addr.Resource.Resource.Type, configVal)
+	configValUnmarked, _ := configVal.UnmarkDeep()
+	validateDiags := v.providers.ValidateResourceConfig(ctx, ri.Provider, ri.Addr.Resource.Resource.Mode, ri.Addr.Resource.Resource.Type, configValUnmarked)
 	diags = diags.Append(validateDiags)
 	if diags.HasErrors() {
 		// Provider indicated an invalid resource configuration
 		return cty.DynamicVal, diags
-	}*/
+	}
 
 	// FIXME: If we have a managed or data resource instance, as opposed to
 	// an ephemeral resource instance, then we should check to make sure

@@ -11,11 +11,14 @@ import (
 	"iter"
 	"log"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/function"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/collections"
 	"github.com/opentofu/opentofu/internal/engine/internal/common"
+	"github.com/opentofu/opentofu/internal/engine/plugins"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
@@ -37,9 +40,19 @@ type planGlue struct {
 
 var _ eval.PlanGlue = (*planGlue)(nil)
 
-// I'm not sure that this belongs here
-func (p *planGlue) ValidateProviderConfig(ctx context.Context, provider addrs.Provider, configVal cty.Value) tfdiags.Diagnostics {
-	return p.planCtx.providers.ValidateProviderConfig(ctx, provider, configVal)
+// ProviderFunction implements eval.PlanGlue.
+func (p *planGlue) ProviderFunction(ctx context.Context, provider addrs.Provider, providerInstance *addrs.AbsProviderInstanceCorrect, pf addrs.ProviderFunction, rng hcl.Range) (function.Function, tfdiags.Diagnostics) {
+	// Configured
+	if providerInstance != nil {
+		inst, diags := p.providerInstances.ProviderClient(ctx, *providerInstance)
+		if diags.HasErrors() {
+			return function.Function{}, diags
+		}
+		return plugins.BuildProviderFunction(ctx, inst, pf, false, rng)
+	}
+
+	// Unconfigured
+	return p.planCtx.providers.BuildFunction(ctx, provider, pf, false, rng)
 }
 
 // PlanDesiredResourceInstance implements eval.PlanGlue.

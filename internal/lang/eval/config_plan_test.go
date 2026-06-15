@@ -13,8 +13,10 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty-debug/ctydebug"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/function"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
@@ -335,9 +337,9 @@ type planGlueCallLog struct {
 	mu                       sync.Mutex
 }
 
-// ValidateProviderConfig implements eval.PlanGlue
-func (p *planGlueCallLog) ValidateProviderConfig(ctx context.Context, provider addrs.Provider, configVal cty.Value) tfdiags.Diagnostics {
-	return nil
+// ProviderFunction implements eval.PlanGlue
+func (p *planGlueCallLog) ProviderFunction(ctx context.Context, provider addrs.Provider, providerInstance *addrs.AbsProviderInstanceCorrect, pf addrs.ProviderFunction, rng hcl.Range) (function.Function, tfdiags.Diagnostics) {
+	panic("not implemented")
 }
 
 // PlanDesiredResourceInstance implements eval.PlanGlue.

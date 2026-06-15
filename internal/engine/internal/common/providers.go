@@ -64,9 +64,9 @@ func (pi *ProviderInstances) ProviderClient(ctx context.Context, addr addrs.AbsP
 	if !pi.active.Has(addr) {
 		pi.active.Put(addr, &grapheval.Once[providers.Configured]{})
 	}
+	once := pi.active.Get(addr)
 	pi.activeMu.Unlock()
 
-	once := pi.active.Get(addr)
 	return once.Do(ctx, func(ctx context.Context) (ret providers.Configured, diags tfdiags.Diagnostics) {
 		log.Printf("[INFO] Opening Provider %s", addr)
 

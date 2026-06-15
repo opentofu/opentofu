@@ -155,7 +155,7 @@ func (t *testModuleInstance) ResolveAttr(ref hcl.TraverseAttr) (exprs.Attribute,
 }
 
 // ResolveFunc implements Scope.
-func (t *testModuleInstance) ResolveFunc(call *hcl.StaticCall) (function.Function, tfdiags.Diagnostics) {
+func (t *testModuleInstance) ResolveFunc(_ context.Context, call *hcl.StaticCall) (function.Function, tfdiags.Diagnostics) {
 	// A real implementation of this would probably look the function name up
 	// in a map built elsewhere, rather than like this.
 	switch call.Name {

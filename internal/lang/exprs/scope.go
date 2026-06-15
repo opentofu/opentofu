@@ -31,7 +31,7 @@ type Scope interface {
 
 	// ResolveFunc looks up a function by name, either returning its
 	// implementation or error diagnostics if no such function exists.
-	ResolveFunc(call *hcl.StaticCall) (function.Function, tfdiags.Diagnostics)
+	ResolveFunc(ctx context.Context, call *hcl.StaticCall) (function.Function, tfdiags.Diagnostics)
 }
 
 // ChildScopeBuilder is the signature for a function that can build a child
@@ -87,7 +87,7 @@ func (s flatValueScope) ResolveAttr(ref hcl.TraverseAttr) (Attribute, tfdiags.Di
 }
 
 // ResolveFunc implements [Scope].
-func (s flatValueScope) ResolveFunc(call *hcl.StaticCall) (function.Function, tfdiags.Diagnostics) {
+func (s flatValueScope) ResolveFunc(ctx context.Context, call *hcl.StaticCall) (function.Function, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	diags = diags.Append(fmt.Errorf("no function named %s", call.Name))
 	return function.Function{}, diags

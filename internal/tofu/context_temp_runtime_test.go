@@ -77,7 +77,7 @@ var (
 	ExperimentalFeatureProviderMeta      = ExperimentalFlag{"Missing Provider Meta", false}
 	ExperimentalFeatureTaint             = ExperimentalFlag{"Missing Taint", false}
 	ExperimentalFeatureErrorHandling     = ExperimentalFlag{"Missing Error Handling", false}
-	ExperimentalFeatureProviderFunctions = ExperimentalFlag{"Missing Provider Defined Functions", false}
+	ExperimentalFeatureProviderFunctions = ExperimentalFlag{"Missing Provider Defined Functions", true}
 
 	// Obsolete flags indicate a test which depends on a feature we do not
 	// intend to carry forward into the new engine

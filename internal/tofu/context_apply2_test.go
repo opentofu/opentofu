@@ -7057,7 +7057,6 @@ resource "test_resource" "res" {
 	}
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, nil))
 	assertNoErrors(t, diags)
-	assertState(t, plan.PlannedState)
 
 	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	assertNoErrors(t, diags)

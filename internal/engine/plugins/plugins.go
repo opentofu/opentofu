@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/lang/eval"
@@ -18,6 +19,7 @@ import (
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/function"
 )
 
 type Plugins interface {
@@ -51,6 +53,14 @@ type Providers interface {
 	// the schema returned by a previous call to ResourceTypeSchema for
 	// the same resource type.
 	ValidateResourceConfig(ctx context.Context, provider addrs.Provider, mode addrs.ResourceMode, typeName string, configVal cty.Value) tfdiags.Diagnostics
+
+	// BuildFunction constructs a cty function given a provider and a function address.
+	//
+	// The main oddity of this function is the stubMissing parameter. During validation, we do not
+	// have configured providers available. This prevents the full list of functions that a configured
+	// provider exposes from being known. If we ever deprecate functions on configured providers, this
+	// argument should be removed.
+	BuildFunction(ctx context.Context, provider addrs.Provider, pf addrs.ProviderFunction, stubMissing bool, rng hcl.Range) (function.Function, tfdiags.Diagnostics)
 
 	// NewConfiguredProvider starts a _configured_ instance of the given
 	// provider using the given configuration value.

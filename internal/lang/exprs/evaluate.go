@@ -183,12 +183,12 @@ func valuesForSymbolTableTempNodes(ctx context.Context, symbols map[string]*symb
 	return ret, diags
 }
 
-func buildFunctionTable(_ context.Context, calls iter.Seq[*hcl.StaticCall], scope Scope) (map[string]function.Function, tfdiags.Diagnostics) {
+func buildFunctionTable(ctx context.Context, calls iter.Seq[*hcl.StaticCall], scope Scope) (map[string]function.Function, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	ret := make(map[string]function.Function)
 	for call := range calls {
 		funcName := call.Name
-		impl, moreDiags := scope.ResolveFunc(call)
+		impl, moreDiags := scope.ResolveFunc(ctx, call)
 		diags = diags.Append(moreDiags)
 		if moreDiags.HasErrors() {
 			continue

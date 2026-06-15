@@ -8,13 +8,9 @@ package tofu2024
 import (
 	"context"
 	"iter"
-	"time"
-
-	"github.com/zclconf/go-cty/cty/function"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
-	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -98,7 +94,6 @@ func CompileModuleInstance(
 		module.ProviderRequirements.RequiredProviders,
 		call.CalleeAddr,
 		call.EvalContext.Providers,
-		call.EvaluationGlue.ValidateProviderConfig,
 	)
 
 	providersFromParent := call.ProvidersFromParent
@@ -112,11 +107,18 @@ func CompileModuleInstance(
 		providersFromParent, ret.missingProviders = compileProviderConfigRefMissingInRoot(
 			module.ProviderRequirements.RequiredProviders,
 			call.EvalContext.Providers,
-			call.EvaluationGlue.ValidateProviderConfig,
 		)
 	}
 	// Add all of our local providerConfigNodes to the provider ref chain.
 	providersSidechannel := compileProviderConfigRefModule(providersFromParent, ret.providerConfigNodes)
+
+	// Inject the provider functions into the scope now that we have the full provider
+	// compilation chain available.
+	topScope.providerFunctions = compileProviderFunctions(
+		module.ProviderRequirements.RequiredProviders,
+		providersSidechannel,
+		call.EvaluationGlue,
+	)
 
 	ret.inputVariableNodes = compileModuleInstanceInputVariables(ctx, module.Variables, call.InputValues, topScope, call.CalleeAddr, call.DeclRange)
 	ret.localValueNodes = compileModuleInstanceLocalValues(ctx, module.Locals, topScope, call.CalleeAddr)
@@ -179,17 +181,4 @@ func compileCheckRules(configs []*configs.CheckRule, evalScope exprs.Scope) iter
 			}
 		}
 	}
-}
-
-// compileCoreFunctions prepares the table of core functions for inclusion in
-// a module instance scope.
-func compileCoreFunctions(_ context.Context, allowImpureFuncs bool, baseDir string, planTimestamp time.Time) map[string]function.Function {
-	// For now we just borrow the functions table setup from the previous
-	// system's concept of "scope".
-	oldScope := lang.Scope{
-		PureOnly:      !allowImpureFuncs,
-		BaseDir:       baseDir,
-		PlanTimestamp: planTimestamp,
-	}
-	return oldScope.Functions()
 }

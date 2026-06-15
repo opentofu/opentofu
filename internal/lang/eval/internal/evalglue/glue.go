@@ -8,7 +8,9 @@ package evalglue
 import (
 	"context"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/function"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
@@ -25,8 +27,12 @@ import (
 // of [Glue] to adapt that into the minimal set of operations
 // that are needed regardless of what overall operation we're currently driving.
 type Glue interface {
-	// I'm not sure that this belongs here
-	ValidateProviderConfig(ctx context.Context, provider addrs.Provider, configVal cty.Value) tfdiags.Diagnostics
+	// ProviderFunction constructs a cty function given a provider and a function address.
+	//
+	// This is a bit odd due to how we support functions on configured providers. We pass in both
+	// a provider address and a provider instance, preferring a call on the configured provider
+	// instance if available.
+	ProviderFunction(ctx context.Context, provider addrs.Provider, providerInst configgraph.Maybe[*configgraph.ProviderInstance], pf addrs.ProviderFunction, rng hcl.Range) (function.Function, tfdiags.Diagnostics)
 
 	// ResourceInstanceValue returns the result value for the given resource
 	// instance.

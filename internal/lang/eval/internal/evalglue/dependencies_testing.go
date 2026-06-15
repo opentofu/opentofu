@@ -9,7 +9,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/function"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -21,7 +23,7 @@ import (
 // information directly from the given map.
 //
 // This is intended for unit testing only.
-func ProvidersForTesting(schemas map[addrs.Provider]*providers.GetProviderSchemaResponse) ProvidersSchema {
+func ProvidersForTesting(schemas map[addrs.Provider]*providers.GetProviderSchemaResponse) Providers {
 	return providersStatic{schemas}
 }
 
@@ -35,6 +37,10 @@ func ProvisionersForTesting(schemas map[string]*configschema.Block) Provisioners
 
 type providersStatic struct {
 	schemas map[addrs.Provider]*providers.GetProviderSchemaResponse
+}
+
+func (p providersStatic) BuildFunction(ctx context.Context, provider addrs.Provider, pf addrs.ProviderFunction, stubMissing bool, rng hcl.Range) (function.Function, tfdiags.Diagnostics) {
+	return function.Function{}, tfdiags.New(fmt.Errorf("provider functions not yet supported in this testing harness, asked to provide: %s", pf.String()))
 }
 
 // ProviderConfigSchema implements Providers.
