@@ -101,7 +101,7 @@ func (i *ImportTarget) ResolvedAddr() *addrs.AbsResourceInstance {
 // Import targets' addresses are not fully known from the get-go, and could only be resolved later when walking
 // the graph. This struct helps keep track of the resolved imports, mostly for validation that all imports
 // have been addressed and point to an actual configuration.
-// The key of the map is a AbsResourceInstance, and the value is an EvaluatedConfigImportTarget.
+// The key of the map is an AbsResourceInstance, and the value is an EvaluatedConfigImportTarget.
 type ImportResolver struct {
 	mu      sync.RWMutex
 	imports addrs.Map[addrs.AbsResourceInstance, EvaluatedConfigImportTarget]
