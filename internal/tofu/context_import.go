@@ -101,14 +101,14 @@ func (i *ImportTarget) ResolvedAddr() *addrs.AbsResourceInstance {
 // Import targets' addresses are not fully known from the get-go, and could only be resolved later when walking
 // the graph. This struct helps keep track of the resolved imports, mostly for validation that all imports
 // have been addressed and point to an actual configuration.
-// The key of the map is a string representation of the address, and the value is an EvaluatedConfigImportTarget.
+// The key of the map is a AbsResourceInstance, and the value is an EvaluatedConfigImportTarget.
 type ImportResolver struct {
 	mu      sync.RWMutex
-	imports map[string]EvaluatedConfigImportTarget
+	imports addrs.Map[addrs.AbsResourceInstance, EvaluatedConfigImportTarget]
 }
 
 func NewImportResolver() *ImportResolver {
-	return &ImportResolver{imports: make(map[string]EvaluatedConfigImportTarget)}
+	return &ImportResolver{imports: addrs.MakeMap[addrs.AbsResourceInstance, EvaluatedConfigImportTarget]()}
 }
 
 // ValidateImportIDs is used during the validation phase to validate the import IDs/Identities of all import targets.
@@ -309,23 +309,21 @@ func (ri *ImportResolver) resolveImport(ctx context.Context, importTarget *Impor
 	ri.mu.Lock()
 	defer ri.mu.Unlock()
 
-	resolvedImportKey := importAddress.String()
-
-	if importTarget, exists := ri.imports[resolvedImportKey]; exists {
+	if existing, exists := ri.imports.GetOk(importAddress); exists {
 		return diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  fmt.Sprintf("Duplicate import configuration for %q", importAddress),
-			Detail:   fmt.Sprintf("An import block for the resource %q was already declared at %s. A resource can have only one import block.", importAddress, importTarget.Config.DeclRange),
-			Subject:  importTarget.Config.DeclRange.Ptr(),
+			Detail:   fmt.Sprintf("An import block for the resource %q was already declared at %s. A resource can have only one import block.", importAddress, existing.Config.DeclRange),
+			Subject:  existing.Config.DeclRange.Ptr(),
 		})
 	}
 
-	ri.imports[resolvedImportKey] = EvaluatedConfigImportTarget{
+	ri.imports.Put(importAddress, EvaluatedConfigImportTarget{
 		Config:   importTarget.Config,
 		Addr:     importAddress,
 		ID:       importId,
 		Identity: importIdentity,
-	}
+	})
 
 	if keyData == EvalDataForNoInstanceKey {
 		log.Printf("[TRACE] importResolver: resolved a singular import target %s", importAddress)
@@ -379,21 +377,15 @@ func (ri *ImportResolver) GetAllImports() []EvaluatedConfigImportTarget {
 	ri.mu.RLock()
 	defer ri.mu.RUnlock()
 
-	var allImports []EvaluatedConfigImportTarget
-	for _, importTarget := range ri.imports {
-		allImports = append(allImports, importTarget)
-	}
-	return allImports
+	return ri.imports.Values()
 }
 
 func (ri *ImportResolver) GetImport(address addrs.AbsResourceInstance) *EvaluatedConfigImportTarget {
 	ri.mu.RLock()
 	defer ri.mu.RUnlock()
 
-	for _, importTarget := range ri.imports {
-		if importTarget.Addr.Equal(address) {
-			return &importTarget
-		}
+	if importTarget, exists := ri.imports.GetOk(address); exists {
+		return &importTarget
 	}
 	return nil
 }
@@ -404,14 +396,14 @@ func (ri *ImportResolver) addCLIImportTarget(importTarget *ImportTarget) {
 	ri.mu.Lock()
 	defer ri.mu.Unlock()
 	importAddress := importTarget.CommandLineImportTarget.Addr
-	ri.imports[importAddress.String()] = EvaluatedConfigImportTarget{
-		// Since this import target originates from the CLI, and we have no config block for it
-		// setting nil value to Config here to reuse Context.postExpansionImportValidation,
-		// and there should be no possible paths to dereference this with a nil value during the import command
+	// Since this import target originates from the CLI, and we have no config block for it
+	// setting nil value to Config here to reuse Context.postExpansionImportValidation,
+	// and there should be no possible paths to dereference this with a nil value during the import command
+	ri.imports.Put(importAddress, EvaluatedConfigImportTarget{
 		Config: nil,
 		Addr:   importAddress,
 		ID:     importTarget.CommandLineImportTarget.ID,
-	}
+	})
 }
 
 // Import takes already-created external resources and brings them

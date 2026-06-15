@@ -1574,3 +1574,94 @@ aws_instance.foo:
   provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = bar
 `
+
+func TestImportResolverGetImport(t *testing.T) {
+	makeAddr := func(module addrs.ModuleInstance, typeName, name string, key addrs.InstanceKey) addrs.AbsResourceInstance {
+		return module.ResourceInstance(addrs.ManagedResourceMode, typeName, name, key)
+	}
+
+	addrNoKey := makeAddr(addrs.RootModuleInstance, "aws_instance", "foo", addrs.NoKey)
+	addrIntKey := makeAddr(addrs.RootModuleInstance, "aws_instance", "bar", addrs.IntKey(0))
+	addrStringKey := makeAddr(addrs.RootModuleInstance, "aws_sqs_queue", "baz", addrs.StringKey("mykey"))
+	addrInModule := makeAddr(addrs.RootModuleInstance.Child("fruit", addrs.StringKey("apple")), "aws_sqs_queue", "color", addrs.StringKey("red"))
+
+	tests := []struct {
+		name    string
+		imports addrs.Map[addrs.AbsResourceInstance, EvaluatedConfigImportTarget]
+		lookup  addrs.AbsResourceInstance
+		wantID  string
+		wantNil bool
+	}{
+		{
+			name:    "found by address without key",
+			imports: addrs.MakeMap(addrs.MakeMapElem(addrNoKey, EvaluatedConfigImportTarget{Addr: addrNoKey, ID: "i-1234"})),
+			lookup:  addrNoKey,
+			wantID:  "i-1234",
+		},
+		{
+			name:    "found by address with int key",
+			imports: addrs.MakeMap(addrs.MakeMapElem(addrIntKey, EvaluatedConfigImportTarget{Addr: addrIntKey, ID: "i-5678"})),
+			lookup:  addrIntKey,
+			wantID:  "i-5678",
+		},
+		{
+			name:    "found by address with string key",
+			imports: addrs.MakeMap(addrs.MakeMapElem(addrStringKey, EvaluatedConfigImportTarget{Addr: addrStringKey, ID: "queue-url"})),
+			lookup:  addrStringKey,
+			wantID:  "queue-url",
+		},
+		{
+			name:    "found by address in module instance",
+			imports: addrs.MakeMap(addrs.MakeMapElem(addrInModule, EvaluatedConfigImportTarget{Addr: addrInModule, ID: "queue-in-module"})),
+			lookup:  addrInModule,
+			wantID:  "queue-in-module",
+		},
+		{
+			name:    "not found returns nil",
+			imports: addrs.MakeMap(addrs.MakeMapElem(addrNoKey, EvaluatedConfigImportTarget{Addr: addrNoKey, ID: "i-1234"})),
+			lookup:  addrIntKey,
+			wantNil: true,
+		},
+		{
+			name:    "empty resolver returns nil",
+			imports: addrs.MakeMap[addrs.AbsResourceInstance, EvaluatedConfigImportTarget](),
+			lookup:  addrNoKey,
+			wantNil: true,
+		},
+		{
+			name: "correct match among many entries",
+			imports: addrs.MakeMap(
+				addrs.MakeMapElem(addrNoKey, EvaluatedConfigImportTarget{Addr: addrNoKey, ID: "i-1234"}),
+				addrs.MakeMapElem(addrIntKey, EvaluatedConfigImportTarget{Addr: addrIntKey, ID: "i-5678"}),
+				addrs.MakeMapElem(addrStringKey, EvaluatedConfigImportTarget{Addr: addrStringKey, ID: "queue-url"}),
+				addrs.MakeMapElem(addrInModule, EvaluatedConfigImportTarget{Addr: addrInModule, ID: "queue-in-module"}),
+			),
+			lookup: addrStringKey,
+			wantID: "queue-url",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ri := &ImportResolver{imports: tc.imports}
+			got := ri.GetImport(tc.lookup)
+
+			if tc.wantNil {
+				if got != nil {
+					t.Fatalf("expected nil, got %v", got)
+				}
+				return
+			}
+
+			if got == nil {
+				t.Fatal("expected non-nil result, got nil")
+			}
+			if got.ID != tc.wantID {
+				t.Errorf("expected ID %q, got %q", tc.wantID, got.ID)
+			}
+			if !got.Addr.Equal(tc.lookup) {
+				t.Errorf("expected Addr %s, got %s", tc.lookup, got.Addr)
+			}
+		})
+	}
+}
