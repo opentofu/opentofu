@@ -5,6 +5,7 @@ The v1.12.x release series is supported until **February 1 2027**.
 BUG FIXES:
 
 - Properly handle `TF_ENCRYPTION` with only blank spaces. ([#4265](https://github.com/opentofu/opentofu/pull/4265))
+- The value resulted from the `lifecycle.enabled` evaluation now has its deprecation marks processed correctly ([#4162](https://github.com/opentofu/opentofu/pull/4162))
 
 
 ## 1.12.2
