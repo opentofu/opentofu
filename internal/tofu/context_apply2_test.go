@@ -70,6 +70,13 @@ func TestContext2Apply_createBeforeDestroy_deposedKeyPreApply(t *testing.T) {
 		addrs.NoKey,
 	)
 
+	// This particular test can't work with the new runtime because it relies
+	// on the "hooks" mechanism that the new runtime does not use. We will
+	// eventually have _some_ mechanism for the new runtime to notify the
+	// caller of its progress, but it probably won't be exactly this hook
+	// API and so we should adapt this test to whatever the final answer is.
+	SkipExperimental(t, ExperimentalNewStrategyNeeded)
+
 	hook := new(MockHook)
 	ctx := testContext2(t, &ContextOpts{
 		Hooks: []Hook{hook},
@@ -78,7 +85,6 @@ func TestContext2Apply_createBeforeDestroy_deposedKeyPreApply(t *testing.T) {
 		}, nil),
 	})
 
-	SkipExperimental(t, ExperimentalFeatureCBD)
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
@@ -174,6 +180,7 @@ func TestContext2Apply_createBeforeDestroy_dependsNonCBDUpdate(t *testing.T) {
 		t.Log(legacyDiffComparisonString(plan.Changes))
 	}
 
+	SkipExperimental(t, ExperimentalBugMissingProvider)
 	state, diags = ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())

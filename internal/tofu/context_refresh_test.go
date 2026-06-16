@@ -1875,6 +1875,7 @@ resource "aws_instance" "bar" {
 		t.Fatalf("plan errors: %s", diags.Err())
 	}
 
+	SkipExperimental(t, ExperimentalBugStateCBD)
 	r := state.ResourceInstance(mustResourceInstanceAddr("aws_instance.bar"))
 	if !r.Current.CreateBeforeDestroy {
 		t.Fatal("create_before_destroy not updated in instance state")

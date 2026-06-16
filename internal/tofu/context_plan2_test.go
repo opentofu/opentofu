@@ -2802,7 +2802,7 @@ func TestContext2Plan_refreshOnlyMode_deposed(t *testing.T) {
 		}, nil),
 	})
 
-	SkipExperimental(t, ExperimentalFeatureCBD)
+	SkipExperimental(t, ExperimentalFeatureRefreshOnly)
 	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.RefreshOnlyMode,
 	})
@@ -4942,7 +4942,7 @@ resource "test_object" "b" {
 		}, nil),
 	})
 
-	SkipExperimental(t, ExperimentalFeatureCBD)
+	SkipExperimental(t, ExperimentalBugMissingProvider)
 	_, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 	})

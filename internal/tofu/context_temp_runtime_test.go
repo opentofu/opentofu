@@ -29,23 +29,26 @@ var (
 	ExperimentalBugVariableInput     = ExperimentalFlag{"Bug Variable Input", true}
 	ExperimentalBugCancel            = ExperimentalFlag{"Bug Context Cancel", false}
 	ExperimentalBugStateProvider     = ExperimentalFlag{"Bug State Provider", false}
+	ExperimentalBugStateCBD          = ExperimentalFlag{"Bug CreateBeforeDestroy Not Tracked In State", false}
 	ExperimentalBugReferenceProvider = ExperimentalFlag{"Bug Reference Provider", false}
 	ExperimentalBugMissingProvider   = ExperimentalFlag{"Bug Missing Configuration For Provider", false}
 	ExperimentalBugResourceReadNull  = ExperimentalFlag{"Bug Read Resource Deleted", false}
 	ExperimentalBugDataResource      = ExperimentalFlag{"Bug Data Resource", false}
 	ExperimentalBugVariableSensitive = ExperimentalFlag{"Bug Variables Declared as Sensitive", true}
 	ExperimentalBugResourceMarks     = ExperimentalFlag{"Bug Not Transferring Marks from Resource Instance Config Value to Final Value", false}
+	ExperimentalBugTaintOnCreateFail = ExperimentalFlag{"Bug Not Tainted When Create Fails", false}
 	ExperimentalBugForEach           = ExperimentalFlag{"Bug For Each", true}
-	ExperimentalBugSpuriousReplace   = ExperimentalFlag{"Bug Spurious Replace", false} // New runtime proposes replace where old runtime would've called for update
+	ExperimentalBugSpuriousReplace   = ExperimentalFlag{"Bug Spurious Replace", true} // New runtime proposes replace where old runtime would've called for update
 
 	ExperimentalChangeDiagWording     = ExperimentalFlag{"Change Different Diagnostic Wording", false}
 	ExperimentalChangeErrorEarly      = ExperimentalFlag{"Change Detect Error Earlier", false}
 	ExperimentalChangeDependencies    = ExperimentalFlag{"Change Precise Dependencies", false}
 	ExperimentalChangeDeferredActions = ExperimentalFlag{"Change New Runtime Supports Deferred Actions", false}
+	ExperimentalChangeNoNoOp          = ExperimentalFlag{"Change New Runtime Doesn't Generate NoOp Changes", false}
 
 	ExperimentalFeatureStateDependencies = ExperimentalFlag{"Missing State Dependencies", true}
 	ExperimentalFeatureProviderInstances = ExperimentalFlag{"Missing Provider Instances", true}
-	ExperimentalFeatureCBD               = ExperimentalFlag{"Missing Create Before Destroy", false}
+	ExperimentalFeatureCBD               = ExperimentalFlag{"Missing Create Before Destroy", true}
 	ExperimentalFeatureDeposed           = ExperimentalFlag{"Missing Deposed", false}
 	ExperimentalFeatureCondition         = ExperimentalFlag{"Missing Pre/Post Conditions", false}
 	ExperimentalFeatureLocalState        = ExperimentalFlag{"Missing Store locals in state", false}
@@ -54,6 +57,7 @@ var (
 	ExperimentalFeatureDeprecated        = ExperimentalFlag{"Missing Deprecated", false}
 	ExperimentalFeatureImport            = ExperimentalFlag{"Missing Importing", false}
 	ExperimentalFeatureRefresh           = ExperimentalFlag{"Missing Refresh", false}
+	ExperimentalFeatureRefreshOnly       = ExperimentalFlag{"Missing Refresh-only Planning Mode", false}
 	ExperimentalFeatureValidate          = ExperimentalFlag{"Missing Validate", false}
 	ExperimentalFeatureDestroy           = ExperimentalFlag{"Missing Destroy", false}
 	ExperimentalFeatureMoved             = ExperimentalFlag{"Missing Moved", false}
