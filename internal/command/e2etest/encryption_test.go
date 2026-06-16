@@ -265,3 +265,27 @@ func TestEncryptionFlow(t *testing.T) {
 		requireUnencryptedState()
 	}
 }
+
+func TestEncryptionEnvironmentVariable(t *testing.T) {
+	// This test reaches out to registry.opentofu.org to download the
+	// mock provider, so it can only run if network access is allowed
+	skipIfCannotAccessNetwork(t)
+
+	// There is a lot of setup / helpers defined.  Actual test logic is below.
+
+	fixturePath := filepath.Join("testdata", "encryption-flow")
+	tf := e2e.NewBinary(t, tofuBin, fixturePath)
+
+	// This test reproduces the situation reported in https://github.com/opentofu/opentofu/issues/4262
+	t.Run("with TF_ENCRYPTION containing only a simple space", func(t *testing.T) {
+		// Setting this env var at the test level will force `tf.Run` to pick this up
+		t.Setenv("TF_ENCRYPTION", " ")
+		_, stderr, err := tf.Run("init")
+		if err != nil {
+			t.Errorf("unexpected error: %s", err)
+		}
+		if stderr != "" {
+			t.Errorf("unexpected stderr output:\n%s", stderr)
+		}
+	})
+}
