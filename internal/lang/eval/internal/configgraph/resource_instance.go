@@ -206,6 +206,7 @@ func (ri *ResourceInstance) Value(ctx context.Context) (v cty.Value, diags tfdia
 		// We must pass the marks from the provider instance selection into the
 		// result because the values that were returned may vary depending on
 		// the provider configuration.
+		RemoveNonDependencyMarks(providerInstMarks)
 		resultVal = resultVal.WithMarks(providerInstMarks)
 
 		// TODO: Postconditions, and transfer [ResourceInstanceMark] marks from
