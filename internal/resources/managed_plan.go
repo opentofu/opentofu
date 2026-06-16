@@ -11,9 +11,11 @@ import (
 	"log"
 	"strings"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/plans/objchange"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -141,17 +143,23 @@ func (rt *ManagedResourceType) PlanChanges(ctx context.Context, req *ManagedReso
 			return nil, diags
 		}
 	}
-	if len(resp.RequiresReplace) != 0 && (currentVal.IsNull() || desiredVal.IsNull()) {
-		// RequiresReplace is only applicable when the plan request had both
-		// a current and a desired value, because it specifies attributes that
-		// cannot be updated-in-place, but unfortunately existing providers
-		// do generate spurious "requires replace" signals for non-update
-		// plans and so we need to just ignore them.
-		log.Printf("[WARN] Ignoring nonsensical RequiresReplace values from provider %s while planning a non-update change for %s", rt.providerAddr, dispAddr)
-		// We'll discard the meaningless extra info here just so that the
-		// rest of the system can assume that this is populated only when it
-		// actually needs to be acted on.
-		resp.RequiresReplace = nil
+	var requiresReplace cty.PathSet
+	if len(resp.RequiresReplace) != 0 {
+		if currentVal.IsNull() || desiredVal.IsNull() {
+			// RequiresReplace is only applicable when the plan request had both
+			// a current and a desired value, because it specifies attributes that
+			// cannot be updated-in-place, but unfortunately existing providers
+			// do generate spurious "requires replace" signals for non-update
+			// plans and so we need to just ignore them.
+			log.Printf("[WARN] Ignoring nonsensical RequiresReplace values from provider %s while planning a non-update change for %s", rt.providerAddr, dispAddr)
+			// We intentionally leave requiresReplace unpopulated here just so
+			// that the rest of the system can assume that this is populated
+			// only when it actually needs to be acted on.
+		} else {
+			pathSet, moreDiags := rt.filteredRequiresReplace(resp.RequiresReplace, currentVal, plannedValUnmarked, schema.Block)
+			diags = diags.Append(moreDiags)
+			requiresReplace = pathSet
+		}
 	}
 
 	// FIXME: plannedVal also needs sensitive marks added to it based on the
@@ -168,7 +176,7 @@ func (rt *ManagedResourceType) PlanChanges(ctx context.Context, req *ManagedReso
 			Value:   plannedVal,
 			Private: plannedPrivate,
 		},
-		RequiresReplace: resp.RequiresReplace,
+		RequiresReplace: requiresReplace,
 	}, diags
 }
 
@@ -317,7 +325,7 @@ type ManagedResourcePlanResponse struct {
 	//
 	// If this collection is zero-length then this change should instead be
 	// applied with only a single call to [ApplyManagedResourceChange].
-	RequiresReplace []cty.Path
+	RequiresReplace cty.PathSet
 }
 
 func (rt *ManagedResourceType) providerCanPlanDestroy(ctx context.Context) bool {
@@ -335,4 +343,97 @@ func (rt *ManagedResourceType) providerCanPlanDestroy(ctx context.Context) bool 
 		return false
 	}
 	return resp.ServerCapabilities.PlanDestroy
+}
+
+// filteredRequiresReplace filters the "requires replace" paths returned by
+// a provider to include only paths to values that are actually different
+// between the current and planned values.
+//
+// This compensates for common provider misbehavior of returning
+// "requires replace" paths even when the corresponding value isn't actually
+// changing, which unfortunately we must allow because OpenTofu and its
+// predecessor accepted it long enough that many existing providers ended up
+// inadvertently relying on it.
+func (rt *ManagedResourceType) filteredRequiresReplace(returned []cty.Path, currentVal, plannedVal cty.Value, schema *configschema.Block) (cty.PathSet, tfdiags.Diagnostics) {
+	var ret cty.PathSet
+	var diags tfdiags.Diagnostics
+	if len(returned) == 0 {
+		return ret, diags
+	}
+	addPath := func(path cty.Path) {
+		if ret.Empty() {
+			ret = cty.NewPathSet()
+		}
+		ret.Add(path)
+	}
+	for _, path := range returned {
+		if currentVal.IsNull() {
+			// If currentVal is null then we don't expect any RequiresReplace
+			// at all, because this is a Create action.
+			continue
+		}
+
+		currentChangedVal, currentPathDiags := hcl.ApplyPath(currentVal, path, nil)
+		plannedChangedVal, plannedPathDiags := hcl.ApplyPath(plannedVal, path, nil)
+		if plannedPathDiags.HasErrors() && currentPathDiags.HasErrors() {
+			// This means the path is invalid in both the current and new
+			// values, which is an error with the provider itself.
+			// (This particular thing is something that both OpenTofu and
+			// its predecessor historically enforced, so it's safe for us to
+			// continue enforcing it here.)
+			diags = diags.Append(tfdiags.AttributeValue(
+				tfdiags.Error,
+				"Provider produced invalid plan",
+				fmt.Sprintf(
+					"Provider %q has indicated \"requires replacement\" for a non-existent attribute path %#v.\n\nThis is a bug in the provider, which should be reported in the provider's own issue tracker.",
+					rt.providerAddr, path,
+				),
+				// This path evidently refers to something that doesn't exist
+				// and so this won't match exactly, but the caller can still
+				// resolve it into something approximately correct even if
+				// it's just to the overall resource instance that's affected.
+				path,
+			))
+			continue
+		}
+
+		// Make sure we have valid Values for both values.
+		// Note: if the opposing value was of the type
+		// cty.DynamicPseudoType, the type assigned here may not exactly
+		// match the schema. This is fine here, since we're only going to
+		// check for equality, but if the NullVal is to be used, we need to
+		// check the schema for the true type.
+		switch {
+		case currentChangedVal == cty.NilVal && plannedChangedVal == cty.NilVal:
+			// this should never happen without ApplyPath errors above
+			panic("requires replace path returned 2 nil values")
+		case currentChangedVal == cty.NilVal:
+			currentChangedVal = cty.NullVal(plannedChangedVal.Type())
+		case plannedChangedVal == cty.NilVal:
+			plannedChangedVal = cty.NullVal(currentChangedVal.Type())
+		}
+
+		// Unmark for this value for the equality test. Providers are not
+		// aware of marks and so a marks-only change cannot possibly require
+		// a provider to replace something.
+		unmarkedCurrentChangedVal, _ := currentChangedVal.UnmarkDeep()
+		unmarkedPlannedChangedVal, _ := plannedChangedVal.UnmarkDeep()
+		eqV := unmarkedPlannedChangedVal.Equals(unmarkedCurrentChangedVal)
+		if !eqV.IsKnown() || eqV.False() {
+			addPath(path)
+			// we continue here to avoid the lookup for the attribute on the next section
+			continue
+		}
+
+		// If a write-only requests the replacement of the resource, we add that to the
+		// reqRep just because it's write-only.
+		// Needed because there is no way to apply the path based on the equivalence
+		// of the before/after values of this, since both are meant to always be null.
+		schemaAttr := schema.AttributeByPath(path)
+		isWo := schemaAttr != nil && schemaAttr.WriteOnly
+		if isWo {
+			addPath(path)
+		}
+	}
+	return ret, diags
 }

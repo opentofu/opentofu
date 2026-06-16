@@ -345,9 +345,54 @@ func TestManagedResourceTypePlanChanges(t *testing.T) {
 						"name": cty.StringVal("rumleskaft"),
 					}),
 				},
-				RequiresReplace: []cty.Path{
+				RequiresReplace: cty.NewPathSet(
 					cty.GetAttrPath("name"),
+				),
+			},
+		},
+		"requires replacement spurious when updating": {
+			Schema: nameSchema,
+			PlanImpl: func(_ context.Context, req providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
+				return providers.PlanResourceChangeResponse{
+					PlannedState: req.ProposedNewState,
+					// This test is modeling a common misbehavior in real
+					// providers where they return RequiresReplace entries for
+					// attributes that aren't actually changing. The current
+					// and desired values for "name" are equal and so this
+					// should be filtered out before returning to shield our
+					// callers from this buggy behavior.
+					RequiresReplace: []cty.Path{
+						cty.GetAttrPath("name"),
+					},
+				}
+			},
+			Request: &ManagedResourcePlanRequest{
+				Current: ValueWithPrivate{
+					Value: cty.ObjectVal(map[string]cty.Value{
+						"name": cty.StringVal("rumpelstiltskin"),
+					}),
 				},
+				DesiredValue: cty.ObjectVal(map[string]cty.Value{
+					"name": cty.StringVal("rumpelstiltskin"),
+				}),
+			},
+			WantResponse: &ManagedResourcePlanResponse{
+				Current: ValueWithPrivate{
+					Value: cty.ObjectVal(map[string]cty.Value{
+						"name": cty.StringVal("rumpelstiltskin"),
+					}),
+				},
+				DesiredValue: cty.ObjectVal(map[string]cty.Value{
+					"name": cty.StringVal("rumpelstiltskin"),
+				}),
+				Planned: ValueWithPrivate{
+					Value: cty.ObjectVal(map[string]cty.Value{
+						"name": cty.StringVal("rumpelstiltskin"),
+					}),
+				},
+				// "name" filtered out from RequiresReplace; more information in
+				// PlanImpl above.
+				RequiresReplace: cty.NewPathSet(),
 			},
 		},
 		"requires replacement when creating": {
@@ -390,7 +435,7 @@ func TestManagedResourceTypePlanChanges(t *testing.T) {
 				// the paths in that case so that the rest of the system can
 				// assume that RequiresReplace is set only when a "replace"
 				// action would be appropriate.
-				RequiresReplace: nil,
+				RequiresReplace: cty.NewPathSet(),
 			},
 		},
 		"requires replacement when destroying": {
@@ -433,7 +478,7 @@ func TestManagedResourceTypePlanChanges(t *testing.T) {
 				// the paths in that case so that the rest of the system can
 				// assume that RequiresReplace is set only when a "replace"
 				// action would be appropriate.
-				RequiresReplace: nil,
+				RequiresReplace: cty.NewPathSet(),
 			},
 		},
 		"invalid plan": {
