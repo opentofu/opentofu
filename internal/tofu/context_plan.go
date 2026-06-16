@@ -969,7 +969,11 @@ func (c *Context) driftedResources(ctx context.Context, config *configs.Config, 
 					prevRunAddr = move.From
 				}
 
-				if isResourceMovedToDifferentType(addr, prevRunAddr) {
+				// Note: provider addr is provided twice;
+				// we cannot compare the currently configured provider
+				// with the resource's provider from the previous state, so
+				// we'll skip the provider check
+				if isResourceMovedToDifferentType(addr, prevRunAddr, provider, provider) {
 					// We don't report drift in case of resource type change
 					continue
 				}

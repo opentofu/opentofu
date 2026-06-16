@@ -33,6 +33,8 @@ import (
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+
+	regaddr "github.com/opentofu/registry-address/v2"
 )
 
 func TestContext2Plan_removedDuringRefresh(t *testing.T) {
@@ -1789,6 +1791,124 @@ func TestContext2Plan_movedResourceToDifferentType(t *testing.T) {
 			if got, want := instPlan.ActionReason, plans.ResourceInstanceChangeNoReason; got != want {
 				t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
 			}
+		})
+	}
+}
+func TestContext2Plan_movedResourceToDifferentProvider(t *testing.T) {
+	// This tests a rare scenario where providers might
+	// change during a move, as brought up here:
+	// https://github.com/opentofu/opentofu/issues/4271
+
+	type test struct {
+		name      string
+		schema    providers.Schema
+		resType   string
+		config    map[string]string
+		attrsJSON []byte
+	}
+
+	tests := []test{
+		{
+			name: "providers have same local name, but different namespace",
+			schema: constructProviderSchemaForTesting(map[string]*configschema.Attribute{
+				"test_number": {
+					Type:     cty.Number,
+					Optional: true,
+				},
+			}),
+			resType: "test_object",
+			config: map[string]string{
+				"main.tf": `
+					terraform {
+						required_providers {
+							test = {
+								source = "opentofu/test"
+							}
+						}
+					}
+
+					resource "test_object" "new" {
+
+					}
+					moved {
+						from = test_object.old
+						to   = test_object.new
+					}
+				`,
+			},
+			attrsJSON: []byte(`{}`),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			oldAddr := mustResourceInstanceAddr(tt.resType + ".old")
+			m := testModuleInline(t, tt.config)
+
+			providerAddr1 := addrs.AbsProviderConfig{
+				Provider: regaddr.Provider{
+					Type:      addrs.MustParseProviderPart("test"),
+					Namespace: "hashicorp",
+					Hostname:  addrs.DefaultProviderRegistryHost,
+				},
+				Module: addrs.RootModule,
+			}
+
+			providerAddr2 := addrs.AbsProviderConfig{
+				Provider: regaddr.Provider{
+					Type:      addrs.MustParseProviderPart("test"),
+					Namespace: "opentofu",
+					Hostname:  addrs.DefaultProviderRegistryHost,
+				},
+				Module: addrs.RootModule,
+			}
+
+			state := states.BuildState(
+				func(s *states.SyncState) {
+					s.SetResourceProvider(oldAddr.ContainingResource(), providerAddr1)
+					s.SetResourceInstanceCurrent(oldAddr, &states.ResourceInstanceObjectSrc{
+						Status:    states.ObjectReady,
+						AttrsJSON: tt.attrsJSON,
+					}, providerAddr1, addrs.NoKey)
+				})
+
+			provider1 := &MockProvider{
+				// Old provider, saved in state as the previous provider address
+				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+					ResourceTypes: map[string]providers.Schema{
+						tt.resType: tt.schema,
+					},
+				},
+			}
+
+			provider2 := &MockProvider{
+				// New provider has identical schema; we register it with a new address, but same provider name
+				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+					ResourceTypes: map[string]providers.Schema{
+						tt.resType: tt.schema,
+					},
+				},
+			}
+
+			providerFactory := map[addrs.Provider]providers.Factory{
+				providerAddr1.Provider: testProviderFuncFixed(provider1),
+				providerAddr2.Provider: testProviderFuncFixed(provider2),
+			}
+
+			ctx := testContext2(t, &ContextOpts{
+				Plugins: plugins.NewLibrary(providerFactory, nil),
+			})
+
+			_, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
+				Mode: plans.NormalMode,
+			})
+
+			if !provider2.MoveResourceStateCalled {
+				// We want the provider to move to the other state
+				t.Fatal("expected a call to MoveResourceState, but none occurred")
+			}
+
+			assertNoErrors(t, diags)
 		})
 	}
 }
