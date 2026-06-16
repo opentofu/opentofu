@@ -2,6 +2,10 @@ The v1.11.x release series is supported until **August 1 2026**.
 
 ## 1.11.10 (Unreleased)
 
+BUG FIXES:
+
+* Update documentation to clarify the usage restriction of ephemeral values in `lifecycle.enabled`. ([#4220](https://github.com/opentofu/opentofu/pull/4220))
+
 ## 1.11.9
 
 SECURITY ADVISORIES:
