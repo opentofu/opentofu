@@ -2623,7 +2623,7 @@ resource "test_resource" "b" {
 }
 
 func TestContext2Apply_destroyUnusedModuleProvider(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugStateProvider)
+	SkipExperimental(t, ExperimentalBugStateProvider, ExperimentalFeatureDestroy)
 
 	// an unused provider within a module should not be called during destroy
 	unusedProvider := testProvider("unused")
@@ -2828,7 +2828,7 @@ locals {
 }
 
 func TestContext2Apply_forgetOrphanAndDeposed(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugStateProvider)
+	SkipExperimental(t, ExperimentalBugStateProvider, ExperimentalFlagUnknown)
 
 	desposedKey := states.DeposedKey("deposed")
 	addr := "aws_instance.baz"

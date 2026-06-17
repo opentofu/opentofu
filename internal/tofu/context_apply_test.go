@@ -2940,7 +2940,7 @@ module.child:
 }
 
 func TestContext2Apply_orphanResource(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugStateProvider)
+	SkipExperimental(t, ExperimentalBugStateProvider, ExperimentalFeatureChecks)
 
 	// This is a two-step test:
 	// 1. Apply a configuration with resources that have count set.
@@ -6063,7 +6063,7 @@ func TestContext2Apply_destroyOrder(t *testing.T) {
 
 // https://github.com/hashicorp/terraform/issues/2767
 func TestContext2Apply_destroyModulePrefix(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugStateProvider)
+	SkipExperimental(t, ExperimentalBugStateProvider, ExperimentalFeatureHooks)
 
 	m := testModule(t, "apply-destroy-module-resource-prefix")
 	h := new(MockHook)
@@ -13334,7 +13334,7 @@ func TestContext2Apply_dataSensitive(t *testing.T) {
 }
 
 func TestContext2Apply_errorRestorePrivateData(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugStateProvider)
+	SkipExperimental(t, ExperimentalBugStateProvider, ExperimentalFlagUnknown)
 
 	// empty config to remove our resource
 	m := testModuleInline(t, map[string]string{
@@ -13376,7 +13376,7 @@ func TestContext2Apply_errorRestorePrivateData(t *testing.T) {
 }
 
 func TestContext2Apply_errorRestoreStatus(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugStateProvider)
+	SkipExperimental(t, ExperimentalBugStateProvider, ExperimentalFlagUnknown)
 
 	// empty config to remove our resource
 	m := testModuleInline(t, map[string]string{

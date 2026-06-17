@@ -28,7 +28,7 @@ var (
 	ExperimentalBugDeclareProvider   = ExperimentalFlag{"Bug Declare Provider", true}
 	ExperimentalBugVariableInput     = ExperimentalFlag{"Bug Variable Input", true}
 	ExperimentalBugCancel            = ExperimentalFlag{"Bug Context Cancel", false}
-	ExperimentalBugStateProvider     = ExperimentalFlag{"Bug State Provider", false}
+	ExperimentalBugStateProvider     = ExperimentalFlag{"Bug State Provider", true}
 	ExperimentalBugStateCBD          = ExperimentalFlag{"Bug CreateBeforeDestroy Not Tracked In State", false}
 	ExperimentalBugReferenceProvider = ExperimentalFlag{"Bug Reference Provider", true}
 	ExperimentalBugMissingProvider   = ExperimentalFlag{"Bug Missing Configuration For Provider", true}
