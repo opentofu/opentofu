@@ -123,6 +123,20 @@ func compileProviderConfigRefModule(
 ) configgraph.CompileProviderConfigRef {
 	return func(ctx context.Context, providerInstAddr addrs.LocalProviderConfig) exprs.Valuer {
 
+		// Known BUG: this intentionally simplifed and does *not* implement some of the
+		// odd legacy behaviors before the required_providers block was introduced.
+		//
+		// More specifically, a "provider" block in the configuration with only an alias
+		// field set would simulate what we would now use required_providers for. This
+		// is an ambiguous and confusing pattern that has not been recommended for many
+		// years.
+		// This can been seen in the [tofu.TestContext2Apply_moduleInheritAlias] test.
+		//
+		// One possible way of fixing this would be to include the nessesary information
+		// in this function to detect this scenario. We would need to know:
+		//   - Is the provider specified in the parent call's "providers" proxy block?
+		//   - Is the configuration "empty" for the local provider within this module?
+		//   - If both are true, fall back to the parentCompiler
 		if localConfig, ok := local[providerInstAddr]; ok {
 			return &sidechannelProviderInstanceRefValuer{
 				localAddr:   providerInstAddr,

@@ -113,7 +113,7 @@ func compileProviderConfig(
 			return &configgraph.ProviderInstance{
 				Addr: addrs.AbsProviderInstanceCorrect{
 					Config: addrs.AbsProviderConfigCorrect{
-						Module: addrs.RootModuleInstance,
+						Module: moduleInstanceAddr,
 						Config: addrs.ProviderConfigCorrect{
 							Provider: providerAddr,
 							Alias:    config.Alias,

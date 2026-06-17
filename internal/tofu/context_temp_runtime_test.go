@@ -30,7 +30,7 @@ var (
 	ExperimentalBugCancel            = ExperimentalFlag{"Bug Context Cancel", false}
 	ExperimentalBugStateProvider     = ExperimentalFlag{"Bug State Provider", false}
 	ExperimentalBugStateCBD          = ExperimentalFlag{"Bug CreateBeforeDestroy Not Tracked In State", false}
-	ExperimentalBugReferenceProvider = ExperimentalFlag{"Bug Reference Provider", false}
+	ExperimentalBugReferenceProvider = ExperimentalFlag{"Bug Reference Provider", true}
 	ExperimentalBugMissingProvider   = ExperimentalFlag{"Bug Missing Configuration For Provider", true}
 	ExperimentalBugResourceReadNull  = ExperimentalFlag{"Bug Read Resource Deleted", false}
 	ExperimentalBugDataResource      = ExperimentalFlag{"Bug Data Resource", false}
@@ -46,6 +46,7 @@ var (
 	ExperimentalChangeDependencies    = ExperimentalFlag{"Change Precise Dependencies", false}
 	ExperimentalChangeDeferredActions = ExperimentalFlag{"Change New Runtime Supports Deferred Actions", false}
 	ExperimentalChangeNoNoOp          = ExperimentalFlag{"Change New Runtime Doesn't Generate NoOp Changes", false}
+	ExperimentalChangePreReqdProvider = ExperimentalFlag{"Change New Runtime Doesn't Inherit Full Pre \"required_providers\" Behavior", false}
 
 	ExperimentalFeatureStateDependencies = ExperimentalFlag{"Missing State Dependencies", true}
 	ExperimentalFeatureProviderInstances = ExperimentalFlag{"Missing Provider Instances", true}

@@ -2895,6 +2895,7 @@ func TestContext2Apply_moduleDestroyOrder(t *testing.T) {
 }
 
 func TestContext2Apply_moduleInheritAlias(t *testing.T) {
+	SkipExperimental(t, ExperimentalChangePreReqdProvider)
 	m := testModule(t, "apply-module-provider-inherit-alias")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn

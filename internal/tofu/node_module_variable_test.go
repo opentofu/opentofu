@@ -237,6 +237,7 @@ func TestNodeModuleVariableConstraints(t *testing.T) {
 		assertNoDiagnostics(t, diags)
 
 		for _, addr := range checkableObjects {
+			SkipExperimental(t, ExperimentalFeatureChecks)
 			result := plan.Checks.GetObjectResult(addr)
 			if result == nil {
 				t.Fatalf("no check result for %s in the plan", addr)
@@ -307,6 +308,7 @@ func TestNodeModuleVariableConstraints(t *testing.T) {
 		}
 
 		if !found {
+			SkipExperimental(t, ExperimentalChangeDiagWording)
 			t.Fatalf("missing expected error\nwant summary: %s\ngot: %s", wantSummary, diags.Err().Error())
 		}
 	})
