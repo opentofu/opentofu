@@ -77,9 +77,7 @@ func (b *execGraphBuilder) AddResourceInstanceObjectSubgraphs(
 
 	// First we'll insert separate subgraphs for each resource instance object
 	// that has a planned action, without putting any explicit dependency
-	// edges between them yet. This loop also ensures that we have the
-	// operations needed for any provider instance at least one object
-	// belongs to.
+	// edges between them yet.
 	//
 	// We'll insert the explicit dependency edges between the subgraphs in a
 	// separate loop afterwards, along with any needed prior state operations
@@ -133,6 +131,26 @@ func (b *execGraphBuilder) AddResourceInstanceObjectSubgraphs(
 			for dependent := range objs.Dependendents(addr) {
 				if ref, ok := deletionRefs.GetOk(dependent); ok {
 					addDeleteDep(ref)
+				} else if ref, ok := resultRefs.GetOk(dependent); ok {
+					// If there's no deletion ref but the dependent still has
+					// a value ref (e.g. if the dependent is only being created
+					// or updated) then we wait until its create/update step
+					// has completed before deleting.
+					addDeleteDep(ref)
+					// TODO: The old runtime's equivalent of this behavior has a
+					// hackily-implemented extra rule where it checks if
+					// adding this edge would create a cycle and skips adding
+					// it if so. Do we need to replicate that here? The
+					// commentary on the function that implements it
+					// ([DestroyEdgeTransformer.tryInterProviderDestroyEdge])
+					// explains that it's needed because when applying a
+					// destroy-mode plan provider instances are allowed to refer
+					// to a resource instance that's being destroyed and expect
+					// that to take values from the prior state, and so we'll
+					// tackle this question when we add support for destroy-mode
+					// planning (which seems likely to have its own separate
+					// execgraph-building logic just because the rules are quite
+					// different for that planning mode).
 				}
 			}
 		}
