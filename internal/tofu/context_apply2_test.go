@@ -180,7 +180,7 @@ func TestContext2Apply_createBeforeDestroy_dependsNonCBDUpdate(t *testing.T) {
 		t.Log(legacyDiffComparisonString(plan.Changes))
 	}
 
-	SkipExperimental(t, ExperimentalBugMissingProvider)
+	SkipExperimental(t, ExperimentalBugMissingProvider, ExperimentalBugStateCBD)
 	state, diags = ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())

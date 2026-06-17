@@ -35,17 +35,7 @@ import (
 
 // rootMissingProviders is used to ferry the dynamically injected missing providers
 // into the root module's ProviderConfig lookup
-type rootMissingProviders struct {
-	lock            sync.Mutex
-	providerConfigs map[addrs.LocalProviderConfig]*configgraph.ProviderConfig
-}
-
-func (r *rootMissingProviders) getOk(localAddr addrs.LocalProviderConfig) (*configgraph.ProviderConfig, bool) {
-	r.lock.Lock()
-	defer r.lock.Unlock()
-	ret, ok := r.providerConfigs[localAddr]
-	return ret, ok
-}
+type rootMissingProviders func(localAddr addrs.LocalProviderConfig) (*configgraph.ProviderConfig, tfdiags.Diagnostics)
 
 // compileProviderConfigRefMissingInRoot builds the "base" provider ref compiler used by the root module
 // This specifically handles the legacy edge cases where a resource references a provider that does not
@@ -61,14 +51,16 @@ func compileProviderConfigRefMissingInRoot(
 	requiredProviders map[string]*configs.RequiredProvider,
 	providers evalglue.Providers,
 	extraMarks cty.ValueMarks,
-) (configgraph.CompileProviderConfigRef, *rootMissingProviders) {
-	missing := &rootMissingProviders{
-		providerConfigs: map[addrs.LocalProviderConfig]*configgraph.ProviderConfig{},
-	}
+) (configgraph.CompileProviderConfigRef, rootMissingProviders) {
 
-	return func(ctx context.Context, providerInstAddr addrs.LocalProviderConfig) exprs.Valuer {
-		missing.lock.Lock()
-		defer missing.lock.Unlock()
+	var lock sync.Mutex
+	providerConfigs := map[addrs.LocalProviderConfig]*configgraph.ProviderConfig{}
+
+	providerConfig := func(ctx context.Context, providerInstAddr addrs.LocalProviderConfig) (*configgraph.ProviderConfig, tfdiags.Diagnostics) {
+		var diags tfdiags.Diagnostics
+
+		lock.Lock()
+		defer lock.Unlock()
 
 		// Check to see if we have a corresponding required_providers entry with an alias. This is
 		// explicitly to support validating a non-root module.
@@ -85,20 +77,17 @@ func compileProviderConfigRefMissingInRoot(
 
 		// Aliases are not supported in the provider fallback case
 		if providerInstAddr.Alias != "" {
-			diags := tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
+			diags := diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Reference to undeclared provider configuration",
 				Detail:   fmt.Sprintf("There is no provider configuration %s declared in this module.", providerInstAddr.StringCompact()),
 			})
-			return exprs.ForcedErrorValuer(diags)
+			return nil, diags
 		}
 
 		// Have we already seen this one before?
-		if missingConfig, ok := missing.providerConfigs[providerInstAddr]; ok {
-			return &sidechannelProviderInstanceRefValuer{
-				localAddr:  providerInstAddr,
-				mainValuer: missingConfig,
-			}
+		if missingConfig, ok := providerConfigs[providerInstAddr]; ok {
+			return missingConfig, diags
 		}
 
 		// Assume this provider is within the hashicorp namespace and construct an empty provider config
@@ -108,13 +97,23 @@ func compileProviderConfigRefMissingInRoot(
 			Config: hcl2shim.SynthBody(providerInstAddr.String(), make(map[string]cty.Value)),
 		}
 		missingConfig := compileProviderConfig(ctx, emptyConfig, nil, requiredProviders, addrs.RootModuleInstance, providers, extraMarks)
-		missing.providerConfigs[providerInstAddr] = missingConfig
+		providerConfigs[providerInstAddr] = missingConfig
+		return missingConfig, diags
+	}
 
-		return &sidechannelProviderInstanceRefValuer{
-			localAddr:  providerInstAddr,
-			mainValuer: missingConfig,
+	return func(ctx context.Context, providerInstAddr addrs.LocalProviderConfig) exprs.Valuer {
+			missingConfig, diags := providerConfig(ctx, providerInstAddr)
+			if diags.HasErrors() {
+				return exprs.ForcedErrorValuer(diags)
+			}
+
+			return &sidechannelProviderInstanceRefValuer{
+				localAddr:  providerInstAddr,
+				mainValuer: missingConfig,
+			}
+		}, func(localAddr addrs.LocalProviderConfig) (*configgraph.ProviderConfig, tfdiags.Diagnostics) {
+			return providerConfig(context.Background(), localAddr)
 		}
-	}, missing
 }
 
 // compileProviderConfigRefModule adds the provider configs declared in the module to the ref lookup chain

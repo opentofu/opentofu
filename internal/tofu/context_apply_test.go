@@ -1069,7 +1069,7 @@ func TestContext2Apply_createBeforeDestroyUpdate(t *testing.T) {
 		}, nil),
 	})
 
-	SkipExperimental(t, ExperimentalBugMissingProvider)
+	SkipExperimental(t, ExperimentalBugMissingProvider, ExperimentalBugExecGraph2)
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())

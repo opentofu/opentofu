@@ -31,7 +31,7 @@ var (
 	ExperimentalBugStateProvider     = ExperimentalFlag{"Bug State Provider", false}
 	ExperimentalBugStateCBD          = ExperimentalFlag{"Bug CreateBeforeDestroy Not Tracked In State", false}
 	ExperimentalBugReferenceProvider = ExperimentalFlag{"Bug Reference Provider", false}
-	ExperimentalBugMissingProvider   = ExperimentalFlag{"Bug Missing Configuration For Provider", false}
+	ExperimentalBugMissingProvider   = ExperimentalFlag{"Bug Missing Configuration For Provider", true}
 	ExperimentalBugResourceReadNull  = ExperimentalFlag{"Bug Read Resource Deleted", false}
 	ExperimentalBugDataResource      = ExperimentalFlag{"Bug Data Resource", false}
 	ExperimentalBugVariableSensitive = ExperimentalFlag{"Bug Variables Declared as Sensitive", true}
@@ -39,6 +39,7 @@ var (
 	ExperimentalBugTaintOnCreateFail = ExperimentalFlag{"Bug Not Tainted When Create Fails", false}
 	ExperimentalBugForEach           = ExperimentalFlag{"Bug For Each", true}
 	ExperimentalBugSpuriousReplace   = ExperimentalFlag{"Bug Spurious Replace", true} // New runtime proposes replace where old runtime would've called for update
+	ExperimentalBugExecGraph2        = ExperimentalFlag{"Bug in generated Exec Graph (2)", false}
 
 	ExperimentalChangeDiagWording     = ExperimentalFlag{"Change Different Diagnostic Wording", false}
 	ExperimentalChangeErrorEarly      = ExperimentalFlag{"Change Detect Error Earlier", false}

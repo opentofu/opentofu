@@ -36,7 +36,7 @@ type CompiledModuleInstance struct {
 	providerConfigNodes map[addrs.LocalProviderConfig]*configgraph.ProviderConfig
 	providerLocalNames  map[addrs.Provider]string
 
-	missingProviders *rootMissingProviders
+	missingProviders rootMissingProviders
 }
 
 var _ evalglue.CompiledModuleInstance = (*CompiledModuleInstance)(nil)
@@ -194,7 +194,10 @@ func (c *CompiledModuleInstance) ProviderInstance(ctx context.Context, addr addr
 	node, ok := c.providerConfigNodes[localAddr]
 	if !ok && c.missingProviders != nil {
 		// Try root fallback
-		node, ok = c.missingProviders.getOk(localAddr)
+		var diags tfdiags.Diagnostics
+		node, diags = c.missingProviders(localAddr)
+		// TODO we are swallowing a diagnostic here
+		ok = !diags.HasErrors()
 	}
 	if !ok {
 		return nil
