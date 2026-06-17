@@ -620,7 +620,7 @@ func appendInstanceObjectStateV4(rs *states.Resource, is *states.ResourceInstanc
 				tfdiags.Sourceless(
 					tfdiags.Error,
 					"Ephemeral detected in state writing",
-					fmt.Sprintf("%q has an ephemeral value in %q. This is an OpenTofu error. Please report it", rs.Addr.String(), tfdiags.FormatCtyPath(mark.Path)),
+					fmt.Sprintf("%q has an ephemeral value in %q. This is a bug in OpenTofu. Please report it", rs.Addr.String(), tfdiags.FormatCtyPath(mark.Path)),
 				),
 			}
 		}
