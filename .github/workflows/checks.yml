@@ -189,7 +189,7 @@ jobs:
   copyright:
     permissions:
       contents: read
-    uses: opentofu/scripts/.github/workflows/copyright.yml@copyright-workflow-bash
+    uses: opentofu/scripts/.github/workflows/copyright.yml@main
     with:
       ignore-patterns: "*/.git* */vendor/* */node_modules/* */.workdir* */website/* */tfplugin*.proto"
 
