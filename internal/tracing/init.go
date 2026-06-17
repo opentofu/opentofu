@@ -11,7 +11,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/go-logr/stdr"
+	"github.com/go-logr/logr"
 	"go.opentelemetry.io/contrib/exporters/autoexport"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
@@ -98,13 +98,18 @@ func OpenTelemetryInit(ctx context.Context) (context.Context, error) {
 	// that exporting should always be enabled and so will expect to find
 	// an OTLP server on localhost if no environment variables are set at all.
 	if os.Getenv(OTELExporterEnvVar) != "otlp" {
-		log.Printf("[TRACE] OpenTelemetry: %s not set, OTel tracing is not enabled", OTELExporterEnvVar)
+		// Silently disabled — log line removed per accepted plan
 		return ctx, nil // By default, we just discard all telemetry calls
 	}
 
 	isTracingEnabled = true
 
-	log.Printf("[TRACE] OpenTelemetry: enabled")
+	// Wire OTel SDK internal logging through OpenTofu's global logger
+	// before initializing the tracer provider, so any SDK startup
+	// diagnostics are captured.
+	otel.SetLogger(logr.New(&otelLogSink{}))
+
+	log.Printf("[DEBUG] OpenTelemetry: tracing enabled via %s=otlp", OTELExporterEnvVar)
 
 	// Get service name from environment variable or use default
 	serviceName := DefaultServiceName
@@ -156,12 +161,47 @@ func OpenTelemetryInit(ctx context.Context) (context.Context, error) {
 	prop := propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{})
 	otel.SetTextMapPropagator(prop)
 
-	logger := stdr.New(log.New(os.Stdout, "", log.LstdFlags|log.Lshortfile))
-	otel.SetLogger(logger)
-
 	otel.SetErrorHandler(otel.ErrorHandlerFunc(func(err error) {
 		log.Printf("[ERROR] OpenTelemetry error: %s", err)
 	}))
 
 	return ctx, nil
+}
+
+// otelLogSink implements logr.LogSink to route OTel SDK internal logs
+// through OpenTofu's standard library log package (redirected to hclog)
+// with prefix-based log levels for compatibility with TF_LOG filtering.
+type otelLogSink struct{}
+
+func (s *otelLogSink) Init(info logr.RuntimeInfo) {}
+
+func (s *otelLogSink) Enabled(level int) bool {
+	return true
+}
+
+func (s *otelLogSink) Info(level int, msg string, keysAndValues ...interface{}) {
+	switch {
+	case level == 0:
+		log.Printf("[INFO] OpenTelemetry: %s", msg)
+	case level <= 3:
+		log.Printf("[DEBUG] OpenTelemetry: %s", msg)
+	default:
+		log.Printf("[TRACE] OpenTelemetry: %s", msg)
+	}
+}
+
+func (s *otelLogSink) Error(err error, msg string, keysAndValues ...interface{}) {
+	if err != nil {
+		log.Printf("[ERROR] OpenTelemetry: %s: %v", msg, err)
+	} else {
+		log.Printf("[ERROR] OpenTelemetry: %s", msg)
+	}
+}
+
+func (s *otelLogSink) WithValues(keysAndValues ...interface{}) logr.LogSink {
+	return s
+}
+
+func (s *otelLogSink) WithName(name string) logr.LogSink {
+	return s
 }
