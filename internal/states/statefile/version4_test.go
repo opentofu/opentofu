@@ -295,7 +295,7 @@ func TestVersion4_writeStateWithEphemeralMarks(t *testing.T) {
 				}, addrs.MustParseAbsProviderConfigStr(`provider["testorg/test"]`))
 				return s
 			},
-			expectedErrMsg: `Ephemeral detected in state writing: "data.test.test" has an ephemeral value in ".test_attr". This is an OpenTofu error. Please report it`,
+			expectedErrMsg: `Ephemeral detected in state writing: "data.test.test" has an ephemeral value in ".test_attr". This is a bug in OpenTofu. Please report it`,
 		},
 		"ephemeral resource": {
 			buildState: func() *states.State {
@@ -344,7 +344,7 @@ func TestVersion4_writeStateWithEphemeralMarks(t *testing.T) {
 				}, addrs.MustParseAbsProviderConfigStr(`provider["testorg/test"]`))
 				return s
 			},
-			expectedErrMsg: `Ephemeral detected in state writing: "test.test" has an ephemeral value in ".test_attr". This is an OpenTofu error. Please report it`,
+			expectedErrMsg: `Ephemeral detected in state writing: "test.test" has an ephemeral value in ".test_attr". This is a bug in OpenTofu. Please report it`,
 		},
 	}
 
