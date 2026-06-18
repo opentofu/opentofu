@@ -9,11 +9,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/zclconf/go-cty/cty"
-
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/shared"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/zclconf/go-cty/cty"
 )
 
 func (p *planGlue) planDesiredEphemeralResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance) (cty.Value, tfdiags.Diagnostics) {

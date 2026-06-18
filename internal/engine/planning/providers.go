@@ -44,15 +44,6 @@ func newProviderInstances(planCtx *planContext, oracle *eval.PlanningOracle) *co
 		}
 		configVal := config.ConfigVal
 
-		// Since we've already evaluated the configuration now anyway, we'll
-		// take this opportunity to record what it depends on for the benefit
-		// of later analysis passes in the planning engine.
-		// FIXME: We should probably have a more explicit API for this so that
-		// we're not interacting directly with the unexported details of both
-		// [planGlue] and [planCtx] here, but we'll wait to see how the rest
-		// of the code in this package settles before deciding how to do it.
-		planCtx.resourceInstObjs.PutProviderInstanceDependencies(addr, config.RequiredResourceInstances)
-
 		// If _this_ call fails then unfortunately we'll end up duplicating
 		// its diagnostics for every resource instance that depends on this
 		// provider instance, which is not ideal but we don't currently have

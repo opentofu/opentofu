@@ -56,14 +56,9 @@ func (o *PlanningOracle) ProviderInstanceConfig(ctx context.Context, addr addrs.
 	// them when it visits the provider instance, and so they'll emerge through
 	// a different path.
 	configVal, _ := providerInst.ConfigValue(ctx)
-	requiredResourceInstAddrs := addrs.MakeSet[addrs.AbsResourceInstance]()
-	for resourceInst := range providerInst.ResourceInstanceDependencies(ctx) {
-		requiredResourceInstAddrs.Add(resourceInst.Addr)
-	}
 	return &ProviderInstanceConfig{
-		Addr:                      addr,
-		ConfigVal:                 configVal,
-		RequiredResourceInstances: requiredResourceInstAddrs,
+		Addr:      addr,
+		ConfigVal: configVal,
 	}
 }
 

@@ -209,7 +209,6 @@ func TestPlan_managedResourceSimple(t *testing.T) {
 			ConfigVal: cty.ObjectVal(map[string]cty.Value{
 				"greeting": cty.StringVal("Hello"),
 			}),
-			RequiredResourceInstances: addrs.MakeSet[addrs.AbsResourceInstance](),
 		}),
 	)
 	if diff := cmp.Diff(wantProviderInstConfigs, gotProviderInstConfigs, ctydebug.CmpOptions); diff != "" {
