@@ -69,7 +69,7 @@ func TestGraphMarshalUnmarshalValid(t *testing.T) {
 				}.Absolute(addrs.RootModuleInstance).Instance(addrs.NoKey)
 				instAddrResult := builder.ConstantResourceInstAddr(instAddr)
 				desiredInst := builder.ResourceInstanceDesired(instAddrResult, nil)
-				priorState := builder.ResourceInstancePrior(instAddrResult)
+				priorState := builder.ResourceInstancePrior(instAddrResult, nil)
 				plannedVal := builder.ConstantValue(cty.ObjectVal(map[string]cty.Value{
 					"name": cty.StringVal("thingy"),
 				}))
@@ -92,7 +92,7 @@ func TestGraphMarshalUnmarshalValid(t *testing.T) {
 				});
 
 				r[0] = ResourceInstanceDesired(test.example, await());
-				r[1] = ResourceInstancePrior(test.example);
+				r[1] = ResourceInstancePrior(test.example, await());
 				r[2] = ManagedFinalPlan(r[0], r[1], v[0]);
 				r[3] = ManagedApply(r[2], nil, await());
 

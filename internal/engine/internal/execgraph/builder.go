@@ -106,10 +106,12 @@ func (b *Builder) ResourceInstanceDesired(
 
 func (b *Builder) ResourceInstancePrior(
 	addr ResultRef[addrs.AbsResourceInstance],
+	waitFor AnyResultRef,
 ) ResourceInstanceResultRef {
+	waiter := b.ensureWaiterRef(waitFor)
 	return operationRef[*exec.ResourceInstanceObject](b, operationDesc{
 		opCode:   opResourceInstancePrior,
-		operands: []AnyResultRef{addr},
+		operands: []AnyResultRef{addr, waiter},
 	})
 }
 

@@ -59,7 +59,7 @@ func TestCompiler_resourceInstanceBasics(t *testing.T) {
 	}))
 	instAddrResult := builder.ConstantResourceInstAddr(resourceInstAddr)
 	desiredInst := builder.ResourceInstanceDesired(instAddrResult, nil)
-	priorState := builder.ResourceInstancePrior(instAddrResult)
+	priorState := builder.ResourceInstancePrior(instAddrResult, nil)
 	finalPlan := builder.ManagedFinalPlan(
 		desiredInst,
 		priorState,

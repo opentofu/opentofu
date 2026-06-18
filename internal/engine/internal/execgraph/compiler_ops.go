@@ -50,6 +50,7 @@ func (c *compiler) compileOpResourceInstanceDesired(operands *compilerOperands) 
 func (c *compiler) compileOpResourceInstancePrior(operands *compilerOperands) nodeExecuteRaw {
 	ops := c.ops
 	getInstAddr := nextOperand[addrs.AbsResourceInstance](operands)
+	waitForDeps := operands.OperandWaiter()
 	diags := operands.Finish()
 	c.diags = c.diags.Append(diags)
 	if diags.HasErrors() {
@@ -59,6 +60,9 @@ func (c *compiler) compileOpResourceInstancePrior(operands *compilerOperands) no
 	return func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
 		var diags tfdiags.Diagnostics
 
+		if !waitForDeps(ctx) {
+			return nil, false, diags
+		}
 		instAddr, ok, moreDiags := getInstAddr(ctx)
 		diags = diags.Append(moreDiags)
 		if !ok {

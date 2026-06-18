@@ -95,7 +95,7 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 			`
 				v[0] = cty.StringVal("after");
 				
-				r[0] = ResourceInstancePrior(test.placeholder);
+				r[0] = ResourceInstancePrior(test.placeholder, await());
 				r[1] = ResourceInstanceDesired(test.placeholder, await());
 				r[2] = ManagedFinalPlan(r[1], r[0], v[0]);
 				r[3] = ManagedApply(r[2], nil, await());
@@ -126,7 +126,7 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 			`
 				v[0] = cty.StringVal("after");
 
-				r[0] = ResourceInstancePrior(test.old);
+				r[0] = ResourceInstancePrior(test.old, await());
 				r[1] = ManagedChangeAddr(r[0], test.placeholder);
 				r[2] = ResourceInstanceDesired(test.placeholder, await());
 				r[3] = ManagedFinalPlan(r[2], r[1], v[0]);
@@ -153,7 +153,7 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 			`
 				v[0] = cty.NullVal(cty.EmptyObject);
 				
-				r[0] = ResourceInstancePrior(test.placeholder);
+				r[0] = ResourceInstancePrior(test.placeholder, await());
 				r[1] = ManagedFinalPlan(nil, r[0], v[0]);
 				r[2] = ManagedApply(r[1], nil, await());
 
@@ -188,7 +188,7 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 				v[0] = cty.StringVal("after");
 				v[1] = cty.NullVal(cty.String);
 				
-				r[0] = ResourceInstancePrior(test.placeholder);
+				r[0] = ResourceInstancePrior(test.placeholder, await());
 				r[1] = ResourceInstanceDesired(test.placeholder, await());
 				r[2] = ManagedFinalPlan(r[1], nil, v[0]);
 				r[3] = ManagedFinalPlan(nil, r[0], v[1]);
@@ -222,7 +222,7 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 				v[0] = cty.StringVal("after");
 				v[1] = cty.NullVal(cty.String);
 
-				r[0] = ResourceInstancePrior(test.old);
+				r[0] = ResourceInstancePrior(test.old, await());
 				r[1] = ManagedChangeAddr(r[0], test.placeholder);
 				r[2] = ResourceInstanceDesired(test.placeholder, await());
 				r[3] = ManagedFinalPlan(r[2], nil, v[0]);
@@ -252,7 +252,7 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 				v[0] = cty.StringVal("after");
 				v[1] = cty.NullVal(cty.String);
 
-				r[0] = ResourceInstancePrior(test.placeholder);
+				r[0] = ResourceInstancePrior(test.placeholder, await());
 				r[1] = ResourceInstanceDesired(test.placeholder, await());
 				r[2] = ManagedFinalPlan(r[1], nil, v[0]);
 				r[3] = ManagedFinalPlan(nil, r[0], v[1]);
@@ -288,7 +288,7 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 				v[0] = cty.StringVal("after");
 				v[1] = cty.NullVal(cty.String);
 
-				r[0] = ResourceInstancePrior(test.old);
+				r[0] = ResourceInstancePrior(test.old, await());
 				r[1] = ManagedChangeAddr(r[0], test.placeholder);
 				r[2] = ResourceInstanceDesired(test.placeholder, await());
 				r[3] = ManagedFinalPlan(r[2], nil, v[0]);

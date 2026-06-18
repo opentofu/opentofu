@@ -329,7 +329,7 @@ func (b *execGraphBuilder) managedResourceInstanceChangeAddrAndPriorStateRefs(
 		return execgraph.NilResultRef[addrs.AbsResourceInstance](), stateRef
 	}
 	prevAddrRef := b.lower.ConstantResourceInstAddr(plannedChange.PrevRunAddr)
-	priorStateRef := b.lower.ResourceInstancePrior(prevAddrRef)
+	priorStateRef := b.lower.ResourceInstancePrior(prevAddrRef, nil)
 	retAddrRef := prevAddrRef
 	retStateRef := priorStateRef
 	if !plannedChange.PrevRunAddr.Equal(plannedChange.Addr) {

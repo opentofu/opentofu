@@ -163,14 +163,18 @@ func unmarshalOpResourceInstanceDesired(rawOperands []uint64, prevResults []AnyR
 }
 
 func unmarshalOpResourceInstancePrior(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
-	if len(rawOperands) != 1 {
+	if len(rawOperands) != 2 {
 		return nil, fmt.Errorf("wrong number of operands (%d) for opResourceInstancePrior", len(rawOperands))
 	}
 	addr, err := unmarshalGetPrevResultOf[addrs.AbsResourceInstance](prevResults, rawOperands[0])
 	if err != nil {
 		return nil, fmt.Errorf("invalid opResourceInstancePrior addr: %w", err)
 	}
-	return builder.ResourceInstancePrior(addr), nil
+	waitFor, err := unmarshalGetPrevResultWaiter(prevResults, rawOperands[1])
+	if err != nil {
+		return nil, fmt.Errorf("invalid opResourceInstancePrior waitFor: %w", err)
+	}
+	return builder.ResourceInstancePrior(addr, waitFor), nil
 }
 
 func unmarshalOpManagedFinalPlan(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
