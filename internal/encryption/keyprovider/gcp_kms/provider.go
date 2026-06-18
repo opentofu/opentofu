@@ -29,10 +29,11 @@ type keyManagementClient interface {
 }
 
 type keyProvider struct {
-	svc       keyManagementClient
-	ctx       context.Context
-	keyName   string
-	keyLength int
+	svc                         keyManagementClient
+	ctx                         context.Context
+	keyName                     string
+	keyLength                   int
+	additionalAuthenticatedData []byte
 }
 
 func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, keyprovider.KeyMeta, error) {
@@ -59,8 +60,9 @@ func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, k
 
 	// Encrypt new encryption key using kms
 	encryptedKeyData, err := p.svc.Encrypt(p.ctx, &kmspb.EncryptRequest{
-		Name:      p.keyName,
-		Plaintext: out.EncryptionKey,
+		Name:                        p.keyName,
+		Plaintext:                   out.EncryptionKey,
+		AdditionalAuthenticatedData: p.additionalAuthenticatedData,
 	})
 	if err != nil {
 		return out, outMeta, &keyprovider.ErrKeyProviderFailure{
@@ -79,8 +81,9 @@ func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, k
 		log.Printf("[DEBUG] GCP KMS: decrypting state: %s", p.keyName)
 		// We have an existing decryption key to decrypt, so we should now populate the DecryptionKey
 		decryptedKeyData, decryptErr := p.svc.Decrypt(p.ctx, &kmspb.DecryptRequest{
-			Name:       p.keyName,
-			Ciphertext: inMeta.Ciphertext,
+			Name:                        p.keyName,
+			Ciphertext:                  inMeta.Ciphertext,
+			AdditionalAuthenticatedData: p.additionalAuthenticatedData,
 		})
 
 		if decryptErr != nil {

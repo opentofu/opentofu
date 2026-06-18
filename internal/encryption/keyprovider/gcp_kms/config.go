@@ -7,6 +7,7 @@ package gcp_kms
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"os"
 
@@ -37,6 +38,8 @@ type Config struct {
 
 	KMSKeyName string `hcl:"kms_encryption_key"`
 	KeyLength  int    `hcl:"key_length"`
+
+	AdditionalAuthenticatedData string `hcl:"additional_authenticated_data,optional"`
 }
 
 func stringAttrEnvFallback(val string, env string) string {
@@ -148,10 +151,23 @@ func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
 		return nil, nil, &keyprovider.ErrInvalidConfiguration{Message: "key_length must be less than the GCP limit of 1024"}
 	}
 
+	var aad []byte
+	if c.AdditionalAuthenticatedData != "" {
+		var err error
+		aad, err = base64.StdEncoding.DecodeString(c.AdditionalAuthenticatedData)
+		if err != nil {
+			return nil, nil, &keyprovider.ErrInvalidConfiguration{Message: "additional_authenticated_data must be valid standard base64", Cause: err}
+		}
+		if len(aad) > 64*1024 {
+			return nil, nil, &keyprovider.ErrInvalidConfiguration{Message: "additional_authenticated_data must be less than the GCP limit of 64 KiB"}
+		}
+	}
+
 	return &keyProvider{
-		svc:       svc,
-		ctx:       ctx,
-		keyName:   c.KMSKeyName,
-		keyLength: c.KeyLength,
+		svc:                         svc,
+		ctx:                         ctx,
+		keyName:                     c.KMSKeyName,
+		keyLength:                   c.KeyLength,
+		additionalAuthenticatedData: aad,
 	}, new(keyMeta), nil
 }

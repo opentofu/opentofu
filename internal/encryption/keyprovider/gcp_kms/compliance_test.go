@@ -6,6 +6,7 @@
 package gcp_kms
 
 import (
+	"encoding/base64"
 	"fmt"
 	"os"
 	"testing"
@@ -129,6 +130,24 @@ func TestKeyProvider(t *testing.T) {
 							}`,
 					ValidHCL:   true,
 					ValidBuild: true,
+				},
+				"with-aad": {
+					HCL: fmt.Sprintf(`key_provider "gcp_kms" "foo" {
+							kms_encryption_key = "%s"
+							key_length = 32
+							additional_authenticated_data = "bXktYWFkLXZhbA=="
+							}`, testKeyId),
+					ValidHCL:   true,
+					ValidBuild: true,
+				},
+				"invalid-aad-base64": {
+					HCL: fmt.Sprintf(`key_provider "gcp_kms" "foo" {
+							kms_encryption_key = "%s"
+							key_length = 32
+							additional_authenticated_data = "not-valid-base64!@#"
+							}`, testKeyId),
+					ValidHCL:   true,
+					ValidBuild: false,
 				},
 			},
 			JSONParseTestCases: map[string]compliancetest.JSONParseTestCase[*Config, *keyProvider]{
@@ -266,6 +285,36 @@ func TestKeyProvider(t *testing.T) {
 					ValidJSON:  true,
 					ValidBuild: true,
 				},
+				"with-aad": {
+					JSON: fmt.Sprintf(`{
+	"key_provider": {
+		"gcp_kms": {
+			"foo": {
+				"kms_encryption_key": "%s",
+				"key_length": 32,
+				"additional_authenticated_data": "bXktYWFkLXZhbA=="
+			}
+		}
+	}
+}`, testKeyId),
+					ValidJSON:  true,
+					ValidBuild: true,
+				},
+				"invalid-aad-base64": {
+					JSON: fmt.Sprintf(`{
+	"key_provider": {
+		"gcp_kms": {
+			"foo": {
+				"kms_encryption_key": "%s",
+				"key_length": 32,
+				"additional_authenticated_data": "not-valid-base64!@#"
+			}
+		}
+	}
+}`, testKeyId),
+					ValidJSON:  true,
+					ValidBuild: false,
+				},
 			},
 			ConfigStructTestCases: map[string]compliancetest.ConfigStructTestCase[*Config, *keyProvider]{
 				"success": {
@@ -283,6 +332,38 @@ func TestKeyProvider(t *testing.T) {
 					},
 					ValidBuild: false,
 					Validate:   nil,
+				},
+				"with-aad": {
+					Config: &Config{
+						KMSKeyName:                  testKeyId,
+						KeyLength:                   32,
+						AdditionalAuthenticatedData: "bXktYWFkLXZhbA==",
+					},
+					ValidBuild: true,
+				},
+				"invalid-aad-base64": {
+					Config: &Config{
+						KMSKeyName:                  testKeyId,
+						KeyLength:                   32,
+						AdditionalAuthenticatedData: "not-valid-base64!@#",
+					},
+					ValidBuild: false,
+				},
+				"aad-too-large": {
+					Config: &Config{
+						KMSKeyName:                  testKeyId,
+						KeyLength:                   32,
+						AdditionalAuthenticatedData: base64.StdEncoding.EncodeToString(make([]byte, 65*1024)),
+					},
+					ValidBuild: false,
+				},
+				"unpadded-aad-base64": {
+					Config: &Config{
+						KMSKeyName:                  testKeyId,
+						KeyLength:                   32,
+						AdditionalAuthenticatedData: "bXktYWFkLXZhbA",
+					},
+					ValidBuild: false,
 				},
 			},
 			MetadataStructTestCases: map[string]compliancetest.MetadataStructTestCase[*Config, *keyMeta]{
