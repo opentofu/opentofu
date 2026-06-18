@@ -400,3 +400,46 @@ func TestKeyProvider(t *testing.T) {
 			},
 		})
 }
+
+func TestAADForwardedToRPC(t *testing.T) {
+	testKeyId := "projects/local-vehicle-id/locations/global/keyRings/ringid/cryptoKeys/keyid"
+	expectedAAD := []byte("my-aad-val")
+
+	injectMock(&mockKMC{
+		encrypt: func(req *kmspb.EncryptRequest) (*kmspb.EncryptResponse, error) {
+			if string(req.AdditionalAuthenticatedData) != string(expectedAAD) {
+				t.Errorf("encrypt: AAD = %q, want %q", req.AdditionalAuthenticatedData, expectedAAD)
+			}
+			return &kmspb.EncryptResponse{
+				Ciphertext: append([]byte(testKeyId), req.Plaintext...),
+			}, nil
+		},
+		decrypt: func(req *kmspb.DecryptRequest) (*kmspb.DecryptResponse, error) {
+			if string(req.AdditionalAuthenticatedData) != string(expectedAAD) {
+				t.Errorf("decrypt: AAD = %q, want %q", req.AdditionalAuthenticatedData, expectedAAD)
+			}
+			return &kmspb.DecryptResponse{
+				Plaintext: req.Ciphertext[len(testKeyId):],
+			}, nil
+		},
+	})
+
+	provider, meta, err := (&Config{
+		KMSKeyName:                  testKeyId,
+		KeyLength:                   32,
+		AdditionalAuthenticatedData: "bXktYWFkLXZhbA==",
+	}).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, meta, err = provider.Provide(meta)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, _, err = provider.Provide(meta)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
