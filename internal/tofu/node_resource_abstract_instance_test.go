@@ -226,7 +226,7 @@ func TestNodeAbstractResourceInstance_WriteResourceInstanceState_WithDataSourceC
 	}
 	expectedErr := `non ephemeral resource ("data.aws_region.foo") found to be written with ephemeral values`
 	if diff := cmp.Diff(expectedErr, err.Error()); diff != "" {
-		t.Fatalf("expected a particular error bug got the wrong one (-want,+got):\n%s", diff)
+		t.Fatalf("expected a particular error but got the wrong one (-want,+got):\n%s", diff)
 	}
 }
 
