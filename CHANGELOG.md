@@ -8,6 +8,9 @@ BUG FIXES:
 - The value resulted from the `lifecycle.enabled` evaluation now has its deprecation marks processed correctly ([#4162](https://github.com/opentofu/opentofu/pull/4162))
 - Update documentation to clarify the usage restriction of ephemeral values in `lifecycle.enabled`. ([#4220](https://github.com/opentofu/opentofu/pull/4220))
 
+SECURITY ADVISORIES:
+* Previous releases in the v1.12 series could read an arbitrary file during certain git operations via a maliciously crafted URL ([#4293](https://github.com/opentofu/opentofu/pull/4293))
+
 
 ## 1.12.2
 
