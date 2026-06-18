@@ -157,8 +157,17 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 				r[1] = ManagedFinalPlan(nil, r[0], v[0]);
 				r[2] = ManagedApply(r[1], nil, await());
 
-				test.placeholder = nil;
+				test.placeholder = r[0];
 			`,
+			// NOTE: The result for an object being deleted is set to the
+			// prior state, which is counter-intuitive but correct because:
+			// - In normal planning mode there can't be configuration references
+			//   to something that is being deleted anyway, and so it doesn't
+			//   really matter which value is treated as the result.
+			// - In destroy planning mode ephemeral objects like provider
+			//   instances are expected to be able to rely on the prior state
+			//   of resource instances that are being planned for deletion,
+			//   and so this wiring creates that effect during the apply phase.
 		},
 		"delete then create": {
 			func(b *execGraphBuilder) (execgraph.ResourceInstanceResultRef, execgraph.ResourceInstanceResultRef, func(execgraph.AnyResultRef), func(execgraph.AnyResultRef)) {

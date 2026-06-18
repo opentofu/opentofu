@@ -72,7 +72,7 @@ func (b *execGraphBuilder) ManagedResourceInstanceSubgraph(
 	case plans.Update:
 		valueRef, addConfigDep = b.managedResourceInstanceSubgraphUpdate(plannedChange)
 	case plans.Delete:
-		deletionRef, addDeleteDep = b.managedResourceInstanceSubgraphDelete(plannedChange)
+		valueRef, deletionRef, addDeleteDep = b.managedResourceInstanceSubgraphDelete(plannedChange)
 	case plans.Forget:
 		valueRef = b.managedResourceInstanceSubgraphForget(plannedChange)
 	case plans.DeleteThenCreate, plans.ForgetThenCreate:
@@ -149,7 +149,7 @@ func (b *execGraphBuilder) managedResourceInstanceSubgraphPlanAndApply(
 
 func (b *execGraphBuilder) managedResourceInstanceSubgraphDelete(
 	plannedChange *plans.ResourceInstanceChange,
-) (execgraph.ResourceInstanceResultRef, func(execgraph.AnyResultRef)) {
+) (execgraph.ResourceInstanceResultRef, execgraph.ResourceInstanceResultRef, func(execgraph.AnyResultRef)) {
 	_, priorStateRef := b.managedResourceInstanceChangeAddrAndPriorStateRefs(plannedChange)
 	// Per the conventions in the old engine, After contains a marked value
 	unmarkedAfter, _ := plannedChange.After.UnmarkDeep()
@@ -160,7 +160,14 @@ func (b *execGraphBuilder) managedResourceInstanceSubgraphDelete(
 		priorStateRef,
 		plannedValRef,
 	)
-	return b.lower.ManagedApply(
+	// We report the prior state reference as the "valueRef" for a delete.
+	// In a normal plan that doesn't do anything because nothing is allowed
+	// to refer to a resource instance that's being deleted anyway, but
+	// it's important for destroy-mode plans because annoyingly it _is_ valid
+	// to refer to an object being deleted in that case, so that ephemeral
+	// objects like provider instances can configure themselves based on
+	// the prior state before the object is deleted.
+	return priorStateRef, b.lower.ManagedApply(
 		finalPlanRef,
 		execgraph.NilResultRef[*exec.ResourceInstanceObject](),
 		waitFor,

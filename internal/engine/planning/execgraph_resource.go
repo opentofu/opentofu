@@ -102,7 +102,6 @@ func (b *execGraphBuilder) AddResourceInstanceObjectSubgraphs(
 		// we fill in all of the explicit dependencies caused by expressions
 		// in the configuration.
 		if addConfigDep != nil {
-			resultRefs.Put(addr, valueRef)
 			addConfigDeps.Put(addr, addConfigDep)
 		}
 		if addDeleteDep != nil {
@@ -111,6 +110,7 @@ func (b *execGraphBuilder) AddResourceInstanceObjectSubgraphs(
 		}
 
 		if addr.IsCurrent() && valueRef != nil {
+			resultRefs.Put(addr, valueRef)
 			b.SetResourceInstanceFinalStateResult(addr.InstanceAddr, valueRef)
 		}
 	}
