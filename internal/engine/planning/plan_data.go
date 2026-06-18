@@ -22,9 +22,9 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 	var diags tfdiags.Diagnostics
 
 	ret := &resourceInstanceObject{
-		Addr:         inst.Addr.CurrentObject(),
-		Dependencies: addrs.MakeSet[addrs.AbsResourceInstanceObject](),
-		Provider:     inst.Provider,
+		Addr:               inst.Addr.CurrentObject(),
+		ConfigDependencies: addrs.MakeSet[addrs.AbsResourceInstanceObject](),
+		Provider:           inst.Provider,
 
 		// We'll start off with a completely-unknown placeholder value, but
 		// we might refine this to be more specific as we learn more below.
@@ -36,7 +36,7 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 		// when no planned change is present.
 	}
 	for dep := range inst.RequiredResourceInstances.All() {
-		ret.Dependencies.Add(dep.CurrentObject())
+		ret.ConfigDependencies.Add(dep.CurrentObject())
 	}
 
 	unmarkedConfigVal, _ := inst.ConfigVal.UnmarkDeep()
@@ -123,9 +123,9 @@ func (p *planGlue) planOrphanDataResourceInstance(_ context.Context, addr addrs.
 	p.planCtx.refreshedState.RemoveResourceInstanceObjectFull(addr.CurrentObject(), state.ProviderInstanceAddr)
 
 	return &resourceInstanceObject{
-		Addr:             addr.CurrentObject(),
-		Dependencies:     addrs.MakeSet[addrs.AbsResourceInstanceObject](),
-		Provider:         state.ProviderInstanceAddr.Config.Config.Provider,
-		PlaceholderValue: cty.NullVal(cty.DynamicPseudoType),
+		Addr:               addr.CurrentObject(),
+		ConfigDependencies: addrs.MakeSet[addrs.AbsResourceInstanceObject](),
+		Provider:           state.ProviderInstanceAddr.Config.Config.Provider,
+		PlaceholderValue:   cty.NullVal(cty.DynamicPseudoType),
 	}, diags
 }

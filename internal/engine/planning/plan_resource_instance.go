@@ -125,7 +125,7 @@ type resourceInstanceObject struct {
 	// its dependency neighbors.
 	ReplaceOrder resourceInstanceReplaceOrder
 
-	// Dependencies is the set of all resource instance objects that this
+	// ConfigDependencies is the set of all resource instance objects that this
 	// object's resource instance depends on either directly or indirectly.
 	//
 	// Note that this describes the dependencies between the resource instance
@@ -136,13 +136,20 @@ type resourceInstanceObject struct {
 	// object is being destroyed and NOT the "inverted" dependencies that would
 	// be reflected in the final execution graph.
 	//
-	// For orphan or deposed objects which therefore appear only in state and
-	// have no current configured dependencies, this should describe all of
-	// the resource instance objects in the prior state that the state object
-	// was recorded as depending on, instead of dependencies detected through
-	// the configuration. We assume that the dependencies recorded in the state
-	// match what was declared in an earlier version of the configuration.
-	Dependencies addrs.Set[addrs.AbsResourceInstanceObject]
+	// This should be empty for orphan or deposed objects which therefore appear
+	// only in state and have no current configured dependencies. State-based
+	// dependencies appear in StateDependencies instead.
+	ConfigDependencies addrs.Set[addrs.AbsResourceInstanceObject]
+
+	// StateDependencies is similar to
+	// [resourceInstanceObject.ConfigDependencies] but describes dependencies
+	// take from the previous round state instead of from the configuration.
+	// We assume that dependencies recorded here were based on configuration
+	// dependencies from the previous round.
+	//
+	// This should be empty for "create" because there is no previous round
+	// state in that case.
+	StateDependencies addrs.Set[addrs.AbsResourceInstanceObject]
 }
 
 // ResultValue returns the value that should be sent to the evaluator for
@@ -166,9 +173,9 @@ func (rio *resourceInstanceObject) ResultValue() cty.Value {
 }
 
 // resourceInstanceObjects is conceptually a map from
-// [addrs.AbsResourceInstanceObject] to [*resourceInstanceObject], but
-// it supports concurrent writes and also allows querying the dependency
-// relationships between objects in both directions.
+// [addrs.AbsResourceInstanceObject] to [*resourceInstanceObject], but it also
+// allows querying the dependency relationships between objects in both
+// directions.
 //
 // Collections of this type and everything inside them should be treated as
 // immutable. Use [newResourceInstanceObjectsBuilder] to obtain a temporary
@@ -179,14 +186,23 @@ type resourceInstanceObjects struct {
 	// objects are the resource instance objects that have been added so far.
 	objects addrs.Map[addrs.AbsResourceInstanceObject, *resourceInstanceObject]
 
-	// reverseDeps describes the same relationships as in
-	// [resourceInstanceObject.Dependencies] but viewed from the opposite
+	// reverseConfigDeps describes the same relationships as in
+	// [resourceInstanceObject.ConfigDependencies] but viewed from the opposite
 	// direction: the map keys are dependencies of the objects in the map
 	// values.
 	//
 	// We maintain this so that we can efficiently traverse the graph in both
 	// directions when performing further analysis.
-	reverseDeps addrs.Map[addrs.AbsResourceInstanceObject, addrs.Set[addrs.AbsResourceInstanceObject]]
+	reverseConfigDeps addrs.Map[addrs.AbsResourceInstanceObject, addrs.Set[addrs.AbsResourceInstanceObject]]
+
+	// reverseConfigDeps describes the same relationships as in
+	// [resourceInstanceObject.StateDependencies] but viewed from the opposite
+	// direction: the map keys are dependencies of the objects in the map
+	// values.
+	//
+	// We maintain this so that we can efficiently traverse the graph in both
+	// directions when performing further analysis.
+	reverseStateDeps addrs.Map[addrs.AbsResourceInstanceObject, addrs.Set[addrs.AbsResourceInstanceObject]]
 }
 
 // Get returns the resource instance object with the given address, or nil if
@@ -209,21 +225,36 @@ func (rios *resourceInstanceObjects) All() iter.Seq2[addrs.AbsResourceInstanceOb
 	}
 }
 
-// Dependencies returns the addresses of all resource instance objects that the
-// resource instance object of the given address depends on.
+// ConfigDependencies returns the addresses of all resource instance objects
+// that the configuration of the resource instance object at the given address
+// depends on.
 //
 // The caller must not modify any object reachable through the results.
-func (rios *resourceInstanceObjects) Dependencies(of addrs.AbsResourceInstanceObject) iter.Seq[addrs.AbsResourceInstanceObject] {
+func (rios *resourceInstanceObjects) ConfigDependencies(of addrs.AbsResourceInstanceObject) iter.Seq[addrs.AbsResourceInstanceObject] {
 	obj := rios.objects.Get(of)
 	if obj == nil {
 		return func(yield func(addrs.AbsResourceInstanceObject) bool) {}
 	}
-	return obj.Dependencies.All()
+	return obj.ConfigDependencies.All()
 }
 
-// Dependents returns the addresses of all resource instance objects that have
-// the resource instance object with the given address as one of their
-// dependencies. In other words, this queries the dependencies "backwards".
+// StateDependencies returns the addresses of all resource instance objects that
+// the previous round state for the resource instance object of the given
+// address depends on.
+//
+// The caller must not modify any object reachable through the results.
+func (rios *resourceInstanceObjects) StateDependencies(of addrs.AbsResourceInstanceObject) iter.Seq[addrs.AbsResourceInstanceObject] {
+	obj := rios.objects.Get(of)
+	if obj == nil {
+		return func(yield func(addrs.AbsResourceInstanceObject) bool) {}
+	}
+	return obj.StateDependencies.All()
+}
+
+// ConfigDependents returns the addresses of all resource instance objects that
+// have the resource instance object with the given address as one of their
+// config dependencies. In other words, this queries the config dependencies
+// "backwards".
 //
 // The caller must not modify any object reachable through the results.
 //
@@ -232,22 +263,76 @@ func (rios *resourceInstanceObjects) Dependencies(of addrs.AbsResourceInstanceOb
 // of resource instance objects is populated in a "forward dependency" order,
 // and so dependencies are added before their dependents and the dependents
 // might not be added at all if the planning process failed partway through.
-func (rios *resourceInstanceObjects) Dependendents(of addrs.AbsResourceInstanceObject) iter.Seq[addrs.AbsResourceInstanceObject] {
-	return rios.reverseDeps.Get(of).All()
+func (rios *resourceInstanceObjects) ConfigDependents(of addrs.AbsResourceInstanceObject) iter.Seq[addrs.AbsResourceInstanceObject] {
+	return rios.reverseConfigDeps.Get(of).All()
 }
 
-// DependenciesAndDependents is a convenience helper that concatenates together
-// the results of both [resourceInstanceObjects.Dependencies] and
-// [resourceInstanceObjects.Dependents] into a single flat sequence. It does
+// StateDependents returns the addresses of all resource instance objects that
+// have the resource instance object with the given address as one of their
+// state dependencies. In other words, this queries the state dependencies
+// "backwards".
+//
+// The caller must not modify any object reachable through the results.
+//
+// Note that not all of the returned addresses necessarily match an object
+// that can be retrieved using [resourceInstanceObjects.Get]. The collection
+// of resource instance objects is populated in a "forward dependency" order,
+// and so dependencies are added before their dependents and the dependents
+// might not be added at all if the planning process failed partway through.
+func (rios *resourceInstanceObjects) StateDependents(of addrs.AbsResourceInstanceObject) iter.Seq[addrs.AbsResourceInstanceObject] {
+	return rios.reverseStateDeps.Get(of).All()
+}
+
+// ConfigDependenciesAndDependents is a convenience helper that concatenates
+// together the results of both [resourceInstanceObjects.ConfigDependencies] and
+// [resourceInstanceObjects.ConfigDependents] into a single flat sequence. It does
 // not transform those sequences in any other way.
-func (rios *resourceInstanceObjects) DependenciesAndDependents(of addrs.AbsResourceInstanceObject) iter.Seq[addrs.AbsResourceInstanceObject] {
+func (rios *resourceInstanceObjects) ConfigDependenciesAndDependents(of addrs.AbsResourceInstanceObject) iter.Seq[addrs.AbsResourceInstanceObject] {
 	return func(yield func(addrs.AbsResourceInstanceObject) bool) {
-		for addr := range rios.Dependencies(of) {
+		for addr := range rios.ConfigDependencies(of) {
 			if !yield(addr) {
 				return
 			}
 		}
-		for addr := range rios.Dependendents(of) {
+		for addr := range rios.ConfigDependents(of) {
+			if !yield(addr) {
+				return
+			}
+		}
+	}
+}
+
+// StateDependenciesAndDependents is a convenience helper that concatenates
+// together the results of both [resourceInstanceObjects.StateDependencies] and
+// [resourceInstanceObjects.StateDependents] into a single flat sequence. It does
+// not transform those sequences in any other way.
+func (rios *resourceInstanceObjects) StateDependenciesAndDependents(of addrs.AbsResourceInstanceObject) iter.Seq[addrs.AbsResourceInstanceObject] {
+	return func(yield func(addrs.AbsResourceInstanceObject) bool) {
+		for addr := range rios.StateDependencies(of) {
+			if !yield(addr) {
+				return
+			}
+		}
+		for addr := range rios.StateDependents(of) {
+			if !yield(addr) {
+				return
+			}
+		}
+	}
+}
+
+// AllDependenciesAndDependents combines the results of
+// [*resourceInstanceObjects.ConfigDependenciesAndDependents] and
+// [*resourceInstanceObjects.StateDependenciesAndDependents] into a single
+// flat sequence.
+func (rios *resourceInstanceObjects) AllDependenciesAndDependents(of addrs.AbsResourceInstanceObject) iter.Seq[addrs.AbsResourceInstanceObject] {
+	return func(yield func(addrs.AbsResourceInstanceObject) bool) {
+		for addr := range rios.ConfigDependenciesAndDependents(of) {
+			if !yield(addr) {
+				return
+			}
+		}
+		for addr := range rios.StateDependenciesAndDependents(of) {
 			if !yield(addr) {
 				return
 			}
@@ -266,8 +351,9 @@ type resourceInstanceObjectsBuilder struct {
 func newResourceInstanceObjectsBuilder() *resourceInstanceObjectsBuilder {
 	return &resourceInstanceObjectsBuilder{
 		result: &resourceInstanceObjects{
-			objects:     addrs.MakeMap[addrs.AbsResourceInstanceObject, *resourceInstanceObject](),
-			reverseDeps: addrs.MakeMap[addrs.AbsResourceInstanceObject, addrs.Set[addrs.AbsResourceInstanceObject]](),
+			objects:           addrs.MakeMap[addrs.AbsResourceInstanceObject, *resourceInstanceObject](),
+			reverseConfigDeps: addrs.MakeMap[addrs.AbsResourceInstanceObject, addrs.Set[addrs.AbsResourceInstanceObject]](),
+			reverseStateDeps:  addrs.MakeMap[addrs.AbsResourceInstanceObject, addrs.Set[addrs.AbsResourceInstanceObject]](),
 		},
 	}
 }
@@ -290,13 +376,19 @@ func (b *resourceInstanceObjectsBuilder) Put(obj *resourceInstanceObject) {
 	}
 	b.result.objects.Put(obj.Addr, obj)
 
-	// We also update the reverseDeps structure here to ensure that our
-	// records of the graph edges are always consistent across both directions.
-	for depAddr := range obj.Dependencies.All() {
-		if !b.result.reverseDeps.Has(depAddr) {
-			b.result.reverseDeps.Put(depAddr, addrs.MakeSet[addrs.AbsResourceInstanceObject]())
+	// We also update the reverse maps here to ensure that our records of the
+	// graph edges are always consistent across both directions.
+	for depAddr := range obj.ConfigDependencies.All() {
+		if !b.result.reverseConfigDeps.Has(depAddr) {
+			b.result.reverseConfigDeps.Put(depAddr, addrs.MakeSet[addrs.AbsResourceInstanceObject]())
 		}
-		b.result.reverseDeps.Get(depAddr).Add(obj.Addr)
+		b.result.reverseConfigDeps.Get(depAddr).Add(obj.Addr)
+	}
+	for depAddr := range obj.StateDependencies.All() {
+		if !b.result.reverseStateDeps.Has(depAddr) {
+			b.result.reverseStateDeps.Put(depAddr, addrs.MakeSet[addrs.AbsResourceInstanceObject]())
+		}
+		b.result.reverseStateDeps.Get(depAddr).Add(obj.Addr)
 	}
 }
 

@@ -123,12 +123,19 @@ func (b *execGraphBuilder) AddResourceInstanceObjectSubgraphs(
 	// that is changing.
 	for _, addr := range objAddrs {
 		if addConfigDep, ok := addConfigDeps.GetOk(addr); ok {
-			for dependency := range objs.Dependencies(addr) {
+			for dependency := range objs.ConfigDependencies(addr) {
+				addConfigDep(ensureResourceInstanceObjectResultRef(dependency, resultRefs, b))
+			}
+			// FIXME: For now we're also treating the state dependencies just
+			// like config dependencies, which isn't quite right but is a
+			// temporary placeholder while we're still wiring in the separation
+			// between state and config dependencies.
+			for dependency := range objs.StateDependencies(addr) {
 				addConfigDep(ensureResourceInstanceObjectResultRef(dependency, resultRefs, b))
 			}
 		}
 		if addDeleteDep, ok := addDeleteDeps.GetOk(addr); ok {
-			for dependent := range objs.Dependendents(addr) {
+			for dependent := range objs.ConfigDependents(addr) {
 				if ref, ok := deletionRefs.GetOk(dependent); ok {
 					addDeleteDep(ref)
 				} else if ref, ok := resultRefs.GetOk(dependent); ok {
@@ -151,6 +158,17 @@ func (b *execGraphBuilder) AddResourceInstanceObjectSubgraphs(
 					// planning (which seems likely to have its own separate
 					// execgraph-building logic just because the rules are quite
 					// different for that planning mode).
+				}
+			}
+			// FIXME: For now we're also treating the state dependencies just
+			// like config dependencies, which isn't quite right but is a
+			// temporary placeholder while we're still wiring in the separation
+			// between state and config dependencies.
+			for dependent := range objs.StateDependents(addr) {
+				if ref, ok := deletionRefs.GetOk(dependent); ok {
+					addDeleteDep(ref)
+				} else if ref, ok := resultRefs.GetOk(dependent); ok {
+					addDeleteDep(ref)
 				}
 			}
 		}
