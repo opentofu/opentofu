@@ -6,6 +6,9 @@ BUG FIXES:
 
 * Update documentation to clarify the usage restriction of ephemeral values in `lifecycle.enabled`. ([#4220](https://github.com/opentofu/opentofu/pull/4220))
 
+SECURITY ADVISORIES:
+* Previous releases in the v1.11 series could read an arbitrary file during certain git operations via a maliciously crafted URL ([#4292](https://github.com/opentofu/opentofu/pull/4292))
+
 ## 1.11.9
 
 SECURITY ADVISORIES:
