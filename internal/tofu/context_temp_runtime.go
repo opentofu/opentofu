@@ -185,7 +185,15 @@ func (c *Context) newEnginePlan(ctx context.Context, config *configs.Config, pre
 
 	defer done()
 
-	plan, moreDiags := planning.PlanChanges(ctx, prevRoundState, configInst, plugins)
+	newOpts := &planning.PlanOpts{
+		Mode: opts.Mode,
+		// TODO: Most other things that are in this package's [PlanOpts]
+		// package, though notably not "SetVariables" because the new runtime
+		// deals with input variables during the module compilation step, rather
+		// than directly during planning.
+	}
+
+	plan, moreDiags := planning.PlanChanges(ctx, newOpts, prevRoundState, configInst, plugins)
 	if plan != nil {
 		plan.Timestamp = timestamp
 	}

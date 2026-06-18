@@ -15,126 +15,56 @@ import (
 	"github.com/opentofu/opentofu/internal/collections"
 	"github.com/opentofu/opentofu/internal/engine/plugins"
 	"github.com/opentofu/opentofu/internal/lang/eval"
-	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
+// PlanOpts represents our various "planning options" that can change various
+// details about how we perform the planning phase, and therefore also what
+// actions we might propose to perform during a subsequent applying phase.
+type PlanOpts struct {
+	// Mode is the planning mode to use.
+	//
+	// Planning modes are mutually-exclusive and each represent significantly
+	// different goals for the planning process. Whereas most other options
+	// just change specific details of how we plan, a different planning mode
+	// has a far more drastic, cross-cutting effect.
+	Mode plans.Mode
+}
+
 // PlanChanges is the main entry point, taking a state snapshot from the end
 // of the previous plan/apply round and an instantiated configuration (bound
 // to some input variable definitions) and returning a plan containing a set of
 // proposed actions.
-func PlanChanges(ctx context.Context, prevRoundState *states.State, configInst *eval.ConfigInstance, providers plugins.Providers) (*plans.Plan, tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	planCtx := newPlanContext(configInst.EvalContext(), prevRoundState, providers)
-
-	var closeConfiguredProviders func(ctx context.Context) tfdiags.Diagnostics
-
-	// This configInst.DrivePlanning call blocks until the evaluator has
-	// visited all expressions in the configuration and calls
-	// [planContext.PlanDesiredResourceInstance] on the [planGlue] object for
-	// each resource instance it discovers so that we can produce a planned
-	// action and result value for each one.
-	//
-	// It also calls the various "Plan*Orphans" methods at different levels
-	// of granularity once it's determined the full set of objects under
-	// a given prefix, which planGlue uses to notice when there are
-	// prevRoundState resource instances that are no longer in the desired
-	// state and so plan to delete or forget them.
-	//
-	// If this completes without returning any error diagnostics then
-	// planCtx.resourceInstObjs should accurately represent the relationships
-	// between all of the "current" resource instance objects we found, but
-	// we won't discover any deposed objects until the next step below.
-	evalResult, moreDiags := configInst.DrivePlanning(ctx, func(oracle *eval.PlanningOracle) eval.PlanGlue {
-		closeConfiguredProviders = oracle.Close
-		return &planGlue{
-			planCtx: planCtx,
-			oracle:  oracle,
-		}
-	})
-	diags = diags.Append(moreDiags)
-	if moreDiags.HasErrors() {
-		// If we encountered errors during the eval-based phase then we'll halt
-		// here but we'll still produce a best-effort [plans.Plan] describing
-		// the situation because that often gives useful information for debugging
-		// what caused the errors.
-		intermediate, moreDiags := planCtx.Close(ctx)
-		diags = diags.Append(moreDiags)
-		plan, moreDiags := finalizePlan(ctx, intermediate, providers)
-		diags = diags.Append(moreDiags)
-		plan.Errored = true
-		return plan, diags
+func PlanChanges(ctx context.Context, opts *PlanOpts, prevRoundState *states.State, configInst *eval.ConfigInstance, providers plugins.Providers) (*plans.Plan, tfdiags.Diagnostics) {
+	if opts == nil {
+		panic("PlanChanges with nil PlanOpts") // caller must always provide valid PlanOpts
 	}
-	if evalResult == nil {
-		// This should not happen: we should always have an evalResult if
-		// there weren't any errors.
-		panic(fmt.Sprintf("%T.DrivePlanning returned nil result without any error diagnostics", configInst))
+	switch opts.Mode {
+	case plans.NormalMode:
+		return normalPlan(ctx, opts, prevRoundState, configInst, providers)
+	case plans.DestroyMode:
+		// "Destroy" mode is pretty different in that it focuses mainly on
+		// prevRoundState and only uses the config for preparing ephemeral
+		// objects, so it has its own separate planning function.
+		return destroyPlan(ctx, opts, prevRoundState, configInst, providers)
+	case plans.RefreshOnlyMode:
+		// TODO: Implement this mode
+		// (Undecided yet whether it will get its own function, as with
+		// DestroyMode, or if it'll share the normalPlan function and just force
+		// the resource instance handling to generate no changes for anything.)
+		return nil, tfdiags.New(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Refresh-only mode not available yet",
+			"The new language runtime does not yet support the \"refresh-only\" planning mode.",
+		))
+	default:
+		// Should not get here because the cases above should be exhaustive
+		// for all possible planning modes.
+		panic(fmt.Sprintf("unrecognized planning mode %s", opts.Mode))
 	}
-
-	// We also need to deal with any "deposed" resource instances that were
-	// in the previous round state. We do this separately afterwards because
-	// these have no direct representation in the configuration at all and
-	// so are not in scope for the config eval system. It's also relatively
-	// rare for a previous round state to include deposed instances, since it
-	// can happen only if the "delete" leg of a create-before-destroy replace
-	// failed in the previous round.
-	//
-	// The provider instance manager should've planned ahead and arranged for
-	// any providers we need for these to still be open, waiting for the
-	// completion reports generated by our planning calls in this loop.
-	//
-	// After we complete this work, planCtx.resourceInstObjs is expanded to
-	// also include any deposed resource instance objects we discovered.
-	ctx = grapheval.ContextWithNewWorker(ctx)
-	planGlue := evalResult.Glue.(*planGlue)
-	for _, moduleState := range prevRoundState.Modules {
-		for _, resourceState := range moduleState.Resources {
-			for instKey, instState := range resourceState.Instances {
-				instAddr := resourceState.Addr.Instance(instKey)
-				for dk := range instState.Deposed {
-					// We currently have a schism where we do all of the
-					// discovery work using the traditional state model but
-					// we then switch to using our new-style "full" object model
-					// to act on what we've discovered. This is hopefully just
-					// a temporary situation while we're operating in a mixed
-					// world where most of the system doesn't know about the
-					// new runtime yet.
-					objState := prevRoundState.SyncWrapper().ResourceInstanceObjectFull(instAddr.Object(dk))
-					if objState == nil {
-						// If we get here then there's a bug in the
-						// ResourceInstanceObjectFull function, because we
-						// should only be here if instAddr and dk correspond.
-						// to an actual deposed object.
-						panic(fmt.Sprintf("state has %s deposed object %q, but ResourceInstanceObjectFull didn't return it", instAddr, dk))
-					}
-					diags = diags.Append(
-						planGlue.planDeposedResourceInstanceObject(ctx, instAddr, dk, objState),
-					)
-				}
-			}
-		}
-	}
-
-	// TODO: Consider factoring most of the work we've done here into a single
-	// function that directly returns the "intermediate" object. Exposing
-	// planCtx as a mutable object in this function doesn't seem necessary
-	// anymore since we only actually care about the results from Close here.
-	intermediate, moreDiags := planCtx.Close(ctx)
-	diags = diags.Append(moreDiags)
-	plan, moreDiags := finalizePlan(ctx, intermediate, providers)
-	diags = diags.Append(moreDiags)
-
-	moreDiags = closeConfiguredProviders(ctx)
-	diags = diags.Append(moreDiags)
-
-	if diags.HasErrors() {
-		plan.Errored = true
-	}
-	return plan, diags
 }
 
 func finalizePlan(ctx context.Context, intermediate *planContextResult, providers plugins.Providers) (*plans.Plan, tfdiags.Diagnostics) {
