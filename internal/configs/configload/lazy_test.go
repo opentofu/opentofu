@@ -55,7 +55,7 @@ func TestLazyLoader_Initialize(t *testing.T) {
 		ll := NewLazy(&Config{ModulesDir: d})
 		il, err := Initialise(ll)
 		if err == nil {
-			t.Fatalf("expected but got nothing: %s", err)
+			t.Fatalf("expected but got nil")
 		}
 		expectedErr := "failed to read module manifest: error unmarshalling snapshot: invalid character 'i' looking for beginning of value"
 		if err.Error() != expectedErr {
