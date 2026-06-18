@@ -91,6 +91,26 @@ type Providers interface {
 	// provider exposes from being known. If we ever deprecate functions on configured providers, this
 	// argument should be removed.
 	BuildFunction(ctx context.Context, provider addrs.Provider, pf addrs.ProviderFunction, stubMissing bool, rng hcl.Range) (function.Function, tfdiags.Diagnostics)
+
+	// NewConfiguredProvider starts a _configured_ instance of the given
+	// provider using the given configuration value.
+	//
+	// The evaluation system itself makes no use of configured providers, but
+	// higher-level processes wrapping it (e.g. the plan and apply engines)
+	// need to use configured providers for actions related to resources, etc,
+	// and so this is for their benefit to help ensure that they are definitely
+	// creating a configured instance of the same provider that other methods
+	// would be using to return schema information and validation results.
+	//
+	// It's the caller's responsibility to ensure that the given configuration
+	// value is valid according to the provider's schema and validation rules.
+	// That's usually achieved by taking a value provided by the evaluation
+	// system, which would then have already been processed using the results
+	// from [Providers.ProviderConfigSchema] and
+	// [Providers.ValidateProviderConfig]. If the returned diagnostics contains
+	// errors then the [providers.Configured] result is invalid and must not be
+	// used.
+	NewConfiguredProvider(ctx context.Context, provider addrs.Provider, configVal cty.Value) (providers.Configured, tfdiags.Diagnostics)
 }
 
 // ProvisionersSchema is implemented by callers of this package to provide access
@@ -208,6 +228,17 @@ func (e emptyDependencies) BuildFunction(ctx context.Context, provider addrs.Pro
 		"There are no providers available for use in this context.",
 	))
 	return function.Function{}, diags
+}
+
+// NewConfiguredProvider implements Providers.
+func (e emptyDependencies) NewConfiguredProvider(ctx context.Context, provider addrs.Provider, configVal cty.Value) (providers.Configured, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+	diags = diags.Append(tfdiags.Sourceless(
+		tfdiags.Error,
+		"No providers are available",
+		"There are no providers available for use in this context.",
+	))
+	return nil, diags
 }
 
 // ProvisionerConfigSchema implements Provisioners.

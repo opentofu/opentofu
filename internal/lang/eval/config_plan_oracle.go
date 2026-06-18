@@ -9,22 +9,14 @@ import (
 	"context"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
-	"github.com/opentofu/opentofu/internal/lang/grapheval"
+	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // A PlanningOracle provides information from the configuration that is needed
 // by the planning engine to help orchestrate the planning process.
 type PlanningOracle struct {
-	// NOTE: Any method of PlanningOracle that interacts with methods of
-	// this or anything accessible through it MUST use
-	// [grapheval.ContextWithNewWorker] to make sure it's using a
-	// workgraph-friendly context, since the methods of this type are
-	// exported entry points for use by callers in other packages that
-	// don't necessarily participate in workgraph directly.
-	rootModuleInstance evalglue.CompiledModuleInstance
-
-	evalContext *EvalContext
+	providers *managedProviders
 }
 
 // ProviderInstanceConfig returns a value representing the configuration to
@@ -45,23 +37,10 @@ type PlanningOracle struct {
 // the desired state at the same time. In that case the planning phase must
 // report that the "orphaned" resource instance cannot be planned for deletion
 // unless its provider instance is re-added to the configuration.
-func (o *PlanningOracle) ProviderInstanceConfig(ctx context.Context, addr addrs.AbsProviderInstanceCorrect) *ProviderInstanceConfig {
-	ctx = grapheval.ContextWithNewWorker(ctx)
-
-	providerInst := evalglue.ProviderInstance(ctx, o.rootModuleInstance, addr)
-	if providerInst == nil {
-		return nil
-	}
-	// We ignore diagnostics here because the CheckAll tree walk should collect
-	// them when it visits the provider instance, and so they'll emerge through
-	// a different path.
-	configVal, _ := providerInst.ConfigValue(ctx)
-	return &ProviderInstanceConfig{
-		Addr:      addr,
-		ConfigVal: configVal,
-	}
+func (o *PlanningOracle) ProviderInstance(ctx context.Context, addr addrs.AbsProviderInstanceCorrect) (providers.Interface, tfdiags.Diagnostics) {
+	return o.providers.ProviderInstance(ctx, addr)
 }
 
-func (o *PlanningOracle) EvalContext(ctx context.Context) *EvalContext {
-	return o.evalContext
+func (o *PlanningOracle) Close(ctx context.Context) tfdiags.Diagnostics {
+	return o.providers.Close(ctx)
 }

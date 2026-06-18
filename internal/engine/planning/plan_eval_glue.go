@@ -11,14 +11,10 @@ import (
 	"iter"
 	"log"
 
-	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
-	"github.com/zclconf/go-cty/cty/function"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/collections"
-	"github.com/opentofu/opentofu/internal/engine/internal/common"
-	"github.com/opentofu/opentofu/internal/engine/plugins"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
@@ -34,26 +30,9 @@ import (
 type planGlue struct {
 	planCtx *planContext
 	oracle  *eval.PlanningOracle
-
-	providerInstances *common.ProviderInstances
 }
 
 var _ eval.PlanGlue = (*planGlue)(nil)
-
-// ProviderFunction implements eval.PlanGlue.
-func (p *planGlue) ProviderFunction(ctx context.Context, provider addrs.Provider, providerInstance *addrs.AbsProviderInstanceCorrect, pf addrs.ProviderFunction, rng hcl.Range) (function.Function, tfdiags.Diagnostics) {
-	// Configured
-	if providerInstance != nil {
-		inst, diags := p.providerInstances.ProviderClient(ctx, *providerInstance)
-		if diags.HasErrors() {
-			return function.Function{}, diags
-		}
-		return plugins.BuildProviderFunction(ctx, inst, pf, false, rng)
-	}
-
-	// Unconfigured
-	return p.planCtx.providers.BuildFunction(ctx, provider, pf, false, rng)
-}
 
 // PlanDesiredResourceInstance implements eval.PlanGlue.
 //
@@ -75,7 +54,7 @@ func (p *planGlue) PlanDesiredResourceInstance(ctx context.Context, inst *eval.D
 		obj, diags = p.planDesiredDataResourceInstance(ctx, inst)
 	case addrs.EphemeralResourceMode:
 		// Ephemerals are not part of the resource graph
-		return p.planDesiredEphemeralResourceInstance(ctx, inst)
+		panic("unreachable")
 	default:
 		// We should not get here because the cases above should always be
 		// exhaustive for all of the valid resource modes.
@@ -306,7 +285,7 @@ func (p *planGlue) PlanResourceOrphans(ctx context.Context, moduleInstAddr addrs
 // that the corresponding resource cannot be planned because its associated
 // provider has an invalid configuration.
 func (p *planGlue) providerClient(ctx context.Context, addr addrs.AbsProviderInstanceCorrect) (providers.Configured, tfdiags.Diagnostics) {
-	return p.providerInstances.ProviderClient(ctx, addr)
+	return p.oracle.ProviderInstance(ctx, addr)
 }
 
 func (p *planGlue) desiredResourceInstanceMustBeDeferred(inst *eval.DesiredResourceInstance) bool {

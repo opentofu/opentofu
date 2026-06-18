@@ -54,7 +54,7 @@ type preparationGlue struct {
 	// preparationGlue uses provider schema information to prepare placeholder
 	// "final state" values for resource instances because validation does
 	// not use information from the state.
-	providers Providers
+	providers evalglue.Providers
 }
 
 // ProviderFunction implements evalglue.Glue.

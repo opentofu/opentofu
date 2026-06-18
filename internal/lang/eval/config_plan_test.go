@@ -194,26 +194,6 @@ func TestPlan_managedResourceSimple(t *testing.T) {
 	if diff := cmp.Diff(wantReqs, gotReqs, ctydebug.CmpOptions); diff != "" {
 		t.Error("wrong requests\n" + diff)
 	}
-
-	providerInstAddr := addrs.AbsProviderInstanceCorrect{
-		Config: addrs.AbsProviderConfigCorrect{
-			Config: addrs.ProviderConfigCorrect{
-				Provider: addrs.MustParseProviderSourceString("test/foo"),
-			},
-		},
-	}
-	gotProviderInstConfigs := logGlue.providerInstanceConfigs
-	wantProviderInstConfigs := addrs.MakeMap(
-		addrs.MakeMapElem(providerInstAddr, &eval.ProviderInstanceConfig{
-			Addr: providerInstAddr,
-			ConfigVal: cty.ObjectVal(map[string]cty.Value{
-				"greeting": cty.StringVal("Hello"),
-			}),
-		}),
-	)
-	if diff := cmp.Diff(wantProviderInstConfigs, gotProviderInstConfigs, ctydebug.CmpOptions); diff != "" {
-		t.Error("wrong provider instance configs\n" + diff)
-	}
 }
 
 func TestPlan_managedResourceUnknownCount(t *testing.T) {
@@ -332,7 +312,6 @@ type planGlueCallLog struct {
 	providers eval.ProvidersSchema
 
 	resourceInstanceRequests addrs.Map[addrs.AbsResourceInstance, *eval.DesiredResourceInstance]
-	providerInstanceConfigs  addrs.Map[addrs.AbsProviderInstanceCorrect, *eval.ProviderInstanceConfig]
 	mu                       sync.Mutex
 }
 
@@ -348,14 +327,6 @@ func (p *planGlueCallLog) PlanDesiredResourceInstance(ctx context.Context, inst 
 		p.resourceInstanceRequests = addrs.MakeMap[addrs.AbsResourceInstance, *eval.DesiredResourceInstance]()
 	}
 	p.resourceInstanceRequests.Put(inst.Addr, inst)
-	if inst.ProviderInstance != nil {
-		if p.providerInstanceConfigs.Len() == 0 {
-			p.providerInstanceConfigs = addrs.MakeMap[addrs.AbsProviderInstanceCorrect, *eval.ProviderInstanceConfig]()
-		}
-		providerInstAddr := *inst.ProviderInstance
-		providerInstConfig := p.oracle.ProviderInstanceConfig(ctx, providerInstAddr)
-		p.providerInstanceConfigs.Put(providerInstAddr, providerInstConfig)
-	}
 	p.mu.Unlock()
 
 	if p.providers == nil {

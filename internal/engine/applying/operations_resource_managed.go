@@ -63,7 +63,7 @@ func (ops *execOperations) ManagedFinalPlan(
 	objAddr := instAddr.Object(deposedKey)
 	log.Printf("[TRACE] apply phase: ManagedFinalPlan %s using %s", objAddr, providerConfigAddr)
 
-	providerClient, moreDiags := ops.providerInstances.ProviderClient(ctx, providerConfigAddr)
+	providerClient, moreDiags := ops.configOracle.ProviderInstance(ctx, providerConfigAddr)
 	diags = diags.Append(moreDiags)
 	if diags.HasErrors() {
 		return nil, diags
@@ -213,7 +213,7 @@ func (ops *execOperations) ManagedApply(
 		plannedValUnmarked = cty.NullVal(schema.Block.ImpliedType())
 	}
 
-	providerClient, moreDiags := ops.providerInstances.ProviderClient(ctx, providerConfigAddr)
+	providerClient, moreDiags := ops.configOracle.ProviderInstance(ctx, providerConfigAddr)
 	diags = diags.Append(moreDiags)
 	if diags.HasErrors() {
 		return nil, diags

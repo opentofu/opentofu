@@ -7,8 +7,6 @@ package planning
 
 import (
 	"context"
-	"slices"
-	"sync"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/plugins"
@@ -50,15 +48,6 @@ type planContext struct {
 	upgradedState *states.SyncState
 
 	providers plugins.Providers
-
-	// Stack of ephemeral and provider close functions
-	// Given the current state of the planning engine, we wait until
-	// the end of the run to close all of the "opened" items.  We
-	// also need to close them in a specific order to prevent dependency
-	// conflicts. We posit that for plan, closing in the reverse order of opens
-	// will ensure that this order is correctly preserved.
-	closeStackMu sync.Mutex
-	closeStack   []func(context.Context) tfdiags.Diagnostics
 }
 
 func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, providers plugins.Providers) *planContext {
@@ -86,13 +75,6 @@ func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, pro
 // not be used anymore.
 func (p *planContext) Close(ctx context.Context) (*planContextResult, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-
-	p.closeStackMu.Lock()
-	slices.Reverse(p.closeStack)
-	for _, closer := range p.closeStack {
-		diags = diags.Append(closer(ctx))
-	}
-	p.closeStackMu.Unlock()
 
 	return &planContextResult{
 		ResourceInstanceObjects: p.resourceInstObjs.Close(),

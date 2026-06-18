@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/lang/eval"
@@ -19,7 +18,6 @@ import (
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
-	"github.com/zclconf/go-cty/cty/function"
 )
 
 type Plugins interface {
@@ -32,55 +30,7 @@ type Plugins interface {
 // to know anything about how provider plugins work, or whether plugins are
 // even being used.
 type Providers interface {
-	eval.ProvidersSchema
-
-	// ValidateProviderConfig runs provider-specific logic to check whether
-	// the given configuration is valid. Returns at least one error diagnostic
-	// if the configuration is not valid, and may also return warning
-	// diagnostics regardless of whether the configuration is valid.
-	//
-	// The given config value is guaranteed to be an object conforming to
-	// the schema returned by a previous call to ProviderConfigSchema for
-	// the same provider.
-	ValidateProviderConfig(ctx context.Context, provider addrs.Provider, configVal cty.Value) tfdiags.Diagnostics
-
-	// ValidateResourceConfig runs provider-specific logic to check whether
-	// the given configuration is valid. Returns at least one error diagnostic
-	// if the configuration is not valid, and may also return warning
-	// diagnostics regardless of whether the configuration is valid.
-	//
-	// The given config value is guaranteed to be an object conforming to
-	// the schema returned by a previous call to ResourceTypeSchema for
-	// the same resource type.
-	ValidateResourceConfig(ctx context.Context, provider addrs.Provider, mode addrs.ResourceMode, typeName string, configVal cty.Value) tfdiags.Diagnostics
-
-	// BuildFunction constructs a cty function given a provider and a function address.
-	//
-	// The main oddity of this function is the stubMissing parameter. During validation, we do not
-	// have configured providers available. This prevents the full list of functions that a configured
-	// provider exposes from being known. If we ever deprecate functions on configured providers, this
-	// argument should be removed.
-	BuildFunction(ctx context.Context, provider addrs.Provider, pf addrs.ProviderFunction, stubMissing bool, rng hcl.Range) (function.Function, tfdiags.Diagnostics)
-
-	// NewConfiguredProvider starts a _configured_ instance of the given
-	// provider using the given configuration value.
-	//
-	// The evaluation system itself makes no use of configured providers, but
-	// higher-level processes wrapping it (e.g. the plan and apply engines)
-	// need to use configured providers for actions related to resources, etc,
-	// and so this is for their benefit to help ensure that they are definitely
-	// creating a configured instance of the same provider that other methods
-	// would be using to return schema information and validation results.
-	//
-	// It's the caller's responsibility to ensure that the given configuration
-	// value is valid according to the provider's schema and validation rules.
-	// That's usually achieved by taking a value provided by the evaluation
-	// system, which would then have already been processed using the results
-	// from [Providers.ProviderConfigSchema] and
-	// [Providers.ValidateProviderConfig]. If the returned diagnostics contains
-	// errors then the [providers.Configured] result is invalid and must not be
-	// used.
-	NewConfiguredProvider(ctx context.Context, provider addrs.Provider, configVal cty.Value) (providers.Configured, tfdiags.Diagnostics)
+	eval.Providers
 
 	Close(ctx context.Context) error
 }

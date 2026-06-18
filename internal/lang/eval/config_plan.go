@@ -30,13 +30,6 @@ import (
 // each other, and so implementations must use suitable synchronization to
 // avoid data races between calls.
 type PlanGlue interface {
-	// ProviderFunction constructs a cty function given a provider and a function address.
-	//
-	// This is a bit odd due to how we support functions on configured providers. We pass in both
-	// a provider address and a provider instance, preferring a call on the configured provider
-	// instance if available.
-	ProviderFunction(ctx context.Context, provider addrs.Provider, providerInstance *addrs.AbsProviderInstanceCorrect, pf addrs.ProviderFunction, rng hcl.Range) (function.Function, tfdiags.Diagnostics)
-
 	// Creates planned action(s) for the given resource instance and return
 	// the planned new state that would result from those actions.
 	//
@@ -145,10 +138,43 @@ func (c *ConfigInstance) DrivePlanning(ctx context.Context, buildGlue func(*Plan
 	if moreDiags.HasErrors() {
 		return nil, diags
 	}
+
+	managedProviders := newManagedProviders(c.evalContext.Providers, func(ctx context.Context, addr addrs.AbsProviderInstanceCorrect) (cty.Value, tfdiags.Diagnostics) {
+		ctx = grapheval.ContextWithNewWorker(ctx)
+
+		providerInst := evalglue.ProviderInstance(ctx, rootModuleInstance, addr)
+		if providerInst == nil {
+			// This suggests that the provider instance has an invalid
+			// configuration. The main diagnostics for that get returned by
+			// another channel but also return an error, so we just return
+			// nil to prompt the caller to generate its own error saying that
+			// whatever operation the provider was going to be used for cannot
+			// be performed.
+			//
+			// FIXME: This currently doesn't handle the case where there's
+			// an orphan or deposed resource instance object in the previous
+			// run state referring to a provider instance whose configuration
+			// was originally just implied to be empty by the existence of
+			// some resource elsewhere in the configuration. Removing all
+			// desired resource instances for such an implied provider when
+			// there's still at least one object tracked in the state causes
+			// us to return nil, here, whereas we ought to somehow attempt
+			// to perform the implicit empty configuration behavior in that
+			// case too.
+			return cty.NilVal, nil
+		}
+		// We ignore diagnostics here because the CheckAll tree walk should collect
+		// them when it visits the provider instance, and so they'll emerge through
+		// a different path.
+		configVal, _ := providerInst.ConfigValue(ctx)
+		return configgraph.PrepareOutgoingValue(configVal), nil
+	})
+
 	// We can now initialize the planning oracle, before we start evaluating
 	// anything that might cause calls to the evalGlue object.
-	oracle.rootModuleInstance = rootModuleInstance
-	oracle.evalContext = c.evalContext
+	oracle.providers = managedProviders
+	// Inject configured providers
+	evalGlue.providers = managedProviders
 
 	// The plan phase is driven forward by us evaluating expressions during
 	// the "checkAll" process, and so we can just run that here and then
@@ -218,18 +244,18 @@ type planningEvalGlue struct {
 	// planEngineGlue is the planning glue implementation provided by the
 	// planning engine when it called [ConfigInstance.DrivePlanning].
 	planEngineGlue PlanGlue
+	providers      *managedProviders
 }
 
 var _ evalglue.Glue = (*planningEvalGlue)(nil)
 
 // ProviderFunction implements evalglue.Glue.
 func (p *planningEvalGlue) ProviderFunction(ctx context.Context, provider addrs.Provider, providerInst configgraph.Maybe[*configgraph.ProviderInstance], pf addrs.ProviderFunction, rng hcl.Range) (function.Function, tfdiags.Diagnostics) {
-	var providerInstance *addrs.AbsProviderInstanceCorrect
 	if providerInst, ok := configgraph.GetKnown(providerInst); ok {
-		providerInstance = &(providerInst.Addr)
+		return p.providers.ConfiguredFunction(ctx, providerInst.Addr, pf, rng)
 	}
 
-	return p.planEngineGlue.ProviderFunction(ctx, provider, providerInstance, pf, rng)
+	return p.providers.BuildFunction(ctx, provider, pf, false, rng)
 }
 
 // ResourceInstanceValue implements evalglue.Glue.
@@ -298,6 +324,10 @@ func (p *planningEvalGlue) ResourceInstanceValue(ctx context.Context, ri *config
 
 	// TODO: Populate everything else in [DesiredResourceInstance], once
 	// package configgraph knows how to provide those answers.
+
+	if desired.Addr.Resource.Resource.Mode == addrs.EphemeralResourceMode {
+		return p.providers.OpenEphemeralResourceInstance(ctx, desired.Addr, desired.ConfigVal, desired.Provider, desired.ProviderInstance)
+	}
 
 	ret, moreDiags := p.planEngineGlue.PlanDesiredResourceInstance(ctx, desired)
 	diags = diags.Append(moreDiags)

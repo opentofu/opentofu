@@ -31,6 +31,8 @@ func PlanChanges(ctx context.Context, prevRoundState *states.State, configInst *
 
 	planCtx := newPlanContext(configInst.EvalContext(), prevRoundState, providers)
 
+	var closeConfiguredProviders func(ctx context.Context) tfdiags.Diagnostics
+
 	// This configInst.DrivePlanning call blocks until the evaluator has
 	// visited all expressions in the configuration and calls
 	// [planContext.PlanDesiredResourceInstance] on the [planGlue] object for
@@ -48,11 +50,10 @@ func PlanChanges(ctx context.Context, prevRoundState *states.State, configInst *
 	// between all of the "current" resource instance objects we found, but
 	// we won't discover any deposed objects until the next step below.
 	evalResult, moreDiags := configInst.DrivePlanning(ctx, func(oracle *eval.PlanningOracle) eval.PlanGlue {
+		closeConfiguredProviders = oracle.Close
 		return &planGlue{
 			planCtx: planCtx,
 			oracle:  oracle,
-
-			providerInstances: newProviderInstances(planCtx, oracle),
 		}
 	})
 	diags = diags.Append(moreDiags)
@@ -126,6 +127,10 @@ func PlanChanges(ctx context.Context, prevRoundState *states.State, configInst *
 	diags = diags.Append(moreDiags)
 	plan, moreDiags := finalizePlan(ctx, intermediate, providers)
 	diags = diags.Append(moreDiags)
+
+	moreDiags = closeConfiguredProviders(ctx)
+	diags = diags.Append(moreDiags)
+
 	if diags.HasErrors() {
 		plan.Errored = true
 	}
