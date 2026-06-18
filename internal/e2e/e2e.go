@@ -235,7 +235,7 @@ func (b *binary) SetLocalState(state *states.State) error {
 	return statefile.Write(sf, f, encryption.StateEncryptionDisabled())
 }
 
-func GoBuild(pkgPath, tmpPrefix string) string {
+func GoBuild(pkgPath, tmpPrefix string, buildArgs ...string) string {
 	if runtime.GOOS == "windows" {
 		tmpPrefix += ".exe"
 	}
@@ -253,8 +253,8 @@ func GoBuild(pkgPath, tmpPrefix string) string {
 	args := []string{
 		"go",
 		"build",
-		`-ldflags=-X 'main.e2eTestingFeatures=yes'`,
 	}
+	args = append(args, buildArgs...)
 
 	if len(os.Getenv("GOCOVERDIR")) != 0 {
 		args = append(args,

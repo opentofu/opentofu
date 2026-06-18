@@ -12,16 +12,7 @@ package main
 //	go install -ldflags="-X 'main.e2eTestingFeatures=yes'" ./cmd/tofu
 //
 // By default this variable is initialized as empty, in which case
-// experimental features are not available.
-//
-// The OpenTofu release process should arrange for this variable to be
-// set for alpha releases and development snapshots, but _not_ for
-// betas, release candidates, or final releases.
-//
-// (NOTE: Some experimental features predate the rule that experiments
-// are available only for alpha/dev builds, and so intentionally do not
-// make use of this setting to avoid retracting a previously-documented
-// open experiment.)
+// e2e testing features are not available.
 var e2eTestingFeatures string
 
 func e2eTestingFeaturesEnabled() bool {

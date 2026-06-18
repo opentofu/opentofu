@@ -690,7 +690,16 @@ func TestApplyPanic(t *testing.T) {
 		t.Skip("due to locked file descriptors not being immediately cleaned up on panic")
 	}
 
-	tf := e2e.NewBinary(t, tofuBin, "testdata/apply-panic")
+	if !canRunGoBuild {
+		t.Skip("custom build required with additional LDFLAGS")
+	}
+
+	e2eTofuBin := e2e.GoBuild("github.com/opentofu/opentofu/cmd/tofu", "tofu_e2e", `-ldflags=-X 'main.e2eTestingFeatures=yes'`)
+	defer func() {
+		os.Remove(e2eTofuBin)
+	}()
+
+	tf := e2e.NewBinary(t, e2eTofuBin, "testdata/apply-panic")
 	buildSimpleProvider(t, "6", tf.WorkDir(), "simple")
 	{ // INIT
 		_, stderr, err := tf.Run("init", "-plugin-dir=./cache")
