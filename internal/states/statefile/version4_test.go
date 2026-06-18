@@ -353,7 +353,7 @@ func TestVersion4_writeStateWithEphemeralMarks(t *testing.T) {
 			f := new(File)
 			var s strings.Builder
 			f.State = tc.buildState()
-			diags := writeStateV4(f, &s, encryption.StateEncryptionDisabled())
+			diags := writeStateV4(f, &s, encryption.StateEncryptionDisabled(), false)
 
 			var gotErrMsg string
 			if diags.HasErrors() {
