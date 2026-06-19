@@ -18,7 +18,7 @@ func TestKeyProvider(t *testing.T) {
 
 	if testKeyId == "" {
 		testKeyId = "alias/my-mock-key"
-		injectDefaultMock()
+		injectDefaultMock(t)
 
 		t.Setenv("AWS_REGION", "us-east-1")
 		t.Setenv("AWS_ACCESS_KEY_ID", "accesskey")

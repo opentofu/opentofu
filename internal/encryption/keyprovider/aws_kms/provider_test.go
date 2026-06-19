@@ -24,7 +24,7 @@ func TestKMSProvider_Simple(t *testing.T) {
 
 	if testKeyId == "" {
 		testKeyId = "alias/my-mock-key"
-		capturedGenKeyContext, capturedDecryptContext = injectCapturingMock(testKeyId)
+		capturedGenKeyContext, capturedDecryptContext = injectCapturingMock(t, testKeyId)
 		t.Setenv("AWS_REGION", "us-east-1")
 		t.Setenv("AWS_ACCESS_KEY_ID", "accesskey")
 		t.Setenv("AWS_SECRET_ACCESS_KEY", "secretkey")

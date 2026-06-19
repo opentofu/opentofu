@@ -8,6 +8,7 @@ package aws_kms
 import (
 	"context"
 	"crypto/rand"
+	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/kms"
@@ -25,19 +26,24 @@ func (m *mockKMS) Decrypt(ctx context.Context, params *kms.DecryptInput, optFns 
 	return m.decrypt(params)
 }
 
-func injectMock(m *mockKMS) {
+func injectMock(t testing.TB, m *mockKMS) {
+	original := newKMSFromConfig
+	t.Cleanup(func() {
+		newKMSFromConfig = original
+	})
+
 	newKMSFromConfig = func(cfg aws.Config) kmsClient {
 		return m
 	}
 }
 
-func injectDefaultMock() {
-	injectCapturingMock("alias/my-mock-key")
+func injectDefaultMock(t testing.TB) {
+	injectCapturingMock(t, "alias/my-mock-key")
 }
 
-func injectCapturingMock(keyId string) (capturedGenKeyContext *map[string]string, capturedDecryptContext *map[string]string) {
+func injectCapturingMock(t testing.TB, keyId string) (capturedGenKeyContext *map[string]string, capturedDecryptContext *map[string]string) {
 	var genCtx, decCtx map[string]string
-	injectMock(&mockKMS{
+	injectMock(t, &mockKMS{
 		genkey: func(params *kms.GenerateDataKeyInput) (*kms.GenerateDataKeyOutput, error) {
 			genCtx = params.EncryptionContext
 			keyData := make([]byte, 32)
