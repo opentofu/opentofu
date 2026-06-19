@@ -196,6 +196,7 @@ This key provider uses the [Amazon Web Servers Key Management Service](https://a
 |--------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|------|------------------------------------|
 | kms_key_id               | [Key ID for AWS KMS](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#key-id).                                                            | 1    | -                                  |
 | key_spec                 | [Key spec for AWS KMS](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#key-spec). Adapt this to your encryption method (e.g. `AES_256`). | 1    | -                                  |
+| encryption_context       | Optional map of key-value string pairs sent to AWS KMS as [Encryption Context](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#encrypt_context) with every `GenerateDataKey` and `Decrypt` call. | -    | -                                  |
 | encrypted_metadata_alias | Optional identifier to store metadata in the encrypted state/plan files under. Specify this to allow changing the name of a key provider.                    | -    | derived from the key provider name |
 
 The following example illustrates a minimal configuration:

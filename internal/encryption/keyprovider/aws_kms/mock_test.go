@@ -32,24 +32,30 @@ func injectMock(m *mockKMS) {
 }
 
 func injectDefaultMock() {
+	injectCapturingMock("alias/my-mock-key")
+}
+
+func injectCapturingMock(keyId string) (capturedGenKeyContext *map[string]string, capturedDecryptContext *map[string]string) {
+	var genCtx, decCtx map[string]string
 	injectMock(&mockKMS{
 		genkey: func(params *kms.GenerateDataKeyInput) (*kms.GenerateDataKeyOutput, error) {
+			genCtx = params.EncryptionContext
 			keyData := make([]byte, 32)
 			_, err := rand.Read(keyData)
 			if err != nil {
 				panic(err)
 			}
-
 			return &kms.GenerateDataKeyOutput{
-				CiphertextBlob: append([]byte(*params.KeyId), keyData...),
+				CiphertextBlob: append([]byte(keyId), keyData...),
 				Plaintext:      keyData,
 			}, nil
-
 		},
 		decrypt: func(params *kms.DecryptInput) (*kms.DecryptOutput, error) {
+			decCtx = params.EncryptionContext
 			return &kms.DecryptOutput{
-				Plaintext: params.CiphertextBlob[:len(*params.KeyId)],
+				Plaintext: params.CiphertextBlob[len(keyId):],
 			}, nil
 		},
 	})
+	return &genCtx, &decCtx
 }

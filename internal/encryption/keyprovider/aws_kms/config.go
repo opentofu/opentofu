@@ -61,6 +61,7 @@ type Config struct {
 	AllowedAccountIds              []string                   `hcl:"allowed_account_ids,optional"`
 	ForbiddenAccountIds            []string                   `hcl:"forbidden_account_ids,optional"`
 	RetryMode                      string                     `hcl:"retry_mode,optional"`
+	EncryptionContext              map[string]string          `hcl:"encryption_context,optional"`
 }
 
 func stringAttrEnvFallback(val string, env string) string {

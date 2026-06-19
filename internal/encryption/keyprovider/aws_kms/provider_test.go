@@ -19,21 +19,25 @@ func getKey(t *testing.T) string {
 
 func TestKMSProvider_Simple(t *testing.T) {
 	testKeyId := getKey(t)
+
+	var capturedGenKeyContext, capturedDecryptContext *map[string]string
+
 	if testKeyId == "" {
 		testKeyId = "alias/my-mock-key"
-		injectDefaultMock()
-
+		capturedGenKeyContext, capturedDecryptContext = injectCapturingMock(testKeyId)
 		t.Setenv("AWS_REGION", "us-east-1")
 		t.Setenv("AWS_ACCESS_KEY_ID", "accesskey")
 		t.Setenv("AWS_SECRET_ACCESS_KEY", "secretkey")
 	}
 
+	encryptionContext := map[string]string{"test": "test"}
+
 	// Constructs a aws kms key provider config that accepts the key id
 	providerConfig := Config{
-		KMSKeyID: testKeyId,
-		KeySpec:  "AES_256",
-
-		SkipCredsValidation: true, // Required for mocking
+		KMSKeyID:            testKeyId,
+		KeySpec:             "AES_256",
+		SkipCredsValidation: capturedGenKeyContext != nil, // only skip validation when mocking
+		EncryptionContext:   encryptionContext,
 	}
 
 	// Now that we have the config, we can build the provider
@@ -60,6 +64,10 @@ func TestKMSProvider_Simple(t *testing.T) {
 		t.Fatalf("No ciphertext blob provided")
 	}
 
+	if capturedGenKeyContext != nil && (*capturedGenKeyContext)["test"] != "test" {
+		t.Fatalf("Expected encryption context to be passed to GenerateDataKey")
+	}
+
 	t.Log("Continue to meta -> decryption key")
 
 	// Now that we have a encryption key and it's meta, let's get the decryption key
@@ -78,5 +86,9 @@ func TestKMSProvider_Simple(t *testing.T) {
 
 	if len(meta.(*keyMeta).CiphertextBlob) == 0 {
 		t.Fatalf("No ciphertext blob provided")
+	}
+
+	if capturedDecryptContext != nil && (*capturedDecryptContext)["test"] != "test" {
+		t.Fatalf("Expected decryption context to be passed to Decrypt")
 	}
 }

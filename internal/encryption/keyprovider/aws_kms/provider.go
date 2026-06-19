@@ -49,8 +49,9 @@ func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, k
 	spec := types.DataKeySpec(p.KeySpec)
 
 	generatedKeyData, err := p.svc.GenerateDataKey(p.ctx, &kms.GenerateDataKeyInput{
-		KeyId:   aws.String(p.KMSKeyID),
-		KeySpec: spec,
+		KeyId:             aws.String(p.KMSKeyID),
+		KeySpec:           spec,
+		EncryptionContext: p.EncryptionContext,
 	})
 
 	if err != nil {
@@ -70,8 +71,9 @@ func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, k
 	if inMeta.isPresent() {
 		// We have an existing decryption key to decrypt, so we should now populate the DecryptionKey
 		decryptedKeyData, decryptErr := p.svc.Decrypt(p.ctx, &kms.DecryptInput{
-			KeyId:          aws.String(p.KMSKeyID),
-			CiphertextBlob: inMeta.CiphertextBlob,
+			KeyId:             aws.String(p.KMSKeyID),
+			CiphertextBlob:    inMeta.CiphertextBlob,
+			EncryptionContext: p.EncryptionContext,
 		})
 
 		if decryptErr != nil {
