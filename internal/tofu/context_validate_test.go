@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -275,6 +276,41 @@ func TestContext2Validate_countNegative(t *testing.T) {
 	diags := c.Validate(context.Background(), m)
 	if !diags.HasErrors() {
 		t.Fatalf("succeeded; want error")
+	}
+}
+
+func TestContext2Validate_countTooLarge(t *testing.T) {
+	p := testProvider("aws")
+	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
+		ResourceTypes: map[string]providers.Schema{
+			"aws_instance": {
+				Block: &configschema.Block{
+					Attributes: map[string]*configschema.Attribute{},
+				},
+			},
+		},
+	}
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+resource "aws_instance" "test" {
+  count = 9223372036854775807
+}
+`,
+	})
+	c := testContext2(t, &ContextOpts{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		}, nil),
+	})
+
+	diags := c.Validate(context.Background(), m)
+	if !diags.HasErrors() {
+		t.Fatalf("succeeded; want error")
+	}
+	if strconv.IntSize == 64 {
+		if got, want := diags.Err().Error(), `must be less than or equal to`; !strings.Contains(got, want) {
+			t.Fatalf("wrong error:\ngot:  %s\nwant: message containing %q", got, want)
+		}
 	}
 }
 

@@ -7,6 +7,8 @@ package evalchecks
 import (
 	"fmt"
 	"runtime"
+	"strconv"
+	"unsafe"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -17,6 +19,17 @@ import (
 )
 
 type EvaluateFunc func(expr hcl.Expression) (cty.Value, tfdiags.Diagnostics)
+
+func maxCountValue() int64 {
+	var instanceKey addrs.InstanceKey
+
+	// expansionCount later allocates a []addrs.InstanceKey, so count is
+	// bounded by the largest backing array Go can represent for that slice.
+	const heapAddrBits = 32 + 16*(strconv.IntSize/64)
+	const maxAllocBytes = (uint64(1) << heapAddrBits) - 1
+
+	return int64(maxAllocBytes / uint64(unsafe.Sizeof(instanceKey)))
+}
 
 // EvaluateCountExpression is our standard mechanism for interpreting an
 // expression given for a "count" argument on a resource or a module. This
@@ -126,6 +139,15 @@ func EvaluateCountExpressionValue(expr hcl.Expression, ctx EvaluateFunc) (cty.Va
 			Severity: hcl.DiagError,
 			Summary:  "Invalid count argument",
 			Detail:   `The given "count" argument value is unsuitable: must be greater than or equal to zero.`,
+			Subject:  expr.Range().Ptr(),
+		})
+		return nullCount, diags
+	}
+	if maxCount := maxCountValue(); int64(count) > maxCount {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid count argument",
+			Detail:   fmt.Sprintf(`The given "count" argument value is unsuitable: must be less than or equal to %d.`, maxCount),
 			Subject:  expr.Range().Ptr(),
 		})
 		return nullCount, diags

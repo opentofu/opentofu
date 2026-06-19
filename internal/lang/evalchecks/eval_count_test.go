@@ -76,6 +76,13 @@ func TestEvaluateCountExpression_errors(t *testing.T) {
 			`The given "count" argument value is unsuitable: must be greater than or equal to zero.`,
 			false,
 		},
+		"too large": {
+			cty.NumberIntVal(maxCountValue() + 1),
+			nil,
+			"Invalid count argument",
+			`The given "count" argument value is unsuitable: must be less than or equal to`,
+			false,
+		},
 		"string": {
 			cty.StringVal("i am definitely a number"),
 			nil,
