@@ -114,18 +114,123 @@ func TestOTelLogSink_Enabled(t *testing.T) {
 
 func TestOTelLogSink_WithValues(t *testing.T) {
 	sink := &otelLogSink{}
-	// WithValues should return the same sink (no-op)
-	result := sink.WithValues("key", "value")
-	if result != sink {
-		t.Errorf("WithValues returned different sink")
+	result := sink.WithValues("key1", "val1", "key2", "val2")
+
+	if result == sink {
+		t.Errorf("WithValues should return a new sink, got same pointer")
+	}
+
+	rs := result.(*otelLogSink)
+	if len(rs.values) != 4 {
+		t.Errorf("WithValues: got %d values, want 4", len(rs.values))
+	}
+	if rs.values[0] != "key1" || rs.values[1] != "val1" {
+		t.Errorf("WithValues: values[0:2] = %v, %v; want key1, val1", rs.values[0], rs.values[1])
+	}
+	// Original sink should be unchanged
+	if len(sink.values) != 0 {
+		t.Errorf("WithValues: original sink was mutated, got %d values", len(sink.values))
+	}
+}
+
+func TestOTelLogSink_WithValues_Chaining(t *testing.T) {
+	sink := &otelLogSink{}
+	s1 := sink.WithValues("k1", "v1")
+	s2 := s1.WithValues("k2", "v2")
+
+	rs2 := s2.(*otelLogSink)
+	if len(rs2.values) != 4 {
+		t.Errorf("chained WithValues: got %d values, want 4", len(rs2.values))
+	}
+	if rs2.values[2] != "k2" || rs2.values[3] != "v2" {
+		t.Errorf("chained WithValues: expected k2=v2 at end, got %v, %v", rs2.values[2], rs2.values[3])
 	}
 }
 
 func TestOTelLogSink_WithName(t *testing.T) {
 	sink := &otelLogSink{}
 	result := sink.WithName("test-component")
-	if result != sink {
-		t.Errorf("WithName returned different sink")
+
+	if result == sink {
+		t.Errorf("WithName should return a new sink, got same pointer")
+	}
+
+	rs := result.(*otelLogSink)
+	if rs.name != "test-component" {
+		t.Errorf("WithName: got name %q, want %q", rs.name, "test-component")
+	}
+}
+
+func TestOTelLogSink_WithName_Chaining(t *testing.T) {
+	sink := &otelLogSink{}
+	s1 := sink.WithName("parent")
+	s2 := s1.WithName("child")
+
+	rs2 := s2.(*otelLogSink)
+	if rs2.name != "parent.child" {
+		t.Errorf("chained WithName: got name %q, want %q", rs2.name, "parent.child")
+	}
+}
+
+func TestOTelLogSink_WithName_PreservesValues(t *testing.T) {
+	sink := &otelLogSink{}
+	sv := sink.WithValues("key", "val")
+	rs := sv.WithName("component").(*otelLogSink)
+
+	if rs.name != "component" {
+		t.Errorf("WithName after WithValues: got name %q, want %q", rs.name, "component")
+	}
+	if len(rs.values) != 2 {
+		t.Errorf("WithName after WithValues: got %d values, want 2", len(rs.values))
+	}
+	if rs.values[0] != "key" || rs.values[1] != "val" {
+		t.Errorf("WithName after WithValues: values = %v, want [key val]", rs.values)
+	}
+}
+
+func TestOTelLogSink_Info_WithContext(t *testing.T) {
+	var buf bytes.Buffer
+	saved := log.Writer()
+	log.SetOutput(&buf)
+	defer log.SetOutput(saved)
+
+	sink := &otelLogSink{}
+	sv := sink.WithValues("processor", "batch")
+	si := sv.WithName("batch-processor")
+	si.Info(0, "exporting", "count", 42)
+
+	output := buf.String()
+	if !strings.Contains(output, "processor=batch") {
+		t.Errorf("Info with values: output %q, want processor=batch", output)
+	}
+	if !strings.Contains(output, "count=42") {
+		t.Errorf("Info with values: output %q, want count=42", output)
+	}
+	if !strings.Contains(output, "[batch-processor]") {
+		t.Errorf("Info with name: output %q, want [batch-processor]", output)
+	}
+}
+
+func TestOTelLogSink_Error_WithContext(t *testing.T) {
+	var buf bytes.Buffer
+	saved := log.Writer()
+	log.SetOutput(&buf)
+	defer log.SetOutput(saved)
+
+	err := errors.New("timeout")
+	sink := &otelLogSink{}
+	sv := sink.WithValues("processor", "batch")
+	sv.Error(err, "export failed", "retry", 3)
+
+	output := buf.String()
+	if !strings.Contains(output, "processor=batch") {
+		t.Errorf("Error with values: output %q, want processor=batch", output)
+	}
+	if !strings.Contains(output, "retry=3") {
+		t.Errorf("Error with values: output %q, want retry=3", output)
+	}
+	if !strings.Contains(output, "timeout") {
+		t.Errorf("Error with values: output %q, want timeout", output)
 	}
 }
 

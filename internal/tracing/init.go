@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/go-logr/logr"
 	"go.opentelemetry.io/contrib/exporters/autoexport"
@@ -171,7 +172,10 @@ func OpenTelemetryInit(ctx context.Context) (context.Context, error) {
 // otelLogSink implements logr.LogSink to route OTel SDK internal logs
 // through OpenTofu's standard library log package (redirected to hclog)
 // with prefix-based log levels for compatibility with TF_LOG filtering.
-type otelLogSink struct{}
+type otelLogSink struct {
+	name   string
+	values []any
+}
 
 func (s *otelLogSink) Init(info logr.RuntimeInfo) {}
 
@@ -180,28 +184,94 @@ func (s *otelLogSink) Enabled(level int) bool {
 }
 
 func (s *otelLogSink) Info(level int, msg string, keysAndValues ...interface{}) {
+	prefix := "[INFO]"
 	switch {
 	case level == 0:
-		log.Printf("[INFO] OpenTelemetry: %s", msg)
+		prefix = "[INFO]"
 	case level <= 3:
-		log.Printf("[DEBUG] OpenTelemetry: %s", msg)
+		prefix = "[DEBUG]"
 	default:
-		log.Printf("[TRACE] OpenTelemetry: %s", msg)
+		prefix = "[TRACE]"
 	}
+
+	var b strings.Builder
+	b.WriteString(prefix)
+	b.WriteString(" OpenTelemetry:")
+	if s.name != "" {
+		b.WriteString(" [")
+		b.WriteString(s.name)
+		b.WriteString("]")
+	}
+	b.WriteString(" ")
+	b.WriteString(msg)
+
+	if len(s.values) > 0 {
+		b.WriteString(" ")
+		writeLogValues(&b, s.values)
+	}
+	if len(keysAndValues) > 0 {
+		b.WriteString(" ")
+		writeLogValues(&b, keysAndValues)
+	}
+
+	log.Print(b.String())
 }
 
 func (s *otelLogSink) Error(err error, msg string, keysAndValues ...interface{}) {
+	var b strings.Builder
+	b.WriteString("[ERROR] OpenTelemetry:")
+	if s.name != "" {
+		b.WriteString(" [")
+		b.WriteString(s.name)
+		b.WriteString("]")
+	}
+	b.WriteString(" ")
+	b.WriteString(msg)
 	if err != nil {
-		log.Printf("[ERROR] OpenTelemetry: %s: %v", msg, err)
-	} else {
-		log.Printf("[ERROR] OpenTelemetry: %s", msg)
+		b.WriteString(": ")
+		b.WriteString(err.Error())
+	}
+	if len(s.values) > 0 {
+		b.WriteString(" ")
+		writeLogValues(&b, s.values)
+	}
+	if len(keysAndValues) > 0 {
+		b.WriteString(" ")
+		writeLogValues(&b, keysAndValues)
+	}
+
+	log.Print(b.String())
+}
+
+// writeLogValues formats interleaved key-value pairs into the builder.
+// Odd-length slices print the trailing key without a value.
+func writeLogValues(b *strings.Builder, kv []any) {
+	for i := 0; i < len(kv); i += 2 {
+		if i > 0 {
+			b.WriteString(" ")
+		}
+		fmt.Fprint(b, kv[i])
+		if i+1 < len(kv) {
+			b.WriteString("=")
+			fmt.Fprint(b, kv[i+1])
+		}
 	}
 }
 
 func (s *otelLogSink) WithValues(keysAndValues ...interface{}) logr.LogSink {
-	return s
+	return &otelLogSink{
+		name:   s.name,
+		values: append(s.values, keysAndValues...),
+	}
 }
 
 func (s *otelLogSink) WithName(name string) logr.LogSink {
-	return s
+	newName := name
+	if s.name != "" {
+		newName = s.name + "." + name
+	}
+	return &otelLogSink{
+		name:   newName,
+		values: s.values,
+	}
 }
