@@ -8,6 +8,7 @@ package local
 import (
 	"context"
 	"fmt"
+	"strings"
 	"io"
 	"log"
 
@@ -211,6 +212,10 @@ func (b *Local) opPlan(
 		return
 	}
 
+	// Generate a single consolidated warning for any "forget" actions in the plan,
+	// instead of per-instance warnings during planning (see #4201).
+	diags = diags.Append(forgetWarningForPlan(plan))
+
 	op.View.Plan(plan, schemas)
 
 	// If we've accumulated any diagnostics along the way then we'll show them
@@ -262,4 +267,40 @@ func maybeWriteGeneratedConfig(plan *plans.Plan, out string) (wroteConfig bool, 
 	}
 
 	return wroteConfig, diags
+}
+
+
+// forgetWarningForPlan inspects the plan for any "forget" actions and returns
+// a single consolidated warning listing all resource instances that will be
+// removed from state, rather than emitting one warning per instance.
+func forgetWarningForPlan(plan *plans.Plan) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+	if plan == nil || plan.Changes == nil {
+		return diags
+	}
+
+	var forgotten []string
+	for _, rc := range plan.Changes.Resources {
+		if rc.Action == plans.Forget || rc.Action == plans.ForgetThenCreate {
+			forgotten = append(forgotten, " - "+rc.Addr.String())
+		}
+	}
+
+	if len(forgotten) == 0 {
+		return diags
+	}
+
+	detail := "After this plan is applied, the objects associated with the following\n" +
+		"resource instances will no longer be managed by OpenTofu:\n" +
+		strings.Join(forgotten, "\n") + "\n\n" +
+		"These objects will continue to exist in the remote system until you delete\n" +
+		"them outside of OpenTofu. If you wish to manage any of these objects with\n" +
+		"OpenTofu again in future then you will need to re-import them."
+
+	diags = diags.Append(tfdiags.Sourceless(
+		tfdiags.Warning,
+		"Objects will be removed from state",
+		detail,
+	))
+	return diags
 }
