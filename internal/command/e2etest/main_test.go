@@ -50,7 +50,6 @@ func setup() func() {
 		return func() {}
 	}
 
-	// Build with e2e testing features turned on
 	tmpFilename := e2e.GoBuild("github.com/opentofu/opentofu/cmd/tofu", "tofu")
 
 	// Make the executable available for use in tests
