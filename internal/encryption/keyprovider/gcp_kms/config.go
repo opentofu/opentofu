@@ -152,6 +152,8 @@ func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
 	}
 
 	var aad []byte
+	// Additional Authenticated Data is an integrity check for GCP KMS, used both for encryption
+	// and decryption: https://docs.cloud.google.com/kms/docs/additional-authenticated-data
 	if c.AdditionalAuthenticatedData != "" {
 		var err error
 		aad, err = base64.StdEncoding.DecodeString(c.AdditionalAuthenticatedData)
