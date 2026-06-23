@@ -1781,7 +1781,7 @@ func TestInit_providerSource(t *testing.T) {
 			getproviders.MustParseVersionConstraints("= 1.2.4"),
 			[]getproviders.Hash{
 				getproviders.HashScheme1.New("vEthLkqAecdQimaW6JHZ0SBRNtHibLnOb31tX9ZXlcI="),
-				getproviders.HashSchemeZip.New("ec7c3fd6eb575c06f0e6957e1ee8531a588805c4eeb8abb5e4156911e080eb31"),
+				getproviders.HashSchemeZip.New("4115ba79e1745c9236f24ce18e643cfc1893140cbc963066348d2dde9c7c55c5"),
 			},
 		),
 		addrs.NewDefaultProvider("test"): depsfile.NewProviderLock(
@@ -1790,7 +1790,7 @@ func TestInit_providerSource(t *testing.T) {
 			getproviders.MustParseVersionConstraints("= 1.2.3"),
 			[]getproviders.Hash{
 				getproviders.HashScheme1.New("8CjxaUBuegKZSFnRos39Fs+CS78ax0Dyb7aIA5XBiNI="),
-				getproviders.HashSchemeZip.New("6f85a1f747dd09455cd77683c0e06da647d8240461b8b36b304b9056814d91f2"),
+				getproviders.HashSchemeZip.New("ac90a1419dd4648431af93b6695b6d6efcad87950ee608de4198df8e6debff23"),
 			},
 		),
 		addrs.NewDefaultProvider("source"): depsfile.NewProviderLock(
@@ -1799,7 +1799,7 @@ func TestInit_providerSource(t *testing.T) {
 			getproviders.MustParseVersionConstraints("= 1.2.3"),
 			[]getproviders.Hash{
 				getproviders.HashScheme1.New("ACYytVQ2Q6JfoEs7xxCqa1yGFf9HwF3SEHzJKBoJfo0="),
-				getproviders.HashSchemeZip.New("69f700dbf9eda586abef22ab08e3a3896760e01885f6cbda4460ceeca4e3c0ba"),
+				getproviders.HashSchemeZip.New("4932d637b6c33444920bf945d6ee17de83ab4b193c1707b35c84d828de880158"),
 			},
 		),
 	}
@@ -2037,7 +2037,7 @@ func TestInit_getUpgradePlugins(t *testing.T) {
 			getproviders.MustParseVersionConstraints("> 1.0.0, < 3.0.0"),
 			[]getproviders.Hash{
 				getproviders.HashScheme1.New("ntfa04OlRqIfGL/Gkd+nGMJSHGWyAgMQplFWk7WEsOk="),
-				getproviders.HashSchemeZip.New("29e1045215056680ac59fe95554f0eb1323534a3d411aae2a7a04495ac884258"),
+				getproviders.HashSchemeZip.New("cf1650d77dfe5681ebd7917a813c0c982d0d2e951ded422a83fbf22a1e0e6bc3"),
 			},
 		),
 		addrs.NewDefaultProvider("exact"): depsfile.NewProviderLock(
@@ -2046,7 +2046,7 @@ func TestInit_getUpgradePlugins(t *testing.T) {
 			getproviders.MustParseVersionConstraints("= 1.2.3"),
 			[]getproviders.Hash{
 				getproviders.HashScheme1.New("Xgk+LFrzi9Mop6+d01TCTaD3kgSrUASCAUU1aDsEsJU="),
-				getproviders.HashSchemeZip.New("9cb7a3006b9c1344b2d838a5bb03c1e0f04b8c046beb38901eaf3cc99fceb870"),
+				getproviders.HashSchemeZip.New("604a3ebf14e83ef19aab2e8e4063c4cd7d53c9c4c30ad22db0d9ce4f8f6edc83"),
 			},
 		),
 		addrs.NewDefaultProvider("greater-than"): depsfile.NewProviderLock(
@@ -2055,7 +2055,7 @@ func TestInit_getUpgradePlugins(t *testing.T) {
 			getproviders.MustParseVersionConstraints(">= 2.3.3"),
 			[]getproviders.Hash{
 				getproviders.HashScheme1.New("8M5DXICmUiVjbkxNNO0zXNsV6duCVNWzq3/Kf0mNIo4="),
-				getproviders.HashSchemeZip.New("bfb683ee94027efb191986484352ada8219cd45e856d25c2ddcb489e100a9a02"),
+				getproviders.HashSchemeZip.New("4c638927fcf2d35eb1c3a91c6745c0bef1a5365294641d4a8fca9c529cb8521f"),
 			},
 		),
 	}
@@ -2228,7 +2228,7 @@ provider "registry.opentofu.org/hashicorp/test" {
   constraints = "1.2.3"
   hashes = [
     "h1:8CjxaUBuegKZSFnRos39Fs+CS78ax0Dyb7aIA5XBiNI=",
-    "zh:6f85a1f747dd09455cd77683c0e06da647d8240461b8b36b304b9056814d91f2",
+    "zh:ac90a1419dd4648431af93b6695b6d6efcad87950ee608de4198df8e6debff23",
   ]
 }
 `)
@@ -2261,7 +2261,7 @@ provider "registry.opentofu.org/hashicorp/test" {
   version     = "1.2.3"
   constraints = "1.2.3"
   hashes = [
-    "zh:6f85a1f747dd09455cd77683c0e06da647d8240461b8b36b304b9056814d91f2",
+    "zh:ac90a1419dd4648431af93b6695b6d6efcad87950ee608de4198df8e6debff23",
   ]
 }
 `)
@@ -2288,7 +2288,7 @@ provider "registry.opentofu.org/hashicorp/test" {
   constraints = "1.2.3"
   hashes = [
     "h1:8CjxaUBuegKZSFnRos39Fs+CS78ax0Dyb7aIA5XBiNI=",
-    "zh:6f85a1f747dd09455cd77683c0e06da647d8240461b8b36b304b9056814d91f2",
+    "zh:ac90a1419dd4648431af93b6695b6d6efcad87950ee608de4198df8e6debff23",
   ]
 }
 `)

@@ -10,6 +10,13 @@ UPGRADE NOTES:
 
     [Modern Windows versions now support OpenSSH](https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse), and so we suggest that anyone currently relying on WinRM plan to migrate to using SSH instead.
 
+
+- The `base64gzip` function now generates results that are equivalent to _but not equal to_ the results from previous releases, as a result of a new optimized DEFLATE compression implementation.
+
+    If you use this function as part of an argument to a managed resource then OpenTofu is likely to propose to update or replace the instances of that resource, depending on how the provider responds to the differing base64 data. The new compressed form should nonetheless still decompress to the same sequence of bytes.
+
+- OpenTofu on macOS now requires macOS 13 Ventura or later. Earlier versions are no longer supported.
+
 - OpenTofu v1.13 is the final release series that will include official builds for 32-bit CPU architectures (`*_386` and `*_arm` platforms).
 
     If you are currently relying on our official releases of OpenTofu on one of these platforms then we suggest that you begin planning to migrate to running OpenTofu on a 64-bit CPU architecture (`*_amd64` or `*_arm64` platforms) before the v1.13 series reaches end-of-life.
