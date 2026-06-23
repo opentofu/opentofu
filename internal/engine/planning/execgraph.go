@@ -19,10 +19,6 @@ import (
 //   - Its exported methods that add to or modify the graph are all
 //     concurrency-safe, for convenient use during the concurrent planning work
 //     driven by the evaluator.
-//   - It keeps track of certain "singleton" collections of graph nodes that
-//     different parts of the planning engine all need to agree on for the
-//     execution graph to be correct, such as ensuring there's only one open
-//     and one close operation per distinct provider instance address.
 //   - Many of its methods can potentially add multiple operations to the graph
 //     at once, to let the planning engine work at a higher level of abstraction
 //     than just the individual raw operation types. The lower-level
@@ -35,13 +31,6 @@ type execGraphBuilder struct {
 	// lower is the lower-level graph builder that this utility is built in
 	// terms of.
 	lower *execgraph.Builder
-
-	// During construction we treat certain items as singletons so that
-	// we can do the associated work only once while providing it to
-	// multiple callers, and so these maps track those singletons but
-	// we throw these away after building is complete because the graph
-	// becomes immutable at that point.
-	resourceInstAddrRefs addrs.Map[addrs.AbsResourceInstance, execgraph.ResultRef[addrs.AbsResourceInstance]]
 
 	// makeDeposedKey is a function provided by the caller for allocating the
 	// tracking keys for objects that will become newly-deposed during the
@@ -60,9 +49,8 @@ type execGraphBuilder struct {
 
 func newExecGraphBuilder(makeDeposedKey func(addrs.AbsResourceInstance) addrs.DeposedKey) *execGraphBuilder {
 	return &execGraphBuilder{
-		lower:                execgraph.NewBuilder(),
-		resourceInstAddrRefs: addrs.MakeMap[addrs.AbsResourceInstance, execgraph.ResultRef[addrs.AbsResourceInstance]](),
-		makeDeposedKey:       makeDeposedKey,
+		lower:          execgraph.NewBuilder(),
+		makeDeposedKey: makeDeposedKey,
 	}
 }
 
