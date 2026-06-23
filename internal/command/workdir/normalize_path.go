@@ -40,6 +40,20 @@ func (d *Dir) NormalizePath(given string) string {
 		return filepath.Clean(given)
 	}
 
+	// filepath.Abs relies on os.Getwd, which on Unix prefers the $PWD
+	// environment variable when it names the current directory. If OpenTofu
+	// was launched from a directory reached through a symlink, $PWD keeps the
+	// symlinked path while the kernel still resolves relative paths against
+	// the real directory. Computing a relative path against the symlinked
+	// path then yields a result that no longer resolves to the intended file
+	// (e.g. "tofu fmt /abs/path" failing with "No file or directory"). We
+	// canonicalize the main directory so the relative result stays in sync
+	// with how the filesystem actually resolves it.
+	// See https://github.com/opentofu/opentofu/issues/3879.
+	if resolved, err := filepath.EvalSymlinks(absMain); err == nil {
+		absMain = resolved
+	}
+
 	if !filepath.IsAbs(given) {
 		given = filepath.Join(absMain, given)
 	}
