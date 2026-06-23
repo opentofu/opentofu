@@ -31,10 +31,7 @@ import (
 func (b *execGraphBuilder) ManagedResourceInstanceSubgraph(
 	plannedChange *plans.ResourceInstanceChange,
 	effectiveReplaceOrder resourceInstanceReplaceOrder,
-) (
-	valueRef, deletionRef execgraph.ResourceInstanceResultRef, // reference to the final new value and, if addDeleteDep is not nil, the deletion result
-	addConfigDep, addDeleteDep func(execgraph.AnyResultRef), // callbacks to register explicit dependencies, or nil when not relevant
-) {
+) resourceInstanceObjectSubgraph {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -64,21 +61,23 @@ func (b *execGraphBuilder) ManagedResourceInstanceSubgraph(
 		changeAction = effectiveReplaceOrder.ChangeAction()
 	}
 
+	var ret resourceInstanceObjectSubgraph
+
 	// The shape of execution subgraph we generate here varies depending on
 	// which change action was planned.
 	switch changeAction {
 	case plans.Create:
-		valueRef, addConfigDep = b.managedResourceInstanceSubgraphCreate(plannedChange)
+		ret.valueRef, ret.addConfigDep = b.managedResourceInstanceSubgraphCreate(plannedChange)
 	case plans.Update:
-		valueRef, addConfigDep = b.managedResourceInstanceSubgraphUpdate(plannedChange)
+		ret.valueRef, ret.addConfigDep = b.managedResourceInstanceSubgraphUpdate(plannedChange)
 	case plans.Delete:
-		valueRef, deletionRef, addDeleteDep = b.managedResourceInstanceSubgraphDelete(plannedChange)
+		ret.valueRef, ret.deletionRef, ret.addDeleteDep = b.managedResourceInstanceSubgraphDelete(plannedChange)
 	case plans.Forget:
-		valueRef = b.managedResourceInstanceSubgraphForget(plannedChange)
+		ret.valueRef = b.managedResourceInstanceSubgraphForget(plannedChange)
 	case plans.DeleteThenCreate, plans.ForgetThenCreate:
-		valueRef, deletionRef, addConfigDep, addDeleteDep = b.managedResourceInstanceSubgraphDeleteOrForgetThenCreate(plannedChange)
+		ret.valueRef, ret.deletionRef, ret.addConfigDep, ret.addDeleteDep = b.managedResourceInstanceSubgraphDeleteOrForgetThenCreate(plannedChange)
 	case plans.CreateThenDelete:
-		valueRef, deletionRef, addConfigDep, addDeleteDep = b.managedResourceInstanceSubgraphCreateThenDelete(plannedChange)
+		ret.valueRef, ret.deletionRef, ret.addConfigDep, ret.addDeleteDep = b.managedResourceInstanceSubgraphCreateThenDelete(plannedChange)
 	default:
 		// FIXME: We need to handle plans.NoOp too because that can occur if
 		// the configuration hasn't changed but the object will move to a
@@ -90,7 +89,7 @@ func (b *execGraphBuilder) ManagedResourceInstanceSubgraph(
 		panic(fmt.Sprintf("unsupported change action %s for %s", plannedChange.Action, plannedChange.Addr))
 	}
 
-	return valueRef, deletionRef, addConfigDep, addDeleteDep
+	return ret
 }
 
 func (b *execGraphBuilder) managedResourceInstanceSubgraphCreate(

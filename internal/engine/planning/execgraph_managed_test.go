@@ -14,7 +14,6 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/engine/internal/execgraph"
 	"github.com/opentofu/opentofu/internal/plans"
 )
 
@@ -36,24 +35,13 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 	}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance)
 
 	tests := map[string]struct {
-		// Build has an awkward signature because this test was written for
-		// an older prototype design of ManagedResourceInstanceSubgraph that
-		// didn't return as many results.
-		// TODO: Find a different way to structure this test so that we can
-		// confine this complexity only to the testing loop below and not
-		// to each individual test case.
 		Build func(
 			b *execGraphBuilder,
-		) (
-			execgraph.ResourceInstanceResultRef,
-			execgraph.ResourceInstanceResultRef,
-			func(execgraph.AnyResultRef),
-			func(execgraph.AnyResultRef),
-		)
+		) resourceInstanceObjectSubgraph
 		WantRepr string
 	}{
 		"create": {
-			func(b *execGraphBuilder) (execgraph.ResourceInstanceResultRef, execgraph.ResourceInstanceResultRef, func(execgraph.AnyResultRef), func(execgraph.AnyResultRef)) {
+			func(b *execGraphBuilder) resourceInstanceObjectSubgraph {
 				return b.ManagedResourceInstanceSubgraph(
 					&plans.ResourceInstanceChange{
 						Addr:        instAddr,
@@ -78,7 +66,7 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 			`,
 		},
 		"update": {
-			func(b *execGraphBuilder) (execgraph.ResourceInstanceResultRef, execgraph.ResourceInstanceResultRef, func(execgraph.AnyResultRef), func(execgraph.AnyResultRef)) {
+			func(b *execGraphBuilder) resourceInstanceObjectSubgraph {
 				return b.ManagedResourceInstanceSubgraph(
 					&plans.ResourceInstanceChange{
 						Addr:        instAddr,
@@ -104,7 +92,7 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 			`,
 		},
 		"update with move": {
-			func(b *execGraphBuilder) (execgraph.ResourceInstanceResultRef, execgraph.ResourceInstanceResultRef, func(execgraph.AnyResultRef), func(execgraph.AnyResultRef)) {
+			func(b *execGraphBuilder) resourceInstanceObjectSubgraph {
 				oldInstAddr := addrs.Resource{
 					Mode: addrs.ManagedResourceMode,
 					Type: "test",
@@ -136,7 +124,7 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 			`,
 		},
 		"delete": {
-			func(b *execGraphBuilder) (execgraph.ResourceInstanceResultRef, execgraph.ResourceInstanceResultRef, func(execgraph.AnyResultRef), func(execgraph.AnyResultRef)) {
+			func(b *execGraphBuilder) resourceInstanceObjectSubgraph {
 				return b.ManagedResourceInstanceSubgraph(
 					&plans.ResourceInstanceChange{
 						Addr:        instAddr,
@@ -170,7 +158,7 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 			//   and so this wiring creates that effect during the apply phase.
 		},
 		"delete then create": {
-			func(b *execGraphBuilder) (execgraph.ResourceInstanceResultRef, execgraph.ResourceInstanceResultRef, func(execgraph.AnyResultRef), func(execgraph.AnyResultRef)) {
+			func(b *execGraphBuilder) resourceInstanceObjectSubgraph {
 				return b.ManagedResourceInstanceSubgraph(
 					&plans.ResourceInstanceChange{
 						Addr:        instAddr,
@@ -199,7 +187,7 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 			`,
 		},
 		"delete then create with move": {
-			func(b *execGraphBuilder) (execgraph.ResourceInstanceResultRef, execgraph.ResourceInstanceResultRef, func(execgraph.AnyResultRef), func(execgraph.AnyResultRef)) {
+			func(b *execGraphBuilder) resourceInstanceObjectSubgraph {
 				oldInstAddr := addrs.Resource{
 					Mode: addrs.ManagedResourceMode,
 					Type: "test",
@@ -234,7 +222,7 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 			`,
 		},
 		"create then delete": {
-			func(b *execGraphBuilder) (execgraph.ResourceInstanceResultRef, execgraph.ResourceInstanceResultRef, func(execgraph.AnyResultRef), func(execgraph.AnyResultRef)) {
+			func(b *execGraphBuilder) resourceInstanceObjectSubgraph {
 				return b.ManagedResourceInstanceSubgraph(
 					&plans.ResourceInstanceChange{
 						Addr:        instAddr,
@@ -265,7 +253,7 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 			`,
 		},
 		"create then delete with move": {
-			func(b *execGraphBuilder) (execgraph.ResourceInstanceResultRef, execgraph.ResourceInstanceResultRef, func(execgraph.AnyResultRef), func(execgraph.AnyResultRef)) {
+			func(b *execGraphBuilder) resourceInstanceObjectSubgraph {
 				oldInstAddr := addrs.Resource{
 					Mode: addrs.ManagedResourceMode,
 					Type: "test",
@@ -318,7 +306,8 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 			// of this function which only had one result. We should find a
 			// nice way to restructure this test so that it can check whether
 			// _all_ of the return values are correct.
-			resultRef, _, _, _ := test.Build(builder)
+			subgraph := test.Build(builder)
+			resultRef := subgraph.valueRef
 			builder.lower.SetResourceInstanceFinalStateResult(instAddr, resultRef)
 
 			graph := builder.Finish()

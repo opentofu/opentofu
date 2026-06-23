@@ -93,7 +93,7 @@ func (b *execGraphBuilder) AddResourceInstanceObjectSubgraphs(
 			continue
 		}
 
-		valueRef, deletionRef, addConfigDep, addDeleteDep := b.resourceInstanceChangeSubgraph(
+		subgraph := b.resourceInstanceChangeSubgraph(
 			plannedChange,
 			effectiveReplaceOrders.Get(addr),
 		)
@@ -101,17 +101,17 @@ func (b *execGraphBuilder) AddResourceInstanceObjectSubgraphs(
 		// We'll use these two add*Dep functions in the second loop below as
 		// we fill in all of the explicit dependencies caused by expressions
 		// in the configuration.
-		if addConfigDep != nil {
-			addConfigDeps.Put(addr, addConfigDep)
+		if subgraph.addConfigDep != nil {
+			addConfigDeps.Put(addr, subgraph.addConfigDep)
 		}
-		if addDeleteDep != nil {
-			deletionRefs.Put(addr, deletionRef)
-			addDeleteDeps.Put(addr, addDeleteDep)
+		if subgraph.addDeleteDep != nil {
+			deletionRefs.Put(addr, subgraph.deletionRef)
+			addDeleteDeps.Put(addr, subgraph.addDeleteDep)
 		}
 
-		if addr.IsCurrent() && valueRef != nil {
-			resultRefs.Put(addr, valueRef)
-			b.SetResourceInstanceFinalStateResult(addr.InstanceAddr, valueRef)
+		if addr.IsCurrent() && subgraph.valueRef != nil {
+			resultRefs.Put(addr, subgraph.valueRef)
+			b.SetResourceInstanceFinalStateResult(addr.InstanceAddr, subgraph.valueRef)
 		}
 	}
 
@@ -196,10 +196,7 @@ func ensureResourceInstanceObjectResultRef(addr addrs.AbsResourceInstanceObject,
 func (b *execGraphBuilder) resourceInstanceChangeSubgraph(
 	change *plans.ResourceInstanceChange,
 	effectiveReplaceOrder resourceInstanceReplaceOrder,
-) (
-	valueRef, deletionRef execgraph.ResourceInstanceResultRef, // reference to the final new value and, if addDeleteDep is not nil, the deletion result
-	addConfigDep, addDeleteDep func(execgraph.AnyResultRef), // callbacks to register explicit dependencies, or nil when not relevant
-) {
+) resourceInstanceObjectSubgraph {
 	resourceMode := change.Addr.Resource.Resource.Mode
 	switch resourceMode {
 	case addrs.ManagedResourceMode:
@@ -228,4 +225,31 @@ func (b *execGraphBuilder) SetResourceInstanceFinalStateResult(addr addrs.AbsRes
 	b.mu.Lock()
 	b.lower.SetResourceInstanceFinalStateResult(addr, result)
 	b.mu.Unlock()
+}
+
+// resourceInstanceObjectSubgraph represents the external connection points of a
+// previously-built resource instance object subgraph so that we can
+// subsequently create dependency edges between the subgraphs.
+type resourceInstanceObjectSubgraph struct {
+	// valueRef and deletionRef are the result references for whatever
+	// operations in the subgraph represent the result of creating/updating
+	// and of deleting the resource instance respectively.
+	//
+	// These are nil for subgraphs that don't include a relevant result.
+	valueRef, deletionRef execgraph.ResourceInstanceResultRef
+
+	// addConfigDep and addDeleteDep each add an additional dependency to
+	// one of the operations in the subgraph.
+	//
+	// addConfigDep adds a dependency of whatever operation accesses the
+	// configuration for the resource instance object, and so delays the
+	// evaluation of
+	// the configuration.
+	//
+	// addDeleteDep adds a dependency of whatever operation deletes the
+	// associated object.
+	//
+	// Each of these is nil when there is no corresponding operation to add
+	// dependencies to.
+	addConfigDep, addDeleteDep func(execgraph.AnyResultRef)
 }
