@@ -137,7 +137,7 @@ func TestBase64Gzip(t *testing.T) {
 	}{
 		{
 			cty.StringVal("test"),
-			cty.StringVal("H4sIAAAAAAAA/ypJLS4BAAAA//8BAAD//wx+f9gEAAAA"),
+			cty.StringVal("H4sIAAAAAAAA/wAEAPv/dGVzdAAAAP//AwAMfn/YBAAAAA=="),
 			false,
 		},
 	}
@@ -168,6 +168,11 @@ func TestBase64Gunzip(t *testing.T) {
 		Want   cty.Value
 		Err    string
 	}{
+		{
+			cty.StringVal("H4sIAAAAAAAA/wAEAPv/dGVzdAAAAP//AwAMfn/YBAAAAA=="),
+			cty.StringVal("test"),
+			"",
+		},
 		{
 			cty.StringVal("H4sIAAAAAAAA/ypJLS4BAAAA//8BAAD//wx+f9gEAAAA"),
 			cty.StringVal("test"),
