@@ -2,6 +2,10 @@ The v1.11.x release series is supported until **August 1 2026**.
 
 ## 1.11.11 (Unreleased)
 
+BUG FIXES:
+
+* Fixes an incomplete OTEL dependencies upgrade from the previous patch release. ([#4303](https://github.com/opentofu/opentofu/pull/4303)) 
+
 ## 1.11.10
 
 BUG FIXES:
