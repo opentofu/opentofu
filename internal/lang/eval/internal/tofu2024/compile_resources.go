@@ -10,6 +10,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -62,6 +63,14 @@ func compileModuleInstanceResource(
 	resourceAddr := config.Addr()
 	absAddr := moduleInstanceAddr.Resource(resourceAddr.Mode, resourceAddr.Type, resourceAddr.Name)
 
+	// We compile the depends_on argument here but don't evaluate it yet.
+	// It actually gets evaluated inside the "instance selector" we'll
+	// construct below, when it gets asked for its instances, and include
+	// the resulting marks on the count.index, each.key, and/or each.value
+	// results because that means it'll get evaluated only once per resource
+	// instead of separately for each resource instance.
+	sharedDeps, compileInstanceDeps := compileDependsOn(config.DependsOn, declScope, extraMarks)
+
 	var configEvalable exprs.Evalable
 	resourceTypeSchema, diags := providers.ResourceTypeSchema(ctx,
 		config.Provider,
@@ -79,18 +88,13 @@ func compileModuleInstanceResource(
 			Subject:  config.TypeRange.Ptr(),
 		})
 		configEvalable = exprs.ForcedErrorEvalable(diags, tfdiags.SourceRangeFromHCL(config.TypeRange))
+	} else if resourceTypeSchema.Block == nil {
+		// Assumed static context, I don't love this sort of flagging though
+		configEvalable = exprs.EvalableHCLExpression(&hclsyntax.LiteralValueExpr{Val: cty.DynamicVal})
 	} else {
 		spec := resourceTypeSchema.Block.DecoderSpec()
 		configEvalable = exprs.EvalableHCLBodyWithDynamicBlocks(config.Config, spec)
 	}
-
-	// We compile the depends_on argument here but don't evaluate it yet.
-	// It actually gets evaluated inside the "instance selector" we'll
-	// construct below, when it gets asked for its instances, and include
-	// the resulting marks on the count.index, each.key, and/or each.value
-	// results because that means it'll get evaluated only once per resource
-	// instead of separately for each resource instance.
-	sharedDeps, compileInstanceDeps := compileDependsOn(config.DependsOn, declScope, extraMarks)
 
 	ret := &configgraph.Resource{
 		Addr:      absAddr,

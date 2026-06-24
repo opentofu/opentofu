@@ -8,6 +8,7 @@ package tofu2024
 import (
 	"context"
 
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -55,15 +56,6 @@ func compileProviderConfig(
 		providerAddr = reqd.Type
 	}
 
-	var configEvalable exprs.Evalable
-	configSchema, diags := providers.ProviderConfigSchema(ctx, providerAddr)
-	if diags.HasErrors() {
-		configEvalable = exprs.ForcedErrorEvalable(diags, tfdiags.SourceRangeFromHCL(config.DeclRange))
-	} else {
-		spec := configSchema.Block.DecoderSpec()
-		configEvalable = exprs.EvalableHCLBodyWithDynamicBlocks(config.Config, spec)
-	}
-
 	// Provider configuration blocks don't have an explicit depends_on argument,
 	// but to make this as similar as possible to how we handle other similar
 	// block types we'll use the depends_on compiler with an always-empty
@@ -71,6 +63,20 @@ func compileProviderConfig(
 	// instance selector and then into the CompileProviderInstance callback
 	// below.
 	sharedDeps, compileInstanceDeps := compileDependsOn(nil, declScope, extraMarks)
+
+	var configEvalable exprs.Evalable
+	configSchema, diags := providers.ProviderConfigSchema(ctx, providerAddr)
+	if diags.HasErrors() {
+		configEvalable = exprs.ForcedErrorEvalable(diags, tfdiags.SourceRangeFromHCL(config.DeclRange))
+	} else if configSchema == nil {
+		panic("Is this possible, do we need a diagnostic here?")
+	} else if configSchema.Block == nil {
+		// Assumed static context, I don't love this sort of flagging though
+		configEvalable = exprs.EvalableHCLExpression(&hclsyntax.LiteralValueExpr{Val: cty.DynamicVal})
+	} else {
+		spec := configSchema.Block.DecoderSpec()
+		configEvalable = exprs.EvalableHCLBodyWithDynamicBlocks(config.Config, spec)
+	}
 
 	return &configgraph.ProviderConfig{
 		Addr: addrs.AbsProviderConfigCorrect{

@@ -11,15 +11,12 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/apparentlymart/go-versions/versions"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
-	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/engine/applying"
 	"github.com/opentofu/opentofu/internal/engine/planning"
 	"github.com/opentofu/opentofu/internal/engine/plugins"
@@ -87,23 +84,25 @@ func (c *Context) newEngineShim(ctx context.Context, config *configs.Config, inp
 
 	inputValues := exprs.ConstantValuer(cty.ObjectVal(rawInput))
 
-	tempLoader, _ := configload.NewLoader(&configload.Config{})
-
 	owd := "."
 	if c.meta != nil && c.meta.OriginalWorkingDir != "" {
 		owd = c.meta.OriginalWorkingDir
+	}
+
+	modules := c.modules
+	if modules == nil {
+		// testing fallback
+		modules = newRuntimeModulesForTesting{config: config}
 	}
 
 	plugins := plugins.NewRuntimePluginsTemp(c.plugins.providers, c.plugins.provisioners)
 	evalCtx := &eval.EvalContext{
 		RootModuleDir:      config.Module.SourceDir,
 		OriginalWorkingDir: owd,
-		Modules: &newRuntimeModules{
-			loader: tempLoader,
-		},
-		Providers:     plugins,
-		Provisioners:  plugins,
-		PlanTimestamp: planTimestamp,
+		Modules:            modules,
+		Providers:          plugins,
+		Provisioners:       plugins,
+		PlanTimestamp:      planTimestamp,
 	}
 	done := func() {
 		// We'll call close with a cancel-free context because we do still
@@ -221,57 +220,21 @@ func (c *Context) newEngineApply(ctx context.Context, config *configs.Config, pl
 	return newState, diags
 }
 
-// newRuntimeModules is an implementation of [eval.ExternalModules] that makes
-// a best effort to shim to OpenTofu's current module loader, even though
-// it works in some slightly-different terms than this new API expects.
-type newRuntimeModules struct {
-	loader *configload.Loader
-
-	// configload.Loader is not concurrency-safe because it wraps
-	// hclparse.Parser functionality that is not concurrency-safe, so we must
-	// hold this lock whenever we're interacting with the loader object.
-	mu sync.Mutex
+type newRuntimeModulesForTesting struct {
+	config *configs.Config
 }
 
-var _ eval.ExternalModules = (*newRuntimeModules)(nil)
-
-// ModuleConfig implements evalglue.ExternalModules.
-func (n *newRuntimeModules) ModuleConfig(ctx context.Context, source addrs.ModuleSource, allowedVersions versions.Set, forCall *addrs.AbsModuleCall) (eval.UncompiledModule, tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	var sourceDir string
-	switch source := source.(type) {
-	case addrs.ModuleSourceLocal:
-		sourceDir = filepath.Clean(filepath.FromSlash(string(source)))
-	default:
-		// Hack in support for file:// paths to allow existing tests to run
-		// This should be removed once support is added for [addrs.ModuleSourceRemote]
-		str := source.String()
-		if strings.HasPrefix(str, "file://") {
-			sourceDir = strings.TrimPrefix(str, "file://")
-			break
+func (n newRuntimeModulesForTesting) ModuleConfig(ctx context.Context, source addrs.ModuleSource, allowedVersions versions.Set, forCall *addrs.AbsModuleCall) (eval.UncompiledModule, tfdiags.Diagnostics) {
+	if forCall == nil {
+		// Root Module
+		if n.config.Module.ProviderRequirements == nil {
+			// Broken tests
+			n.config.Module.ProviderRequirements = &configs.RequiredProviders{}
 		}
-
-		// For this early stub implementation we only support local source
-		// addresses. We'll expand this later but that'll require this codepath
-		// to have access to the information about what's in the module cache
-		// directory at ".terraform/modules", which we've not arranged for yet.
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"New runtime codepath only supports local module sources",
-			fmt.Sprintf("Cannot load %q, because our temporary codepath for the new language runtime only supports local module sources for now.", source),
-		))
-		return nil, diags
+		return eval.PrepareTofu2024Module(source, n.config.Module), nil
 	}
-	log.Printf("[TRACE] backend/local: Loading module from %q from local path %q", source, sourceDir)
+	path := forCall.Module.Module().Child(forCall.Call.Name)
+	mod := n.config.Descendent(path)
 
-	n.mu.Lock()
-	mod, hclDiags := n.loader.Parser().LoadConfigDirUneval(sourceDir, configs.SelectiveLoadAll)
-	n.mu.Unlock()
-	diags = diags.Append(hclDiags)
-	if hclDiags.HasErrors() {
-		return nil, diags
-	}
-
-	return eval.PrepareTofu2024Module(source, mod), diags
+	return eval.PrepareTofu2024Module(source, mod.Module), nil
 }

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/apparentlymart/go-versions/versions"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	version "github.com/hashicorp/go-version"
@@ -171,6 +172,7 @@ func TestLoadModuleCall(t *testing.T) {
 		ctydebug.CmpOptions,
 		cmp.AllowUnexported(ProviderConfigRef{}),
 		cmpopts.IgnoreUnexported(hcl.TraverseAttr{}, hcl.TraverseIndex{}, hcl.TraverseRoot{}),
+		cmpopts.IgnoreTypes(versions.Set{}),
 		cmpopts.IgnoreTypes(StaticModuleVariables(nil)), // function pointer type is not comparable
 	}
 	if diff := cmp.Diff(wantModules, gotModules, cmpOpts); diff != "" {
@@ -346,6 +348,7 @@ func TestModuleCallWithVersion(t *testing.T) {
 		ctydebug.CmpOptions,
 		cmp.AllowUnexported(ProviderConfigRef{}),
 		cmpopts.IgnoreUnexported(hcl.TraverseAttr{}, hcl.TraverseIndex{}, hcl.TraverseRoot{}),
+		cmpopts.IgnoreTypes(versions.Set{}),
 		cmpopts.IgnoreTypes(StaticModuleVariables(nil)), // function pointer type is not comparable
 		cmp.Comparer(func(a, b *version.Constraint) bool {
 			return a.Equals(b)

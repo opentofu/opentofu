@@ -12,6 +12,7 @@ import (
 	"github.com/apparentlymart/go-workgraph/workgraph"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
@@ -163,6 +164,8 @@ type CompiledModuleInstance interface {
 	// This blocks on the decision about which instances are available for the
 	// relevant provider config.
 	ProviderInstance(ctx context.Context, addr addrs.ProviderInstanceCorrect) *configgraph.ProviderInstance
+
+	ProviderRequirements(ctx context.Context) (getproviders.Requirements, *getproviders.ProvidersQualification, tfdiags.Diagnostics)
 
 	// AnnounceAllGraphevalRequests calls announce for each [grapheval.Once],
 	// [OnceValuer], or other [workgraph.RequestID] anywhere in the tree under this

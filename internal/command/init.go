@@ -543,11 +543,30 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 
 	// First we'll collect all the provider dependencies we can see in the
 	// configuration and the state.
-	reqs, qualifs, hclDiags := config.ProviderRequirements()
-	diags = diags.Append(hclDiags)
-	if hclDiags.HasErrors() {
-		return false, true, diags
+
+	var reqs getproviders.Requirements
+	var qualifs *getproviders.ProvidersQualification
+
+	// New Engine Hacks
+	if c.NewRuntimeEnabled() {
+		configInst, moreDiags := c.StaticConfigInstance(ctx, config.Module, nil)
+		if moreDiags.HasErrors() {
+			return false, true, diags
+		}
+		reqs, qualifs, moreDiags = configInst.ProviderRequirements(ctx)
+		diags = diags.Append(moreDiags)
+		if moreDiags.HasErrors() {
+			return false, true, diags
+		}
+	} else {
+		var hclDiags hcl.Diagnostics
+		reqs, qualifs, hclDiags = config.ProviderRequirements()
+		diags = diags.Append(hclDiags)
+		if hclDiags.HasErrors() {
+			return false, true, diags
+		}
 	}
+
 	if state != nil {
 		stateReqs := state.ProviderRequirements()
 		reqs = reqs.Merge(stateReqs)

@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 
 	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/modsdir"
 )
 
 // LoadConfig reads the OpenTofu module in the given directory and uses it as the
@@ -58,7 +59,7 @@ func (l *Loader) loadConfig(ctx context.Context, rootMod *configs.Module, diags 
 
 // moduleWalkerLoad is a configs.ModuleWalkerFunc for loading modules that
 // are presumed to have already been installed.
-func (l *Loader) moduleWalkerLoad(ctx context.Context, req *configs.ModuleRequest) (*configs.Module, *version.Version, hcl.Diagnostics) {
+func (l *Loader) ModuleLocalPath(ctx context.Context, req *configs.ModuleRequest) (*modsdir.Record, hcl.Diagnostics) {
 	// Since we're just loading here, we expect that all referenced modules
 	// will be already installed and described in our manifest. However, we
 	// do verify that the manifest and the configuration are in agreement
@@ -68,7 +69,7 @@ func (l *Loader) moduleWalkerLoad(ctx context.Context, req *configs.ModuleReques
 	record, exists := l.modules.manifest[key]
 
 	if !exists {
-		return nil, nil, hcl.Diagnostics{
+		return nil, hcl.Diagnostics{
 			{
 				Severity: hcl.DiagError,
 				Summary:  "Module not installed",
@@ -92,7 +93,7 @@ func (l *Loader) moduleWalkerLoad(ctx context.Context, req *configs.ModuleReques
 			Subject:  &req.SourceAddrRange,
 		})
 	}
-	if len(req.VersionConstraint.Required) > 0 && record.Version == nil {
+	if req.VersionConstraint.HasRequirements() && record.Version == nil {
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Module version requirements have changed",
@@ -100,7 +101,7 @@ func (l *Loader) moduleWalkerLoad(ctx context.Context, req *configs.ModuleReques
 			Subject:  &req.SourceAddrRange,
 		})
 	}
-	if record.Version != nil && !req.VersionConstraint.Required.Check(record.Version) {
+	if record.Version != nil && !req.VersionConstraint.Check(record.Version) {
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Module version requirements have changed",
@@ -110,6 +111,17 @@ func (l *Loader) moduleWalkerLoad(ctx context.Context, req *configs.ModuleReques
 			),
 			Subject: &req.SourceAddrRange,
 		})
+	}
+
+	return &record, diags
+}
+
+// moduleWalkerLoad is a configs.ModuleWalkerFunc for loading modules that
+// are presumed to have already been installed.
+func (l *Loader) moduleWalkerLoad(ctx context.Context, req *configs.ModuleRequest) (*configs.Module, *version.Version, hcl.Diagnostics) {
+	record, diags := l.ModuleLocalPath(ctx, req)
+	if diags.HasErrors() {
+		return nil, nil, diags
 	}
 
 	mod, mDiags := l.parser.LoadConfigDir(record.Dir, req.Call)

@@ -13,6 +13,7 @@ import (
 	"github.com/apparentlymart/go-workgraph/workgraph"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
@@ -37,6 +38,8 @@ type CompiledModuleInstance struct {
 	providerLocalNames  map[addrs.Provider]string
 
 	missingProviders rootMissingProviders
+
+	providerRequirements func(ctx context.Context) (getproviders.Requirements, *getproviders.ProvidersQualification, tfdiags.Diagnostics)
 }
 
 var _ evalglue.CompiledModuleInstance = (*CompiledModuleInstance)(nil)
@@ -242,6 +245,11 @@ func (c *CompiledModuleInstance) ResourceInstancesForResource(ctx context.Contex
 			}
 		}
 	}
+}
+
+// ResourceInstancesForResource implements evalglue.ProviderRequirements.
+func (c *CompiledModuleInstance) ProviderRequirements(ctx context.Context) (getproviders.Requirements, *getproviders.ProvidersQualification, tfdiags.Diagnostics) {
+	return c.providerRequirements(ctx)
 }
 
 // AnnounceAllGraphevalRequests implements evalglue.CompiledModuleInstance.

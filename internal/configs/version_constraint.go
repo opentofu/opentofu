@@ -8,6 +8,7 @@ package configs
 import (
 	"fmt"
 
+	"github.com/apparentlymart/go-versions/versions"
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/lang/marks"
@@ -20,8 +21,9 @@ import (
 // a source range so that a helpful diagnostic can be printed in the event
 // that a particular constraint does not match.
 type VersionConstraint struct {
-	Required  version.Constraints
-	DeclRange hcl.Range
+	Required    version.Constraints
+	RequiredSet versions.Set // New style
+	DeclRange   hcl.Range
 }
 
 func decodeVersionConstraint(attr *hcl.Attribute) (VersionConstraint, hcl.Diagnostics) {
@@ -97,4 +99,32 @@ func decodeVersionConstraintValue(attr *hcl.Attribute, val cty.Value) (VersionCo
 
 	ret.Required = constraints
 	return ret, diags
+}
+
+func isUnsetOrAllVersions(v versions.Set) bool {
+	return v == versions.All || v == versions.Set{}
+}
+
+func (v VersionConstraint) HasRequirements() bool {
+	return len(v.Required) > 0 || !isUnsetOrAllVersions(v.RequiredSet)
+}
+
+func (v VersionConstraint) Check(ver *version.Version) bool {
+	if !isUnsetOrAllVersions(v.RequiredSet) {
+		nver, err := versions.ParseVersion(ver.String())
+		if err != nil {
+			// This should not be possible as the two version packages have the same supported formats
+			panic(err)
+		}
+		return v.RequiredSet.Has(nver)
+	}
+	return v.Required.Check(ver)
+}
+
+func (v VersionConstraint) String() string {
+	if !isUnsetOrAllVersions(v.RequiredSet) {
+		// TODO this is not human consumable
+		return v.RequiredSet.GoString()
+	}
+	return v.Required.String()
 }

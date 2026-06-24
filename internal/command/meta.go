@@ -398,6 +398,18 @@ func (m *Meta) contextOpts(ctx context.Context) (*tofu.ContextOpts, error) {
 		)
 	}
 
+	if m.NewRuntimeEnabled() {
+		loader, _ := m.initConfigLoader()
+
+		// This gets the current directory as full path.
+		path := m.WorkingDir.NormalizePath(m.WorkingDir.RootModuleDir())
+		root, _ := loader.Parser().LoadConfigDirUneval(path, configs.SelectiveLoadAll)
+		opts.Modules = &newRuntimeModules{
+			loader: loader,
+			root:   root,
+		}
+	}
+
 	opts.Meta = &tofu.ContextMeta{
 		Env:                workspace,
 		OriginalWorkingDir: m.WorkingDir.OriginalWorkingDir(),

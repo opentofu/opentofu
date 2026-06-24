@@ -110,6 +110,31 @@ func (r Requirements) Merge(other Requirements) Requirements {
 	return ret
 }
 
+func (pq *ProvidersQualification) Merge(other *ProvidersQualification) *ProvidersQualification {
+	ret := &ProvidersQualification{}
+
+	for explicit := range pq.Explicit {
+		ret.AddExplicitProvider(explicit)
+	}
+	for explicit := range other.Explicit {
+		ret.AddExplicitProvider(explicit)
+	}
+
+	for provider, refs := range pq.Implicit {
+		for _, ref := range refs {
+			ret.AddImplicitProvider(provider, ref)
+		}
+	}
+
+	for provider, refs := range other.Implicit {
+		for _, ref := range refs {
+			ret.AddImplicitProvider(provider, ref)
+		}
+	}
+
+	return ret
+}
+
 // Selections gathers together version selections for many different providers.
 //
 // This is the result of provider installation: a specific version selected

@@ -294,6 +294,9 @@ func (m *Meta) installModules(ctx context.Context, rootDir, testsDir string, upg
 	}
 
 	inst := initwd.NewModuleInstaller(m.WorkingDir.ModulesDir(), loader, m.registryClient(ctx), m.ModulePackageFetcher)
+	if m.NewRuntimeEnabled() {
+		inst.ConfigInstance = m.StaticConfigInstance
+	}
 
 	call, vDiags := m.rootModuleCall(ctx, rootDir)
 	diags = diags.Append(vDiags)

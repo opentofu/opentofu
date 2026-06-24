@@ -6,7 +6,6 @@
 package checks
 
 import (
-	"context"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -14,24 +13,21 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configload"
-	"github.com/opentofu/opentofu/internal/initwd"
 )
 
 func TestChecksHappyPath(t *testing.T) {
 	const fixtureDir = "testdata/happypath"
-	loader := configload.NewLoaderForTests(t)
-	inst := initwd.NewModuleInstaller(loader.ModulesDir(), loader, nil, nil)
-	_, instDiags := inst.InstallModules(context.Background(), fixtureDir, "tests", true, false, initwd.ModuleInstallHooksImpl{}, configs.RootModuleCallForTesting())
-	if instDiags.HasErrors() {
-		t.Fatal(instDiags.Err())
-	}
-	if err := loader.RefreshModules(); err != nil {
-		t.Fatalf("failed to refresh modules after installation: %s", err)
+
+	t.Chdir(fixtureDir)
+
+	loader, err := configload.NewLoader(&configload.Config{
+		ModulesDir: ".terraform/modules/",
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	/////////////////////////////////////////////////////////////////////////
-
-	cfg, hclDiags := loader.LoadConfig(t.Context(), fixtureDir, configs.RootModuleCallForTesting())
+	cfg, hclDiags := loader.LoadConfig(t.Context(), ".", configs.RootModuleCallForTesting())
 	if hclDiags.HasErrors() {
 		t.Fatalf("invalid configuration: %s", hclDiags.Error())
 	}

@@ -171,7 +171,9 @@ func (m *Meta) Backend(ctx context.Context, opts *BackendOpts, enc encryption.St
 			return nil, diags
 		}
 	}
-	cliOpts.Validation = true
+	if !m.NewRuntimeEnabled() {
+		cliOpts.Validation = true
+	}
 
 	// If the backend supports CLI initialization, do it.
 	if cli, ok := b.(backend.CLI); ok {

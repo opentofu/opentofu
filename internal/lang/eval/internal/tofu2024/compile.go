@@ -11,6 +11,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -82,6 +83,12 @@ func CompileModuleInstance(
 	topScope := &moduleInstanceScope{
 		inst:          ret,
 		coreFunctions: compileCoreFunctions(ctx, call.AllowImpureFunctions, call.EvalContext.RootModuleDir, call.EvalContext.PlanTimestamp),
+	}
+
+	ret.providerRequirements = func(ctx context.Context) (getproviders.Requirements, *getproviders.ProvidersQualification, tfdiags.Diagnostics) {
+		fakeCfg := &configs.Config{Module: module}
+		reqs, quals, diags := fakeCfg.ProviderRequirements()
+		return reqs, quals, tfdiags.New(diags)
 	}
 
 	// We have some shims in here to deal with the unusual way the existing
