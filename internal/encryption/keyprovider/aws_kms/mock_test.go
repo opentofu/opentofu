@@ -37,11 +37,16 @@ func injectMock(t testing.TB, m *mockKMS) {
 	}
 }
 
+type capturedKMSCalls struct {
+	GenKeyContext  *map[string]string
+	DecryptContext *map[string]string
+}
+
 func injectDefaultMock(t testing.TB) {
 	injectCapturingMock(t, "alias/my-mock-key")
 }
 
-func injectCapturingMock(t testing.TB, keyId string) (capturedGenKeyContext *map[string]string, capturedDecryptContext *map[string]string) {
+func injectCapturingMock(t testing.TB, keyId string) capturedKMSCalls {
 	var genCtx, decCtx map[string]string
 	injectMock(t, &mockKMS{
 		genkey: func(params *kms.GenerateDataKeyInput) (*kms.GenerateDataKeyOutput, error) {
@@ -63,5 +68,8 @@ func injectCapturingMock(t testing.TB, keyId string) (capturedGenKeyContext *map
 			}, nil
 		},
 	})
-	return &genCtx, &decCtx
+	return capturedKMSCalls{
+		GenKeyContext:  &genCtx,
+		DecryptContext: &decCtx,
+	}
 }

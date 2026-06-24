@@ -20,11 +20,11 @@ func getKey(t *testing.T) string {
 func TestKMSProvider_Simple(t *testing.T) {
 	testKeyId := getKey(t)
 
-	var capturedGenKeyContext, capturedDecryptContext *map[string]string
+	var captured capturedKMSCalls
 
 	if testKeyId == "" {
 		testKeyId = "alias/my-mock-key"
-		capturedGenKeyContext, capturedDecryptContext = injectCapturingMock(t, testKeyId)
+		captured = injectCapturingMock(t, testKeyId)
 		t.Setenv("AWS_REGION", "us-east-1")
 		t.Setenv("AWS_ACCESS_KEY_ID", "accesskey")
 		t.Setenv("AWS_SECRET_ACCESS_KEY", "secretkey")
@@ -36,7 +36,7 @@ func TestKMSProvider_Simple(t *testing.T) {
 	providerConfig := Config{
 		KMSKeyID:            testKeyId,
 		KeySpec:             "AES_256",
-		SkipCredsValidation: capturedGenKeyContext != nil, // only skip validation when mocking
+		SkipCredsValidation: captured.GenKeyContext != nil, // only skip validation when mocking
 		EncryptionContext:   encryptionContext,
 	}
 
@@ -64,7 +64,7 @@ func TestKMSProvider_Simple(t *testing.T) {
 		t.Fatalf("No ciphertext blob provided")
 	}
 
-	if capturedGenKeyContext != nil && (*capturedGenKeyContext)["test"] != "test" {
+	if captured.GenKeyContext != nil && (*captured.GenKeyContext)["test"] != "test" {
 		t.Fatalf("Expected encryption context to be passed to GenerateDataKey")
 	}
 
@@ -88,7 +88,7 @@ func TestKMSProvider_Simple(t *testing.T) {
 		t.Fatalf("No ciphertext blob provided")
 	}
 
-	if capturedDecryptContext != nil && (*capturedDecryptContext)["test"] != "test" {
+	if captured.DecryptContext != nil && (*captured.DecryptContext)["test"] != "test" {
 		t.Fatalf("Expected decryption context to be passed to Decrypt")
 	}
 }
