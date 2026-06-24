@@ -70,6 +70,13 @@ func TestParseProvidersLock_basicValidation(t *testing.T) {
 				v.OciMirrorTemplate = "https://example.com/mirror"
 			}),
 		},
+		"invalid oci-mirror flag": {
+			args: []string{"-oci-mirror=invalid{template"},
+			want: providersLockArgsWithDefaults(func(v *ProvidersLock) {
+				v.OciMirrorTemplate = "invalid{template"
+			}),
+			wantErrText: "The -oci-mirror option requires a valid OCI mirror URI template.",
+		},
 		"all mirrors error": {
 			args: []string{"-fs-mirror=/path", "-net-mirror=https://example.com", "-oci-mirror=https://example.com/mirror"},
 			want: providersLockArgsWithDefaults(func(v *ProvidersLock) {

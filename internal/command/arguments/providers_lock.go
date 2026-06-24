@@ -8,6 +8,7 @@ package arguments
 import (
 	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/svchost/uritemplates"
 )
 
 // ProvidersLock represents the command-line arguments for the 'providers lock' command.
@@ -70,6 +71,15 @@ func ParseProvidersLock(args []string) (*ProvidersLock, func(), tfdiags.Diagnost
 			break
 		}
 		mirrorSet = true
+	}
+
+	if err := uritemplates.ValidateLevel1(arguments.OciMirrorTemplate); err != nil {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Invalid OCI mirror URI template",
+			"The -oci-mirror option requires a valid OCI mirror URI template.\n"+
+				"Error: "+err.Error(),
+		))
 	}
 
 	closer, moreDiags := arguments.ViewOptions.Parse()

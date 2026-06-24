@@ -145,22 +145,10 @@ func (c *ProvidersLockCommand) Run(rawArgs []string) int {
 		httpTimeout := c.registryHTTPClient(ctx).HTTPClient.Timeout
 		source = getproviders.NewHTTPMirrorSource(ctx, u, c.Services.CredentialsSource(), httpTimeout, c.ProviderSourceLocationConfig)
 	case args.OciMirrorTemplate != "":
-		template := args.OciMirrorTemplate
-		if err := uritemplates.ValidateLevel1(template); err != nil {
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
-				"Invalid OCI mirror URI template",
-				"The -oci-mirror option requires a valid OCI mirror URI template.",
-			))
-			tracing.SetSpanError(span, diags)
-			view.Diagnostics(diags)
-			return 1
-		}
-
 		source = getproviders.NewOCIRegistryMirrorSource(
 			ctx,
 			func(addr addrs.Provider) (registryDomain string, repositoryName string, err error) {
-				uri, err := uritemplates.ExpandLevel1(template, map[string]string{
+				uri, err := uritemplates.ExpandLevel1(args.OciMirrorTemplate, map[string]string{
 					"hostname":  addr.Hostname.String(),
 					"namespace": addr.Namespace,
 					"type":      addr.Type,
