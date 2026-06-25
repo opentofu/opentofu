@@ -1934,7 +1934,7 @@ got:      %#v`,
 
 // check that a provider can verify a planned destroy
 func TestContext2Apply_plannedDestroy(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureDestroy)
+	SkipExperimental(t, ExperimentalBugProviderPrivate)
 
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `

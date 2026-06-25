@@ -939,7 +939,10 @@ resource "test_resource" "b" {
 }
 
 func TestContext2Plan_destroyWithRefresh(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureUpgradeState, ExperimentalFeatureDestroy)
+	// At the time of writing this comment, the new runtime's planning engine
+	// only performs upgrade and refresh for desired resource instances, and
+	// not for orphan resource instances.
+	SkipExperimental(t, ExperimentalFeatureUpgradeUnwanted)
 
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
@@ -1143,7 +1146,10 @@ import {
 }
 
 func TestContext2Plan_destroySkipRefresh(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureUpgradeState, ExperimentalFeatureDestroy)
+	// At the time of writing this comment, the new runtime's planning engine
+	// only performs upgrade and refresh for desired resource instances, and
+	// not for orphan resource instances.
+	SkipExperimental(t, ExperimentalFeatureUpgradeUnwanted)
 
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
@@ -9093,6 +9099,9 @@ ephemeral "test_ephemeral_resource" "a" {
 
 	for _, mode := range []plans.Mode{plans.NormalMode, plans.RefreshOnlyMode} {
 		t.Run(mode.String(), func(t *testing.T) {
+			if mode == plans.RefreshOnlyMode {
+				SkipExperimental(t, ExperimentalFeatureRefreshOnly)
+			}
 			plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{Mode: mode})
 			if diags.HasErrors() {
 				t.Fatalf("unexpected plan error: %s", diags)

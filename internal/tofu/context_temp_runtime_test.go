@@ -32,6 +32,7 @@ var (
 	ExperimentalBugStateCBD          = ExperimentalFlag{"Bug CreateBeforeDestroy Not Tracked In State", false}
 	ExperimentalBugReferenceProvider = ExperimentalFlag{"Bug Reference Provider", true}
 	ExperimentalBugMissingProvider   = ExperimentalFlag{"Bug Missing Configuration For Provider", true}
+	ExperimentalBugMissingResource   = ExperimentalFlag{"Bug Missing Configuration For Resource Instance", false}
 	ExperimentalBugResourceReadNull  = ExperimentalFlag{"Bug Read Resource Deleted", false}
 	ExperimentalBugDataResource      = ExperimentalFlag{"Bug Data Resource", false}
 	ExperimentalBugVariableSensitive = ExperimentalFlag{"Bug Variables Declared as Sensitive", true}
@@ -39,6 +40,7 @@ var (
 	ExperimentalBugTaintOnCreateFail = ExperimentalFlag{"Bug Not Tainted When Create Fails", false}
 	ExperimentalBugForEach           = ExperimentalFlag{"Bug For Each", true}
 	ExperimentalBugSpuriousReplace   = ExperimentalFlag{"Bug Spurious Replace", true} // New runtime proposes replace where old runtime would've called for update
+	ExperimentalBugProviderPrivate   = ExperimentalFlag{"Bug Provider Private Data Not Preserved", false}
 
 	ExperimentalChangeDiagWording     = ExperimentalFlag{"Change Different Diagnostic Wording", false}
 	ExperimentalChangeErrorEarly      = ExperimentalFlag{"Change Detect Error Earlier", false}
@@ -46,6 +48,7 @@ var (
 	ExperimentalChangeDeferredActions = ExperimentalFlag{"Change New Runtime Supports Deferred Actions", false}
 	ExperimentalChangeNoNoOp          = ExperimentalFlag{"Change New Runtime Doesn't Generate NoOp Changes", false}
 	ExperimentalChangePreReqdProvider = ExperimentalFlag{"Change New Runtime Doesn't Inherit Full Pre \"required_providers\" Behavior", false}
+	ExperimentalChangeDestroyOrder    = ExperimentalFlag{"Change Destroy Order", false}
 
 	ExperimentalFeatureStateDependencies = ExperimentalFlag{"Missing State Dependencies", true}
 	ExperimentalFeatureProviderInstances = ExperimentalFlag{"Missing Provider Instances", true}
@@ -60,11 +63,12 @@ var (
 	ExperimentalFeatureRefresh           = ExperimentalFlag{"Missing Refresh", false}
 	ExperimentalFeatureRefreshOnly       = ExperimentalFlag{"Missing Refresh-only Planning Mode", false}
 	ExperimentalFeatureValidate          = ExperimentalFlag{"Missing Validate", false}
-	ExperimentalFeatureDestroy           = ExperimentalFlag{"Missing Destroy", false}
+	ExperimentalFeatureDestroy           = ExperimentalFlag{"Missing Destroy-mode Planning", true}
 	ExperimentalFeatureMoved             = ExperimentalFlag{"Missing Moved", false}
 	ExperimentalFeatureRemoved           = ExperimentalFlag{"Missing Removed", false}
 	ExperimentalFeatureSkipDestroy       = ExperimentalFlag{"Missing Lifecycle Destroy", false}
 	ExperimentalFeatureUpgradeState      = ExperimentalFlag{"Missing Upgrade Resource State", true}
+	ExperimentalFeatureUpgradeUnwanted   = ExperimentalFlag{"Missing Upgrade Orphan or Deposed Resource Instance State", false}
 	ExperimentalFeatureHooks             = ExperimentalFlag{"Missing Hooks", false}
 	ExperimentalFeatureTarget            = ExperimentalFlag{"Missing Targeting", false}
 	ExperimentalFeatureReplaceTB         = ExperimentalFlag{"Missing replace_triggered_by", false}

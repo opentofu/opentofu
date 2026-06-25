@@ -1785,6 +1785,7 @@ func TestContext2Apply_destroyData(t *testing.T) {
 		t.Fatalf("state has %d resources after destroy; want 0", got)
 	}
 
+	SkipExperimental(t, ExperimentalFeatureHooks)
 	wantHookCalls := []*testHookCall{
 		{"PreApply", "data.null_data_source.testing"},
 		{"PostApply", "data.null_data_source.testing"},
@@ -4194,7 +4195,39 @@ func TestContext2Apply_multiVarOrderInterp(t *testing.T) {
 // Based on GH-10440 where a graph edge wasn't properly being created
 // between a modified resource and a count instance being destroyed.
 func TestContext2Apply_multiVarCountDec(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugExecGraph, ExperimentalFeatureDestroy)
+	// This test was originally added as part of
+	// https://github.com/hashicorp/terraform/pull/10522 , which explains
+	// that its goal was to mimic some behaviors of a now-long-obsolete
+	// earlier version of the Terraform runtime that existed to work around
+	// the fact that both that _really_ old runtime and the current runtime
+	// always did expression interpolation based on information in the working
+	// state, and so it couldn't properly model a situation where the number
+	// of instances of a resource was decreasing without performing the destroy
+	// actions in the "wrong" order.
+	//
+	// For example, in this test case aws_instance.bar includes a reference
+	// to aws_instance.foo.*.id and aws_instance.foo[1] is being deleted.
+	// By our usual rules, aws_instance.foo should get updated first so that
+	// it stops depending on aws_instance.foo[1] before we delete that instance,
+	// but the current runtime intentionally breaks that rule and destroys
+	// aws_instance.foo[1] first so that when aws_instance.foo.*.id is evaluated
+	// the number of instances of aws_instance.foo has already decreased to 1
+	// in the working state.
+	//
+	// The new runtime doesn't have that limitation: the number of instances
+	// of aws_instance.foo is decided by what's in the configuration rather
+	// than what's in the working state, and so we can (and do) first update
+	// aws_instance.bar to stop depending on aws_instance.foo[1] and THEN
+	// destroy aws_instance.foo[1]. This therefore preserves the typical rule
+	// that something should not be destroyed while something else is already
+	// depending on it, and so we now match what the original PR remarked
+	// was "the correct solution" even though it wasn't practical to fix it
+	// within the release-scheduling constraints at that time.
+	//
+	// It remains to be seen whether we're going to need to find a way to
+	// preserve the arguably-incorrect old behavior for backward compatibility.
+	// For now we just stub this test out so we can revisit that decision later.
+	SkipExperimental(t, ExperimentalChangeDestroyOrder)
 
 	var s *states.State
 
@@ -4249,6 +4282,7 @@ func TestContext2Apply_multiVarCountDec(t *testing.T) {
 			lock.Lock()
 			defer lock.Unlock()
 
+			log.Printf("[TRACE] mock ApplyResourceChangeFn: %#v", req.PlannedState)
 			if !req.PlannedState.IsNull() {
 				s := req.PlannedState.AsValueMap()
 				if ami, ok := s["ami"]; ok && !ami.IsNull() && ami.AsString() == "special" {
@@ -5946,8 +5980,6 @@ func TestContext2Apply_outputDiffVars(t *testing.T) {
 }
 
 func TestContext2Apply_destroyX(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureDestroy)
-
 	m := testModule(t, "apply-destroy")
 	h := new(HookRecordApplyOrder)
 	p := testProvider("aws")
@@ -5995,6 +6027,7 @@ func TestContext2Apply_destroyX(t *testing.T) {
 	}
 
 	// Test that things were destroyed _in the right order_
+	SkipExperimental(t, ExperimentalFeatureHooks)
 	expected2 := []string{"aws_instance.bar", "aws_instance.foo"}
 	actual2 := h.IDs
 	if !reflect.DeepEqual(actual2, expected2) {
@@ -6003,8 +6036,6 @@ func TestContext2Apply_destroyX(t *testing.T) {
 }
 
 func TestContext2Apply_destroyOrder(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureDestroy)
-
 	m := testModule(t, "apply-destroy")
 	h := new(HookRecordApplyOrder)
 	p := testProvider("aws")
@@ -6053,6 +6084,7 @@ func TestContext2Apply_destroyOrder(t *testing.T) {
 		t.Fatalf("wrong result\n\ngot:\n%s\n\nwant:\n%s", actual, expected)
 	}
 
+	SkipExperimental(t, ExperimentalFeatureHooks)
 	// Test that things were destroyed _in the right order_
 	expected2 := []string{"aws_instance.bar", "aws_instance.foo"}
 	actual2 := h.IDs
@@ -6352,7 +6384,7 @@ func TestContext2Apply_destroyWithModuleVariableAndCount(t *testing.T) {
 }
 
 func TestContext2Apply_destroyTargetWithModuleVariableAndCount(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDeclareProvider, ExperimentalFeatureDestroy)
+	SkipExperimental(t, ExperimentalFeatureTarget)
 
 	m := testModule(t, "apply-destroy-mod-var-and-count")
 	p := testProvider("aws")
@@ -6500,7 +6532,7 @@ func TestContext2Apply_destroyWithModuleVariableAndCountNested(t *testing.T) {
 }
 
 func TestContext2Apply_destroyOutputs(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureDestroy)
+	SkipExperimental(t, ExperimentalBugMissingResource)
 
 	m := testModule(t, "apply-destroy-outputs")
 	p := testProvider("test")
@@ -6527,10 +6559,7 @@ func TestContext2Apply_destroyOutputs(t *testing.T) {
 	assertNoErrors(t, diags)
 
 	state, diags := ctx.Apply(context.Background(), plan, m, nil)
-
-	if diags.HasErrors() {
-		t.Fatalf("diags: %s", diags.Err())
-	}
+	assertNoErrors(t, diags)
 
 	// Next, plan and apply a destroy operation
 	ctx = testContext2(t, &ContextOpts{
