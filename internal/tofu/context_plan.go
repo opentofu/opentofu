@@ -419,6 +419,15 @@ func (c *Context) destroyPlan(ctx context.Context, config *configs.Config, prevR
 
 	priorState := prevRunState
 
+	skipNormalPlanForRefresh := opts.SkipRefresh
+	if experimentalRuntimeEnabled() {
+		// When we're shimming to the experimental runtime it's that runtime's
+		// responsibility to deal with refreshing however it wants to do it,
+		// rather than us forcing it to handle it by running a normal plan first
+		// and then taking the prior state from it.
+		skipNormalPlanForRefresh = true
+	}
+
 	// A destroy plan starts by running Refresh to read any pending data
 	// sources, and remove missing managed resources. This is required because
 	// a "destroy plan" is only creating delete changes, and is essentially a
@@ -430,7 +439,7 @@ func (c *Context) destroyPlan(ctx context.Context, config *configs.Config, prevR
 	// must coordinate with this by taking that action only when c.skipRefresh
 	// _is_ set. This coupling between the two is unfortunate but necessary
 	// to work within our current structure.
-	if !opts.SkipRefresh && !prevRunState.Empty() {
+	if !skipNormalPlanForRefresh && !prevRunState.Empty() {
 		log.Printf("[TRACE] Context.destroyPlan: calling Context.plan to get the effect of refreshing the prior state")
 		refreshOpts := *opts
 		refreshOpts.Mode = plans.NormalMode
