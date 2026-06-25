@@ -23,7 +23,7 @@ import (
 )
 
 func TestContext2Input_provider(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
+	SkipExperimental(t, ExperimentalFeatureProviderInput)
 
 	m := testModule(t, "input-provider")
 
@@ -142,7 +142,7 @@ func TestContext2Input_provider(t *testing.T) {
 }
 
 func TestContext2Input_providerMulti(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
+	SkipExperimental(t, ExperimentalFeatureProviderInput)
 
 	m := testModule(t, "input-provider-multi")
 
@@ -242,7 +242,7 @@ func TestContext2Input_providerOnce(t *testing.T) {
 }
 
 func TestContext2Input_providerOnly(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
+	SkipExperimental(t, ExperimentalFeatureProviderInput)
 
 	input := new(MockUIInput)
 

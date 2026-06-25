@@ -380,7 +380,7 @@ test = [foo]`)
 	}
 }
 func TestContext2Apply_resourceCountZeroList(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
+	SkipExperimental(t, ExperimentalFeatureRootOutput)
 
 	m := testModule(t, "apply-resource-count-zero-list")
 	p := testProvider("null")
@@ -4159,7 +4159,7 @@ func TestContext2Apply_multiVarOrder(t *testing.T) {
 // Test that multi-var (splat) access is ordered by count, not by
 // value, through interpolations.
 func TestContext2Apply_multiVarOrderInterp(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugExecGraph, ExperimentalFlagUnknown)
+	SkipExperimental(t, ExperimentalBugExecGraph, ExperimentalFeatureRootOutput)
 
 	m := testModule(t, "apply-multi-var-order-interp")
 	p := testProvider("aws")
@@ -7392,7 +7392,7 @@ func TestContext2Apply_taintDep(t *testing.T) {
 }
 
 func TestContext2Apply_taintDepRequiresNew(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugExecGraph, ExperimentalFlagUnknown)
+	SkipExperimental(t, ExperimentalBugExecGraph, ExperimentalFeatureTaint)
 
 	m := testModule(t, "apply-taint-dep-requires-new")
 	p := testProvider("aws")
@@ -8147,7 +8147,7 @@ module.parent:
 }
 
 func TestContext2Apply_unknownAttribute(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
+	SkipExperimental(t, ExperimentalFeatureTaint)
 
 	m := testModule(t, "apply-unknown")
 	p := testProvider("aws")
@@ -8324,7 +8324,7 @@ func TestContext2Apply_varsEnv(t *testing.T) {
 }
 
 func TestContext2Apply_createBefore_depends(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
+	SkipExperimental(t, ExperimentalFeatureHooks)
 
 	m := testModule(t, "apply-depends-create-before")
 	h := new(HookRecordApplyOrder)
@@ -9642,7 +9642,7 @@ func TestContext2Apply_plannedInterpolatedCount(t *testing.T) {
 }
 
 func TestContext2Apply_plannedDestroyInterpolatedCount(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
+	SkipExperimental(t, ExperimentalFeatureRootOutput)
 
 	m, snap := testModuleWithSnapshot(t, "plan-destroy-interpolated-count")
 
@@ -10127,7 +10127,7 @@ func TestContext2Apply_moduleReplaceCycle(t *testing.T) {
 }
 
 func TestContext2Apply_destroyDataCycle(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
+	SkipExperimental(t, ExperimentalFeatureDestroy, ExperimentalFlagUnknown)
 
 	m, snap := testModuleWithSnapshot(t, "apply-destroy-data-cycle")
 	p := testProvider("null")
@@ -10255,7 +10255,7 @@ func TestContext2Apply_destroyDataCycle(t *testing.T) {
 }
 
 func TestContext2Apply_taintedDestroyFailure(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
+	SkipExperimental(t, ExperimentalFeatureTaint)
 
 	m := testModule(t, "apply-destroy-tainted")
 	p := testProvider("test")
@@ -12176,7 +12176,7 @@ func TestContext2Apply_destroyProviderReference(t *testing.T) {
 // Destroying properly requires pruning out all unneeded config nodes to
 // prevent incorrect expansion evaluation.
 func TestContext2Apply_destroyInterModuleExpansion(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
+	SkipExperimental(t, ExperimentalFeatureDestroy, ExperimentalFlagUnknown)
 
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
@@ -13405,7 +13405,7 @@ func TestContext2Apply_errorRestorePrivateData(t *testing.T) {
 }
 
 func TestContext2Apply_errorRestoreStatus(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugStateProvider, ExperimentalFlagUnknown)
+	SkipExperimental(t, ExperimentalBugStateProvider, ExperimentalFeatureTaint)
 
 	// empty config to remove our resource
 	m := testModuleInline(t, map[string]string{

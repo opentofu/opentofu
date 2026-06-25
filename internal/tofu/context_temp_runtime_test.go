@@ -98,6 +98,7 @@ var (
 	ExperimentalBugForEach           = ExperimentalFlag{"Bug For Each", true}
 	ExperimentalBugSpuriousReplace   = ExperimentalFlag{"Bug Spurious Replace", true} // New runtime proposes replace where old runtime would've called for update
 	ExperimentalBugProviderPrivate   = ExperimentalFlag{"Bug Provider Private Data Not Preserved", false}
+	ExperimentalBugCircularReference = ExperimentalFlag{"Bug Circular Reference", false}
 
 	ExperimentalChangeDiagWording     = ExperimentalFlag{"Change Different Diagnostic Wording", false}
 	ExperimentalChangeErrorEarly      = ExperimentalFlag{"Change Detect Error Earlier", false}
@@ -144,6 +145,8 @@ var (
 	ExperimentalFeatureTaint             = ExperimentalFlag{"Missing Taint", false}
 	ExperimentalFeatureErrorHandling     = ExperimentalFlag{"Missing Error Handling", false}
 	ExperimentalFeatureProviderFunctions = ExperimentalFlag{"Missing Provider Defined Functions", true}
+	ExperimentalFeatureProviderInput     = ExperimentalFlag{"Missing Provider Input Prompting", false}
+	ExperimentalFeatureModuleEnabled     = ExperimentalFlag{"Missing Module Lifecycle Enabled", false}
 
 	// Obsolete flags indicate a test which depends on a feature we do not
 	// intend to carry forward into the new engine

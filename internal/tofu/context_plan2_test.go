@@ -553,7 +553,7 @@ func TestContext2Plan_resourceChecksInExpandedModule(t *testing.T) {
 }
 
 func TestContext2Plan_dataResourceChecksManagedResourceChange(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
+	SkipExperimental(t, ExperimentalFeatureChanges)
 
 	// This tests the situation where the remote system contains data that
 	// isn't valid per a data resource postcondition, but that the
@@ -3016,7 +3016,7 @@ func TestContext2Plan_refreshOnlyMode_orphan(t *testing.T) {
 }
 
 func TestContext2Plan_invalidSensitiveModuleOutput(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
+	SkipExperimental(t, ExperimentalFeatureSensitivity)
 
 	m := testModuleInline(t, map[string]string{
 		"child/main.tf": `

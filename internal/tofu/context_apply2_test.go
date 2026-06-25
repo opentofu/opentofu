@@ -2828,7 +2828,7 @@ locals {
 }
 
 func TestContext2Apply_forgetOrphanAndDeposed(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugStateProvider, ExperimentalFlagUnknown)
+	SkipExperimental(t, ExperimentalBugStateProvider, ExperimentalFeatureDeposed)
 
 	desposedKey := states.DeposedKey("deposed")
 	addr := "aws_instance.baz"
@@ -4783,7 +4783,7 @@ func TestContext2Apply_excludedModuleRecursive(t *testing.T) {
 }
 
 func TestContext2Apply_providerResourceIteration(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureProviderInstances, ExperimentalFlagUnknown)
+	SkipExperimental(t, ExperimentalFeatureProviderInstances)
 
 	localComplete := `
 locals {
@@ -4980,6 +4980,7 @@ data "test_data_source" "b_direct" {
 		if !diags.HasErrors() {
 			t.Fatal("expected diags")
 		}
+		SkipExperimental(t, ExperimentalChangeDiagWording)
 		for _, diag := range diags {
 			if diag.Description().Summary == "Provider instance not present" {
 				return
@@ -4998,6 +4999,7 @@ data "test_data_source" "b_direct" {
 		if !diags.HasErrors() {
 			t.Fatal("expected diags")
 		}
+		SkipExperimental(t, ExperimentalChangeDiagWording)
 		for _, diag := range diags {
 			if diag.Description().Summary == "Provider configuration not present" {
 				return
@@ -5372,7 +5374,7 @@ variable "other_var" {
 	})
 
 	t.Run("circular", func(t *testing.T) {
-		SkipExperimental(t, ExperimentalFlagUnknown)
+		SkipExperimental(t, ExperimentalBugCircularReference)
 		input := InputValuesFromCaller(map[string]cty.Value{
 			"root_var":  cty.NumberIntVal(10),
 			"other_var": cty.NumberIntVal(10),
@@ -6215,7 +6217,7 @@ resource "test_instance" "a" {
 // the variable values given in ApplyArgs are getting merged correctly with
 // the plan ones.
 func TestContext2Apply_planVariablesAndApplyArgsGetMergedCorrectly(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
+	SkipExperimental(t, ExperimentalFeatureRootOutput)
 
 	m := testModuleInline(t, map[string]string{
 		`main.tf`: `
@@ -6700,7 +6702,7 @@ func TestMergePlanAndApplyVariables(t *testing.T) {
 }
 
 func TestContext2Apply_enabledForResource(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
+	SkipExperimental(t, ExperimentalFeatureRootOutput)
 
 	m := testModule(t, "apply-enabled-resource")
 	p := &MockProvider{
@@ -6859,7 +6861,7 @@ func TestContext2Apply_enabledForResource(t *testing.T) {
 }
 
 func TestContext2Apply_enabledForModule(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
+	SkipExperimental(t, ExperimentalFeatureModuleEnabled)
 
 	m := testModule(t, "apply-enabled-module")
 

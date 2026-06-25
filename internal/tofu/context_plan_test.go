@@ -3589,7 +3589,7 @@ func TestContext2Plan_forEach(t *testing.T) {
 }
 
 func TestContext2Plan_forEachUnknownValue(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
+	SkipExperimental(t, ExperimentalChangeDeferredActions)
 
 	// This module has a variable defined, but it's value is unknown. We
 	// expect this to produce an error, but not to panic.
@@ -3633,7 +3633,7 @@ func TestContext2Plan_forEachUnknownValue(t *testing.T) {
 }
 
 func TestContext2Plan_destroy(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
+	SkipExperimental(t, ExperimentalFeatureDestroy)
 
 	m := testModule(t, "plan-destroy")
 	p := testProvider("aws")
@@ -3697,7 +3697,7 @@ func TestContext2Plan_destroy(t *testing.T) {
 }
 
 func TestContext2Plan_moduleDestroy(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
+	SkipExperimental(t, ExperimentalFeatureDestroy)
 
 	m := testModule(t, "plan-module-destroy")
 	p := testProvider("aws")
@@ -4476,7 +4476,7 @@ func TestContext2Plan_taintIgnoreChanges(t *testing.T) {
 
 // Fails about 50% of the time before the fix for GH-4982, covers the fix.
 func TestContext2Plan_taintDestroyInterpolatedCountRace(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown, ExperimentalBugDeclareProvider)
+	SkipExperimental(t, ExperimentalBugDeclareProvider, ExperimentalFeatureTaint)
 
 	m := testModule(t, "plan-taint-interpolated-count")
 	p := testProvider("aws")
@@ -7304,7 +7304,7 @@ data "test_data_source" "foo" {}
 
 // for_each can reference a resource with 0 instances
 func TestContext2Plan_scaleInForEach(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
+	SkipExperimental(t, ExperimentalFeatureChanges)
 
 	p := testProvider("test")
 
@@ -8115,7 +8115,7 @@ resource "test_resource" "foo" {
 }
 
 func TestContext2Plan_variableCustomValidationsSensitive(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
+	SkipExperimental(t, ExperimentalFeatureVarCondition)
 
 	m := testModule(t, "validate-variable-custom-validations-child-sensitive")
 
