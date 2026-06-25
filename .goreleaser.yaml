@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2023 HashiCorp, Inc.
 # SPDX-License-Identifier: MPL-2.0
-version: 2
 
 project_name: tofu
 
@@ -316,10 +315,10 @@ snapcrafts:
       OpenTofu is an OSS tool for building, changing, and versioning infrastructure
       safely and efficiently. OpenTofu can manage existing and popular service
       providers as well as custom in-house solutions.
-    disable: '{{ if eq (index .Env "RELEASE_FLAG_LATEST") "false" }}true{{ else }}false{{ end }}'
+    disable: '{{ if eq .Env.RELEASE_FLAG_LATEST "false" }}true{{ else }}false{{ end }}'
     channel_templates:
-      - '{{ if eq (index .Env "RELEASE_FLAG_PRERELEASE") "true" }}latest/edge{{ else }}latest/stable{{ end }}'
-    grade: '{{ if eq (index .Env "RELEASE_FLAG_PRERELEASE") "true" }}devel{{ else }}stable{{ end }}'
+      - '{{ if eq .Env.RELEASE_FLAG_PRERELEASE "true" }}latest/edge{{ else }}latest/stable{{ end }}'
+    grade: '{{ if eq .Env.RELEASE_FLAG_PRERELEASE "true" }}devel{{ else }}stable{{ end }}'
     confinement: classic
     license: MPL-2.0
     base: core22
@@ -349,6 +348,12 @@ docker_signs:
 
 snapshot:
   name_template: "{{ .Version }}-next"
+
+# Docs are here: https://github.com/goreleaser/goreleaser/blob/v1.26.2/www/docs/customization/nightlies.md
+nightly:
+  # Version format: nightly-20250806-c5fd934
+  name_template: "nightly-{{ .Now.Format \"20060102\" }}-{{ .ShortCommit }}"
+  publish_release: false
 
 changelog:
   use: github-native
