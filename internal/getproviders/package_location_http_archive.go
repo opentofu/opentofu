@@ -19,6 +19,7 @@ import (
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/tracing"
 	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
+	"github.com/opentofu/svchost"
 )
 
 // PackageHTTPURL is a provider package location accessible via HTTP.
@@ -71,6 +72,14 @@ func (p PackageHTTPURL) InstallProviderPackage(ctx context.Context, meta Package
 	if err != nil {
 		return nil, fmt.Errorf("invalid provider download request: %w", err)
 	}
+
+	if meta.Creds != nil {
+		if creds, err := meta.Creds.ForHost(ctx, svchost.Hostname(HostFromRequest(req.Request))); err == nil && creds != nil {
+			// Ensure token or basic auth strings are added cleanly depending on what svcauth returns
+			creds.PrepareRequest(req.Request)
+		}
+	}
+
 	resp, err := retryableClient.Do(req)
 	if err != nil {
 		if ctx.Err() == context.Canceled {

@@ -22,6 +22,7 @@ import (
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/tracing"
 	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
+	"github.com/opentofu/svchost/svcauth"
 )
 
 // Installer is the main type in this package, representing a provider installer
@@ -185,7 +186,7 @@ func (i *Installer) SetUnmanagedProviderTypes(types map[addrs.Provider]struct{})
 // failures then those notifications will be redundant with the ones included
 // in the final returned error value so callers should show either one or the
 // other, and not both.
-func (i *Installer) EnsureProviderVersions(ctx context.Context, locks *depsfile.Locks, reqs getproviders.Requirements, mode InstallMode) (*depsfile.Locks, error) {
+func (i *Installer) EnsureProviderVersions(ctx context.Context, locks *depsfile.Locks, reqs getproviders.Requirements, mode InstallMode, creds svcauth.CredentialsSource) (*depsfile.Locks, error) {
 	ctx, span := tracing.Tracer().Start(ctx, "Install Providers") // TODO: Discuss span name
 	defer span.End()
 
@@ -236,7 +237,7 @@ func (i *Installer) EnsureProviderVersions(ctx context.Context, locks *depsfile.
 	targetPlatform := i.targetDir.targetPlatform // we inherit this to behave correctly in unit tests
 	span.SetAttributes(traceattrs.OpenTofuTargetPlatform(targetPlatform.String()))
 	span.SetName("Install Providers - " + targetPlatform.String())
-	authResults, err := i.ensureProviderVersionsInstall(ctx, locks, reqs, mode, need, targetPlatform, errs)
+	authResults, err := i.ensureProviderVersionsInstall(ctx, locks, reqs, mode, creds, need, targetPlatform, errs)
 	if err != nil {
 		return nil, err
 	}
@@ -463,6 +464,7 @@ func (i *Installer) ensureProviderVersionsInstall(
 	locks *depsfile.Locks,
 	reqs getproviders.Requirements,
 	mode InstallMode,
+	creds svcauth.CredentialsSource,
 	need map[addrs.Provider]getproviders.Version,
 	targetPlatform getproviders.Platform,
 	errs map[addrs.Provider]error,
@@ -496,7 +498,7 @@ func (i *Installer) ensureProviderVersionsInstall(
 			defer span.End()
 
 			// Heavy lifting
-			authResult, newHashes, err := i.ensureProviderVersionInstalled(traceCtx, providerExistingLock(provider), mode, provider, version, targetPlatform)
+			authResult, newHashes, err := i.ensureProviderVersionInstalled(traceCtx, providerExistingLock(provider), mode, creds, provider, version, targetPlatform)
 
 			// Update results
 			updateLock.Lock()
@@ -525,6 +527,7 @@ func (i *Installer) ensureProviderVersionInstalled(
 	ctx context.Context,
 	lock *depsfile.ProviderLock,
 	mode InstallMode,
+	creds svcauth.CredentialsSource,
 	provider addrs.Provider,
 	version getproviders.Version,
 	targetPlatform getproviders.Platform,
@@ -558,7 +561,7 @@ func (i *Installer) ensureProviderVersionInstalled(
 		linkTo = nil // no linking needed
 	}
 
-	result, newHashes, err := i.ensureProviderVersionInDirectory(ctx, lock, mode, provider, version, targetPlatform, installTo)
+	result, newHashes, err := i.ensureProviderVersionInDirectory(ctx, lock, mode, creds, provider, version, targetPlatform, installTo)
 
 	if err != nil {
 		return result, newHashes, err
@@ -612,6 +615,7 @@ func (i *Installer) ensureProviderVersionInDirectory(
 	ctx context.Context,
 	lock *depsfile.ProviderLock,
 	mode InstallMode,
+	creds svcauth.CredentialsSource,
 	provider addrs.Provider,
 	version getproviders.Version,
 	targetPlatform getproviders.Platform,
@@ -662,6 +666,9 @@ func (i *Installer) ensureProviderVersionInDirectory(
 	if cb := evts.FetchPackageBegin; cb != nil {
 		cb(provider, version, meta.Location, isGlobalCache)
 	}
+
+	// Step 3d: Add credentials
+	meta.Creds = creds
 
 	allowedHashes := preferredHashes
 	if mode.forceInstallChecksums() {

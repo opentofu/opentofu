@@ -16,6 +16,7 @@ import (
 	"github.com/apparentlymart/go-versions/versions/constraints"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/svchost/svcauth"
 )
 
 // Version represents a particular single version of a provider.
@@ -230,6 +231,8 @@ type PackageMeta struct {
 
 	Filename string
 	Location PackageLocation
+
+	Creds svcauth.CredentialsSource
 
 	// Authentication, if non-nil, is a request from the source that produced
 	// this meta for verification of the target package after it has been

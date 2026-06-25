@@ -928,7 +928,8 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 
 		mode = providercache.InstallUpgrades
 	}
-	newLocks, err := inst.EnsureProviderVersions(ctx, previousLocks, reqs, mode)
+	creds := c.Services.CredentialsSource()
+	newLocks, err := inst.EnsureProviderVersions(ctx, previousLocks, reqs, mode, creds)
 	if ctx.Err() == context.Canceled {
 		view.Diagnostics(diags)
 		view.ProviderInstallationInterrupted()
