@@ -9,67 +9,74 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"testing"
 
 	"github.com/hashicorp/go-retryablehttp"
+	"github.com/opentofu/svchost"
+	"github.com/opentofu/svchost/svcauth"
 )
 
-// mockCredentialsSource implements the credentials source interface for testing.
-type mockCredentialsSource struct {
-	token string
-}
-
-func (m *mockCredentialsSource) ForHost(ctx context.Context, host string) (*mockCredentials, error) {
-	if m.token == "" {
-		return nil, nil
-	}
-	return &mockCredentials{token: m.token}, nil
-}
-
-// mockCredentials satisfies the expected credentials interface with a PrepareRequest method.
-type mockCredentials struct {
-	token string
-}
-
-func (c *mockCredentials) PrepareRequest(req *http.Request) {
-	req.Header.Set("Authorization", "Bearer "+c.token)
-}
-
 func TestPackageLocationHTTPArchive(t *testing.T) {
-	// Create a test server that expects an Authorization header
+	authToken := "my-secret-token"
+	wrongToken := "wrong-token"
+
+	// 1. Create a mock HTTP server that expects an Authorization header
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		auth := r.Header.Get("Authorization")
-		if auth != "Bearer valid-token-123" {
+		if auth != "Bearer "+authToken {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 
-		// Respond with a valid minimal ZIP structure to appease the extraction stage
-		// (PK\x05\x06 followed by 18 bytes of zeros is an empty zip archive)
+		// Respond with a valid minimal ZIP archive structure to allow the extractor stage to succeed
 		w.Header().Set("Content-Type", "application/zip")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("PK\x05\x06\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"))
 	}))
 	defer ts.Close()
 
-	// Setup a temporary target directory for the extraction process
+	// 2. Parse the test server URL to know the exact Hostname the client will target
+	parsedURL, err := url.Parse(ts.URL)
+	if err != nil {
+		t.Fatalf("failed to parse test server URL: %v", err)
+	}
+	targetHost := svchost.Hostname(parsedURL.Host)
+
+	// 3. Setup a temporary directory for extraction
 	tmpDir, err := os.MkdirTemp("", "opentofu-test-*")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
 	defer os.RemoveAll(tmpDir)
 
+	// 4. Define the table-driven test cases using svcauth.StaticCredentialsSource
+	// Change *svcauth.CredentialsSource to svcauth.CredentialsSource
 	tests := map[string]struct {
-		credsSource *mockCredentialsSource
+		credsSource svcauth.CredentialsSource
 		expectError bool
 	}{
-		"success_with_valid_token": {
-			credsSource: &mockCredentialsSource{token: "valid-token-123"},
+		"happy case": {
+			credsSource: svcauth.StaticCredentialsSource(map[svchost.Hostname]svcauth.HostCredentials{
+				targetHost: svcauth.HostCredentialsToken(authToken),
+			}),
 			expectError: false,
 		},
-		"failure_without_token": {
-			credsSource: &mockCredentialsSource{token: ""}, // No token set
+		"unhappy: wrong hostname": {
+			credsSource: svcauth.StaticCredentialsSource(map[svchost.Hostname]svcauth.HostCredentials{
+				"other.host": svcauth.HostCredentialsToken(authToken),
+			}),
+			expectError: true,
+		},
+		"unhappy: wrong token": {
+			credsSource: svcauth.StaticCredentialsSource(map[svchost.Hostname]svcauth.HostCredentials{
+				targetHost: svcauth.HostCredentialsToken(wrongToken),
+			}),
+			expectError: true,
+		},
+		"unhappy: empty credential store": {
+			credsSource: svcauth.StaticCredentialsSource(map[svchost.Hostname]svcauth.HostCredentials{}),
 			expectError: true,
 		},
 	}
@@ -78,12 +85,11 @@ func TestPackageLocationHTTPArchive(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			ctx := context.Background()
 
-			// Build the Location struct injecting a default retryable client
 			loc := PackageHTTPURL{
 				URL: ts.URL,
 				ClientBuilder: func(ctx context.Context) *retryablehttp.Client {
 					client := retryablehttp.NewClient()
-					client.Logger = nil // Suppress noise in test output
+					client.Logger = nil // Keep testing output clean
 					return client
 				},
 			}
@@ -93,16 +99,15 @@ func TestPackageLocationHTTPArchive(t *testing.T) {
 				CredentialsSource: tc.credsSource,
 			}
 
-			// We pass nil for allowedHashes here as an empty zip needs no complex verification
 			_, err := loc.InstallProviderPackage(ctx, meta, tmpDir, nil)
 
 			if tc.expectError {
 				if err == nil {
-					t.Errorf("expected an error but installation succeeded")
+					t.Errorf("expected download to fail, but it succeeded")
 				}
 			} else {
 				if err != nil {
-					t.Errorf("unexpected error: %v", err)
+					t.Errorf("expected download to succeed, but got error: %v", err)
 				}
 			}
 		})
