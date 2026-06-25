@@ -51,6 +51,21 @@ type EvalContext struct {
 	// but leaves OriginalWorkingDir unchanged.
 	RootModuleDir, OriginalWorkingDir string
 
+	// Applying currently wired in via the tofu context shims and does not
+	// represent the final state of how this information should be passed
+	// into the evaluator.
+	//
+	// TODO When we remove the shim, we should try to find a way to prevent
+	// this from disagreeing with the current operation the evaluator is
+	// being asked to perform.
+	Applying bool
+
+	// Workspace is the current tofu workspace passed in from the command
+	// layer
+	Workspace string
+
+	// PlanTimestamp is the time at which the plan was created. This is
+	// used to provide a consistent result for the plantimestamp function.
 	PlanTimestamp time.Time
 }
 

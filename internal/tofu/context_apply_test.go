@@ -9169,7 +9169,7 @@ resource "null_instance" "depends" {
 }
 
 func TestContext2Apply_tfWorkspace(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeaturePathAttrs)
+	SkipExperimental(t, ExperimentalFeaturePathAttrs, ExperimentalFeatureRootOutput)
 
 	m := testModule(t, "apply-tf-workspace")
 	p := testProvider("aws")
@@ -9198,7 +9198,7 @@ func TestContext2Apply_tfWorkspace(t *testing.T) {
 }
 
 func TestContext2Apply_tofuWorkspace(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeaturePathAttrs)
+	SkipExperimental(t, ExperimentalFeaturePathAttrs, ExperimentalFeatureRootOutput)
 
 	m := testModule(t, "apply-tofu-workspace")
 	p := testProvider("aws")

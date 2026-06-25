@@ -14,6 +14,7 @@ import (
 	"sync"
 
 	"github.com/apparentlymart/go-versions/versions"
+	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configload"
@@ -38,6 +39,11 @@ func (m *Meta) StaticConfigInstance(ctx context.Context, root *configs.Module, m
 	diags = diags.Append(moreDiags)
 	if diags.HasErrors() {
 		return nil, diags
+	}
+
+	workspace, err := m.Workspace(ctx)
+	if err != nil {
+		return nil, diags.Append(err)
 	}
 
 	rawInput := map[string]cty.Value{}
@@ -66,6 +72,19 @@ func (m *Meta) StaticConfigInstance(ctx context.Context, root *configs.Module, m
 
 	owd := m.WorkingDir.OriginalWorkingDir()
 
+	// The current working directory should always be absolute, whether we
+	// just looked it up or whether we were relying on ContextMeta's
+	// (possibly non-normalized) path.
+	owd, err = filepath.Abs(owd)
+	if err != nil {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  `Failed to get working directory`,
+			Detail:   fmt.Sprintf(`The value for the original working directory cannot be determined due to a system error: %s`, err),
+		})
+		return nil, diags
+	}
+
 	if modules == nil {
 		modules = &newRuntimeModules{
 			loader: loader,
@@ -79,6 +98,7 @@ func (m *Meta) StaticConfigInstance(ctx context.Context, root *configs.Module, m
 		Modules:            modules,
 		Providers:          staticPlugins,
 		Provisioners:       staticPlugins,
+		Workspace:          workspace,
 	}
 
 	// The new config-loading system wants to work in terms of module source

@@ -135,7 +135,7 @@ var (
 	ExperimentalFeatureDependsOn         = ExperimentalFlag{"Missing Depends On", true}
 	ExperimentalFeatureIgnoreChanges     = ExperimentalFlag{"Missing Ignore Changes", false}
 	ExperimentalFeatureVarCondition      = ExperimentalFlag{"Missing Variable Condiitions", false}
-	ExperimentalFeaturePathAttrs         = ExperimentalFlag{"Missing Path/Terraform/Tofu Attrs", false}
+	ExperimentalFeaturePathAttrs         = ExperimentalFlag{"Missing Path/Terraform/Tofu Attrs", true}
 	ExperimentalFeaturePreventDestroy    = ExperimentalFlag{"Missing Prevent Destroy", false}
 	ExperimentalFeaturePlannedState      = ExperimentalFlag{"Missing Planned State", false}
 	ExperimentalFeatureForceReplace      = ExperimentalFlag{"Missing Force Replace", false}

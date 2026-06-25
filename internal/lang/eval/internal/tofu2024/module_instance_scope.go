@@ -9,14 +9,17 @@ import (
 	"context"
 	"fmt"
 	"iter"
+	"path/filepath"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/didyoumean"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
@@ -43,6 +46,15 @@ type moduleInstanceScope struct {
 	inst              *CompiledModuleInstance
 	coreFunctions     map[string]function.Function
 	providerFunctions func(context.Context, addrs.ProviderFunction, hcl.Range) (function.Function, tfdiags.Diagnostics)
+
+	// tofu attrs
+	applying  bool
+	workspace string
+
+	// path attrs
+	workingDir string
+	rootDir    string
+	sourceDir  string
 }
 
 var _ exprs.Scope = (*moduleInstanceScope)(nil)
@@ -108,7 +120,7 @@ func (m *moduleInstanceScope) ResolveAttr(ref hcl.TraverseAttr) (exprs.Attribute
 	var diags tfdiags.Diagnostics
 	switch ref.Name {
 
-	case "var", "local", "module":
+	case "var", "local", "module", "path", "terraform", "tofu":
 		// For various relatively-simple cases where there's just one level of
 		// nested symbol table we use a single shared [exprs.SymbolTable]
 		// implementation which then just delegates back to
@@ -233,7 +245,63 @@ func (m *moduleInstanceScope) resolveSimpleChildAttr(topSymbol string, ref hcl.T
 			return nil, diags
 		}
 		return exprs.ValueOf(v), diags
+	case "terraform", "tofu":
+		var val cty.Value
 
+		// Mostly copied from the tofu/evaluate.go
+		switch ref.Name {
+		case "applying":
+			val = cty.BoolVal(m.applying).Mark(marks.Ephemeral)
+
+		case "workspace":
+			val = cty.StringVal(m.workspace)
+
+		// case "env": intentionally removed as it has been deprecated for a *long* time.
+		default:
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  fmt.Sprintf("Invalid %q attribute", topSymbol),
+				Detail:   fmt.Sprintf(`The %q object does not have an attribute named %q. The only supported attributes are %s.workspace and %s.applying`, topSymbol, ref.Name, topSymbol, topSymbol),
+				Subject:  &ref.SrcRange,
+			})
+		}
+
+		if val == cty.NilVal {
+			return nil, diags
+		}
+		return exprs.ValueOf(exprs.ConstantValuer(val)), diags
+	case "path":
+		var val cty.Value
+
+		// Mostly copied from the tofu/evaluate.go
+		switch ref.Name {
+
+		case "cwd":
+			val = cty.StringVal(filepath.ToSlash(m.workingDir))
+
+		case "module":
+			val = cty.StringVal(filepath.ToSlash(m.sourceDir))
+
+		case "root":
+			val = cty.StringVal(filepath.ToSlash(m.rootDir))
+
+		default:
+			suggestion := didyoumean.NameSuggestion(ref.Name, []string{"cwd", "module", "root"})
+			if suggestion != "" {
+				suggestion = fmt.Sprintf(" Did you mean %q?", suggestion)
+			}
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  `Invalid "path" attribute`,
+				Detail:   fmt.Sprintf(`The "path" object does not have an attribute named %q.%s`, ref.Name, suggestion),
+				Subject:  &ref.SrcRange,
+			})
+		}
+
+		if val == cty.NilVal {
+			return nil, diags
+		}
+		return exprs.ValueOf(exprs.ConstantValuer(val)), diags
 	default:
 		// We should not get here because there should be a case above for
 		// every symbol name that [ModuleInstance.ResolveAttr] delegates
@@ -385,6 +453,12 @@ func nounForModuleInstanceGlobalSymbol(symbol string) string {
 		return "local value"
 	case "module":
 		return "module call"
+	case "terraform":
+		return "terraform"
+	case "tofu":
+		return "tofu"
+	case "path":
+		return "path"
 	default:
 		return "attribute" // generic fallback that we should avoid using by adding new names above as needed
 	}

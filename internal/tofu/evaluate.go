@@ -1060,7 +1060,7 @@ func (d *evaluationStateData) GetTerraformAttr(_ context.Context, addr addrs.Ter
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  fmt.Sprintf("Invalid %q attribute", addr.Alias),
-			Detail:   fmt.Sprintf(`The %q object does not have an attribute named %q. The only supported attribute is %s.workspace, the name of the currently-selected workspace.`, addr.Alias, addr.Name, addr.Alias),
+			Detail:   fmt.Sprintf(`The %q object does not have an attribute named %q. The only supported attributes are %s.workspace and %s.applying`, addr.Alias, addr.Name, addr.Alias, addr.Alias),
 			Subject:  rng.ToHCL().Ptr(),
 		})
 		return cty.DynamicVal, diags

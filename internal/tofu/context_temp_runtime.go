@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/apparentlymart/go-versions/versions"
+	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -78,7 +79,7 @@ func experimentalRuntimeWanted() bool {
 	return optIn != ""
 }
 
-func (c *Context) newEngineShim(ctx context.Context, config *configs.Config, inputValuesRaw InputValues, planTimestamp time.Time, allowImpureFunctions bool) (*eval.ConfigInstance, plugins.Plugins, func(), tfdiags.Diagnostics) {
+func (c *Context) newEngineShim(ctx context.Context, config *configs.Config, inputValuesRaw InputValues, planTimestamp time.Time, allowImpureFunctions bool, applying bool) (*eval.ConfigInstance, plugins.Plugins, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	rawInput := map[string]cty.Value{}
@@ -90,9 +91,26 @@ func (c *Context) newEngineShim(ctx context.Context, config *configs.Config, inp
 
 	inputValues := exprs.ConstantValuer(cty.ObjectVal(rawInput))
 
+	workspace := ""
+	if c.meta != nil {
+		workspace = c.meta.Env
+	}
 	owd := "."
 	if c.meta != nil && c.meta.OriginalWorkingDir != "" {
 		owd = c.meta.OriginalWorkingDir
+	}
+
+	// The current working directory should always be absolute, whether we
+	// just looked it up or whether we were relying on ContextMeta's
+	// (possibly non-normalized) path.
+	owd, err := filepath.Abs(owd)
+	if err != nil {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  `Failed to get working directory`,
+			Detail:   fmt.Sprintf(`The value for the original working directory cannot be determined due to a system error: %s`, err),
+		})
+		return nil, nil, nil, diags
 	}
 
 	modules := c.modules
@@ -109,6 +127,8 @@ func (c *Context) newEngineShim(ctx context.Context, config *configs.Config, inp
 		Providers:          plugins,
 		Provisioners:       plugins,
 		PlanTimestamp:      planTimestamp,
+		Applying:           applying,
+		Workspace:          workspace,
 	}
 	done := func() {
 		// We'll call close with a cancel-free context because we do still
@@ -160,7 +180,7 @@ func (c *Context) newEngineValidate(ctx context.Context, config *configs.Config,
 
 	log.Println("[WARN] Using validate implementation from the experimental language runtime")
 
-	configInst, _, done, moreDiags := c.newEngineShim(ctx, config, inputValues, time.Time{}, false)
+	configInst, _, done, moreDiags := c.newEngineShim(ctx, config, inputValues, time.Time{}, false, false)
 	diags = diags.Append(moreDiags)
 
 	if diags.HasErrors() {
@@ -184,7 +204,7 @@ func (c *Context) newEnginePlan(ctx context.Context, config *configs.Config, pre
 	tracer := c.newEnginePlanTracer()
 	ctx = planning.ContextWithTracer(ctx, tracer)
 
-	configInst, plugins, done, moreDiags := c.newEngineShim(ctx, config, opts.SetVariables, timestamp, false)
+	configInst, plugins, done, moreDiags := c.newEngineShim(ctx, config, opts.SetVariables, timestamp, false, false)
 	diags = diags.Append(moreDiags)
 
 	if diags.HasErrors() {
@@ -296,7 +316,7 @@ func (c *Context) newEngineApply(ctx context.Context, config *configs.Config, pl
 	tracer := c.newEngineApplyTracer()
 	ctx = applying.ContextWithTracer(ctx, tracer)
 
-	configInst, plugins, done, moreDiags := c.newEngineShim(ctx, config, variables, plan.Timestamp, true)
+	configInst, plugins, done, moreDiags := c.newEngineShim(ctx, config, variables, plan.Timestamp, true, true)
 	diags = diags.Append(moreDiags)
 
 	if diags.HasErrors() {

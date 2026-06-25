@@ -83,6 +83,15 @@ func CompileModuleInstance(
 	topScope := &moduleInstanceScope{
 		inst:          ret,
 		coreFunctions: compileCoreFunctions(ctx, call.AllowImpureFunctions, call.EvalContext.RootModuleDir, call.EvalContext.PlanTimestamp),
+
+		// tofu attrs
+		applying:  call.EvalContext.Applying,
+		workspace: call.EvalContext.Workspace,
+
+		// path attrs
+		workingDir: call.EvalContext.OriginalWorkingDir,
+		rootDir:    call.EvalContext.RootModuleDir,
+		sourceDir:  module.SourceDir,
 	}
 
 	ret.providerRequirements = func(ctx context.Context) (getproviders.Requirements, *getproviders.ProvidersQualification, tfdiags.Diagnostics) {
