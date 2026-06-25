@@ -17,7 +17,6 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/svchost"
-	"github.com/opentofu/svchost/svcauth"
 	"github.com/posener/complete"
 	"github.com/zclconf/go-cty/cty"
 
@@ -929,11 +928,8 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 
 		mode = providercache.InstallUpgrades
 	}
-	var creds svcauth.CredentialsSource = nil
-	if c.Services != nil {
-		creds = c.Services.CredentialsSource()
-	}
-	newLocks, err := inst.EnsureProviderVersions(ctx, previousLocks, reqs, mode, creds)
+
+	newLocks, err := inst.EnsureProviderVersions(ctx, previousLocks, reqs, mode, c.Meta.Services.CredentialsSource())
 	if ctx.Err() == context.Canceled {
 		view.Diagnostics(diags)
 		view.ProviderInstallationInterrupted()

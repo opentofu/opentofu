@@ -19,7 +19,6 @@ import (
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/tracing"
 	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
-	"github.com/opentofu/svchost"
 )
 
 // PackageHTTPURL is a provider package location accessible via HTTP.
@@ -73,11 +72,25 @@ func (p PackageHTTPURL) InstallProviderPackage(ctx context.Context, meta Package
 		return nil, fmt.Errorf("invalid provider download request: %w", err)
 	}
 
-	if meta.Creds != nil {
-		if creds, err := meta.Creds.ForHost(ctx, svchost.Hostname(HostFromRequest(req.Request))); err == nil && creds != nil {
+	var credentialsInfo string = ""
+	host, err := svchostFromURL(req.URL)
+	if err != nil {
+		return nil, fmt.Errorf("invalid provider download request: %w", err)
+	}
+	hostname := HostFromRequest(req.Request)
+
+	if meta.CredentialsSource != nil {
+		if creds, err := meta.CredentialsSource.ForHost(ctx, host); err == nil && creds != nil {
 			// Ensure token or basic auth strings are added cleanly depending on what svcauth returns
 			creds.PrepareRequest(req.Request)
+			credentialsInfo = "Found creds for host: " + hostname
+		} else if err != nil {
+			credentialsInfo = "Error finding creds for host: " + hostname + ", Error: " + err.Error()
+		} else {
+			credentialsInfo = "No creds found for host: " + hostname
 		}
+	} else {
+		credentialsInfo = "No creds source. Host: " + hostname
 	}
 
 	resp, err := retryableClient.Do(req)
@@ -87,12 +100,12 @@ func (p PackageHTTPURL) InstallProviderPackage(ctx context.Context, meta Package
 			// so we'll return a more appropriate one here.
 			return nil, fmt.Errorf("provider download was interrupted")
 		}
-		return nil, fmt.Errorf("%s: %w", HostFromRequest(req.Request), err)
+		return nil, fmt.Errorf("%s: %w", hostname, err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unsuccessful request to %s: %s", url, resp.Status)
+		return nil, fmt.Errorf("unsuccessful request to %s: %s, %s", url, resp.Status, credentialsInfo)
 	}
 
 	f, err := os.CreateTemp("", "terraform-provider")

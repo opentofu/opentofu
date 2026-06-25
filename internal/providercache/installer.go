@@ -667,8 +667,8 @@ func (i *Installer) ensureProviderVersionInDirectory(
 		cb(provider, version, meta.Location, isGlobalCache)
 	}
 
-	// Step 3d: Add credentials
-	meta.Creds = creds
+	// Step 3d: Add services
+	meta.CredentialsSource = creds
 
 	allowedHashes := preferredHashes
 	if mode.forceInstallChecksums() {
