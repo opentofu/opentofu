@@ -79,9 +79,9 @@ func (p PackageHTTPURL) InstallProviderPackage(ctx context.Context, meta Package
 	}
 	hostname := HostFromRequest(req.Request)
 
+	// add auth tokens for host as available in credentialssource
 	if meta.CredentialsSource != nil {
 		if creds, err := meta.CredentialsSource.ForHost(ctx, host); err == nil && creds != nil {
-			// Ensure token or basic auth strings are added cleanly depending on what svcauth returns
 			creds.PrepareRequest(req.Request)
 			credentialsInfo = "Found creds for host: " + hostname
 		} else if err != nil {
