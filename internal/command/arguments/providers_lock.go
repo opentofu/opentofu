@@ -6,6 +6,8 @@
 package arguments
 
 import (
+	"fmt"
+
 	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/svchost/uritemplates"
@@ -77,8 +79,7 @@ func ParseProvidersLock(args []string) (*ProvidersLock, func(), tfdiags.Diagnost
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Invalid OCI mirror URI template",
-			"The -oci-mirror option requires a valid OCI mirror URI template.\n"+
-				"Error: "+err.Error(),
+			fmt.Sprintf("The -oci-mirror argument is not a valid URI template: %s.", tfdiags.FormatError(err)),
 		))
 	}
 
