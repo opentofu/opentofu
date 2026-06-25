@@ -50,24 +50,33 @@ func (b *execGraphBuilder) AddResourceInstanceObjectSubgraphs(
 	// for objects whose subgraphs involve a deletion.
 	deletionRefs := addrs.MakeMap[addrs.AbsResourceInstanceObject, execgraph.ResourceInstanceResultRef]()
 
-	// addConfigDeps and addDeleteDeps both track functions we can use to add
-	// additional dependencies to operations in the execution subgraphs of
-	// different resource instance objects.
+	// addConfigDeps, addStateDeps and addDeleteDeps each track functions we can
+	// use to add additional dependencies to operations in the execution
+	// subgraphs of different resource instance objects.
 	//
 	// addConfigDeps callbacks are for operations that must complete before
-	// evaluating the configuration for an object, and so this captures the
-	// relevant dependencies of each object.
+	// evaluating the configuration for an object.
+	//
+	// addStateDeps callbacks are for operations that must complete before
+	// we make use of the prior state of an object. These dependencies will
+	// often duplicate the ones registered with addConfigDeps because the
+	// state-tracked dependencies are based on the config-tracked dependencies
+	// from the previous round, but state-specific dependencies are important
+	// when objects are removed from the configuration on subsequent rounds, or
+	// during a destroy-mode plan where the configuration is not considered at
+	// all.
 	//
 	// addDeleteDeps callbacks are for operations that must complete before
 	// applying a "delete" plan for the object, and so these represent the
 	// "reverse dependencies" between deleting things so that they get destroyed
 	// in "inside out" dependency order.
 	//
-	// Not all resource instance objects will have elements in both of these
+	// Not all resource instance objects will have elements in all of these
 	// maps. For example, an addDeleteDeps entry is present only if the
 	// execution subgraph for an object includes a ManagedApply operation
 	// for a "delete" plan.
 	addConfigDeps := addrs.MakeMap[addrs.AbsResourceInstanceObject, func(execgraph.AnyResultRef)]()
+	addStateDeps := addrs.MakeMap[addrs.AbsResourceInstanceObject, func(execgraph.AnyResultRef)]()
 	addDeleteDeps := addrs.MakeMap[addrs.AbsResourceInstanceObject, func(execgraph.AnyResultRef)]()
 
 	// We pre-sort the keys here because that causes our execution graph
@@ -98,11 +107,22 @@ func (b *execGraphBuilder) AddResourceInstanceObjectSubgraphs(
 			effectiveReplaceOrders.Get(addr),
 		)
 
-		// We'll use these two add*Dep functions in the second loop below as
+		// We'll use these three add*Dep functions in the second loop below as
 		// we fill in all of the explicit dependencies caused by expressions
 		// in the configuration.
+		// TODO: Now that we have a [resourceInstanceObjectSubgraph] type to
+		// capture all of the "connection points" of an resource instance
+		// subgraph we could potentially have just a single map with one of
+		// those for each resource instance. For now this preserves the original
+		// style of mantaining separate data structures so that the addition
+		// of "state dependencies" and "state result" stand out better in a
+		// diff compared to the original implementation, without causing lots of
+		// refactoring noise at the same time.
 		if subgraph.addConfigDep != nil {
 			addConfigDeps.Put(addr, subgraph.addConfigDep)
+		}
+		if subgraph.addStateDep != nil {
+			addStateDeps.Put(addr, subgraph.addStateDep)
 		}
 		if subgraph.addDeleteDep != nil {
 			deletionRefs.Put(addr, subgraph.deletionRef)
@@ -126,12 +146,10 @@ func (b *execGraphBuilder) AddResourceInstanceObjectSubgraphs(
 			for dependency := range objs.ConfigDependencies(addr) {
 				addConfigDep(ensureResourceInstanceObjectResultRef(dependency, resultRefs, b))
 			}
-			// FIXME: For now we're also treating the state dependencies just
-			// like config dependencies, which isn't quite right but is a
-			// temporary placeholder while we're still wiring in the separation
-			// between state and config dependencies.
+		}
+		if addStateDep, ok := addStateDeps.GetOk(addr); ok {
 			for dependency := range objs.StateDependencies(addr) {
-				addConfigDep(ensureResourceInstanceObjectResultRef(dependency, resultRefs, b))
+				addStateDep(ensureResourceInstanceObjectResultRef(dependency, resultRefs, b))
 			}
 		}
 		if addDeleteDep, ok := addDeleteDeps.GetOk(addr); ok {
@@ -160,10 +178,11 @@ func (b *execGraphBuilder) AddResourceInstanceObjectSubgraphs(
 					// different for that planning mode).
 				}
 			}
-			// FIXME: For now we're also treating the state dependencies just
-			// like config dependencies, which isn't quite right but is a
-			// temporary placeholder while we're still wiring in the separation
-			// between state and config dependencies.
+			// TODO: There's an asymmetry here where for forward dependencies
+			// we track config and state dependencies separately but for
+			// the reverse dependencies during destroy we just meld them
+			// together into a single set. Is that a correct thing to do, or
+			// do we need some special treatment in this direction too?
 			for dependent := range objs.StateDependents(addr) {
 				if ref, ok := deletionRefs.GetOk(dependent); ok {
 					addDeleteDep(ref)
@@ -238,18 +257,21 @@ type resourceInstanceObjectSubgraph struct {
 	// These are nil for subgraphs that don't include a relevant result.
 	valueRef, deletionRef execgraph.ResourceInstanceResultRef
 
-	// addConfigDep and addDeleteDep each add an additional dependency to
-	// one of the operations in the subgraph.
+	// addConfigDep, addStateDep and addDeleteDep each add an additional
+	// dependency to one of the operations in the subgraph.
 	//
 	// addConfigDep adds a dependency of whatever operation accesses the
 	// configuration for the resource instance object, and so delays the
-	// evaluation of
-	// the configuration.
+	// evaluation of the configuration.
+	//
+	// addStateDep adds a dependency of whatever operation accesses the
+	// prior state for the resource instance object, and so delays some
+	// analysis of the prior state information.
 	//
 	// addDeleteDep adds a dependency of whatever operation deletes the
 	// associated object.
 	//
 	// Each of these is nil when there is no corresponding operation to add
 	// dependencies to.
-	addConfigDep, addDeleteDep func(execgraph.AnyResultRef)
+	addConfigDep, addStateDep, addDeleteDep func(execgraph.AnyResultRef)
 }
