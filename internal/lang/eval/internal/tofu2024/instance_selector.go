@@ -25,6 +25,8 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
+const maxCount = int64(math.MaxInt32)
+
 func compileInstanceSelector(ctx context.Context, declScope exprs.Scope, forEachExpr hcl.Expression, countExpr hcl.Expression, enabledExpr hcl.Expression, deps dependsOn) configgraph.InstanceSelector {
 	// We don't current verify that only one of the given expressions is set
 	// because we expect the configs package to check that.
@@ -107,11 +109,8 @@ func compileInstanceSelectorCount(_ context.Context, countValuer exprs.Valuer, d
 					err = errors.New("must be a whole number")
 				} else if bf.Cmp(big.NewFloat(0)) < 0 {
 					err = errors.New("must not be a negative number")
-				} else if v, acc := bf.Int64(); acc != big.Exact || v > math.MaxInt {
-					// This will eventually result in a Go slice of the
-					// requested length, so we are constrained by Go's maximum
-					// slice length on the current platform.
-					err = fmt.Errorf("must be between 0 and %d, inclusive", math.MaxInt)
+				} else if v, acc := bf.Int64(); acc != big.Exact || v > maxCount {
+					err = fmt.Errorf("must be between 0 and %d, inclusive", maxCount)
 				}
 			}
 			if err == nil {

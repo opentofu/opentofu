@@ -9,7 +9,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -293,7 +292,7 @@ func TestContext2Validate_countTooLarge(t *testing.T) {
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 resource "aws_instance" "test" {
-  count = 9223372036854775807
+  count = 2147483648
 }
 `,
 	})
@@ -307,10 +306,12 @@ resource "aws_instance" "test" {
 	if !diags.HasErrors() {
 		t.Fatalf("succeeded; want error")
 	}
-	if strconv.IntSize == 64 {
-		if got, want := diags.Err().Error(), `must be less than or equal to`; !strings.Contains(got, want) {
-			t.Fatalf("wrong error:\ngot:  %s\nwant: message containing %q", got, want)
-		}
+	got := diags.Err().Error()
+	if !strings.Contains(got, `2147483647`) {
+		t.Fatalf("wrong error:\ngot:  %s\nwant: message containing %q", got, `2147483647`)
+	}
+	if !strings.Contains(got, `must be less than or equal to`) && !strings.Contains(got, `must be between 0 and`) {
+		t.Fatalf("wrong error:\ngot:  %s\nwant: message containing count limit diagnostic", got)
 	}
 }
 

@@ -80,7 +80,7 @@ func TestEvaluateCountExpression_errors(t *testing.T) {
 			cty.NumberIntVal(maxCountValue() + 1),
 			nil,
 			"Invalid count argument",
-			`The given "count" argument value is unsuitable: must be less than or equal to`,
+			`The given "count" argument value is unsuitable: must be less than or equal to 2147483647.`,
 			false,
 		},
 		"string": {

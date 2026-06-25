@@ -577,17 +577,18 @@ func TestCompileInstanceSelectorCount(t *testing.T) {
 				diagsHasError("must be a whole number."),
 			},
 			"very large number": {
-				// This number is definitely out of range on both 32-bit and
-				// 64-bit targets.
 				hcl.StaticExpr(cty.MustParseNumberVal("99999999999999999999"), rng),
 				dependsOn{},
 				nil,
 				nil,
-				// The exact upper bound in this error message differs between
-				// 32-bit and 64-bit targets, and so we only match the constant
-				// prefix here which is enough to distinguish it from all
-				// of the other errors this function could return.
-				diagsHasError("must be between 0 and "),
+				diagsHasError("must be between 0 and 2147483647, inclusive."),
+			},
+			"larger than maximum count": {
+				hcl.StaticExpr(cty.NumberIntVal(maxCount+1), rng),
+				dependsOn{},
+				nil,
+				nil,
+				diagsHasError("must be between 0 and 2147483647, inclusive."),
 			},
 			"marks from depends_on": {
 				hcl.StaticExpr(cty.NumberIntVal(0), rng),

@@ -6,9 +6,8 @@ package evalchecks
 
 import (
 	"fmt"
+	"math"
 	"runtime"
-	"strconv"
-	"unsafe"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -20,15 +19,10 @@ import (
 
 type EvaluateFunc func(expr hcl.Expression) (cty.Value, tfdiags.Diagnostics)
 
+const maxCount = int64(math.MaxInt32)
+
 func maxCountValue() int64 {
-	var instanceKey addrs.InstanceKey
-
-	// expansionCount later allocates a []addrs.InstanceKey, so count is
-	// bounded by the largest backing array Go can represent for that slice.
-	const heapAddrBits = 32 + 16*(strconv.IntSize/64)
-	const maxAllocBytes = (uint64(1) << heapAddrBits) - 1
-
-	return int64(maxAllocBytes / uint64(unsafe.Sizeof(instanceKey)))
+	return maxCount
 }
 
 // EvaluateCountExpression is our standard mechanism for interpreting an
@@ -123,6 +117,16 @@ func EvaluateCountExpressionValue(expr hcl.Expression, ctx EvaluateFunc) (cty.Va
 		return cty.UnknownVal(cty.Number), diags
 	}
 
+	if countVal.Type() == cty.Number && countVal.GreaterThan(cty.NumberIntVal(maxCountValue())).True() {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid count argument",
+			Detail:   fmt.Sprintf(`The given "count" argument value is unsuitable: must be less than or equal to %d.`, maxCountValue()),
+			Subject:  expr.Range().Ptr(),
+		})
+		return nullCount, diags
+	}
+
 	var count int
 	err := gocty.FromCtyValue(countVal, &count)
 	if err != nil {
@@ -139,15 +143,6 @@ func EvaluateCountExpressionValue(expr hcl.Expression, ctx EvaluateFunc) (cty.Va
 			Severity: hcl.DiagError,
 			Summary:  "Invalid count argument",
 			Detail:   `The given "count" argument value is unsuitable: must be greater than or equal to zero.`,
-			Subject:  expr.Range().Ptr(),
-		})
-		return nullCount, diags
-	}
-	if maxCount := maxCountValue(); int64(count) > maxCount {
-		diags = diags.Append(&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Invalid count argument",
-			Detail:   fmt.Sprintf(`The given "count" argument value is unsuitable: must be less than or equal to %d.`, maxCount),
 			Subject:  expr.Range().Ptr(),
 		})
 		return nullCount, diags
