@@ -2486,7 +2486,8 @@ func TestEnsureProviderVersions(t *testing.T) {
 			go func(ch chan *testInstallerEventLogItem) {
 				events := installerLogEventsForTests(ch)
 				ctx := events.OnContext(ctx)
-				newLocks, instErr = inst.EnsureProviderVersions(ctx, locks, test.Reqs, test.Mode)
+
+				newLocks, instErr = inst.EnsureProviderVersions(ctx, locks, test.Reqs, test.Mode, nil)
 				close(eventsCh) // exits the event loop below
 			}(eventsCh)
 			for evt := range eventsCh {
@@ -2588,7 +2589,7 @@ func TestEnsureProviderVersions_local_source(t *testing.T) {
 				provider: versionConstraint,
 			}
 
-			newLocks, err := installer.EnsureProviderVersions(t.Context(), depsfile.NewLocks(), reqs, InstallNewProvidersOnly)
+			newLocks, err := installer.EnsureProviderVersions(t.Context(), depsfile.NewLocks(), reqs, InstallNewProvidersOnly, nil)
 			gotProviderlocks := newLocks.AllProviders()
 			wantProviderLocks := map[addrs.Provider]*depsfile.ProviderLock{
 				provider: depsfile.NewProviderLock(
@@ -2675,7 +2676,7 @@ func TestEnsureProviderVersions_protocol_errors(t *testing.T) {
 			reqs := getproviders.Requirements{
 				test.provider: test.inputVersion,
 			}
-			_, err := installer.EnsureProviderVersions(t.Context(), depsfile.NewLocks(), reqs, InstallNewProvidersOnly)
+			_, err := installer.EnsureProviderVersions(t.Context(), depsfile.NewLocks(), reqs, InstallNewProvidersOnly, nil)
 
 			switch err := err.(type) {
 			case nil:
@@ -2734,7 +2735,7 @@ func TestRaceConditionOnLocks(t *testing.T) {
 	mockSrc := getproviders.NewMockSource(mockedPkgs, nil)
 	installer := NewInstaller(NewDir(installerTarget), mockSrc)
 	locks := depsfile.NewLocks()
-	_, err := installer.EnsureProviderVersions(ctx, locks, reqs, InstallNewProvidersForce)
+	_, err := installer.EnsureProviderVersions(ctx, locks, reqs, InstallNewProvidersForce, nil)
 	if err != nil {
 		t.Fatalf("unexpected error from ensure provider versions")
 	}

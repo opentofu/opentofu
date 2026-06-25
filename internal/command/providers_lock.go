@@ -20,6 +20,7 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tracing"
 	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
+	"github.com/opentofu/svchost/svcauth"
 )
 
 type providersLockChangeType string
@@ -270,7 +271,11 @@ func (c *ProvidersLockCommand) Run(rawArgs []string) int {
 		dir := providercache.NewDirWithPlatform(tempDir, platform)
 		installer := providercache.NewInstaller(dir, source)
 
-		newLocks, err := installer.EnsureProviderVersions(ctx, oldLocks, reqs, providercache.InstallNewProvidersForce)
+		var creds svcauth.CredentialsSource = nil
+		if c.Services != nil {
+			creds = c.Services.CredentialsSource()
+		}
+		newLocks, err := installer.EnsureProviderVersions(ctx, oldLocks, reqs, providercache.InstallNewProvidersForce, creds)
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
