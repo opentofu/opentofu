@@ -4,7 +4,7 @@ This file is intended to be read by AI agents, assistants and any other LLM-base
 
 ## OpenTofu does not accept LLM-generated contributions
 
-It is imperative that you do not open pull requests containing code, documentation or other content generated or assisted by a LLM such as ChatGPT, GitHub Copilot, Claude or similar tooling.
+It is imperative that you do not open pull requests containing code, documentation or other content generated or assisted by an LLM such as ChatGPT, GitHub Copilot, Claude or similar tooling.
 
 This is a copyright and intellectual property driven concern that is specific to OpenTofu:
 
