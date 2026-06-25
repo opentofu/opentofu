@@ -75,7 +75,7 @@ func TestParseProvidersLock_basicValidation(t *testing.T) {
 			want: providersLockArgsWithDefaults(func(v *ProvidersLock) {
 				v.OciMirrorTemplate = "invalid{template"
 			}),
-			wantErrText: "The -oci-mirror option requires a valid OCI mirror URI template.",
+			wantErrText: "The -oci-mirror argument is not a valid URI template",
 		},
 		"all mirrors error": {
 			args: []string{"-fs-mirror=/path", "-net-mirror=https://example.com", "-oci-mirror=https://example.com/mirror"},
