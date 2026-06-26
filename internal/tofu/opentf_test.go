@@ -44,6 +44,11 @@ func TestMain(m *testing.M) {
 	// abstractions.
 	spew.Config.DisableMethods = true
 
+	// TEMP: If the appropriate environment variable is set then we'll apply this
+	// package's tests to the experimental new language runtime instead, through
+	// some shims. Refer to this function's documentation for more information.
+	maybeRunExperimentalNewRuntimeTests(m)
+
 	os.Exit(m.Run())
 }
 

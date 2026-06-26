@@ -6,20 +6,77 @@
 package tofu
 
 import (
+	"cmp"
+	"fmt"
+	"os"
+	"slices"
 	"strings"
+	"sync"
 	"testing"
 )
 
-func init() {
-	// Allow running experimental engine tests with:
-	// TOFU_X_EXPERIMENTAL_RUNTIME=1 go test ./internal/tofu
+// maybeRunExperimentalNewRuntimeTests is called by this package's [TestMain]
+// to give us an opportunity to handle testing differently if it seems like
+// someone is trying to apply this package's tests against the new experimental
+// language runtime through our shim layer.
+//
+// To use this, run something like the following command:
+//
+//	TOFU_X_EXPERIMENTAL_RUNTIME=1 go test ./internal/tofu
+func maybeRunExperimentalNewRuntimeTests(m *testing.M) {
+	if !experimentalRuntimeWanted() {
+		return // we'll just let the normal TestMain function handle things, then
+	}
+
+	// In normal builds we require setting a special linker flag to permit
+	// opting in to the experimental runtime shim, but for tests it's always
+	// allowed and just enabled on request.
 	SetExperimentalRuntimeAllowed(true)
+
+	status := m.Run()
+
+	// Before we exit we'll print some stats about how many times each of
+	// the experimental flags caused us to skip running some part of a test.
+	if status == 0 && testing.Verbose() && len(experimentalFlagSkipCounts) != 0 {
+		// (We use stderr here just to avoid interfering with any
+		// machine-readable output on stdout if we happen to be running tests
+		// in JSON mode, or similar.)
+		fmt.Fprintf(os.Stderr, "\n---- New runtime test-skip summary ----\n\n")
+		fmt.Fprintf(os.Stderr, "-> %d tests were skipped due to one or more of the following...\n\n", experimentalFlagSkippedTests)
+		type Record struct {
+			name  string
+			count int
+		}
+		var records []Record
+		var nameLen int
+		for name, count := range experimentalFlagSkipCounts {
+			records = append(records, Record{name, count})
+			if len(name) > nameLen {
+				nameLen = len(name)
+			}
+		}
+		slices.SortFunc(records, func(a, b Record) int {
+			return cmp.Compare(b.count, a.count) // reverse sort, greatest count first
+		})
+		for _, record := range records {
+			fmt.Fprintf(os.Stderr, "  %[3]*[1]s: %[2]d\n", record.name, record.count, nameLen)
+		}
+		fmt.Fprintln(os.Stderr, "")
+	}
+
+	// We'll exit here now, to avoid [TestMain] running the test suite over
+	// again once we return.
+	os.Exit(status)
 }
 
 type ExperimentalFlag struct {
 	name    string
 	enabled bool
 }
+
+var experimentalFlagSkipCounts map[string]int
+var experimentalFlagSkippedTests int
+var experimentalFlagSkipMu sync.Mutex
 
 var (
 	ExperimentalFlagUnknown = ExperimentalFlag{"Unknown", false}
@@ -101,13 +158,20 @@ var (
 func SkipExperimental(t *testing.T, features ...ExperimentalFlag) {
 	if experimentalRuntimeEnabled() {
 		var strs []string
+		experimentalFlagSkipMu.Lock()
+		defer experimentalFlagSkipMu.Unlock()
+		if experimentalFlagSkipCounts == nil {
+			experimentalFlagSkipCounts = make(map[string]int)
+		}
 		for _, feature := range features {
 			if feature.enabled {
 				continue
 			}
 			strs = append(strs, feature.name)
+			experimentalFlagSkipCounts[feature.name]++
 		}
 		if len(strs) > 0 {
+			experimentalFlagSkippedTests++
 			t.Skip("New Engine: " + strings.Join(strs, ", "))
 		}
 	}

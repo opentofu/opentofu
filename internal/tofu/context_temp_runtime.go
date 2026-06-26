@@ -71,6 +71,10 @@ func experimentalRuntimeEnabled() bool {
 		return false
 	}
 
+	return experimentalRuntimeWanted()
+}
+
+func experimentalRuntimeWanted() bool {
 	optIn := os.Getenv("TOFU_X_EXPERIMENTAL_RUNTIME")
 	return optIn != ""
 }
