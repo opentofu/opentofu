@@ -41,4 +41,4 @@ jobs:
 
       - name: "Unit tests"
         run: |
-          TOFU_X_EXPERIMENTAL_RUNTIME=1 go test -ldflags "-X main.experimentsAllowed=yes" ./internal/tofu
+          TOFU_X_EXPERIMENTAL_RUNTIME=1 go test -v -ldflags "-X main.experimentsAllowed=yes" ./internal/tofu
