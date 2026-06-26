@@ -37,7 +37,7 @@ build-experimental:
 .PHONY: test-experimental
 test-experimental:
 # 	TOFU_X_EXPERIMENTAL_RUNTIME=1 go test -ldflags "-X main.experimentsAllowed=yes" -v ./...
-	TOFU_X_EXPERIMENTAL_RUNTIME=1 go test -ldflags "-X main.experimentsAllowed=yes" -v ./internal/tofu
+	TOFU_X_EXPERIMENTAL_RUNTIME=1 go test -v -ldflags "-X main.experimentsAllowed=yes" -v ./internal/tofu
 
 # generate runs `go generate` to build the dynamically generated
 # source files, except the protobuf stubs which are built instead with
