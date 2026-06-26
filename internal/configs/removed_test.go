@@ -213,6 +213,42 @@ func TestRemovedBlock_decode(t *testing.T) {
 				Subject:  &blockRange,
 			}),
 		},
+		"error-invalid-from-with-provisioner": {
+			&hcl.Block{
+				Type: "removed",
+				Body: hcltest.MockBody(&hcl.BodyContent{
+					Attributes: hcl.Attributes{
+						"from": {
+							Name: "from",
+							Expr: data_foo_expr,
+						},
+					},
+					Blocks: hcl.Blocks{
+						{
+							Type:   "provisioner",
+							Labels: []string{"local-exec"},
+							LabelRanges: []hcl.Range{
+								{
+									Filename: "file",
+								},
+							},
+							Body: hcltest.MockBody(&hcl.BodyContent{
+								Attributes: hcl.Attributes{
+									"command": &hcl.Attribute{Expr: &hclsyntax.LiteralValueExpr{Val: cty.StringVal("echo 'test'")}},
+									"when":    &hcl.Attribute{Expr: hcltest.MockExprTraversalSrc("destroy")},
+								},
+							}),
+						},
+					},
+				}),
+				DefRange: blockRange,
+			},
+			&Removed{
+				DeclRange: blockRange,
+			},
+			"Data source address is not allowed",
+			hcl.Diagnostics{},
+		},
 		"error-removed-module-with-provisioner": {
 			&hcl.Block{
 				Type: "removed",
