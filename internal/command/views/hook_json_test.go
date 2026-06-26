@@ -53,7 +53,8 @@ func TestJSONHook_create(t *testing.T) {
 		}),
 	})
 
-	action, err := hook.PreApply(addr, states.CurrentGen, plans.Create, priorState, plannedNewState)
+	elapsedChan := make(chan time.Duration)
+	action, err := hook.preApply(addr, states.CurrentGen, plans.Create, priorState, plannedNewState, elapsedChan)
 	testHookReturnValues(t, action, err)
 
 	action, err = hook.PreProvisionInstanceStep(addr, "local-exec")
@@ -63,8 +64,6 @@ func TestJSONHook_create(t *testing.T) {
 
 	action, err = hook.PostProvisionInstanceStep(addr, "local-exec", nil)
 	testHookReturnValues(t, action, err)
-
-	elapsedChan := hook.applying[addr.String()].elapsed
 
 	// Travel 10s into the future, notify the progress goroutine, and wait
 	// for execution via 'elapsed' progress
@@ -96,7 +95,7 @@ func TestJSONHook_create(t *testing.T) {
 	hook.applyingLock.Lock()
 	for key, progress := range hook.applying {
 		close(progress.done)
-		close(progress.elapsed)
+		close(elapsedChan)
 		<-progress.heartbeatDone
 		delete(hook.applying, key)
 	}
@@ -213,7 +212,8 @@ func TestJSONHook_errors(t *testing.T) {
 		}),
 	})
 
-	action, err := hook.PreApply(addr, states.CurrentGen, plans.Delete, priorState, plannedNewState)
+	elapsedChan := make(chan time.Duration)
+	action, err := hook.preApply(addr, states.CurrentGen, plans.Delete, priorState, plannedNewState, elapsedChan)
 	testHookReturnValues(t, action, err)
 
 	provisionError := fmt.Errorf("provisioner didn't want to")
@@ -228,7 +228,7 @@ func TestJSONHook_errors(t *testing.T) {
 	hook.applyingLock.Lock()
 	for key, progress := range hook.applying {
 		close(progress.done)
-		close(progress.elapsed)
+		close(elapsedChan)
 		<-progress.heartbeatDone
 		delete(hook.applying, key)
 	}

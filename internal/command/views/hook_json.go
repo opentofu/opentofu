@@ -63,12 +63,12 @@ type applyProgress struct {
 	// heartbeatDone is used to allow tests to safely wait for the progress
 	// goroutine to finish
 	heartbeatDone chan struct{}
-
-	// elapsed is used to allow tests to safely check for heartbeat executions
-	elapsed chan time.Duration
 }
 
 func (h *jsonHook) PreApply(addr addrs.AbsResourceInstance, gen states.Generation, action plans.Action, priorState, plannedNewState cty.Value) (tofu.HookAction, error) {
+	return h.preApply(addr, gen, action, priorState, plannedNewState, nil)
+}
+func (h *jsonHook) preApply(addr addrs.AbsResourceInstance, gen states.Generation, action plans.Action, priorState, plannedNewState cty.Value, elapsed chan<- time.Duration) (tofu.HookAction, error) {
 	if action != plans.NoOp {
 		idKey, idValue := format.ObjectValueIDOrName(priorState)
 		h.view.Hook(json.NewApplyStart(addr, action, idKey, idValue))
@@ -78,7 +78,6 @@ func (h *jsonHook) PreApply(addr addrs.AbsResourceInstance, gen states.Generatio
 		addr:          addr,
 		action:        action,
 		start:         h.timeNow().Round(time.Second),
-		elapsed:       make(chan time.Duration),
 		done:          make(chan struct{}),
 		heartbeatDone: make(chan struct{}),
 	}
@@ -87,14 +86,16 @@ func (h *jsonHook) PreApply(addr addrs.AbsResourceInstance, gen states.Generatio
 	h.applyingLock.Unlock()
 
 	if action != plans.NoOp {
-		go h.applyingHeartbeat(progress)
+		go h.applyingHeartbeat(progress, elapsed)
 	}
 	return tofu.HookActionContinue, nil
 }
 
-func (h *jsonHook) applyingHeartbeat(progress applyProgress) {
+func (h *jsonHook) applyingHeartbeat(progress applyProgress, elapsedChan chan<- time.Duration) {
 	defer close(progress.heartbeatDone)
-	defer close(progress.elapsed)
+	if elapsedChan != nil {
+		defer close(elapsedChan)
+	}
 	for {
 		select {
 		case <-progress.done:
@@ -104,7 +105,9 @@ func (h *jsonHook) applyingHeartbeat(progress applyProgress) {
 
 		elapsed := h.timeNow().Round(time.Second).Sub(progress.start)
 		h.view.Hook(json.NewApplyProgress(progress.addr, progress.action, elapsed))
-		progress.elapsed <- elapsed
+		if elapsedChan != nil {
+			elapsedChan <- elapsed
+		}
 	}
 }
 
