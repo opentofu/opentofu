@@ -23,9 +23,9 @@ for a follow-up once #2147 is resolved.
 ## Proposed Solution
 
 Adopt the RubyGems `Dependency#match?` opt-in convention for provider version constraints:
-prereleases are included in matching if and only if at least one version boundary in the
-constraint set is itself a prerelease. The choice of operator does not affect this decision
-(see Open Questions for edge cases around `!=`).
+prereleases are included in matching if and only if at least one **non-`!=`** version boundary
+in the constraint set is itself a prerelease. `!=` constraints are excluded from the opt-in
+check — a standalone `!= 1.0.0-bad` does not enable prerelease matching.
 
 ### User Documentation
 
@@ -66,7 +66,8 @@ version = ">= 1.0.0-beta.1"  # matches 1.0.0-beta.1, 1.0.0-beta.2, 1.0.0-rc.1, 1
 > version = ">= 1.0.0-0, < 2.0.0-0"  # matches 1.0.x prereleases and stable, but not 2.0.0-beta.1
 > ```
 >
-> This behavior is consistent with RubyGems, but may be surprising. See Open Questions.
+> This behavior is consistent with RubyGems. Always use a prerelease suffix on the upper
+> bound too (e.g. `< 2.0.0-0`) when you want to exclude prereleases of that version.
 
 **Behavior change:** This change affects configurations that already use a prerelease boundary
 with an inexact operator (e.g. `>= 1.0.0-0`). Such constraints previously silently fell back
@@ -98,11 +99,14 @@ prereleases.
 The fix introduces a helper `MeetingConstraintsForProvider` that inspects the constraint set
 and selects the appropriate underlying function:
 
-- If any `SelectionSpec` in the constraint has a non-empty `Boundary.Prerelease` field →
-  call `versions.MeetingConstraintsExact`, which performs exact semver comparison including
-  prereleases.
+- If any `SelectionSpec` with a **non-`!=`** operator has a non-empty `Boundary.Prerelease`
+  field → call `versions.MeetingConstraintsExact`, which performs exact semver comparison
+  including prereleases.
 - Otherwise → call `versions.MeetingConstraints`, which excludes prereleases (current
   behavior, unchanged).
+
+`!=` specs are skipped during the opt-in check. A `!= 1.0.0-bad` constraint simply excludes
+that version from whatever set is selected by the remaining constraints.
 
 This mirrors `Gem::Requirement#prerelease?` in RubyGems, which returns true when any version
 boundary in the requirement is a prerelease.
@@ -114,6 +118,19 @@ The helper is applied consistently across all three provider version matching si
 | `internal/providercache/installer.go` | `ensureProviderVersionsMightNeed` | replaces direct `MeetingConstraints` call |
 | `internal/configs/config.go` | `VerifyDependencySelections` | replaces direct `MeetingConstraints` call |
 | `internal/command/providers_mirror.go` | `Run` | replaces direct `MeetingConstraints` call |
+
+#### Rollout Plan
+
+To reduce risk, the feature is introduced in three phases:
+
+1. **Phase 1 (initial release):** The new behavior is gated behind an environment variable
+   (`OPENTOFU_EXPERIMENT_PRERELEASE_CONSTRAINTS=1`). Without it, behavior is unchanged.
+2. **Phase 2 (next development cycle):** The new behavior becomes the default.
+   Setting the env var to `0` reverts to the old behavior.
+3. **Phase 3 (following development cycle):** The old code path and the env var are removed.
+
+This gives users and provider authors time to validate the change before it becomes
+unconditional.
 
 The go-versions library author explicitly notes that `MeetingConstraintsExact` is the right
 function to use when the caller wants to implement its own prerelease policy:
@@ -141,30 +158,20 @@ pattern in practice.
 
 ### Open Questions
 
-1. **Upper bound behavior:** When a constraint opts in (e.g. `>= 1.0.0-0, < 2.0.0`), the
-   upper bound `< 2.0.0` also includes `2.0.0-beta.1` because semver defines
-   `2.0.0-beta.1 < 2.0.0`. This is consistent with RubyGems but likely surprising to users
-   who expect `< 2.0.0` to mean "strictly below the 2.0.0 stable release". Should we
-   deviate from RubyGems here and apply `Released` filtering to upper-bound constraints even
-   when the lower bound opts in? Or is documenting the `< 2.0.0-0` pattern sufficient?
-
-2. **`!=` with prerelease boundary:** A constraint like `!= 1.0.0-bad` opts in globally,
-   enabling all other prereleases — likely not the intent. Should `!=` be excluded from the
-   opt-in rule, or is it acceptable as documented behavior?
-
-3. Should OpenTofu emit a **warning** when a prerelease-opting-in constraint is used, to
+1. Should OpenTofu emit a **warning** when a prerelease-opting-in constraint is used, to
    make the behavior change visible to users upgrading from older versions?
 
-4. The `~> X.Y.Z-pre` upper bound edge case (see Technical Approach): is the divergence from
+2. The `~> X.Y.Z-pre` upper bound edge case (see Technical Approach): is the divergence from
    RubyGems acceptable, or should it be addressed?
 
-5. Should the opt-in eventually be extended to **module** version constraints as a follow-up
+3. Should the opt-in eventually be extended to **module** version constraints as a follow-up
    to resolving #2147?
 
 ### Future Considerations
 
 - Extending the same opt-in behavior to module version constraints once issue #2147 (module
-  installer prerelease quirks) is resolved.
+  installer prerelease quirks) is resolved. Once this RFC is accepted, a note should be added
+  to #2147 to track the analogous improvement there.
 - Extending the opt-in to `required_version` (OpenTofu core version constraints), allowing
   users to test against prerelease OpenTofu builds using the same convention (e.g.
   `required_version = ">= 1.12.0-0"`). This uses a different code path from providers and
