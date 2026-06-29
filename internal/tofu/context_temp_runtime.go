@@ -179,6 +179,9 @@ func (c *Context) newEnginePlan(ctx context.Context, config *configs.Config, pre
 
 	timestamp := time.Now().UTC()
 
+	tracer := c.newEnginePlanTracer()
+	ctx = planning.ContextWithTracer(ctx, tracer)
+
 	configInst, plugins, done, moreDiags := c.newEngineShim(ctx, config, opts.SetVariables, timestamp, false)
 	diags = diags.Append(moreDiags)
 
@@ -202,6 +205,82 @@ func (c *Context) newEnginePlan(ctx context.Context, config *configs.Config, pre
 	}
 	diags = diags.Append(moreDiags)
 	return plan, diags
+}
+
+func (c *Context) newEnginePlanTracer() *planning.Tracer {
+	// TODO: For now this just shims to our old Hook API as best we can. Once we
+	// start using the new runtime directly instead of shimming it through
+	// the old runtime's API we should let the CLI layer be responsible for
+	// providing its own planning.PlanTracer directly, which it can then
+	// use both to drive its own UI and to centralize our OpenTelemetry tracing
+	// logic instead of having it spread all over the codebase.
+	eachHook := func(fn func(Hook) (HookAction, error)) {
+		for _, h := range c.hooks {
+			action, err := fn(h)
+			if err != nil {
+				// The new runtime intentionally doesn't allow tracers to
+				// force failure: this API is purely for passive tracing and
+				// UI reporting. Therefore we'll just log the error and return.
+				log.Printf("[ERROR] %T: %s", h, err)
+				return
+			}
+			switch action {
+			case HookActionContinue:
+				continue
+			case HookActionHalt:
+				return
+			}
+		}
+	}
+
+	return &planning.Tracer{
+		StartManagedResourceInstanceObjectRefresh: func(ctx context.Context, addr addrs.AbsResourceInstanceObject) context.Context {
+			inst := addr.InstanceAddr
+			gen := addr.DeposedKey.Generation()
+			eachHook(func(h Hook) (HookAction, error) {
+				return h.PreRefresh(inst, gen, cty.DynamicVal)
+			})
+			return ctx
+		},
+		EndManagedResourceInstanceObjectRefresh: func(ctx context.Context, addr addrs.AbsResourceInstanceObject, refreshedVal cty.Value, diags tfdiags.Diagnostics) {
+			inst := addr.InstanceAddr
+			gen := addr.DeposedKey.Generation()
+			eachHook(func(h Hook) (HookAction, error) {
+				return h.PostRefresh(inst, gen, cty.DynamicVal, refreshedVal)
+			})
+		},
+		StartManagedResourceInstanceObjectPlanChanges: func(ctx context.Context, addr addrs.AbsResourceInstanceObject) context.Context {
+			inst := addr.InstanceAddr
+			gen := addr.DeposedKey.Generation()
+			eachHook(func(h Hook) (HookAction, error) {
+				return h.PreDiff(inst, gen, cty.DynamicVal, cty.DynamicVal)
+			})
+			return ctx
+		},
+		EndManagedResourceInstanceObjectPlanChanges: func(ctx context.Context, addr addrs.AbsResourceInstanceObject, plannedVal cty.Value, diags tfdiags.Diagnostics) {
+			inst := addr.InstanceAddr
+			gen := addr.DeposedKey.Generation()
+			eachHook(func(h Hook) (HookAction, error) {
+				// TODO: For now we're just always reporting plans.Update here
+				// as a placeholder, since we're shimming hooks here primarily
+				// for the benefit of the context tests and so we'll wait to
+				// see if any of those tests need more than this before we add
+				// that complexity.
+				return h.PostDiff(inst, gen, plans.Update, cty.DynamicVal, plannedVal)
+			})
+		},
+		StartDataResourceInstanceRead: func(ctx context.Context, addr addrs.AbsResourceInstance) context.Context {
+			eachHook(func(h Hook) (HookAction, error) {
+				return h.PreRefresh(addr, addrs.CurrentResourceInstanceObjectGeneration, cty.DynamicVal)
+			})
+			return ctx
+		},
+		EndDataResourceInstanceRead: func(ctx context.Context, addr addrs.AbsResourceInstance, resultVal cty.Value, diags tfdiags.Diagnostics) {
+			eachHook(func(h Hook) (HookAction, error) {
+				return h.PostRefresh(addr, addrs.CurrentResourceInstanceObjectGeneration, cty.DynamicVal, resultVal)
+			})
+		},
+	}
 }
 
 func (c *Context) newEngineApply(ctx context.Context, config *configs.Config, plan *plans.Plan, variables InputValues) (*states.State, tfdiags.Diagnostics) {
