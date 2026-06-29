@@ -21,6 +21,16 @@ import (
 func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance) (*resourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
+	tracer := contextTracer(ctx)
+	if cb := tracer.StartDataResourceInstancePlanning; cb != nil {
+		ctx = cb(ctx, inst.Addr)
+	}
+	if cb := tracer.EndDataResourceInstancePlanning; cb != nil {
+		defer func() { // closure to delay evaluating diags until we return
+			cb(ctx, inst.Addr, diags)
+		}()
+	}
+
 	ret := &resourceInstanceObject{
 		Addr:               inst.Addr.CurrentObject(),
 		ConfigDependencies: addrs.MakeSet[addrs.AbsResourceInstanceObject](),
@@ -85,7 +95,11 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 		return ret, diags
 	}
 
-	resp := providerClient.ReadDataSource(ctx, providers.ReadDataSourceRequest{
+	readCtx := ctx
+	if cb := tracer.StartDataResourceInstanceRead; cb != nil {
+		readCtx = cb(ctx, inst.Addr)
+	}
+	resp := providerClient.ReadDataSource(readCtx, providers.ReadDataSourceRequest{
 		TypeName: inst.ResourceType,
 		Config:   unmarkedConfigVal,
 
@@ -98,6 +112,15 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 		ProviderMeta: cty.NullVal(cty.DynamicPseudoType),
 	})
 	diags = diags.Append(resp.Diagnostics)
+	if cb := tracer.EndDataResourceInstanceRead; cb != nil {
+		resultVal := cty.DynamicVal
+		if resp.State != cty.NilVal {
+			// TODO: Should apply "sensitive" marks here where appropriate in
+			// case the tracer is reporting events in the UI.
+			resultVal = resp.State
+		}
+		cb(readCtx, inst.Addr, resultVal, diags)
+	}
 	if resp.Diagnostics.HasErrors() {
 		return ret, diags
 	}
