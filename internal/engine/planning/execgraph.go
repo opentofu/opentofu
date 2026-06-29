@@ -6,28 +6,17 @@
 package planning
 
 import (
-	"sync"
-
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/internal/execgraph"
 )
 
-// execGraphBuilder is a higher-level wrapper around [execgraph.Builder] that
-// is tailored to the needs of the planning engine.
+// execGraphBuilder is a legacy leftover of an earlier version of this component
+// where execution graph construction ran concurrently with other planning work.
 //
-// Specifically:
-//   - Its exported methods that add to or modify the graph are all
-//     concurrency-safe, for convenient use during the concurrent planning work
-//     driven by the evaluator.
-//   - Many of its methods can potentially add multiple operations to the graph
-//     at once, to let the planning engine work at a higher level of abstraction
-//     than just the individual raw operation types. The lower-level
-//     [execgraph.Builder] instead directly matches the abstraction level of
-//     [execgraph.Operations].
+// That's no longer true and so we'll probably remove or further simplify this
+// eventually. Only [buildExecutionGraph] should instantiate objects of this
+// type, and outside callers should rely only on [buildExecutionGraph].
 type execGraphBuilder struct {
-	// mu must be locked while accessing any of the other fields.
-	mu sync.Mutex
-
 	// lower is the lower-level graph builder that this utility is built in
 	// terms of.
 	lower *execgraph.Builder
@@ -47,19 +36,34 @@ type execGraphBuilder struct {
 // the other files named execgraph_*.go , grouped by what kinds of objects they
 // primarily work with.
 
-func newExecGraphBuilder(makeDeposedKey func(addrs.AbsResourceInstance) addrs.DeposedKey) *execGraphBuilder {
-	return &execGraphBuilder{
+func buildExecutionGraph(
+	objs *resourceInstanceObjects,
+	effectiveReplaceOrders addrs.Map[addrs.AbsResourceInstanceObject, resourceInstanceReplaceOrder],
+	makeDeposedKey func(addrs.AbsResourceInstance) addrs.DeposedKey,
+) *execgraph.Graph {
+	// TODO: This was originally built around a separate [execGraphBuilder]
+	// type because we were building the execution graph concurrently with
+	// other planning work, and so it was convenient to have a central object
+	// to hold the necessary mutex and otherwise help coordinate between
+	// multiple callers.
+	//
+	// We no longer use that structure and instead just build the execution
+	// using normal sequential code after the rest of the planning work is
+	// complete, and so it's debatable whether we even need this
+	// [execGraphBuilder] type anymore, but the main functionality currently
+	// lives as methods of this type and so we'll keep it for now until the
+	// shape of this part of the system is feeling more settled and then we
+	// can decide whether to simplify further. But for now let's have the
+	// rest of this package pretend that [execGraphBuilder] doesn't exist so
+	// that we can refactor this more easily later.
+
+	egb := &execGraphBuilder{
 		lower:          execgraph.NewBuilder(),
 		makeDeposedKey: makeDeposedKey,
 	}
-}
-
-// Finish returns the graph that has been built, which is then immutable.
-//
-// After calling this function the execGraphBuilder is invalid and must not be
-// used anymore.
-func (b *execGraphBuilder) Finish() *execgraph.Graph {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return b.lower.Finish()
+	egb.AddResourceInstanceObjectSubgraphs(
+		objs,
+		effectiveReplaceOrders,
+	)
+	return egb.lower.Finish()
 }

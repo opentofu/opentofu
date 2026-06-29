@@ -131,7 +131,7 @@ func (b *execGraphBuilder) AddResourceInstanceObjectSubgraphs(
 
 		if addr.IsCurrent() && subgraph.valueRef != nil {
 			resultRefs.Put(addr, subgraph.valueRef)
-			b.SetResourceInstanceFinalStateResult(addr.InstanceAddr, subgraph.valueRef)
+			b.lower.SetResourceInstanceFinalStateResult(addr.InstanceAddr, subgraph.valueRef)
 		}
 	}
 
@@ -204,7 +204,7 @@ func ensureResourceInstanceObjectResultRef(addr addrs.AbsResourceInstanceObject,
 	var resultRef execgraph.ResourceInstanceResultRef
 	if addr.IsCurrent() {
 		resultRef = b.lower.ResourceInstancePrior(b.lower.ConstantResourceInstAddr(addr.InstanceAddr), nil)
-		b.SetResourceInstanceFinalStateResult(addr.InstanceAddr, resultRef)
+		b.lower.SetResourceInstanceFinalStateResult(addr.InstanceAddr, resultRef)
 	} else {
 		resultRef = b.lower.ManagedAlreadyDeposed(b.lower.ConstantResourceInstAddr(addr.InstanceAddr), b.lower.ConstantDeposedKey(addr.DeposedKey))
 	}
@@ -230,20 +230,6 @@ func (b *execGraphBuilder) resourceInstanceChangeSubgraph(
 		// the earlier planning pass could possibly plan changes for.
 		panic(fmt.Sprintf("can't build resource instance change subgraph for unexpected resource mode %s", resourceMode))
 	}
-}
-
-// SetResourceInstanceFinalStateResult records which result should be treated
-// as the "final state" for the given resource instance, for purposes such as
-// propagating the result value back into the evaluation system to allow
-// downstream expressions to derive from it.
-//
-// Only one call is allowed per distinct [addrs.AbsResourceInstance] value. If
-// two callers try to register for the same address then the second call will
-// panic.
-func (b *execGraphBuilder) SetResourceInstanceFinalStateResult(addr addrs.AbsResourceInstance, result execgraph.ResourceInstanceResultRef) {
-	b.mu.Lock()
-	b.lower.SetResourceInstanceFinalStateResult(addr, result)
-	b.mu.Unlock()
 }
 
 // resourceInstanceObjectSubgraph represents the external connection points of a

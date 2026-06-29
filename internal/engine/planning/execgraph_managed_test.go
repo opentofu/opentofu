@@ -6,7 +6,6 @@
 package planning
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
@@ -293,14 +292,7 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			var placeholderDeposedKey uint32
-			builder := newExecGraphBuilder(func(_ addrs.AbsResourceInstance) addrs.DeposedKey {
-				// For testing purposes we just allocate sequential integers
-				// so that we have predictable keys to include in the expected
-				// output of each test.
-				placeholderDeposedKey++
-				return addrs.DeposedKey(fmt.Sprintf("%08x", placeholderDeposedKey))
-			})
+			builder := newExecGraphBuilderForTesting()
 			// FIXME: We're currently ignoring all but the first result
 			// because this test was originally written for an older variant
 			// of this function which only had one result. We should find a
@@ -310,7 +302,7 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 			resultRef := subgraph.valueRef
 			builder.lower.SetResourceInstanceFinalStateResult(instAddr, resultRef)
 
-			graph := builder.Finish()
+			graph := builder.lower.Finish()
 			gotGraphRepr := strings.TrimSpace(graph.DebugRepr())
 			wantGraphRepr := strings.TrimSpace(stripCommonLeadingTabs(test.WantRepr))
 			if diff := cmp.Diff(wantGraphRepr, gotGraphRepr); diff != "" {

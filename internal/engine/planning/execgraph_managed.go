@@ -32,9 +32,6 @@ func (b *execGraphBuilder) ManagedResourceInstanceSubgraph(
 	plannedChange *plans.ResourceInstanceChange,
 	effectiveReplaceOrder resourceInstanceReplaceOrder,
 ) resourceInstanceObjectSubgraph {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
 	// Before we go any further we'll just make sure what we've been given
 	// is sensible, so that the remaining code can assume the following
 	// about the given change. Any panics in the following suggest that there's

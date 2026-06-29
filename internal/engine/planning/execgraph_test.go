@@ -7,9 +7,27 @@ package planning
 
 import (
 	"bufio"
+	"fmt"
 	"math"
 	"strings"
+
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/engine/internal/execgraph"
 )
+
+func newExecGraphBuilderForTesting() *execGraphBuilder {
+	var placeholderDeposedKey uint32
+	return &execGraphBuilder{
+		lower: execgraph.NewBuilder(),
+		makeDeposedKey: func(_ addrs.AbsResourceInstance) addrs.DeposedKey {
+			// For testing purposes we just allocate sequential integers
+			// so that we have predictable keys to include in the expected
+			// output of each test.
+			placeholderDeposedKey++
+			return addrs.DeposedKey(fmt.Sprintf("%08x", placeholderDeposedKey))
+		},
+	}
+}
 
 // stripCommonLeadingTabs is a helper for tests that include constant strings
 // for comparison with the result of a [Graph.DebugRepr] call, so that we can
