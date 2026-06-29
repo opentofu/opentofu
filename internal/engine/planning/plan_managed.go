@@ -10,6 +10,7 @@ import (
 	"fmt"
 
 	"github.com/zclconf/go-cty/cty"
+	ctyjson "github.com/zclconf/go-cty/cty/json"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/eval"
@@ -18,7 +19,6 @@ import (
 	"github.com/opentofu/opentofu/internal/resources"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	ctyjson "github.com/zclconf/go-cty/cty/json"
 )
 
 func (p *planGlue) planDesiredManagedResourceInstance(
@@ -43,6 +43,16 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		// in case that allows us to detect a problem sooner. The important
 		// thing is that in the deferred case we won't actually propose any
 		// planned changes for this resource instance.
+	}
+
+	tracer := contextTracer(ctx)
+	if cb := tracer.StartManagedResourceInstanceObjectPlanning; cb != nil {
+		ctx = cb(ctx, inst.Addr.CurrentObject())
+	}
+	if cb := tracer.EndManagedResourceInstanceObjectPlanning; cb != nil {
+		defer func() { // closure to delay evaluating diags until we return
+			cb(ctx, inst.Addr.CurrentObject(), diags)
+		}()
 	}
 
 	ret = &resourceInstanceObject{
@@ -139,6 +149,10 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 			))
 		}
 
+		upgradeCtx := ctx
+		if cb := tracer.StartManagedResourceInstanceObjectUpgrade; cb != nil {
+			upgradeCtx = cb(ctx, inst.Addr.CurrentObject())
+		}
 		upgradeReq := providers.UpgradeResourceStateRequest{
 			TypeName: inst.Addr.Resource.Resource.Type,
 
@@ -153,9 +167,17 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 			// assume we'll never encounter a legacy state snapshot that uses AttrsFlat.
 			RawStateJSON: prevRoundState.Value.ValueJSON,
 		}
-
-		upgradeResp := providerClient.UpgradeResourceState(ctx, upgradeReq)
+		upgradeResp := providerClient.UpgradeResourceState(upgradeCtx, upgradeReq)
 		diags = diags.Append(upgradeResp.Diagnostics)
+		if cb := tracer.EndManagedResourceInstanceObjectUpgrade; cb != nil {
+			upgradedVal := cty.DynamicVal
+			if upgradeResp.UpgradedState != cty.NilVal {
+				// TODO: Should apply "sensitive" marks here where appropriate in
+				// case the tracer is reporting events in the UI.
+				upgradedVal = upgradeResp.UpgradedState
+			}
+			cb(upgradeCtx, inst.Addr.CurrentObject(), upgradedVal, diags)
+		}
 		if diags.HasErrors() {
 			return ret, diags
 		}
@@ -259,8 +281,17 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 
 	// TODO: Call resourceType.RefreshObject, update the "refreshed state",
 	// and reassign this refreshedVal to the refreshed result.
+	refreshCtx := ctx
+	if cb := tracer.StartManagedResourceInstanceObjectRefresh; cb != nil {
+		refreshCtx = cb(ctx, inst.Addr.CurrentObject())
+	}
 	refreshedVal := prevRoundVal
 	refreshedPrivate := prevRoundPrivate
+	if cb := tracer.EndManagedResourceInstanceObjectRefresh; cb != nil {
+		// TODO: Should apply "sensitive" marks here where appropriate in
+		// case the tracer is reporting events in the UI.
+		cb(refreshCtx, inst.Addr.CurrentObject(), refreshedVal, diags)
+	}
 
 	// TODO: ProviderMeta is a rarely-used feature that only really makes
 	// sense when the module and provider are both written by the same
@@ -270,7 +301,11 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 	// meta value to get from the evaluator into here.
 	providerMetaValue := cty.NilVal
 
-	planResp, planDiags := resourceType.PlanChanges(ctx, &resources.ManagedResourcePlanRequest{
+	planChangesCtx := ctx
+	if cb := tracer.StartManagedResourceInstanceObjectPlanChanges; cb != nil {
+		planChangesCtx = cb(ctx, inst.Addr.CurrentObject())
+	}
+	planResp, planDiags := resourceType.PlanChanges(planChangesCtx, &resources.ManagedResourcePlanRequest{
 		Current: resources.ValueWithPrivate{
 			Value:   refreshedVal,
 			Private: refreshedPrivate,
@@ -278,6 +313,15 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		DesiredValue:      effectiveConfigVal,
 		ProviderMetaValue: providerMetaValue,
 	}, ret.Addr)
+	if cb := tracer.EndManagedResourceInstanceObjectUpgrade; cb != nil {
+		plannedVal := cty.DynamicVal
+		if planResp.Planned.Value != cty.NilVal {
+			// TODO: Should apply "sensitive" marks here where appropriate in
+			// case the tracer is reporting events in the UI.
+			plannedVal = planResp.Planned.Value
+		}
+		cb(planChangesCtx, inst.Addr.CurrentObject(), plannedVal, diags)
+	}
 	diags = diags.Append(planDiags)
 	if planDiags.HasErrors() {
 		return ret, diags
