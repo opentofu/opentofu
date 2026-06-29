@@ -12,16 +12,7 @@ import (
 	"os"
 	"strings"
 	"testing"
-
-	"github.com/go-logr/logr"
 )
-
-func TestOTelLogSink_ImplementsLogSink(t *testing.T) {
-	// Compile-time check: otelLogSink satisfies logr.LogSink
-	var sink logr.LogSink = &otelLogSink{}
-	sink.Init(logr.RuntimeInfo{})
-	_ = logr.New(sink)
-}
 
 func TestOTelLogSink_Info_LevelMapping(t *testing.T) {
 	tests := []struct {
@@ -59,47 +50,48 @@ func TestOTelLogSink_Info_LevelMapping(t *testing.T) {
 	}
 }
 
-func TestOTelLogSink_Error_WithErr(t *testing.T) {
-	var buf bytes.Buffer
-	saved := log.Writer()
-	log.SetOutput(&buf)
-	defer log.SetOutput(saved)
+func TestOTelLogSink_Error(t *testing.T) {
+	t.Run("with error", func(t *testing.T) {
+		var buf bytes.Buffer
+		saved := log.Writer()
+		log.SetOutput(&buf)
+		defer log.SetOutput(saved)
 
-	sink := &otelLogSink{}
-	sink.Error(errors.New("connection refused"), "export failed")
+		sink := &otelLogSink{}
+		sink.Error(errors.New("connection refused"), "export failed")
 
-	output := buf.String()
-	if !strings.Contains(output, "[ERROR]") {
-		t.Errorf("Error output = %q; want [ERROR] prefix", output)
-	}
-	if !strings.Contains(output, "export failed") {
-		t.Errorf("Error output = %q; want message 'export failed'", output)
-	}
-	if !strings.Contains(output, "connection refused") {
-		t.Errorf("Error output = %q; want error details 'connection refused'", output)
-	}
-}
+		output := buf.String()
+		if !strings.Contains(output, "[ERROR]") {
+			t.Errorf("Error output = %q; want [ERROR] prefix", output)
+		}
+		if !strings.Contains(output, "export failed") {
+			t.Errorf("Error output = %q; want message 'export failed'", output)
+		}
+		if !strings.Contains(output, "connection refused") {
+			t.Errorf("Error output = %q; want error details 'connection refused'", output)
+		}
+	})
+	t.Run("nil error", func(t *testing.T) {
+		var buf bytes.Buffer
+		saved := log.Writer()
+		log.SetOutput(&buf)
+		defer log.SetOutput(saved)
 
-func TestOTelLogSink_Error_NilErr(t *testing.T) {
-	var buf bytes.Buffer
-	saved := log.Writer()
-	log.SetOutput(&buf)
-	defer log.SetOutput(saved)
+		sink := &otelLogSink{}
+		sink.Error(nil, "cleanup")
 
-	sink := &otelLogSink{}
-	sink.Error(nil, "cleanup")
-
-	output := buf.String()
-	if !strings.Contains(output, "[ERROR]") {
-		t.Errorf("Error output = %q; want [ERROR] prefix", output)
-	}
-	if !strings.Contains(output, "cleanup") {
-		t.Errorf("Error output = %q; want message 'cleanup'", output)
-	}
-	// Should NOT contain "<nil>" when error is nil
-	if strings.Contains(output, "<nil>") {
-		t.Errorf("Error output = %q; should not contain '<nil>' when err is nil", output)
-	}
+		output := buf.String()
+		if !strings.Contains(output, "[ERROR]") {
+			t.Errorf("Error output = %q; want [ERROR] prefix", output)
+		}
+		if !strings.Contains(output, "cleanup") {
+			t.Errorf("Error output = %q; want message 'cleanup'", output)
+		}
+		// Should NOT contain "<nil>" when error is nil
+		if strings.Contains(output, "<nil>") {
+			t.Errorf("Error output = %q; should not contain '<nil>' when err is nil", output)
+		}
+	})
 }
 
 func TestOTelLogSink_Enabled(t *testing.T) {

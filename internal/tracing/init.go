@@ -99,7 +99,6 @@ func OpenTelemetryInit(ctx context.Context) (context.Context, error) {
 	// that exporting should always be enabled and so will expect to find
 	// an OTLP server on localhost if no environment variables are set at all.
 	if os.Getenv(OTELExporterEnvVar) != "otlp" {
-		// Silently disabled — log line removed per accepted plan
 		return ctx, nil // By default, we just discard all telemetry calls
 	}
 
@@ -177,6 +176,8 @@ type otelLogSink struct {
 	values []any
 }
 
+var _ logr.LogSink = (*otelLogSink)(nil)
+
 func (s *otelLogSink) Init(info logr.RuntimeInfo) {}
 
 func (s *otelLogSink) Enabled(level int) bool {
@@ -184,7 +185,7 @@ func (s *otelLogSink) Enabled(level int) bool {
 }
 
 func (s *otelLogSink) Info(level int, msg string, keysAndValues ...interface{}) {
-	prefix := "[INFO]"
+	var prefix string
 	switch {
 	case level == 0:
 		prefix = "[INFO]"
@@ -205,14 +206,8 @@ func (s *otelLogSink) Info(level int, msg string, keysAndValues ...interface{}) 
 	b.WriteString(" ")
 	b.WriteString(msg)
 
-	if len(s.values) > 0 {
-		b.WriteString(" ")
-		writeLogValues(&b, s.values)
-	}
-	if len(keysAndValues) > 0 {
-		b.WriteString(" ")
-		writeLogValues(&b, keysAndValues)
-	}
+	writeLogValues(&b, s.values)
+	writeLogValues(&b, keysAndValues)
 
 	log.Print(b.String())
 }
@@ -231,14 +226,8 @@ func (s *otelLogSink) Error(err error, msg string, keysAndValues ...interface{})
 		b.WriteString(": ")
 		b.WriteString(err.Error())
 	}
-	if len(s.values) > 0 {
-		b.WriteString(" ")
-		writeLogValues(&b, s.values)
-	}
-	if len(keysAndValues) > 0 {
-		b.WriteString(" ")
-		writeLogValues(&b, keysAndValues)
-	}
+	writeLogValues(&b, s.values)
+	writeLogValues(&b, keysAndValues)
 
 	log.Print(b.String())
 }
@@ -246,6 +235,10 @@ func (s *otelLogSink) Error(err error, msg string, keysAndValues ...interface{})
 // writeLogValues formats interleaved key-value pairs into the builder.
 // Odd-length slices print the trailing key without a value.
 func writeLogValues(b *strings.Builder, kv []any) {
+	if len(kv) == 0 {
+		return
+	}
+	b.WriteString(" ")
 	for i := 0; i < len(kv); i += 2 {
 		if i > 0 {
 			b.WriteString(" ")
