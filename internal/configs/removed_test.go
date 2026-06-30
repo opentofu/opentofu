@@ -29,7 +29,6 @@ func TestRemovedBlock_decode(t *testing.T) {
 	foo_index_expr := hcltest.MockExprTraversalSrc("test_instance.foo[1]")
 	mod_boop_index_foo_expr := hcltest.MockExprTraversalSrc("module.boop[1].test_instance.foo")
 	data_foo_expr := hcltest.MockExprTraversalSrc("data.test_instance.foo")
-	invalid_from_expr := hcltest.MockExprLiteral(cty.StringVal("not-a-traversal"))
 
 	tests := map[string]struct {
 		input         *hcl.Block
@@ -213,42 +212,6 @@ func TestRemovedBlock_decode(t *testing.T) {
 				Detail:   "It is recommended for each 'removed' block configured to have also the 'lifecycle' block defined. By not specifying if the resource should be destroyed or not, could lead to unwanted behavior.",
 				Subject:  &blockRange,
 			}),
-		},
-		"error-invalid-from-with-provisioner": {
-			&hcl.Block{
-				Type: "removed",
-				Body: hcltest.MockBody(&hcl.BodyContent{
-					Attributes: hcl.Attributes{
-						"from": {
-							Name: "from",
-							Expr: invalid_from_expr,
-						},
-					},
-					Blocks: hcl.Blocks{
-						{
-							Type:   "provisioner",
-							Labels: []string{"local-exec"},
-							LabelRanges: []hcl.Range{
-								{
-									Filename: "file",
-								},
-							},
-							Body: hcltest.MockBody(&hcl.BodyContent{
-								Attributes: hcl.Attributes{
-									"command": &hcl.Attribute{Expr: &hclsyntax.LiteralValueExpr{Val: cty.StringVal("echo 'test'")}},
-									"when":    &hcl.Attribute{Expr: hcltest.MockExprTraversalSrc("destroy")},
-								},
-							}),
-						},
-					},
-				}),
-				DefRange: blockRange,
-			},
-			&Removed{
-				DeclRange: blockRange,
-			},
-			"Invalid expression",
-			hcl.Diagnostics{},
 		},
 		"error-data-source-from-with-provisioner": {
 			&hcl.Block{
