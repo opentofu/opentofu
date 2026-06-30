@@ -2103,6 +2103,41 @@ func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context
 		return cty.NilVal, diags
 	}
 
+	ctx = shared.ContextWithTracer(ctx, &shared.Tracer{
+		StartEphemeralResourceInstanceOpen: func(ctx context.Context, addr addrs.AbsResourceInstance) context.Context {
+			_ = evalCtx.Hook(func(h Hook) (HookAction, error) {
+				return h.PreOpen(addr)
+			})
+			return ctx
+		},
+		EndEphemeralResourceInstanceOpen: func(ctx context.Context, addr addrs.AbsResourceInstance, diags tfdiags.Diagnostics) {
+			_ = evalCtx.Hook(func(h Hook) (HookAction, error) {
+				return h.PostOpen(addr, diags.Err())
+			})
+		},
+		StartEphemeralResourceInstanceRenew: func(ctx context.Context, addr addrs.AbsResourceInstance) context.Context {
+			_ = evalCtx.Hook(func(h Hook) (HookAction, error) {
+				return h.PreRenew(addr)
+			})
+			return ctx
+		},
+		EndEphemeralResourceInstanceRenew: func(ctx context.Context, addr addrs.AbsResourceInstance, diags tfdiags.Diagnostics) {
+			_ = evalCtx.Hook(func(h Hook) (HookAction, error) {
+				return h.PostRenew(addr, diags.Err())
+			})
+		},
+		StartEphemeralResourceInstanceClose: func(ctx context.Context, addr addrs.AbsResourceInstance) context.Context {
+			_ = evalCtx.Hook(func(h Hook) (HookAction, error) {
+				return h.PreClose(addr)
+			})
+			return ctx
+		},
+		EndEphemeralResourceInstanceClose: func(ctx context.Context, addr addrs.AbsResourceInstance, diags tfdiags.Diagnostics) {
+			_ = evalCtx.Hook(func(h Hook) (HookAction, error) {
+				return h.PostClose(addr, diags.Err())
+			})
+		},
+	})
 	newVal, closeFn, openDiags := shared.OpenEphemeralResourceInstance(
 		ctx,
 		n.Addr,
@@ -2110,38 +2145,6 @@ func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context
 		n.ResolvedProvider.ProviderConfig.Correct().Instance(n.ResolvedProviderKey),
 		provider,
 		configVal,
-		shared.EphemeralResourceHooks{
-			PreOpen: func(addr addrs.AbsResourceInstance) {
-				_ = evalCtx.Hook(func(h Hook) (HookAction, error) {
-					return h.PreOpen(addr)
-				})
-			},
-			PostOpen: func(addr addrs.AbsResourceInstance, diags tfdiags.Diagnostics) {
-				_ = evalCtx.Hook(func(h Hook) (HookAction, error) {
-					return h.PostOpen(addr, diags.Err())
-				})
-			},
-			PreRenew: func(addr addrs.AbsResourceInstance) {
-				_ = evalCtx.Hook(func(h Hook) (HookAction, error) {
-					return h.PreRenew(addr)
-				})
-			},
-			PostRenew: func(addr addrs.AbsResourceInstance, diags tfdiags.Diagnostics) {
-				_ = evalCtx.Hook(func(h Hook) (HookAction, error) {
-					return h.PostRenew(addr, diags.Err())
-				})
-			},
-			PreClose: func(addr addrs.AbsResourceInstance) {
-				_ = evalCtx.Hook(func(h Hook) (HookAction, error) {
-					return h.PreClose(addr)
-				})
-			},
-			PostClose: func(addr addrs.AbsResourceInstance, diags tfdiags.Diagnostics) {
-				_ = evalCtx.Hook(func(h Hook) (HookAction, error) {
-					return h.PostClose(addr, diags.Err())
-				})
-			},
-		},
 	)
 
 	diags = diags.Append(openDiags.InConfigBody(config.Config, n.Addr.String()))

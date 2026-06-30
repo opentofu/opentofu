@@ -8,9 +8,11 @@ package applying
 import (
 	"context"
 
-	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
+
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/shared"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // Tracer is a container for various callbacks used to report various
@@ -62,21 +64,10 @@ type Tracer struct {
 	StartDataResourceInstanceRead func(ctx context.Context, addr addrs.AbsResourceInstance) context.Context
 	EndDataResourceInstanceRead   func(ctx context.Context, addr addrs.AbsResourceInstance, resultVal cty.Value, diags tfdiags.Diagnostics)
 
-	////////// Ephemeral Resource Lifecycle Events
-	// TODO: StartEphemeralResourceInstanceOpen, EndEphemeralResourceInstanceOpen,
-	// StartEphemeralResourceInstanceRenew, EndEphemeralResourceInstanceRenew,
-	// StartEphemeralResourceInstanceClose, and EndEphemeralResourceInstanceClose,
-	// but these are trickier because the evaluator manages them so we will
-	// probably need some additional indirection in this case. Maybe we'll
-	// define a shared "Tracer" object in package eval and just embed that
-	// here so we can reuse it during both plan and apply in a way that allows
-	// our caller to share the same set of tracing hooks between the plan and
-	// apply phases.
-
-	////////// Provider Instance Lifecycle Events
-	// TODO: Similar to ephemeral resource lifecycle events above, probably
-	// want to embed something we can share between the plan and apply tracer
-	// types.
+	// We also embed [shared.Tracer] for some events that are common across
+	// plan and apply. [ApplyPlannedChanges] automatically ensures that this
+	// nested tracer reaches the shared codepaths that rely on it.
+	shared.Tracer
 }
 
 // ContextWithTracer returns a new context derived from parent that carries

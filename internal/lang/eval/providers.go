@@ -13,13 +13,14 @@ import (
 	"sync"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/function"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/shared"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/zclconf/go-cty/cty"
-	"github.com/zclconf/go-cty/cty/function"
 )
 
 type providerConfigSupplier func(ctx context.Context, addr addrs.AbsProviderInstanceCorrect) (cty.Value, tfdiags.Diagnostics)
@@ -180,7 +181,6 @@ func (p *managedProviders) OpenEphemeralResourceInstance(ctx context.Context, ad
 		*providerInstance,
 		providerClient,
 		cfgVal,
-		shared.EphemeralResourceHooks{},
 	)
 	diags = diags.Append(openDiags)
 	if openDiags.HasErrors() {
