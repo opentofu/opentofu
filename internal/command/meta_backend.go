@@ -172,6 +172,8 @@ func (m *Meta) Backend(ctx context.Context, opts *BackendOpts, enc encryption.St
 		}
 	}
 	if !m.NewRuntimeEnabled() {
+		// The new runtime does not need a pre-run validation pass as it is already baked in
+		// The old engine however does need the pre-run validation pass
 		cliOpts.Validation = true
 	}
 

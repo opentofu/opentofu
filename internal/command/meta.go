@@ -399,6 +399,10 @@ func (m *Meta) contextOpts(ctx context.Context) (*tofu.ContextOpts, error) {
 	}
 
 	if m.NewRuntimeEnabled() {
+		// Inject runtime modules if the new runtime is enabled.
+		// This allows the shims in the tofu module to function
+		// without having to understand module installation logic.
+
 		loader, _ := m.initConfigLoader()
 
 		// This gets the current directory as full path.

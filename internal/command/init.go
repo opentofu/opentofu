@@ -547,8 +547,9 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 	var reqs getproviders.Requirements
 	var qualifs *getproviders.ProvidersQualification
 
-	// New Engine Hacks
 	if c.NewRuntimeEnabled() {
+		// Use new runtime to determine providers
+
 		configInst, moreDiags := c.StaticConfigInstance(ctx, config.Module, nil)
 		if moreDiags.HasErrors() {
 			return false, true, diags
