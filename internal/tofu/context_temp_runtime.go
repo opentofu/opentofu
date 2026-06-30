@@ -15,6 +15,8 @@ import (
 	"time"
 
 	"github.com/apparentlymart/go-versions/versions"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/engine/applying"
@@ -25,7 +27,6 @@ import (
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/zclconf/go-cty/cty"
 )
 
 /////////////////////////
@@ -297,6 +298,9 @@ func (c *Context) newEngineApply(ctx context.Context, config *configs.Config, pl
 		return nil, diags
 	}
 
+	tracer := c.newEngineApplyTracer()
+	ctx = applying.ContextWithTracer(ctx, tracer)
+
 	configInst, plugins, done, moreDiags := c.newEngineShim(ctx, config, variables, plan.Timestamp, true)
 	diags = diags.Append(moreDiags)
 
@@ -309,6 +313,95 @@ func (c *Context) newEngineApply(ctx context.Context, config *configs.Config, pl
 	newState, moreDiags := applying.ApplyPlannedChanges(ctx, plan, configInst, plugins)
 	diags = diags.Append(moreDiags)
 	return newState, diags
+}
+
+func (c *Context) newEngineApplyTracer() *applying.Tracer {
+	// TODO: For now this just shims to our old Hook API as best we can. Once we
+	// start using the new runtime directly instead of shimming it through
+	// the old runtime's API we should let the CLI layer be responsible for
+	// providing its own planning.PlanTracer directly, which it can then
+	// use both to drive its own UI and to centralize our OpenTelemetry tracing
+	// logic instead of having it spread all over the codebase.
+	eachHook := func(fn func(Hook) (HookAction, error)) {
+		for _, h := range c.hooks {
+			action, err := fn(h)
+			if err != nil {
+				// The new runtime intentionally doesn't allow tracers to
+				// force failure: this API is purely for passive tracing and
+				// UI reporting. Therefore we'll just log the error and return.
+				log.Printf("[ERROR] %T: %s", h, err)
+				return
+			}
+			switch action {
+			case HookActionContinue:
+				continue
+			case HookActionHalt:
+				return
+			}
+		}
+	}
+
+	return &applying.Tracer{
+		StartManagedResourceInstanceObjectFinalPlan: func(ctx context.Context, addr addrs.AbsResourceInstanceObject) context.Context {
+			inst := addr.InstanceAddr
+			gen := addr.DeposedKey.Generation()
+			eachHook(func(h Hook) (HookAction, error) {
+				return h.PreDiff(inst, gen, cty.DynamicVal, cty.DynamicVal)
+			})
+			return ctx
+		},
+		EndManagedResourceInstanceObjectFinalPlan: func(ctx context.Context, addr addrs.AbsResourceInstanceObject, plannedVal cty.Value, diags tfdiags.Diagnostics) {
+			inst := addr.InstanceAddr
+			gen := addr.DeposedKey.Generation()
+			eachHook(func(h Hook) (HookAction, error) {
+				// TODO: For now we're just always reporting plans.Update here
+				// as a placeholder, since we're shimming hooks here primarily
+				// for the benefit of the context tests and so we'll wait to
+				// see if any of those tests need more than this before we add
+				// that complexity.
+				return h.PostDiff(inst, gen, plans.Update, cty.DynamicVal, plannedVal)
+			})
+		},
+		StartManagedResourceInstanceObjectApply: func(ctx context.Context, addr addrs.AbsResourceInstanceObject) context.Context {
+			inst := addr.InstanceAddr
+			gen := addr.DeposedKey.Generation()
+			eachHook(func(h Hook) (HookAction, error) {
+				// TODO: For now we're just always reporting plans.Update here
+				// as a placeholder, since we're shimming hooks here primarily
+				// for the benefit of the context tests and so we'll wait to
+				// see if any of those tests need more than this before we add
+				// that complexity.
+				return h.PreApply(inst, gen, plans.Update, cty.DynamicVal, cty.DynamicVal)
+			})
+			return ctx
+		},
+		EndManagedResourceInstanceObjectApply: func(ctx context.Context, addr addrs.AbsResourceInstanceObject, resultVal cty.Value, diags tfdiags.Diagnostics) {
+			inst := addr.InstanceAddr
+			gen := addr.DeposedKey.Generation()
+			eachHook(func(h Hook) (HookAction, error) {
+				return h.PostApply(inst, gen, resultVal, diags.Err())
+			})
+			// TODO: the CLI layer and some of our tests also expect to get a
+			// PostStateUpdate call each time the state might have changed,
+			// but supporting that here would require us to either expose the
+			// apply engine's internal working state or to copy it each time
+			// we apply something, and we're trying to move away from there
+			// being a single big state object that everything is interacting
+			// with so we'll need to think about what compromise is best to
+			// make here.
+		},
+		StartDataResourceInstanceRead: func(ctx context.Context, addr addrs.AbsResourceInstance) context.Context {
+			eachHook(func(h Hook) (HookAction, error) {
+				return h.PreRefresh(addr, addrs.CurrentResourceInstanceObjectGeneration, cty.DynamicVal)
+			})
+			return ctx
+		},
+		EndDataResourceInstanceRead: func(ctx context.Context, addr addrs.AbsResourceInstance, resultVal cty.Value, diags tfdiags.Diagnostics) {
+			eachHook(func(h Hook) (HookAction, error) {
+				return h.PostRefresh(addr, addrs.CurrentResourceInstanceObjectGeneration, cty.DynamicVal, resultVal)
+			})
+		},
+	}
 }
 
 type newRuntimeModulesForTesting struct {
