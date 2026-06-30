@@ -361,3 +361,6 @@ The injection of the symbol library data into the OpenTofu engine/evaluator is a
   - Would we ever want to support static eval or symbol values within the `source` field of symbol libraries?
 * Recursion support
   - HCL in it's current form makes this impossible. It would be neat to try to support it *someday*
+* Symbols distributed in provider release archives
+  - This would allow provider authors to ship custom types and conversion functions
+  - Some tradoffs and pittfalls are discussed in https://github.com/opentofu/opentofu/issues/2704
