@@ -111,6 +111,9 @@ func (v VersionConstraint) HasRequirements() bool {
 
 func (v VersionConstraint) Check(ver *version.Version) bool {
 	if !isUnsetOrAllVersions(v.RequiredSet) {
+		// This conversion between version constraint types/packages is
+		// not ideal, but is a best effort for the new engine. Eventually,
+		// we should remove v.Required in a subsequent refactoring pass.
 		nver, err := versions.ParseVersion(ver.String())
 		if err != nil {
 			// This should not be possible as the two version packages have the same supported formats
