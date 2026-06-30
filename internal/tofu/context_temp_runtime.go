@@ -318,37 +318,59 @@ func (c *Context) newEngineApplyTracer() *applying.Tracer {
 	// use both to drive its own UI and to centralize our OpenTelemetry tracing
 	// logic instead of having it spread all over the codebase.
 
+	// TODO: shimPlanAction is a very rough approximation of deciding a
+	// [plans.Action] based on the prior and planned value, dealing with the
+	// fact that in the new runtime the "planned action" is primarily a UI
+	// thing used by the planning engine to describe to the user what it is
+	// proposing to change. The applying engine has no need for this because
+	// "planned action" is not represented anywhere in the provider protocol.
+	// This is a temporary shim until we decide whose job it should be to decide
+	// the planned action under the new runtime... hopefully it becomes purely
+	// a UI concern that even the planning engine doesn't need to care about,
+	// but that remains to be seen once we design new plan models matching how
+	// the new runtime prefers to think about changes.
+	shimPlanAction := func(priorVal, plannedVal cty.Value) plans.Action {
+		// Note that we don't need to handle the "replace" actions here because
+		// by the time we're in the apply phase they've already been decomposed
+		// into their separate Create and Destroy legs.
+		if priorVal.IsNull() {
+			return plans.Create
+		}
+		if plannedVal.IsNull() {
+			return plans.Delete
+		}
+		return plans.Update
+	}
+
 	return &applying.Tracer{
-		StartManagedResourceInstanceObjectFinalPlan: func(ctx context.Context, addr addrs.AbsResourceInstanceObject) context.Context {
+		StartManagedResourceInstanceObjectFinalPlan: func(ctx context.Context, addr addrs.AbsResourceInstanceObject, priorVal, configVal, expectedVal cty.Value) context.Context {
 			inst := addr.InstanceAddr
 			gen := addr.DeposedKey.Generation()
 			c.eachHook(func(h Hook) (HookAction, error) {
-				return h.PreDiff(inst, gen, cty.DynamicVal, cty.DynamicVal)
+				// TODO: We're sending the expectedVal in the slot where the
+				// Hook API expects the "proposed new value", and that isn't
+				// quite right. Does that matter for the current real-world
+				// use of the hook API?
+				// The new runtime intentionally buries the "proposed new value"
+				// in the implementation details of the provider call since
+				// it's a quirky part of the protocol that we preserve only
+				// for compatibility.
+				return h.PreDiff(inst, gen, priorVal, expectedVal)
 			})
 			return ctx
 		},
-		EndManagedResourceInstanceObjectFinalPlan: func(ctx context.Context, addr addrs.AbsResourceInstanceObject, plannedVal cty.Value, diags tfdiags.Diagnostics) {
+		EndManagedResourceInstanceObjectFinalPlan: func(ctx context.Context, addr addrs.AbsResourceInstanceObject, priorVal, plannedVal cty.Value, diags tfdiags.Diagnostics) {
 			inst := addr.InstanceAddr
 			gen := addr.DeposedKey.Generation()
 			c.eachHook(func(h Hook) (HookAction, error) {
-				// TODO: For now we're just always reporting plans.Update here
-				// as a placeholder, since we're shimming hooks here primarily
-				// for the benefit of the context tests and so we'll wait to
-				// see if any of those tests need more than this before we add
-				// that complexity.
-				return h.PostDiff(inst, gen, plans.Update, cty.DynamicVal, plannedVal)
+				return h.PostDiff(inst, gen, shimPlanAction(priorVal, plannedVal), priorVal, plannedVal)
 			})
 		},
-		StartManagedResourceInstanceObjectApply: func(ctx context.Context, addr addrs.AbsResourceInstanceObject) context.Context {
+		StartManagedResourceInstanceObjectApply: func(ctx context.Context, addr addrs.AbsResourceInstanceObject, priorVal, plannedVal cty.Value) context.Context {
 			inst := addr.InstanceAddr
 			gen := addr.DeposedKey.Generation()
 			c.eachHook(func(h Hook) (HookAction, error) {
-				// TODO: For now we're just always reporting plans.Update here
-				// as a placeholder, since we're shimming hooks here primarily
-				// for the benefit of the context tests and so we'll wait to
-				// see if any of those tests need more than this before we add
-				// that complexity.
-				return h.PreApply(inst, gen, plans.Update, cty.DynamicVal, cty.DynamicVal)
+				return h.PreApply(inst, gen, shimPlanAction(priorVal, plannedVal), priorVal, plannedVal)
 			})
 			return ctx
 		},
@@ -369,13 +391,19 @@ func (c *Context) newEngineApplyTracer() *applying.Tracer {
 		},
 		StartDataResourceInstanceRead: func(ctx context.Context, addr addrs.AbsResourceInstance) context.Context {
 			c.eachHook(func(h Hook) (HookAction, error) {
-				return h.PreRefresh(addr, addrs.CurrentResourceInstanceObjectGeneration, cty.DynamicVal)
+				// The prior value for a data resource instance is always null
+				// because conceptually it is always read anew for each round.
+				// (It's retained in the state as a convenience for unusual
+				// situations like "tofu console", but the prior state value
+				// cannot be used in the main codepath because the protocol
+				// includes no way to "upgrade" when the provider schema changes.)
+				return h.PreRefresh(addr, addrs.CurrentResourceInstanceObjectGeneration, cty.NullVal(cty.DynamicPseudoType))
 			})
 			return ctx
 		},
 		EndDataResourceInstanceRead: func(ctx context.Context, addr addrs.AbsResourceInstance, resultVal cty.Value, diags tfdiags.Diagnostics) {
 			c.eachHook(func(h Hook) (HookAction, error) {
-				return h.PostRefresh(addr, addrs.CurrentResourceInstanceObjectGeneration, cty.DynamicVal, resultVal)
+				return h.PostRefresh(addr, addrs.CurrentResourceInstanceObjectGeneration, cty.NullVal(cty.DynamicPseudoType), resultVal)
 			})
 		},
 

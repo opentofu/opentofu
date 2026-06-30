@@ -65,12 +65,24 @@ func (ops *execOperations) ManagedFinalPlan(
 
 	tracer := contextTracer(ctx)
 	if cb := tracer.StartManagedResourceInstanceObjectFinalPlan; cb != nil {
-		ctx = cb(ctx, objAddr)
+		priorVal := cty.NullVal(cty.DynamicPseudoType)
+		if prior != nil && prior.State != nil {
+			priorVal = prior.State.Value
+		}
+		configVal := cty.NullVal(cty.DynamicPseudoType)
+		if desired != nil {
+			configVal = desired.ConfigVal
+		}
+		ctx = cb(ctx, objAddr, priorVal, configVal, initialPlannedVal)
 	}
 	plannedVal := cty.DynamicVal // reassigned once we have a final value to return
 	if cb := tracer.EndManagedResourceInstanceObjectFinalPlan; cb != nil {
+		priorVal := cty.NullVal(cty.DynamicPseudoType)
+		if prior != nil && prior.State != nil {
+			priorVal = prior.State.Value
+		}
 		defer func() { // Extra closure to delay evaluating plannedVal and diags until we actually return
-			cb(ctx, objAddr, plannedVal, diags)
+			cb(ctx, objAddr, priorVal, plannedVal, diags)
 		}()
 	}
 
@@ -194,7 +206,7 @@ func (ops *execOperations) ManagedApply(
 
 	tracer := contextTracer(ctx)
 	if cb := tracer.StartManagedResourceInstanceObjectApply; cb != nil {
-		ctx = cb(ctx, plan.Addr)
+		ctx = cb(ctx, plan.Addr, plan.PriorStateVal, plan.PlannedVal)
 	}
 	resultVal := cty.DynamicVal // reassigned once we have a final value to return
 	if cb := tracer.EndManagedResourceInstanceObjectApply; cb != nil {

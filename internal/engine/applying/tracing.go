@@ -42,14 +42,14 @@ type Tracer struct {
 	// EndManagedResourceInstanceObjectFinalPlan mark the beginning and end of
 	// the work to produce the final plan for the identified managed resource
 	// instance object.
-	StartManagedResourceInstanceObjectFinalPlan func(ctx context.Context, addr addrs.AbsResourceInstanceObject) context.Context
-	EndManagedResourceInstanceObjectFinalPlan   func(ctx context.Context, addr addrs.AbsResourceInstanceObject, plannedVal cty.Value, diags tfdiags.Diagnostics)
+	StartManagedResourceInstanceObjectFinalPlan func(ctx context.Context, addr addrs.AbsResourceInstanceObject, priorVal, configVal, expectedVal cty.Value) context.Context
+	EndManagedResourceInstanceObjectFinalPlan   func(ctx context.Context, addr addrs.AbsResourceInstanceObject, priorVal, plannedVal cty.Value, diags tfdiags.Diagnostics)
 
 	// StartManagedResourceInstanceObjectApply and
 	// EndManagedResourceInstanceObjectApply mark the beginning and end of
 	// the work to apply the final plan for the identified managed resource
 	// instance object.
-	StartManagedResourceInstanceObjectApply func(ctx context.Context, addr addrs.AbsResourceInstanceObject) context.Context
+	StartManagedResourceInstanceObjectApply func(ctx context.Context, addr addrs.AbsResourceInstanceObject, priorVal, plannedVal cty.Value) context.Context
 	EndManagedResourceInstanceObjectApply   func(ctx context.Context, addr addrs.AbsResourceInstanceObject, resultVal cty.Value, diags tfdiags.Diagnostics)
 
 	////////// Data Resource Applying Events
