@@ -8411,6 +8411,13 @@ func TestContext2Apply_createBefore_depends(t *testing.T) {
 		t.Fatalf("wrong final state\ngot:\n%s\n\nwant:\n%s", got, want)
 	}
 
+	if got, want := len(h.Diffs), 3; got < want {
+		t.Fatalf("wrong number of tracked diffs %d; need at least %d", got, want)
+	}
+	if got, want := len(h.States), 3; got < want {
+		t.Fatalf("wrong number of tracked states %d; need at least %d", got, want)
+	}
+
 	// Test that things were managed _in the right order_
 	order := h.States
 
