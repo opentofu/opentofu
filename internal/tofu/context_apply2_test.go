@@ -6083,8 +6083,6 @@ check "http_check" {
 // TestContext2Apply_ephemeralResourcesLifecycleCheck is checking the hook calls
 // and the state to be sure that the expected information is there.
 func TestContext2Apply_ephemeralResourcesLifecycleCheck(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureHooks)
-
 	addr := mustAbsResourceAddr("ephemeral.test_ephemeral_resource.a")
 	cases := map[string]struct {
 		cfg               *configs.Config
@@ -6204,9 +6202,16 @@ resource "test_instance" "a" {
 
 			gotRes := newState.Resource(addr)
 			if diff := cmp.Diff(tc.expectedState, gotRes); diff != "" {
+				// The new runtime intentionally excludes ephemeral resource
+				// instances from the plan and state because it no longer needs
+				// to rely on those artifacts for obtaining values during
+				// expression evaluation: they just propagate ephemerally
+				// through the evaluator instead.
+				SkipExperimental(t, ExperimentalObsoleteEphemeralInState)
 				t.Errorf("unexpected ephemeral resource content in the state (-want,+got):\n%s", diff)
 			}
 			if diff := cmp.Diff(tc.expectedHookCalls, h.Calls); diff != "" {
+				SkipExperimental(t, ExperimentalBugStateUpdateHook)
 				t.Errorf("unexpected hook calls (-want,+got):\n%s", diff)
 			}
 		})
