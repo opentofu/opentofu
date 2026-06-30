@@ -283,14 +283,14 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 	// and reassign this refreshedVal to the refreshed result.
 	refreshCtx := ctx
 	if cb := tracer.StartManagedResourceInstanceObjectRefresh; cb != nil {
-		refreshCtx = cb(ctx, inst.Addr.CurrentObject())
+		refreshCtx = cb(ctx, inst.Addr.CurrentObject(), prevRoundVal)
 	}
 	refreshedVal := prevRoundVal
 	refreshedPrivate := prevRoundPrivate
 	if cb := tracer.EndManagedResourceInstanceObjectRefresh; cb != nil {
 		// TODO: Should apply "sensitive" marks here where appropriate in
 		// case the tracer is reporting events in the UI.
-		cb(refreshCtx, inst.Addr.CurrentObject(), refreshedVal, diags)
+		cb(refreshCtx, inst.Addr.CurrentObject(), prevRoundVal, refreshedVal, diags)
 	}
 
 	// TODO: ProviderMeta is a rarely-used feature that only really makes
@@ -303,7 +303,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 
 	planChangesCtx := ctx
 	if cb := tracer.StartManagedResourceInstanceObjectPlanChanges; cb != nil {
-		planChangesCtx = cb(ctx, inst.Addr.CurrentObject())
+		planChangesCtx = cb(ctx, inst.Addr.CurrentObject(), refreshedVal, effectiveConfigVal)
 	}
 	planResp, planDiags := resourceType.PlanChanges(planChangesCtx, &resources.ManagedResourcePlanRequest{
 		Current: resources.ValueWithPrivate{
@@ -313,17 +313,11 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		DesiredValue:      effectiveConfigVal,
 		ProviderMetaValue: providerMetaValue,
 	}, ret.Addr)
-	if cb := tracer.EndManagedResourceInstanceObjectUpgrade; cb != nil {
-		plannedVal := cty.DynamicVal
-		if planResp.Planned.Value != cty.NilVal {
-			// TODO: Should apply "sensitive" marks here where appropriate in
-			// case the tracer is reporting events in the UI.
-			plannedVal = planResp.Planned.Value
-		}
-		cb(planChangesCtx, inst.Addr.CurrentObject(), plannedVal, diags)
-	}
 	diags = diags.Append(planDiags)
 	if planDiags.HasErrors() {
+		if cb := tracer.EndManagedResourceInstanceObjectPlanChanges; cb != nil {
+			cb(planChangesCtx, inst.Addr.CurrentObject(), plans.NoOp, refreshedVal, cty.DynamicVal, diags)
+		}
 		return ret, diags
 	}
 
@@ -344,6 +338,9 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		// apply.
 		ret.PlaceholderValue = refreshedVal
 		ret.PlannedChange = nil
+		if cb := tracer.EndManagedResourceInstanceObjectPlanChanges; cb != nil {
+			cb(planChangesCtx, inst.Addr.CurrentObject(), plans.NoOp, refreshedVal, refreshedVal, diags)
+		}
 		return ret, diags
 	}
 
@@ -428,6 +425,16 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		// [eval.DesiredResourceInstance].
 	}
 	ret.ProviderInst = *inst.ProviderInstance
+
+	if cb := tracer.EndManagedResourceInstanceObjectPlanChanges; cb != nil {
+		plannedVal := cty.DynamicVal
+		if planResp.Planned.Value != cty.NilVal {
+			// TODO: Should apply "sensitive" marks here where appropriate in
+			// case the tracer is reporting events in the UI.
+			plannedVal = planResp.Planned.Value
+		}
+		cb(planChangesCtx, inst.Addr.CurrentObject(), plannedAction, refreshedVal, plannedVal, diags)
+	}
 
 	return ret, diags
 }

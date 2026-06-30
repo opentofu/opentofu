@@ -11,6 +11,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/shared"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -70,8 +71,8 @@ type Tracer struct {
 	// These events always occur between calls to
 	// StartManagedResourceInstanceObjectPlanning and
 	// EndManagedResourceInstanceObjectPlanning for the same object address.
-	StartManagedResourceInstanceObjectRefresh func(ctx context.Context, addr addrs.AbsResourceInstanceObject) context.Context
-	EndManagedResourceInstanceObjectRefresh   func(ctx context.Context, addr addrs.AbsResourceInstanceObject, refreshedVal cty.Value, diags tfdiags.Diagnostics)
+	StartManagedResourceInstanceObjectRefresh func(ctx context.Context, addr addrs.AbsResourceInstanceObject, prevRoundVal cty.Value) context.Context
+	EndManagedResourceInstanceObjectRefresh   func(ctx context.Context, addr addrs.AbsResourceInstanceObject, prevRoundVal, refreshedVal cty.Value, diags tfdiags.Diagnostics)
 
 	// StartManagedResourceInstanceObjectPlanChanges and
 	// EndManagedResourceInstanceObjectPlanChanges mark the beginning and end
@@ -83,8 +84,8 @@ type Tracer struct {
 	// EndManagedResourceInstanceObjectPlanning for the same object address,
 	// which act as a container for the upgrade, refresh, and change-planning
 	// sequence.
-	StartManagedResourceInstanceObjectPlanChanges func(ctx context.Context, addr addrs.AbsResourceInstanceObject) context.Context
-	EndManagedResourceInstanceObjectPlanChanges   func(ctx context.Context, addr addrs.AbsResourceInstanceObject, plannedVal cty.Value, diags tfdiags.Diagnostics)
+	StartManagedResourceInstanceObjectPlanChanges func(ctx context.Context, addr addrs.AbsResourceInstanceObject, priorVal, configVal cty.Value) context.Context
+	EndManagedResourceInstanceObjectPlanChanges   func(ctx context.Context, addr addrs.AbsResourceInstanceObject, action plans.Action, priorVal, plannedVal cty.Value, diags tfdiags.Diagnostics)
 
 	////////// Data Resource Planning Events
 

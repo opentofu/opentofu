@@ -218,50 +218,59 @@ func (c *Context) newEnginePlanTracer() *planning.Tracer {
 	// logic instead of having it spread all over the codebase.
 
 	return &planning.Tracer{
-		StartManagedResourceInstanceObjectRefresh: func(ctx context.Context, addr addrs.AbsResourceInstanceObject) context.Context {
+		StartManagedResourceInstanceObjectRefresh: func(ctx context.Context, addr addrs.AbsResourceInstanceObject, prevRoundVal cty.Value) context.Context {
 			inst := addr.InstanceAddr
 			gen := addr.DeposedKey.Generation()
 			c.eachHook(func(h Hook) (HookAction, error) {
-				return h.PreRefresh(inst, gen, cty.DynamicVal)
+				return h.PreRefresh(inst, gen, prevRoundVal)
 			})
 			return ctx
 		},
-		EndManagedResourceInstanceObjectRefresh: func(ctx context.Context, addr addrs.AbsResourceInstanceObject, refreshedVal cty.Value, diags tfdiags.Diagnostics) {
+		EndManagedResourceInstanceObjectRefresh: func(ctx context.Context, addr addrs.AbsResourceInstanceObject, prevRoundVal, refreshedVal cty.Value, diags tfdiags.Diagnostics) {
 			inst := addr.InstanceAddr
 			gen := addr.DeposedKey.Generation()
 			c.eachHook(func(h Hook) (HookAction, error) {
-				return h.PostRefresh(inst, gen, cty.DynamicVal, refreshedVal)
+				return h.PostRefresh(inst, gen, prevRoundVal, refreshedVal)
 			})
 		},
-		StartManagedResourceInstanceObjectPlanChanges: func(ctx context.Context, addr addrs.AbsResourceInstanceObject) context.Context {
+		StartManagedResourceInstanceObjectPlanChanges: func(ctx context.Context, addr addrs.AbsResourceInstanceObject, priorVal, configVal cty.Value) context.Context {
 			inst := addr.InstanceAddr
 			gen := addr.DeposedKey.Generation()
 			c.eachHook(func(h Hook) (HookAction, error) {
-				return h.PreDiff(inst, gen, cty.DynamicVal, cty.DynamicVal)
+				// TODO: We're sending the configVal in the slot where the
+				// Hook API expects the "proposed new value", and that isn't
+				// quite right. Does that matter for the current real-world
+				// use of the hook API?
+				// The new runtime intentionally buries the "proposed new value"
+				// in the implementation details of the provider call since
+				// it's a quirky part of the protocol that we preserve only
+				// for compatibility.
+				return h.PreDiff(inst, gen, priorVal, configVal)
 			})
 			return ctx
 		},
-		EndManagedResourceInstanceObjectPlanChanges: func(ctx context.Context, addr addrs.AbsResourceInstanceObject, plannedVal cty.Value, diags tfdiags.Diagnostics) {
+		EndManagedResourceInstanceObjectPlanChanges: func(ctx context.Context, addr addrs.AbsResourceInstanceObject, action plans.Action, priorVal, plannedVal cty.Value, diags tfdiags.Diagnostics) {
 			inst := addr.InstanceAddr
 			gen := addr.DeposedKey.Generation()
 			c.eachHook(func(h Hook) (HookAction, error) {
-				// TODO: For now we're just always reporting plans.Update here
-				// as a placeholder, since we're shimming hooks here primarily
-				// for the benefit of the context tests and so we'll wait to
-				// see if any of those tests need more than this before we add
-				// that complexity.
-				return h.PostDiff(inst, gen, plans.Update, cty.DynamicVal, plannedVal)
+				return h.PostDiff(inst, gen, action, priorVal, plannedVal)
 			})
 		},
 		StartDataResourceInstanceRead: func(ctx context.Context, addr addrs.AbsResourceInstance) context.Context {
 			c.eachHook(func(h Hook) (HookAction, error) {
-				return h.PreRefresh(addr, addrs.CurrentResourceInstanceObjectGeneration, cty.DynamicVal)
+				// The prior value for a data resource instance is always null
+				// because conceptually it is always read anew for each round.
+				// (It's retained in the state as a convenience for unusual
+				// situations like "tofu console", but the prior state value
+				// cannot be used in the main codepath because the protocol
+				// includes no way to "upgrade" when the provider schema changes.)
+				return h.PreRefresh(addr, addrs.CurrentResourceInstanceObjectGeneration, cty.NullVal(cty.DynamicPseudoType))
 			})
 			return ctx
 		},
 		EndDataResourceInstanceRead: func(ctx context.Context, addr addrs.AbsResourceInstance, resultVal cty.Value, diags tfdiags.Diagnostics) {
 			c.eachHook(func(h Hook) (HookAction, error) {
-				return h.PostRefresh(addr, addrs.CurrentResourceInstanceObjectGeneration, cty.DynamicVal, resultVal)
+				return h.PostRefresh(addr, addrs.CurrentResourceInstanceObjectGeneration, cty.NullVal(cty.DynamicPseudoType), resultVal)
 			})
 		},
 
