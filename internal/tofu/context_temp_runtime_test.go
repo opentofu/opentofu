@@ -87,6 +87,7 @@ var (
 	ExperimentalBugCancel            = ExperimentalFlag{"Bug Context Cancel", false}
 	ExperimentalBugStateProvider     = ExperimentalFlag{"Bug State Provider", true}
 	ExperimentalBugStateCBD          = ExperimentalFlag{"Bug CreateBeforeDestroy Not Tracked In State", false}
+	ExperimentalBugStateUpdateHook   = ExperimentalFlag{"Bug State Update Hook", false}
 	ExperimentalBugReferenceProvider = ExperimentalFlag{"Bug Reference Provider", true}
 	ExperimentalBugMissingProvider   = ExperimentalFlag{"Bug Missing Configuration For Provider", true}
 	ExperimentalBugMissingResource   = ExperimentalFlag{"Bug Missing Configuration For Resource Instance", false}
@@ -127,7 +128,7 @@ var (
 	ExperimentalFeatureSkipDestroy       = ExperimentalFlag{"Missing Lifecycle Destroy", false}
 	ExperimentalFeatureUpgradeState      = ExperimentalFlag{"Missing Upgrade Resource State", true}
 	ExperimentalFeatureUpgradeUnwanted   = ExperimentalFlag{"Missing Upgrade Orphan or Deposed Resource Instance State", false}
-	ExperimentalFeatureHooks             = ExperimentalFlag{"Missing Hooks", false}
+	ExperimentalFeatureHooks             = ExperimentalFlag{"Missing Hooks", true}
 	ExperimentalFeatureTarget            = ExperimentalFlag{"Missing Targeting", false}
 	ExperimentalFeatureReplaceTB         = ExperimentalFlag{"Missing replace_triggered_by", false}
 	ExperimentalFeatureProvisioner       = ExperimentalFlag{"Missing Provisioners", false}
@@ -150,7 +151,9 @@ var (
 
 	// Obsolete flags indicate a test which depends on a feature we do not
 	// intend to carry forward into the new engine
-	ExperimentalObsoleteFlatAttrs = ExperimentalFlag{"Obsolete Flat Mapped Attributes", false}
+	ExperimentalObsoleteFlatAttrs        = ExperimentalFlag{"Obsolete Flat Mapped Attributes", false}
+	ExperimentalObsoleteDestroyData      = ExperimentalFlag{"Obsolete Explicit Destroy of Data Resource Instances", false}
+	ExperimentalObsoleteEphemeralInState = ExperimentalFlag{"Obsolete Ephemeral Resource Instances in State", false}
 
 	// ExperimentalNewStrategyNeeded is a special experimental flag that
 	// represents that a test is failing not because the underlying behavior
