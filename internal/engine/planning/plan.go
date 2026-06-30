@@ -17,6 +17,7 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/shared"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -42,6 +43,11 @@ func PlanChanges(ctx context.Context, opts *PlanOpts, prevRoundState *states.Sta
 	if opts == nil {
 		panic("PlanChanges with nil PlanOpts") // caller must always provide valid PlanOpts
 	}
+
+	// We'll make the "shared" tracer also available to everything we call.
+	tracer := contextTracer(ctx)
+	ctx = shared.ContextWithTracer(ctx, &tracer.Tracer)
+
 	switch opts.Mode {
 	case plans.NormalMode:
 		return normalPlan(ctx, opts, prevRoundState, configInst, providers)

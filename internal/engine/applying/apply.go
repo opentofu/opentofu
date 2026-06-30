@@ -16,6 +16,7 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/shared"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -30,6 +31,10 @@ import (
 // we have a stronger understanding of what those needs are.
 func ApplyPlannedChanges(ctx context.Context, plan *plans.Plan, configInst *eval.ConfigInstance, plugins plugins.Plugins) (*states.State, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
+
+	// We'll make the "shared" tracer also available to everything we call.
+	tracer := contextTracer(ctx)
+	ctx = shared.ContextWithTracer(ctx, &tracer.Tracer)
 
 	glue := &evalGlue{
 		plugins: plugins,
