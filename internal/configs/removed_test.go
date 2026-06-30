@@ -29,6 +29,7 @@ func TestRemovedBlock_decode(t *testing.T) {
 	foo_index_expr := hcltest.MockExprTraversalSrc("test_instance.foo[1]")
 	mod_boop_index_foo_expr := hcltest.MockExprTraversalSrc("module.boop[1].test_instance.foo")
 	data_foo_expr := hcltest.MockExprTraversalSrc("data.test_instance.foo")
+	invalid_from_expr := hcltest.MockExprLiteral(cty.StringVal("not-a-traversal"))
 
 	tests := map[string]struct {
 		input         *hcl.Block
@@ -213,14 +214,14 @@ func TestRemovedBlock_decode(t *testing.T) {
 				Subject:  &blockRange,
 			}),
 		},
-		"error-data-source-from-with-provisioner": {
+		"error-invalid-from-with-provisioner": {
 			&hcl.Block{
 				Type: "removed",
 				Body: hcltest.MockBody(&hcl.BodyContent{
 					Attributes: hcl.Attributes{
 						"from": {
 							Name: "from",
-							Expr: data_foo_expr,
+							Expr: invalid_from_expr,
 						},
 					},
 					Blocks: hcl.Blocks{
@@ -246,7 +247,7 @@ func TestRemovedBlock_decode(t *testing.T) {
 			&Removed{
 				DeclRange: blockRange,
 			},
-			"Data source address is not allowed",
+			"Invalid expression",
 			hcl.Diagnostics{},
 		},
 		"error-removed-module-with-provisioner": {
