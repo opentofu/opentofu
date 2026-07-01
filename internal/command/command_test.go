@@ -1250,7 +1250,7 @@ func TestVarsParsing(t *testing.T) {
 			},
 		}
 
-		args := append([]string{"-no-color"}, varArgs...)
+		args := append([]string{"-no-color", "-lock=false"}, varArgs...)
 		code := c.Run(args)
 		output := done(t)
 		if code != 0 {
