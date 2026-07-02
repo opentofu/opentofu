@@ -649,7 +649,7 @@ func TestBackendConfig_PrepareConfigValidation(t *testing.T) {
 				"key":    cty.StringVal("/leading-slash"),
 				"region": cty.StringVal("us-west-2"),
 			}),
-			expectedErr: `The "key" attribute value must not start or end with with "/".`,
+			expectedErr: `The "key" attribute value must not start or end with "/".`,
 		},
 		"key with trailing slash": {
 			config: cty.ObjectVal(map[string]cty.Value{
@@ -657,7 +657,7 @@ func TestBackendConfig_PrepareConfigValidation(t *testing.T) {
 				"key":    cty.StringVal("trailing-slash/"),
 				"region": cty.StringVal("us-west-2"),
 			}),
-			expectedErr: `The "key" attribute value must not start or end with with "/".`,
+			expectedErr: `The "key" attribute value must not start or end with "/".`,
 		},
 		"null region": {
 			config: cty.ObjectVal(map[string]cty.Value{
