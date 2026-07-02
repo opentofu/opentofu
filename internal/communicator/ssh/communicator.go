@@ -466,7 +466,7 @@ func (c *Communicator) UploadScript(path string, input io.Reader) error {
 	if c.connInfo.TargetPlatform != TargetPlatformWindows {
 		var stdout, stderr bytes.Buffer
 		cmd := &remote.Cmd{
-			Command: fmt.Sprintf("chmod 0777 %s", path),
+			Command: shquot.POSIXShell([]string{"chmod", "0777", path}),
 			Stdout:  &stdout,
 			Stderr:  &stderr,
 		}

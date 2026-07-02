@@ -15,6 +15,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/apparentlymart/go-shquot/shquot"
 	"github.com/mitchellh/go-linereader"
 	"github.com/opentofu/opentofu/internal/communicator"
 	"github.com/opentofu/opentofu/internal/communicator/remote"
@@ -269,7 +270,7 @@ func runScripts(ctx context.Context, o provisioners.UIOutput, comm communicator.
 		}
 
 		cmd = &remote.Cmd{
-			Command: remotePath,
+			Command: shquot.POSIXShell([]string{remotePath}),
 			Stdout:  outW,
 			Stderr:  errW,
 		}
