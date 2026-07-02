@@ -304,7 +304,7 @@ func (c *Context) newEngineApply(ctx context.Context, config *configs.Config, pl
 
 	log.Println("[WARN] Using apply implementation from the experimental language runtime")
 
-	if len(plan.ExecutionGraph) == 0 && !plan.Changes.Empty() {
+	if len(plan.ExecutionGraph) == 0 && !plan.Changes.ResourcesEmpty() {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Saved plan contains no execution graph",

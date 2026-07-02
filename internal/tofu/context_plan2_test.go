@@ -272,7 +272,6 @@ output "out" {
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	SkipExperimental(t, ExperimentalFeatureChanges)
 	change, err := plan.Changes.Outputs[0].Decode()
 	if err != nil {
 		t.Fatal(err)

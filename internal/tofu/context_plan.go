@@ -310,6 +310,9 @@ func (c *Context) checkApplyGraph(ctx context.Context, plan *plans.Plan, config 
 		log.Println("[DEBUG] no planned changes, skipping apply graph check")
 		return nil
 	}
+	if experimentalRuntimeEnabled() {
+		return nil
+	}
 	log.Println("[DEBUG] building apply graph to check for errors")
 	_, _, diags := c.applyGraph(ctx, plan, config, make(ProviderFunctionMapping), nil)
 	return diags

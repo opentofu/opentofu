@@ -140,6 +140,11 @@ type Plan struct {
 	// because that runtime generates the apply-time execution graph during
 	// the apply phase using data in the other fields of this type.
 	ExecutionGraph []byte
+
+	// Destroying is a flag that the new engine requires along side the
+	// ExecutionGraph in order to alter behavior for non-resource
+	// actions during the apply.
+	Destroying bool
 }
 
 // CanApply returns true if and only if the receiving plan includes content

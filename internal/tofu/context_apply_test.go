@@ -717,7 +717,7 @@ func TestContext2Apply_resourceDependsOnModuleInModule(t *testing.T) {
 }
 
 func TestContext2Apply_mapVarBetweenModules(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDeclareProvider, ExperimentalFeatureRootOutput)
+	SkipExperimental(t, ExperimentalBugDeclareProvider, ExperimentalChangeModuleOutput)
 
 	m := testModule(t, "apply-map-var-through-module")
 	p := testProvider("null")
@@ -7179,6 +7179,7 @@ func TestContext2Apply_outputAdd(t *testing.T) {
 		}, nil),
 	})
 
+	// TODO should this be using ctx2?
 	plan2, diags := ctx1.Plan(context.Background(), m2, state1, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
@@ -11465,7 +11466,7 @@ func TestContext2Apply_ProviderMeta_refreshdata_setInvalid(t *testing.T) {
 }
 
 func TestContext2Apply_expandModuleVariables(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDeclareProvider, ExperimentalFeatureRootOutput, ExperimentalFeatureStateDependencies)
+	SkipExperimental(t, ExperimentalBugDeclareProvider, ExperimentalFeatureRootOutput, ExperimentalFeatureStateDependencies, ExperimentalChangeModuleOutput)
 
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `

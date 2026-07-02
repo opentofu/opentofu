@@ -117,6 +117,8 @@ message Plan {
     // number in any version that's close to the one where this eventually
     // gets removed.
     bytes temp_execution_graph = 500000000;
+
+    bool destroying = 500000001;
 }
 
 // Mode describes the planning mode that created the plan.

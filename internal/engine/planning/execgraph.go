@@ -39,6 +39,7 @@ type execGraphBuilder struct {
 func buildExecutionGraph(
 	objs *resourceInstanceObjects,
 	effectiveReplaceOrders addrs.Map[addrs.AbsResourceInstanceObject, resourceInstanceReplaceOrder],
+	additionalStateDependencies addrs.Set[addrs.AbsResourceInstance],
 	makeDeposedKey func(addrs.AbsResourceInstance) addrs.DeposedKey,
 ) *execgraph.Graph {
 	// TODO: This was originally built around a separate [execGraphBuilder]
@@ -64,6 +65,7 @@ func buildExecutionGraph(
 	egb.AddResourceInstanceObjectSubgraphs(
 		objs,
 		effectiveReplaceOrders,
+		additionalStateDependencies,
 	)
 	return egb.lower.Finish()
 }

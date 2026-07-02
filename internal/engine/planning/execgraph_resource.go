@@ -25,6 +25,7 @@ import (
 func (b *execGraphBuilder) AddResourceInstanceObjectSubgraphs(
 	objs *resourceInstanceObjects,
 	effectiveReplaceOrders addrs.Map[addrs.AbsResourceInstanceObject, resourceInstanceReplaceOrder],
+	additionalStateDependencies addrs.Set[addrs.AbsResourceInstance],
 ) {
 	// TODO: We don't currently have any unit tests for this function. If this
 	// survives into a shipping version of the planning engine then we should
@@ -148,6 +149,13 @@ func (b *execGraphBuilder) AddResourceInstanceObjectSubgraphs(
 				}
 			}
 		}
+	}
+
+	// There are some scenarios in which we require resourceInstances outside of the execution graph (ex: root output values)
+	// Here we ensure that they make it into the execution graph and don't hit the "missing resource instance"
+	// ephemeral detection logic.
+	for _, dependency := range additionalStateDependencies {
+		ensureResourceInstanceObjectResultRef(dependency.CurrentObject(), resultRefs, b)
 	}
 }
 

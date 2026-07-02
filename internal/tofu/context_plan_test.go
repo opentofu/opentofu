@@ -2095,6 +2095,7 @@ func TestContext2Plan_preventDestroy_destroyPlan(t *testing.T) {
 }
 
 func TestContext2Plan_provisionerCycle(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureProvisioner)
 	m := testModule(t, "plan-provisioner-cycle")
 	p := testProvider("aws")
 	pr := testProvisioner()

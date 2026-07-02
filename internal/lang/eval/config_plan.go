@@ -172,6 +172,7 @@ func (c *ConfigInstance) DrivePlanning(ctx context.Context, buildGlue func(*Plan
 
 	// We can now initialize the planning oracle, before we start evaluating
 	// anything that might cause calls to the evalGlue object.
+	oracle.root = rootModuleInstance
 	oracle.providers = managedProviders
 	// Inject configured providers
 	evalGlue.providers = managedProviders
@@ -207,10 +208,9 @@ func (c *ConfigInstance) DrivePlanning(ctx context.Context, buildGlue func(*Plan
 	// Once checkAll has completed we should've either visited and evaluated
 	// everything as much as we can, so we can now just collect the result
 	// value and return.
-	outputsVal, moreDiags := rootModuleInstance.ResultValuer(ctx).Value(ctx)
-	diags = diags.Append(moreDiags)
+
 	return &PlanningResult{
-		RootModuleOutputs: configgraph.PrepareOutgoingValue(outputsVal),
+		RootModuleOutputs: CollectRootModuleOutputs(ctx, rootModuleInstance),
 		Glue:              glue,
 		Oracle:            oracle,
 	}, diags
@@ -237,7 +237,7 @@ type PlanningResult struct {
 	// This will contain unknown value placeholders for any part of an output
 	// value which depends on the result of an action that won't be taken
 	// until the apply phase.
-	RootModuleOutputs cty.Value
+	RootModuleOutputs RootModuleOutputs
 }
 
 type planningEvalGlue struct {

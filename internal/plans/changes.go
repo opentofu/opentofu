@@ -47,7 +47,7 @@ func BuildChanges(cb func(sync *ChangesSync)) *Changes {
 	return c
 }
 
-func (c *Changes) Empty() bool {
+func (c *Changes) ResourcesEmpty() bool {
 	for _, res := range c.Resources {
 		if res.Action != NoOp || res.Moved() {
 			return false
@@ -56,6 +56,13 @@ func (c *Changes) Empty() bool {
 		if res.Importing != nil {
 			return false
 		}
+	}
+	return true
+}
+
+func (c *Changes) Empty() bool {
+	if !c.ResourcesEmpty() {
+		return false
 	}
 
 	for _, out := range c.Outputs {

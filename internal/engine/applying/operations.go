@@ -9,17 +9,18 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"slices"
-	"sync"
 
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/engine/internal/execgraph"
 	"github.com/opentofu/opentofu/internal/engine/plugins"
 	"github.com/opentofu/opentofu/internal/lang/eval"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/zclconf/go-cty/cty"
 )
 
 type execOperations struct {
@@ -58,14 +59,8 @@ type execOperations struct {
 	// use during the apply phase.
 	plugins plugins.Plugins
 
-	// Stack of ephemeral and provider close functions
-	// Given the current state of the planning engine, we wait until
-	// the end of the run to close all of the "opened" items.  We
-	// also need to close them in a specific order to prevent dependency
-	// conflicts. We posit that for plan, closing in the reverse order of opens
-	// will ensure that this order is correctly preserved.
-	closeStackMu sync.Mutex
-	closeStack   []func(context.Context) tfdiags.Diagnostics
+	// destroying is a flag to alter behavior for non-resource actions during apply.
+	destroying bool
 }
 
 // The main operation methods of execOperations are spread across the separate
@@ -108,6 +103,7 @@ func compileExecutionGraph(ctx context.Context, plan *plans.Plan, oracle *eval.A
 	ops.workingState = plan.PriorState.DeepCopy().SyncWrapper()
 	ops.configOracle = oracle
 	ops.plugins = plugins
+	ops.destroying = plan.Destroying
 
 	return execGraph, compiledGraph, ops, diags
 }
@@ -120,6 +116,17 @@ func compileExecutionGraph(ctx context.Context, plan *plans.Plan, oracle *eval.A
 func (ops *execOperations) Finish(ctx context.Context) (*states.State, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
+	var rootOutputs map[string]cty.Value
+	if !ops.destroying {
+		// Save the root outputs before closing the config oracle
+		rootOutputs = ops.configOracle.RootOutputs(ctx)
+	}
+
+	// Close the config oracle (checkAll and providers close)
+	moreDiags := ops.configOracle.Close(ctx)
+	diags = diags.Append(moreDiags)
+
+	// Snapshot the working SyncState
 	finalState := ops.workingState.Close()
 
 	// This operations object is now invalid and must not be used any further,
@@ -130,14 +137,33 @@ func (ops *execOperations) Finish(ctx context.Context) (*states.State, tfdiags.D
 	ops.plugins = nil
 	ops.configOracle = nil
 
-	// Ensure all of the opened ephemerals and providers are closed in the appropriate order.
-	ops.closeStackMu.Lock()
-	slices.Reverse(ops.closeStack)
-	for _, closer := range ops.closeStack {
-		diags = diags.Append(closer(ctx))
+	// Clear out the existing output values from the state as they are
+	// all now invalid.
+	for _, mod := range finalState.Modules {
+		clear(mod.OutputValues)
 	}
-	ops.closeStack = nil
-	ops.closeStackMu.Unlock()
+	// If we are not destroying, we need to add the root module outputs.
+	if !ops.destroying {
+		for k, v := range rootOutputs {
+			// Known is a placeholder for if the output is available due to deferring or targeting (TODO better signal for this)
+			outputNotDeferred := v.IsWhollyKnown()
+			if outputNotDeferred {
+				if v.IsNull() {
+					// Not saved
+					continue
+				}
+				unmarkedVal, _ := v.UnmarkDeep()
+				sensitive := v.HasMark(marks.Sensitive)
+				deprecated := "" // TODO
+				finalState.EnsureModule(addrs.RootModuleInstance).SetOutputValue(k, unmarkedVal, sensitive, deprecated)
+			} else {
+				prev := ops.priorState.OutputValue(addrs.AbsOutputValue{OutputValue: addrs.OutputValue{Name: k}})
+				if prev != nil {
+					finalState.EnsureModule(addrs.RootModuleInstance).SetOutputValue(k, prev.Value, prev.Sensitive, prev.Deprecated)
+				}
+			}
+		}
+	}
 
 	// This function returns diagnostics to reserve the right to do fallible
 	// encoding or flushing operations here in future, but for right now we're

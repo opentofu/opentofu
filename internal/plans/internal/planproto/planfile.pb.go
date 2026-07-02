@@ -436,6 +436,7 @@ type Plan struct {
 	// number in any version that's close to the one where this eventually
 	// gets removed.
 	TempExecutionGraph []byte `protobuf:"bytes,500000000,opt,name=temp_execution_graph,json=tempExecutionGraph,proto3" json:"temp_execution_graph,omitempty"`
+	Destroying         bool   `protobuf:"varint,500000001,opt,name=destroying,proto3" json:"destroying,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -587,6 +588,13 @@ func (x *Plan) GetTempExecutionGraph() []byte {
 		return x.TempExecutionGraph
 	}
 	return nil
+}
+
+func (x *Plan) GetDestroying() bool {
+	if x != nil {
+		return x.Destroying
+	}
+	return false
 }
 
 // Backend is a description of backend configuration and other related settings.
@@ -1405,7 +1413,7 @@ var File_planfile_proto protoreflect.FileDescriptor
 
 const file_planfile_proto_rawDesc = "" +
 	"\n" +
-	"\x0eplanfile.proto\x12\x06tfplan\"\xeb\a\n" +
+	"\x0eplanfile.proto\x12\x06tfplan\"\x8f\b\n" +
 	"\x04Plan\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\x04R\aversion\x12%\n" +
 	"\aui_mode\x18\x11 \x01(\x0e2\f.tfplan.ModeR\x06uiMode\x12\x18\n" +
@@ -1423,7 +1431,10 @@ const file_planfile_proto_rawDesc = "" +
 	"\x13relevant_attributes\x18\x0f \x03(\v2\x1a.tfplan.Plan.resource_attrR\x12relevantAttributes\x12\x1c\n" +
 	"\ttimestamp\x18\x15 \x01(\tR\ttimestamp\x12/\n" +
 	"\x13ephemeral_variables\x18\x16 \x03(\tR\x12ephemeralVariables\x124\n" +
-	"\x14temp_execution_graph\x18\x80ʵ\xee\x01 \x01(\fR\x12tempExecutionGraph\x1aR\n" +
+	"\x14temp_execution_graph\x18\x80ʵ\xee\x01 \x01(\fR\x12tempExecutionGraph\x12\"\n" +
+	"\n" +
+	"destroying\x18\x81ʵ\xee\x01 \x01(\bR\n" +
+	"destroying\x1aR\n" +
 	"\x0eVariablesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
 	"\x05value\x18\x02 \x01(\v2\x14.tfplan.DynamicValueR\x05value:\x028\x01\x1aM\n" +

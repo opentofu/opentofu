@@ -71,10 +71,10 @@ func TestPlan_valuesOnlySuccess(t *testing.T) {
 		t.Fatalf("unexpected errors: %s", diags.Err())
 	}
 
-	gotOutputs := planResult.RootModuleOutputs
-	wantOutputs := cty.ObjectVal(map[string]cty.Value{
+	gotOutputs := planResult.RootModuleOutputs.OutputValues
+	wantOutputs := map[string]cty.Value{
 		"c": cty.StringVal("true:true/true:true"),
-	})
+	}
 	if diff := cmp.Diff(wantOutputs, gotOutputs, ctydebug.CmpOptions); diff != "" {
 		t.Error("wrong result\n" + diff)
 	}
@@ -158,10 +158,10 @@ func TestPlan_managedResourceSimple(t *testing.T) {
 		t.Fatalf("unexpected errors: %s", diags.Err())
 	}
 
-	gotOutputs := planResult.RootModuleOutputs
-	wantOutputs := cty.ObjectVal(map[string]cty.Value{
+	gotOutputs := planResult.RootModuleOutputs.OutputValues
+	wantOutputs := map[string]cty.Value{
 		"c": cty.StringVal("foo bar name"),
-	})
+	}
 	if diff := cmp.Diff(wantOutputs, gotOutputs, ctydebug.CmpOptions); diff != "" {
 		t.Error("wrong result\n" + diff)
 	}
@@ -267,10 +267,10 @@ func TestPlan_managedResourceUnknownCount(t *testing.T) {
 		t.Fatalf("unexpected errors: %s", diags.Err())
 	}
 
-	gotOutputs := planResult.RootModuleOutputs
-	wantOutputs := cty.ObjectVal(map[string]cty.Value{
+	gotOutputs := planResult.RootModuleOutputs.OutputValues
+	wantOutputs := map[string]cty.Value{
 		"c": cty.DynamicVal, // don't know what instances we have yet
-	})
+	}
 	if diff := cmp.Diff(wantOutputs, gotOutputs, ctydebug.CmpOptions); diff != "" {
 		t.Error("wrong result\n" + diff)
 	}

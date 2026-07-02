@@ -64,9 +64,6 @@ func ApplyPlannedChanges(ctx context.Context, plan *plans.Plan, configInst *eval
 	newState, moreDiags := execOps.Finish(ctx)
 	diags = diags.Append(moreDiags)
 
-	moreDiags = oracle.Close(ctx)
-	diags = diags.Append(moreDiags)
-
 	return newState, diags
 }
 

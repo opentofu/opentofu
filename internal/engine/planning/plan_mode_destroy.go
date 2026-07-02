@@ -78,6 +78,7 @@ func destroyPlan(ctx context.Context, _ *PlanOpts, prevRoundState *states.State,
 		// what caused the errors.
 		intermediate, moreDiags := planCtx.Close(ctx)
 		diags = diags.Append(moreDiags)
+		intermediate.Destroying = true
 		plan, moreDiags := finalizePlan(ctx, intermediate, providers)
 		diags = diags.Append(moreDiags)
 		plan.Errored = true
@@ -140,6 +141,7 @@ func destroyPlan(ctx context.Context, _ *PlanOpts, prevRoundState *states.State,
 	// anymore since we only actually care about the results from Close here.
 	intermediate, moreDiags := planCtx.Close(ctx)
 	diags = diags.Append(moreDiags)
+	intermediate.Destroying = true
 	plan, moreDiags := finalizePlan(ctx, intermediate, providers)
 	diags = diags.Append(moreDiags)
 	moreDiags = closeConfiguredProviders(ctx)

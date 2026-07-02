@@ -9,9 +9,11 @@ import (
 	"context"
 
 	"github.com/apparentlymart/go-versions/versions"
+	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/tofu2024"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
@@ -135,4 +137,30 @@ func (c *ConfigInstance) newRootModuleInstance(ctx context.Context, glue evalglu
 // implementation.
 func PrepareTofu2024Module(sourceAddr addrs.ModuleSource, mod *configs.Module) UncompiledModule {
 	return tofu2024.NewUncompiledModule(sourceAddr, mod)
+}
+
+// RootModuleOutputs represent the information needed by both the planning and
+// apply engines to correctly process root module outputs
+type RootModuleOutputs struct {
+	OutputValues         map[string]cty.Value
+	ResourceDependencies addrs.Set[addrs.AbsResourceInstance]
+}
+
+func CollectRootModuleOutputs(ctx context.Context, rootModuleInstance evalglue.CompiledModuleInstance) RootModuleOutputs {
+	// We need to collect the root module outputs, ignoring diags as they have
+	// already been reported by checkAll.
+	outputsVal, _ := rootModuleInstance.ResultValuer(ctx).Value(ctx)
+
+	contributing := configgraph.ContributingResourceInstances(outputsVal)
+	outputsDeps := addrs.MakeSet[addrs.AbsResourceInstance]()
+	for dep := range contributing {
+		outputsDeps.Add(dep.Addr)
+	}
+
+	outputsValues := configgraph.PrepareOutgoingValue(outputsVal).AsValueMap()
+
+	return RootModuleOutputs{
+		OutputValues:         outputsValues,
+		ResourceDependencies: outputsDeps,
+	}
 }

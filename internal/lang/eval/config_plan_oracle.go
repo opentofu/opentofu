@@ -9,6 +9,7 @@ import (
 	"context"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -16,6 +17,7 @@ import (
 // A PlanningOracle provides information from the configuration that is needed
 // by the planning engine to help orchestrate the planning process.
 type PlanningOracle struct {
+	root      evalglue.CompiledModuleInstance
 	providers *managedProviders
 }
 

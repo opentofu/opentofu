@@ -15,11 +15,13 @@ import (
 	"github.com/opentofu/opentofu/internal/collections"
 	"github.com/opentofu/opentofu/internal/engine/plugins"
 	"github.com/opentofu/opentofu/internal/lang/eval"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/shared"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/zclconf/go-cty/cty"
 )
 
 // PlanOpts represents our various "planning options" that can change various
@@ -99,6 +101,7 @@ func finalizePlan(ctx context.Context, intermediate *planContextResult, provider
 		intermediate.ResourceInstanceObjects,
 		effectiveReplaceOrders,
 		providers,
+		intermediate.RootOutput,
 	)
 	diags = diags.Append(moreDiags)
 
@@ -109,6 +112,7 @@ func finalizePlan(ctx context.Context, intermediate *planContextResult, provider
 	execGraph := buildExecutionGraph(
 		intermediate.ResourceInstanceObjects,
 		effectiveReplaceOrders,
+		intermediate.RootOutput.Current.ResourceDependencies,
 		func(instAddr addrs.AbsResourceInstance) addrs.DeposedKey {
 			// TODO: We should probably factor this out somewhere else, once
 			// the rest of the nearby code has settled down.
@@ -170,6 +174,8 @@ func finalizePlan(ctx context.Context, intermediate *planContextResult, provider
 		// graph so we can round-trip it through saved plan files while
 		// the CLI layer is still working in terms of [plans.Plan].
 		ExecutionGraph: execGraph.Marshal(),
+
+		Destroying: intermediate.Destroying,
 	}, diags
 }
 
@@ -178,6 +184,7 @@ func buildPlanChanges(
 	objs *resourceInstanceObjects,
 	effectiveReplaceOrders addrs.Map[addrs.AbsResourceInstanceObject, resourceInstanceReplaceOrder],
 	providers plugins.Providers,
+	rootOutput rootOutput,
 ) (*plans.Changes, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	changes := plans.NewChanges().SyncWrapper()
@@ -217,6 +224,110 @@ func buildPlanChanges(
 		}
 
 		changes.AppendResourceInstanceChange(changeSrc)
+	}
+
+	for name, value := range rootOutput.Current.OutputValues {
+		absAddr := addrs.AbsOutputValue{OutputValue: addrs.OutputValue{Name: name}}
+		valueSensitive := value.HasMark(marks.Sensitive)
+		valueDeprecated := "" // TODO
+
+		// Copied from node_output.go
+
+		// if this is a root module, try to get a before value from the state for
+		// the diff
+		sensitiveBefore := false
+		deprecatedBefore := ""
+		before := cty.NullVal(cty.DynamicPseudoType)
+
+		// is this output new to our state?
+		newOutput := true
+
+		prevValue, ok := rootOutput.Previous[name]
+		if ok {
+			before = prevValue.Value
+			sensitiveBefore = prevValue.Sensitive
+			deprecatedBefore = prevValue.Deprecated
+			newOutput = false
+		}
+
+		// We will not show the value if either the before or after are marked
+		// as sensitive. We can show the value again once sensitivity is
+		// removed from both the config and the state.
+		sensitiveChange := sensitiveBefore || valueSensitive
+
+		// strip any marks here just to be sure we don't panic on the True comparison
+		unmarkedVal, _ := value.UnmarkDeep()
+
+		action := plans.Update
+		switch {
+		case value.IsNull() && before.IsNull() &&
+			valueDeprecated == deprecatedBefore:
+			// This is separate from the NoOp case below, since we can ignore
+			// sensitivity here when there are only null values.
+			// However, we still need to ensure deprecation update is going to
+			// be written.
+			action = plans.NoOp
+
+		case newOutput:
+			// This output was just added to the configuration
+			action = plans.Create
+
+		case value.IsWhollyKnown() &&
+			unmarkedVal.Equals(before).True() &&
+			valueSensitive == sensitiveBefore &&
+			valueDeprecated == deprecatedBefore:
+			// Sensitivity and deprecation must also match to be a NoOp.
+			// Theoretically marks may not match here, but sensitivity is the
+			// only one we can act on, and the state will have been loaded
+			// without any marks to consider.
+			action = plans.NoOp
+		}
+
+		change := &plans.OutputChange{
+			Addr:      absAddr,
+			Sensitive: sensitiveChange,
+			Change: plans.Change{
+				Action: action,
+				Before: before,
+				After:  value,
+			},
+		}
+
+		cs, err := change.Encode()
+		if err != nil {
+			// Should never happen, since we just constructed this right above
+			panic(fmt.Sprintf("planned change for %s could not be encoded: %s", absAddr, err))
+		}
+		log.Printf("[TRACE] Saving %s change for %s in changeset", change.Action, absAddr)
+		changes.AppendOutputChange(cs) // add the new planned change
+
+	}
+
+	for name, prevValue := range rootOutput.Previous {
+		absAddr := addrs.AbsOutputValue{OutputValue: addrs.OutputValue{Name: name}}
+
+		value, ok := rootOutput.Current.OutputValues[name]
+		if !ok || value.IsNull() {
+			// Copied from node_output.go
+			change := &plans.OutputChange{
+				Addr:      absAddr,
+				Sensitive: prevValue.Sensitive,
+				Change: plans.Change{
+					Action: plans.Delete,
+					Before: prevValue.Value,
+					After:  cty.NullVal(cty.DynamicPseudoType),
+				},
+			}
+
+			cs, err := change.Encode()
+			if err != nil {
+				// Should never happen, since we just constructed this right above
+				panic(fmt.Sprintf("planned change for %s could not be encoded: %s", absAddr, err))
+			}
+			log.Printf("[TRACE] Saving %s change for %s in changeset", change.Action, absAddr)
+
+			changes.AppendOutputChange(cs)
+		}
 	}
 
 	return changes.Close(), diags

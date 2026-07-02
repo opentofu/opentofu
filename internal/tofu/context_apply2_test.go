@@ -2056,7 +2056,7 @@ resource "test_object" "y" {
 // Check eval from both root level outputs and module outputs, which are
 // handled differently during apply.
 func TestContext2Apply_outputsNotToEvaluate(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDeclareProvider, ExperimentalFeatureRootOutput)
+	SkipExperimental(t, ExperimentalBugDeclareProvider, ExperimentalFeatureRootOutput, ExperimentalBugDataResource)
 
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
@@ -5474,7 +5474,11 @@ variable "res_data" {
 		SkipExperimental(t, ExperimentalFeatureVarCondition)
 		t.Fatal(diags.Err())
 	}
-	if got, want := diags[0].Description().Summary, "Invalid value for variable"; got != want {
+	invalidValueMessage := "Invalid value for variable"
+	if experimentalRuntimeEnabled() {
+		invalidValueMessage = "Invalid value for input variable"
+	}
+	if got, want := diags[0].Description().Summary, invalidValueMessage; got != want {
 		t.Fatalf("Expected: %q, got %q", want, got)
 	}
 
@@ -5510,7 +5514,7 @@ variable "res_data" {
 	if !diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
-	if got, want := diags[0].Description().Summary, "Invalid value for variable"; got != want {
+	if got, want := diags[0].Description().Summary, invalidValueMessage; got != want {
 		t.Fatalf("Expected: %q, got %q", want, got)
 	}
 }
@@ -6222,7 +6226,7 @@ resource "test_instance" "a" {
 // the variable values given in ApplyArgs are getting merged correctly with
 // the plan ones.
 func TestContext2Apply_planVariablesAndApplyArgsGetMergedCorrectly(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureRootOutput)
+	SkipExperimental(t, ExperimentalFeatureRootOutput, ExperimentalFlagUnknown)
 
 	m := testModuleInline(t, map[string]string{
 		`main.tf`: `
@@ -6707,7 +6711,7 @@ func TestMergePlanAndApplyVariables(t *testing.T) {
 }
 
 func TestContext2Apply_enabledForResource(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureRootOutput)
+	SkipExperimental(t, ExperimentalFeatureRootOutput, ExperimentalFeatureChanges)
 
 	m := testModule(t, "apply-enabled-resource")
 	p := &MockProvider{

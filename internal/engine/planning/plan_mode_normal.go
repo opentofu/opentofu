@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/plugins"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
@@ -111,6 +112,10 @@ func normalPlan(ctx context.Context, opts *PlanOpts, prevRoundState *states.Stat
 			}
 		}
 	}
+
+	// Record output values and resource dependencies for the plan
+	planCtx.rootOutput.Previous = prevRoundState.EnsureModule(addrs.RootModuleInstance).OutputValues
+	planCtx.rootOutput.Current = evalResult.RootModuleOutputs
 
 	// TODO: Consider factoring most of the work we've done here into a single
 	// function that directly returns the "intermediate" object. Exposing

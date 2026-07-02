@@ -108,6 +108,7 @@ var (
 	ExperimentalChangeNoNoOp          = ExperimentalFlag{"Change New Runtime Doesn't Generate NoOp Changes", false}
 	ExperimentalChangePreReqdProvider = ExperimentalFlag{"Change New Runtime Doesn't Inherit Full Pre \"required_providers\" Behavior", false}
 	ExperimentalChangeDestroyOrder    = ExperimentalFlag{"Change Destroy Order", false}
+	ExperimentalChangeModuleOutput    = ExperimentalFlag{"Change Module Outputs (test only)", false}
 
 	ExperimentalFeatureStateDependencies = ExperimentalFlag{"Missing State Dependencies", true}
 	ExperimentalFeatureProviderInstances = ExperimentalFlag{"Missing Provider Instances", true}
@@ -139,7 +140,7 @@ var (
 	ExperimentalFeaturePreventDestroy    = ExperimentalFlag{"Missing Prevent Destroy", false}
 	ExperimentalFeaturePlannedState      = ExperimentalFlag{"Missing Planned State", false}
 	ExperimentalFeatureForceReplace      = ExperimentalFlag{"Missing Force Replace", false}
-	ExperimentalFeatureRootOutput        = ExperimentalFlag{"Missing Root Output", false}
+	ExperimentalFeatureRootOutput        = ExperimentalFlag{"Missing Root Output", true}
 	ExperimentalFeatureSensitivity       = ExperimentalFlag{"Missing Sensitivity Handling", false}
 	ExperimentalFeatureSelfReference     = ExperimentalFlag{"Missing Self Reference", false}
 	ExperimentalFeatureProviderMeta      = ExperimentalFlag{"Missing Provider Meta", false}
