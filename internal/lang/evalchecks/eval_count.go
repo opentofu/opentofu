@@ -21,10 +21,6 @@ type EvaluateFunc func(expr hcl.Expression) (cty.Value, tfdiags.Diagnostics)
 
 const maxCount = int64(math.MaxInt32)
 
-func maxCountValue() int64 {
-	return maxCount
-}
-
 // EvaluateCountExpression is our standard mechanism for interpreting an
 // expression given for a "count" argument on a resource or a module. This
 // should be called during expansion in order to determine the final count
@@ -117,11 +113,11 @@ func EvaluateCountExpressionValue(expr hcl.Expression, ctx EvaluateFunc) (cty.Va
 		return cty.UnknownVal(cty.Number), diags
 	}
 
-	if countVal.Type() == cty.Number && countVal.GreaterThan(cty.NumberIntVal(maxCountValue())).True() {
+	if countVal.Type() == cty.Number && countVal.GreaterThan(cty.NumberIntVal(maxCount)).True() {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Invalid count argument",
-			Detail:   fmt.Sprintf(`The given "count" argument value is unsuitable: must be less than or equal to %d.`, maxCountValue()),
+			Detail:   fmt.Sprintf(`The given "count" argument value is unsuitable: must be less than or equal to %d.`, maxCount),
 			Subject:  expr.Range().Ptr(),
 		})
 		return nullCount, diags
