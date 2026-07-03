@@ -64,6 +64,10 @@ func TestKMSProvider_Simple(t *testing.T) {
 		t.Fatalf("No ciphertext blob provided")
 	}
 
+	if meta.(*keyMeta).EncryptionContext["test"] != "test" {
+		t.Fatal("Expected encryption context to be stored in meta")
+	}
+
 	if captured.GenKeyContext != nil && (*captured.GenKeyContext)["test"] != "test" {
 		t.Fatalf("Expected encryption context to be passed to GenerateDataKey")
 	}
