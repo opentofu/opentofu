@@ -59,17 +59,6 @@ func (m *Meta) StaticConfigInstance(ctx context.Context, root *configs.Module, m
 
 	inputValues := exprs.ConstantValuer(cty.ObjectVal(rawInput))
 
-	loader, err := m.initConfigLoader()
-	if err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to create the config loader",
-			err.Error(),
-		))
-		diags = diags.Append(err)
-		return nil, diags
-	}
-
 	owd := m.WorkingDir.OriginalWorkingDir()
 
 	// The current working directory should always be absolute, whether we
@@ -87,7 +76,7 @@ func (m *Meta) StaticConfigInstance(ctx context.Context, root *configs.Module, m
 
 	if modules == nil {
 		modules = &newRuntimeModules{
-			loader: loader,
+			loader: m.configLoader(),
 			root:   root,
 		}
 	}
@@ -137,7 +126,7 @@ func (m *Meta) StaticConfigInstance(ctx context.Context, root *configs.Module, m
 // a best effort to shim to OpenTofu's current module loader, even though
 // it works in some slightly-different terms than this new API expects.
 type newRuntimeModules struct {
-	loader *configload.Loader
+	loader configload.Loader
 	root   *configs.Module
 
 	// configload.Loader is not concurrency-safe because it wraps
@@ -177,7 +166,7 @@ func (n *newRuntimeModules) ModuleConfig(ctx context.Context, source addrs.Modul
 	log.Printf("[TRACE] backend/local: Loading module from %q from local path %q", source, sourceDir)
 
 	n.mu.Lock()
-	mod, hclDiags := n.loader.Parser().LoadConfigDirUneval(sourceDir, configs.SelectiveLoadAll)
+	mod, hclDiags := n.loader.LoadConfigDirUneval(sourceDir, configs.SelectiveLoadAll)
 	n.mu.Unlock()
 	diags = diags.Append(hclDiags)
 	if hclDiags.HasErrors() {

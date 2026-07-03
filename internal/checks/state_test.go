@@ -20,12 +20,9 @@ func TestChecksHappyPath(t *testing.T) {
 
 	t.Chdir(fixtureDir)
 
-	loader, err := configload.NewLoader(&configload.Config{
+	loader := configload.NewLazy(&configload.Config{
 		ModulesDir: ".terraform/modules/",
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	cfg, hclDiags := loader.LoadConfig(t.Context(), ".", configs.RootModuleCallForTesting())
 	if hclDiags.HasErrors() {

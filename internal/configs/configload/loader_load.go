@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 
+	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/hcl/v2"
 
 	"github.com/opentofu/opentofu/internal/configs"
@@ -58,7 +59,7 @@ func (l *loader) loadConfig(ctx context.Context, rootMod *configs.Module, diags 
 
 // moduleWalkerLoad is a configs.ModuleWalkerFunc for loading modules that
 // are presumed to have already been installed.
-func (l *loader) ModuleLocalPath(ctx context.Context, req *configs.ModuleRequest) (*modsdir.Record, hcl.Diagnostics) {
+func (l *loader) ModuleLocalPath(_ context.Context, req *configs.ModuleRequest) (*modsdir.Record, hcl.Diagnostics) {
 	// Since we're just loading here, we expect that all referenced modules
 	// will be already installed and described in our manifest. However, we
 	// do verify that the manifest and the configuration are in agreement

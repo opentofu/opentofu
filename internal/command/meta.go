@@ -412,11 +412,11 @@ func (m *Meta) contextOpts(ctx context.Context) (*tofu.ContextOpts, error) {
 		// This allows the shims in the tofu module to function
 		// without having to understand module installation logic.
 
-		loader, _ := m.initConfigLoader()
+		loader := m.configLoader()
 
 		// This gets the current directory as full path.
 		path := m.WorkingDir.NormalizePath(m.WorkingDir.RootModuleDir())
-		root, _ := loader.Parser().LoadConfigDirUneval(path, configs.SelectiveLoadAll)
+		root, _ := loader.LoadConfigDirUneval(path, configs.SelectiveLoadAll)
 		opts.Modules = &newRuntimeModules{
 			loader: loader,
 			root:   root,

@@ -43,7 +43,7 @@ func (i *ModuleInstaller) installDescendentModulesNewRuntime(ctx context.Context
 		})
 	}
 
-	root, hclDiags := i.loader.Parser().LoadConfigDirUneval(rootDir, configs.SelectiveLoadAll)
+	root, hclDiags := i.loader.LoadConfigDirUneval(rootDir, configs.SelectiveLoadAll)
 	diags = diags.Append(hclDiags)
 	if diags.HasErrors() {
 		return nil, diags
@@ -98,7 +98,7 @@ func (i *ModuleInstaller) installDescendentModulesNewRuntime(ctx context.Context
 // a best effort to shim to OpenTofu's current module loader, even though
 // it works in some slightly-different terms than this new API expects.
 type newRuntimeModules struct {
-	loader *configload.Loader
+	loader configload.Loader
 	walker configs.ModuleWalker
 
 	root    *configs.Module

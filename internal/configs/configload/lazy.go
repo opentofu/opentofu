@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/modsdir"
 )
 
 // lazyLoader implements Loader. When created, it does not initialise the
@@ -175,6 +176,21 @@ func (c *lazyLoader) ModuleSourceAddrs(path addrs.Module) addrs.ModuleSource {
 		return nil // Default as in the loader implementation
 	}
 	return l.ModuleSourceAddrs(path)
+}
+
+// ModuleLocalPath implements Loader
+func (c *lazyLoader) ModuleLocalPath(ctx context.Context, req *configs.ModuleRequest) (*modsdir.Record, hcl.Diagnostics) {
+	l, err := c.init()
+	if err != nil {
+		return nil, hcl.Diagnostics{
+			&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Config loader init failed",
+				Detail:   fmt.Sprintf("Failed to initialise a config loader: %s", err),
+			},
+		}
+	}
+	return l.ModuleLocalPath(ctx, req)
 }
 
 // configs.Parser related methods

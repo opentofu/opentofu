@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/modsdir"
 	"github.com/spf13/afero"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -35,6 +36,7 @@ type Loader interface {
 	LoadConfigWithSnapshot(ctx context.Context, rootDir string, call configs.StaticModuleCall) (*configs.Config, *Snapshot, hcl.Diagnostics)
 	IsRemoteModuleSource(path addrs.Module) bool
 	ModuleSourceAddrs(path addrs.Module) addrs.ModuleSource
+	ModuleLocalPath(_ context.Context, req *configs.ModuleRequest) (*modsdir.Record, hcl.Diagnostics)
 
 	// configs.Parser proxy methods
 
