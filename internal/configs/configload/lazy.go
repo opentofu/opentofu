@@ -119,13 +119,7 @@ func (c *lazyLoader) Sources() map[string]*hcl.File {
 func (c *lazyLoader) LoadConfig(ctx context.Context, rootDir string, call configs.StaticModuleCall) (*configs.Config, hcl.Diagnostics) {
 	l, err := c.init()
 	if err != nil {
-		return nil, hcl.Diagnostics{
-			&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Config loader init failed",
-				Detail:   fmt.Sprintf("Failed to initialise a config loader: %s", err),
-			},
-		}
+		return nil, initErrorToDiagnostic(err)
 	}
 	return l.LoadConfig(ctx, rootDir, call)
 }
@@ -134,13 +128,7 @@ func (c *lazyLoader) LoadConfig(ctx context.Context, rootDir string, call config
 func (c *lazyLoader) LoadConfigWithTests(ctx context.Context, rootDir string, testDir string, call configs.StaticModuleCall) (*configs.Config, hcl.Diagnostics) {
 	l, err := c.init()
 	if err != nil {
-		return nil, hcl.Diagnostics{
-			&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Config loader init failed",
-				Detail:   fmt.Sprintf("Failed to initialise a config loader: %s", err),
-			},
-		}
+		return nil, initErrorToDiagnostic(err)
 	}
 	return l.LoadConfigWithTests(ctx, rootDir, testDir, call)
 }
@@ -149,13 +137,7 @@ func (c *lazyLoader) LoadConfigWithTests(ctx context.Context, rootDir string, te
 func (c *lazyLoader) LoadConfigWithSnapshot(ctx context.Context, rootDir string, call configs.StaticModuleCall) (*configs.Config, *Snapshot, hcl.Diagnostics) {
 	l, err := c.init()
 	if err != nil {
-		return nil, nil, hcl.Diagnostics{
-			&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Config loader init failed",
-				Detail:   fmt.Sprintf("Failed to initialise a config loader: %s", err),
-			},
-		}
+		return nil, nil, initErrorToDiagnostic(err)
 	}
 	return l.LoadConfigWithSnapshot(ctx, rootDir, call)
 }
@@ -182,13 +164,7 @@ func (c *lazyLoader) ModuleSourceAddrs(path addrs.Module) addrs.ModuleSource {
 func (c *lazyLoader) ModuleLocalPath(ctx context.Context, req *configs.ModuleRequest) (*modsdir.Record, hcl.Diagnostics) {
 	l, err := c.init()
 	if err != nil {
-		return nil, hcl.Diagnostics{
-			&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Config loader init failed",
-				Detail:   fmt.Sprintf("Failed to initialise a config loader: %s", err),
-			},
-		}
+		return nil, initErrorToDiagnostic(err)
 	}
 	return l.ModuleLocalPath(ctx, req)
 }
@@ -199,13 +175,7 @@ func (c *lazyLoader) ModuleLocalPath(ctx context.Context, req *configs.ModuleReq
 func (c *lazyLoader) LoadConfigDirUneval(path string, load configs.SelectiveLoader) (*configs.Module, hcl.Diagnostics) {
 	l, err := c.init()
 	if err != nil {
-		return nil, hcl.Diagnostics{
-			&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Config loader init failed",
-				Detail:   fmt.Sprintf("Failed to initialise a config loader: %s", err),
-			},
-		}
+		return nil, initErrorToDiagnostic(err)
 	}
 	return l.LoadConfigDirUneval(path, load)
 }
@@ -214,13 +184,7 @@ func (c *lazyLoader) LoadConfigDirUneval(path string, load configs.SelectiveLoad
 func (c *lazyLoader) LoadConfigDir(path string, call configs.StaticModuleCall) (*configs.Module, hcl.Diagnostics) {
 	l, err := c.init()
 	if err != nil {
-		return nil, hcl.Diagnostics{
-			&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Config loader init failed",
-				Detail:   fmt.Sprintf("Failed to initialise a config loader: %s", err),
-			},
-		}
+		return nil, initErrorToDiagnostic(err)
 	}
 	return l.LoadConfigDir(path, call)
 }
@@ -229,13 +193,7 @@ func (c *lazyLoader) LoadConfigDir(path string, call configs.StaticModuleCall) (
 func (c *lazyLoader) LoadHCLFile(path string) (hcl.Body, hcl.Diagnostics) {
 	l, err := c.init()
 	if err != nil {
-		return nil, hcl.Diagnostics{
-			&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Config loader init failed",
-				Detail:   fmt.Sprintf("Failed to initialise a config loader: %s", err),
-			},
-		}
+		return nil, initErrorToDiagnostic(err)
 	}
 	return l.LoadHCLFile(path)
 }
@@ -244,13 +202,7 @@ func (c *lazyLoader) LoadHCLFile(path string) (hcl.Body, hcl.Diagnostics) {
 func (c *lazyLoader) LoadConfigDirSelective(path string, call configs.StaticModuleCall, load configs.SelectiveLoader) (*configs.Module, hcl.Diagnostics) {
 	l, err := c.init()
 	if err != nil {
-		return nil, hcl.Diagnostics{
-			&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Config loader init failed",
-				Detail:   fmt.Sprintf("Failed to initialise a config loader: %s", err),
-			},
-		}
+		return nil, initErrorToDiagnostic(err)
 	}
 	return l.LoadConfigDirSelective(path, call, load)
 }
@@ -259,13 +211,7 @@ func (c *lazyLoader) LoadConfigDirSelective(path string, call configs.StaticModu
 func (c *lazyLoader) LoadConfigDirWithTests(path string, testDirectory string, call configs.StaticModuleCall) (*configs.Module, hcl.Diagnostics) {
 	l, err := c.init()
 	if err != nil {
-		return nil, hcl.Diagnostics{
-			&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Config loader init failed",
-				Detail:   fmt.Sprintf("Failed to initialise a config loader: %s", err),
-			},
-		}
+		return nil, initErrorToDiagnostic(err)
 	}
 	return l.LoadConfigDirWithTests(path, testDirectory, call)
 }
@@ -286,4 +232,17 @@ func (c *lazyLoader) ForceFileSource(filename string, src []byte) {
 		return // treated as no-op, since this is best-effort
 	}
 	l.ForceFileSource(filename, src)
+}
+
+// initErrorToDiagnostic converts an error type into hcl.Diagnostics.
+// This way, any error issued by the lazyLoader.init will be returned in the same format
+// to callers of the lazyLoader exported methods.
+func initErrorToDiagnostic(err error) hcl.Diagnostics {
+	return hcl.Diagnostics{
+		&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Config loader init failed",
+			Detail:   fmt.Sprintf("Failed to initialise a config loader: %s", err),
+		},
+	}
 }

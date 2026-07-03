@@ -368,10 +368,10 @@ func (m *Meta) inputForSchema(given cty.Value, schema *configschema.Block, view 
 	return cty.ObjectVal(retVals), nil
 }
 
-// configLoader initializes the shared configuration loader if it isn't
-// already initialized.
+// configLoader initialises the shared configuration loader if it isn't
+// already initialised.
 //
-// The configload.Loader that is initialised it's a lazy one, meaning that the
+// The configload.Loader is lazy-initialised, meaning that the
 // initialisation is defered to be executed later when a method from it that returns
 // errors can return the loading error.
 //
