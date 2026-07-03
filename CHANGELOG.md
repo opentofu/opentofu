@@ -2,6 +2,10 @@ The v1.12.x release series is supported until **February 1 2027**.
 
 ## 1.12.4 (unreleased)
 
+BUG FIXES:
+
+- `tofu plan -out` no longer fails when the plan includes a resource with `lifecycle { destroy = false }` that needs replacement, which previously errored with `invalid change action ForgetThenCreate`. ([#4324](https://github.com/opentofu/opentofu/issues/4324))
+
 ## 1.12.3
 
 BUG FIXES:
