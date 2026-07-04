@@ -2389,6 +2389,8 @@ Note that adding these options may include further additional resource instances
 		}
 	})
 	t.Run("without targeting either instance", func(t *testing.T) {
+		SkipExperimental(t, ExperimentalChangeMoved)
+
 		_, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 			Mode: plans.NormalMode,
 			Targets: []addrs.Targetable{
@@ -2548,6 +2550,8 @@ Note that removing these options may include further additional resource instanc
 		}
 	})
 	t.Run("excluding both addresses", func(t *testing.T) {
+		SkipExperimental(t, ExperimentalChangeMoved)
+
 		_, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 			Mode: plans.NormalMode,
 			Excludes: []addrs.Targetable{
@@ -2791,7 +2795,7 @@ func TestContext2Plan_movedResourceErrors(t *testing.T) {
 }
 
 func TestContext2Plan_untargetedResourceSchemaChange(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureTarget)
+	SkipExperimental(t, ExperimentalFeatureTarget, ExperimentalFeatureRefresh)
 
 	// an untargeted resource which requires a schema migration should not
 	// block planning due external changes in the plan.
@@ -2856,7 +2860,7 @@ resource "test_object" "b" {
 }
 
 func TestContext2Plan_excludedResourceSchemaChange(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureTarget)
+	SkipExperimental(t, ExperimentalFeatureTarget, ExperimentalFeatureRefresh)
 
 	// an excluded resource which requires a schema migration should not
 	// block planning due external changes in the plan.
