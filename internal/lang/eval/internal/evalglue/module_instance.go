@@ -247,6 +247,25 @@ func yieldModuleInstancesDeep(ctx context.Context, instAddr addrs.ModuleInstance
 	return true
 }
 
+func ConfigModuleInstances(ctx context.Context, root CompiledModuleInstance, addr addrs.Module) iter.Seq2[addrs.ModuleInstance, CompiledModuleInstance] {
+	type result func(addrs.ModuleInstance, CompiledModuleInstance) bool
+
+	var configModuleInstances func(CompiledModuleInstance, addrs.ModuleInstance, addrs.Module, result)
+	configModuleInstances = func(mod CompiledModuleInstance, current addrs.ModuleInstance, target addrs.Module, yield result) {
+		if len(target) == 0 {
+			yield(current, mod)
+			return
+		}
+		for call, child := range mod.ChildModuleInstancesForCall(ctx, addrs.ModuleCall{Name: target[0]}) {
+			configModuleInstances(child, call.Absolute(current), target[1:], yield)
+		}
+	}
+
+	return func(yield func(addrs.ModuleInstance, CompiledModuleInstance) bool) {
+		configModuleInstances(root, addrs.RootModuleInstance, addr, yield)
+	}
+}
+
 // ProviderInstance digs through the tree of module instances with the given
 // root to try to find the [configgraph.ResourceInstance] representation
 // of the resource instance with the given address.

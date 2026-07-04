@@ -219,6 +219,8 @@ func (c *Context) newEnginePlan(ctx context.Context, config *configs.Config, pre
 		// package, though notably not "SetVariables" because the new runtime
 		// deals with input variables during the module compilation step, rather
 		// than directly during planning.
+		Targets:  opts.Targets,
+		Excludes: opts.Excludes,
 	}
 
 	plan, moreDiags := planning.PlanChanges(ctx, newOpts, prevRoundState, configInst, plugins)

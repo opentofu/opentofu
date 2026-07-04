@@ -131,7 +131,7 @@ var (
 	ExperimentalFeatureUpgradeState      = ExperimentalFlag{"Missing Upgrade Resource State", true}
 	ExperimentalFeatureUpgradeUnwanted   = ExperimentalFlag{"Missing Upgrade Orphan or Deposed Resource Instance State", false}
 	ExperimentalFeatureHooks             = ExperimentalFlag{"Missing Hooks", true}
-	ExperimentalFeatureTarget            = ExperimentalFlag{"Missing Targeting", false}
+	ExperimentalFeatureTarget            = ExperimentalFlag{"Missing Targeting", true}
 	ExperimentalFeatureReplaceTB         = ExperimentalFlag{"Missing replace_triggered_by", true}
 	ExperimentalFeatureProvisioner       = ExperimentalFlag{"Missing Provisioners", true}
 	ExperimentalFeatureDependsOn         = ExperimentalFlag{"Missing Depends On", true}

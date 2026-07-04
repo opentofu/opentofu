@@ -39,7 +39,7 @@ import (
 // This mode therefore takes quite a different strategy than normal mode where
 // we rely on the prior state (after refreshing) as the "result value" for
 // each managed resource instance.
-func destroyPlan(ctx context.Context, _ *PlanOpts, prevRoundState *states.State, configInst *eval.ConfigInstance, providers plugins.Providers) (*plans.Plan, tfdiags.Diagnostics) {
+func destroyPlan(ctx context.Context, opts *PlanOpts, prevRoundState *states.State, configInst *eval.ConfigInstance, providers plugins.Providers) (*plans.Plan, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	var closeConfiguredProviders func(ctx context.Context) tfdiags.Diagnostics
 
@@ -61,7 +61,7 @@ func destroyPlan(ctx context.Context, _ *PlanOpts, prevRoundState *states.State,
 	// planCtx.resourceInstObjs should accurately represent the relationships
 	// between all of the "current" resource instance objects we found, but
 	// we won't discover any deposed objects until the next step below.
-	evalResult, moreDiags := configInst.DrivePlanning(ctx, func(oracle *eval.PlanningOracle) eval.PlanGlue {
+	evalResult, moreDiags := configInst.DrivePlanning(ctx, opts.Targets, opts.Excludes, func(oracle *eval.PlanningOracle) eval.PlanGlue {
 		closeConfiguredProviders = oracle.Close
 		return &planGlueDestroy{
 			normalGlue: planGlue{

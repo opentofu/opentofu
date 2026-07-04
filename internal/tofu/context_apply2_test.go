@@ -4453,9 +4453,7 @@ func TestContext2Apply_excludedModuleDep(t *testing.T) {
 	}
 
 	state, diags := ctx.Apply(context.Background(), plan, m, nil)
-	if diags.HasErrors() {
-		t.Fatalf("diags: %s", diags.Err())
-	}
+	assertNoErrors(t, diags)
 
 	checkStateString(t, state, `
 <no state>

@@ -156,7 +156,7 @@ func (ops *execOperations) Finish(ctx context.Context) (*states.State, tfdiags.D
 				sensitive := v.HasMark(marks.Sensitive)
 				deprecated := "" // TODO
 				finalState.EnsureModule(addrs.RootModuleInstance).SetOutputValue(k, unmarkedVal, sensitive, deprecated)
-			} else {
+			} else if ops.priorState != nil {
 				prev := ops.priorState.OutputValue(addrs.AbsOutputValue{OutputValue: addrs.OutputValue{Name: k}})
 				if prev != nil {
 					finalState.EnsureModule(addrs.RootModuleInstance).SetOutputValue(k, prev.Value, prev.Sensitive, prev.Deprecated)

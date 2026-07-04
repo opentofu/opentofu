@@ -115,7 +115,11 @@ type PlanGlue interface {
 // tracked in the prior state and then presumably generate additional planned
 // actions to destroy any instances that are currently tracked but no longer
 // configured.
-func (c *ConfigInstance) DrivePlanning(ctx context.Context, buildGlue func(*PlanningOracle) PlanGlue) (*PlanningResult, tfdiags.Diagnostics) {
+func (c *ConfigInstance) DrivePlanning(ctx context.Context,
+	targets []addrs.Targetable,
+	excludes []addrs.Targetable,
+	buildGlue func(*PlanningOracle) PlanGlue,
+) (*PlanningResult, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// All of our work will be associated with a workgraph worker that serves
@@ -176,6 +180,76 @@ func (c *ConfigInstance) DrivePlanning(ctx context.Context, buildGlue func(*Plan
 	oracle.providers = managedProviders
 	// Inject configured providers
 	evalGlue.providers = managedProviders
+
+	// Targeting
+	if len(targets) > 0 {
+		ctx := grapheval.ContextWithNewWorker(ctx)
+		ctx = grapheval.ContextWithRequestTracker(ctx, workgraphRequestTracker{rootModuleInstance})
+
+		// TODO parallelize?
+		for _, target := range targets {
+			switch target.AddrType() {
+			case addrs.ConfigResourceAddrType:
+				configResource := target.(addrs.ConfigResource)
+				for _, modInst := range evalglue.ConfigModuleInstances(ctx, rootModuleInstance, configResource.Module) {
+					for resInst := range modInst.ResourceInstancesForResource(ctx, configResource.Resource) {
+						resInst.Value(ctx)
+					}
+				}
+			case addrs.AbsResourceAddrType:
+				absResource := target.(addrs.AbsResource)
+				modInst := evalglue.ModuleInstance(ctx, rootModuleInstance, absResource.Module)
+				if modInst != nil {
+					for resInst := range modInst.ResourceInstancesForResource(ctx, absResource.Resource) {
+						resInst.Value(ctx)
+					}
+				}
+			case addrs.AbsResourceInstanceAddrType:
+				absResourceInstance := target.(addrs.AbsResourceInstance)
+				resInst := evalglue.ResourceInstance(ctx, rootModuleInstance, absResourceInstance)
+				if resInst != nil {
+					resInst.Value(ctx)
+				}
+			case addrs.ModuleAddrType:
+				module := target.(addrs.Module)
+				for _, modInst := range evalglue.ConfigModuleInstances(ctx, rootModuleInstance, module) {
+					for resInst := range evalglue.ResourceInstancesDeep(ctx, modInst) {
+						resInst.Value(ctx)
+					}
+				}
+			case addrs.ModuleInstanceAddrType:
+				moduleInstance := target.(addrs.ModuleInstance)
+				modInst := evalglue.ModuleInstance(ctx, rootModuleInstance, moduleInstance)
+				if modInst != nil {
+					for resInst := range evalglue.ResourceInstancesDeep(ctx, modInst) {
+						resInst.Value(ctx)
+					}
+				}
+			}
+		}
+
+		// TODO orphans
+
+		// Turn all additional resource operations into defers
+		evalGlue.planEngineGlue = &targetingGlue{
+			excluded: func(addrs.Targetable) bool {
+				return true
+			},
+			parent: glue,
+		}
+	} else if len(excludes) != 0 {
+		evalGlue.planEngineGlue = &targetingGlue{
+			excluded: func(addr addrs.Targetable) bool {
+				for _, exclude := range excludes {
+					if exclude.TargetContains(addr) {
+						return true
+					}
+				}
+				return false
+			},
+			parent: glue,
+		}
+	}
 
 	// The plan phase is driven forward by us evaluating expressions during
 	// the "checkAll" process, and so we can just run that here and then
