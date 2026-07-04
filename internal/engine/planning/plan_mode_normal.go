@@ -43,7 +43,7 @@ func normalPlan(ctx context.Context, opts *PlanOpts, prevRoundState *states.Stat
 	// planCtx.resourceInstObjs should accurately represent the relationships
 	// between all of the "current" resource instance objects we found, but
 	// we won't discover any deposed objects until the next step below.
-	evalResult, moreDiags := configInst.DrivePlanning(ctx, func(oracle *eval.PlanningOracle) eval.PlanGlue {
+	evalResult, moreDiags := configInst.DrivePlanning(ctx, opts.Targets, opts.Excludes, func(oracle *eval.PlanningOracle) eval.PlanGlue {
 		closeConfiguredProviders = oracle.Close
 		return &planGlue{
 			planCtx: planCtx,

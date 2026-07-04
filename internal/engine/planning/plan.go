@@ -38,6 +38,9 @@ type PlanOpts struct {
 	Mode plans.Mode
 
 	ForceReplace []addrs.AbsResourceInstance
+
+	Targets  []addrs.Targetable
+	Excludes []addrs.Targetable
 }
 
 // PlanChanges is the main entry point, taking a state snapshot from the end

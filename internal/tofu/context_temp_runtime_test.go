@@ -111,7 +111,7 @@ var (
 	ExperimentalFeatureRemoved         = ExperimentalFlag{"Missing Removed", false}
 	ExperimentalFeatureSkipDestroy     = ExperimentalFlag{"Missing Lifecycle Destroy", false}
 	ExperimentalFeatureUpgradeUnwanted = ExperimentalFlag{"Missing Upgrade Orphan or Deposed Resource Instance State", false}
-	ExperimentalFeatureTarget          = ExperimentalFlag{"Missing Targeting", false}
+	ExperimentalFeatureTarget          = ExperimentalFlag{"Missing Targeting", true}
 	ExperimentalFeatureVarCondition    = ExperimentalFlag{"Missing Variable Condiitions", false}
 	ExperimentalFeaturePlannedState    = ExperimentalFlag{"Missing Planned State", false}
 	ExperimentalFeatureSensitivity     = ExperimentalFlag{"Missing Sensitivity Handling", false}
