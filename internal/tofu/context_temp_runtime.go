@@ -199,6 +199,8 @@ func (c *Context) newEnginePlan(ctx context.Context, config *configs.Config, pre
 		// package, though notably not "SetVariables" because the new runtime
 		// deals with input variables during the module compilation step, rather
 		// than directly during planning.
+		Targets:  opts.Targets,
+		Excludes: opts.Excludes,
 	}
 
 	plan, moreDiags := planning.PlanChanges(ctx, newOpts, prevRoundState, configInst, plugins)
@@ -307,6 +309,18 @@ func (c *Context) newEngineApply(ctx context.Context, config *configs.Config, pl
 
 	newState, moreDiags := applying.ApplyPlannedChanges(ctx, plan, configInst, plugins)
 	diags = diags.Append(moreDiags)
+
+	if len(plan.TargetAddrs) > 0 || len(plan.ExcludeAddrs) > 0 {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Warning,
+			"Applied changes may be incomplete",
+			`The plan was created with the -target or the -exclude option in effect, so some changes requested in the configuration may have been ignored and the output values may not be fully updated. Run the following command to verify that no other changes are pending:
+    tofu plan
+	
+Note that the -target and -exclude options are not suitable for routine use, and are provided only for exceptional situations such as recovering from errors or mistakes, or when OpenTofu specifically suggests to use it as part of an error message.`,
+		))
+	}
+
 	return newState, diags
 }
 

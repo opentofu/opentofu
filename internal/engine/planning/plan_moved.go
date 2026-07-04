@@ -13,6 +13,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"slices"
 	"sort"
 	"strings"
 
@@ -312,7 +313,7 @@ func (p *planGlue) locateConfigForState(ctx context.Context, addr addrs.AbsResou
 	}
 
 	// TODO I'm not sure if this is correct or even tested for the old engine
-	// Part of the concern is orphaned and deposed entries hitting this multiple times vs the current address
+	// Part of the concern is orphaned and deposed entries hitting this multiple times and causing false positives in validation below
 	if isCurrent {
 		for _, move := range potentialMoves {
 			// Record move statements for later analysis
@@ -490,6 +491,82 @@ func (p *planGlue) validateMoves(ctx context.Context) tfdiags.Diagnostics {
 					Subject: stepTaken.statement.DeclRange.ToHCL().Ptr(),
 				})
 			}
+		}
+	}
+
+	// Check for addresses not included in target or are excluded
+	isTargeting := len(p.targets) != 0
+	isExcluding := len(p.excludes) != 0
+	if isTargeting || isExcluding {
+		// TODO this is a NOP during destroy due to other changes
+		allEntries := addrs.MakeSet[addrs.AbsResourceInstance]()
+		for _, elem := range p.planCtx.recordedMoves.Elements() {
+			allEntries.Add(elem.Key)
+			allEntries.Add(elem.Value)
+		}
+		var excluded []addrs.AbsResourceInstance
+		for addr := range allEntries.All() {
+			targeter := func(target addrs.Targetable) bool { return target.TargetContains(addr) }
+			if isTargeting && !slices.ContainsFunc(p.targets, targeter) || isExcluding && slices.ContainsFunc(p.excludes, targeter) {
+				excluded = append(excluded, addr)
+			}
+		}
+
+		if len(excluded) > 0 {
+			sort.Slice(excluded, func(i, j int) bool {
+				return excluded[i].Less(excluded[j])
+			})
+
+			var flag string
+			if isTargeting {
+				flag = "-target"
+			} else {
+				flag = "-exclude"
+			}
+
+			var listBuf strings.Builder
+			var prevResourceAddr addrs.AbsResource
+			for _, instAddr := range excluded {
+				// Targeting generally ends up selecting whole resources rather
+				// than individual instances, because we don't factor in
+				// individual instances until DynamicExpand, so we're going to
+				// always show whole resource addresses here, excluding any
+				// instance keys. (This also neatly avoids dealing with the
+				// different quoting styles required for string instance keys
+				// on different shells, which is handy.)
+				//
+				// To avoid showing duplicates when we have multiple instances
+				// of the same resource, we'll remember the most recent
+				// resource we rendered in prevResource, which is sufficient
+				// because we sorted the list of instance addresses above, and
+				// our sort order always groups together instances of the same
+				// resource.
+				resourceAddr := instAddr.ContainingResource()
+				if resourceAddr.Equal(prevResourceAddr) {
+					continue
+				}
+				fmt.Fprintf(&listBuf, "\n  %s=%q", flag, resourceAddr.String())
+				prevResourceAddr = resourceAddr
+			}
+
+			var msg string
+			if isTargeting {
+				msg = fmt.Sprintf(
+					"Resource instances in your current state have moved to new addresses in the latest configuration. OpenTofu must include those resource instances while planning in order to ensure a correct result, but your -target=... options do not fully cover all of those resource instances.\n\nTo create a valid plan, either remove your -target=... options altogether or add the following additional target options:%s\n\nNote that adding these options may include further additional resource instances in your plan, in order to respect object dependencies.",
+					listBuf.String(),
+				)
+			} else {
+				msg = fmt.Sprintf(
+					"Resource instances in your current state have moved to new addresses in the latest configuration. OpenTofu must include those resource instances while planning in order to ensure a correct result, but your -exclude=... options exclude some of those resource instances.\n\nTo create a valid plan, either remove your -exclude=... options altogether or just specifically remove the following options:%s\n\nNote that removing these options may include further additional resource instances in your plan, in order to respect object dependencies.",
+					listBuf.String(),
+				)
+			}
+
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Moved resource instances excluded by targeting",
+				msg,
+			))
 		}
 	}
 

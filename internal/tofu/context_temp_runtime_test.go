@@ -96,6 +96,7 @@ var (
 	ExperimentalChangeDestroyOrder    = ExperimentalFlag{"Change Destroy Order", false}
 	ExperimentalChangeModuleOutput    = ExperimentalFlag{"Change Module Outputs (test only)", false}
 	ExperimentalChangeCursedSelfRef   = ExperimentalFlag{"Change Cursed Self Reference (legacy race condition)", false}
+	ExperimentalChangeMoved           = ExperimentalFlag{"Moved blocks that are not \"active\" are not processed", false}
 
 	ExperimentalFeatureDeposed         = ExperimentalFlag{"Missing Deposed", false}
 	ExperimentalFeatureCondition       = ExperimentalFlag{"Missing Pre/Post Conditions", false}
@@ -111,7 +112,7 @@ var (
 	ExperimentalFeatureRemoved         = ExperimentalFlag{"Missing Removed", false}
 	ExperimentalFeatureSkipDestroy     = ExperimentalFlag{"Missing Lifecycle Destroy", false}
 	ExperimentalFeatureUpgradeUnwanted = ExperimentalFlag{"Missing Upgrade Orphan or Deposed Resource Instance State", false}
-	ExperimentalFeatureTarget          = ExperimentalFlag{"Missing Targeting", false}
+	ExperimentalFeatureTarget          = ExperimentalFlag{"Missing Targeting", true}
 	ExperimentalFeatureVarCondition    = ExperimentalFlag{"Missing Variable Condiitions", false}
 	ExperimentalFeaturePlannedState    = ExperimentalFlag{"Missing Planned State", false}
 	ExperimentalFeatureSensitivity     = ExperimentalFlag{"Missing Sensitivity Handling", false}

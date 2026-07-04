@@ -72,7 +72,10 @@ func TestPlan_valuesOnlySuccess(t *testing.T) {
 		t.Fatalf("unexpected errors: %s", diags.Err())
 	}
 
-	gotOutputs := planResult.RootModuleOutputs.OutputValues
+	gotOutputs := map[string]cty.Value{}
+	for name, val := range planResult.RootModuleOutputs {
+		gotOutputs[name] = val.Value
+	}
 	wantOutputs := map[string]cty.Value{
 		"c": cty.StringVal("true:true/true:true"),
 	}
@@ -159,7 +162,10 @@ func TestPlan_managedResourceSimple(t *testing.T) {
 		t.Fatalf("unexpected errors: %s", diags.Err())
 	}
 
-	gotOutputs := planResult.RootModuleOutputs.OutputValues
+	gotOutputs := map[string]cty.Value{}
+	for name, val := range planResult.RootModuleOutputs {
+		gotOutputs[name] = val.Value
+	}
 	wantOutputs := map[string]cty.Value{
 		"c": cty.StringVal("foo bar name"),
 	}
@@ -258,7 +264,10 @@ func TestPlan_managedResourceUnknownCount(t *testing.T) {
 		t.Fatalf("unexpected errors: %s", diags.Err())
 	}
 
-	gotOutputs := planResult.RootModuleOutputs.OutputValues
+	gotOutputs := map[string]cty.Value{}
+	for name, val := range planResult.RootModuleOutputs {
+		gotOutputs[name] = val.Value
+	}
 	wantOutputs := map[string]cty.Value{
 		"c": cty.DynamicVal, // don't know what instances we have yet
 	}
@@ -294,6 +303,11 @@ type planGlueCallLog struct {
 
 	resourceInstanceRequests addrs.Map[addrs.AbsResourceInstance, *eval.DesiredResourceInstance]
 	mu                       sync.Mutex
+}
+
+// ProviderFunction implements eval.PlanGlue
+func (p *planGlueCallLog) PreProcess(ctx context.Context, targeter func(addrs.Targetable)) {
+	// No targeting enabled for log glue
 }
 
 // ProviderFunction implements eval.PlanGlue
