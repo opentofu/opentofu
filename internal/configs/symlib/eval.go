@@ -161,12 +161,16 @@ func (s *scope) typeContext(w *workgraph.Worker) typeexpr.TypeContext {
 
 			fn, ok := types[kw]
 			if !ok {
-				return nil, nil, nil
+				return &cty.DynamicPseudoType, nil, hcl.Diagnostics{{
+					Summary: "Missing type",
+					Detail:  fmt.Sprintf("%s not in %s: %v", kw, ns, types),
+					Subject: call.NameRange.Ptr(),
+				}}
 			}
 
 			val, diags := fn(w)
 			if diags.HasErrors() {
-				return nil, nil, diags
+				return &cty.DynamicPseudoType, nil, diags
 			}
 			return &(val.ty), val.def, diags
 		},
