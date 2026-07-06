@@ -509,7 +509,7 @@ func (b *Backend) PrepareConfig(obj cty.Value) (cty.Value, tfdiags.Diagnostics) 
 		diags = diags.Append(tfdiags.AttributeValue(
 			tfdiags.Error,
 			"Invalid key value",
-			`The "key" attribute value must not start or end with with "/".`,
+			`The "key" attribute value must not start or end with "/".`,
 			cty.Path{cty.GetAttrStep{Name: "key"}},
 		))
 	}
