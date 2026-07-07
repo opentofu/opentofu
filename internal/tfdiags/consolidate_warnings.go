@@ -134,6 +134,8 @@ func (wg *consolidatedGroup) Description() Description {
 		diagType = "error"
 	case Warning:
 		diagType = "warning"
+	case LintingWarning:
+		diagType = "linting"
 	default:
 		panic(fmt.Sprintf("Invalid diagnostic severity: %#v", wg.Severity()))
 	}
