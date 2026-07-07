@@ -15,8 +15,9 @@ import (
 
 func TestKeyProvider(t *testing.T) {
 	testKeyId := getKey(t)
+	usingMock := testKeyId == ""
 
-	if testKeyId == "" {
+	if usingMock {
 		testKeyId = "alias/my-mock-key"
 		injectDefaultMock(t)
 
@@ -24,6 +25,8 @@ func TestKeyProvider(t *testing.T) {
 		t.Setenv("AWS_ACCESS_KEY_ID", "accesskey")
 		t.Setenv("AWS_SECRET_ACCESS_KEY", "secretkey")
 	}
+
+	presentValidMeta := presentValidMetadata(t, testKeyId, usingMock)
 
 	compliancetest.ComplianceTest(
 		t,
@@ -214,9 +217,9 @@ func TestKeyProvider(t *testing.T) {
 					ValidConfig: &Config{
 						KMSKeyID:            testKeyId,
 						KeySpec:             "AES_256",
-						SkipCredsValidation: true, // Required for mocking
+						SkipCredsValidation: usingMock, // Required for mocking
 					},
-					Meta:      &keyMeta{CiphertextBlob: append([]byte(testKeyId), make([]byte, 32)...)},
+					Meta:      presentValidMeta,
 					IsPresent: true,
 					IsValid:   true,
 				},
@@ -247,4 +250,25 @@ func TestKeyProvider(t *testing.T) {
 				},
 			},
 		})
+}
+
+func presentValidMetadata(t *testing.T, testKeyId string, usingMock bool) *keyMeta {
+	if usingMock {
+		return &keyMeta{CiphertextBlob: append([]byte(testKeyId), make([]byte, 32)...)}
+	}
+
+	provider, metaIn, err := (&Config{
+		KMSKeyID: testKeyId,
+		KeySpec:  "AES_256",
+	}).Build()
+	if err != nil {
+		t.Fatalf("failed to build key provider for present-valid metadata: %s", err)
+	}
+
+	_, meta, err := provider.Provide(metaIn)
+	if err != nil {
+		t.Fatalf("failed to generate present-valid metadata: %s", err)
+	}
+
+	return meta.(*keyMeta)
 }

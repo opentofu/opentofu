@@ -96,3 +96,71 @@ func TestKMSProvider_Simple(t *testing.T) {
 		t.Fatalf("Expected decryption context to be passed to Decrypt")
 	}
 }
+
+func TestKMSProvider_EncryptionContextRotation(t *testing.T) {
+	testKeyId := getKey(t)
+
+	var captured capturedKMSCalls
+
+	if testKeyId == "" {
+		testKeyId = "alias/my-mock-key"
+		captured = injectCapturingMock(t, testKeyId)
+		t.Setenv("AWS_REGION", "us-east-1")
+		t.Setenv("AWS_ACCESS_KEY_ID", "accesskey")
+		t.Setenv("AWS_SECRET_ACCESS_KEY", "secretkey")
+	}
+
+	skipCreds := captured.GenKeyContext != nil
+	oldContext := map[string]string{"env": "dev"}
+	newContext := map[string]string{"env": "prod"}
+
+	oldProvider, metaIn, err := (Config{
+		KMSKeyID:            testKeyId,
+		KeySpec:             "AES_256",
+		SkipCredsValidation: skipCreds,
+		EncryptionContext:   oldContext,
+	}).Build()
+	if err != nil {
+		t.Fatalf("Error building provider: %s", err)
+	}
+
+	_, oldMeta, err := oldProvider.Provide(metaIn)
+	if err != nil {
+		t.Fatalf("Error providing keys with old context: %s", err)
+	}
+
+	if oldMeta.(*keyMeta).EncryptionContext["env"] != "dev" {
+		t.Fatal("Expected old encryption context to be stored in meta")
+	}
+
+	newProvider, _, err := (Config{
+		KMSKeyID:            testKeyId,
+		KeySpec:             "AES_256",
+		SkipCredsValidation: skipCreds,
+		EncryptionContext:   newContext,
+	}).Build()
+	if err != nil {
+		t.Fatalf("Error building provider: %s", err)
+	}
+
+	output, newMeta, err := newProvider.Provide(oldMeta)
+	if err != nil {
+		t.Fatalf("Error decrypting with rotated config: %s", err)
+	}
+
+	if len(output.DecryptionKey) == 0 {
+		t.Fatal("No decryption key provided after rotation")
+	}
+
+	if captured.DecryptContext != nil && (*captured.DecryptContext)["env"] != "dev" {
+		t.Fatal("Decrypt should use context from meta, not current config")
+	}
+
+	if newMeta.(*keyMeta).EncryptionContext["env"] != "prod" {
+		t.Fatal("Expected new encryption context to be stored in meta")
+	}
+
+	if captured.GenKeyContext != nil && (*captured.GenKeyContext)["env"] != "prod" {
+		t.Fatal("GenerateDataKey should use current config context")
+	}
+}
