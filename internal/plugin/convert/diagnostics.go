@@ -60,6 +60,8 @@ func ProtoToDiagnostics(ds []*proto.Diagnostic) tfdiags.Diagnostics {
 	for _, d := range ds {
 		var severity tfdiags.Severity
 
+		// TODO linting - at some point, when we will add linting diagnostics to the provider protocol we will have
+		//  to convert that accordingly here. For now, this will be untouched
 		switch d.Severity {
 		case proto.Diagnostic_ERROR:
 			severity = tfdiags.Error

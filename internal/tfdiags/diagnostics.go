@@ -330,7 +330,14 @@ func (sd sortDiagnostics) Less(i, j int) bool {
 	switch {
 
 	case iSev != jSev:
-		return iSev == Warning
+		switch iSev {
+		case Error:
+			return false // everything is "lesser" than error
+		case Warning:
+			return jSev == Error // warning is "less" than error but greater than lint
+		default:
+			return true // everything else is "lesser"
+		}
 
 	case (iSrc.Subject == nil) != (jSrc.Subject == nil):
 		return iSrc.Subject == nil
