@@ -154,9 +154,10 @@ func TestView_Configure(t *testing.T) {
 
 func TestView_Diagnostics(t *testing.T) {
 	testCases := map[string]struct {
-		diags    tfdiags.Diagnostics
-		setup    func(*View)
-		validate func(*testing.T, *terminal.TestOutput)
+		diags             tfdiags.Diagnostics
+		setup             func(*View)
+		validate          func(*testing.T, *terminal.TestOutput)
+		sequentialStreams bool
 	}{
 		"empty diagnostics": {
 			diags: tfdiags.Diagnostics{},
@@ -415,6 +416,57 @@ foo bar warning
 				}
 			},
 		},
+		"sort by severity": {
+			sequentialStreams: true, // necessary because this test relies on the order of the output calls
+			diags: tfdiags.New(
+				&hcl.Diagnostic{
+					Severity: hcl.DiagWarning,
+					Summary:  "Warning 1",
+				},
+				&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Error 1",
+				},
+				tfdiags.LintMessage(linting.MustParseRuleAddr("foo"), nil, "Linting 1", "", nil, nil),
+				&hcl.Diagnostic{
+					Severity: hcl.DiagWarning,
+					Summary:  "Warning 2",
+				},
+				tfdiags.LintMessage(linting.MustParseRuleAddr("foo"), nil, "Linting 2", "", nil, nil),
+				&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Error 2",
+				},
+			),
+			setup: func(v *View) {
+				v.consolidateWarnings = true
+				v.Configure(&arguments.View{LintInclude: collections.NewSet(linting.AllRulesGroupID), NoColor: true})
+			},
+			validate: func(t *testing.T, output *terminal.TestOutput) {
+				out := output.All()
+				wanted := `
+Linting 1 (core:foo)
+
+
+Linting 2 (core:foo)
+
+
+Warning: Warning 1
+
+
+Warning: Warning 2
+
+
+Error: Error 1
+
+
+Error: Error 2
+`
+				if !strings.Contains(out, wanted) {
+					t.Errorf("output should contain all the expected diagnostics in the expected order\noutput:\n%s\nexpected:\n%s", out, wanted)
+				}
+			},
+		},
 		"exclude not requested linting diagnostics": {
 			diags: tfdiags.New(tfdiags.LintMessage(linting.MustParseRuleAddr("foo"), nil, "Test foo linting", "This is a test warning", nil, nil)),
 			setup: func(view *View) {
@@ -431,9 +483,16 @@ foo bar warning
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			streams, done := terminal.StreamsForTesting(t)
+			var (
+				streams *terminal.Streams
+				done    func(*testing.T) *terminal.TestOutput
+			)
+			if tc.sequentialStreams {
+				streams, done = terminal.SequentialStreamsForTesting(t)
+			} else {
+				streams, done = terminal.StreamsForTesting(t)
+			}
 			view := NewView(streams)
-
 			if tc.setup != nil {
 				tc.setup(view)
 			}
