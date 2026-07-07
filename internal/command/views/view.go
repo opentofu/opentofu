@@ -166,10 +166,10 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 				return depExtra
 			}
 			return tfdiags.DefaultDiagnosticsConsolidation(diag)
-		})
+		}, tfdiags.ConsolidationOptDefault)
 	}
 	if v.consolidateErrors {
-		diags = diags.Consolidate(1, tfdiags.Error, tfdiags.DefaultDiagnosticsConsolidation)
+		diags = diags.Consolidate(1, tfdiags.Error, tfdiags.DefaultDiagnosticsConsolidation, tfdiags.ConsolidationOptDefault)
 	}
 
 	// Since warning messages are generally competing
