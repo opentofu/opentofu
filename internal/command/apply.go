@@ -36,6 +36,7 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	// Parse and apply global view arguments
 	common, rawArgs := arguments.ParseView(rawArgs)
 	c.View.Configure(common)
+	ctx = tfdiags.ContextWithLintFilterHints(ctx, common.LintInclude, common.LintExclude)
 
 	// Parse and validate flags
 	var args *arguments.Apply

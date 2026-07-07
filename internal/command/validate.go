@@ -30,6 +30,7 @@ func (c *ValidateCommand) Run(rawArgs []string) int {
 	// Parse and apply global view arguments
 	common, rawArgs := arguments.ParseView(rawArgs)
 	c.View.Configure(common)
+	ctx = tfdiags.ContextWithLintFilterHints(ctx, common.LintInclude, common.LintExclude)
 
 	// Parse and validate flags
 	args, closer, diags := arguments.ParseValidate(rawArgs)
@@ -155,6 +156,7 @@ func (c *ValidateCommand) Synopsis() string {
 	return "Check whether the configuration is valid"
 }
 
+// TODO linting - add flag to the help text
 func (c *ValidateCommand) Help() string {
 	helpText := `
 Usage: tofu [global options] validate [options]
