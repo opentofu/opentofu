@@ -78,6 +78,7 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 func (c ApplyCommand) Execute(args *arguments.Apply, view views.Apply) int {
 	var diags tfdiags.Diagnostics
 	ctx := c.CommandContext()
+	ctx = tfdiags.ContextWithLintFilterHints(ctx, args.View.LintInclude, args.View.LintExclude)
 
 	// Check for user-supplied plugin path
 	var err error
