@@ -36,9 +36,20 @@ type Severity rune
 const (
 	Error   Severity = 'E'
 	Warning Severity = 'W'
+	// LintingWarning is not meant to be used directly. This is used internally in this package for generating linting
+	// diagnostics.
+	LintingWarning Severity = 'L'
 )
 
 // ToHCL converts a Severity to the equivalent HCL diagnostic severity.
+//
+// When linting was introduced, linting severity was skipped to be added here on purpose because the only relevant
+// place where this mmethod was called was already skipping the linting diagnostics from being converted to
+// the HCL representantation.
+// Another place where this was used, was when evaluating checks, but that method was only called with
+// error and warn severity.
+// If any future use case will require this method to handle properly the linting severity, then it should
+// be added here and integrated accordingly.
 func (s Severity) ToHCL() hcl.DiagnosticSeverity {
 	switch s {
 	case Warning:
