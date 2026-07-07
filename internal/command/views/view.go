@@ -172,6 +172,10 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 	if v.consolidateErrors {
 		diags = diags.Consolidate(1, tfdiags.Error, tfdiags.DefaultDiagnosticsConsolidation, tfdiags.ConsolidationOptDefault)
 	}
+	// Because of the in-context linting hints, this should not be necessary but it's just a guard in case
+	// there is any linting rule included without using the in-context linting hints.
+	diags = diags.FilterLint(v.lintInclude, v.lintExclude)
+	diags = diags.ConsolidateLint()
 
 	// Since warning messages are generally competing
 	if v.compactWarnings {

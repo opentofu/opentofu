@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/opentofu/opentofu/internal/linting"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/jsonentities"
@@ -102,6 +103,7 @@ func TestJSONView_Diagnostics(t *testing.T) {
 		"Unusually stripey cat detected",
 		"Are you sure this random_pet isn't a cheetah?",
 	))
+	diags = diags.Append(tfdiags.LintMessage(linting.MustParseRuleAddr("foo"), nil, "linting summary", "linting details", nil, nil))
 
 	jv.Diagnostics(diags)
 
@@ -126,6 +128,17 @@ func TestJSONView_Diagnostics(t *testing.T) {
 				"severity": "error",
 				"summary":  "Unusually stripey cat detected",
 				"detail":   "Are you sure this random_pet isn't a cheetah?",
+			},
+		},
+		{
+			"@level":   "warn",
+			"@message": "Linting: linting summary (core:foo)",
+			"@module":  "tofu.ui",
+			"type":     "diagnostic",
+			"diagnostic": map[string]any{
+				"severity": "lint",
+				"summary":  "linting summary (core:foo)",
+				"detail":   "linting details",
 			},
 		},
 	}
