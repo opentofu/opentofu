@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hcltest"
 	"github.com/opentofu/opentofu/internal/command/jsonplan"
 	"github.com/opentofu/opentofu/internal/lang/marks"
+	"github.com/opentofu/opentofu/internal/linting"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -1149,6 +1150,40 @@ func TestNewDiagnostic(t *testing.T) {
 							Statement: `is object with 2 attributes`,
 						},
 					},
+				},
+			},
+		},
+		"linting diagnostic with source": {
+			diag: tfdiags.LintMessage(linting.MustParseRuleAddr("foo"), nil, "lint diag summary", "lint diag details", &tfdiags.SourceRange{Filename: "test.tf"}, nil),
+			want: &Diagnostic{
+				Severity: DiagnosticSeverityLint,
+				Summary:  "lint diag summary (core:foo)",
+				Detail:   "lint diag details",
+				Range: &DiagnosticRange{
+					Filename: "test.tf",
+					End:      Pos{Column: 1, Byte: 1},
+				},
+				Snippet: &DiagnosticSnippet{
+					Code:               `resource "test_resource" "test" {`,
+					HighlightEndOffset: 1,
+					Values:             []DiagnosticExpressionValue{},
+				},
+			},
+		},
+		"linting diagnostic with source and groupIDs": {
+			diag: tfdiags.LintMessage(linting.MustParseRuleAddr("foo"), []linting.RuleAddr{linting.MustParseRuleAddr("core:baz")}, "lint diag summary", "lint diag details", &tfdiags.SourceRange{Filename: "test.tf"}, nil),
+			want: &Diagnostic{
+				Severity: DiagnosticSeverityLint,
+				Summary:  "lint diag summary (core:foo, core:baz)",
+				Detail:   "lint diag details",
+				Range: &DiagnosticRange{
+					Filename: "test.tf",
+					End:      Pos{Column: 1, Byte: 1},
+				},
+				Snippet: &DiagnosticSnippet{
+					Code:               `resource "test_resource" "test" {`,
+					HighlightEndOffset: 1,
+					Values:             []DiagnosticExpressionValue{},
 				},
 			},
 		},
