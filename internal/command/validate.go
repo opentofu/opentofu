@@ -57,6 +57,7 @@ func (c *ValidateCommand) Run(rawArgs []string) int {
 func (c ValidateCommand) Execute(args *arguments.Validate, view views.Validate) int {
 	var diags tfdiags.Diagnostics
 	ctx := c.CommandContext()
+	ctx = tfdiags.ContextWithLintFilterHints(ctx, args.View.LintInclude, args.View.LintExclude)
 
 	// After this point, we must only produce JSON output if JSON mode is
 	// enabled, so all errors should be accumulated into diags and we'll

@@ -11,8 +11,10 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/mitchellh/colorstring"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/collections"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/format"
+	"github.com/opentofu/opentofu/internal/linting"
 	"github.com/opentofu/opentofu/internal/terminal"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -27,6 +29,11 @@ type View struct {
 	compactWarnings     bool
 	consolidateWarnings bool
 	consolidateErrors   bool
+
+	// lintInclude and lintExclude contains the linting rules that are used later
+	// to determine if a specific diagnostic should be shown or not based on the
+	// linting rule IDs (or/and groupIDs) that diagnostic is configured with.
+	lintInclude, lintExclude collections.Set[linting.RuleAddr]
 
 	// When this is true it's a hint that OpenTofu is being run indirectly
 	// via a wrapper script or other automation and so we may wish to replace
@@ -113,6 +120,9 @@ func (v *View) Configure(view *arguments.View) {
 	v.concise = view.Concise
 	v.showSensitive = view.ShowSensitive
 	v.ModuleDeprecationWarnLvl = view.ModuleDeprecationWarnLvl
+
+	v.lintInclude = view.LintInclude
+	v.lintExclude = view.LintExclude
 }
 
 func (v *View) DiagsWithNewline() {
