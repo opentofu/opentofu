@@ -23,14 +23,17 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-func separateWarningsAndErrors(diags tfdiags.Diagnostics) ([]string, []error) {
+func separateWarningsAndErrors(t *testing.T, diags tfdiags.Diagnostics) ([]string, []error) {
 	warnings := make([]string, 0)
 	errors := make([]error, 0)
 	for _, diag := range diags {
-		if diag.Severity() == tfdiags.Warning {
+		switch s := diag.Severity(); s {
+		case tfdiags.Warning:
 			warnings = append(warnings, diag.Description().Summary)
-		} else if diag.Severity() == tfdiags.Error {
+		case tfdiags.Error:
 			errors = append(errors, fmt.Errorf("%s", diag.Description().Summary))
+		default:
+			t.Errorf("encountered %d diagnostic severity. Consider enhancing diagnostics separation if needed", s)
 		}
 	}
 	return warnings, errors
@@ -63,7 +66,7 @@ func TestBackendConfigWarningsAndErrors(t *testing.T, b Backend, c hcl.Body) (Ba
 
 	// it's valid for a Backend to have warnings (e.g. a Deprecation) as such we should only raise on errors
 	if len(diags) != 0 {
-		warnings, errors := separateWarningsAndErrors(diags)
+		warnings, errors := separateWarningsAndErrors(t, diags)
 		return nil, warnings, errors
 	}
 
@@ -72,7 +75,7 @@ func TestBackendConfigWarningsAndErrors(t *testing.T, b Backend, c hcl.Body) (Ba
 	confDiags := b.Configure(t.Context(), obj)
 	if len(confDiags) != 0 {
 		confDiags = confDiags.InConfigBody(c, "")
-		warnings, errors := separateWarningsAndErrors(confDiags)
+		warnings, errors := separateWarningsAndErrors(t, confDiags)
 		return nil, warnings, errors
 	}
 
