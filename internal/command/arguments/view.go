@@ -7,6 +7,9 @@ package arguments
 
 import (
 	"strings"
+
+	"github.com/opentofu/opentofu/internal/collections"
+	"github.com/opentofu/opentofu/internal/linting"
 )
 
 // View represents the global command-line arguments which configure the view.
@@ -21,6 +24,11 @@ type View struct {
 	CompactWarnings     bool
 	ConsolidateWarnings bool
 	ConsolidateErrors   bool
+
+	// LintInclude and LintExclude contains the linting rules that are used later
+	// to determine if a specific diagnostic should be shown or not based on the
+	// linting rule IDs (or/and groupIDs) that diagnostic is configured with.
+	LintInclude, LintExclude collections.Set[linting.RuleAddr]
 
 	// Concise is used to reduce the level of noise in the output and display
 	// only the important details.
@@ -47,6 +55,10 @@ func ParseView(args []string) (*View, []string) {
 	for _, v := range args {
 		if prefix := "-deprecation=module:"; strings.HasPrefix(v, prefix) {
 			common.ModuleDeprecationWarnLvl = ParseDeprecatedWarningLevel(strings.ReplaceAll(v, prefix, ""))
+			continue // continue to ensure that the counter is not incremented
+		}
+		if prefix := "-lint="; strings.HasPrefix(v, prefix) {
+			common.LintInclude, common.LintExclude = ParseLintingRules(strings.ReplaceAll(v, prefix, ""))
 			continue // continue to ensure that the counter is not incremented
 		}
 		switch v {
