@@ -9,10 +9,12 @@ import (
 	"context"
 	"maps"
 
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/instances"
+	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/zclconf/go-cty/cty"
 )
 
 // singleInstanceSelectorForTesting returns an [InstanceSelector] that
@@ -85,8 +87,8 @@ func (i *instanceSelectorForTesting) InstanceKeyType() addrs.InstanceKeyType {
 }
 
 // Instances implements InstanceSelector.
-func (i *instanceSelectorForTesting) Instances(ctx context.Context) (Maybe[InstancesSeq], cty.ValueMarks, tfdiags.Diagnostics) {
-	return Known(InstancesSeq(maps.All(i.instances))), i.instancesMarks, nil
+func (i *instanceSelectorForTesting) Instances(ctx context.Context) (exprs.FromValue[InstancesSeq], tfdiags.Diagnostics) {
+	return exprs.Known(InstancesSeq(maps.All(i.instances))).WithMarks(i.instancesMarks), nil
 }
 
 // InstancesSourceRange implements InstanceSelector.

@@ -104,8 +104,8 @@ func compileModuleInstanceModuleCalls(
 						validateInputs: func(ctx context.Context, v cty.Value) tfdiags.Diagnostics {
 							return diags
 						},
-						compileChild: func(ctx context.Context, inputs cty.Value, providersFromParent configgraph.CompileProviderConfigRef) (configgraph.Maybe[evalglue.CompiledModuleInstance], tfdiags.Diagnostics) {
-							return nil, nil
+						compileChild: func(ctx context.Context, inputs cty.Value, providersFromParent configgraph.CompileProviderConfigRef) (exprs.FromValue[evalglue.CompiledModuleInstance], tfdiags.Diagnostics) {
+							return exprs.Unknown[evalglue.CompiledModuleInstance](), nil
 						},
 					}
 					return inst
@@ -139,7 +139,7 @@ func compileModuleInstanceModuleCalls(
 					validateInputs: func(ctx context.Context, v cty.Value) tfdiags.Diagnostics {
 						return mod.ValidateModuleInputs(ctx, v)
 					},
-					compileChild: func(ctx context.Context, inputs cty.Value, providersFromParent configgraph.CompileProviderConfigRef) (configgraph.Maybe[evalglue.CompiledModuleInstance], tfdiags.Diagnostics) {
+					compileChild: func(ctx context.Context, inputs cty.Value, providersFromParent configgraph.CompileProviderConfigRef) (exprs.FromValue[evalglue.CompiledModuleInstance], tfdiags.Diagnostics) {
 						var diags tfdiags.Diagnostics
 
 						// We passed the marks from depends_on through the instance
@@ -169,9 +169,9 @@ func compileModuleInstanceModuleCalls(
 						})
 						diags = diags.Append(moreDiags)
 						if moreDiags.HasErrors() {
-							return nil, diags
+							return exprs.Unknown[evalglue.CompiledModuleInstance](), diags
 						}
-						return configgraph.Known(modInst), diags
+						return exprs.Known(modInst), diags
 					},
 				}
 				return inst
@@ -185,13 +185,13 @@ type moduleCallInstanceGlue struct {
 	callInstNode *configgraph.ModuleCallInstance
 
 	validateInputs func(context.Context, cty.Value) tfdiags.Diagnostics
-	compileChild   func(ctx context.Context, inputs cty.Value, providersFromParent configgraph.CompileProviderConfigRef) (configgraph.Maybe[evalglue.CompiledModuleInstance], tfdiags.Diagnostics)
+	compileChild   func(ctx context.Context, inputs cty.Value, providersFromParent configgraph.CompileProviderConfigRef) (exprs.FromValue[evalglue.CompiledModuleInstance], tfdiags.Diagnostics)
 
 	// FIXME: This isn't exposed in the tree of AnnounceAllGraphevalRequests
 	// method calls we use to collect up user-friendly names for all of our
 	// workgraph requests, so if a self-reference error occurs across this
 	// boundary there will be an unnamed item in the resulting error message.
-	compiledChild grapheval.Once[configgraph.Maybe[evalglue.CompiledModuleInstance]]
+	compiledChild grapheval.Once[exprs.FromValue[evalglue.CompiledModuleInstance]]
 }
 
 func (g *moduleCallInstanceGlue) ValidateInputs(ctx context.Context, inputsVal cty.Value) tfdiags.Diagnostics {
@@ -203,7 +203,7 @@ func (g *moduleCallInstanceGlue) OutputsValue(ctx context.Context) (cty.Value, t
 	// compiledModuleInstance, so that they can be returned as part of deciding
 	// the final value of the associated [configgraph.ModuleCallInstance].
 	maybeCompiled, diags := g.compiledModuleInstance(ctx)
-	compiled, ok := configgraph.GetKnown(maybeCompiled)
+	compiled, ok := maybeCompiled.ValueOk()
 	if !ok {
 		return exprs.AsEvalError(cty.DynamicVal), diags
 	}
@@ -218,11 +218,11 @@ func (g *moduleCallInstanceGlue) OutputsValue(ctx context.Context) (cty.Value, t
 // We also use this directly in [CompiledModuleInstance]'s implementation
 // of [evalglue.CompiledModuleInstance] to give the caller direct access to the
 // child module instance objects for recursive tree walks.
-func (g *moduleCallInstanceGlue) compiledModuleInstance(ctx context.Context) (configgraph.Maybe[evalglue.CompiledModuleInstance], tfdiags.Diagnostics) {
-	return g.compiledChild.Do(ctx, func(ctx context.Context) (configgraph.Maybe[evalglue.CompiledModuleInstance], tfdiags.Diagnostics) {
+func (g *moduleCallInstanceGlue) compiledModuleInstance(ctx context.Context) (exprs.FromValue[evalglue.CompiledModuleInstance], tfdiags.Diagnostics) {
+	return g.compiledChild.Do(ctx, func(ctx context.Context) (exprs.FromValue[evalglue.CompiledModuleInstance], tfdiags.Diagnostics) {
 		configVal, diags := g.callInstNode.InputsValue(ctx)
 		if !configVal.IsKnown() {
-			return nil, diags
+			return exprs.Unknown[evalglue.CompiledModuleInstance](), diags
 		}
 		providersFromParent := g.callInstNode.ProvidersFromParent
 		ret, moreDiags := g.compileChild(ctx, configVal, providersFromParent)

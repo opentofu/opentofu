@@ -10,14 +10,16 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/function"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
+	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/zclconf/go-cty/cty"
-	"github.com/zclconf/go-cty/cty/function"
 )
 
 var NewStaticPlugins = evalglue.NewStaticPlugins
@@ -95,7 +97,7 @@ func (c *ConfigInstance) ProviderRequirements(ctx context.Context) (getproviders
 type staticGlue struct{}
 
 // ProviderFunction implements evalglue.Glue.
-func (v *staticGlue) ProviderFunction(ctx context.Context, provider addrs.Provider, providerInst configgraph.Maybe[*configgraph.ProviderInstance], subject addrs.ProviderFunction, rng hcl.Range) (function.Function, tfdiags.Diagnostics) {
+func (v *staticGlue) ProviderFunction(ctx context.Context, provider addrs.Provider, providerInst exprs.FromValue[*configgraph.ProviderInstance], subject addrs.ProviderFunction, rng hcl.Range) (function.Function, tfdiags.Diagnostics) {
 	// TODO replace with a provider marked value and enhance the resource mark checking for "static" situations
 	return function.Function{}, tfdiags.New(&hcl.Diagnostic{
 		Severity: hcl.DiagError,
@@ -106,6 +108,6 @@ func (v *staticGlue) ProviderFunction(ctx context.Context, provider addrs.Provid
 }
 
 // ResourceInstanceValue implements evaluationGlue.
-func (v *staticGlue) ResourceInstanceValue(ctx context.Context, ri *configgraph.ResourceInstance, configVal cty.Value, _ configgraph.Maybe[*configgraph.ProviderInstance], _ addrs.Set[addrs.AbsResourceInstance]) (cty.Value, tfdiags.Diagnostics) {
+func (v *staticGlue) ResourceInstanceValue(ctx context.Context, ri *configgraph.ResourceInstance, configVal cty.Value, _ exprs.FromValue[*configgraph.ProviderInstance], _ addrs.Set[addrs.AbsResourceInstance]) (cty.Value, tfdiags.Diagnostics) {
 	return cty.DynamicVal, nil
 }

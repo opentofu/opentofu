@@ -67,7 +67,8 @@ func compileProviderFunctions(
 			return fn, diags
 		}
 
-		maybeProvider, _, err := configgraph.ProviderInstanceFromValue(pv, reqdProvider.Type)
+		maybeProvider, err := configgraph.ProviderInstanceFromValue(pv, reqdProvider.Type)
+		maybeProvider, providerMarks := maybeProvider.Unmark()
 		if err != nil {
 			diags = diags.Append(err)
 			return fn, diags
@@ -79,8 +80,11 @@ func compileProviderFunctions(
 			return fn, diags
 		}
 
+		// TODO:
 		// We have the option here to attatch the provider's resource marks to the value returned by the function.  Should we?
+		// Maybe we should just pass the possibly-marked maybeProvider value into evaluationGlue.ProviderFunction and let it decide what to do with the marks?
 		// Does this have CBD implications?
+		_ = providerMarks
 
 		return fn, diags
 	}

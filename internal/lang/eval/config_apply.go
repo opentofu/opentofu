@@ -18,6 +18,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
+	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -111,9 +112,9 @@ type applyingEvalGlue struct {
 }
 
 // ResourceInstanceValue implements [evalglue.Glue].
-func (g *applyingEvalGlue) ResourceInstanceValue(ctx context.Context, ri *configgraph.ResourceInstance, cfgVal cty.Value, providerInst configgraph.Maybe[*configgraph.ProviderInstance], _ addrs.Set[addrs.AbsResourceInstance]) (cty.Value, tfdiags.Diagnostics) {
+func (g *applyingEvalGlue) ResourceInstanceValue(ctx context.Context, ri *configgraph.ResourceInstance, cfgVal cty.Value, providerInst exprs.FromValue[*configgraph.ProviderInstance], _ addrs.Set[addrs.AbsResourceInstance]) (cty.Value, tfdiags.Diagnostics) {
 	if ri.Addr.Resource.Resource.Mode == addrs.EphemeralResourceMode {
-		if providerInst, ok := configgraph.GetKnown(providerInst); ok {
+		if providerInst, ok := providerInst.ValueOk(); ok {
 			return g.providers.OpenEphemeralResourceInstance(ctx, ri.Addr, cfgVal, ri.Provider, &providerInst.Addr)
 		}
 		log.Printf("[WARN] Provider is not yet known for ephemeral resource %s", ri.Addr)
@@ -125,8 +126,8 @@ func (g *applyingEvalGlue) ResourceInstanceValue(ctx context.Context, ri *config
 }
 
 // ProviderFunction implements [evalglue.Glue]
-func (g *applyingEvalGlue) ProviderFunction(ctx context.Context, provider addrs.Provider, providerInst configgraph.Maybe[*configgraph.ProviderInstance], pf addrs.ProviderFunction, rng hcl.Range) (function.Function, tfdiags.Diagnostics) {
-	if providerInst, ok := configgraph.GetKnown(providerInst); ok {
+func (g *applyingEvalGlue) ProviderFunction(ctx context.Context, provider addrs.Provider, providerInst exprs.FromValue[*configgraph.ProviderInstance], pf addrs.ProviderFunction, rng hcl.Range) (function.Function, tfdiags.Diagnostics) {
+	if providerInst, ok := providerInst.ValueOk(); ok {
 		return g.providers.ConfiguredFunction(ctx, providerInst.Addr, pf, rng)
 	}
 
@@ -184,11 +185,23 @@ func (o *ApplyOracle) DesiredResourceInstance(ctx context.Context, addr addrs.Ab
 	// to do its work.
 	configVal, moreDiags := inst.ConfigValue(ctx)
 	diags = diags.Append(moreDiags)
-	providerInst, _, moreDiags := inst.ProviderInstance(ctx)
+	providerInst, moreDiags := inst.ProviderInstance(ctx)
 	diags = diags.Append(moreDiags)
-	providerInstAddr, _ := configgraph.GetKnown(configgraph.MapMaybe(providerInst, func(pi *configgraph.ProviderInstance) addrs.AbsProviderInstanceCorrect {
-		return pi.Addr
-	}))
+	providerInstAddr, _ := exprs.DeriveFromDerived(providerInst, func(pi *configgraph.ProviderInstance) (addrs.AbsProviderInstanceCorrect, error) {
+		return pi.Addr, nil
+	})
+	// FIXME: DesiredResourceInstance is using a possibly-nil pointer to
+	// addrs.AbsProviderInstanceCorrect as a legacy way to represent a
+	// provider instance address that might be unknown, since it was written
+	// before we had exprs.FromValue. We should eventually update that type
+	// so that its ProviderInstance field is
+	// exprs.FromValue[addrs.AbsProviderInstanceCorrect] but we'll shim to
+	// the legacy form for now.
+	var providerInstAddrPtr *addrs.AbsProviderInstanceCorrect
+	unmarkedProviderInstAddr, _ := providerInstAddr.Unmark()
+	if addr, ok := unmarkedProviderInstAddr.ValueOk(); ok {
+		providerInstAddrPtr = &addr
+	}
 
 	riDeps := addrs.MakeSet[addrs.AbsResourceInstance]()
 	for depInst := range inst.ResourceInstanceDependencies(ctx) {
@@ -199,7 +212,7 @@ func (o *ApplyOracle) DesiredResourceInstance(ctx context.Context, addr addrs.Ab
 		Addr:                      inst.Addr,
 		ConfigVal:                 configVal,
 		Provider:                  inst.Provider,
-		ProviderInstance:          &providerInstAddr,
+		ProviderInstance:          providerInstAddrPtr,
 		ResourceMode:              addr.Resource.Resource.Mode,
 		ResourceType:              addr.Resource.Resource.Type,
 		RequiredResourceInstances: riDeps,

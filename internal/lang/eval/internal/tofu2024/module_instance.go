@@ -73,7 +73,7 @@ func (c *CompiledModuleInstance) CheckAll(ctx context.Context) tfdiags.Diagnosti
 				// we can therefore use it to get the compiled child instance.
 				glue := inst.Glue.(*moduleCallInstanceGlue)
 				maybeCompiled, _ := glue.compiledModuleInstance(ctx)
-				compiled, ok := configgraph.GetKnown(maybeCompiled)
+				compiled, ok := maybeCompiled.ValueOk()
 				if !ok {
 					return
 				}
@@ -122,7 +122,7 @@ func (c *CompiledModuleInstance) ChildModuleInstance(ctx context.Context, addr a
 	// we can therefore use it to get the compiled child instance.
 	glue := callInst.Glue.(*moduleCallInstanceGlue)
 	maybeCompiled, _ := glue.compiledModuleInstance(ctx)
-	compiled, ok := configgraph.GetKnown(maybeCompiled)
+	compiled, ok := maybeCompiled.ValueOk()
 	if !ok {
 		return nil
 	}
@@ -159,7 +159,7 @@ func (c *CompiledModuleInstance) ChildModuleInstancesForCall(ctx context.Context
 			// we can therefore use it to get the compiled child instance.
 			glue := callInst.Glue.(*moduleCallInstanceGlue)
 			maybeCompiled, _ := glue.compiledModuleInstance(ctx)
-			compiled, ok := configgraph.GetKnown(maybeCompiled)
+			compiled, ok := maybeCompiled.ValueOk()
 			if !ok {
 				continue
 			}

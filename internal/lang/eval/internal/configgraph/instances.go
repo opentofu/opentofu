@@ -46,15 +46,15 @@ type InstanceSelector interface {
 	//
 	// If the decision about which instance keys to return was based
 	// on evaluating expressions or otherwise interacting with cty values
-	// then the second return value describes any marks that were
-	// present on the value used to decide which instance keys exist.
-	// If there were no marks at all, or the decision was not based on
-	// evaluating expressions, then this returns a nil [cty.ValueMarks]
+	// then the result includes any marks that were present on the value used
+	// to decide which instance keys exist. If there were no marks at all, or
+	// the decision was not based on evaluating expressions, then the value
+	// is not marked.
 	//
 	// If the returned diagnostics contains an error then the set of
 	// instance keys is ignored but the returned marks will still be
 	// retained and used for building a placeholder result.
-	Instances(ctx context.Context) (Maybe[InstancesSeq], cty.ValueMarks, tfdiags.Diagnostics)
+	Instances(ctx context.Context) (exprs.FromValue[InstancesSeq], tfdiags.Diagnostics)
 
 	// InstancesSourceRange optionally reports a source range for something in
 	// the configuration that the author would consider as representing the
@@ -91,11 +91,12 @@ func compileInstances[T any](
 	compileInstance instanceCompiler[T],
 ) (*compiledInstances[T], tfdiags.Diagnostics) {
 	keyType := selector.InstanceKeyType()
-	maybeInsts, valueMarks, diags := selector.Instances(ctx)
+	maybeInsts, diags := selector.Instances(ctx)
+	maybeInsts, valueMarks := maybeInsts.Unmark()
 	if diags.HasErrors() {
 		return compilePlaceholderInstance(ctx, keyType, valueMarks, compileInstance), diags
 	}
-	insts, ok := GetKnown(maybeInsts)
+	insts, ok := maybeInsts.ValueOk()
 	if !ok {
 		return compilePlaceholderInstance(ctx, keyType, valueMarks, compileInstance), diags
 	}

@@ -188,7 +188,7 @@ func (ri *ResourceInstance) Value(ctx context.Context) (v cty.Value, diags tfdia
 			return exprs.AsEvalError(cty.DynamicVal), diags
 		}
 
-		providerInst, providerInstMarks, moreDiags := ri.ProviderInstance(ctx)
+		providerInst, moreDiags := ri.ProviderInstance(ctx)
 		diags = diags.Append(moreDiags)
 		if moreDiags.HasErrors() {
 			return exprs.AsEvalError(cty.DynamicVal), diags
@@ -211,6 +211,7 @@ func (ri *ResourceInstance) Value(ctx context.Context) (v cty.Value, diags tfdia
 		// We must pass the marks from the provider instance selection into the
 		// result because the values that were returned may vary depending on
 		// the provider configuration.
+		_, providerInstMarks := providerInst.Unmark()
 		RemoveNonDependencyMarks(providerInstMarks)
 		resultVal = resultVal.WithMarks(providerInstMarks)
 
@@ -225,23 +226,22 @@ func (ri *ResourceInstance) Value(ctx context.Context) (v cty.Value, diags tfdia
 	})
 }
 
-func (ri *ResourceInstance) ProviderInstance(ctx context.Context) (Maybe[*ProviderInstance], cty.ValueMarks, tfdiags.Diagnostics) {
+func (ri *ResourceInstance) ProviderInstance(ctx context.Context) (exprs.FromValue[*ProviderInstance], tfdiags.Diagnostics) {
 	v, diags := ri.ProviderInstanceValuer.Value(ctx)
 	if diags.HasErrors() {
-		return nil, cty.NewValueMarks(exprs.EvalError), diags
+		return exprs.Unknown[*ProviderInstance]().Mark(exprs.EvalError), diags
 	}
-	inst, marks, err := ProviderInstanceFromValue(v, ri.Provider)
+	inst, err := ProviderInstanceFromValue(v, ri.Provider)
 	if err != nil {
-		marks[exprs.EvalError] = struct{}{}
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Invalid provider instance reference",
 			Detail:   fmt.Sprintf("Unsuitable provider selection for %s: %s.", ri.Addr, tfdiags.FormatError(err)),
 			Subject:  MaybeHCLSourceRange(ri.ProviderInstanceValuer.ValueSourceRange()),
 		})
-		return nil, marks, diags
+		return inst.Mark(exprs.EvalError), diags
 	}
-	return inst, marks, diags
+	return inst, diags
 }
 
 // ResourceInstanceDependencies returns a sequence of any other resource

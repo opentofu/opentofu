@@ -250,8 +250,8 @@ type planningEvalGlue struct {
 var _ evalglue.Glue = (*planningEvalGlue)(nil)
 
 // ProviderFunction implements evalglue.Glue.
-func (p *planningEvalGlue) ProviderFunction(ctx context.Context, provider addrs.Provider, providerInst configgraph.Maybe[*configgraph.ProviderInstance], pf addrs.ProviderFunction, rng hcl.Range) (function.Function, tfdiags.Diagnostics) {
-	if providerInst, ok := configgraph.GetKnown(providerInst); ok {
+func (p *planningEvalGlue) ProviderFunction(ctx context.Context, provider addrs.Provider, providerInst exprs.FromValue[*configgraph.ProviderInstance], pf addrs.ProviderFunction, rng hcl.Range) (function.Function, tfdiags.Diagnostics) {
+	if providerInst, ok := providerInst.ValueOk(); ok {
 		return p.providers.ConfiguredFunction(ctx, providerInst.Addr, pf, rng)
 	}
 
@@ -259,7 +259,7 @@ func (p *planningEvalGlue) ProviderFunction(ctx context.Context, provider addrs.
 }
 
 // ResourceInstanceValue implements evalglue.Glue.
-func (p *planningEvalGlue) ResourceInstanceValue(ctx context.Context, ri *configgraph.ResourceInstance, configVal cty.Value, providerInst configgraph.Maybe[*configgraph.ProviderInstance], riDeps addrs.Set[addrs.AbsResourceInstance]) (cty.Value, tfdiags.Diagnostics) {
+func (p *planningEvalGlue) ResourceInstanceValue(ctx context.Context, ri *configgraph.ResourceInstance, configVal cty.Value, providerInst exprs.FromValue[*configgraph.ProviderInstance], riDeps addrs.Set[addrs.AbsResourceInstance]) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	desired := &DesiredResourceInstance{
@@ -270,7 +270,15 @@ func (p *planningEvalGlue) ResourceInstanceValue(ctx context.Context, ri *config
 		ResourceType:              ri.Addr.Resource.Resource.Type,
 		ResourceMode:              ri.Addr.Resource.Resource.Mode,
 	}
-	if providerInst, ok := configgraph.GetKnown(providerInst); ok {
+	// FIXME: DesiredResourceInstance is using a possibly-nil pointer to
+	// addrs.AbsProviderInstanceCorrect as a legacy way to represent a
+	// provider instance address that might be unknown, since it was written
+	// before we had exprs.FromValue. We should eventually update that type
+	// so that its ProviderInstance field is
+	// exprs.FromValue[addrs.AbsProviderInstanceCorrect] but we'll shim to
+	// the legacy form for now.
+	unmarkedProviderInst, _ := providerInst.Unmark()
+	if providerInst, ok := unmarkedProviderInst.ValueOk(); ok {
 		desired.ProviderInstance = &providerInst.Addr
 	}
 

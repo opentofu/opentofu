@@ -96,22 +96,22 @@ func ProviderInstanceRefValue(inst *ProviderInstance) cty.Value {
 // ProviderInstanceFromValue attempts to extract an instance of the given
 // provider from the given value, returning it if successful or returning
 // an error if not.
-func ProviderInstanceFromValue(v cty.Value, forProvider addrs.Provider) (Maybe[*ProviderInstance], cty.ValueMarks, error) {
+func ProviderInstanceFromValue(v cty.Value, forProvider addrs.Provider) (exprs.FromValue[*ProviderInstance], error) {
 	v, marks := v.UnmarkDeep()
 	ty := ProviderInstanceRefType(forProvider)
 	v, err := convert.Convert(v, ty)
 	if err != nil {
 		marks[exprs.EvalError] = struct{}{}
-		return nil, marks, err
+		return exprs.Unknown[*ProviderInstance]().WithMarks(marks), err
 	}
 	if v.IsNull() {
 		marks[exprs.EvalError] = struct{}{}
-		return nil, marks, errors.New("value must not be null")
+		return exprs.Unknown[*ProviderInstance]().WithMarks(marks), errors.New("value must not be null")
 	}
 	if !v.IsKnown() {
-		return nil, marks, nil
+		return exprs.Unknown[*ProviderInstance]().WithMarks(marks), err
 	}
-	return Known(v.EncapsulatedValue().(*ProviderInstance)), marks, nil
+	return exprs.Known(v.EncapsulatedValue().(*ProviderInstance)).WithMarks(marks), nil
 }
 
 // IsProviderInstanceRefValue returns true if the given type represents a
