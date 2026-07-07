@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/linting"
 	"github.com/opentofu/opentofu/internal/terminal"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -101,6 +102,10 @@ func TestValidateJSON(t *testing.T) {
 				"Every configuration should have a random_pet.",
 			),
 			false,
+		},
+		"lint": {
+			tfdiags.LintMessage(linting.MustParseRuleAddr("foo"), nil, "summary", "detail", nil, nil),
+			true,
 		},
 	}
 	for name, tc := range testCases {
