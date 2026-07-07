@@ -49,6 +49,7 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 func (c PlanCommand) Execute(args *arguments.Plan, view views.Plan) int {
 	var diags tfdiags.Diagnostics
 	ctx := c.CommandContext()
+	ctx = tfdiags.ContextWithLintFilterHints(ctx, args.View.LintInclude, args.View.LintExclude)
 
 	// Check for user-supplied plugin path
 	var err error
