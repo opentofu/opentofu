@@ -158,6 +158,7 @@ func CompileModuleInstance(
 		providersSidechannel,
 		call.CalleeAddr,
 		call.EvalContext.Providers,
+		call.EvalContext.Provisioners,
 		call.EvaluationGlue.ResourceInstanceValue,
 		call.DependencyMarks,
 	)

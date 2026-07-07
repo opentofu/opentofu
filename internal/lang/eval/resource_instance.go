@@ -9,6 +9,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 )
 
 // DesiredResourceInstance describes a resource instance that is part of
@@ -159,7 +160,15 @@ type DesiredResourceInstance struct {
 	// Any resource instance mentioned in this collection will always also
 	// appear in RequiredResourceInstances.
 	ReplaceTriggeredBy []ResourceInstanceAttributePath
+
+	// CreateProvisioners are the provisioners that will be run if the resource
+	// is created
+	CreateProvisioners []Provisioner
 }
+
+// Exposing configgraph details is not idea, but it's a very simple structure
+// that is probably not worth duplicating right now
+type Provisioner = configgraph.Provisioner
 
 // IsPlaceholder returns true if this object is acting as a placeholder for
 // zero or more resource instances whose full expansion is not yet known.

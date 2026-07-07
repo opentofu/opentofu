@@ -9,6 +9,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/states"
 )
 
@@ -74,6 +75,13 @@ type ManagedResourceObjectFinalPlan struct {
 	ProviderPrivate []byte
 	// TODO: Anything else we'd need to populate an "ApplyResourceChanges"
 	// request to the associated provider.
+
+	// CreateProvisioners are the provisioners to execute if the resource
+	// instance is being created.
+	CreateProvisioners []eval.Provisioner
+	// DestroyProvisioners are the provisioners to execute if the resource
+	// instance is being destroyed.
+	DestroyProvisioners []eval.Provisioner
 }
 
 // IntoDeposed returns a new [ManagedResourceObjectFinalPlan] that represents

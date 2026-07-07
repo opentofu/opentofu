@@ -427,6 +427,24 @@ func (c *Context) newEngineApplyTracer() *applying.Tracer {
 			})
 		},
 
+		StartProvisionInstanceStep: func(ctx context.Context, addr addrs.AbsResourceInstance, typeName string) context.Context {
+			c.eachHook(func(h Hook) (HookAction, error) {
+				return h.PreProvisionInstanceStep(addr, typeName)
+			})
+			return ctx
+		},
+		StopProvisionInstanceStep: func(ctx context.Context, addr addrs.AbsResourceInstance, typeName string, diags tfdiags.Diagnostics) {
+			c.eachHook(func(h Hook) (HookAction, error) {
+				return h.PostProvisionInstanceStep(addr, typeName, diags.Err())
+			})
+		},
+		ProvisionOutput: func(ctx context.Context, addr addrs.AbsResourceInstance, typeName string, line string, configMarks cty.ValueMarks) {
+			c.eachHook(func(h Hook) (HookAction, error) {
+				h.ProvisionOutput(addr, typeName, line, configMarks)
+				return HookActionContinue, nil
+			})
+		},
+
 		// We'll also include the [shared.Tracer] we use for both plan and apply.
 		Tracer: c.newEngineSharedTracer(),
 	}

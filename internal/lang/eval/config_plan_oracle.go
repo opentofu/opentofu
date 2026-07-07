@@ -43,6 +43,10 @@ func (o *PlanningOracle) ProviderInstance(ctx context.Context, addr addrs.AbsPro
 	return o.providers.ProviderInstance(ctx, addr)
 }
 
+func (o *PlanningOracle) DestroyProvisioners(ctx context.Context, addr addrs.AbsResourceInstance) []Provisioner {
+	return evalglue.DestroyProvisioners(ctx, o.root, addr)
+}
+
 func (o *PlanningOracle) Close(ctx context.Context) tfdiags.Diagnostics {
 	return o.providers.Close(ctx)
 }

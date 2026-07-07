@@ -109,6 +109,7 @@ var (
 	ExperimentalChangePreReqdProvider = ExperimentalFlag{"Change New Runtime Doesn't Inherit Full Pre \"required_providers\" Behavior", false}
 	ExperimentalChangeDestroyOrder    = ExperimentalFlag{"Change Destroy Order", false}
 	ExperimentalChangeModuleOutput    = ExperimentalFlag{"Change Module Outputs (test only)", false}
+	ExperimentalChangeCursedSelfRef   = ExperimentalFlag{"Change Cursed Self Reference (legacy race condition)", false}
 
 	ExperimentalFeatureStateDependencies = ExperimentalFlag{"Missing State Dependencies", true}
 	ExperimentalFeatureProviderInstances = ExperimentalFlag{"Missing Provider Instances", true}
@@ -132,7 +133,7 @@ var (
 	ExperimentalFeatureHooks             = ExperimentalFlag{"Missing Hooks", true}
 	ExperimentalFeatureTarget            = ExperimentalFlag{"Missing Targeting", false}
 	ExperimentalFeatureReplaceTB         = ExperimentalFlag{"Missing replace_triggered_by", false}
-	ExperimentalFeatureProvisioner       = ExperimentalFlag{"Missing Provisioners", false}
+	ExperimentalFeatureProvisioner       = ExperimentalFlag{"Missing Provisioners", true}
 	ExperimentalFeatureDependsOn         = ExperimentalFlag{"Missing Depends On", true}
 	ExperimentalFeatureIgnoreChanges     = ExperimentalFlag{"Missing Ignore Changes", false}
 	ExperimentalFeatureVarCondition      = ExperimentalFlag{"Missing Variable Condiitions", false}

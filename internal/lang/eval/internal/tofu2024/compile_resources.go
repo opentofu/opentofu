@@ -31,20 +31,21 @@ func compileModuleInstanceResources(
 	moduleProviders configgraph.CompileProviderConfigRef,
 	moduleInstanceAddr addrs.ModuleInstance,
 	providers evalglue.ProvidersSchema,
+	provisioners evalglue.ProvisionersSchema,
 	getResultValue func(context.Context, *configgraph.ResourceInstance, cty.Value, configgraph.Maybe[*configgraph.ProviderInstance], addrs.Set[addrs.AbsResourceInstance]) (cty.Value, tfdiags.Diagnostics),
 	extraMarks cty.ValueMarks,
 ) map[addrs.Resource]*configgraph.Resource {
 	ret := make(map[addrs.Resource]*configgraph.Resource, len(managedConfigs)+len(dataConfigs)+len(ephemeralConfigs))
 	for _, rc := range managedConfigs {
-		addr, rsrc := compileModuleInstanceResource(ctx, rc, declScope, moduleProviders, moduleInstanceAddr, providers, getResultValue, extraMarks)
+		addr, rsrc := compileModuleInstanceResource(ctx, rc, declScope, moduleProviders, moduleInstanceAddr, providers, provisioners, getResultValue, extraMarks)
 		ret[addr] = rsrc
 	}
 	for _, rc := range dataConfigs {
-		addr, rsrc := compileModuleInstanceResource(ctx, rc, declScope, moduleProviders, moduleInstanceAddr, providers, getResultValue, extraMarks)
+		addr, rsrc := compileModuleInstanceResource(ctx, rc, declScope, moduleProviders, moduleInstanceAddr, providers, nil, getResultValue, extraMarks)
 		ret[addr] = rsrc
 	}
 	for _, rc := range ephemeralConfigs {
-		addr, rsrc := compileModuleInstanceResource(ctx, rc, declScope, moduleProviders, moduleInstanceAddr, providers, getResultValue, extraMarks)
+		addr, rsrc := compileModuleInstanceResource(ctx, rc, declScope, moduleProviders, moduleInstanceAddr, providers, nil, getResultValue, extraMarks)
 		ret[addr] = rsrc
 	}
 	return ret
@@ -57,6 +58,7 @@ func compileModuleInstanceResource(
 	moduleProviders configgraph.CompileProviderConfigRef,
 	moduleInstanceAddr addrs.ModuleInstance,
 	providers evalglue.ProvidersSchema,
+	provisioners evalglue.ProvisionersSchema,
 	getResultValue func(context.Context, *configgraph.ResourceInstance, cty.Value, configgraph.Maybe[*configgraph.ProviderInstance], addrs.Set[addrs.AbsResourceInstance]) (cty.Value, tfdiags.Diagnostics),
 	extraMarks cty.ValueMarks,
 ) (addrs.Resource, *configgraph.Resource) {
@@ -88,12 +90,46 @@ func compileModuleInstanceResource(
 			Subject:  config.TypeRange.Ptr(),
 		})
 		configEvalable = exprs.ForcedErrorEvalable(diags, tfdiags.SourceRangeFromHCL(config.TypeRange))
-	} else if resourceTypeSchema.Block == nil {
+	} else if resourceTypeSchema == evalglue.StaticProviderSchema {
 		// Assumed static context, I don't love this sort of flagging though
 		configEvalable = exprs.EvalableHCLExpression(&hclsyntax.LiteralValueExpr{Val: cty.DynamicVal})
 	} else {
 		spec := resourceTypeSchema.Block.DecoderSpec()
 		configEvalable = exprs.EvalableHCLBodyWithDynamicBlocks(config.Config, spec)
+	}
+
+	// Compile Provisioners
+	var createProvisioners []compiledProvisioner
+	var destroyProvisioners []compiledProvisioner
+	if config.Managed != nil {
+		var baseConn hcl.Body
+		if config.Managed.Connection != nil {
+			baseConn = config.Managed.Connection.Config
+		}
+
+		for _, prov := range config.Managed.Provisioners {
+			provComp, provDiags := compileProvisioner(ctx, prov, baseConn, provisioners)
+			diags = diags.Append(provDiags)
+			if provDiags.HasErrors() {
+				continue
+			}
+
+			if provComp == nil {
+				continue
+			}
+
+			switch prov.When {
+			case configs.ProvisionerWhenCreate:
+				createProvisioners = append(createProvisioners, provComp)
+			case configs.ProvisionerWhenDestroy:
+				destroyProvisioners = append(destroyProvisioners, provComp)
+			default:
+				panic("Unreachable")
+			}
+		}
+	}
+	if diags.HasErrors() {
+		configEvalable = exprs.ForcedErrorEvalable(diags, tfdiags.SourceRangeFromHCL(config.TypeRange))
 	}
 
 	ret := &configgraph.Resource{
@@ -140,6 +176,19 @@ func compileModuleInstanceResource(
 				)
 			}
 
+			var provisionerConfigs []configgraph.Provisioner
+			var provisionerMarks cty.ValueMarks
+			for _, provFn := range createProvisioners {
+				provCfg := provFn(ctx, localScope, absAddr.Instance(key))
+				provisionerConfigs = append(provisionerConfigs, provCfg)
+				for dep := range provCfg.Dependencies {
+					if provisionerMarks == nil {
+						provisionerMarks = cty.ValueMarks{}
+					}
+					provisionerMarks[configgraph.NewResourceInstanceMark(dep)] = struct{}{}
+				}
+			}
+
 			// Note that repetitionMarks also incorporates any marks from the
 			// depends_on argument, which got evaluated as part of the instance
 			// selector just as a convenient once-per-resource evaluation hook.
@@ -152,6 +201,8 @@ func compileModuleInstanceResource(
 			configValuer := configgraph.ValuerOnce(exprs.DerivedValuerContext(
 				exprs.NewClosure(configEvalable, localScope),
 				func(ctx context.Context, v cty.Value, diags tfdiags.Diagnostics) (cty.Value, tfdiags.Diagnostics) {
+					// TODO more efficient marking, this does a lot of map garbarge
+					// TODO consider moving provider related marks into here, currently partially impl in configgraph.ResourceInstance.Value
 					if len(repetitionMarks) != 0 {
 						v = v.WithMarks(repetitionMarks)
 					}
@@ -160,6 +211,11 @@ func compileModuleInstanceResource(
 					if len(instDepMarks) != 0 {
 						v = v.WithMarks(instDepMarks)
 					}
+
+					if len(provisionerMarks) != 0 {
+						v = v.WithMarks(provisionerMarks)
+					}
+
 					return v, diags
 				},
 			))
@@ -170,6 +226,7 @@ func compileModuleInstanceResource(
 				ConfigValuer:              configValuer,
 				ProviderInstanceValuer:    configgraph.ValuerOnce(providerRef),
 				CreateBeforeDestroyValuer: cbdValuer,
+				CreateProvisioners:        provisionerConfigs,
 			}
 			// Again the [ResourceInstance] implementation will call back
 			// through this object so we can help it interact with the
@@ -183,6 +240,29 @@ func compileModuleInstanceResource(
 				},
 			}
 			return inst
+		},
+
+		DestroyProvisioners: func(ctx context.Context, addr addrs.ResourceInstance) []configgraph.Provisioner {
+			var repData instances.RepetitionData
+			if addr.Key != nil {
+				keyValue := addr.Key.Value()
+				switch keyValue.Type() {
+				case cty.String:
+					repData.EachKey = keyValue
+					// For a destroy-time provisioner EachValue is intentionally nil here,
+					// that's okay because each.value is prohibited for destroy-time provisioners.
+				case cty.Number:
+					repData.CountIndex = keyValue
+				}
+			}
+
+			localScope := instanceLocalScope(declScope, repData)
+
+			var provisionerConfigs []configgraph.Provisioner
+			for _, provFn := range destroyProvisioners {
+				provisionerConfigs = append(provisionerConfigs, provFn(ctx, localScope, addr.Absolute(moduleInstanceAddr)))
+			}
+			return provisionerConfigs
 		},
 	}
 	return resourceAddr, ret

@@ -2146,7 +2146,7 @@ aws_instance.foo:
 }
 
 func TestContext2Apply_cancelProvisioner(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureProvisioner)
+	SkipExperimental(t, ExperimentalFeatureProvisioner, ExperimentalBugCancel)
 
 	m := testModule(t, "apply-cancel-provisioner")
 	p := testProvider("aws")
@@ -2678,7 +2678,7 @@ func TestContext2Apply_provisionerInterpCount(t *testing.T) {
 }
 
 func TestContext2Apply_winrmConnectionMigrationMessage(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureProvisioner)
+	SkipExperimental(t, ExperimentalFeatureProvisioner, ExperimentalChangeDiagWording)
 
 	// This is testing for an error diagnostic we've added temporarily
 	// for the v1.13 series to help folks migrate from the no-longer-supported
@@ -5453,7 +5453,7 @@ aws_instance.foo:
 
 // Verify destroy provisioners are not run for tainted instances.
 func TestContext2Apply_provisionerDestroyTainted(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureProvisioner)
+	SkipExperimental(t, ExperimentalFeatureProvisioner, ExperimentalFeatureTaint)
 
 	m := testModule(t, "apply-provisioner-destroy")
 	p := testProvider("aws")
@@ -5679,7 +5679,7 @@ func TestContext2Apply_provisionerMultiSelfRef(t *testing.T) {
 }
 
 func TestContext2Apply_provisionerMultiSelfRefSingle(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureProvisioner)
+	SkipExperimental(t, ExperimentalFeatureProvisioner, ExperimentalChangeCursedSelfRef)
 
 	var lock sync.Mutex
 	order := make([]string, 0, 5)
@@ -12054,7 +12054,7 @@ locals {
 // Ensure that we can destroy when a provider references a resource that will
 // also be destroyed
 func TestContext2Apply_destroyProviderReference(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureProvisioner)
+	SkipExperimental(t, ExperimentalBugDataResource)
 
 	m, snap := testModuleWithSnapshot(t, "apply-destroy-provider-refs")
 

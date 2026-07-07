@@ -52,6 +52,11 @@ type Tracer struct {
 	StartManagedResourceInstanceObjectApply func(ctx context.Context, addr addrs.AbsResourceInstanceObject, priorVal, plannedVal cty.Value) context.Context
 	EndManagedResourceInstanceObjectApply   func(ctx context.Context, addr addrs.AbsResourceInstanceObject, resultVal cty.Value, diags tfdiags.Diagnostics)
 
+	// Provisioner Hooks for Managed Resources
+	StartProvisionInstanceStep func(ctx context.Context, addr addrs.AbsResourceInstance, typeName string) context.Context
+	ProvisionOutput            func(ctx context.Context, addr addrs.AbsResourceInstance, typeName string, line string, configMarks cty.ValueMarks)
+	StopProvisionInstanceStep  func(ctx context.Context, addr addrs.AbsResourceInstance, typeName string, diags tfdiags.Diagnostics)
+
 	////////// Data Resource Applying Events
 
 	// StartDataResourceInstanceRead and EndDataResourceInstanceRead mark the

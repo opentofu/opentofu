@@ -216,6 +216,11 @@ func (c *CompiledModuleInstance) Resources(_ context.Context) iter.Seq[addrs.Res
 	return maps.Keys(c.resourceNodes)
 }
 
+// Resource implements evalglue.CompiledModuleInstance.
+func (c *CompiledModuleInstance) Resource(ctx context.Context, addr addrs.Resource) *configgraph.Resource {
+	return c.resourceNodes[addr]
+}
+
 // ResourceInstances implements evalglue.CompiledModuleInstance.
 func (c *CompiledModuleInstance) ResourceInstances(ctx context.Context) iter.Seq[*configgraph.ResourceInstance] {
 	return func(yield func(*configgraph.ResourceInstance) bool) {

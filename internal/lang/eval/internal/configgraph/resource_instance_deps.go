@@ -129,6 +129,21 @@ func WithoutResourceInstanceMarks(v cty.Value) cty.Value {
 	return v
 }
 
+// WithoutResourceInstanceDependency returns a copy of the given value with
+// any [ResourceInstanceMark] marks removed which match the given [addrs.AbsResourceInstance],
+// but with all other marks left intact.
+//
+// This is primarilly used when dealing with "self" dependencies
+func WithoutResourceInstanceDependency(v cty.Value, addr addrs.AbsResourceInstance) cty.Value {
+	v, _ = v.WrangleMarksDeep(func(mark any, path cty.Path) (ctymarks.WrangleAction, error) {
+		if mark, isOurMark := mark.(ResourceInstanceMark); isOurMark && mark.instance.Addr.Equal(addr) {
+			return ctymarks.WrangleDrop, nil
+		}
+		return nil, nil // leave all other marks alone
+	})
+	return v
+}
+
 // ResourceInstanceAddrs maps a sequence of [ResourceInstance] pointers into
 // a sequence of their [addrs.AbsResourceInstance] addresses.
 func ResourceInstanceAddrs(insts iter.Seq[*ResourceInstance]) iter.Seq[addrs.AbsResourceInstance] {

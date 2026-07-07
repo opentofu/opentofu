@@ -36,7 +36,10 @@ type Providers interface {
 }
 
 type Provisioners interface {
-	eval.ProvisionersSchema
+	eval.Provisioners
+
+	// [provisioners.Interface.ProvisionResource]
+	ProvisionResource(ctx context.Context, typ string, config cty.Value, connection cty.Value, output ProvisionerOutput) tfdiags.Diagnostics
 }
 
 type newRuntimePlugins struct {
@@ -200,16 +203,22 @@ func (n *newRuntimePlugins) unconfiguredProviderInst(ctx context.Context, provid
 
 // ProvisionerConfigSchema implements evalglue.Provisioners.
 func (n *newRuntimePlugins) ProvisionerConfigSchema(ctx context.Context, typeName string) (*configschema.Block, tfdiags.Diagnostics) {
-	// TODO: Implement this in terms of [newRuntimePlugins.provisioners].
-	// But provisioners aren't in scope for our "walking skeleton" phase of
-	// development, so we'll skip this for now.
-	var diags tfdiags.Diagnostics
-	diags = diags.Append(tfdiags.Sourceless(
-		tfdiags.Error,
-		"Cannot use providers in new runtime codepath",
-		fmt.Sprintf("Can't use provisioner %q: new runtime codepath doesn't know how to instantiate provisioners yet", typeName),
-	))
-	return nil, diags
+	schema, err := n.provisioners.ProvisionerSchema(typeName)
+	return schema, tfdiags.New(err)
+}
+
+func (n *newRuntimePlugins) ValidateProvisionerConfig(ctx context.Context, typ string, config cty.Value) tfdiags.Diagnostics {
+	return n.provisioners.ValidateProvisionerConfig(ctx, typ, config)
+}
+
+type ProvisionerOutput func(string)
+
+func (fn ProvisionerOutput) Output(str string) {
+	fn(str)
+}
+
+func (n *newRuntimePlugins) ProvisionResource(ctx context.Context, typ string, config cty.Value, connection cty.Value, output ProvisionerOutput) tfdiags.Diagnostics {
+	return n.provisioners.ProvisionResource(ctx, typ, config, connection, output)
 }
 
 // Close terminates any plugins that are managed by this object and are still

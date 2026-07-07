@@ -567,7 +567,7 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 
 	if len(prevRoundState.Dependencies) != 0 {
 		for _, instAddr := range prevRoundState.Dependencies {
-			ret.StateDependencies.Add(instAddr.Object(addrs.NotDeposed))
+			ret.StateDependencies.Add(instAddr.CurrentObject())
 		}
 	} else {
 		// Unfortunately our old state model represents dependencies only
@@ -579,6 +579,13 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 			for instAddr := range p.planCtx.prevRoundState.InstancesMatchingConfigResource(configAddr) {
 				ret.StateDependencies.Add(instAddr.CurrentObject())
 			}
+		}
+	}
+
+	// Include destroy provisioner dependencies
+	for _, prov := range p.oracle.DestroyProvisioners(ctx, addr.InstanceAddr) {
+		for ri := range prov.Dependencies {
+			ret.ConfigDependencies.Add(ri.Addr.CurrentObject())
 		}
 	}
 

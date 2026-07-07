@@ -120,8 +120,8 @@ func (g *applyingEvalGlue) ResourceInstanceValue(ctx context.Context, ri *config
 		return cty.UnknownVal(cty.DynamicPseudoType), nil
 	}
 
-	finalValue := g.applyEngineGlue.ResourceInstanceFinalState(ctx, ri.Addr)
-	return finalValue, nil
+	finalVal := g.applyEngineGlue.ResourceInstanceFinalState(ctx, ri.Addr)
+	return finalVal, nil
 }
 
 // ProviderFunction implements [evalglue.Glue]
@@ -203,8 +203,13 @@ func (o *ApplyOracle) DesiredResourceInstance(ctx context.Context, addr addrs.Ab
 		ResourceMode:              addr.Resource.Resource.Mode,
 		ResourceType:              addr.Resource.Resource.Type,
 		RequiredResourceInstances: riDeps,
+		CreateProvisioners:        inst.CreateProvisioners,
 	}
 	return ret, diags
+}
+
+func (o *ApplyOracle) DestroyProvisioners(ctx context.Context, addr addrs.AbsResourceInstance) []Provisioner {
+	return evalglue.DestroyProvisioners(ctx, o.root, addr)
 }
 
 // ProviderInstanceConfig returns the configuration value for the given

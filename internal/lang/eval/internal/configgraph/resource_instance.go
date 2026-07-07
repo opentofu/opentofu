@@ -51,6 +51,11 @@ type ResourceInstance struct {
 	// or else type mismatch errors will be reported during evaluation.
 	ProviderInstanceValuer *OnceValuer
 
+	// CreateProvisioners are the provisioners to run if the resource instance
+	// is being created. These are distinct from Destroy provisioners, which
+	// are handled in a different code path.
+	CreateProvisioners []Provisioner
+
 	// CreateBeforeDestroyValuer is a valuer that returns the module author's
 	// direction about what "replace" order is required for this resource
 	// instance.

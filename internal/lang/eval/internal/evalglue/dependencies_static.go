@@ -26,13 +26,14 @@ func NewStaticPlugins() staticPlugins {
 	return staticPlugins{}
 }
 
+var StaticProviderSchema = &providers.Schema{}
+var StaticProvisionerSchema = &configschema.Block{}
+
 func (s staticPlugins) ProviderConfigSchema(ctx context.Context, provider addrs.Provider) (*providers.Schema, tfdiags.Diagnostics) {
-	// schema.Block will be nil, signifying that this is not a complete implementation
-	return &providers.Schema{}, nil
+	return StaticProviderSchema, nil
 }
 func (s staticPlugins) ResourceTypeSchema(ctx context.Context, provider addrs.Provider, mode addrs.ResourceMode, typeName string) (*providers.Schema, tfdiags.Diagnostics) {
-	// schema.Block will be nil, signifying that this is not a complete implementation
-	return &providers.Schema{}, nil
+	return StaticProviderSchema, nil
 }
 func (s staticPlugins) ValidateProviderConfig(ctx context.Context, provider addrs.Provider, configVal cty.Value) tfdiags.Diagnostics {
 	return nil
@@ -47,6 +48,8 @@ func (s staticPlugins) NewConfiguredProvider(ctx context.Context, provider addrs
 	panic("not supported in a static context")
 }
 func (s staticPlugins) ProvisionerConfigSchema(ctx context.Context, typeName string) (*configschema.Block, tfdiags.Diagnostics) {
-	// TODO provisioners!
-	panic("not implemented")
+	return StaticProvisionerSchema, nil
+}
+func (s staticPlugins) ValidateProvisionerConfig(ctx context.Context, typ string, config cty.Value) tfdiags.Diagnostics {
+	return nil
 }

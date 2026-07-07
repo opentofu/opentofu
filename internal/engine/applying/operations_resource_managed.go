@@ -33,6 +33,8 @@ func (ops *execOperations) ManagedFinalPlan(
 
 	var instAddr addrs.AbsResourceInstance
 	var providerConfigAddr addrs.AbsProviderInstanceCorrect
+	var createProvisioners []eval.Provisioner
+	var destroyProvisioners []eval.Provisioner
 	var resourceTypeName string
 	var requiredConfigResources addrs.Set[addrs.AbsResourceInstance]
 	deposedKey := states.NotDeposed
@@ -48,11 +50,21 @@ func (ops *execOperations) ManagedFinalPlan(
 		// TODO possibly nil here
 		providerConfigAddr = *desired.ProviderInstance
 		requiredConfigResources = desired.RequiredResourceInstances
+
+		createProvisioners = desired.CreateProvisioners
 	} else if prior != nil {
 		instAddr = prior.Addr.InstanceAddr
 		deposedKey = prior.Addr.DeposedKey
 		resourceTypeName = prior.State.ResourceType
 		providerConfigAddr = prior.State.ProviderInstanceAddr
+
+		if prior.State.Status == states.ObjectTainted {
+			// No point in provisioning an object that is already tainted, since
+			// it's going to get recreated on the next apply anyway.
+			log.Printf("[TRACE] %s is tainted, so skipping provisioning", instAddr)
+		} else {
+			destroyProvisioners = ops.configOracle.DestroyProvisioners(ctx, instAddr)
+		}
 	} else {
 		// Both should not be nil but if they are then we'll treat it the same
 		// way as if we dynamically discover that no change is actually
@@ -141,6 +153,8 @@ func (ops *execOperations) ManagedFinalPlan(
 		PriorStateVal:             resp.Current.Value,
 		ConfigVal:                 resp.DesiredValue,
 		PlannedVal:                resp.Planned.Value,
+		CreateProvisioners:        createProvisioners,
+		DestroyProvisioners:       destroyProvisioners,
 		ProviderInstance:          providerConfigAddr,
 		ProviderPrivate:           resp.Planned.Private,
 	}, diags
@@ -227,6 +241,8 @@ func (ops *execOperations) ManagedApply(
 		return nil, diags
 	}
 
+	objAddr := plan.Addr
+
 	// TODO: Encapsulate most of the following logic into a method of
 	// [resources.ManagedResourceType].
 
@@ -252,6 +268,17 @@ func (ops *execOperations) ManagedApply(
 	diags = diags.Append(moreDiags)
 	if diags.HasErrors() {
 		return nil, diags
+	}
+
+	// Destroy Provisioners
+	if plannedValUnmarked.IsNull() {
+		for _, prov := range plan.DestroyProvisioners {
+			cont, provDiags := ops.runProvisioner(ctx, objAddr, prov, priorValUnmarked)
+			diags = diags.Append(provDiags)
+			if !cont {
+				return nil, diags
+			}
+		}
 	}
 
 	resp := providerClient.ApplyResourceChange(ctx, providers.ApplyResourceChangeRequest{
@@ -297,11 +324,21 @@ func (ops *execOperations) ManagedApply(
 		return result, diags
 	}
 
+	// Create Provisioners
+	if !plannedValUnmarked.IsNull() && priorValUnmarked.IsNull() {
+		for _, prov := range plan.CreateProvisioners {
+			cont, provDiags := ops.runProvisioner(ctx, objAddr, prov, resp.NewState)
+			diags = diags.Append(provDiags)
+			if !cont {
+				break
+			}
+		}
+	}
+
 	// TODO: objchange.AssertObjectCompatible to verify that the result is
 	// consistent with what was planned. (That'll need the provider schema
 	// we fetched above, but currently we're just discarding that schema.)
 
-	objAddr := plan.Addr
 	var state *states.ResourceInstanceObjectFull
 	if !resp.NewState.IsNull() {
 		status := states.ObjectTainted
@@ -360,6 +397,7 @@ func (ops *execOperations) ManagedApply(
 	} else {
 		resultVal = cty.NullVal(schema.Block.ImpliedType())
 	}
+
 	ret := &exec.ResourceInstanceObject{
 		Addr:  plan.Addr,
 		State: state, // nil if the object was deleted

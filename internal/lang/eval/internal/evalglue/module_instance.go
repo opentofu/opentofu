@@ -123,6 +123,8 @@ type CompiledModuleInstance interface {
 	// dynamically-decided resource instances for each resource.
 	Resources(ctx context.Context) iter.Seq[addrs.Resource]
 
+	Resource(ctx context.Context, addr addrs.Resource) *configgraph.Resource
+
 	// ResourceInstances returns a sequence of all of the resource instances
 	// declared in the module.
 	//
@@ -332,4 +334,17 @@ func ProviderInstance(ctx context.Context, root CompiledModuleInstance, addr add
 		return nil
 	}
 	return moduleInst.ProviderInstance(ctx, addr.LocalConfig())
+}
+
+func DestroyProvisioners(ctx context.Context, root CompiledModuleInstance, addr addrs.AbsResourceInstance) []configgraph.Provisioner {
+	// TODO removed block provisioners
+	mod := ModuleInstance(ctx, root, addr.Module)
+	if mod == nil {
+		return nil
+	}
+	resource := mod.Resource(ctx, addr.Resource.Resource)
+	if resource == nil {
+		return nil
+	}
+	return resource.DestroyProvisioners(ctx, addr.Resource)
 }

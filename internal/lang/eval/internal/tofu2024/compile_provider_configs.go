@@ -70,7 +70,7 @@ func compileProviderConfig(
 		configEvalable = exprs.ForcedErrorEvalable(diags, tfdiags.SourceRangeFromHCL(config.DeclRange))
 	} else if configSchema == nil {
 		panic("Is this possible, do we need a diagnostic here?")
-	} else if configSchema.Block == nil {
+	} else if configSchema == evalglue.StaticProviderSchema {
 		// Assumed static context, I don't love this sort of flagging though
 		configEvalable = exprs.EvalableHCLExpression(&hclsyntax.LiteralValueExpr{Val: cty.DynamicVal})
 	} else {

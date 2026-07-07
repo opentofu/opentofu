@@ -45,6 +45,8 @@ type Resource struct {
 	// incorporating the new information about this specific instance.
 	CompileResourceInstance func(ctx context.Context, key addrs.InstanceKey, repData instances.RepetitionData) *ResourceInstance
 
+	DestroyProvisioners func(ctx context.Context, addr addrs.ResourceInstance) []Provisioner
+
 	DeclRange tfdiags.SourceRange
 
 	// instancesResult tracks the process of deciding which instances are

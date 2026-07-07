@@ -473,6 +473,7 @@ func nounForModuleInstanceGlobalSymbol(symbol string) string {
 // we need to be able to evaluate an expression referring to the variable
 // as part of deciding the final value of the variable and so if we didn't
 // handle it directly then there would be a self-reference error.
+// TODO consider merging this with selfScope
 type inputVariableValidationScope struct {
 	varTable    exprs.SymbolTable
 	wantName    string

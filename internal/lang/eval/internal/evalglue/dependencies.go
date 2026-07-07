@@ -128,6 +128,9 @@ type ProvisionersSchema interface {
 // or whether plugins are even being used.
 type Provisioners interface {
 	ProvisionersSchema
+
+	// [provisioners.Interface.ValidateProvisionerConfig]
+	ValidateProvisionerConfig(ctx context.Context, typ string, config cty.Value) tfdiags.Diagnostics
 }
 
 // emptyDependencies is an implementation of all of our dependency-related
@@ -250,4 +253,15 @@ func (e emptyDependencies) ProvisionerConfigSchema(ctx context.Context, typeName
 		"There are no provisioners available for use in this context.",
 	))
 	return nil, diags
+}
+
+// ValidateProvisionerConfig implements Provisioners.
+func (e emptyDependencies) ValidateProvisionerConfig(ctx context.Context, typ string, config cty.Value) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+	diags = diags.Append(tfdiags.Sourceless(
+		tfdiags.Error,
+		"No provisioners are available",
+		"There are no provisioners available for use in this context.",
+	))
+	return diags
 }

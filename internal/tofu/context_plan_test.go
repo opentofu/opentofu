@@ -869,7 +869,7 @@ module.child:
 
 // https://github.com/hashicorp/terraform/issues/3114
 func TestContext2Plan_moduleOrphansWithProvisioner(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureProvisioner)
+	SkipExperimental(t, ExperimentalFlagUnknown)
 
 	m := testModule(t, "plan-modules-remove-provisioners")
 	p := testProvider("aws")
