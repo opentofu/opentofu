@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/opentofu/opentofu/internal/collections"
+	"github.com/opentofu/opentofu/internal/linting"
 )
 
 func TestParseView(t *testing.T) {
@@ -92,6 +94,21 @@ func TestParseView(t *testing.T) {
 			[]string{"-deprecation=othernamespace:arg", "-deprecation=module:none", "-deprecation=backend:arg"},
 			&View{ModuleDeprecationWarnLvl: DeprecationWarningLevelNone, ConsolidateWarnings: true},
 			"Expected -deprecation prefix \"module:\"",
+		},
+		"lint includes 'all' rule": {
+			[]string{"-lint=all"},
+			&View{LintInclude: collections.NewSet(linting.AllRulesGroupID), LintExclude: collections.NewSet[linting.RuleAddr](), ConsolidateWarnings: true},
+			"",
+		},
+		"lint excludes 'all' and allows 'foo'": {
+			[]string{"-lint=!all,foo"},
+			&View{LintInclude: collections.NewSet(linting.MustParseRuleAddr("foo")), LintExclude: collections.NewSet[linting.RuleAddr](linting.AllRulesGroupID), ConsolidateWarnings: true},
+			"",
+		},
+		"lint with invalid rule name": {
+			[]string{"-lint=#foo"},
+			&View{LintInclude: collections.NewSet[linting.RuleAddr](), LintExclude: collections.NewSet[linting.RuleAddr](), ConsolidateWarnings: true},
+			"",
 		},
 	}
 	for name, tc := range testCases {

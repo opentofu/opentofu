@@ -1,0 +1,35 @@
+{
+  "format_version": "1.0",
+  "valid": true,
+  "error_count": 0,
+  "warning_count": 0,
+  "lint_count": 1,
+  "diagnostics": [
+    {
+      "severity": "lint",
+      "summary": "Variable with no type (core:no-type-variable)",
+      "detail": "Variable \"test\" has no type specified.",
+      "range": {
+        "filename": "testdata/validate-invalid/with_lint_warning/main.tf",
+        "start": {
+          "line": 1,
+          "column": 1,
+          "byte": 0
+        },
+        "end": {
+          "line": 1,
+          "column": 16,
+          "byte": 15
+        }
+      },
+      "snippet": {
+        "context": null,
+        "code": "variable \"test\" {",
+        "start_line": 1,
+        "highlight_start_offset": 0,
+        "highlight_end_offset": 15,
+        "values": []
+      }
+    }
+  ]
+}
