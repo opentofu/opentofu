@@ -50,19 +50,18 @@ func (lm lintMessage) Severity() Severity {
 // linting diagnostics.
 // The summary entry for a linting diagnostic will have the following format:
 //
-//	<summary> (<rule_id>[, <groupID1>, <groupID2>, ...)
+//	<summary> (<rule_id>)
+//
+// For the moment, the groupIDs will be documented separately in the public documentation
+// and later we can enhance our way of informing the operators about the groups a rule
+// is part of.
 func (lm lintMessage) Description() Description {
 	s := strings.TrimSpace(lm.diagnosticBase.summary)
 	if s == "" {
 		s = "<missing summary>"
 	}
-	all := make([]string, len(lm.groupIDs)+1)
-	all[0] = lm.ruleID.String()
-	for i, r := range lm.groupIDs {
-		all[i+1] = r.String()
-	}
 	desc := lm.diagnosticBase.Description()
-	desc.Summary = fmt.Sprintf("%s (%s)", s, strings.Join(all, ", "))
+	desc.Summary = fmt.Sprintf("%s (%s)", s, lm.ruleID.String())
 	return desc
 }
 
