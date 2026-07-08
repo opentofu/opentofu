@@ -113,10 +113,6 @@ func (diags Diagnostics) ToHCL() hcl.Diagnostics {
 	}
 	ret := make(hcl.Diagnostics, len(diags))
 	for i, diag := range diags {
-		if diag.Severity() == LintingWarning {
-			// We ignore linting warnings diagnostics since there is no correspondent in HCL for this type
-			continue
-		}
 		severity := diag.Severity()
 		desc := diag.Description()
 		source := diag.Source()

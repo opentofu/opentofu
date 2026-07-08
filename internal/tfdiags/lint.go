@@ -42,10 +42,6 @@ type lintMessage struct {
 	context *SourceRange
 }
 
-func (lm lintMessage) Severity() Severity {
-	return LintingWarning
-}
-
 // Description overrides the diagnosticBase method to provide a custom summary for the
 // linting diagnostics.
 // The summary entry for a linting diagnostic will have the following format:
@@ -73,13 +69,13 @@ func (lm lintMessage) Source() Source {
 }
 
 // LintMessage create a new diagnostic that is specifically configured to be processed as a linting warning later.
-// Even though the LintingWarning severity is exported from this package, the linting diagnostics should be created
-// only by using this function. Otherwise, the rendering and handling of this type of diagnostic might result
-// in unexpected behavior.
+// This is the main method to create linting related diagnostics. If new types will be added to support additional
+// linting functionality, ensure that the type is included correctly in all the places linting diagnostics have
+// specific processing logic.
 func LintMessage(ruleID linting.RuleAddr, groupIDs []linting.RuleAddr, summary string, details string, subject *SourceRange, context *SourceRange) Diagnostic {
 	return lintMessage{
 		diagnosticBase: diagnosticBase{
-			severity: LintingWarning,
+			severity: Warning,
 			summary:  summary,
 			detail:   details,
 		},
@@ -117,17 +113,40 @@ func (diags Diagnostics) FilterLint(include, exclude collections.Set[linting.Rul
 	return ret
 }
 
+// SplitLint is a method that returns two slices, first with non-linting diagnostics
+// and the second one with linting related diagnostics.
+// This is needed to be able to use ConsolidateLint on only a slice of linting
+// related diagnostics, since that method has different consolidation rules than
+// the general Consolidate method.
+func (diags Diagnostics) SplitLint() (Diagnostics, Diagnostics) {
+	if len(diags) == 0 {
+		return nil, nil
+	}
+
+	nonLintDiags := make(Diagnostics, 0)
+	lintDiags := make(Diagnostics, 0)
+	for _, srcDiag := range diags {
+		if isLint(srcDiag) {
+			lintDiags = append(lintDiags, srcDiag)
+			continue
+		}
+		nonLintDiags = append(nonLintDiags, srcDiag)
+	}
+
+	return nonLintDiags, lintDiags
+}
+
 // ConsolidateLint is meant to return only one lint diagnostic of the same type and the same source.
 // If the linting diagnostic is configured correctly (with a ruleId and a subject), then this will
 // remove duplicates of the same linting diagnostic.
-// Duplicates can be issued for the same linting issue on the same subject when multiple phases
+// Duplicates can be issued for the same linting rule on the same subject when multiple phases
 // are executed in one command (eg: `tofu apply` runs validate, plan, apply which will generate 3
 // duplicates of the same diagnostic).
 //
 // This particular method skips the handling of nil source on purpose because the used
-// method (eg: `Consolidate`), already skips consolidation for those diagnostics.
+// method (eg: Consolidate), already skips consolidation for those diagnostics.
 func (diags Diagnostics) ConsolidateLint() Diagnostics {
-	return diags.Consolidate(1, LintingWarning, func(diag Diagnostic) string {
+	return diags.Consolidate(1, Warning, func(diag Diagnostic) string {
 		defaultKey := func() string {
 			desc := diag.Description()
 			consolidationKey := desc.Summary
@@ -141,7 +160,7 @@ func (diags Diagnostics) ConsolidateLint() Diagnostics {
 		}
 		ld, ok := diag.(lintMessage)
 		if !ok {
-			log.Printf("[ERROR] A non-lint severity diagnostic reached into lint diagnostics consolidation: %s. Returning a default diagnostic consolidation key", reflect.TypeOf(diag))
+			log.Printf("[ERROR] A non-linting diagnostic reached into lint diagnostics consolidation logic: %s. Returning a default diagnostic consolidation key", reflect.TypeOf(diag))
 			return defaultKey()
 		}
 		consolidationKey := ld.ruleID.String()
@@ -234,4 +253,10 @@ func lintRuleAllowed(include, exclude collections.Set[linting.RuleAddr], ruleID 
 	}
 	// In the end, enable the rule only when the "all" configuration is provided
 	return include.Has(linting.AllRulesGroupID)
+}
+
+// isLint returns true if the given diagnostic is of lintMessage type.
+func isLint(diag Diagnostic) bool {
+	_, ok := diag.(lintMessage)
+	return ok
 }

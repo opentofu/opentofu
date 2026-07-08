@@ -73,12 +73,6 @@ func DiagnosticFromJSON(diag *jsonentities.Diagnostic, color *colorstring.Colori
 		leftRuleStart = color.Color("[yellow]╷[reset]")
 		leftRuleEnd = color.Color("[yellow]╵[reset]")
 		leftRuleWidth = 2
-	case jsonentities.DiagnosticSeverityLint:
-		buf.WriteString(color.Color("[bold][light_yellow]Warning: [reset]"))
-		leftRuleLine = color.Color("[light_yellow]│[reset] ")
-		leftRuleStart = color.Color("[light_yellow]╷[reset]")
-		leftRuleEnd = color.Color("[light_yellow]╵[reset]")
-		leftRuleWidth = 2
 	default:
 		// Clear out any coloring that might be applied by OpenTofu's UI helper,
 		// so our result is not context-sensitive.

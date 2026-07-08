@@ -326,18 +326,18 @@ func (sd sortDiagnostics) Less(i, j int) bool {
 	iD, jD := sd[i], sd[j]
 	iSev, jSev := iD.Severity(), jD.Severity()
 	iSrc, jSrc := iD.Source(), jD.Source()
+	iLint := isLint(iD)
+	jLint := isLint(jD)
 
 	switch {
 
 	case iSev != jSev:
-		switch iSev {
-		case Error:
-			return false // everything is "lesser" than error
-		case Warning:
-			return jSev == Error // warning is "less" than error but greater than lint
-		default:
-			return true // everything else is "lesser"
-		}
+		return iSev == Warning
+
+	case iLint != jLint:
+		// for the warning diagnostics that are meant to be linting diagnostics, we want to push those all the way
+		// to the top, to be sure that the actual warnings are shown more close to the bottom of the viewport
+		return iLint
 
 	case (iSrc.Subject == nil) != (jSrc.Subject == nil):
 		return iSrc.Subject == nil
