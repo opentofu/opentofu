@@ -966,8 +966,6 @@ func logDiagnostics(t testing.TB, diags tfdiags.Diagnostics) {
 			severity = "ERROR"
 		case tfdiags.Warning:
 			severity = "WARN"
-		case tfdiags.LintingWarning:
-			severity = "LINT"
 		default:
 			severity = "???" // should never happen
 		}

@@ -2,11 +2,10 @@
   "format_version": "1.0",
   "valid": true,
   "error_count": 0,
-  "warning_count": 0,
-  "lint_count": 1,
+  "warning_count": 1,
   "diagnostics": [
     {
-      "severity": "lint",
+      "severity": "warning",
       "summary": "Variable with no type (core:no-type-variable)",
       "detail": "Variable \"test\" has no type specified.",
       "range": {

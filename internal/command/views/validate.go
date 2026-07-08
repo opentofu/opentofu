@@ -124,14 +124,10 @@ func (v *ValidateJSON) Results(diags tfdiags.Diagnostics) int {
 		// We include some summary information that is actually redundant
 		// with the detailed diagnostics, but avoids the need for callers
 		// to re-implement our logic for deciding these.
-		Valid        bool `json:"valid"`
-		ErrorCount   int  `json:"error_count"`
-		WarningCount int  `json:"warning_count"`
-		// TODO linting - in order to avoid changing multiple assertions in internal/command/validate_test.go, this
-		//  attribute has been configured as omitempty. If in the future is wanted to be included in the summary,
-		//  even when it's equal with 0, remove this omitempty and update the failing tests assertions
-		LintCount   int                        `json:"lint_count,omitempty"`
-		Diagnostics []*jsonentities.Diagnostic `json:"diagnostics"`
+		Valid        bool                       `json:"valid"`
+		ErrorCount   int                        `json:"error_count"`
+		WarningCount int                        `json:"warning_count"`
+		Diagnostics  []*jsonentities.Diagnostic `json:"diagnostics"`
 	}
 
 	output := Output{
@@ -148,8 +144,6 @@ func (v *ValidateJSON) Results(diags tfdiags.Diagnostics) int {
 			output.Valid = false
 		case tfdiags.Warning:
 			output.WarningCount++
-		case tfdiags.LintingWarning:
-			output.LintCount++
 		}
 	}
 	if output.Diagnostics == nil {
