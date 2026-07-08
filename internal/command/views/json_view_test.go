@@ -132,11 +132,11 @@ func TestJSONView_Diagnostics(t *testing.T) {
 		},
 		{
 			"@level":   "warn",
-			"@message": "Linting: linting summary (core:foo)",
+			"@message": "Warning: linting summary (core:foo)",
 			"@module":  "tofu.ui",
 			"type":     "diagnostic",
 			"diagnostic": map[string]any{
-				"severity": "lint",
+				"severity": "warning",
 				"summary":  "linting summary (core:foo)",
 				"detail":   "linting details",
 			},
