@@ -13,8 +13,6 @@ import (
 
 const (
 	ruleNamespaceSeparator = ":"
-	ruleCoreNamespace      = "core"
-	ruleDefaultNamespace   = ruleCoreNamespace
 )
 
 // AllRulesGroupID represents the inclusion of all rule and group linting IDs.
@@ -58,14 +56,10 @@ func ParseRuleAddr(raw string) (RuleAddr, error) {
 	// since the regex above is meant to catch spaces and multiple namespace separators, there is no need to do
 	// additional validations here
 
-	ns := ruleDefaultNamespace
+	var ns string
 	ruleName := parts[len(parts)-1] // name is always the last one
 	if len(parts) == 2 {
 		ns = parts[0]
-	}
-	// special case for the "all" value. That is meant to include all of the existing linting rules so that is unnamespaced.
-	if ruleName == AllRulesGroupID.Name {
-		return AllRulesGroupID, nil
 	}
 
 	return RuleAddr{

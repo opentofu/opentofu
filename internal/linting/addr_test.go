@@ -29,15 +29,15 @@ func TestParseAddress(t *testing.T) {
 		{
 			in: "foo",
 			expectedAddr: RuleAddr{
-				Namespace: ruleCoreNamespace,
+				Namespace: "",
 				Name:      "foo",
 			},
-			expectedStringRepresentation: "core:foo",
+			expectedStringRepresentation: "foo",
 		},
 		{
 			in: "core:foo",
 			expectedAddr: RuleAddr{
-				Namespace: ruleCoreNamespace,
+				Namespace: "core",
 				Name:      "foo",
 			},
 			expectedStringRepresentation: "core:foo",
