@@ -4400,7 +4400,7 @@ func TestContext2Plan_taint(t *testing.T) {
 }
 
 func TestContext2Plan_taintIgnoreChanges(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureIgnoreChanges, ExperimentalBugDeclareProvider)
+	SkipExperimental(t, ExperimentalFeatureIgnoreChanges, ExperimentalBugDeclareProvider, ExperimentalFeatureTaint)
 
 	m := testModule(t, "plan-taint-ignore-changes")
 	p := testProvider("aws")
@@ -5536,6 +5536,12 @@ func TestContext2Plan_ignoreChanges(t *testing.T) {
 
 	schema := p.GetProviderSchemaResponse.ResourceTypes["aws_instance"]
 
+	if experimentalRuntimeEnabled() {
+		if len(plan.Changes.Resources) != 0 {
+			t.Fatal("expected 0 changes, got", len(plan.Changes.Resources))
+		}
+		return
+	}
 	if len(plan.Changes.Resources) != 1 {
 		t.Fatal("expected 1 changes, got", len(plan.Changes.Resources))
 	}
@@ -5648,7 +5654,7 @@ func TestContext2Plan_ignoreChangesInMap(t *testing.T) {
 			}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
 			&states.ResourceInstanceObjectSrc{
 				Status:    states.ObjectReady,
-				AttrsJSON: []byte(`{"id":"foo","tags":{"ignored":"from state","other":"from state"},"type":"aws_instance"}`),
+				AttrsJSON: []byte(`{"tags":{"ignored":"from state","other":"from state"}}`),
 			},
 			addrs.AbsProviderConfig{
 				Provider: addrs.NewDefaultProvider("test"),
@@ -5737,6 +5743,12 @@ func TestContext2Plan_ignoreChangesSensitive(t *testing.T) {
 
 	schema := p.GetProviderSchemaResponse.ResourceTypes["aws_instance"]
 
+	if experimentalRuntimeEnabled() {
+		if len(plan.Changes.Resources) != 0 {
+			t.Fatal("expected 0 changes, got", len(plan.Changes.Resources))
+		}
+		return
+	}
 	if len(plan.Changes.Resources) != 1 {
 		t.Fatal("expected 1 changes, got", len(plan.Changes.Resources))
 	}

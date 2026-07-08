@@ -8,6 +8,7 @@ package tofu2024
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -128,6 +129,50 @@ func compileModuleInstanceResource(
 			}
 		}
 	}
+
+	var ignoreChanges []cty.Path
+	if config.Managed != nil {
+		if config.Managed.IgnoreAllChanges {
+			// Represents ignore all
+			ignoreChanges = []cty.Path{{}}
+		} else {
+			// Copied from NodeValidatableResource
+			for _, traversal := range config.Managed.IgnoreChanges {
+				// validate the ignore_changes traversals apply.
+				moreDiags := resourceTypeSchema.Block.StaticValidateTraversal(traversal)
+				diags = diags.Append(moreDiags)
+
+				// ignore_changes cannot be used for Computed attributes,
+				// unless they are also Optional.
+				// If the traversal was valid, convert it to a cty.Path and
+				// use that to check whether the Attribute is Computed and
+				// non-Optional.
+				if !diags.HasErrors() {
+					path := traversalToPath(traversal)
+
+					attrSchema := resourceTypeSchema.Block.AttributeByPath(path)
+
+					if attrSchema != nil && !attrSchema.Optional && attrSchema.Computed {
+						// ignore_changes uses absolute traversal syntax in config despite
+						// using relative traversals, so we strip the leading "." added by
+						// FormatCtyPath for a better error message.
+						attrDisplayPath := strings.TrimPrefix(tfdiags.FormatCtyPath(path), ".")
+
+						diags = diags.Append(&hcl.Diagnostic{
+							Severity: hcl.DiagWarning,
+							Summary:  "Redundant ignore_changes element",
+							Detail:   fmt.Sprintf("Adding an attribute name to ignore_changes tells OpenTofu to ignore future changes to the argument in configuration after the object has been created, retaining the value originally configured.\n\nThe attribute %s is decided by the provider alone and therefore there can be no configured value to compare with. Including this attribute in ignore_changes has no effect. Remove the attribute from ignore_changes to quiet this warning.", attrDisplayPath),
+							Subject:  &config.TypeRange,
+						})
+					}
+				}
+			}
+			if travs := config.Managed.IgnoreChanges; len(travs) != 0 {
+				ignoreChanges = traversalsToPaths(travs)
+			}
+		}
+	}
+
 	if diags.HasErrors() {
 		configEvalable = exprs.ForcedErrorEvalable(diags, tfdiags.SourceRangeFromHCL(config.TypeRange))
 	}
@@ -227,6 +272,7 @@ func compileModuleInstanceResource(
 				ProviderInstanceValuer:    configgraph.ValuerOnce(providerRef),
 				CreateBeforeDestroyValuer: cbdValuer,
 				CreateProvisioners:        provisionerConfigs,
+				IgnoreChangesPaths:        ignoreChanges,
 			}
 			// Again the [ResourceInstance] implementation will call back
 			// through this object so we can help it interact with the
@@ -279,4 +325,40 @@ type resourceInstanceGlue struct {
 // ResultValue implements [configgraph.ResourceInstanceGlue].
 func (r *resourceInstanceGlue) ResultValue(ctx context.Context, configVal cty.Value, providerInst configgraph.Maybe[*configgraph.ProviderInstance], riDeps addrs.Set[addrs.AbsResourceInstance]) (cty.Value, tfdiags.Diagnostics) {
 	return r.getResultValue(ctx, configVal, providerInst, riDeps)
+}
+
+// From node_resource_abstract_instance.go
+
+// Convert the hcl.Traversal values we get form the configuration to the
+// cty.Path values we need to operate on the cty.Values
+func traversalsToPaths(traversals []hcl.Traversal) []cty.Path {
+	paths := make([]cty.Path, len(traversals))
+	for i, traversal := range traversals {
+		path := traversalToPath(traversal)
+		paths[i] = path
+	}
+	return paths
+}
+
+func traversalToPath(traversal hcl.Traversal) cty.Path {
+	path := make(cty.Path, len(traversal))
+	for si, step := range traversal {
+		switch ts := step.(type) {
+		case hcl.TraverseRoot:
+			path[si] = cty.GetAttrStep{
+				Name: ts.Name,
+			}
+		case hcl.TraverseAttr:
+			path[si] = cty.GetAttrStep{
+				Name: ts.Name,
+			}
+		case hcl.TraverseIndex:
+			path[si] = cty.IndexStep{
+				Key: ts.Key,
+			}
+		default:
+			panic(fmt.Sprintf("unsupported traversal step %#v", step))
+		}
+	}
+	return path
 }

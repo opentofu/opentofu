@@ -73,6 +73,11 @@ func (rt *ManagedResourceType) PlanChanges(ctx context.Context, req *ManagedReso
 		providerMetaVal = cty.NullVal(cty.DynamicPseudoType)
 	}
 
+	// If inst.IgnoreChangesPaths has any entries then we need to
+	// transform desiredVal so that any paths specified in there are
+	// forced to match the corresponding value from currentVal, if any.
+	desiredVal = processIgnoreChanges(currentVal, desiredVal, req.IgnoreChangesPaths, schema.Block)
+
 	// proposedVal is essentially a default answer for how to merge currentVal
 	// and desiredVal, which providers are allowed to use as a shortcut in
 	// their planning logic for simple cases where no special planning behavior
@@ -143,6 +148,23 @@ func (rt *ManagedResourceType) PlanChanges(ctx context.Context, req *ManagedReso
 			return nil, diags
 		}
 	}
+
+	if resp.LegacyTypeSystem {
+		// Because we allow legacy providers to depart from the contract and
+		// return changes to non-computed values, the plan response may have
+		// altered values that were already suppressed with ignore_changes.
+		// A prime example of this is where providers attempt to obfuscate
+		// config data by turning the config value into a hash and storing the
+		// hash value in the state. There are enough cases of this in existing
+		// providers that we must accommodate the behavior for now, so for
+		// ignore_changes to work at all on these values, we will revert the
+		// ignored values once more.
+		// A nil schema is passed to processIgnoreChanges to indicate that we
+		// don't want to fixup a config value according to the schema when
+		// ignoring "all", rather we are reverting provider imposed changes.
+		plannedValUnmarked = processIgnoreChanges(currentValUnmarked, plannedValUnmarked, req.IgnoreChangesPaths, nil)
+	}
+
 	var requiresReplace cty.PathSet
 	if len(resp.RequiresReplace) != 0 {
 		if currentVal.IsNull() || desiredVal.IsNull() {
@@ -274,6 +296,8 @@ type ManagedResourcePlanRequest struct {
 	// this should be set to the zero value of [cty.Value], which is
 	// [cty.NilVal].
 	ProviderMetaValue cty.Value
+
+	IgnoreChangesPaths []cty.Path
 }
 
 // ManagedResourcePlanResponse is the response type for [ManagedResourceType.PlanChanges].

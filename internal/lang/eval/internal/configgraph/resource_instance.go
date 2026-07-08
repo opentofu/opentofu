@@ -63,6 +63,24 @@ type ResourceInstance struct {
 	// The valuer must return something that can be converted to [cty.Bool].
 	CreateBeforeDestroyValuer *OnceValuer
 
+	// IgnoreChangesPaths are paths for which the module author requested
+	// that we "ignore changes".
+	//
+	// To "ignore changes" means to disregard what is configured for anything
+	// under a matching path in ConfigVal and to instead treat the corresponding
+	// value from the prior state as the effective desired state. This is
+	// meaningful only when planning in-place updates to an object that is
+	// already tracked in the prior state; it should be ignored when planning
+	// to create or delete the object associated with a resource instance.
+	//
+	// Index steps within the path can potentially have unknown keys if the
+	// decision about what to ignore is based on a value that won't be known
+	// until the apply phase.
+	//
+	// This is meaningful only for resource modes that support the "update"
+	// change action, and so is always empty for other modes.
+	IgnoreChangesPaths []cty.Path
+
 	// Glue is provided by the system that "compiled" this [ResourceInstance]
 	// object to allow calling back into that system to ask further questions
 	// that arise dynamically during evaluation but whose results vary based

@@ -221,6 +221,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 			ResourceType:         prevRoundState.ResourceType,
 			SchemaVersion:        uint64(schema.Version),
 			Dependencies:         prevRoundState.Dependencies,
+			ConfigDependencies:   prevRoundState.ConfigDependencies,
 			CreateBeforeDestroy:  prevRoundState.CreateBeforeDestroy,
 		}
 
@@ -274,11 +275,6 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		prevRoundVal = cty.NullVal(schema.Block.ImpliedType())
 	}
 
-	// TODO: If inst.IgnoreChangesPaths has any entries then we need to
-	// transform effectiveConfigVal so that any paths specified in there are
-	// forced to match the corresponding value from prevRoundVal, if any.
-	effectiveConfigVal := unmarkedConfigVal
-
 	// TODO: Call resourceType.RefreshObject, update the "refreshed state",
 	// and reassign this refreshedVal to the refreshed result.
 	refreshCtx := ctx
@@ -303,15 +299,16 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 
 	planChangesCtx := ctx
 	if cb := tracer.StartManagedResourceInstanceObjectPlanChanges; cb != nil {
-		planChangesCtx = cb(ctx, inst.Addr.CurrentObject(), refreshedVal, effectiveConfigVal)
+		planChangesCtx = cb(ctx, inst.Addr.CurrentObject(), refreshedVal, unmarkedConfigVal)
 	}
 	planResp, planDiags := resourceType.PlanChanges(planChangesCtx, &resources.ManagedResourcePlanRequest{
 		Current: resources.ValueWithPrivate{
 			Value:   refreshedVal,
 			Private: refreshedPrivate,
 		},
-		DesiredValue:      effectiveConfigVal,
-		ProviderMetaValue: providerMetaValue,
+		DesiredValue:       unmarkedConfigVal,
+		ProviderMetaValue:  providerMetaValue,
+		IgnoreChangesPaths: inst.IgnoreChangesPaths,
 	}, ret.Addr)
 	diags = diags.Append(planDiags)
 	if planDiags.HasErrors() {
@@ -362,7 +359,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		createPlanResp, planDiags := resourceType.PlanChanges(ctx, &resources.ManagedResourcePlanRequest{
 			// "Current" is intentionally not set here, because we're asking
 			// for a plan to create a new object matching the configuration.
-			DesiredValue:      effectiveConfigVal,
+			DesiredValue:      unmarkedConfigVal,
 			ProviderMetaValue: providerMetaValue,
 		}, ret.Addr)
 		diags = diags.Append(planDiags)
