@@ -171,7 +171,7 @@ func TestView_Diagnostics(t *testing.T) {
 		},
 		"lint diagnostic": {
 			diags: tfdiags.Diagnostics{
-				tfdiags.LintMessage(linting.MustParseRuleAddr("foo"), nil, "Test foo linting", "This is a test warning", nil, nil),
+				tfdiags.LintMessage(linting.MustParseRuleAddr("core:foo"), nil, "Test foo linting", "This is a test warning", nil, nil),
 			},
 			setup: func(view *View) {
 				view.lintInclude = collections.NewSet(linting.AllRulesGroupID)
@@ -246,8 +246,8 @@ func TestView_Diagnostics(t *testing.T) {
 				if !strings.Contains(stderr, "Error 1") {
 					t.Errorf("expected stderr to contain error, got %q", stderr)
 				}
-				if !strings.Contains(stdout, "Test foo linting (core:foo)") {
-					t.Errorf("expected stdout to contain 'Test foo linting (core:foo)', got %q", stdout)
+				if !strings.Contains(stdout, "Test foo linting (foo)") {
+					t.Errorf("expected stdout to contain 'Test foo linting (foo)', got %q", stdout)
 				}
 			},
 		},
