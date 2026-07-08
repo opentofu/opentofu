@@ -35,10 +35,6 @@ import (
 // Since this function is for testing only, for convenience it will react to
 // any setup errors by logging a message to the given testing.T object and
 // then failing the test, preventing any later code from running.
-//
-// Having each stream (stdout and stderr) processed by its own goroutine, the order
-// in which the stdout and stderr writes are processed is not guaranteed.
-// If the order is required, consider using SequentialStreamsForTesting.
 func StreamsForTesting(t *testing.T) (streams *Streams, close func(*testing.T) *TestOutput) {
 	stdinR, err := os.Open(os.DevNull)
 	if err != nil {
@@ -139,87 +135,6 @@ func StreamsForTesting(t *testing.T) (streams *Streams, close func(*testing.T) *
 		},
 		Stderr: &OutputStream{
 			File: stderrW,
-		},
-		Stdin: &InputStream{
-			File: stdinR,
-		},
-	}, close
-}
-
-// SequentialStreamsForTesting is similar in implementation with StreamsForTesting with the main difference
-// being that the entire output (stdout and stderr) is processed and collected by one goroutine.
-// Not having each stream processed by its own goroutine, ensures that the order of the issued output calls
-// is kept.
-//
-// Because of this difference, the TestOutput returned by calling the "close" returned closure is usable by only using
-// its TestOutput.All method.
-func SequentialStreamsForTesting(t *testing.T) (streams *Streams, close func(*testing.T) *TestOutput) {
-	stdinR, err := os.Open(os.DevNull)
-	if err != nil {
-		t.Fatalf("failed to open /dev/null to represent stdin: %s", err)
-	}
-
-	outp := &TestOutput{}
-	outputR, outputW, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("failed to create pipe: %s", err)
-	}
-	var wg sync.WaitGroup // for waiting until the below goroutine exits
-
-	wg.Add(1)
-	go func(r *os.File) {
-		var buf [1024]byte
-		for {
-			n, err := r.Read(buf[:])
-			if err != nil {
-				if err != io.EOF {
-					// We aren't allowed to write to the testing.T from
-					// a different goroutine than it was created on, but
-					// encountering other errors would be weird here anyway
-					// so we'll just panic. (If we were to just ignore this
-					// and then drop out of the loop then we might deadlock
-					// anyone still trying to write to the write end.)
-					panic(fmt.Sprintf("failed to read from pipe: %s", err))
-				}
-				break
-			}
-			outp.parts = append(outp.parts, testOutputPart{
-				bytes: append(([]byte)(nil), buf[:n]...), // copy so we can reuse the buffer
-			})
-		}
-		wg.Done()
-	}(outputR)
-
-	close = func(t *testing.T) *TestOutput {
-		err := stdinR.Close()
-		if err != nil {
-			t.Errorf("failed to close stdin handle: %s", err)
-		}
-
-		// We'll close the writer streams now, which should in turn
-		// cause the goroutine above to terminate by encountering io.EOF.
-		err = outputW.Close()
-		if err != nil {
-			t.Errorf("failed to close stdout pipe: %s", err)
-		}
-
-		// The above error case still allows this to complete and thus
-		// potentially allow the test to report its own result, but will
-		// ensure that the test doesn't pass while also leaking resources.
-
-		// Wait for the stream-copying goroutine above to finish anything it
-		// works on before we return, or else we might miss some
-		// late-arriving writes.
-		wg.Wait()
-		return outp
-	}
-
-	return &Streams{
-		Stdout: &OutputStream{
-			File: outputW,
-		},
-		Stderr: &OutputStream{
-			File: outputW,
 		},
 		Stdin: &InputStream{
 			File: stdinR,
