@@ -22,8 +22,9 @@ import (
 // functionally-equivalent graph.
 func (g *Graph) Marshal() []byte {
 	m := &graphMarshaler{
-		graph:   g,
-		indices: make(map[AnyResultRef]uint64),
+		graph:         g,
+		indices:       make(map[AnyResultRef]uint64),
+		opsInProgress: make(map[operationResultRef[struct{}]]struct{}),
 	}
 
 	// The operations are the main essence of any graph, so we let those
@@ -49,6 +50,11 @@ type graphMarshaler struct {
 	elems                   []*execgraphproto.Element
 	indices                 map[AnyResultRef]uint64
 	resourceInstanceResults map[string]uint64
+
+	// opsInProgress is used by addOperationWithDependencies to notice if
+	// an operation depends on its own result (directly or indirectly) so
+	// we can avoid runaway infinite recursion.
+	opsInProgress map[operationResultRef[struct{}]]struct{}
 }
 
 func (m *graphMarshaler) EnsureOperationPresent(idx int) uint64 {
@@ -145,6 +151,17 @@ func (m *graphMarshaler) addProviderInstAddr(ref providerInstAddrResultRef, addr
 }
 
 func (m *graphMarshaler) addOperationWithDependencies(ref operationResultRef[struct{}], desc operationDesc) uint64 {
+	if _, active := m.opsInProgress[ref]; active {
+		// If this happens then it's a bug in the code that built this graph,
+		// because we should never be asked to marshal a graph containing
+		// self-reference problems.
+		panic(fmt.Sprintf("operation %d depends on its own result", ref.index))
+	}
+	m.opsInProgress[ref] = struct{}{}
+	defer func() {
+		delete(m.opsInProgress, ref)
+	}()
+
 	// During marshaling we just assume the graph was correctly constructed
 	// and save the operation items in their raw form. The unmarshal code
 	// then uses the opcode to decide which method of [Builder] to call
