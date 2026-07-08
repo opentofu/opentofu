@@ -169,6 +169,17 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 	}
 	diags = newDiags
 
+	var lintDiags tfdiags.Diagnostics
+	// Since linting related diagnostics use the Warning severity, we want to extract those out of the
+	// main diagnostics slice before consolidating warning diagnostics.
+	// That's because linting related diagnostics have a different logic for consolidation. For more details see
+	// ConsolidateLint.
+	diags, lintDiags = diags.SplitLint()
+	// Because of the in-context linting hints, this should not be necessary but it's just a guard in case
+	// there is any linting rule included without using the in-context linting hints.
+	lintDiags = lintDiags.FilterLint(v.lintInclude, v.lintExclude)
+	lintDiags = lintDiags.ConsolidateLint()
+
 	if v.consolidateWarnings {
 		diags = diags.Consolidate(1, tfdiags.Warning, func(diag tfdiags.Diagnostic) string {
 			// Check to see if we have a DeprecationCause
@@ -182,10 +193,6 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 	if v.consolidateErrors {
 		diags = diags.Consolidate(1, tfdiags.Error, tfdiags.DefaultDiagnosticsConsolidation, tfdiags.ConsolidationOptDefault)
 	}
-	// Because of the in-context linting hints, this should not be necessary but it's just a guard in case
-	// there is any linting rule included without using the in-context linting hints.
-	diags = diags.FilterLint(v.lintInclude, v.lintExclude)
-	diags = diags.ConsolidateLint()
 
 	// Since warning messages are generally competing
 	if v.compactWarnings {
@@ -209,7 +216,10 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 		}
 	}
 
-	for _, diag := range diags {
+	// This slice is built with lint diagnostics in front of everything, to keep the order applied at the begining
+	// of this method. This is to follow the reasoning described on diags.Sort().
+	allDiags := append(lintDiags, diags...)
+	for _, diag := range allDiags {
 		var msg string
 		if v.colorize.Disable {
 			msg = format.DiagnosticPlain(diag, v.configSources(), v.streams.Stderr.Columns())

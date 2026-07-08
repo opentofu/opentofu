@@ -496,11 +496,11 @@ func TestConsolidateLintDiagnostics(t *testing.T) {
 				),
 			),
 		},
-		"2 diagnostic with lint severity but not the right type and no extra info": {
+		"2 diagnostics with warning severity but not the right type and no extra info": {
 			givenDiags: New(
 				&attributeDiagnostic{
 					diagnosticBase: diagnosticBase{
-						severity: LintingWarning,
+						severity: Warning,
 						summary:  "bad linting diagnostic",
 						detail:   "bad linting diagnostic 1",
 					},
@@ -508,7 +508,7 @@ func TestConsolidateLintDiagnostics(t *testing.T) {
 				},
 				&attributeDiagnostic{
 					diagnosticBase: diagnosticBase{
-						severity: LintingWarning,
+						severity: Warning,
 						summary:  "bad linting diagnostic",
 						detail:   "bad linting diagnostic 2",
 					},
@@ -521,7 +521,7 @@ func TestConsolidateLintDiagnostics(t *testing.T) {
 					Consolidated: Diagnostics{
 						&attributeDiagnostic{
 							diagnosticBase: diagnosticBase{
-								severity: LintingWarning,
+								severity: Warning,
 								summary:  "bad linting diagnostic",
 								detail:   "bad linting diagnostic 1",
 							},
