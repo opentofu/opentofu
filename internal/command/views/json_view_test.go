@@ -103,7 +103,7 @@ func TestJSONView_Diagnostics(t *testing.T) {
 		"Unusually stripey cat detected",
 		"Are you sure this random_pet isn't a cheetah?",
 	))
-	diags = diags.Append(tfdiags.LintMessage(linting.MustParseRuleAddr("foo"), nil, "linting summary", "linting details", nil, nil))
+	diags = diags.Append(tfdiags.LintMessage(linting.MustParseRuleAddr("core:foo"), nil, "linting summary", "linting details", nil, nil))
 
 	jv.Diagnostics(diags)
 
