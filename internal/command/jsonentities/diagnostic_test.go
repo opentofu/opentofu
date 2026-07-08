@@ -1174,7 +1174,7 @@ func TestNewDiagnostic(t *testing.T) {
 			diag: tfdiags.LintMessage(linting.MustParseRuleAddr("foo"), []linting.RuleAddr{linting.MustParseRuleAddr("core:baz")}, "lint diag summary", "lint diag details", &tfdiags.SourceRange{Filename: "test.tf"}, nil),
 			want: &Diagnostic{
 				Severity: DiagnosticSeverityLint,
-				Summary:  "lint diag summary (core:foo, core:baz)",
+				Summary:  "lint diag summary (core:foo)",
 				Detail:   "lint diag details",
 				Range: &DiagnosticRange{
 					Filename: "test.tf",

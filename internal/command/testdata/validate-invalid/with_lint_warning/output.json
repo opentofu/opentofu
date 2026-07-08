@@ -7,7 +7,7 @@
   "diagnostics": [
     {
       "severity": "lint",
-      "summary": "Variable with no type (core:no-type-variable, core:confusing)",
+      "summary": "Variable with no type (core:no-type-variable)",
       "detail": "Variable \"test\" has no type specified.",
       "range": {
         "filename": "testdata/validate-invalid/with_lint_warning/main.tf",
