@@ -1154,7 +1154,7 @@ func TestNewDiagnostic(t *testing.T) {
 			},
 		},
 		"linting diagnostic with source": {
-			diag: tfdiags.LintMessage(linting.MustParseRuleAddr("foo"), nil, "lint diag summary", "lint diag details", &tfdiags.SourceRange{Filename: "test.tf"}, nil),
+			diag: tfdiags.LintMessage(linting.MustParseRuleAddr("core:foo"), nil, "lint diag summary", "lint diag details", &tfdiags.SourceRange{Filename: "test.tf"}, nil),
 			want: &Diagnostic{
 				Severity: DiagnosticSeverityWarning,
 				Summary:  "lint diag summary (core:foo)",
@@ -1174,7 +1174,7 @@ func TestNewDiagnostic(t *testing.T) {
 			diag: tfdiags.LintMessage(linting.MustParseRuleAddr("foo"), []linting.RuleAddr{linting.MustParseRuleAddr("core:baz")}, "lint diag summary", "lint diag details", &tfdiags.SourceRange{Filename: "test.tf"}, nil),
 			want: &Diagnostic{
 				Severity: DiagnosticSeverityWarning,
-				Summary:  "lint diag summary (core:foo)",
+				Summary:  "lint diag summary (foo)",
 				Detail:   "lint diag details",
 				Range: &DiagnosticRange{
 					Filename: "test.tf",
