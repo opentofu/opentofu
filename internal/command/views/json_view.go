@@ -95,8 +95,6 @@ func (v *JSONView) Diagnostics(diags tfdiags.Diagnostics, metadata ...any) {
 		args = append(args, metadata...)
 
 		switch diag.Severity() {
-		case tfdiags.LintingWarning:
-			v.log.Warn(fmt.Sprintf("Linting: %s", diag.Description().Summary), args...)
 		case tfdiags.Warning:
 			v.log.Warn(fmt.Sprintf("Warning: %s", diag.Description().Summary), args...)
 		default:
