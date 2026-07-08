@@ -24,6 +24,7 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/go-cmp/cmp"
+	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -4317,6 +4318,538 @@ func TestContext2Plan_requiresReplace(t *testing.T) {
 			default:
 				t.Fatalf("unexpected resource instance %s", i)
 			}
+		})
+	}
+}
+
+func TestContext2Plan_actionInteractions(t *testing.T) {
+	// The intention of this test is to prove that we can successfully plan
+	// various combinations of actions between two resource instances that
+	// have a dependency between them.
+	//
+	// Note that this test does not actually test the successfully-created
+	// plan beyond just simply verifying it has the expected actions, and
+	// in particular does not prove that the generated plan would actually
+	// be applyable.
+
+	tests := []struct {
+		Config          string
+		BuildPriorState func(ss *states.SyncState)
+		WantActions     [2]plans.Action
+	}{
+		{
+			Config: `
+				resource "test" "first" {
+					forces_replace = "config"
+				}
+				resource "test" "second" {
+					parent_id = test.first.id
+					forces_replace = "config"
+				}
+			`,
+			BuildPriorState: func(ss *states.SyncState) {
+				ss.SetResourceInstanceCurrent(
+					mustResourceInstanceAddr("test.first"),
+					&states.ResourceInstanceObjectSrc{
+						AttrsJSON: []byte(`{"id":"before","forces_replace":"state"}`),
+					},
+					addrs.AbsProviderConfig{
+						Provider: addrs.NewDefaultProvider("test"),
+					},
+					addrs.NoKey,
+				)
+				ss.SetResourceInstanceCurrent(
+					mustResourceInstanceAddr("test.second"),
+					&states.ResourceInstanceObjectSrc{
+						AttrsJSON: []byte(`{"id":"...","parent_id":"before","forces_replace":"state"}`),
+						Dependencies: []addrs.ConfigResource{
+							mustConfigResourceAddr("test.first").Resource.InModule(addrs.RootModule),
+						},
+					},
+					addrs.AbsProviderConfig{
+						Provider: addrs.NewDefaultProvider("test"),
+					},
+					addrs.NoKey,
+				)
+			},
+			WantActions: [2]plans.Action{plans.DeleteThenCreate, plans.DeleteThenCreate},
+		},
+		{
+			Config: `
+				resource "test" "first" {
+					forces_replace = "config"
+				}
+				resource "test" "second" {
+					parent_id = test.first.id
+				}
+			`,
+			BuildPriorState: func(ss *states.SyncState) {
+				ss.SetResourceInstanceCurrent(
+					mustResourceInstanceAddr("test.first"),
+					&states.ResourceInstanceObjectSrc{
+						AttrsJSON: []byte(`{"id":"before","forces_replace":"state"}`),
+					},
+					addrs.AbsProviderConfig{
+						Provider: addrs.NewDefaultProvider("test"),
+					},
+					addrs.NoKey,
+				)
+				ss.SetResourceInstanceCurrent(
+					mustResourceInstanceAddr("test.second"),
+					&states.ResourceInstanceObjectSrc{
+						AttrsJSON: []byte(`{"id":"...","parent_id":"before"}`),
+						Dependencies: []addrs.ConfigResource{
+							mustConfigResourceAddr("test.first").Resource.InModule(addrs.RootModule),
+						},
+					},
+					addrs.AbsProviderConfig{
+						Provider: addrs.NewDefaultProvider("test"),
+					},
+					addrs.NoKey,
+				)
+			},
+			WantActions: [2]plans.Action{plans.DeleteThenCreate, plans.Update},
+		},
+		{
+			Config: `
+				resource "test" "first" {
+					forces_replace = "config"
+
+					lifecycle {
+						create_before_destroy = true
+					}
+				}
+				resource "test" "second" {
+					parent_id = test.first.id
+				}
+			`,
+			BuildPriorState: func(ss *states.SyncState) {
+				ss.SetResourceInstanceCurrent(
+					mustResourceInstanceAddr("test.first"),
+					&states.ResourceInstanceObjectSrc{
+						AttrsJSON: []byte(`{"id":"before","forces_replace":"state"}`),
+					},
+					addrs.AbsProviderConfig{
+						Provider: addrs.NewDefaultProvider("test"),
+					},
+					addrs.NoKey,
+				)
+				ss.SetResourceInstanceCurrent(
+					mustResourceInstanceAddr("test.second"),
+					&states.ResourceInstanceObjectSrc{
+						AttrsJSON: []byte(`{"id":"...","parent_id":"before"}`),
+						Dependencies: []addrs.ConfigResource{
+							mustConfigResourceAddr("test.first").Resource.InModule(addrs.RootModule),
+						},
+					},
+					addrs.AbsProviderConfig{
+						Provider: addrs.NewDefaultProvider("test"),
+					},
+					addrs.NoKey,
+				)
+			},
+			WantActions: [2]plans.Action{plans.CreateThenDelete, plans.Update},
+		},
+		{
+			Config: `
+				resource "test" "first" {
+					forces_replace = "config"
+
+					lifecycle {
+						create_before_destroy = true
+					}
+				}
+				resource "test" "second" {
+					parent_id      = test.first.id
+					forces_replace = "config"
+				}
+			`,
+			BuildPriorState: func(ss *states.SyncState) {
+				ss.SetResourceInstanceCurrent(
+					mustResourceInstanceAddr("test.first"),
+					&states.ResourceInstanceObjectSrc{
+						AttrsJSON: []byte(`{"id":"before","forces_replace":"state"}`),
+					},
+					addrs.AbsProviderConfig{
+						Provider: addrs.NewDefaultProvider("test"),
+					},
+					addrs.NoKey,
+				)
+				ss.SetResourceInstanceCurrent(
+					mustResourceInstanceAddr("test.second"),
+					&states.ResourceInstanceObjectSrc{
+						AttrsJSON: []byte(`{"id":"...","parent_id":"before","forces_replace":"state"}`),
+						Dependencies: []addrs.ConfigResource{
+							mustConfigResourceAddr("test.first").Resource.InModule(addrs.RootModule),
+						},
+					},
+					addrs.AbsProviderConfig{
+						Provider: addrs.NewDefaultProvider("test"),
+					},
+					addrs.NoKey,
+				)
+			},
+			WantActions: [2]plans.Action{plans.CreateThenDelete, plans.DeleteThenCreate},
+		},
+		{
+			Config: `
+				resource "test" "first" {
+					forces_replace = "config"
+				}
+				resource "test" "second" {
+					parent_id      = test.first.id
+					forces_replace = "config"
+
+
+					lifecycle {
+						create_before_destroy = true
+					}
+				}
+			`,
+			BuildPriorState: func(ss *states.SyncState) {
+				ss.SetResourceInstanceCurrent(
+					mustResourceInstanceAddr("test.first"),
+					&states.ResourceInstanceObjectSrc{
+						AttrsJSON: []byte(`{"id":"before","forces_replace":"state"}`),
+					},
+					addrs.AbsProviderConfig{
+						Provider: addrs.NewDefaultProvider("test"),
+					},
+					addrs.NoKey,
+				)
+				ss.SetResourceInstanceCurrent(
+					mustResourceInstanceAddr("test.second"),
+					&states.ResourceInstanceObjectSrc{
+						AttrsJSON: []byte(`{"id":"...","parent_id":"before","forces_replace":"state"}`),
+						Dependencies: []addrs.ConfigResource{
+							mustConfigResourceAddr("test.first").Resource.InModule(addrs.RootModule),
+						},
+					},
+					addrs.AbsProviderConfig{
+						Provider: addrs.NewDefaultProvider("test"),
+					},
+					addrs.NoKey,
+				)
+			},
+			WantActions: [2]plans.Action{plans.CreateThenDelete, plans.CreateThenDelete},
+		},
+		{
+			Config: `
+				resource "test" "first" {
+					parent_id = "..."
+				}
+				resource "test" "second" {
+					parent_id = test.first.id
+					forces_replace = "config"
+				}
+			`,
+			BuildPriorState: func(ss *states.SyncState) {
+				ss.SetResourceInstanceCurrent(
+					mustResourceInstanceAddr("test.first"),
+					&states.ResourceInstanceObjectSrc{
+						AttrsJSON: []byte(`{"id":"before"}`),
+					},
+					addrs.AbsProviderConfig{
+						Provider: addrs.NewDefaultProvider("test"),
+					},
+					addrs.NoKey,
+				)
+				ss.SetResourceInstanceCurrent(
+					mustResourceInstanceAddr("test.second"),
+					&states.ResourceInstanceObjectSrc{
+						AttrsJSON: []byte(`{"id":"...","parent_id":"before","forces_replace":"state"}`),
+						Dependencies: []addrs.ConfigResource{
+							mustConfigResourceAddr("test.first").Resource.InModule(addrs.RootModule),
+						},
+					},
+					addrs.AbsProviderConfig{
+						Provider: addrs.NewDefaultProvider("test"),
+					},
+					addrs.NoKey,
+				)
+			},
+			WantActions: [2]plans.Action{plans.Update, plans.DeleteThenCreate},
+		},
+		{
+			Config: `
+				resource "test" "first" {
+					parent_id = "..."
+				}
+				resource "test" "second" {
+					parent_id = test.first.id
+					forces_replace = "config"
+
+					lifecycle {
+						create_before_destroy = true
+					}
+				}
+			`,
+			BuildPriorState: func(ss *states.SyncState) {
+				ss.SetResourceInstanceCurrent(
+					mustResourceInstanceAddr("test.first"),
+					&states.ResourceInstanceObjectSrc{
+						AttrsJSON: []byte(`{"id":"before"}`),
+					},
+					addrs.AbsProviderConfig{
+						Provider: addrs.NewDefaultProvider("test"),
+					},
+					addrs.NoKey,
+				)
+				ss.SetResourceInstanceCurrent(
+					mustResourceInstanceAddr("test.second"),
+					&states.ResourceInstanceObjectSrc{
+						AttrsJSON: []byte(`{"id":"...","parent_id":"before","forces_replace":"state"}`),
+						Dependencies: []addrs.ConfigResource{
+							mustConfigResourceAddr("test.first").Resource.InModule(addrs.RootModule),
+						},
+					},
+					addrs.AbsProviderConfig{
+						Provider: addrs.NewDefaultProvider("test"),
+					},
+					addrs.NoKey,
+				)
+			},
+			WantActions: [2]plans.Action{plans.Update, plans.CreateThenDelete},
+		},
+		{
+			Config: `
+				# test.first is in prior state but not config, so is an "orphan"
+				resource "test" "second" {
+					parent_id = "after"
+				}
+			`,
+			BuildPriorState: func(ss *states.SyncState) {
+				ss.SetResourceInstanceCurrent(
+					mustResourceInstanceAddr("test.first"),
+					&states.ResourceInstanceObjectSrc{
+						AttrsJSON: []byte(`{"id":"before"}`),
+					},
+					addrs.AbsProviderConfig{
+						Provider: addrs.NewDefaultProvider("test"),
+					},
+					addrs.NoKey,
+				)
+				ss.SetResourceInstanceCurrent(
+					mustResourceInstanceAddr("test.second"),
+					&states.ResourceInstanceObjectSrc{
+						AttrsJSON: []byte(`{"id":"...","parent_id":"before"}`),
+						Dependencies: []addrs.ConfigResource{
+							mustConfigResourceAddr("test.first").Resource.InModule(addrs.RootModule),
+						},
+					},
+					addrs.AbsProviderConfig{
+						Provider: addrs.NewDefaultProvider("test"),
+					},
+					addrs.NoKey,
+				)
+			},
+			WantActions: [2]plans.Action{plans.Delete, plans.Update},
+		},
+		{
+			Config: `
+				# test.first is in prior state but not config, so is an "orphan"
+				# note that test.first has CreateBeforeDestroy set in the prior state.
+				resource "test" "second" {
+					parent_id = "after"
+				}
+			`,
+			BuildPriorState: func(ss *states.SyncState) {
+				ss.SetResourceInstanceCurrent(
+					mustResourceInstanceAddr("test.first"),
+					&states.ResourceInstanceObjectSrc{
+						AttrsJSON:           []byte(`{"id":"before"}`),
+						CreateBeforeDestroy: true,
+					},
+					addrs.AbsProviderConfig{
+						Provider: addrs.NewDefaultProvider("test"),
+					},
+					addrs.NoKey,
+				)
+				ss.SetResourceInstanceCurrent(
+					mustResourceInstanceAddr("test.second"),
+					&states.ResourceInstanceObjectSrc{
+						AttrsJSON: []byte(`{"id":"...","parent_id":"before"}`),
+						Dependencies: []addrs.ConfigResource{
+							mustConfigResourceAddr("test.first").Resource.InModule(addrs.RootModule),
+						},
+					},
+					addrs.AbsProviderConfig{
+						Provider: addrs.NewDefaultProvider("test"),
+					},
+					addrs.NoKey,
+				)
+			},
+			WantActions: [2]plans.Action{plans.Delete, plans.Update},
+		},
+		{
+			Config: `
+				resource "test" "first" {
+					parent_id = "after"
+				}
+				# test.second is in prior state but not config, so is an "orphan"
+			`,
+			BuildPriorState: func(ss *states.SyncState) {
+				ss.SetResourceInstanceCurrent(
+					mustResourceInstanceAddr("test.first"),
+					&states.ResourceInstanceObjectSrc{
+						AttrsJSON: []byte(`{"id":"before"}`),
+					},
+					addrs.AbsProviderConfig{
+						Provider: addrs.NewDefaultProvider("test"),
+					},
+					addrs.NoKey,
+				)
+				ss.SetResourceInstanceCurrent(
+					mustResourceInstanceAddr("test.second"),
+					&states.ResourceInstanceObjectSrc{
+						AttrsJSON: []byte(`{"id":"...","parent_id":"before"}`),
+						Dependencies: []addrs.ConfigResource{
+							mustConfigResourceAddr("test.first").Resource.InModule(addrs.RootModule),
+						},
+					},
+					addrs.AbsProviderConfig{
+						Provider: addrs.NewDefaultProvider("test"),
+					},
+					addrs.NoKey,
+				)
+			},
+			WantActions: [2]plans.Action{plans.Update, plans.Delete},
+		},
+		{
+			Config: `
+				resource "test" "first" {
+					parent_id = "after"
+
+					lifecycle {
+						create_before_destroy = true
+					}
+				}
+				# test.second is in prior state but not config, so is an "orphan"
+			`,
+			BuildPriorState: func(ss *states.SyncState) {
+				ss.SetResourceInstanceCurrent(
+					mustResourceInstanceAddr("test.first"),
+					&states.ResourceInstanceObjectSrc{
+						AttrsJSON: []byte(`{"id":"before"}`),
+					},
+					addrs.AbsProviderConfig{
+						Provider: addrs.NewDefaultProvider("test"),
+					},
+					addrs.NoKey,
+				)
+				ss.SetResourceInstanceCurrent(
+					mustResourceInstanceAddr("test.second"),
+					&states.ResourceInstanceObjectSrc{
+						AttrsJSON: []byte(`{"id":"...","parent_id":"before"}`),
+						Dependencies: []addrs.ConfigResource{
+							mustConfigResourceAddr("test.first").Resource.InModule(addrs.RootModule),
+						},
+					},
+					addrs.AbsProviderConfig{
+						Provider: addrs.NewDefaultProvider("test"),
+					},
+					addrs.NoKey,
+				)
+			},
+			WantActions: [2]plans.Action{plans.Update, plans.Delete},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("%s then %s", test.WantActions[0], test.WantActions[1]), func(t *testing.T) {
+			if test.WantActions[0] == plans.DeleteThenCreate && test.WantActions[1] == plans.Update {
+				// The experimental new runtime doesn't currently handle this
+				// interaction correctly, producing an execution graph where
+				// the two resources end up mutually-dependent on each other.
+				SkipExperimental(t, ExperimentalBugCircularReference)
+			}
+			if test.WantActions[0] == plans.DeleteThenCreate && test.WantActions[1] == plans.DeleteThenCreate {
+				// The experimental new runtime doesn't currently handle this
+				// interaction correctly, producing an execution graph where
+				// the two resources end up mutually-dependent on each other.
+				SkipExperimental(t, ExperimentalBugCircularReference)
+			}
+			if test.WantActions[0] == plans.CreateThenDelete && test.WantActions[1] == plans.DeleteThenCreate {
+				// The experimental new runtime doesn't currently handle this
+				// interaction correctly, instead forcing the second action
+				// to also be CreateThenDelete. It currently propagates the
+				// forced "CreateBeforeDestroy" both upstream and downstream,
+				// whereas the traditional runtime only propagates it upstream.
+				SkipExperimental(t, ExperimentalBugCBDDownstream)
+			}
+
+			cfg := testModuleInline(t, map[string]string{
+				"main.tf": test.Config,
+			})
+			state := states.BuildState(test.BuildPriorState)
+
+			p := &MockProvider{}
+			p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
+				ResourceTypes: map[string]providers.Schema{
+					"test": {
+						Block: &configschema.Block{
+							Attributes: map[string]*configschema.Attribute{
+								"id": {
+									Type:     cty.String,
+									Computed: true,
+								},
+								"parent_id": {
+									Type:     cty.String,
+									Optional: true,
+								},
+								"forces_replace": {
+									Type:     cty.String,
+									Optional: true,
+								},
+							},
+						},
+					},
+				},
+			}
+			p.PlanResourceChangeFn = func(req providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
+				return providers.PlanResourceChangeResponse{
+					PlannedState: req.ProposedNewState, // "id" is unknown in this when planning the create leg of a replace
+					RequiresReplace: []cty.Path{
+						cty.GetAttrPath("forces_replace"),
+					},
+				}
+			}
+
+			fmtConfig := hclwrite.Format([]byte(test.Config))
+			t.Log("Prior State:\n" + state.String())
+			t.Log("Config:\n" + string(fmtConfig))
+
+			tofuCtx := testContext2(t, &ContextOpts{
+				Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
+					addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+				}, nil),
+			})
+			plan, diags := assertNoPanic(t, func() (*plans.Plan, tfdiags.Diagnostics) {
+				return tofuCtx.Plan(t.Context(), cfg, state, DefaultPlanOpts)
+			})
+			assertNoDiagnostics(t, diags)
+
+			// This test is mainly focused on whether planning can succeed with this
+			// particular combination of actions, but we'll test to make sure we
+			// actually got the actions we expected or else we're not testing what
+			// we think we are testing.
+			firstInstChange := plan.Changes.ResourceInstance(mustResourceInstanceAddr("test.first"))
+			if firstInstChange != nil {
+				if got, want := firstInstChange.Action, test.WantActions[0]; got != want {
+					t.Errorf("wrong action %s for test.first; want %s", got, want)
+				}
+			} else {
+				t.Error("missing change for test.first")
+			}
+			secondInstChange := plan.Changes.ResourceInstance(mustResourceInstanceAddr("test.second"))
+			if secondInstChange != nil {
+				if got, want := secondInstChange.Action, test.WantActions[1]; got != want {
+					t.Errorf("wrong action %s for test.second; want %s", got, want)
+				}
+			} else {
+				t.Error("missing change for test.second")
+			}
+
 		})
 	}
 }
