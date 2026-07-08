@@ -10,11 +10,11 @@ import "github.com/opentofu/opentofu/internal/linting"
 // This block below is meant to hold all the "core" namespaced linting **rule IDs**.
 
 var (
-	variableWithNoTypeRuleID = linting.MustParseRuleAddr("no-type-variable")
+	variableWithNoTypeRuleID = linting.MustParseRuleAddr("core:no-type-variable")
 )
 
 // This block below is meant to hold all the "core" namespaced linting **group IDs**.
 
 var (
-	GroupIDConfusing = linting.MustParseRuleAddr("confusing")
+	GroupIDConfusing = linting.MustParseRuleAddr("core:confusing")
 )

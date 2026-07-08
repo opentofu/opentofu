@@ -1,6 +1,6 @@
 {
   "severity": "warning",
-  "summary": "lint diag summary (core:foo)",
+  "summary": "lint diag summary (foo)",
   "detail": "lint diag details",
   "range": {
     "filename": "test.tf",
