@@ -12,10 +12,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/go-multierror"
-
 	"github.com/davecgh/go-spew/spew"
+	"github.com/google/go-cmp/cmp"
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/linting"
 )
 
 func TestBuild(t *testing.T) {
@@ -441,4 +442,110 @@ func TestDiagnosticsNonFatalErr(t *testing.T) {
 			t.Errorf("got %T; want NonFatalError", err)
 		}
 	})
+}
+
+func TestDiagnosticSorting(t *testing.T) {
+	// with no source information
+	warn1WithNoSource := &hcl.Diagnostic{
+		Severity: hcl.DiagWarning,
+		Summary:  "Warning 1",
+	}
+	warn2WithNoSource := &hcl.Diagnostic{
+		Severity: hcl.DiagWarning,
+		Summary:  "Warning 2",
+	}
+	error1WithNoSource := &hcl.Diagnostic{
+		Severity: hcl.DiagError,
+		Summary:  "Error 1",
+	}
+	error2WithNoSource := &hcl.Diagnostic{
+		Severity: hcl.DiagError,
+		Summary:  "Error 2",
+	}
+	lint1WithNoSource := LintMessage(linting.MustParseRuleAddr("foo"), nil, "Linting 1", "", nil, nil)
+	lint2WithNoSource := LintMessage(linting.MustParseRuleAddr("foo"), nil, "Linting 1", "", nil, nil)
+
+	// with source information
+	warn1 := &hcl.Diagnostic{
+		Severity: hcl.DiagWarning,
+		Summary:  "Warning 1",
+		Subject:  &hcl.Range{Filename: "test.tf", Start: hcl.Pos{Line: 1, Byte: 20, Column: 1}},
+	}
+	warn2 := &hcl.Diagnostic{
+		Severity: hcl.DiagWarning,
+		Summary:  "Warning 2",
+		Subject:  &hcl.Range{Filename: "test.tf", Start: hcl.Pos{Line: 2, Byte: 10, Column: 1}},
+	}
+	error1 := &hcl.Diagnostic{
+		Severity: hcl.DiagError,
+		Summary:  "Error 1",
+		Subject:  &hcl.Range{Filename: "test.tf", Start: hcl.Pos{Line: 3, Byte: 40, Column: 1}},
+	}
+	error2 := &hcl.Diagnostic{
+		Severity: hcl.DiagError,
+		Summary:  "Error 2",
+		Subject:  &hcl.Range{Filename: "test.tf", Start: hcl.Pos{Line: 4, Byte: 30, Column: 1}},
+	}
+	lint1 := LintMessage(linting.MustParseRuleAddr("foo"), nil, "Linting 1", "", &SourceRange{Filename: "test.tf", Start: SourcePos{Line: 4, Column: 10, Byte: 40}}, nil)
+	lint2 := LintMessage(linting.MustParseRuleAddr("foo"), nil, "Linting 2", "", &SourceRange{Filename: "test.tf", Start: SourcePos{Line: 3, Column: 10, Byte: 30}}, nil)
+
+	cases := map[string]struct {
+		given Diagnostics
+		want  Diagnostics
+	}{
+		"no sources, only severity": {
+			given: New(warn1WithNoSource, error1WithNoSource, lint1WithNoSource, warn2WithNoSource, error2WithNoSource, lint2WithNoSource),
+			want:  New(lint1WithNoSource, lint2WithNoSource, warn1WithNoSource, warn2WithNoSource, error1WithNoSource, error2WithNoSource),
+		},
+		"with sources": {
+			given: New(warn1, error1, lint1, warn2, error2, lint2),
+			want:  New(lint2, lint1, warn2, warn1, error2, error1),
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			tc.given.Sort()
+			compareDiagnostics(t, tc.want, tc.given)
+		})
+	}
+}
+
+func compareDiagnostics(t *testing.T, want, got Diagnostics) {
+	if len(want) != len(got) {
+		t.Fatalf("cannot compare the diagnostic slices. want len = %d; got len = %d", len(want), len(got))
+	}
+
+	for i := range want {
+		compareDiagnostic(t, i, want[i], got[i])
+	}
+}
+
+func compareDiagnostic(t *testing.T, i int, want, got Diagnostic) {
+	var prefix string
+	if i >= 0 {
+		prefix = fmt.Sprintf("[idx %d] ", i)
+	}
+	if wv, gv := want.Severity(), got.Severity(); wv != gv {
+		t.Errorf("%sinvalid severity. want: %q but got %q", prefix, wv.String(), gv.String())
+	}
+	if wv, gv := want.Description().Summary, got.Description().Summary; wv != gv {
+		t.Errorf("%sinvalid summary. want: %q but got %q", prefix, wv, gv)
+	}
+	if wv, gv := want.Description().Detail, got.Description().Detail; wv != gv {
+		t.Errorf("%sinvalid detail. want: %q but got %q", prefix, wv, gv)
+	}
+	if wv, gv := want.Description().Address, got.Description().Address; wv != gv {
+		t.Errorf("%sinvalid address. want: %q but got %q", prefix, wv, gv)
+	}
+	if wv, gv := want.Source(), got.Source(); !wv.Equal(gv) {
+		t.Errorf("%sinvalid source. want: %+v but got %+v", prefix, wv, gv)
+	}
+	wei, gei := want.ExtraInfo(), got.ExtraInfo()
+	if diff := cmp.Diff(wei, gei); diff != "" {
+		t.Errorf("%sinvalid extra info (-want,+got):\n%s", prefix, diff)
+	}
+	wexpr, gexpr := want.FromExpr(), got.FromExpr()
+	if diff := cmp.Diff(wexpr, gexpr); diff != "" {
+		t.Errorf("%sinvalid fromExpr (-want,+got):\n%s", prefix, diff)
+	}
 }
