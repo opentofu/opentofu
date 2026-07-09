@@ -169,6 +169,7 @@ type DesiredResourceInstance struct {
 // Exposing configgraph details is not idea, but it's a very simple structure
 // that is probably not worth duplicating right now
 type Provisioner = configgraph.Provisioner
+type ResourceInstanceAttributePath = configgraph.ResourceInstanceAttributePath
 
 // IsPlaceholder returns true if this object is acting as a placeholder for
 // zero or more resource instances whose full expansion is not yet known.
@@ -189,11 +190,4 @@ type Provisioner = configgraph.Provisioner
 // scope of the configuration.
 func (ri *DesiredResourceInstance) IsPlaceholder() bool {
 	return ri.Addr.IsPlaceholder()
-}
-
-// ResourceInstanceAttributePath describes a (possibly empty) attribute path
-// within a resource instance.
-type ResourceInstanceAttributePath struct {
-	ResourceInstance addrs.AbsResourceInstance
-	Path             cty.Path
 }

@@ -11,11 +11,13 @@ import (
 	"iter"
 	"log"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/collections"
 	"github.com/opentofu/opentofu/internal/lang/eval"
+	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -340,4 +342,67 @@ func resourceInstancesFilter(state *states.State, want func(addrs.AbsResourceIns
 			}
 		}
 	}
+}
+
+func (p *planGlue) evaluateReplaceTriggeredBy(ref eval.ResourceInstanceAttributePath) (*addrs.AbsResourceInstance, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+	var changes []*plans.ResourceInstanceChange
+
+	instance, ok := p.planCtx.resourceInstObjs.Get(ref.ResourceInstance.CurrentObject())
+	if !ok {
+		// This should not happen!
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  `Reference to undeclared resource`,
+			Detail:   fmt.Sprintf(`A resource %s has not been declared`, ref.ResourceInstance),
+			//Subject:  expr.Range().Ptr(),
+		})
+		return nil, diags
+	}
+	currentChange := instance.PlannedChange
+	if currentChange != nil {
+		changes = append(changes, currentChange)
+	}
+
+	if len(changes) == 0 {
+		return nil, diags
+	}
+
+	// If we don't have a traversal beyond the resource, then we can just look
+	// for any change.
+	if len(ref.Path) == 0 {
+		for _, c := range changes {
+			if c.Action.CanTriggerDownstreamReplace() {
+				return &ref.ResourceInstance, diags
+			}
+		}
+
+		// no change triggered
+		return nil, diags
+	}
+
+	// This must be an instances to have a remaining traversal, which means a
+	// single change.
+	change := changes[0]
+
+	// Make sure the change is actionable. A Delete action will have a change
+	// in value, but is not valid for our purposes here.
+	if !change.Action.CanTriggerDownstreamReplace() {
+		return nil, diags
+	}
+
+	attrBefore, _ := ref.Path.Apply(change.Before)
+	attrAfter, _ := ref.Path.Apply(change.After)
+
+	replace := false
+	if attrBefore == cty.NilVal || attrAfter == cty.NilVal {
+		replace = attrBefore != attrAfter
+	} else {
+		replace = !attrBefore.RawEquals(attrAfter)
+	}
+
+	if replace {
+		return &ref.ResourceInstance, diags
+	}
+	return nil, diags
 }

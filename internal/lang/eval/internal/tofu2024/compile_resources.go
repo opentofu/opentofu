@@ -31,22 +31,22 @@ func compileModuleInstanceResources(
 	declScope exprs.Scope,
 	moduleProviders configgraph.CompileProviderConfigRef,
 	moduleInstanceAddr addrs.ModuleInstance,
-	providers evalglue.ProvidersSchema,
-	provisioners evalglue.ProvisionersSchema,
+	providersSchema evalglue.ProvidersSchema,
+	provisionersSchema evalglue.ProvisionersSchema,
 	getResultValue func(context.Context, *configgraph.ResourceInstance, cty.Value, exprs.FromValue[*configgraph.ProviderInstance], addrs.Set[addrs.AbsResourceInstance]) (cty.Value, tfdiags.Diagnostics),
 	extraMarks cty.ValueMarks,
 ) map[addrs.Resource]*configgraph.Resource {
 	ret := make(map[addrs.Resource]*configgraph.Resource, len(managedConfigs)+len(dataConfigs)+len(ephemeralConfigs))
 	for _, rc := range managedConfigs {
-		addr, rsrc := compileModuleInstanceResource(ctx, rc, declScope, moduleProviders, moduleInstanceAddr, providers, provisioners, getResultValue, extraMarks)
+		addr, rsrc := compileModuleInstanceResource(ctx, rc, declScope, moduleProviders, moduleInstanceAddr, providersSchema, provisionersSchema, getResultValue, extraMarks)
 		ret[addr] = rsrc
 	}
 	for _, rc := range dataConfigs {
-		addr, rsrc := compileModuleInstanceResource(ctx, rc, declScope, moduleProviders, moduleInstanceAddr, providers, nil, getResultValue, extraMarks)
+		addr, rsrc := compileModuleInstanceResource(ctx, rc, declScope, moduleProviders, moduleInstanceAddr, providersSchema, nil, getResultValue, extraMarks)
 		ret[addr] = rsrc
 	}
 	for _, rc := range ephemeralConfigs {
-		addr, rsrc := compileModuleInstanceResource(ctx, rc, declScope, moduleProviders, moduleInstanceAddr, providers, nil, getResultValue, extraMarks)
+		addr, rsrc := compileModuleInstanceResource(ctx, rc, declScope, moduleProviders, moduleInstanceAddr, providersSchema, nil, getResultValue, extraMarks)
 		ret[addr] = rsrc
 	}
 	return ret
@@ -171,6 +171,7 @@ func compileModuleInstanceResource(
 				ignoreChanges = traversalsToPaths(travs)
 			}
 		}
+
 	}
 
 	if diags.HasErrors() {
@@ -191,6 +192,8 @@ func compileModuleInstanceResource(
 		// allowing us to finalize all of the details for a specific instance
 		// of this resource.
 		CompileResourceInstance: func(ctx context.Context, key addrs.InstanceKey, repData instances.RepetitionData) *configgraph.ResourceInstance {
+			var diags tfdiags.Diagnostics
+
 			localScope := instanceLocalScope(declScope, repData)
 			providerRef := compileProviderConfigRef(ctx, moduleProviders, config.ProviderConfigAddr(), config.ProviderConfigRef, localScope)
 			instanceDeps := compileInstanceDeps(localScope)
@@ -234,6 +237,61 @@ func compileModuleInstanceResource(
 				}
 			}
 
+			var replaceMarks cty.ValueMarks
+			var replaceTriggeredBy []configgraph.ResourceInstanceAttributePath
+			if config.Managed != nil {
+				// Validate that attribute traversals in replace_triggered_by
+				// expressions refer to attributes that exist in the schema.
+				// We use evalReplaceTriggeredByExpr to correctly handle JSON
+				// syntax and HCL expressions.
+				for _, expr := range config.TriggersReplacement {
+					// An alternative to this system would be to mark each resource attribute with it's exact path, sort of
+					// an ResourceInstanceMarkWithPath so we know exactly what resource and path an expression derives it's
+					// value from. I suspect that the performance impact of that would be quite terrible and we should probably
+					// not do that.
+					//
+					// TODO replace evalReplaceTriggeredByExpr with something more tailored to the new engine style of doing things.
+					ref, refDiags := evalReplaceTriggeredByExpr(expr, repData)
+					if refDiags.HasErrors() {
+						diags = diags.Append(refDiags)
+						continue
+					}
+
+					var refAddr addrs.Resource
+					switch rs := ref.Subject.(type) {
+					case addrs.Resource:
+						refAddr = rs
+					case addrs.ResourceInstance:
+						refAddr = rs.Resource
+					default:
+						continue
+					}
+
+					refVal, refValDiags := exprs.NewClosure(exprs.EvalableHCLExpression(expr), localScope).Value(ctx)
+					diags = diags.Append(refValDiags)
+					if refValDiags.HasErrors() {
+						// TODO are these errors good enough or should we replace them with something better?
+						continue
+					}
+
+					path := traversalToPath(ref.Remaining)
+					for ri := range configgraph.ContributingResourceInstances(refVal) {
+						if !ri.Addr.Resource.Resource.Equal(refAddr) {
+							continue
+						}
+
+						if replaceMarks == nil {
+							replaceMarks = cty.ValueMarks{}
+						}
+						replaceMarks[configgraph.NewResourceInstanceMark(ri)] = struct{}{}
+						replaceTriggeredBy = append(replaceTriggeredBy, configgraph.ResourceInstanceAttributePath{
+							ResourceInstance: ri.Addr,
+							Path:             path,
+						})
+					}
+				}
+			}
+
 			// Note that repetitionMarks also incorporates any marks from the
 			// depends_on argument, which got evaluated as part of the instance
 			// selector just as a convenient once-per-resource evaluation hook.
@@ -245,14 +303,14 @@ func compileModuleInstanceResource(
 			// the main config body.
 			configValuer := configgraph.ValuerOnce(exprs.DerivedValuerContext(
 				exprs.NewClosure(configEvalable, localScope),
-				func(ctx context.Context, v cty.Value, diags tfdiags.Diagnostics) (cty.Value, tfdiags.Diagnostics) {
+				func(ctx context.Context, v cty.Value, vDiags tfdiags.Diagnostics) (cty.Value, tfdiags.Diagnostics) {
 					// TODO more efficient marking, this does a lot of map garbarge
 					// TODO consider moving provider related marks into here, currently partially impl in configgraph.ResourceInstance.Value
 					if len(repetitionMarks) != 0 {
 						v = v.WithMarks(repetitionMarks)
 					}
 					instDepMarks, moreDiags := instanceDeps.Marks(ctx)
-					diags = diags.Append(moreDiags)
+					vDiags = vDiags.Append(moreDiags)
 					if len(instDepMarks) != 0 {
 						v = v.WithMarks(instDepMarks)
 					}
@@ -261,7 +319,14 @@ func compileModuleInstanceResource(
 						v = v.WithMarks(provisionerMarks)
 					}
 
-					return v, diags
+					if len(replaceMarks) != 0 {
+						v = v.WithMarks(replaceMarks)
+					}
+
+					// Include any additional diags during the instance setup logic
+					vDiags = vDiags.Append(diags)
+
+					return v, vDiags
 				},
 			))
 
@@ -273,6 +338,7 @@ func compileModuleInstanceResource(
 				CreateBeforeDestroyValuer: cbdValuer,
 				CreateProvisioners:        provisionerConfigs,
 				IgnoreChangesPaths:        ignoreChanges,
+				ReplaceTriggeredBy:        replaceTriggeredBy,
 			}
 			// Again the [ResourceInstance] implementation will call back
 			// through this object so we can help it interact with the

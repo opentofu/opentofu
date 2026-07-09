@@ -358,6 +358,13 @@ func newResourceInstanceObjectsBuilder() *resourceInstanceObjectsBuilder {
 	}
 }
 
+func (b *resourceInstanceObjectsBuilder) Get(addr addrs.AbsResourceInstanceObject) (*resourceInstanceObject, bool) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	return b.result.objects.GetOk(addr)
+}
+
 // Put inserts the given resource instance object into the collection.
 //
 // Resource instance objects are uniquely identified by the addresses

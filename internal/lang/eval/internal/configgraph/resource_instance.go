@@ -81,6 +81,24 @@ type ResourceInstance struct {
 	// change action, and so is always empty for other modes.
 	IgnoreChangesPaths []cty.Path
 
+	// ReplaceTriggeredBy describes zero ore more attribute prefixes within
+	// other resource instances for which the planning engine should force
+	// replacement of this resource instance if any value beneath one of
+	// the nominated paths has a change already planned for the current
+	// plan/apply round.
+	//
+	// Index steps within the paths and instance keys within the resource
+	// instance addresses can both potentially have unknown keys if the
+	// decision about what to refer to is based on a value that won't be known
+	// until the apply phase.
+	//
+	// This is meaningful only for resource modes that support the "update"
+	// change action, and so is always false for other modes.
+	//
+	// Any resource instance mentioned in this collection will always also
+	// appear in RequiredResourceInstances.
+	ReplaceTriggeredBy []ResourceInstanceAttributePath
+
 	// Glue is provided by the system that "compiled" this [ResourceInstance]
 	// object to allow calling back into that system to ask further questions
 	// that arise dynamically during evaluation but whose results vary based
@@ -93,6 +111,13 @@ type ResourceInstance struct {
 	// implementation, which might involve side-effects that could produce
 	// different results
 	valueOnce grapheval.Once[cty.Value]
+}
+
+// ResourceInstanceAttributePath describes a (possibly empty) attribute path
+// within a resource instance.
+type ResourceInstanceAttributePath struct {
+	ResourceInstance addrs.AbsResourceInstance
+	Path             cty.Path
 }
 
 var _ exprs.Valuer = (*ResourceInstance)(nil)

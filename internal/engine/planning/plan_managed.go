@@ -8,6 +8,7 @@ package planning
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/zclconf/go-cty/cty"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
@@ -318,6 +319,21 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		return ret, diags
 	}
 
+	// Check for if replacement is required
+	replaceTriggered := false
+	for _, tb := range inst.ReplaceTriggeredBy {
+		replaceAddr, replaceDiags := p.evaluateReplaceTriggeredBy(tb)
+		diags = diags.Append(replaceDiags)
+		if replaceDiags.HasErrors() {
+			return ret, diags
+		}
+
+		if replaceAddr != nil {
+			log.Printf("[DEBUG] ReplaceTriggeredBy forcing replacement of %s due to change in %s", inst.Addr, replaceAddr)
+			replaceTriggered = true
+		}
+	}
+
 	// TODO: Check for resp.Deferred once we've updated package providers to
 	// include it. If that's set then the _provider_ is telling us we must
 	// defer planning any action for this resource instance. We'd still
@@ -325,7 +341,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 	// that case, but we would need to mark it as deferred and _not_ record a
 	// proposed change for it.
 
-	if eq, _ := planResp.Planned.Value.Equals(refreshedVal).Unmark(); eq.IsKnown() && eq.True() {
+	if eq, _ := planResp.Planned.Value.Equals(refreshedVal).Unmark(); eq.IsKnown() && eq.True() && !replaceTriggered {
 		// There is no change to make, so we'll return early without actually
 		// recording any change. In this case our resource instance will be
 		// included in the execution graph only if some other resource instance
@@ -341,10 +357,15 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		return ret, diags
 	}
 
+	actionReason := plans.ResourceInstanceChangeNoReason
+	if replaceTriggered {
+		actionReason = plans.ResourceInstanceReplaceByTriggers
+	}
+
 	plannedAction := plans.Update
 	if prevRoundState == nil {
 		plannedAction = plans.Create
-	} else if !planResp.RequiresReplace.Empty() {
+	} else if !planResp.RequiresReplace.Empty() || replaceTriggered {
 		// For "replace" actions the execution graph will include two separate
 		// plan and apply operations, where one handles deletion and the other
 		// handles creation. There is therefore an implicit third intermediate
@@ -420,6 +441,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		// we'd need for that into here since most of the reasons are
 		// configuration-related and so would need to be driven by stuff in
 		// [eval.DesiredResourceInstance].
+		ActionReason: actionReason,
 	}
 	ret.ProviderInst = *inst.ProviderInstance
 
