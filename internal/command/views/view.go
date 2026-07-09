@@ -170,14 +170,11 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 
 	var lintDiags tfdiags.Diagnostics
 	// Since linting related diagnostics use the Warning severity, we want to extract those out of the
-	// main diagnostics slice before consolidating warning diagnostics.
-	// That's because linting related diagnostics have a different logic for consolidation. For more details see
-	// ConsolidateLint.
+	// main diagnostics slice before consolidating warning diagnostics. These are merged again later.
 	diags, lintDiags = diags.SplitLint()
 	// Because of the in-context linting hints, this should not be necessary but it's just a guard in case
 	// there is any linting rule included without using the in-context linting hints.
 	lintDiags = lintDiags.FilterLint(v.lintInclude, v.lintExclude)
-	lintDiags = lintDiags.ConsolidateLint()
 
 	if v.consolidateWarnings {
 		diags = diags.Consolidate(1, tfdiags.Warning, func(diag tfdiags.Diagnostic) string {
