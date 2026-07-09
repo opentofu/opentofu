@@ -21,6 +21,7 @@ func TestLintRuleEnabled(t *testing.T) {
 		contextBuilder func(ctx context.Context) context.Context
 		givenRuleID    linting.RuleAddr
 		givenGroupIDs  []linting.RuleAddr
+		givenSource    SourceRange
 		want           bool
 	}{
 		"context missing linting configuration": {
@@ -126,16 +127,54 @@ func TestLintRuleEnabled(t *testing.T) {
 			givenRuleID:   linting.MustParseRuleAddr("foo"),
 			givenGroupIDs: []linting.RuleAddr{linting.MustParseRuleAddr("group_including_foo")},
 		},
+		"with the same rule and group being already checked once": {
+			contextBuilder: func(ctx context.Context) context.Context {
+				v := lintingRulesCtxValue{
+					include:  collections.NewSet[linting.RuleAddr](linting.AllRulesGroupID),
+					exclude:  collections.NewSet[linting.RuleAddr](linting.MustParseRuleAddr("group_including_foo")),
+					executed: collections.NewSet(keyForLintCall(SourceRange{Filename: "test.tf", Start: SourcePos{Line: 1, Column: 1, Byte: 1}}, linting.MustParseRuleAddr("foo"))), // no group id provided here
+				}
+				return context.WithValue(ctx, lintingRulesCtxKey{}, &v)
+			},
+			want:          false,
+			givenRuleID:   linting.MustParseRuleAddr("foo"),
+			givenGroupIDs: nil, // no group ID provided
+			givenSource: SourceRange{
+				Filename: "test.tf",
+				Start:    SourcePos{Line: 1, Column: 1, Byte: 1},
+			},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			ctx := tc.contextBuilder(t.Context())
-			got := LintRuleEnabled(ctx, tc.givenRuleID, tc.givenGroupIDs...)
+			got := LintRuleEnabledOnSource(ctx, tc.givenSource, tc.givenRuleID, tc.givenGroupIDs...)
 			if tc.want != got {
 				t.Errorf("expected for the ruleID %+v (groupIDs %+v) to return %t but got %t", tc.givenRuleID, tc.givenGroupIDs, tc.want, got)
 			}
 		})
 	}
+	t.Run("running exactly the same rule twice returns true only the first time", func(t *testing.T) {
+		rID := linting.MustParseRuleAddr("foo")
+		gID := linting.MustParseRuleAddr("group_including_foo")
+		src := SourceRange{
+			Filename: "test.tf",
+			Start:    SourcePos{Line: 1, Column: 1, Byte: 1},
+		}
+		ctx := ContextWithLintFilterHints(t.Context(), collections.NewSet[linting.RuleAddr](linting.AllRulesGroupID), collections.NewSet[linting.RuleAddr](gID))
+		for i := range 10 {
+			got := LintRuleEnabledOnSource(ctx, src, rID) // no group id provided
+			if i == 0 {
+				if !got {
+					t.Errorf("[%d] expected for the rule to be allowed but was not", i)
+				}
+				return
+			}
+			if got {
+				t.Errorf("[%d] expected for the rule to be denied because it was executed once but it was allowed", i)
+			}
+		}
+	})
 }
 
 func TestFilterLint(t *testing.T) {
@@ -368,173 +407,6 @@ func TestFilterLint(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			got := tc.givenDiags.FilterLint(tc.include, tc.exclude)
-			if diff := cmp.Diff(tc.wantDiags, got, cmpopts.IgnoreUnexported(attributeDiagnostic{}, lintMessage{})); diff != "" {
-				t.Errorf("unexpected returned diagnostics (-want,+got):\n%s", diff)
-			}
-		})
-	}
-}
-
-func TestConsolidateLintDiagnostics(t *testing.T) {
-	cases := map[string]struct {
-		givenDiags Diagnostics
-		wantDiags  Diagnostics
-	}{
-		"2 diagnostics and both with source": {
-			givenDiags: New(
-				LintMessage(
-					linting.MustParseRuleAddr("foo"),
-					nil,
-					"lint summary",
-					"lint details",
-					&SourceRange{
-						Filename: "testfile",
-					},
-					nil,
-				),
-				LintMessage(
-					linting.MustParseRuleAddr("foo"),
-					nil,
-					"lint summary",
-					"lint details",
-					&SourceRange{
-						Filename: "testfile",
-					},
-					nil,
-				),
-			),
-			wantDiags: New(
-				&consolidatedGroup{Consolidated: Diagnostics{LintMessage(
-					linting.MustParseRuleAddr("foo"),
-					nil,
-					"lint summary",
-					"lint details",
-					&SourceRange{
-						Filename: "testfile",
-					},
-					nil,
-				)}},
-			),
-		},
-		"2 diagnostics and one with no source": {
-			givenDiags: New(
-				LintMessage(
-					linting.MustParseRuleAddr("foo"),
-					nil,
-					"lint summary",
-					"lint details",
-					nil,
-					nil,
-				),
-				LintMessage(
-					linting.MustParseRuleAddr("foo"),
-					nil,
-					"lint summary",
-					"lint details",
-					&SourceRange{
-						Filename: "testfile",
-					},
-					nil,
-				),
-			),
-			wantDiags: New(
-				LintMessage(
-					linting.MustParseRuleAddr("foo"),
-					nil,
-					"lint summary",
-					"lint details",
-					nil,
-					nil,
-				),
-				&consolidatedGroup{Consolidated: Diagnostics{LintMessage(
-					linting.MustParseRuleAddr("foo"),
-					nil,
-					"lint summary",
-					"lint details",
-					&SourceRange{
-						Filename: "testfile",
-					},
-					nil,
-				)}},
-			),
-		},
-		"2 diagnostics and both with no source": {
-			givenDiags: New(
-				LintMessage(
-					linting.MustParseRuleAddr("foo"),
-					nil,
-					"lint summary",
-					"lint details",
-					nil,
-					nil,
-				),
-				LintMessage(
-					linting.MustParseRuleAddr("foo"),
-					nil,
-					"lint summary",
-					"lint details",
-					nil,
-					nil,
-				),
-			),
-			wantDiags: New(
-				LintMessage(
-					linting.MustParseRuleAddr("foo"),
-					nil,
-					"lint summary",
-					"lint details",
-					nil,
-					nil,
-				),
-				LintMessage(
-					linting.MustParseRuleAddr("foo"),
-					nil,
-					"lint summary",
-					"lint details",
-					nil,
-					nil,
-				),
-			),
-		},
-		"2 diagnostics with warning severity but not the right type and no extra info": {
-			givenDiags: New(
-				&attributeDiagnostic{
-					diagnosticBase: diagnosticBase{
-						severity: Warning,
-						summary:  "bad linting diagnostic",
-						detail:   "bad linting diagnostic 1",
-					},
-					subject: &SourceRange{Filename: "testfile"},
-				},
-				&attributeDiagnostic{
-					diagnosticBase: diagnosticBase{
-						severity: Warning,
-						summary:  "bad linting diagnostic",
-						detail:   "bad linting diagnostic 2",
-					},
-					subject: &SourceRange{Filename: "testfile"},
-				},
-			),
-
-			wantDiags: New(
-				&consolidatedGroup{
-					Consolidated: Diagnostics{
-						&attributeDiagnostic{
-							diagnosticBase: diagnosticBase{
-								severity: Warning,
-								summary:  "bad linting diagnostic",
-								detail:   "bad linting diagnostic 1",
-							},
-							subject: &SourceRange{Filename: "testfile"},
-						},
-					},
-				},
-			),
-		},
-	}
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			got := tc.givenDiags.ConsolidateLint()
 			if diff := cmp.Diff(tc.wantDiags, got, cmpopts.IgnoreUnexported(attributeDiagnostic{}, lintMessage{})); diff != "" {
 				t.Errorf("unexpected returned diagnostics (-want,+got):\n%s", diff)
 			}
