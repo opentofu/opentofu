@@ -4769,14 +4769,6 @@ func TestContext2Plan_actionInteractions(t *testing.T) {
 				// the two resources end up mutually-dependent on each other.
 				SkipExperimental(t, ExperimentalBugCircularReference)
 			}
-			if test.WantActions[0] == plans.CreateThenDelete && test.WantActions[1] == plans.DeleteThenCreate {
-				// The experimental new runtime doesn't currently handle this
-				// interaction correctly, instead forcing the second action
-				// to also be CreateThenDelete. It currently propagates the
-				// forced "CreateBeforeDestroy" both upstream and downstream,
-				// whereas the traditional runtime only propagates it upstream.
-				SkipExperimental(t, ExperimentalBugCBDDownstream)
-			}
 
 			cfg := testModuleInline(t, map[string]string{
 				"main.tf": test.Config,

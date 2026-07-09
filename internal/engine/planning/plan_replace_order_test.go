@@ -120,11 +120,11 @@ func TestFindEffectiveReplaceOrders(t *testing.T) {
 				},
 				addrs.MapElem[addrs.AbsResourceInstanceObject, resourceInstanceReplaceOrder]{
 					Key:   objAddr("b"),
-					Value: replaceCreateThenDestroy,
+					Value: replaceDestroyThenCreate,
 				},
 				addrs.MapElem[addrs.AbsResourceInstanceObject, resourceInstanceReplaceOrder]{
 					Key:   objAddr("c"),
-					Value: replaceCreateThenDestroy,
+					Value: replaceDestroyThenCreate,
 				},
 			),
 			addrs.MakeSet[addrs.AbsResourceInstanceObject](),
@@ -157,7 +157,7 @@ func TestFindEffectiveReplaceOrders(t *testing.T) {
 				},
 				addrs.MapElem[addrs.AbsResourceInstanceObject, resourceInstanceReplaceOrder]{
 					Key:   objAddr("c"),
-					Value: replaceCreateThenDestroy,
+					Value: replaceDestroyThenCreate,
 				},
 			),
 			addrs.MakeSet[addrs.AbsResourceInstanceObject](),

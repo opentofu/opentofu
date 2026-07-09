@@ -60,7 +60,7 @@ Objects:
 			continue
 		}
 
-		for otherInst := range objs.AllDependenciesAndDependents(currentInst) {
+		for otherInst := range objs.AllDependents(currentInst) {
 			if otherInst.Equal(currentInst) {
 				// We've found a self-dependency problem, so we'll record
 				// it but continue anyway because the rest of this algorithm

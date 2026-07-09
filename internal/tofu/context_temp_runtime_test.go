@@ -100,7 +100,6 @@ var (
 	ExperimentalBugSpuriousReplace   = ExperimentalFlag{"Bug Spurious Replace", true} // New runtime proposes replace where old runtime would've called for update
 	ExperimentalBugProviderPrivate   = ExperimentalFlag{"Bug Provider Private Data Not Preserved", false}
 	ExperimentalBugCircularReference = ExperimentalFlag{"Bug Circular Reference", false}
-	ExperimentalBugCBDDownstream     = ExperimentalFlag{"Bug CBD Propagates Downstream", false}
 
 	ExperimentalChangeDiagWording     = ExperimentalFlag{"Change Different Diagnostic Wording", false}
 	ExperimentalChangeErrorEarly      = ExperimentalFlag{"Change Detect Error Earlier", false}
