@@ -2789,7 +2789,7 @@ func TestContext2Plan_movedResourceErrors(t *testing.T) {
 }
 
 func TestContext2Plan_untargetedResourceSchemaChange(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureTarget)
+	SkipExperimental(t, ExperimentalFeatureTarget, ExperimentalFeatureRefresh)
 
 	// an untargeted resource which requires a schema migration should not
 	// block planning due external changes in the plan.
@@ -2854,7 +2854,7 @@ resource "test_object" "b" {
 }
 
 func TestContext2Plan_excludedResourceSchemaChange(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureTarget)
+	SkipExperimental(t, ExperimentalFeatureTarget, ExperimentalFeatureRefresh)
 
 	// an excluded resource which requires a schema migration should not
 	// block planning due external changes in the plan.

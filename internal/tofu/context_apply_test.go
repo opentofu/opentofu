@@ -3462,7 +3462,27 @@ func TestContext2Apply_moduleTarget(t *testing.T) {
 		t.Fatalf("diags: %s", diags.Err())
 	}
 
-	checkStateString(t, state, `
+	if experimentalRuntimeEnabled() {
+		checkStateString(t, state, `
+<no state>
+module.A:
+  aws_instance.foo:
+    ID = foo
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
+    foo = bar
+    type = aws_instance
+module.B:
+  aws_instance.bar:
+    ID = foo
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
+    foo = foo
+    type = aws_instance
+
+    Dependencies:
+      module.A.aws_instance.foo
+	`)
+	} else {
+		checkStateString(t, state, `
 <no state>
 module.A:
   aws_instance.foo:
@@ -3484,6 +3504,7 @@ module.B:
     Dependencies:
       module.A.aws_instance.foo
 	`)
+	}
 }
 
 func TestContext2Apply_multiProvider(t *testing.T) {
@@ -7495,8 +7516,14 @@ func TestContext2Apply_targetedDestroy(t *testing.T) {
 	// TODO: Future refactoring may enable us to remove the output from state in
 	// this case, and that would be Just Fine - this test can be modified to
 	// expect 0 outputs.
-	if len(mod.OutputValues) != 1 {
-		t.Fatalf("expected 1 outputs, got: %#v", mod.OutputValues)
+	if experimentalRuntimeEnabled() {
+		if len(mod.OutputValues) != 0 {
+			t.Fatalf("expected 0 outputs, got: %#v", mod.OutputValues)
+		}
+	} else {
+		if len(mod.OutputValues) != 1 {
+			t.Fatalf("expected 1 outputs, got: %#v", mod.OutputValues)
+		}
 	}
 
 	// the module instance should not remain
@@ -7821,7 +7848,25 @@ func TestContext2Apply_targetedModuleDep(t *testing.T) {
 		t.Fatalf("diags: %s", diags.Err())
 	}
 
-	checkStateString(t, state, `
+	if experimentalRuntimeEnabled() {
+		checkStateString(t, state, `
+aws_instance.foo:
+  ID = foo
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
+  foo = foo
+  type = aws_instance
+
+  Dependencies:
+    module.child.aws_instance.mod
+
+module.child:
+  aws_instance.mod:
+    ID = foo
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
+    type = aws_instance
+	`)
+	} else {
+		checkStateString(t, state, `
 aws_instance.foo:
   ID = foo
   provider = provider["registry.opentofu.org/hashicorp/aws"]
@@ -7841,6 +7886,7 @@ module.child:
 
   output = foo
 	`)
+	}
 }
 
 // GH-10911 untargeted outputs should not be in the graph, and therefore
@@ -7876,11 +7922,28 @@ func TestContext2Apply_targetedModuleUnrelatedOutputs(t *testing.T) {
 		t.Fatalf("diags: %s", diags.Err())
 	}
 
-	// - module.child1's instance_id output is dropped because we don't preserve
-	//   non-root module outputs between runs (they can be recalculated from config)
-	// - module.child2's instance_id is updated because its dependency is updated
-	// - child2_id is updated because if its transitive dependency via module.child2
-	checkStateString(t, s, `
+	if experimentalRuntimeEnabled() {
+		// - module.child1's instance_id output is dropped because we don't preserve
+		//   non-root module outputs between runs (they can be recalculated from config)
+		// - child2_id is updated because if its transitive dependency via module.child2
+		checkStateString(t, s, `
+<no state>
+Outputs:
+
+child2_id = foo
+
+module.child2:
+  aws_instance.foo:
+    ID = foo
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
+    type = aws_instance
+`)
+	} else {
+		// - module.child1's instance_id output is dropped because we don't preserve
+		//   non-root module outputs between runs (they can be recalculated from config)
+		// - module.child2's instance_id is updated because its dependency is updated
+		// - child2_id is updated because if its transitive dependency via module.child2
+		checkStateString(t, s, `
 <no state>
 Outputs:
 
@@ -7896,6 +7959,7 @@ module.child2:
 
   instance_id = foo
 `)
+	}
 }
 
 func TestContext2Apply_targetedModuleResource(t *testing.T) {
