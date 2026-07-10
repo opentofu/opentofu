@@ -396,6 +396,14 @@ Options:
                                When "none" is selected, all the deprecation
                                warnings will be dropped.
 
+  -lint=all                    Configures the linting rules to be executed during
+                               this command. By specifying this flag, the built-in
+                               linting will be enabled, which will start issuing
+                               warning diagnostics if any included rule will be
+                               violated. For more details on the format and
+                               available linting rules, refer to the official
+                               documentation.
+
   If you don't provide a saved plan file then this command will also accept
   all of the plan-customization options accepted by the tofu plan command.
   For more information on those options, run:
