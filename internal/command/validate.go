@@ -234,6 +234,13 @@ Options:
                         to the default files terraform.tfvars and *.auto.tfvars.
                         Use this option more than once to include more than one
                         variables file.
+
+  -lint=all             Configures the linting rules to be executed during this
+                        command. By specifying this flag, the built-in linting
+                        will be enabled, which will start issuing warning
+                        diagnostics if any included rule will be violated.
+                        For more details on the format and available linting rules,
+                        refer to the official documentation.
 `
 	return strings.TrimSpace(helpText)
 }
