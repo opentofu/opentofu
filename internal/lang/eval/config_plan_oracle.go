@@ -12,6 +12,7 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/zclconf/go-cty/cty"
 )
 
 // A PlanningOracle provides information from the configuration that is needed
@@ -45,6 +46,18 @@ func (o *PlanningOracle) ProviderInstance(ctx context.Context, addr addrs.AbsPro
 
 func (o *PlanningOracle) DestroyProvisioners(ctx context.Context, addr addrs.AbsResourceInstance) []Provisioner {
 	return evalglue.DestroyProvisioners(ctx, o.root, addr)
+}
+
+func (o *PlanningOracle) PreventDestroy(ctx context.Context, addr addrs.AbsResourceInstance) (cty.Value, *tfdiags.SourceRange, tfdiags.Diagnostics) {
+	mod := evalglue.ModuleInstance(ctx, o.root, addr.Module)
+	if mod == nil {
+		return cty.False, nil, nil
+	}
+	resource := mod.Resource(ctx, addr.Resource.Resource)
+	if resource == nil {
+		return cty.False, nil, nil
+	}
+	return resource.PreventDestroy(ctx)
 }
 
 func (o *PlanningOracle) Close(ctx context.Context) tfdiags.Diagnostics {

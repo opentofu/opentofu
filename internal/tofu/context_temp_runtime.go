@@ -84,7 +84,7 @@ func (c *Context) newEngineShim(ctx context.Context, config *configs.Config, inp
 
 	rawInput := map[string]cty.Value{}
 	for key, value := range inputValuesRaw {
-		if !value.Value.IsNull() {
+		if value.Value != cty.NilVal {
 			rawInput[key] = value.Value
 		}
 	}

@@ -132,17 +132,6 @@ type DesiredResourceInstance struct {
 	// that we can eventually do https://github.com/opentofu/opentofu/issues/2523 .
 	CreateBeforeDestroy bool
 
-	// If RejectDeleteAction is true then the planning phase should return an
-	// error if it would otherwise have planned to destroy any existing object
-	// associated with this resource instance.
-	//
-	// This is meaningful only for resource modes that support the "update"
-	// change action, and so is always false for other modes.
-	//
-	// FIXME: Probably also need an "unknown" representation for this, so
-	// that we can eventually do https://github.com/opentofu/opentofu/issues/2522 .
-	RejectDeleteAction bool
-
 	// ReplaceTriggeredBy describes zero ore more attribute prefixes within
 	// other resource instances for which the planning engine should force
 	// replacement of this resource instance if any value beneath one of

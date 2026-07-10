@@ -142,6 +142,8 @@ func destroyPlan(ctx context.Context, _ *PlanOpts, prevRoundState *states.State,
 	intermediate, moreDiags := planCtx.Close(ctx)
 	diags = diags.Append(moreDiags)
 	intermediate.Destroying = true
+	moreDiags = intermediate.CheckPreventDestroy(ctx, dpg.normalGlue.oracle)
+	diags = diags.Append(moreDiags)
 	plan, moreDiags := finalizePlan(ctx, intermediate, providers)
 	diags = diags.Append(moreDiags)
 	moreDiags = closeConfiguredProviders(ctx)

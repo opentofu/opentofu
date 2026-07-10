@@ -174,6 +174,16 @@ func compileModuleInstanceResource(
 
 	}
 
+	var pdValuer *configgraph.OnceValuer
+	if config.Managed != nil && config.Managed.PreventDestroy != nil {
+		// We currently forbid usage of any instance information in prevent destroy. We could take a similar
+		// approach to destroy provisioners eventually, but for now we will match the previous implementation.
+		// See https://github.com/opentofu/opentofu/issues/2522 for more details
+		pdValuer = configgraph.ValuerOnce(
+			exprs.NewClosure(exprs.EvalableHCLExpression(config.Managed.PreventDestroy), declScope),
+		)
+	}
+
 	if diags.HasErrors() {
 		configEvalable = exprs.ForcedErrorEvalable(diags, tfdiags.SourceRangeFromHCL(config.TypeRange))
 	}
@@ -353,7 +363,7 @@ func compileModuleInstanceResource(
 			}
 			return inst
 		},
-
+		PreventDestroyValuer: pdValuer,
 		DestroyProvisioners: func(ctx context.Context, addr addrs.ResourceInstance) []configgraph.Provisioner {
 			var repData instances.RepetitionData
 			if addr.Key != nil {

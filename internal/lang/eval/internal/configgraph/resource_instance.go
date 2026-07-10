@@ -197,7 +197,7 @@ func (ri *ResourceInstance) CreateBeforeDestroy(ctx context.Context) (cty.Value,
 			Severity: hcl.DiagError,
 			Summary:  errSummary,
 			Detail:   fmt.Sprintf("Unsuitable value for create_before_destory argument: %s.", tfdiags.FormatError(err)),
-			Subject:  ri.CreateBeforeDestroyValuer.ValueSourceRange().ToHCL().Ptr(),
+			Subject:  rng.ToHCL().Ptr(),
 		})
 		cbdVal = cty.UnknownVal(cty.Bool)
 	}
@@ -206,7 +206,7 @@ func (ri *ResourceInstance) CreateBeforeDestroy(ctx context.Context) (cty.Value,
 			Severity: hcl.DiagError,
 			Summary:  errSummary,
 			Detail:   "The create_before_destroy value must not be derived from a sensitive value, because otherwise OpenTofu's proposed changes could imply the sensitive value.\n\nIf you're certain that this result cannot disclose sensitive information, consider using the \"nonsensitive\" function to explicitly allow it.",
-			Subject:  ri.CreateBeforeDestroyValuer.ValueSourceRange().ToHCL().Ptr(),
+			Subject:  rng.ToHCL().Ptr(),
 		})
 	}
 	if cbdVal.HasMark(marks.Ephemeral) {
@@ -214,7 +214,7 @@ func (ri *ResourceInstance) CreateBeforeDestroy(ctx context.Context) (cty.Value,
 			Severity: hcl.DiagError,
 			Summary:  errSummary,
 			Detail:   "The create_before_destroy value must not be derived from an ephemeral value, because the ordering decision must be consistent between the plan and apply phases.",
-			Subject:  ri.CreateBeforeDestroyValuer.ValueSourceRange().ToHCL().Ptr(),
+			Subject:  rng.ToHCL().Ptr(),
 		})
 	}
 	if diags.HasErrors() {
@@ -338,7 +338,9 @@ func (ri *ResourceInstance) ValueSourceRange() *tfdiags.SourceRange {
 func (ri *ResourceInstance) CheckAll(ctx context.Context) tfdiags.Diagnostics {
 	var cg CheckGroup
 	cg.CheckValuer(ctx, ri)
-	cg.CheckValuer(ctx, ri.CreateBeforeDestroyValuer)
+	if ri.CreateBeforeDestroyValuer != nil {
+		cg.CheckValuer(ctx, ri.CreateBeforeDestroyValuer)
+	}
 	return cg.Complete(ctx)
 }
 
