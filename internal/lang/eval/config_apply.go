@@ -253,10 +253,10 @@ func (o *ApplyOracle) AnnounceAllGraphevalRequests(announce func(workgraph.Reque
 	o.root.AnnounceAllGraphevalRequests(announce)
 }
 
-func (o *ApplyOracle) RootOutputs(ctx context.Context) map[string]cty.Value {
+func (o *ApplyOracle) RootOutputs(ctx context.Context) RootModuleOutputs {
 	ctx = grapheval.ContextWithNewWorker(ctx)
 
-	return CollectRootModuleOutputs(ctx, o.root).OutputValues
+	return CollectRootModuleOutputs(ctx, o.root)
 }
 
 func (o *ApplyOracle) Close(ctx context.Context) tfdiags.Diagnostics {

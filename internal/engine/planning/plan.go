@@ -112,10 +112,19 @@ func finalizePlan(ctx context.Context, intermediate *planContextResult, provider
 	// the execution graph, so we can avoid returning the same key twice.
 	newDeposedKeys := addrs.MakeMap[addrs.AbsResourceInstance, collections.Set[addrs.DeposedKey]]()
 
+	additionalStateDependencies := addrs.MakeSet[addrs.AbsResourceInstance]()
+	for _, out := range intermediate.RootOutput.Current {
+		if derivedFromDeferredVal(out.Value) {
+			continue
+		}
+		// TODO more efficient maps
+		additionalStateDependencies = additionalStateDependencies.Union(out.ResourceDependencies)
+	}
+
 	execGraph := buildExecutionGraph(
 		intermediate.ResourceInstanceObjects,
 		effectiveReplaceOrders,
-		intermediate.RootOutput.Current.ResourceDependencies,
+		additionalStateDependencies,
 		func(instAddr addrs.AbsResourceInstance) addrs.DeposedKey {
 			// TODO: We should probably factor this out somewhere else, once
 			// the rest of the nearby code has settled down.
@@ -229,7 +238,12 @@ func buildPlanChanges(
 		changes.AppendResourceInstanceChange(changeSrc)
 	}
 
-	for name, value := range rootOutput.Current.OutputValues {
+	for name, out := range rootOutput.Current {
+		value := out.Value
+		if derivedFromDeferredVal(value) {
+			continue
+		}
+
 		absAddr := addrs.AbsOutputValue{OutputValue: addrs.OutputValue{Name: name}}
 		valueSensitive := value.HasMark(marks.Sensitive)
 		valueDeprecated := "" // TODO
@@ -309,8 +323,8 @@ func buildPlanChanges(
 	for name, prevValue := range rootOutput.Previous {
 		absAddr := addrs.AbsOutputValue{OutputValue: addrs.OutputValue{Name: name}}
 
-		value, ok := rootOutput.Current.OutputValues[name]
-		if !ok || value.IsNull() {
+		out, ok := rootOutput.Current[name]
+		if !ok || out.Value.IsNull() {
 			// Copied from node_output.go
 			change := &plans.OutputChange{
 				Addr:      absAddr,

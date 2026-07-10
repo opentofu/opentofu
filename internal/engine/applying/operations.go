@@ -20,7 +20,6 @@ import (
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/zclconf/go-cty/cty"
 )
 
 type execOperations struct {
@@ -116,7 +115,7 @@ func compileExecutionGraph(ctx context.Context, plan *plans.Plan, oracle *eval.A
 func (ops *execOperations) Finish(ctx context.Context) (*states.State, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	var rootOutputs map[string]cty.Value
+	var rootOutputs eval.RootModuleOutputs
 	if !ops.destroying {
 		// Save the root outputs before closing the config oracle
 		rootOutputs = ops.configOracle.RootOutputs(ctx)
@@ -138,13 +137,17 @@ func (ops *execOperations) Finish(ctx context.Context) (*states.State, tfdiags.D
 	ops.configOracle = nil
 
 	// Clear out the existing output values from the state as they are
-	// all now invalid.
+	// all now invalid. This is a weird quirk from our legacy test harnesses
 	for _, mod := range finalState.Modules {
 		clear(mod.OutputValues)
+		if !mod.Addr.Equal(addrs.RootModuleInstance) && len(mod.Resources) == 0 {
+			finalState.RemoveModule(mod.Addr)
+		}
 	}
 	// If we are not destroying, we need to add the root module outputs.
 	if !ops.destroying {
-		for k, v := range rootOutputs {
+		for k, out := range rootOutputs {
+			v := out.Value
 			// Known is a placeholder for if the output is available due to deferring or targeting (TODO better signal for this)
 			outputNotDeferred := v.IsWhollyKnown()
 			if outputNotDeferred {

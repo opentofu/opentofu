@@ -31,12 +31,15 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 	// of this to a later round. The following is not exhaustive but is a
 	// placeholder to show where deferral might fit in.
 	if p.desiredResourceInstanceMustBeDeferred(inst) {
-		p.planCtx.deferred.Put(inst.Addr, struct{}{})
+		//TODO this is currently unused p.planCtx.deferred.Put(inst.Addr, struct{}{})
 		defer func() {
 			// Our result must be marked as deferred, whichever return path
 			// we leave through.
-			if ret != nil && ret.PlannedChange.After != cty.NilVal {
+			if ret != nil && ret.PlannedChange != nil && ret.PlannedChange.After != cty.NilVal {
 				ret.PlannedChange.After = deferredVal(ret.PlannedChange.After)
+			}
+			if ret != nil && ret.PlaceholderValue != cty.NilVal {
+				ret.PlaceholderValue = deferredVal(ret.PlaceholderValue)
 			}
 		}()
 		// We intentionally continue anyway, because we'll make a best effort
@@ -81,6 +84,10 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 	if inst.ProviderInstance == nil {
 		// If we don't even know which provider instance we're supposed to be
 		// talking to then we can't proceed any further.
+		return ret, diags
+	}
+	if inst.ConfigVal == cty.DynamicVal {
+		// Deferred
 		return ret, diags
 	}
 	providerClient, moreDiags := p.providerClient(ctx, *inst.ProviderInstance)

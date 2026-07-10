@@ -61,6 +61,9 @@ type DesiredResourceInstance struct {
 	// ProviderInstance is guaranteed to refer to an instance of this provider.
 	Provider addrs.Provider
 
+	// Hack
+	Deferred bool
+
 	// ProviderInstance is the absolute address of the provider instance that
 	// this resource instance currently belongs to. All configured-provider
 	// operations related to this resource instance must be performed through

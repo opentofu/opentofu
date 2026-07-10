@@ -21,8 +21,8 @@ type targetingGlue struct {
 
 func (g *targetingGlue) PlanDesiredResourceInstance(ctx context.Context, inst *DesiredResourceInstance) (cty.Value, tfdiags.Diagnostics) {
 	if g.excluded(inst.Addr) {
-		// TODO this does not actually translate through to apply as the "deferral" logic is incomplete.
-		return cty.DynamicVal, nil
+		inst.Deferred = true
+		inst.ConfigVal = cty.DynamicVal
 	}
 	return g.parent.PlanDesiredResourceInstance(ctx, inst)
 }

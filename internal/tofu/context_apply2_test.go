@@ -3505,7 +3505,27 @@ func TestContext2Apply_moduleExcludeNonExistent(t *testing.T) {
 		t.Fatalf("diags: %s", diags.Err())
 	}
 
-	checkStateString(t, state, `
+	if experimentalRuntimeEnabled() {
+		checkStateString(t, state, `
+<no state>
+module.A:
+  aws_instance.foo:
+    ID = foo
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
+    foo = bar
+    type = aws_instance
+module.B:
+  aws_instance.bar:
+    ID = foo
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
+    foo = foo
+    type = aws_instance
+
+    Dependencies:
+      module.A.aws_instance.foo
+	`)
+	} else {
+		checkStateString(t, state, `
 <no state>
 module.A:
   aws_instance.foo:
@@ -3527,6 +3547,7 @@ module.B:
     Dependencies:
       module.A.aws_instance.foo
 	`)
+	}
 }
 
 func TestContext2Apply_destroyExcludedNonExistentWithModuleVariableAndCount(t *testing.T) {
@@ -4490,11 +4511,29 @@ func TestContext2Apply_excludedModuleUnrelatedOutputs(t *testing.T) {
 		t.Fatalf("diags: %s", diags.Err())
 	}
 
-	// - module.child1's instance_id output is dropped because we don't preserve
-	//   non-root module outputs between runs (they can be recalculated from config)
-	// - module.child2's instance_id is updated because its dependency is updated
-	// - child2_id is updated because if its transitive dependency via module.child2
-	checkStateString(t, s, `
+	if experimentalRuntimeEnabled() {
+		// - module.child1's instance_id output is dropped because we don't preserve
+		//   non-root module outputs between runs (they can be recalculated from config)
+		// - module.child2's instance_id is updated because its dependency is updated
+		// - child2_id is updated because if its transitive dependency via module.child2
+		checkStateString(t, s, `
+<no state>
+Outputs:
+
+child2_id = foo
+
+module.child2:
+  aws_instance.foo:
+    ID = foo
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
+    type = aws_instance
+`)
+	} else {
+		// - module.child1's instance_id output is dropped because we don't preserve
+		//   non-root module outputs between runs (they can be recalculated from config)
+		// - module.child2's instance_id is updated because its dependency is updated
+		// - child2_id is updated because if its transitive dependency via module.child2
+		checkStateString(t, s, `
 <no state>
 Outputs:
 
@@ -4510,6 +4549,7 @@ module.child2:
 
   instance_id = foo
 `)
+	}
 }
 
 func TestContext2Apply_excludedModuleResource(t *testing.T) {

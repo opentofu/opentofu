@@ -141,8 +141,9 @@ func PrepareTofu2024Module(sourceAddr addrs.ModuleSource, mod *configs.Module) U
 
 // RootModuleOutputs represent the information needed by both the planning and
 // apply engines to correctly process root module outputs
-type RootModuleOutputs struct {
-	OutputValues         map[string]cty.Value
+type RootModuleOutputs map[string]RootModuleOutput
+type RootModuleOutput struct {
+	Value                cty.Value
 	ResourceDependencies addrs.Set[addrs.AbsResourceInstance]
 }
 
@@ -151,16 +152,15 @@ func CollectRootModuleOutputs(ctx context.Context, rootModuleInstance evalglue.C
 	// already been reported by checkAll.
 	outputsVal, _ := rootModuleInstance.ResultValuer(ctx).Value(ctx)
 
-	contributing := configgraph.ContributingResourceInstances(outputsVal)
-	outputsDeps := addrs.MakeSet[addrs.AbsResourceInstance]()
-	for dep := range contributing {
-		outputsDeps.Add(dep.Addr)
-	}
+	result := RootModuleOutputs{}
+	for key, val := range outputsVal.AsValueMap() {
+		deps := addrs.MakeSet[addrs.AbsResourceInstance]()
+		for dep := range configgraph.ContributingResourceInstances(val) {
+			deps.Add(dep.Addr)
+		}
 
-	outputsValues := configgraph.PrepareOutgoingValue(outputsVal).AsValueMap()
-
-	return RootModuleOutputs{
-		OutputValues:         outputsValues,
-		ResourceDependencies: outputsDeps,
+		val = configgraph.PrepareOutgoingValue(val)
+		result[key] = RootModuleOutput{val, deps}
 	}
+	return result
 }
