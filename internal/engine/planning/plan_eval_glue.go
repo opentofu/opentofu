@@ -65,7 +65,9 @@ func (p *planGlue) PlanDesiredResourceInstance(ctx context.Context, inst *eval.D
 		diags = diags.Append(fmt.Errorf("the planning engine does not support %s; this is a bug in OpenTofu", mode))
 		return cty.DynamicVal, diags
 	}
-	p.planCtx.resourceInstObjs.Put(obj)
+	if !p.desiredResourceInstanceMustBeDeferred(inst) {
+		p.planCtx.resourceInstObjs.Put(obj)
+	}
 	return obj.ResultValue(), diags
 }
 
@@ -352,7 +354,7 @@ func (p *planGlue) desiredResourceInstanceMustBeDeferred(inst *eval.DesiredResou
 	// There are various reasons why we might need to defer final planning
 	// of this to a later round. The following is not exhaustive but is a
 	// placeholder to show where deferral might fit in.
-	return inst.IsPlaceholder() || !meta.ProviderInstance.IsKnown() || derivedFromDeferredVal(inst.ConfigVal)
+	return inst.IsPlaceholder() || !meta.ProviderInstance.IsKnown() || derivedFromDeferredVal(inst.ConfigVal) || inst.Deferred
 }
 
 // resourceInstancesFilter returns a sequence of resource instances from the
