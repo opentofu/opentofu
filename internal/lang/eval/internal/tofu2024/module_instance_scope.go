@@ -159,11 +159,13 @@ func (m *moduleInstanceScope) ResolveAttr(ref hcl.TraverseAttr) (exprs.Attribute
 		return exprs.NestedSymbolTable(&moduleInstanceResourceSymbolTable{
 			mode:     addrs.DataResourceMode,
 			topScope: m,
+			startRng: ref.SrcRange,
 		}), diags
 	case "ephemeral":
 		return exprs.NestedSymbolTable(&moduleInstanceResourceSymbolTable{
 			mode:     addrs.EphemeralResourceMode,
 			topScope: m,
+			startRng: ref.SrcRange,
 		}), diags
 	default:
 		// We treat all unrecognized prefixes as a shorthand for "resource."
@@ -172,6 +174,7 @@ func (m *moduleInstanceScope) ResolveAttr(ref hcl.TraverseAttr) (exprs.Attribute
 			mode:     addrs.ManagedResourceMode,
 			typeName: ref.Name,
 			topScope: m,
+			startRng: ref.SrcRange,
 		}), diags
 	}
 }

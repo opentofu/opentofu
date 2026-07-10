@@ -355,7 +355,6 @@ func (p *planGlue) evaluateReplaceTriggeredBy(ref eval.ResourceInstanceAttribute
 			Severity: hcl.DiagError,
 			Summary:  `Reference to undeclared resource`,
 			Detail:   fmt.Sprintf(`A resource %s has not been declared`, ref.ResourceInstance),
-			//Subject:  expr.Range().Ptr(),
 		})
 		return nil, diags
 	}
