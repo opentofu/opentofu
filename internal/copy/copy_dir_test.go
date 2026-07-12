@@ -105,3 +105,34 @@ func TestCopyDir_symlink_file(t *testing.T) {
 		t.Fatal("target/symlink.tf was not created")
 	}
 }
+
+func TestCopyDir_dotModulesPreserved(t *testing.T) {
+	tmpdir := t.TempDir()
+	src := filepath.Join(tmpdir, "src")
+	dst := filepath.Join(tmpdir, "dst")
+	if err := os.MkdirAll(filepath.Join(src, ".modules", "example"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(src, ".modules", "example", "main.tf"), []byte("hello"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// VCS metadata must still be skipped.
+	if err := os.MkdirAll(filepath.Join(src, ".git", "objects"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(src, ".git", "HEAD"), []byte("ref"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(dst, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := CopyDir(dst, src); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(dst, ".modules", "example", "main.tf")); err != nil {
+		t.Fatalf(".modules content not copied: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dst, ".git")); !os.IsNotExist(err) {
+		t.Fatalf("expected .git to be skipped, err=%v", err)
+	}
+}

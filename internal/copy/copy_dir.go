@@ -11,7 +11,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"golang.org/x/sync/errgroup"
 )
@@ -34,9 +33,11 @@ import (
 // File and directory modes are not preserved exactly, but the executable
 // flag is preserved for files on operating systems where it is significant.
 //
-// Any "dot files" it encounters along the way are skipped, even on platforms
-// that do not normally ascribe special meaning to files with names starting
-// with dots.
+// Version-control metadata directories (.git, .hg, .svn, .bzr) are skipped so
+// module cache copies do not recurse into nested VCS trees. Other
+// dot-prefixed names (for example a module subdirectory named ".modules")
+// are preserved so remote module layouts that use them still work when
+// CopyDir reuses a previously downloaded tree (see issue #4335).
 //
 // Callers may rely on the above details and other undocumented details of
 // this function, so if you intend to change it be sure to review the callers
@@ -58,8 +59,8 @@ func CopyDir(dst, src string) error {
 			return nil
 		}
 
-		if strings.HasPrefix(filepath.Base(path), ".") {
-			// Skip any dot files
+		base := filepath.Base(path)
+		if isVCSMetaName(base) {
 			if info.IsDir() {
 				return filepath.SkipDir
 			}
@@ -143,6 +144,20 @@ func copyFile(dst, src string, mode os.FileMode) error {
 	}
 
 	return nil
+}
+
+
+// isVCSMetaName reports names we deliberately do not copy when cloning
+// module packages into the local cache. Keep this list tight: generic
+// "dot file" skipping historically dropped legitimate package paths such
+// as ".modules" used by some module authors.
+func isVCSMetaName(base string) bool {
+	switch base {
+	case ".git", ".hg", ".svn", ".bzr":
+		return true
+	default:
+		return false
+	}
 }
 
 // SameFile returns true if the two given paths refer to the same physical
