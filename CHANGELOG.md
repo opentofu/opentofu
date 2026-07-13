@@ -1,10 +1,14 @@
 The v1.12.x release series is supported until **February 1 2027**.
 
-## 1.12.4 (unreleased)
+## 1.12.5 (unreleased)
+
+## 1.12.4
 
 BUG FIXES:
 
 - `tofu plan -out` no longer fails when the plan includes a resource with `lifecycle { destroy = false }` that needs replacement, which previously errored with `invalid change action ForgetThenCreate`. ([#4324](https://github.com/opentofu/opentofu/issues/4324))
+- Moved block now correctly compares provider source addresses. (#4280)[https://github.com/opentofu/opentofu/pull/4280]
+- Correct Source Provider Address now passed into Provider MoveResource requests. (#4355)[https://github.com/opentofu/opentofu/pull/4355]
 
 ## 1.12.3
 
