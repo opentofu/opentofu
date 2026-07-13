@@ -269,7 +269,7 @@ func (c *ConfigInstance) DrivePlanning(ctx context.Context,
 	// Note that these calls are done sequentially instead of concurrently:
 	// that's because Plan*Orphans populates move results
 	// within the oracle, which are then used in CheckAll.
-	orphanDiags := announcePlanOrphans(ctx, glue, rootModuleInstance)
+	orphanDiags := announcePlanOrphans(ctx, evalGlue.planEngineGlue, rootModuleInstance)
 	diags = diags.Append(orphanDiags)
 
 	// Check whether any moves were blocked, and provide the appropriate warnings
