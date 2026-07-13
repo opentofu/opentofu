@@ -104,7 +104,7 @@ func (v *preparationGlue) ResourceInstanceValue(ctx context.Context, ri *configg
 	// reduction on a dag, etc. The main problem seems to be that it allocates
 	// a _lot_ of temporary objects, and so there's lots of GC pressure.
 	proposed := objchange.ProposedNew(
-		schema.Block, cty.NullVal(schema.Block.ImpliedType()), configVal,
+		schema.Block, cty.UnknownVal(schema.Block.ImpliedType()), configVal,
 	)
 
 	// Handle provisioners validate

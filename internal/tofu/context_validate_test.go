@@ -1461,7 +1461,7 @@ resource "test_instance" "bar" {
 	}
 	// Should get this error:
 	// Reference to undeclared module: No module call named "foo" is declared in the root module.
-	if got, want := diags.Err().Error(), "Reference to undeclared resource:"; !strings.Contains(got, want) {
+	if got, want := diags.Err().Error(), "Reference to undeclared resource"; !strings.Contains(got, want) {
 		t.Fatalf("wrong error:\ngot:  %s\nwant: message containing %q", got, want)
 	}
 }
@@ -1787,10 +1787,14 @@ output "out" {
 		t.Fatalf("wanted 2 diagnostic errors, got %q", diags)
 	}
 
+	want := "Invalid depends_on reference"
+	if experimentalRuntimeEnabled() {
+		want = "Invalid explicit dependency"
+	}
 	for _, d := range diags {
 		des := d.Description().Summary
-		if !strings.Contains(des, "Invalid depends_on reference") {
-			t.Fatalf(`expected "Invalid depends_on reference", got %q`, des)
+		if !strings.Contains(des, want) {
+			t.Fatalf(`expected %s, got %q`, want, des)
 		}
 	}
 }
@@ -1827,10 +1831,14 @@ output "out" {
 		t.Fatalf("wanted 2 diagnostic errors, got %q", diags)
 	}
 
+	want := "Invalid depends_on reference"
+	if experimentalRuntimeEnabled() {
+		want = "Invalid explicit dependency"
+	}
 	for _, d := range diags {
 		des := d.Description().Summary
-		if !strings.Contains(des, "Invalid depends_on reference") {
-			t.Fatalf(`expected "Invalid depends_on reference", got %q`, des)
+		if !strings.Contains(des, want) {
+			t.Fatalf(`expected %s, got %q`, want, des)
 		}
 	}
 }
@@ -2658,9 +2666,10 @@ resource "test_object" "t" {
 	if !diags.HasErrors() {
 		t.Fatal("Expected error")
 	}
-
-	if !strings.Contains(diags.Err().Error(), `Provider configuration not present: To work with test_object.t its original provider configuration at provider["registry.opentofu.org/hashicorp/test"].typo is required, but it has been removed`) {
-		t.Fatalf("expected error, got: %q\n", diags.Err().Error())
+	SkipExperimental(t, ExperimentalChangeDiagWording)
+	expected := `Provider configuration not present: To work with test_object.t its original provider configuration at provider["registry.opentofu.org/hashicorp/test"].typo is required, but it has been removed`
+	if !strings.Contains(diags.Err().Error(), expected) {
+		t.Fatalf("expected error %q, got: %q\n", expected, diags.Err().Error())
 	}
 }
 

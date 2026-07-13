@@ -123,7 +123,7 @@ var (
 	ExperimentalFeatureImport            = ExperimentalFlag{"Missing Importing", false}
 	ExperimentalFeatureRefresh           = ExperimentalFlag{"Missing Refresh", false}
 	ExperimentalFeatureRefreshOnly       = ExperimentalFlag{"Missing Refresh-only Planning Mode", false}
-	ExperimentalFeatureValidate          = ExperimentalFlag{"Missing Validate", false}
+	ExperimentalFeatureValidate          = ExperimentalFlag{"Missing Validate", true}
 	ExperimentalFeatureDestroy           = ExperimentalFlag{"Missing Destroy-mode Planning", true}
 	ExperimentalFeatureMoved             = ExperimentalFlag{"Missing Moved", false}
 	ExperimentalFeatureRemoved           = ExperimentalFlag{"Missing Removed", false}

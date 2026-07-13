@@ -140,7 +140,7 @@ func CompileModuleInstance(
 
 	ret.inputVariableNodes = compileModuleInstanceInputVariables(ctx, module.Variables, call.InputValues, topScope, call.CalleeAddr, call.DeclRange)
 	ret.localValueNodes = compileModuleInstanceLocalValues(ctx, module.Locals, topScope, call.CalleeAddr)
-	ret.outputValueNodes = compileModuleInstanceOutputValues(ctx, module.Outputs, topScope, call.CalleeAddr)
+	ret.outputValueNodes = compileModuleInstanceOutputValues(ctx, module.Outputs, topScope, call.CalleeAddr, call.DependencyMarks)
 	ret.moduleCallNodes = compileModuleInstanceModuleCalls(ctx,
 		module.ModuleCalls,
 		topScope,

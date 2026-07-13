@@ -15,15 +15,29 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-func compileModuleInstanceOutputValues(_ context.Context, configs map[string]*configs.Output, declScope exprs.Scope, moduleInstAddr addrs.ModuleInstance) map[addrs.OutputValue]*configgraph.OutputValue {
+func compileModuleInstanceOutputValues(
+	_ context.Context,
+	configs map[string]*configs.Output,
+	declScope exprs.Scope,
+	moduleInstAddr addrs.ModuleInstance,
+	extraMarks cty.ValueMarks,
+) map[addrs.OutputValue]*configgraph.OutputValue {
 	ret := make(map[addrs.OutputValue]*configgraph.OutputValue, len(configs))
 	for name, vc := range configs {
 		addr := addrs.OutputValue{Name: name}
-		value := configgraph.ValuerOnce(exprs.NewClosure(
-			exprs.EvalableHCLExpression(vc.Expr),
-			declScope,
+
+		dependsOn, _ := compileDependsOn(vc.DependsOn, declScope, extraMarks)
+
+		value := configgraph.ValuerOnce(exprs.DerivedValuerContext(
+			exprs.NewClosure(exprs.EvalableHCLExpression(vc.Expr), declScope),
+			func(ctx context.Context, v cty.Value, diags tfdiags.Diagnostics) (cty.Value, tfdiags.Diagnostics) {
+				marks, markDiags := dependsOn.Marks(ctx)
+				diags = diags.Append(markDiags)
+				return v.WithMarks(marks), diags
+			},
 		))
 		ret[addr] = &configgraph.OutputValue{
 			Addr:     moduleInstAddr.OutputValue(name),
