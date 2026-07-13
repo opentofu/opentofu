@@ -180,8 +180,10 @@ func getMoveStateArgs() stateTransformArgs {
 		},
 	}
 	return stateTransformArgs{
-		currentAddr: mustResourceInstanceAddr("foo2_instance.cur"),
-		prevAddr:    mustResourceInstanceAddr("foo_instance.prev"),
+		currentAddr:         mustResourceInstanceAddr("foo2_instance.cur"),
+		currentProviderAddr: addrs.NewDefaultProvider("foo2"),
+		prevAddr:            mustResourceInstanceAddr("foo_instance.prev"),
+		prevProviderAddr:    addrs.NewDefaultProvider("foo"),
 		provider: &MockProvider{
 			ConfigureProviderCalled: true,
 			MoveResourceStateResponse: &providers.MoveResourceStateResponse{
@@ -227,7 +229,7 @@ func TestMoveResourceStateTransform(t *testing.T) {
 			name: "Move check request",
 			args: getMoveStateArgs(),
 			wantRequest: &providers.MoveResourceStateRequest{
-				SourceProviderAddress: "foo",
+				SourceProviderAddress: addrs.NewDefaultProvider("foo").String(),
 				SourceTypeName:        "foo_instance",
 				SourceSchemaVersion:   2,
 				SourceStateJSON:       []byte(`{"foo":"bar"}`),
@@ -279,8 +281,10 @@ func getUpgradeStateArgs() stateTransformArgs {
 		},
 	}
 	args := stateTransformArgs{
-		currentAddr: mustResourceInstanceAddr("foo_instance.cur"),
-		prevAddr:    mustResourceInstanceAddr("foo_instance.cur"),
+		currentAddr:         mustResourceInstanceAddr("foo_instance.cur"),
+		currentProviderAddr: addrs.NewDefaultProvider("foo"),
+		prevAddr:            mustResourceInstanceAddr("foo_instance.cur"),
+		prevProviderAddr:    addrs.NewDefaultProvider("foo"),
 		provider: &MockProvider{
 			ConfigureProviderCalled: true,
 			UpgradeResourceStateResponse: &providers.UpgradeResourceStateResponse{
@@ -403,7 +407,8 @@ func TestTransformResourceState(t *testing.T) {
 		{
 			name: "flatmap state should be removed after transformation",
 			args: stateTransformArgs{
-				currentAddr: mustResourceInstanceAddr("test_instance.foo"),
+				currentAddr:         mustResourceInstanceAddr("test_instance.foo"),
+				currentProviderAddr: addrs.NewDefaultProvider("test"),
 				provider: &MockProvider{
 					GetProviderSchemaResponse: testProviderSchema("test"),
 				},
@@ -661,7 +666,7 @@ func TestUpgradeResourceIdentity(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotSrc, diags := upgradeResourceIdentity(t.Context(), tt.currentAddr, tt.src, tt.provider, tt.providerSchema, nil)
+			gotSrc, diags := upgradeResourceIdentity(t.Context(), tt.currentAddr, tt.src, tt.provider, addrs.NewDefaultProvider("test"), tt.providerSchema, nil)
 
 			if tt.wantErr != "" {
 				if !diags.HasErrors() {
