@@ -578,15 +578,17 @@ func (n *NodeAbstractResourceInstance) readResourceInstanceState(ctx context.Con
 
 	// prevAddr will match the newAddr if the resource wasn't moved (prevRunAddr checks move results)
 	prevAddr := n.prevRunAddr(evalCtx)
+	providerAddr, prevProviderAddr := n.getResourceProviderAddrs(evalCtx, addr)
 	transformArgs := stateTransformArgs{
 		currentAddr:          addr,
+		currentProviderAddr:  providerAddr,
 		prevAddr:             prevAddr,
+		prevProviderAddr:     prevProviderAddr,
 		provider:             provider,
 		objectSrc:            src,
 		currentSchema:        schema,
 		currentSchemaVersion: currentVersion,
 	}
-	providerAddr, prevProviderAddr := n.getResourceProviderAddrs(evalCtx, addr)
 	if isResourceMovedToDifferentType(addr, prevAddr, providerAddr, prevProviderAddr) {
 		src, diags = moveResourceState(transformArgs)
 	} else {
@@ -650,15 +652,17 @@ func (n *NodeAbstractResourceInstance) readResourceInstanceStateDeposed(ctx cont
 	}
 	// prevAddr will match the newAddr if the resource wasn't moved (prevRunAddr checks move results)
 	prevAddr := n.prevRunAddr(evalCtx)
+	providerAddr, prevProviderAddr := n.getResourceProviderAddrs(evalCtx, addr)
 	transformArgs := stateTransformArgs{
 		currentAddr:          addr,
+		currentProviderAddr:  providerAddr,
 		prevAddr:             prevAddr,
+		prevProviderAddr:     prevProviderAddr,
 		provider:             provider,
 		objectSrc:            src,
 		currentSchema:        schema,
 		currentSchemaVersion: currentVersion,
 	}
-	providerAddr, prevProviderAddr := n.getResourceProviderAddrs(evalCtx, addr)
 	if isResourceMovedToDifferentType(addr, prevAddr, providerAddr, prevProviderAddr) {
 		src, diags = moveResourceState(transformArgs)
 	} else {
