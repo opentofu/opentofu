@@ -1,6 +1,13 @@
 The v1.11.x release series is supported until **August 1 2026**.
 
-## 1.11.12 (Unreleased)
+## 1.11.13 (Unreleased)
+
+## 1.11.12
+
+BUG FIXES:
+
+- Moved block now correctly compares provider source addresses. (#4280)[https://github.com/opentofu/opentofu/pull/4280]
+- Correct Source Provider Address now passed into Provider MoveResource requests. (#4355)[https://github.com/opentofu/opentofu/pull/4355]
 
 ## 1.11.11
 
