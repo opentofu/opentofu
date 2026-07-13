@@ -24,8 +24,14 @@ import (
 type stateTransformArgs struct {
 	// currentAddr is the current/latest address of the resource
 	currentAddr addrs.AbsResourceInstance
+	// currentProviderAddr is the current/latest address of the resource's provider
+	currentProviderAddr addrs.Provider
+
 	// prevAddr is the previous address of the resource
-	prevAddr  addrs.AbsResourceInstance
+	prevAddr addrs.AbsResourceInstance
+	// prevProviderAddr is the previous address of the resource's provider
+	prevProviderAddr addrs.Provider
+
 	provider  providers.Interface
 	objectSrc *states.ResourceInstanceObjectSrc
 	// currentSchema is the latest schema of the resource
@@ -66,8 +72,7 @@ func upgradeResourceStateTransform(args stateTransformArgs) (cty.Value, []byte, 
 		args.objectSrc.AttrsJSON = stripRemovedStateAttributes(args.objectSrc.AttrsJSON, args.currentSchema.ImpliedType())
 	}
 
-	// TODO: This should eventually use a proper FQN.
-	providerType := args.currentAddr.Resource.Resource.ImpliedProvider()
+	providerType := args.currentProviderAddr
 
 	if args.objectSrc.SchemaVersion > args.currentSchemaVersion {
 		log.Printf("[TRACE] upgradeResourceStateTransform: can't downgrade state for %s from version %d to %d", args.currentAddr, args.objectSrc.SchemaVersion, args.currentSchemaVersion)
@@ -133,7 +138,7 @@ func moveResourceState(params stateTransformArgs) (*states.ResourceInstanceObjec
 func moveResourceStateTransform(args stateTransformArgs) (cty.Value, []byte, tfdiags.Diagnostics) {
 	log.Printf("[TRACE] moveResourceStateTransform: new address: %s, previous address: %s", args.currentAddr, args.prevAddr)
 	req := providers.MoveResourceStateRequest{
-		SourceProviderAddress: args.prevAddr.Resource.Resource.ImpliedProvider(),
+		SourceProviderAddress: args.prevProviderAddr.String(),
 		SourceTypeName:        args.prevAddr.Resource.Resource.Type,
 		SourceSchemaVersion:   args.objectSrc.SchemaVersion,
 		SourceStateJSON:       args.objectSrc.AttrsJSON,
@@ -171,7 +176,7 @@ func transformResourceState(args stateTransformArgs, stateTransform providerStat
 	// marshaling/unmarshaling of the new value, but we'll check it here
 	// anyway for robustness, e.g. for in-process providers.
 	if errs := newState.Type().TestConformance(args.currentSchema.ImpliedType()); len(errs) > 0 {
-		providerType := args.currentAddr.Resource.Resource.ImpliedProvider()
+		providerType := args.currentProviderAddr
 		for _, err := range errs {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
@@ -285,6 +290,7 @@ func upgradeResourceIdentity(
 	addr addrs.AbsResourceInstance,
 	src *states.ResourceInstanceObjectSrc,
 	provider providers.Interface,
+	providerAddr addrs.Provider,
 	providerSchema providers.ProviderSchema,
 	diags tfdiags.Diagnostics,
 ) (*states.ResourceInstanceObjectSrc, tfdiags.Diagnostics) {
@@ -307,7 +313,7 @@ func upgradeResourceIdentity(
 		return src, diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Resource identity managed by newer provider version",
-			fmt.Sprintf("The current identity of %s was created by a newer provider version than is currently selected. Upgrade the %s provider to work with this identity.", addr, addr.Resource.Resource.ImpliedProvider()),
+			fmt.Sprintf("The current identity of %s was created by a newer provider version than is currently selected. Upgrade the %s provider to work with this identity.", addr, providerAddr),
 		))
 	}
 
