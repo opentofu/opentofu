@@ -30,8 +30,10 @@ import (
 // The methods of this type can all be called concurrently with themselves and
 // each other, so they must use appropriate synchronization to avoid races.
 type planGlue struct {
-	planCtx *planContext
-	oracle  *eval.PlanningOracle
+	planCtx  *planContext
+	oracle   *eval.PlanningOracle
+	targets  []addrs.Targetable
+	excludes []addrs.Targetable
 }
 
 var _ eval.PlanGlue = (*planGlue)(nil)
@@ -71,6 +73,37 @@ func (p *planGlue) PlanDesiredResourceInstance(ctx context.Context, inst *eval.D
 
 func (p *planGlue) planOrphanResourceInstance(ctx context.Context, addr addrs.AbsResourceInstance, state *states.ResourceInstanceObjectFullSrc) tfdiags.Diagnostics {
 	log.Printf("[TRACE] planContext: planning orphan resource instance %s", addr)
+
+	if len(p.targets) != 0 {
+		// We can only process orphans of *explicit targets*
+		targeted := false
+		for _, target := range p.targets {
+			if target.TargetContains(addr) {
+				targeted = true
+				break
+			}
+		}
+		// Check to see if this resource is targeted or a dependency of targeted
+		if !targeted {
+			log.Printf("[TRACE] planContext: resource instance %s not targeted", addr)
+			return nil
+		}
+	}
+	if len(p.excludes) != 0 {
+		// TODO exclude oprhan deps
+		excluded := false
+		for _, exclude := range p.excludes {
+			if exclude.TargetContains(addr) {
+				excluded = true
+				break
+			}
+		}
+		if excluded {
+			log.Printf("[TRACE] planContext: resource instance %s not targeted", addr)
+			return nil
+		}
+	}
+
 	var obj *resourceInstanceObject
 	var diags tfdiags.Diagnostics
 	switch mode := addr.Resource.Resource.Mode; mode {

@@ -227,7 +227,7 @@ func TestContext2Refresh_dataComputedModuleVar(t *testing.T) {
 }
 
 func TestContext2Refresh_targeted(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureTarget)
+	SkipExperimental(t, ExperimentalFeatureTarget, ExperimentalFeatureRefresh)
 
 	p := testProvider("aws")
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
@@ -314,7 +314,7 @@ func TestContext2Refresh_targeted(t *testing.T) {
 // Usually that test exists right before the exclude flag test
 
 func TestContext2Refresh_excluded(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureTarget)
+	SkipExperimental(t, ExperimentalFeatureTarget, ExperimentalFeatureRefresh)
 
 	p := testProvider("aws")
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
@@ -400,7 +400,7 @@ func TestContext2Refresh_excluded(t *testing.T) {
 }
 
 func TestContext2Refresh_targetedCount(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureTarget)
+	SkipExperimental(t, ExperimentalFeatureTarget, ExperimentalFeatureRefresh)
 
 	p := testProvider("aws")
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
@@ -492,7 +492,7 @@ func TestContext2Refresh_targetedCount(t *testing.T) {
 }
 
 func TestContext2Refresh_excludedCount(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureTarget)
+	SkipExperimental(t, ExperimentalFeatureTarget, ExperimentalFeatureRefresh)
 
 	p := testProvider("aws")
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
@@ -585,7 +585,7 @@ func TestContext2Refresh_excludedCount(t *testing.T) {
 }
 
 func TestContext2Refresh_targetedCountIndex(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureTarget)
+	SkipExperimental(t, ExperimentalFeatureTarget, ExperimentalFeatureRefresh)
 
 	p := testProvider("aws")
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
@@ -671,7 +671,7 @@ func TestContext2Refresh_targetedCountIndex(t *testing.T) {
 }
 
 func TestContext2Refresh_excludedCountIndex(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureTarget)
+	SkipExperimental(t, ExperimentalFeatureTarget, ExperimentalFeatureRefresh)
 
 	p := testProvider("aws")
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{

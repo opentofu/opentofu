@@ -269,7 +269,7 @@ func (c *ConfigInstance) DrivePlanning(ctx context.Context,
 	})
 	wg.Go(func() {
 		ctx := grapheval.ContextWithNewWorker(ctx)
-		orphanDiags = announcePlanOrphans(ctx, glue, rootModuleInstance)
+		orphanDiags = announcePlanOrphans(ctx, evalGlue.planEngineGlue, rootModuleInstance)
 	})
 	wg.Wait()
 	diags = diags.Append(checkDiags)

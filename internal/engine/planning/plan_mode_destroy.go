@@ -45,6 +45,73 @@ func destroyPlan(ctx context.Context, opts *PlanOpts, prevRoundState *states.Sta
 
 	planCtx := newPlanContext(configInst.EvalContext(), prevRoundState, providers)
 
+	// Pre-process targets/excludes based on state dependencies
+	// TODO should we care about the configuration here?
+
+	targetContains := func(list []addrs.Targetable, item addrs.Targetable) bool {
+		// TODO memoize
+		for _, exclude := range list {
+			if exclude.TargetContains(item) {
+				return true
+			}
+		}
+		return false
+	}
+
+	if len(opts.Targets) > 0 {
+		additionalTargets := map[addrs.UniqueKey]addrs.Targetable{}
+	outer:
+		for _, resource := range prevRoundState.AllResourceInstanceObjectAddrs() {
+			if targetContains(opts.Targets, resource.Instance) {
+				// Already targeted
+				continue
+			}
+
+			// If our dependencies are targeted, we are targted as well (FOR DESTROY ONLY)
+			// Assumes flattened dependencies
+			curr := prevRoundState.ResourceInstance(resource.Instance).Current
+			if curr != nil {
+				for _, addr := range curr.DependsOn {
+					if targetContains(opts.Targets, addr) {
+						additionalTargets[addr.UniqueKey()] = resource.Instance
+						continue outer
+					}
+				}
+				for _, addr := range curr.Dependencies {
+					if targetContains(opts.Targets, addr) {
+						additionalTargets[addr.UniqueKey()] = resource.Instance
+						continue outer
+					}
+				}
+			}
+			// TODO do we care about deposed here?
+		}
+		for _, addr := range additionalTargets {
+			opts.Targets = append(opts.Targets, addr)
+		}
+	}
+	if len(opts.Excludes) > 0 {
+		additionalExcludes := map[addrs.UniqueKey]addrs.Targetable{}
+		for _, resource := range prevRoundState.AllResourceInstanceObjectAddrs() {
+			if !targetContains(opts.Excludes, resource.Instance) {
+				continue
+			}
+			curr := prevRoundState.ResourceInstance(resource.Instance).Current
+			if curr != nil {
+				for _, addr := range curr.DependsOn {
+					additionalExcludes[addr.UniqueKey()] = addr
+				}
+				for _, addr := range curr.Dependencies {
+					additionalExcludes[addr.UniqueKey()] = addr
+				}
+			}
+			// TODO do we care about deposed here?
+		}
+		for _, addr := range additionalExcludes {
+			opts.Excludes = append(opts.Excludes, addr)
+		}
+	}
+
 	// This configInst.DrivePlanning call blocks until the evaluator has
 	// visited all expressions in the configuration and calls
 	// [planContext.PlanDesiredResourceInstance] on the [planGlue] object for
@@ -65,8 +132,10 @@ func destroyPlan(ctx context.Context, opts *PlanOpts, prevRoundState *states.Sta
 		closeConfiguredProviders = oracle.Close
 		return &planGlueDestroy{
 			normalGlue: planGlue{
-				planCtx: planCtx,
-				oracle:  oracle,
+				planCtx:  planCtx,
+				oracle:   oracle,
+				targets:  opts.Targets,
+				excludes: opts.Excludes,
 			},
 		}
 	})
@@ -167,6 +236,11 @@ var _ eval.PlanGlue = (*planGlueDestroy)(nil)
 
 // PlanDesiredResourceInstance implements [eval.PlanGlue].
 func (p *planGlueDestroy) PlanDesiredResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance) (cty.Value, tfdiags.Diagnostics) {
+	if p.normalGlue.desiredResourceInstanceMustBeDeferred(inst) {
+		log.Printf("[TRACE] planGlueDestroy.PlanDesiredResourceInstance for %s DEFERRED", inst.Addr)
+		return deferredVal(cty.DynamicVal), nil
+	}
+
 	var diags tfdiags.Diagnostics
 	log.Printf("[TRACE] planGlueDestroy.PlanDesiredResourceInstance for %s", inst.Addr)
 

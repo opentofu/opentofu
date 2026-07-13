@@ -46,8 +46,10 @@ func normalPlan(ctx context.Context, opts *PlanOpts, prevRoundState *states.Stat
 	evalResult, moreDiags := configInst.DrivePlanning(ctx, opts.Targets, opts.Excludes, func(oracle *eval.PlanningOracle) eval.PlanGlue {
 		closeConfiguredProviders = oracle.Close
 		return &planGlue{
-			planCtx: planCtx,
-			oracle:  oracle,
+			planCtx:  planCtx,
+			oracle:   oracle,
+			targets:  opts.Targets,
+			excludes: opts.Excludes,
 		}
 	})
 	diags = diags.Append(moreDiags)
@@ -83,6 +85,7 @@ func normalPlan(ctx context.Context, opts *PlanOpts, prevRoundState *states.Stat
 	//
 	// After we complete this work, planCtx.resourceInstObjs is expanded to
 	// also include any deposed resource instance objects we discovered.
+	// TODO does this need a target filter???
 	ctx = grapheval.ContextWithNewWorker(ctx)
 	planGlue := evalResult.Glue.(*planGlue)
 	for _, moduleState := range prevRoundState.Modules {

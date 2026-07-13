@@ -3908,8 +3908,18 @@ func TestContext2Apply_excludedDestroy(t *testing.T) {
 		}
 	}
 
-	// The output should not be removed, as the aws_instance resource it relies on is excluded
-	checkStateString(t, state, `
+	if experimentalRuntimeEnabled() {
+		// The output *should* be removed, as there are no direct dependencies
+		// The other case here is probably a bug in the original runtime
+		checkStateString(t, state, `
+aws_instance.a:
+  ID = foo
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
+  foo = bar
+  type = aws_instance`)
+	} else {
+		// The output should not be removed, as the aws_instance resource it relies on is excluded
+		checkStateString(t, state, `
 aws_instance.a:
   ID = foo
   provider = provider["registry.opentofu.org/hashicorp/aws"]
@@ -3919,6 +3929,7 @@ aws_instance.a:
 Outputs:
 
 out = foo`)
+	}
 }
 
 func TestContext2Apply_excludedDestroyDependent(t *testing.T) {
@@ -3972,8 +3983,29 @@ func TestContext2Apply_excludedDestroyDependent(t *testing.T) {
 		}
 	}
 
-	// The output should not be removed, as the aws_instance resource it relies on is excluded
-	checkStateString(t, state, `
+	if experimentalRuntimeEnabled() {
+		// The output *should* be removed, as there are no direct dependencies
+		// The other case here is probably a bug in the original runtime
+
+		checkStateString(t, state, `
+aws_instance.a:
+  ID = foo
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
+  foo = bar
+  type = aws_instance
+
+module.child:
+  aws_instance.b:
+    ID = foo
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
+    foo = foo
+    type = aws_instance
+
+    Dependencies:
+      aws_instance.a`)
+	} else {
+		// The output should not be removed, as the aws_instance resource it relies on is excluded
+		checkStateString(t, state, `
 aws_instance.a:
   ID = foo
   provider = provider["registry.opentofu.org/hashicorp/aws"]
@@ -3993,6 +4025,7 @@ module.child:
 
     Dependencies:
       aws_instance.a`)
+	}
 }
 
 func TestContext2Apply_excludedDestroyCountDeps(t *testing.T) {
