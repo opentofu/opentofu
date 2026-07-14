@@ -15,6 +15,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/lang/eval"
+	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -43,6 +44,20 @@ func (c *compiler) compileOpResourceInstanceDesired(operands *compilerOperands) 
 
 		ret, moreDiags := ops.ResourceInstanceDesired(ctx, instAddr)
 		diags = diags.Append(moreDiags)
+
+		if ret != nil && ret.ConfigVal.HasMarkDeep(exprs.EvalError) {
+			// The execution graph compiler arranges for the final value for
+			// a resource instance to be marked in this way if the operation
+			// that produces it indicates that execution must halt, even
+			// when no diagnostics are directly returned due to them being
+			// reported via a different return path. The reason for this is
+			// expected to be clear from other diagnostics reported upstream,
+			// but just in case that isn't true due to a bug we'll include
+			// a log line to note why we're intentionally halting here.
+			log.Printf("[DEBUG] Cannot finalize desired object for %s because something it depends on encountered an error.", instAddr)
+			return ret, false, diags
+		}
+
 		return ret, !diags.HasErrors(), diags
 	}
 }

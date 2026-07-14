@@ -15,6 +15,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/internal/exec"
+	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -168,7 +169,7 @@ func (c *compiler) Compile() (*CompiledGraph, tfdiags.Diagnostics) {
 		c.compiledGraph.resourceInstanceValues.Put(instAddr, func(ctx context.Context) cty.Value {
 			rawResult, ok, _ := execFunc(ctx)
 			if !ok {
-				return cty.DynamicVal
+				return exprs.AsEvalError(cty.DynamicVal)
 			}
 			finalStateObj := rawResult.(*exec.ResourceInstanceObject)
 			if finalStateObj == nil {
