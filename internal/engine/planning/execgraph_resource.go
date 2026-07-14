@@ -98,27 +98,25 @@ func (b *execGraphBuilder) AddResourceInstanceObjectSubgraphs(
 	// that is changing.
 	for _, addr := range objAddrs {
 		subgraph := subgraphs.Get(addr)
-		if subgraph.addConfigDep != nil {
+		if subgraph.addDesiredDep != nil {
 			for dependency := range objs.ConfigDependencies(addr) {
-				subgraph.addConfigDep(ensureResourceInstanceObjectResultRef(dependency, resultRefs, b))
+				subgraph.addDesiredDep(ensureResourceInstanceObjectResultRef(dependency, resultRefs, b))
 			}
-		}
-		if subgraph.addStateDep != nil {
 			for dependency := range objs.StateDependencies(addr) {
-				subgraph.addStateDep(ensureResourceInstanceObjectResultRef(dependency, resultRefs, b))
+				subgraph.addDesiredDep(ensureResourceInstanceObjectResultRef(dependency, resultRefs, b))
 			}
 		}
-		if subgraph.addDeleteDep != nil {
+		if subgraph.addOrphanDep != nil {
 			for dependent := range objs.ConfigDependents(addr) {
 				dependentSubgraph := subgraphs.Get(dependent)
 				if ref := dependentSubgraph.deletionRef; ref != nil {
-					subgraph.addDeleteDep(ref)
+					subgraph.addOrphanDep(ref)
 				} else if ref, ok := resultRefs.GetOk(dependent); ok {
 					// If there's no deletion ref but the dependent still has
 					// a value ref (e.g. if the dependent is only being created
 					// or updated) then we wait until its create/update step
 					// has completed before deleting.
-					subgraph.addDeleteDep(ref)
+					subgraph.addOrphanDep(ref)
 					// TODO: The old runtime's equivalent of this behavior has a
 					// hackily-implemented extra rule where it checks if
 					// adding this edge would create a cycle and skips adding
@@ -135,17 +133,12 @@ func (b *execGraphBuilder) AddResourceInstanceObjectSubgraphs(
 					// different for that planning mode).
 				}
 			}
-			// TODO: There's an asymmetry here where for forward dependencies
-			// we track config and state dependencies separately but for
-			// the reverse dependencies during destroy we just meld them
-			// together into a single set. Is that a correct thing to do, or
-			// do we need some special treatment in this direction too?
 			for dependent := range objs.StateDependents(addr) {
 				dependentSubgraph := subgraphs.Get(dependent)
 				if ref := dependentSubgraph.deletionRef; ref != nil {
-					subgraph.addDeleteDep(ref)
+					subgraph.addOrphanDep(ref)
 				} else if ref, ok := resultRefs.GetOk(dependent); ok {
-					subgraph.addDeleteDep(ref)
+					subgraph.addOrphanDep(ref)
 				}
 			}
 		}
@@ -201,28 +194,40 @@ func (b *execGraphBuilder) resourceInstanceChangeSubgraph(
 // previously-built resource instance object subgraph so that we can
 // subsequently create dependency edges between the subgraphs.
 type resourceInstanceObjectSubgraph struct {
-	// valueRef and deletionRef are the result references for whatever
-	// operations in the subgraph represent the result of creating/updating
-	// and of deleting the resource instance respectively.
+	// valueRef is the result reference for the final state for this resource
+	// instance object that should be used to satisfy expressions that refer
+	// to this resource instance object.
 	//
-	// These are nil for subgraphs that don't include a relevant result.
-	valueRef, deletionRef execgraph.ResourceInstanceResultRef
+	// For objects that are just being deleted (i.e. "orphan" or "deposed"
+	// objects for managed resource instances), this actually refers to the
+	// prior state. This is a quirky but important special case to make
+	// it possible to apply a "destroy-mode" plan where an ephemeral object
+	// such as a provider instance depends on a resource instance, in which
+	// case the ephemeral object gets configured based on the (refreshed)
+	// prior state rather than the configured object that is expected to be
+	// deleted during the apply phase.
+	valueRef execgraph.ResourceInstanceResultRef
 
-	// addConfigDep, addStateDep and addDeleteDep each add an additional
-	// dependency to one of the operations in the subgraph.
+	// deletionRef is a result reference which resolves once any existing
+	// remote object has been deleted.
 	//
-	// addConfigDep adds a dependency of whatever operation accesses the
-	// configuration for the resource instance object, and so delays the
-	// evaluation of the configuration.
+	// This is nil for objects whose planned actions don't include deletion
+	// at all.
+	deletionRef execgraph.AnyResultRef
+
+	// addDesiredDep and addOrphanDep each add an additional dependency to
+	// one of the operations in the subgraph.
 	//
-	// addStateDep adds a dependency of whatever operation accesses the
-	// prior state for the resource instance object, and so delays some
-	// analysis of the prior state information.
+	// addDesiredDep adds a dependency of whatever operation causes there
+	// to be an object matching the desired state, whether that be creating
+	// or updating. It is nil for resource instance objects that have no
+	// desired state, i.e. when they are just being deleted.
 	//
-	// addDeleteDep adds a dependency of whatever operation deletes the
-	// associated object.
-	//
-	// Each of these is nil when there is no corresponding operation to add
-	// dependencies to.
-	addConfigDep, addStateDep, addDeleteDep func(execgraph.AnyResultRef)
+	// addOrphanDep adds a dependency of whatever operation causes an object
+	// to be deleted because it's no longer desired, which could either be
+	// the solitary operation to delete something that is "orphaned" (present
+	// in prior state but not desired state) or could be the delete leg of
+	// a replace operation. It is nil for resource instance objects where no
+	// deletion is needed, i.e. when they are only being created or updated.
+	addDesiredDep, addOrphanDep func(execgraph.AnyResultRef)
 }
