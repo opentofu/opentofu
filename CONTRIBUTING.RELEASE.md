@@ -208,12 +208,6 @@ For point releases, simply copy the section from the [CHANGELOG.md](CHANGELOG.md
 
 ---
 
-## Updating `get.opentofu.org`
-
-In order for the installer script to work, you will need to update the https://get.opentofu.org/tofu/api.json file. You can do this by logging in to Cloudflare and go to the [`opentofu-get` project in Cloudflare Pages](https://dash.cloudflare.com/84161f72ecc1f0274ab2fa7241f64249/pages/view/opentofu-get). Here click the three dots on the latest production deployment and click `Retry deployment`.
-
----
-
 ## Updating the website/documentation
 
 Depending on the release type, you will need to update the [opentofu.org](https://github.com/opentofu/opentofu.org) repository.
