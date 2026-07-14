@@ -4763,12 +4763,6 @@ func TestContext2Plan_actionInteractions(t *testing.T) {
 				// the two resources end up mutually-dependent on each other.
 				SkipExperimental(t, ExperimentalBugCircularReference)
 			}
-			if test.WantActions[0] == plans.DeleteThenCreate && test.WantActions[1] == plans.DeleteThenCreate {
-				// The experimental new runtime doesn't currently handle this
-				// interaction correctly, producing an execution graph where
-				// the two resources end up mutually-dependent on each other.
-				SkipExperimental(t, ExperimentalBugCircularReference)
-			}
 
 			cfg := testModuleInline(t, map[string]string{
 				"main.tf": test.Config,
