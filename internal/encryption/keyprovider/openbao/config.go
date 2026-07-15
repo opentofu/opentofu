@@ -6,6 +6,7 @@
 package openbao
 
 import (
+	"encoding/base64"
 	"fmt"
 
 	openbao "github.com/openbao/openbao/api/v2"
@@ -19,6 +20,7 @@ type Config struct {
 	KeyName           string        `hcl:"key_name"`
 	KeyLength         DataKeyLength `hcl:"key_length,optional"`
 	TransitEnginePath string        `hcl:"transit_engine_path,optional"`
+	AssociatedData    string        `hcl:"associated_data,optional"`
 }
 
 const (
@@ -47,6 +49,15 @@ func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
 		c.TransitEnginePath = defaultTransitEnginePath
 	}
 
+	if c.AssociatedData != "" {
+		if _, err := base64.StdEncoding.DecodeString(c.AssociatedData); err != nil {
+			return nil, nil, &keyprovider.ErrInvalidConfiguration{
+				Message: "associated data is not valid base64",
+				Cause:   err,
+			}
+		}
+	}
+
 	// DefaultConfig reads BAO_ADDR and some other optional env variables.
 	config := openbao.DefaultConfig()
 	if config.Error != nil {
@@ -72,8 +83,9 @@ func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
 			c:           client,
 			transitPath: c.TransitEnginePath,
 		},
-		keyName:   c.KeyName,
-		keyLength: c.KeyLength,
+		keyName:        c.KeyName,
+		keyLength:      c.KeyLength,
+		associatedData: c.AssociatedData,
 	}, new(keyMeta), nil
 }
 

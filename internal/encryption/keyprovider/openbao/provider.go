@@ -20,9 +20,10 @@ func (m keyMeta) isPresent() bool {
 }
 
 type keyProvider struct {
-	svc       service
-	keyName   string
-	keyLength DataKeyLength
+	svc            service
+	keyName        string
+	keyLength      DataKeyLength
+	associatedData string
 }
 
 func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, keyprovider.KeyMeta, error) {
@@ -41,7 +42,7 @@ func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, k
 
 	ctx := context.Background()
 
-	dataKey, err := p.svc.generateDataKey(ctx, p.keyName, p.keyLength.Bits())
+	dataKey, err := p.svc.generateDataKey(ctx, p.keyName, p.keyLength.Bits(), p.associatedData)
 	if err != nil {
 		return keyprovider.Output{}, nil, &keyprovider.ErrKeyProviderFailure{
 			Message: "failed to generate OpenBao data key (check if the configuration valid and OpenBao server accessible)",
@@ -58,7 +59,7 @@ func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, k
 	}
 
 	if inMeta.isPresent() {
-		out.DecryptionKey, err = p.svc.decryptData(ctx, p.keyName, inMeta.Ciphertext)
+		out.DecryptionKey, err = p.svc.decryptData(ctx, p.keyName, inMeta.Ciphertext, p.associatedData)
 		if err != nil {
 			return keyprovider.Output{}, nil, &keyprovider.ErrKeyProviderFailure{
 				Message: "failed to decrypt ciphertext (check if the configuration valid and OpenBao server accessible)",

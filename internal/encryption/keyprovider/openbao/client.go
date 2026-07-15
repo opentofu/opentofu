@@ -31,12 +31,18 @@ type dataKey struct {
 	Ciphertext []byte
 }
 
-func (s service) generateDataKey(ctx context.Context, keyName string, bitSize int) (dataKey, error) {
+func (s service) generateDataKey(ctx context.Context, keyName string, bitSize int, associatedData string) (dataKey, error) {
 	path := path.Join(s.transitPath, "datakey/plaintext", url.PathEscape(keyName))
 
-	secret, err := s.c.WriteWithContext(ctx, path, map[string]interface{}{
+	data := map[string]interface{}{
 		"bits": bitSize,
-	})
+	}
+
+	if associatedData != "" {
+		data["associated_data"] = associatedData
+	}
+
+	secret, err := s.c.WriteWithContext(ctx, path, data)
 	if err != nil {
 		return dataKey{}, fmt.Errorf("error sending datakey request to OpenBao: %w", err)
 	}
@@ -56,12 +62,18 @@ func (s service) generateDataKey(ctx context.Context, keyName string, bitSize in
 	return key, nil
 }
 
-func (s service) decryptData(ctx context.Context, keyName string, ciphertext []byte) ([]byte, error) {
+func (s service) decryptData(ctx context.Context, keyName string, ciphertext []byte, associatedData string) ([]byte, error) {
 	path := path.Join(s.transitPath, "decrypt", url.PathEscape(keyName))
 
-	secret, err := s.c.WriteWithContext(ctx, path, map[string]interface{}{
+	data := map[string]interface{}{
 		"ciphertext": string(ciphertext),
-	})
+	}
+
+	if associatedData != "" {
+		data["associated_data"] = associatedData
+	}
+
+	secret, err := s.c.WriteWithContext(ctx, path, data)
 	if err != nil {
 		return nil, fmt.Errorf("error sending decryption request to OpenBao: %w", err)
 	}
