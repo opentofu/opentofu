@@ -290,6 +290,7 @@ This key provider uses the [OpenBao Transit Secret Engine](https://openbao.org/d
 | transit_engine_path      | Path at which the Transit Secret Engine is enabled in OpenBao. Customize this if you changed the transit engine path.                                                       | N/A  | /transit                           |
 | key_length               | Number of bytes to generate as a key. Available options are `16`, `32` or `64` bytes.                                                                                       | 16   | 32                                 |
 | associated_data          | Base64-encoded sent with data key generation and decryption.                                                                                                                | N/A  | -                                  |
+| associated_data          | Must be a base64-encoded string in config (use `base64encode()` for plain text) sent to OpenBao Transit with data key generation and decryption.                            | N/A  | -                                  |
 | encrypted_metadata_alias | Optional identifier to store metadata in the encrypted state/plan files under. Specify this to allow changing the name of a key provider.                                   | -    | derived from the key provider name |
 
 The following example illustrates a possible configuration:
