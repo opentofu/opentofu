@@ -96,6 +96,24 @@ Ideally, make sure these changes go in as the last PR before the release.
 
 ---
 
+## Double check proper traceability of the included changes
+
+For better traceability, backported changes should link one of the following:
+* the link to the PR that added the change in the `main` branch
+* the link to the issue that the change fixes
+
+Ideally, all the backports should be done through backporting PRs, whose description should include one (or both) of the links above.
+
+If the backport is done through pushing directly to the targeted version branch, the commit message should include one (or both) of the links above.
+
+> [!WARNING]
+Right before issuing the release, ensure that all of the included changes follow the rules above.
+If not, a comment should be added, to either the PR or the issue, with the commit that actually backported the change.
+>
+> By doing so, it will help with the forward tracing (ie: from the issue to the commit) but will not provide back tracing (from the commit back to the issue).
+Therefore, this is a last resort, in cases where neither of the recommended options above cannot be done anymore (aka it might require rebasing on a branch where it is not allowed).
+
+
 ## Tagging the release
 
 Now that you have the files up to date, do the following:
