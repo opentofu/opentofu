@@ -12,7 +12,8 @@ import (
 )
 
 type keyMeta struct {
-	Ciphertext []byte `json:"ciphertext"`
+	Ciphertext     []byte `json:"ciphertext"`
+	AssociatedData string `json:"associated_data,omitempty"`
 }
 
 func (m keyMeta) isPresent() bool {
@@ -51,7 +52,8 @@ func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, k
 	}
 
 	outMeta := &keyMeta{
-		Ciphertext: dataKey.Ciphertext,
+		Ciphertext:     dataKey.Ciphertext,
+		AssociatedData: p.associatedData,
 	}
 
 	out := keyprovider.Output{
@@ -59,7 +61,7 @@ func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, k
 	}
 
 	if inMeta.isPresent() {
-		out.DecryptionKey, err = p.svc.decryptData(ctx, p.keyName, inMeta.Ciphertext, p.associatedData)
+		out.DecryptionKey, err = p.svc.decryptData(ctx, p.keyName, inMeta.Ciphertext, inMeta.AssociatedData)
 		if err != nil {
 			return keyprovider.Output{}, nil, &keyprovider.ErrKeyProviderFailure{
 				Message: "failed to decrypt ciphertext (check if the configuration valid and OpenBao server accessible)",

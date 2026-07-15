@@ -20,6 +20,9 @@ terraform {
 
       # Optional. Number of bytes to generate as a key. Default: 32
       key_length = 16
+
+      # Optional. Associated data for transit data key generation and decryption.
+      associated_data = base64encode("myapp")
     }
   }
 }

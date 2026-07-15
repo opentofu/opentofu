@@ -137,6 +137,31 @@ func TestKeyProvider(t *testing.T) {
 					ValidHCL:   true,
 					ValidBuild: true,
 				},
+				"success-associated-data": {
+					HCL: fmt.Sprintf(`key_provider "openbao" "foo" {
+							key_name = "%s"
+							associated_data = "b3BlbnRvZnU="
+						}`, testKeyName),
+					ValidHCL:   true,
+					ValidBuild: true,
+					Validate: func(config *Config, keyProvider *keyProvider) error {
+						if config.AssociatedData != "b3BlbnRvZnU=" {
+							return fmt.Errorf("incorrect associated_data: %q", config.AssociatedData)
+						}
+						if keyProvider.associatedData != "b3BlbnRvZnU=" {
+							return fmt.Errorf("provider associated_data not set")
+						}
+						return nil
+					},
+				},
+				"invalid-associated-data": {
+					HCL: fmt.Sprintf(`key_provider "openbao" "foo" {
+							key_name = "%s"
+							associated_data = "not-valid-associated-data"
+						}`, testKeyName),
+					ValidHCL:   true,
+					ValidBuild: false,
+				},
 			},
 			JSONParseTestCases: map[string]compliancetest.JSONParseTestCase[*Config, *keyProvider]{
 				"success": {
@@ -249,6 +274,34 @@ func TestKeyProvider(t *testing.T) {
 					ValidJSON:  true,
 					ValidBuild: true,
 				},
+				"success-associated-data": {
+					JSON: fmt.Sprintf(`{
+	"key_provider": {
+		"openbao": {
+			"foo": {
+				"key_name": "%s",
+				"associated_data": "b3BlbnRvZnU="
+			}
+		}
+	}
+}`, testKeyName),
+					ValidJSON:  true,
+					ValidBuild: true,
+				},
+				"invalid-associated-data": {
+					JSON: fmt.Sprintf(`{
+	"key_provider": {
+		"openbao": {
+			"foo": {
+				"key_name": "%s",
+				"associated_data": "not-valid-associated-data"
+			}
+		}
+	}
+}`, testKeyName),
+					ValidJSON:  true,
+					ValidBuild: false,
+				},
 			},
 			ConfigStructTestCases: map[string]compliancetest.ConfigStructTestCase[*Config, *keyProvider]{
 				"success": {
@@ -291,6 +344,14 @@ func TestKeyProvider(t *testing.T) {
 				},
 				"empty": {
 					Config:     &Config{},
+					ValidBuild: false,
+					Validate:   nil,
+				},
+				"invalid-associated-data": {
+					Config: &Config{
+						KeyName:        testKeyName,
+						AssociatedData: "not-valid-associated-data",
+					},
 					ValidBuild: false,
 					Validate:   nil,
 				},
