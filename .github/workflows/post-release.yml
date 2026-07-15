@@ -1,0 +1,14 @@
+name: Post-release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  redeploy:
+    runs-on: ubuntu-latest
+    name: Redeploy Cloudflare Worker
+    permissions: {}
+    steps:
+      - name: Redeploy get.opentofu.org
+        run: curl -fsS -X POST "${{ secrets.GET_OPENTOFU_DEPLOY_HOOK }}"

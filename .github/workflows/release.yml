@@ -160,6 +160,3 @@ jobs:
                 PACKAGECLOUD-DISTRO: rpm_any/rpm_any
                 PACKAGECLOUD-TOKEN: ${{ secrets.PACKAGECLOUD_TOKEN }}
 
-      - name: Redeploy get.opentofu.org
-        if: startsWith(inputs.tag, 'v')
-        run: curl -fsS -X POST "${{ secrets.GET_OPENTOFU_DEPLOY_HOOK }}"
