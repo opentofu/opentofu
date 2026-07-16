@@ -3347,6 +3347,84 @@ func TestContext2Plan_forceReplace(t *testing.T) {
 	})
 }
 
+func TestContext2Plan_forceReplaceIncompleteAddrInModule(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureForceReplace)
+
+	rootAddr0 := mustResourceInstanceAddr("test_object.a[0]")
+	rootAddr1 := mustResourceInstanceAddr("test_object.a[1]")
+	childAddr0 := mustResourceInstanceAddr("module.child.test_object.a[0]")
+	childAddr1 := mustResourceInstanceAddr("module.child.test_object.a[1]")
+	childAddrBare := mustResourceInstanceAddr("module.child.test_object.a")
+	m := testModuleInline(t, map[string]string{
+		"child/main.tf": `
+			resource "test_object" "a" {
+				count = 2
+			}
+		`,
+		"main.tf": `
+			module "child" {
+				source = "./child"
+			}
+
+			resource "test_object" "a" {
+				count = 2
+			}
+		`,
+	})
+
+	state := states.BuildState(func(s *states.SyncState) {
+		for _, addr := range []addrs.AbsResourceInstance{rootAddr0, rootAddr1, childAddr0, childAddr1} {
+			s.SetResourceInstanceCurrent(addr, &states.ResourceInstanceObjectSrc{
+				AttrsJSON: []byte(`{}`),
+				Status:    states.ObjectReady,
+			}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
+		}
+	})
+
+	p := simpleMockProvider()
+	ctx := testContext2(t, &ContextOpts{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		}, nil),
+	})
+
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
+		Mode: plans.NormalMode,
+		ForceReplace: []addrs.AbsResourceInstance{
+			childAddrBare,
+		},
+	})
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors\n%s", diags.Err().Error())
+	}
+	if got, want := len(diags), 1; got != want {
+		t.Fatalf("got %d diagnostics; want %d\n%s", got, want, diags.ErrWithWarnings())
+	}
+	for _, want := range []string{
+		"-replace=\"module.child.test_object.a[0]\"",
+		"-replace=\"module.child.test_object.a[1]\"",
+	} {
+		if got := diags.ErrWithWarnings().Error(); !strings.Contains(got, want) {
+			t.Errorf("missing expected warning\ngot:\n%s\n\nwant substring: %s", got, want)
+		}
+	}
+	if got, dontWant := diags.ErrWithWarnings().Error(), "-replace=\"test_object.a[0]\""; strings.Contains(got, dontWant) {
+		t.Errorf("unexpected root module instance suggestion\ngot:\n%s\n\ndon't want substring: %s", got, dontWant)
+	}
+
+	for _, addr := range []addrs.AbsResourceInstance{rootAddr0, rootAddr1, childAddr0, childAddr1} {
+		t.Run(addr.String(), func(t *testing.T) {
+			instPlan := plan.Changes.ResourceInstance(addr)
+			if instPlan == nil {
+				t.Fatalf("no plan for %s at all", addr)
+			}
+			if got, want := instPlan.Action, plans.NoOp; got != want {
+				t.Errorf("wrong planned action\ngot:  %s\nwant: %s", got, want)
+			}
+		})
+	}
+}
+
 func TestContext2Plan_forceReplaceIncompleteAddr(t *testing.T) {
 	SkipExperimental(t, ExperimentalFeatureForceReplace)
 
