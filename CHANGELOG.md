@@ -2,6 +2,14 @@ The v1.11.x release series is supported until **August 1 2026**.
 
 ## 1.11.13 (Unreleased)
 
+SECURITY ADVISORIES:
+
+* Previous releases in the v1.11 series could be affected by several vulnerabilities:
+  * The Encrypted Client Hello implementation (which is used by OpenTofu through the go stdlib) would leak the pre-shared key identities during the handshake,
+    allowing a passive network observer who can collect handshakes to de-anonymize the hostname of the server, even when ECH was being used.
+
+  This is fixed now by ([#4364](https://github.com/opentofu/opentofu/pull/4364))
+
 ## 1.11.12
 
 BUG FIXES:
