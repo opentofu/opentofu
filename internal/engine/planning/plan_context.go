@@ -35,6 +35,8 @@ type planContext struct {
 	// current experiment we'll just keep this boolean for now.
 	deferred addrs.Map[addrs.AbsResourceInstance, struct{}]
 
+	forceReplace []addrs.AbsResourceInstance
+
 	// prevRoundState MUST be treated as immutable
 	prevRoundState *states.State
 
@@ -53,7 +55,7 @@ type planContext struct {
 	providers plugins.Providers
 }
 
-func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, providers plugins.Providers) *planContext {
+func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, providers plugins.Providers, opts *PlanOpts) *planContext {
 	if prevRoundState == nil {
 		prevRoundState = states.NewState()
 	}
@@ -64,6 +66,7 @@ func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, pro
 		evalCtx:          evalCtx,
 		resourceInstObjs: newResourceInstanceObjectsBuilder(),
 		deferred:         addrs.MakeMap[addrs.AbsResourceInstance, struct{}](),
+		forceReplace:     opts.ForceReplace,
 		prevRoundState:   prevRoundState,
 		refreshedState:   refreshedState.SyncWrapper(),
 		upgradedState:    upgradedState.SyncWrapper(),

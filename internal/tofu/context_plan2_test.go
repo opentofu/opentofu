@@ -3334,6 +3334,13 @@ func TestContext2Plan_forceReplace(t *testing.T) {
 	})
 	t.Run(addrB.String(), func(t *testing.T) {
 		instPlan := plan.Changes.ResourceInstance(addrB)
+		if experimentalRuntimeEnabled() {
+			if instPlan != nil {
+				t.Fatalf("expected no plan for %s at all", addrB)
+			}
+			// New engine does not generate NoOps
+			return
+		}
 		if instPlan == nil {
 			t.Fatalf("no plan for %s at all", addrB)
 		}
@@ -3398,6 +3405,14 @@ func TestContext2Plan_forceReplaceIncompleteAddr(t *testing.T) {
 
 	t.Run(addr0.String(), func(t *testing.T) {
 		instPlan := plan.Changes.ResourceInstance(addr0)
+		if experimentalRuntimeEnabled() {
+			if instPlan != nil {
+				t.Fatalf("expected no plan for %s at all", addr0)
+			}
+			// New engine does not generate NoOps
+			return
+		}
+
 		if instPlan == nil {
 			t.Fatalf("no plan for %s at all", addr0)
 		}
@@ -3411,6 +3426,13 @@ func TestContext2Plan_forceReplaceIncompleteAddr(t *testing.T) {
 	})
 	t.Run(addr1.String(), func(t *testing.T) {
 		instPlan := plan.Changes.ResourceInstance(addr1)
+		if experimentalRuntimeEnabled() {
+			if instPlan != nil {
+				t.Fatalf("expected no plan for %s at all", addr1)
+			}
+			// New engine does not generate NoOps
+			return
+		}
 		if instPlan == nil {
 			t.Fatalf("no plan for %s at all", addr1)
 		}

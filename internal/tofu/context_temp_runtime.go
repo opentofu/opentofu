@@ -214,7 +214,8 @@ func (c *Context) newEnginePlan(ctx context.Context, config *configs.Config, pre
 	defer done()
 
 	newOpts := &planning.PlanOpts{
-		Mode: opts.Mode,
+		Mode:         opts.Mode,
+		ForceReplace: opts.ForceReplace,
 		// TODO: Most other things that are in this package's [PlanOpts]
 		// package, though notably not "SetVariables" because the new runtime
 		// deals with input variables during the module compilation step, rather

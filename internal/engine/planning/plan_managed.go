@@ -319,8 +319,11 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		return ret, diags
 	}
 
+	// Incomplete
+	actionReason := plans.ResourceInstanceChangeNoReason
+
 	// Check for if replacement is required
-	replaceTriggered := false
+	forceReplace := false
 	for _, tb := range inst.ReplaceTriggeredBy {
 		replaceAddr, replaceDiags := p.evaluateReplaceTriggeredBy(tb)
 		diags = diags.Append(replaceDiags)
@@ -330,8 +333,28 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 
 		if replaceAddr != nil {
 			log.Printf("[DEBUG] ReplaceTriggeredBy forcing replacement of %s due to change in %s", inst.Addr, replaceAddr)
-			replaceTriggered = true
+			forceReplace = true
+			actionReason = plans.ResourceInstanceReplaceByTriggers
 		}
+	}
+
+	// The user might also ask us to force replacing a particular resource
+	// instance, regardless of whether the provider thinks it needs replacing.
+	// For example, users typically do this if they learn a particular object
+	// has become degraded in an immutable infrastructure scenario and so
+	// replacing it with a new object is a viable repair path.
+	for _, addr := range p.planCtx.forceReplace {
+		if addr.Equal(inst.Addr) {
+			log.Printf("[DEBUG] Forcing replacement of %s per user request", inst.Addr)
+			forceReplace = true
+			actionReason = plans.ResourceInstanceReplaceByRequest
+		}
+
+		// For "force replace" purposes we require an exact resource instance
+		// address to match. If a user forgets to include the instance key
+		// for a multi-instance resource then it won't match here, but we
+		// have an earlier check in ????? that should
+		// prevent us from getting here in that case.
 	}
 
 	// TODO: Check for resp.Deferred once we've updated package providers to
@@ -341,7 +364,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 	// that case, but we would need to mark it as deferred and _not_ record a
 	// proposed change for it.
 
-	if eq, _ := planResp.Planned.Value.Equals(refreshedVal).Unmark(); eq.IsKnown() && eq.True() && !replaceTriggered {
+	if eq, _ := planResp.Planned.Value.Equals(refreshedVal).Unmark(); eq.IsKnown() && eq.True() && !forceReplace {
 		// There is no change to make, so we'll return early without actually
 		// recording any change. In this case our resource instance will be
 		// included in the execution graph only if some other resource instance
@@ -357,15 +380,10 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		return ret, diags
 	}
 
-	actionReason := plans.ResourceInstanceChangeNoReason
-	if replaceTriggered {
-		actionReason = plans.ResourceInstanceReplaceByTriggers
-	}
-
 	plannedAction := plans.Update
 	if prevRoundState == nil {
 		plannedAction = plans.Create
-	} else if !planResp.RequiresReplace.Empty() || replaceTriggered {
+	} else if !planResp.RequiresReplace.Empty() || forceReplace {
 		// For "replace" actions the execution graph will include two separate
 		// plan and apply operations, where one handles deletion and the other
 		// handles creation. There is therefore an implicit third intermediate

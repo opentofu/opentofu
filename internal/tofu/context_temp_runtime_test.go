@@ -140,7 +140,7 @@ var (
 	ExperimentalFeaturePathAttrs         = ExperimentalFlag{"Missing Path/Terraform/Tofu Attrs", true}
 	ExperimentalFeaturePreventDestroy    = ExperimentalFlag{"Missing Prevent Destroy", false}
 	ExperimentalFeaturePlannedState      = ExperimentalFlag{"Missing Planned State", false}
-	ExperimentalFeatureForceReplace      = ExperimentalFlag{"Missing Force Replace", false}
+	ExperimentalFeatureForceReplace      = ExperimentalFlag{"Missing Force Replace", true}
 	ExperimentalFeatureRootOutput        = ExperimentalFlag{"Missing Root Output", true}
 	ExperimentalFeatureSensitivity       = ExperimentalFlag{"Missing Sensitivity Handling", false}
 	ExperimentalFeatureSelfReference     = ExperimentalFlag{"Missing Self Reference", false}

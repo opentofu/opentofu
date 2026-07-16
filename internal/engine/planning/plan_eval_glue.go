@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"iter"
 	"log"
+	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
@@ -199,6 +200,8 @@ func (p *planGlue) PlanModuleCallOrphans(ctx context.Context, callerModuleInstAd
 
 // PlanResourceInstanceOrphans implements eval.PlanGlue.
 func (p *planGlue) PlanResourceInstanceOrphans(ctx context.Context, resourceAddr addrs.AbsResource, desiredInstances iter.Seq[addrs.InstanceKey]) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+
 	if resourceAddr.IsPlaceholder() {
 		// can't predict anything about what might be desired or orphaned
 		// under this resource.
@@ -210,10 +213,65 @@ func (p *planGlue) PlanResourceInstanceOrphans(ctx context.Context, resourceAddr
 		return nil
 	}
 	desiredSet := collections.CollectSet(desiredInstances)
+	replaceNeedsKey := false
 	for key := range desiredSet {
 		if _, ok := key.(addrs.WildcardKey); ok {
 			// can't predict what instances are desired for this resource
 			return nil
+		}
+		if key != addrs.NoKey {
+			replaceNeedsKey = true
+		}
+	}
+
+	// TODO consider porting this logic to the other Orphan paths and extending to match key types.
+	// This only handles one very specific class of errors and should probably be improved at some point.
+	for _, candidateAddr := range p.planCtx.forceReplace {
+		if candidateAddr.Resource.Resource.Equal(resourceAddr.Resource) && candidateAddr.Module.Equal(resourceAddr.Module) {
+			// Matches without instance key
+			if replaceNeedsKey && candidateAddr.Resource.Key == addrs.NoKey {
+				var instanceAddrs []addrs.AbsResourceInstance
+				for desired := range desiredSet {
+					instanceAddrs = append(instanceAddrs, resourceAddr.Instance(desired))
+				}
+				// Copied from nodeExpandPlannableResource.expandResourceInstances
+				switch {
+				case len(instanceAddrs) == 0:
+					// In this case there _are_ no instances to replace, so
+					// there isn't any alternative address for us to suggest.
+					diags = diags.Append(tfdiags.Sourceless(
+						tfdiags.Warning,
+						"Incompletely-matched force-replace resource instance",
+						fmt.Sprintf(
+							"Your force-replace request for %s doesn't match any resource instances because this resource doesn't have any instances.",
+							candidateAddr,
+						),
+					))
+				case len(instanceAddrs) == 1:
+					diags = diags.Append(tfdiags.Sourceless(
+						tfdiags.Warning,
+						"Incompletely-matched force-replace resource instance",
+						fmt.Sprintf(
+							"Your force-replace request for %s doesn't match any resource instances because it lacks an instance key.\n\nTo force replacement of the single declared instance, use the following option instead:\n  -replace=%q",
+							candidateAddr, instanceAddrs[0],
+						),
+					))
+				default:
+					var possibleValidOptions strings.Builder
+					for _, addr := range instanceAddrs {
+						fmt.Fprintf(&possibleValidOptions, "\n  -replace=%q", addr)
+					}
+
+					diags = diags.Append(tfdiags.Sourceless(
+						tfdiags.Warning,
+						"Incompletely-matched force-replace resource instance",
+						fmt.Sprintf(
+							"Your force-replace request for %s doesn't match any resource instances because it lacks an instance key.\n\nTo force replacement of particular instances, use one or more of the following options instead:%s",
+							candidateAddr, possibleValidOptions.String(),
+						),
+					))
+				}
+			}
 		}
 	}
 
@@ -232,7 +290,6 @@ func (p *planGlue) PlanResourceInstanceOrphans(ctx context.Context, resourceAddr
 		}
 		return true
 	})
-	var diags tfdiags.Diagnostics
 	for addr, state := range orphaned {
 		diags = diags.Append(
 			p.planOrphanResourceInstance(ctx, addr, state),

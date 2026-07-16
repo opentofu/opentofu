@@ -25,7 +25,7 @@ func normalPlan(ctx context.Context, opts *PlanOpts, prevRoundState *states.Stat
 	var diags tfdiags.Diagnostics
 	var closeConfiguredProviders func(ctx context.Context) tfdiags.Diagnostics
 
-	planCtx := newPlanContext(configInst.EvalContext(), prevRoundState, providers)
+	planCtx := newPlanContext(configInst.EvalContext(), prevRoundState, providers, opts)
 
 	// This configInst.DrivePlanning call blocks until the evaluator has
 	// visited all expressions in the configuration and calls

@@ -35,6 +35,8 @@ type PlanOpts struct {
 	// just change specific details of how we plan, a different planning mode
 	// has a far more drastic, cross-cutting effect.
 	Mode plans.Mode
+
+	ForceReplace []addrs.AbsResourceInstance
 }
 
 // PlanChanges is the main entry point, taking a state snapshot from the end
