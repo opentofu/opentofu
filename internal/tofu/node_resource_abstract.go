@@ -176,11 +176,15 @@ func (n *NodeAbstractResource) ReferenceableAddrs() []addrs.Referenceable {
 
 // GraphNodeReferencer
 func (n *NodeAbstractResource) References() []*addrs.Reference {
+	return append(n.DependsOn(), n.directReferences()...)
+}
+
+// directReferences returns all the references of a resource other than the ones inside
+// `depends_on`
+func (n *NodeAbstractResource) directReferences() []*addrs.Reference {
 	var result []*addrs.Reference
 	// If we have a config then we prefer to use that.
 	if c := n.Config; c != nil {
-		result = append(result, n.DependsOn()...)
-
 		if n.Schema == nil {
 			// Should never happen, but we'll log if it does so that we can
 			// see this easily when debugging.
