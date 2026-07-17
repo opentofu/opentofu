@@ -73,3 +73,18 @@ func (s Set[T]) String() string {
 	})
 	return strings.Join(parts, ", ")
 }
+
+// Intersection returns the common items between the receiver and the given sets.
+func (s Set[T]) Intersection(other Set[T]) Set[T] {
+	result := NewSet[T]()
+	s1, s2 := s, other
+	if len(s1) > len(s2) {
+		s1, s2 = s2, s1
+	}
+	for item := range s1 {
+		if _, exists := s2[item]; exists {
+			result[item] = struct{}{}
+		}
+	}
+	return result
+}

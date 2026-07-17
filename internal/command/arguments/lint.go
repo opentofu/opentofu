@@ -48,23 +48,9 @@ func ParseLintingRules(rules []string) (collections.Set[linting.RuleAddr], colle
 		}
 		t[la] = struct{}{}
 	}
-	for _, r := range collectionsIntersection(include, exclude) {
+	for _, r := range include.Intersection(exclude) {
 		log.Printf("[WARN] Linting rule %q included and excluded in the same time. This might create unwanted behavior", r)
 	}
 
 	return include, exclude
-}
-
-// collectionsIntersection returns all the common elements between two sets.
-func collectionsIntersection(s1, s2 collections.Set[linting.RuleAddr]) collections.Set[linting.RuleAddr] {
-	result := collections.NewSet[linting.RuleAddr]()
-	if len(s1) > len(s2) {
-		s1, s2 = s2, s1
-	}
-	for item := range s1 {
-		if _, exists := s2[item]; exists {
-			result[item] = struct{}{}
-		}
-	}
-	return result
 }
