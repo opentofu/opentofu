@@ -98,3 +98,83 @@ func TestSet_string(t *testing.T) {
 		t.Fatalf("Incorrect string concatenation: %s", str)
 	}
 }
+
+func TestSet_intersection(t *testing.T) {
+	cases := map[string]struct {
+		given, second, wanted collections.Set[any]
+	}{
+		"string - same len": {
+			given:  collections.NewSet[any]("a", "b", "c"),
+			second: collections.NewSet[any]("c", "d", "e"),
+			wanted: collections.NewSet[any]("c"),
+		},
+		"string - given is greater in size": {
+			given:  collections.NewSet[any]("a", "b", "c", "d"),
+			second: collections.NewSet[any]("c", "d", "e"),
+			wanted: collections.NewSet[any]("c", "d"),
+		},
+		"string - second is greater in size": {
+			given:  collections.NewSet[any]("a", "b", "c"),
+			second: collections.NewSet[any]("b", "c", "d", "e"),
+			wanted: collections.NewSet[any]("b", "c"),
+		},
+		"string - no elements in common and given is greater in size": {
+			given:  collections.NewSet[any]("a", "b", "c"),
+			second: collections.NewSet[any]("d", "e"),
+			wanted: collections.NewSet[any](),
+		},
+		"string - no elements in common and second is greater in size": {
+			given:  collections.NewSet[any]("a", "b"),
+			second: collections.NewSet[any]("c", "d", "e"),
+			wanted: collections.NewSet[any](),
+		},
+		"int - same len": {
+			given:  collections.NewSet[any](1, 2, 3),
+			second: collections.NewSet[any](3, 4, 5),
+			wanted: collections.NewSet[any](3),
+		},
+		"int - given is greater in size": {
+			given:  collections.NewSet[any](1, 2, 3, 4),
+			second: collections.NewSet[any](3, 4, 5),
+			wanted: collections.NewSet[any](3, 4),
+		},
+		"int - second is greater in size": {
+			given:  collections.NewSet[any](1, 2, 3),
+			second: collections.NewSet[any](3, 4, 5, 6),
+			wanted: collections.NewSet[any](3),
+		},
+		"int - no elements in common and given is greater in size": {
+			given:  collections.NewSet[any](1, 2, 3),
+			second: collections.NewSet[any](4, 5),
+			wanted: collections.NewSet[any](),
+		},
+		"int - no elements in common and second is greater in size": {
+			given:  collections.NewSet[any](1, 2),
+			second: collections.NewSet[any](3, 4, 5),
+			wanted: collections.NewSet[any](),
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			givenString := tc.given.String()
+			secondString := tc.second.String()
+			wantedString := tc.wanted.String()
+
+			got := tc.given.Intersection(tc.second)
+
+			gotString := got.String()
+			givenAfterString := tc.given.String()
+			secondAfterString := tc.second.String()
+
+			if wantedString != gotString {
+				t.Errorf("unexpected returned result: %s; wanted: %s", gotString, wantedString)
+			}
+			if givenString != givenAfterString {
+				t.Errorf("given shouldn't be changed during the operation but seems that it was. initial: %s; after: %s", givenString, givenAfterString)
+			}
+			if secondString != secondAfterString {
+				t.Errorf("second shouldn't be changed during the operation but seems that it was. initial: %s; after: %s", secondString, secondAfterString)
+			}
+		})
+	}
+}
