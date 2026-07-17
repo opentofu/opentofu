@@ -48,7 +48,7 @@ func TestStateMv(t *testing.T) {
 			&states.ResourceInstanceObjectSrc{
 				AttrsJSON:    []byte(`{"id":"foo","foo":"value","bar":"value"}`),
 				Status:       states.ObjectReady,
-				Dependencies: []addrs.ConfigResource{mustResourceAddr("test_instance.foo")},
+				Dependencies: []addrs.ConfigResource{addrs.MustParseResourceAddr("test_instance.foo")},
 			},
 			addrs.AbsProviderConfig{
 				Provider: addrs.NewDefaultProvider("test"),
@@ -437,7 +437,7 @@ func TestStateMv_resourceToInstance(t *testing.T) {
 			&states.ResourceInstanceObjectSrc{
 				AttrsJSON:    []byte(`{"id":"foo","foo":"value","bar":"value"}`),
 				Status:       states.ObjectReady,
-				Dependencies: []addrs.ConfigResource{mustResourceAddr("test_instance.foo")},
+				Dependencies: []addrs.ConfigResource{addrs.MustParseResourceAddr("test_instance.foo")},
 			},
 			addrs.AbsProviderConfig{
 				Provider: addrs.NewDefaultProvider("test"),
@@ -973,7 +973,7 @@ func TestStateMv_backupExplicit(t *testing.T) {
 			&states.ResourceInstanceObjectSrc{
 				AttrsJSON:    []byte(`{"id":"foo","foo":"value","bar":"value"}`),
 				Status:       states.ObjectReady,
-				Dependencies: []addrs.ConfigResource{mustResourceAddr("test_instance.foo")},
+				Dependencies: []addrs.ConfigResource{addrs.MustParseResourceAddr("test_instance.foo")},
 			},
 			addrs.AbsProviderConfig{
 				Provider: addrs.NewDefaultProvider("test"),
@@ -1507,7 +1507,7 @@ func TestStateMv_withinBackend(t *testing.T) {
 			&states.ResourceInstanceObjectSrc{
 				AttrsJSON:    []byte(`{"id":"foo","foo":"value","bar":"value"}`),
 				Status:       states.ObjectReady,
-				Dependencies: []addrs.ConfigResource{mustResourceAddr("test_instance.foo")},
+				Dependencies: []addrs.ConfigResource{addrs.MustParseResourceAddr("test_instance.foo")},
 			},
 			addrs.AbsProviderConfig{
 				Provider: addrs.NewDefaultProvider("test"),
@@ -1562,7 +1562,7 @@ func TestStateMv_fromBackendToLocal(t *testing.T) {
 
 	state := states.NewState()
 	state.Module(addrs.RootModuleInstance).SetResourceInstanceCurrent(
-		mustResourceAddr("test_instance.foo").Resource.Instance(addrs.NoKey),
+		addrs.MustParseResourceAddr("test_instance.foo").Resource.Instance(addrs.NoKey),
 		&states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{"id":"bar","foo":"value","bar":"value"}`),
 			Status:    states.ObjectReady,
@@ -1574,7 +1574,7 @@ func TestStateMv_fromBackendToLocal(t *testing.T) {
 		addrs.NoKey,
 	)
 	state.Module(addrs.RootModuleInstance).SetResourceInstanceCurrent(
-		mustResourceAddr("test_instance.baz").Resource.Instance(addrs.NoKey),
+		addrs.MustParseResourceAddr("test_instance.baz").Resource.Instance(addrs.NoKey),
 		&states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{"id":"foo","foo":"value","bar":"value"}`),
 			Status:    states.ObjectReady,
@@ -1742,7 +1742,7 @@ func TestStateMv_checkRequiredVersion(t *testing.T) {
 			&states.ResourceInstanceObjectSrc{
 				AttrsJSON:    []byte(`{"id":"foo","foo":"value","bar":"value"}`),
 				Status:       states.ObjectReady,
-				Dependencies: []addrs.ConfigResource{mustResourceAddr("test_instance.foo")},
+				Dependencies: []addrs.ConfigResource{addrs.MustParseResourceAddr("test_instance.foo")},
 			},
 			addrs.AbsProviderConfig{
 				Provider: addrs.NewDefaultProvider("test"),
