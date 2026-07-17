@@ -107,7 +107,7 @@ func (diags Diagnostics) FilterLint(include, exclude collections.Set[linting.Rul
 			ret = append(ret, srcDiag)
 			continue
 		}
-		if lintRuleAllowed(include, exclude, ld.ruleID, ld.groupIDs) {
+		if lintRuleAllowed(include, exclude, ld.ruleID, ld.groupIDs...) {
 			ret = append(ret, srcDiag)
 		}
 	}
@@ -143,8 +143,13 @@ type lintingRulesCtxValue struct {
 	include collections.Set[linting.RuleAddr]
 	exclude collections.Set[linting.RuleAddr]
 
-	executedM sync.Mutex
-	executed  collections.Set[string]
+	// lintOnSourceExecution holds the execution container for a specific (linting rule on a specific config source).
+	// This is to ensure that even if it happens to have the same linting rule executed twice for the same configuration
+	// construct, only one will report the final status.
+	// Further, this is a way to signal for the different execution phases (validate, plan, apply) that a linting rule
+	// on a specific config construct has been executed. This way it avoids running the same logic multiple times.
+	// The future phases execution will be skipped only if the entry in this map contains a success run.
+	lintOnSourceExecution sync.Map
 }
 
 // ContextWithLintFilterHints returns a new [context.Context] that's derived
@@ -152,73 +157,90 @@ type lintingRulesCtxValue struct {
 // will be used to filter any diagnostics returned from whatever function the
 // resulting context was passed to.
 //
-// Use the returned context with [LintRuleEnabled] elsewhere in the system to
+// Use the returned context with [lintRuleEnabled] elsewhere in the system to
 // skip expensive work to generate a lint diagnostic that is going to get
 // discarded eventually anyway.
 func ContextWithLintFilterHints(parent context.Context, include, exclude collections.Set[linting.RuleAddr]) context.Context {
 	return context.WithValue(parent, lintingRulesCtxKey{}, &lintingRulesCtxValue{
-		include:  include,
-		exclude:  exclude,
-		executed: collections.NewSet[string](),
+		include:               include,
+		exclude:               exclude,
+		lintOnSourceExecution: sync.Map{},
 	})
 }
 
-// LintRuleEnabledOnSource checks the given context for any linting configuration and if none found will return false.
-// If the context contains a linting configuration, it will return true in the following cases:
-//   - the given lint rule on the given source is checked for the first time
-//   - the context contained linting configuration allows the rule to be executed (included and not excluded)
-//
-// Every call at this method will also register a hash of the given arguments which is intended to ensure that the
-// same lint rule on the same configuration is not executed multiple times. In other words, if a linting rule on the
-// same configuration block is executed first during validate and once during plan, only the one during validate
-// will run. This ensures that the same rule for the same configuration block is not executed multiple times which
-// would cause duplicate diagnostics for the same entry.
-//
-// TODO linting - this is from the RFC and I strongly disagree with this.
-//
-//	If the given context is not derived from one previously returned by
-//	[ContextWithLintFilterHints] then the result is always true, suggesting that
-//	nothing will be filtered. This defaults to enabled because we assume that
-//	any codepath that isn't calling this function also won't call
-//	[Diagnostics.FilterLint]; this pair of functions should typically be used
-//	together by the same subsystem, passing the same include/exclude sets to
-//	both.
-//
-// Instead of including any rule, instead, this disables all the rules, which can be used as a indirect way to
-// signal to the system that linting is enabled or not. In other words, the existence of lintingRulesCtxKey
-// in the ctx is the indication that the linting is enabled or not.
-//
-// TODO linting (end)
-//
-// When it comes to how the linting configuration is applied, the ruleID has priority compared with the groupID,
-// meaning that if that particular ruleID inclusion or exclusion exists, this will return once it finds that.
-// If the ruleID is not found as being mentioned specifically, this method checks the given groupIDs
-// and applies the same logic: if the group is specifically included, that takes priority in front of its exclusion
-// existence.
-// If none of the groupIDs are specifically configured to be included/excluded, then this will return true
-// if the inclusion contains "all".
-func LintRuleEnabledOnSource(ctx context.Context, src SourceRange, ruleID linting.RuleAddr, groupIDs ...linting.RuleAddr) bool {
+// lintHintsFromContext returns the *lintingRulesCtxValue from the given context.
+// If the context has no value, it returns nil.
+func lintHintsFromContext(ctx context.Context) *lintingRulesCtxValue {
 	v := ctx.Value(lintingRulesCtxKey{})
 	if v == nil {
-		return false
+		return nil
 	}
 	val, ok := v.(*lintingRulesCtxValue)
 	if !ok {
-		return false
+		return nil
 	}
-	k := keyForLintCall(src, ruleID, groupIDs...)
-	val.executedM.Lock()
-	if val.executed.Has(k) {
-		val.executedM.Unlock()
-		return false
-	}
-	val.executed[k] = struct{}{}
-	val.executedM.Unlock()
-	return lintRuleAllowed(val.include, val.exclude, ruleID, groupIDs)
+	return val
 }
 
-// keyForLintCall creates a sha256 representation of the given arguments. This is used to be stored and checked against
-// when the same linting rule on the same configuration source wants to execute multiple times.
+// ExecuteLintRule executes the given linting rule logic after it checks that it is allowed to execute or not.
+// If the context is configured for linting, it carries a container that stores the sucess status of each combination
+// of (ruleID, ruleIDs and src). If the container contains a successfull run for that combination, it doesn't execute
+// it again. This way, the same combination can be executed multiple times and it will not be executed more than
+// once.
+//
+// NOTE: later, f can be enhanced to return another bool to have the run skipped and not marked as a success execution,
+// which can silently control when a phase has enough information and when not to determine if the rule can be
+// executed reliably.
+func ExecuteLintRule(ctx context.Context, f func() Diagnostics, src SourceRange, ruleID linting.RuleAddr, groupIDs ...linting.RuleAddr) Diagnostics {
+	val := lintHintsFromContext(ctx)
+	if val == nil {
+		return nil
+	}
+	// first, determine that the user actually asked for this
+	if !lintRuleAllowed(val.include, val.exclude, ruleID, groupIDs...) {
+		return nil
+	}
+
+	// generate the identification key based on the ruleID, groupIDs and the place in the configuration for which
+	// this is executed
+	k := keyForLintCall(src, ruleID, groupIDs...)
+
+	type lintExecution struct {
+		m       sync.Mutex
+		success bool
+	}
+	// create a new lint rule executin and lock it to store it into the status container
+	exec := &lintExecution{
+		m:       sync.Mutex{},
+		success: false,
+	}
+	exec.m.Lock()
+	defer exec.m.Unlock()
+	loadedExec, loaded := val.lintOnSourceExecution.LoadOrStore(k, exec)
+	currentExec := exec
+	// another lint execution for this linting rule and source was created before so we need to work with it instead of
+	// the above created one.
+	if loaded {
+		// get the existing execution, acquire lock, and use this instead of the previously created execution
+		cLoadedExec := loadedExec.(*lintExecution)
+		cLoadedExec.m.Lock()
+		defer cLoadedExec.m.Unlock()
+		currentExec = cLoadedExec
+	}
+	if currentExec.success {
+		return nil
+	}
+	diags := f()
+	if !diags.HasErrors() {
+		// safe to set this here since the lock was acquired when this was created, before being stored into the
+		// status container
+		currentExec.success = true
+	}
+	return diags
+}
+
+// keyForLintCall creates a sha256 representation of the given arguments. This is used to be stored and avoid
+// having the same combination of (ruleID+groupIDs+src) executed more than once.
 func keyForLintCall(src SourceRange, ruleID linting.RuleAddr, groupIDs ...linting.RuleAddr) string {
 	var s bytes.Buffer
 	_, _ = s.WriteString(src.StartString())
@@ -231,7 +253,7 @@ func keyForLintCall(src SourceRange, ruleID linting.RuleAddr, groupIDs ...lintin
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-func lintRuleAllowed(include, exclude collections.Set[linting.RuleAddr], ruleID linting.RuleAddr, groupIDs []linting.RuleAddr) bool {
+func lintRuleAllowed(include, exclude collections.Set[linting.RuleAddr], ruleID linting.RuleAddr, groupIDs ...linting.RuleAddr) bool {
 	if include.Has(ruleID) {
 		return true
 	}
