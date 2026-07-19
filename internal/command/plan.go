@@ -16,6 +16,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/spf13/cobra"
 )
 
 // PlanCommand is a Command implementation that compares a OpenTofu
@@ -24,9 +25,80 @@ type PlanCommand struct {
 	Meta
 }
 
-func (c *PlanCommand) Run(rawArgs []string) int {
-	ctx := c.CommandContext()
+func PlanCommander(meta metaFunc) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "plan",
+		Short: new(PlanCommand).Synopsis(),
+		Long: `Generates a speculative execution plan, showing what actions OpenTofu would take to apply the current configuration. This command will not actually perform the planned actions. 
 
+You can optionally save the plan to a file, which you can then pass to the "apply" command to perform exactly the actions described in the plan.`,
+		GroupID: MainCommandGroup.ID,
+	}
+
+	common := arguments.AttachView(cmd)
+	args := arguments.AttachPlan(cmd)
+
+	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
+		meta, err := meta()
+		if err != nil {
+			return err
+		}
+		c := PlanCommand{Meta: meta}
+
+		c.View.Configure(common)
+		// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
+		// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
+		c.View.DiagsWithNewline()
+
+		// Instantiate the view, even if there are flag errors, so that we render
+		// diagnostics according to the desired view
+		view := views.NewPlan(args.ViewOptions, c.View)
+		c.Meta.stateArgs = *args.State
+
+		// FIXME: the -input flag value is needed to initialize the backend and the
+		// operation, but there is no clear path to pass this value down, so we
+		// continue to mutate the Meta object state for now.
+		c.Meta.input = args.ViewOptions.InputEnabled
+
+		c.Meta.variableArgs = args.Vars.All()
+
+		code := c.RunInner(view, args)
+		// TODO better error code passing
+		if code != 0 {
+			return fmt.Errorf("Exit Code: %v", code)
+		}
+		return nil
+	}
+
+	cmd.SetUsageFunc(func(cmd *cobra.Command) error {
+		w := cmd.OutOrStdout()
+		return CommandUsage(cmd, UsageOptions{
+			FlagGroups: []FlagGroup{{
+				ID:          "plan",
+				Title:       "Plan Customization Options:",
+				Description: `The following options customize how OpenTofu will produce its plan. You can also use these options when you run "tofu apply" without passing it a saved plan, in order to plan and apply in a single command.`,
+			}, {
+				Title: "Other Options:",
+			}},
+			FlagOptions: map[string]FlagOption{
+				"destroy":      FlagOption{GroupID: "plan"},
+				"refresh-only": FlagOption{GroupID: "plan"},
+				"refresh":      FlagOption{GroupID: "plan"},
+				"replace":      FlagOption{GroupID: "plan"},
+				"target":       FlagOption{GroupID: "plan"},
+				"target-file":  FlagOption{GroupID: "plan"},
+				"exclude":      FlagOption{GroupID: "plan"},
+				"exclude-file": FlagOption{GroupID: "plan"},
+				"var":          FlagOption{GroupID: "plan"},
+				"var-file":     FlagOption{GroupID: "plan"},
+			},
+		}, w)
+	})
+
+	return cmd
+}
+
+func (c *PlanCommand) Run(rawArgs []string) int {
 	// Parse and apply global view arguments
 	common, rawArgs := arguments.ParseView(rawArgs)
 	c.View.Configure(common)
@@ -46,6 +118,11 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 		view.HelpPrompt()
 		return 1
 	}
+	return c.RunInner(view, args)
+}
+func (c *PlanCommand) RunInner(view views.Plan, args *arguments.Plan) int {
+	var diags tfdiags.Diagnostics
+	ctx := c.CommandContext()
 
 	// Check for user-supplied plugin path
 	var err error

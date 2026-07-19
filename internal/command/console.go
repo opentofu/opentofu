@@ -20,6 +20,7 @@ import (
 	"github.com/opentofu/opentofu/internal/repl"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
+	"github.com/spf13/cobra"
 )
 
 // ConsoleCommand is a Command implementation that starts an interactive
@@ -28,9 +29,57 @@ type ConsoleCommand struct {
 	Meta
 }
 
-func (c *ConsoleCommand) Run(rawArgs []string) int {
-	ctx := c.CommandContext()
+func ConsoleCommander(meta metaFunc) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "console",
+		Short: new(ConsoleCommand).Synopsis(),
+		Long: `Starts an interactive console for experimenting with OpenTofu interpolations.
 
+This will open an interactive console that you can use to type interpolations into and inspect their values. This command loads the current state. This lets you explore and test interpolations before using them in future configurations.
+
+This command will never modify your state.`,
+		GroupID: OtherCommandGroup.ID,
+	}
+
+	common := arguments.AttachView(cmd)
+	args := arguments.AttachConsole(cmd)
+
+	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
+		meta, err := meta()
+		if err != nil {
+			return err
+		}
+		c := ConsoleCommand{Meta: meta}
+
+		c.View.Configure(common)
+		// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
+		// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
+		c.View.DiagsWithNewline()
+
+		// Instantiate the view, even if there are flag errors, so that we render
+		// diagnostics according to the desired view
+		view := views.NewConsole(args.ViewOptions, c.View)
+		c.Meta.stateArgs = *args.State
+
+		// FIXME: the -input flag value is needed to initialize the backend and the
+		// operation, but there is no clear path to pass this value down, so we
+		// continue to mutate the Meta object state for now.
+		c.Meta.input = args.ViewOptions.InputEnabled
+
+		c.Meta.variableArgs = args.Vars.All()
+
+		code := c.RunInner(view)
+		if code != 0 {
+			// TODO better error code passing
+			return fmt.Errorf("Exit Code: %v", code)
+		}
+		return nil
+	}
+
+	return cmd
+}
+
+func (c *ConsoleCommand) Run(rawArgs []string) int {
 	common, rawArgs := arguments.ParseView(rawArgs)
 	c.View.Configure(common)
 	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
@@ -59,6 +108,13 @@ func (c *ConsoleCommand) Run(rawArgs []string) int {
 	c.Meta.input = args.ViewOptions.InputEnabled
 
 	c.Meta.variableArgs = args.Vars.All()
+
+	return c.RunInner(view)
+}
+
+func (c *ConsoleCommand) RunInner(view views.Console) int {
+	var diags tfdiags.Diagnostics
+	ctx := c.CommandContext()
 
 	configPath := c.WorkingDir.NormalizePath(c.WorkingDir.RootModuleDir())
 

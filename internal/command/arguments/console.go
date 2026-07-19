@@ -7,6 +7,7 @@ package arguments
 
 import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/spf13/cobra"
 )
 
 // Console represents the command-line arguments for the console command.
@@ -17,6 +18,45 @@ type Console struct {
 	Vars *Vars
 	// State is used for the state related flags
 	State *State
+}
+
+func AttachConsole(cmd *cobra.Command) *Console {
+	console := &Console{
+		Vars:  &Vars{},
+		State: &State{},
+	}
+
+	cextendedFlagSet(cmd.Flags(), "console", nil, console.Vars)
+	console.State.addFlags(cmd.Flags(), stateFlagLock)
+	console.State.AddStateInFlag(cmd.Flags(), DefaultStateFilename)
+
+	console.ViewOptions.AddFlags(cmd.Flags(), true)
+
+	AddPre(cmd, func() tfdiags.Diagnostics {
+		var diags tfdiags.Diagnostics
+
+		closer, moreDiags := console.ViewOptions.Parse()
+		AddPost(cmd, func() tfdiags.Diagnostics {
+			closer()
+			return nil
+		})
+
+		diags = diags.Append(moreDiags)
+		// If the user provided the -json flag, we don't allow it since the UX is just poor in this case.
+		// We allow only the streaming of the evaluated values in a json file, by using the `-json-into` flag.
+		if console.ViewOptions.ViewType == ViewJSON {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Output only in json is not allowed",
+				"In case you want to stream the output of the console into json, use the \"-json-into\" instead.",
+			))
+			// Revert the view type to be able to print the diagnostic properly
+			console.ViewOptions.ViewType = ViewHuman
+		}
+		return diags
+	})
+
+	return console
 }
 
 // ParseConsole processes CLI arguments, returning a Console value, a closer function, and errors.

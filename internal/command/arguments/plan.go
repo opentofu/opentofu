@@ -7,6 +7,7 @@ package arguments
 
 import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/spf13/cobra"
 )
 
 // Plan represents the command-line arguments for the plan command.
@@ -33,6 +34,45 @@ type Plan struct {
 
 	// ShowSensitive is used to display the value of variables marked as sensitive.
 	ShowSensitive bool
+}
+
+func AttachPlan(cmd *cobra.Command) *Plan {
+	plan := &Plan{
+		State:     &State{},
+		Operation: &Operation{},
+		Vars:      &Vars{},
+	}
+
+	cextendedFlagSet(cmd.Flags(), "plan", plan.Operation, plan.Vars)
+	plan.State.addFlags(cmd.Flags(), stateFlagAll)
+	cmd.Flags().BoolVar(&plan.DetailedExitCode, "detailed-exitcode", false,
+		`Return detailed exit codes when the command exits. The detailed exit codes are:
+ 0 - Succeeded but no changes proposed
+ 1 - Planning failed with an error
+ 2 - Succeeded and changes are proposed`)
+	cmd.Flags().StringVar(&plan.OutPath, "out", "",
+		`Write a plan file to the given path. This can be used as input to the "apply" command.`)
+	cmd.Flags().StringVar(&plan.GenerateConfigPath, "generate-config-out", "",
+		`(Experimental) If import blocks are present in configuration, instructs OpenTofu to generate HCL for any imported resources not already present. The configuration is written to a new file at PATH, which must not already exist. 
+OpenTofu may still attempt to write configuration if planning fails with an error.`)
+	cmd.Flags().BoolVar(&plan.ShowSensitive, "show-sensitive", false,
+		`If specified, sensitive values will not be redacted in te UI output.`)
+
+	plan.ViewOptions.AddFlags(cmd.Flags(), true)
+
+	AddPre(cmd, func() tfdiags.Diagnostics {
+		var diags tfdiags.Diagnostics
+		diags = diags.Append(plan.Operation.Parse())
+		closer, moreDiags := plan.ViewOptions.Parse()
+		diags = diags.Append(moreDiags)
+		AddPost(cmd, func() tfdiags.Diagnostics {
+			closer()
+			return nil
+		})
+		return diags
+	})
+
+	return plan
 }
 
 // ParsePlan processes CLI arguments, returning a Plan value, a closer function, and errors.

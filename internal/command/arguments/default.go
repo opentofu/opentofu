@@ -8,6 +8,8 @@ package arguments
 import (
 	"flag"
 	"io"
+
+	"github.com/spf13/pflag"
 )
 
 // defaultFlagSet creates a FlagSet with the common settings to override
@@ -16,6 +18,10 @@ func defaultFlagSet(name string) *flag.FlagSet {
 	f := flag.NewFlagSet(name, flag.ContinueOnError)
 	f.SetOutput(io.Discard)
 	f.Usage = func() {}
-
 	return f
+}
+
+func cdefaultFlagSet(f *pflag.FlagSet) {
+	f.SetOutput(io.Discard)
+	f.Usage = func() {}
 }

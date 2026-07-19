@@ -6,7 +6,10 @@
 package arguments
 
 import (
+	"fmt"
 	"strings"
+
+	"github.com/spf13/cobra"
 )
 
 // View represents the global command-line arguments which configure the view.
@@ -31,6 +34,32 @@ type View struct {
 
 	// ShowSensitive is used to display the value of variables marked as sensitive.
 	ShowSensitive bool
+}
+
+func AttachView(cmd *cobra.Command) *View {
+	v := &View{}
+
+	cmd.Flags().BoolVar(&v.NoColor, "no-color", false,
+		"Disable virtual terminal escape sequences.")
+	cmd.Flags().BoolVar(&v.CompactWarnings, "compact-warnings", false,
+		"If OpenTofu produces any warnings that are not accompanied by errors, shows them in a more compact form that includes only the summary messages.")
+	cmd.Flags().BoolVar(&v.ConsolidateWarnings, "consolidate-warnings", true,
+		"If OpenTofu produces any warnings, no consolidation will be performed. All locations, for all warnings will be listed. Enabled by default.")
+	cmd.Flags().BoolVar(&v.ConsolidateErrors, "consolidate-errors", false,
+		"If OpenTofu produces any errors, no consolidation will be performed. All locations, for all errors will be listed. Disabled by default.")
+	cmd.Flags().BoolVar(&v.Concise, "concise", false, "Disable progress-related messages.")
+	cmd.Flags().Func("deprecation",
+		`Specify what type of warnings are shown. Accepted values are: module:all, module:local, module:none. Default: all. When "all" is selected, OpenTofu will show the deprecation warnings for all modules. When "local" is selected, the warns will be shown only for the modules that are imported with a relative path. When "none" is selected, all the deprecation warnings will be dropped.`,
+		func(s string) error {
+			prefix := "module:"
+			if !strings.HasPrefix(s, prefix) {
+				return fmt.Errorf("Expected prefix %q, got %q", prefix, s)
+			}
+			v.ModuleDeprecationWarnLvl = ParseDeprecatedWarningLevel(strings.ReplaceAll(s, prefix, ""))
+			return nil
+		})
+
+	return v
 }
 
 // ParseView processes CLI arguments, returning a View value and a
