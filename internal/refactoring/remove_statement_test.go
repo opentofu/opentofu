@@ -3,7 +3,7 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package refactoring
+package refactoring_test
 
 import (
 	"testing"
@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -19,13 +20,13 @@ func TestGetEndpointsToRemove(t *testing.T) {
 	tests := []struct {
 		name        string
 		fixtureName string
-		want        []*RemoveStatement
+		want        []*refactoring.RemoveStatement
 		wantError   string
 	}{
 		{
 			name:        "Valid cases",
 			fixtureName: "testdata/remove-statement/valid-remove-statements",
-			want: []*RemoveStatement{
+			want: []*refactoring.RemoveStatement{
 				{
 					From: mustConfigResourceAddr("foo.basic_resource"),
 					DeclRange: tfdiags.SourceRange{
@@ -88,7 +89,7 @@ func TestGetEndpointsToRemove(t *testing.T) {
 		{
 			name:        "Error - resource block still exist",
 			fixtureName: "testdata/remove-statement/not-valid-resource-block-still-exist",
-			want: []*RemoveStatement{
+			want: []*refactoring.RemoveStatement{
 				{From: mustConfigResourceAddr("foo.basic_resource")},
 			},
 			wantError: `Removed resource block still exists: This statement declares a removal of the resource foo.basic_resource, but this resource block still exists in the configuration. Please remove the resource block.`,
@@ -96,20 +97,20 @@ func TestGetEndpointsToRemove(t *testing.T) {
 		{
 			name:        "Error - module block still exist",
 			fixtureName: "testdata/remove-statement/not-valid-module-block-still-exist",
-			want:        []*RemoveStatement{},
+			want:        []*refactoring.RemoveStatement{},
 			wantError:   `Removed module block still exists: This statement declares a removal of the module module.child, but this module block still exists in the configuration. Please remove the module block.`,
 		},
 		{
 			name:        "Error - nested resource block still exist",
 			fixtureName: "testdata/remove-statement/not-valid-nested-resource-block-still-exist",
-			want:        []*RemoveStatement{},
+			want:        []*refactoring.RemoveStatement{},
 			wantError:   `Removed resource block still exists: This statement declares a removal of the resource module.child.foo.basic_resource, but this resource block still exists in the configuration. Please remove the resource block.`,
 		}}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rootCfg, _ := loadRefactoringFixture(t, tt.fixtureName)
-			got, diags := FindRemoveStatements(rootCfg)
+			got, diags := refactoring.FindRemoveStatements(rootCfg)
 
 			if tt.wantError != "" {
 				if !diags.HasErrors() {
