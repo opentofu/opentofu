@@ -589,7 +589,7 @@ func (n *NodeAbstractResourceInstance) readResourceInstanceState(ctx context.Con
 		currentSchema:        schema,
 		currentSchemaVersion: currentVersion,
 	}
-	if isResourceMovedToDifferentType(addr, prevAddr, providerAddr, prevProviderAddr) {
+	if evalCtx.MoveResults().AddrMovedExplicit(addr) && isResourceMovedToDifferentType(addr, prevAddr, providerAddr, prevProviderAddr) {
 		src, diags = moveResourceState(transformArgs)
 	} else {
 		src, diags = upgradeResourceState(transformArgs)
@@ -663,7 +663,7 @@ func (n *NodeAbstractResourceInstance) readResourceInstanceStateDeposed(ctx cont
 		currentSchema:        schema,
 		currentSchemaVersion: currentVersion,
 	}
-	if isResourceMovedToDifferentType(addr, prevAddr, providerAddr, prevProviderAddr) {
+	if evalCtx.MoveResults().AddrMovedExplicit(addr) && isResourceMovedToDifferentType(addr, prevAddr, providerAddr, prevProviderAddr) {
 		src, diags = moveResourceState(transformArgs)
 	} else {
 		src, diags = upgradeResourceState(transformArgs)
