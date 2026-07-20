@@ -15,6 +15,10 @@ terraform {
   }
 }
 
+provider "sleep" {
+  max_default = 2
+}
+
 resource "random_id" "test" {
   byte_length = 2
 }
