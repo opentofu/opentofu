@@ -278,6 +278,14 @@ func (r AbsResource) UniqueKey() UniqueKey {
 	return absResourceKey(r.String())
 }
 
+func (r AbsResource) Noun() string {
+	return "resource"
+}
+
+func (r AbsResource) ShortNoun() string {
+	return "resource"
+}
+
 // AbsResourceInstance is an absolute address for a resource instance under a
 // given module path.
 type AbsResourceInstance struct {
@@ -418,6 +426,14 @@ func (r absResourceInstanceKey) uniqueKeySigil() {}
 
 func (r AbsResourceInstance) absMoveableSigil() {
 	// AbsResourceInstance is moveable
+}
+
+func (r AbsResourceInstance) Noun() string {
+	return "resource instance"
+}
+
+func (r AbsResourceInstance) ShortNoun() string {
+	return "instance"
 }
 
 // ConfigResource is an address for a resource within a configuration.

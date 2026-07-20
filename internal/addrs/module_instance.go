@@ -293,6 +293,14 @@ func (m ModuleInstance) UniqueKey() UniqueKey {
 
 func (mk moduleInstanceKey) uniqueKeySigil() {}
 
+func (m ModuleInstance) Noun() string {
+	return "module instance"
+}
+
+func (m ModuleInstance) ShortNoun() string {
+	return "instance"
+}
+
 // Equal returns true if the receiver and the given other value
 // contains the exact same parts.
 func (m ModuleInstance) Equal(o ModuleInstance) bool {

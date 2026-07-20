@@ -19,6 +19,8 @@ type AbsMoveable interface {
 	UniqueKeyer
 
 	String() string
+	Noun() string
+	ShortNoun() string
 }
 
 // The following are all of the possible AbsMoveable address types:

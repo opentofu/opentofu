@@ -76,25 +76,8 @@ func ValidateMoves(stmts []MoveStatement, rootCfg *configs.Config, declaredInsts
 				continue
 			}
 
-			var noun string
-			var shortNoun string
-			switch absFrom.(type) {
-			case addrs.ModuleInstance:
-				noun = "module instance"
-				shortNoun = "instance"
-			case addrs.AbsModuleCall:
-				noun = "module call"
-				shortNoun = "call"
-			case addrs.AbsResourceInstance:
-				noun = "resource instance"
-				shortNoun = "instance"
-			case addrs.AbsResource:
-				noun = "resource"
-				shortNoun = "resource"
-			default:
-				// The above cases should cover all of the AbsMoveable types
-				panic("unsupported AbsMoveable address type")
-			}
+			noun := absFrom.Noun()
+			shortNoun := absFrom.ShortNoun()
 
 			// It's invalid to have a move statement whose "from" address
 			// refers to something that is still declared in the configuration.
