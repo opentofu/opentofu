@@ -36,6 +36,33 @@ type View struct {
 	ShowSensitive bool
 }
 
+func BindView(flags Flags) *View {
+	v := &View{}
+
+	flags.BoolVar(&v.NoColor, "no-color", false,
+		"Disable virtual terminal escape sequences.")
+	flags.BoolVar(&v.CompactWarnings, "compact-warnings", false,
+		"If OpenTofu produces any warnings that are not accompanied by errors, shows them in a more compact form that includes only the summary messages.")
+	flags.BoolVar(&v.ConsolidateWarnings, "consolidate-warnings", true,
+		"If OpenTofu produces any warnings, no consolidation will be performed. All locations, for all warnings will be listed. Enabled by default.",
+	).SetDisplay("=false")
+	flags.BoolVar(&v.ConsolidateErrors, "consolidate-errors", false,
+		"If OpenTofu produces any errors, no consolidation will be performed. All locations, for all errors will be listed. Disabled by default.")
+	flags.BoolVar(&v.Concise, "concise", false, "Disable progress-related messages.")
+	flags.Func("deprecation",
+		`Specify what type of warnings are shown. Accepted values for "m": all, local, none. Default: all. When "all" is selected, OpenTofu will show the deprecation warnings for all modules. When "local" is selected, the warns will be shown only for the modules that are imported with a relative path. When "none" is selected, all the deprecation warnings will be dropped.`,
+		func(s string) error {
+			prefix := "module:"
+			if !strings.HasPrefix(s, prefix) {
+				return fmt.Errorf("Expected prefix %q, got %q", prefix, s)
+			}
+			v.ModuleDeprecationWarnLvl = ParseDeprecatedWarningLevel(strings.ReplaceAll(s, prefix, ""))
+			return nil
+		}).SetDisplay("=module:m")
+
+	return v
+}
+
 func AttachView(cmd *cobra.Command) *View {
 	v := &View{}
 

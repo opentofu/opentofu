@@ -6,6 +6,7 @@
 package arguments
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -60,14 +61,33 @@ type ViewOptions struct {
 	JSONInto *os.File
 }
 
-func (v *ViewOptions) AddFlags(cmdFlags FlagSet, input bool) {
+func (v *ViewOptions) ParseHook() Hook {
+	var closer func()
+	return Hook{
+		Pre: func() tfdiags.Diagnostics {
+			var diags tfdiags.Diagnostics
+			closer, diags = v.Parse()
+			return diags
+		},
+		Post: func() tfdiags.Diagnostics {
+			closer()
+			return nil
+		},
+	}
+}
+
+func (v *ViewOptions) bind(flags Flags, input bool) {
+	v.bindGranularFlags(input, true, flags)
+}
+
+func (v *ViewOptions) AddFlags(cmdFlags *flag.FlagSet, input bool) {
 	v.AddGranularFlags(cmdFlags, input, true)
 }
 
 // AddGranularFlags registers view-related flags on cmdFlags. Use input=true to
 // register the -input flag and jsonInto=true to register the -json-into flag.
 // Commands that only support -json (not -json-into) should pass jsonInto=false.
-func (v *ViewOptions) AddGranularFlags(cmdFlags FlagSet, input bool, jsonInto bool) {
+func (v *ViewOptions) AddGranularFlags(cmdFlags *flag.FlagSet, input bool, jsonInto bool) {
 	if input {
 		cmdFlags.BoolVar(&v.InputEnabled, "input", true,
 			`Disable prompting for required input variables that are not set some other way.`)
@@ -78,6 +98,22 @@ func (v *ViewOptions) AddGranularFlags(cmdFlags FlagSet, input bool, jsonInto bo
 	if jsonInto {
 		cmdFlags.StringVar(&v.jsonIntoFlag, "json-into", "",
 			`Produce the same output as -json, but sent directly to the given file. This allows automation to preserve the original human-readable output streams, while capturing more detailed logs for machine analysis.`)
+	}
+}
+
+func (v *ViewOptions) bindGranularFlags(input bool, jsonInto bool, flags Flags) {
+	if input {
+		flags.BoolVar(&v.InputEnabled, "input", true,
+			`Disable prompting for required input variables that are not set some other way.`,
+		).SetDisplay("=false")
+	}
+
+	flags.BoolVar(&v.jsonFlag, "json", false,
+		`Produce output in a machine-readable JSON format, suitable for use in text editor integrations and other automated systems.`)
+	if jsonInto {
+		flags.StringVar(&v.jsonIntoFlag, "json-into", "",
+			`Produce the same output as -json, but sent directly to the given file. This allows automation to preserve the original human-readable output streams, while capturing more detailed logs for machine analysis.`,
+		).SetDisplay("=out.json")
 	}
 }
 

@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/go-plugin"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command"
+	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/cliconfig"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/command/workdir"
@@ -45,9 +46,13 @@ func cobraMain(
 
 	root.AddGroup(command.MainCommandGroup, command.OtherCommandGroup)
 
+	flags := arguments.Flags{}
+
 	var chdirArg string
-	root.Flags().StringVar(&chdirArg, "chdir", "", "Switch to a different working directory before executing the given subcommand.")
-	root.Flags().Bool("help", false, "Show this help output, or the help for a specified subcommand.")
+	var help bool
+	flags.StringVar(&chdirArg, "chdir", "", "Switch to a different working directory before executing the given subcommand.").SetDisplay("=DIR")
+	flags.BoolVar(&help, "help", false, "Show this help output, or the help for a specified subcommand.")
+	flags.Attach(root)
 
 	// In practice, this is only ever called once, though we could wrap it in a sync.Once if we want to be safer.
 	meta := func() (command.Meta, error) {
@@ -93,19 +98,16 @@ func cobraMain(
 	root.SetUsageFunc(func(cmd *cobra.Command) error {
 		w := cmd.OutOrStdout()
 		if cmd == root {
-			return command.CommandUsage(cmd, command.UsageOptions{
+			return command.CommandUsage(cmd, flags, command.UsageOptions{
 				Usage: "tofu [global options] <subcommand> [args]",
-				FlagGroups: []command.FlagGroup{{
+				FlagGroups: []arguments.FlagGroup{{
 					Title: "Global options (use these before the subcommand, if any)",
 				}},
 				FlagSingleSpace: true,
-				FlagOptions: map[string]command.FlagOption{"chdir": {
-					Display: "DIR",
-				}},
 			}, w)
 		}
 		// Default
-		return command.CommandUsage(cmd, command.UsageOptions{}, w)
+		return command.CommandUsage(cmd, nil, command.UsageOptions{}, w)
 	})
 
 	err := root.Execute()

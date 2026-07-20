@@ -35,8 +35,12 @@ You can optionally save the plan to a file, which you can then pass to the "appl
 		GroupID: MainCommandGroup.ID,
 	}
 
-	common := arguments.AttachView(cmd)
-	args := arguments.AttachPlan(cmd)
+	flags := arguments.Flags{}
+	args, common, groups, hooks := arguments.BindPlan(flags)
+
+	// TODO arg parse and hooks may not render via view, figure this out
+	hooks.Attach(cmd)
+	flags.Attach(cmd)
 
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
 		meta, err := meta()
@@ -72,27 +76,7 @@ You can optionally save the plan to a file, which you can then pass to the "appl
 
 	cmd.SetUsageFunc(func(cmd *cobra.Command) error {
 		w := cmd.OutOrStdout()
-		return CommandUsage(cmd, UsageOptions{
-			FlagGroups: []FlagGroup{{
-				ID:          "plan",
-				Title:       "Plan Customization Options:",
-				Description: `The following options customize how OpenTofu will produce its plan. You can also use these options when you run "tofu apply" without passing it a saved plan, in order to plan and apply in a single command.`,
-			}, {
-				Title: "Other Options:",
-			}},
-			FlagOptions: map[string]FlagOption{
-				"destroy":      FlagOption{GroupID: "plan"},
-				"refresh-only": FlagOption{GroupID: "plan"},
-				"refresh":      FlagOption{GroupID: "plan"},
-				"replace":      FlagOption{GroupID: "plan"},
-				"target":       FlagOption{GroupID: "plan"},
-				"target-file":  FlagOption{GroupID: "plan"},
-				"exclude":      FlagOption{GroupID: "plan"},
-				"exclude-file": FlagOption{GroupID: "plan"},
-				"var":          FlagOption{GroupID: "plan"},
-				"var-file":     FlagOption{GroupID: "plan"},
-			},
-		}, w)
+		return CommandUsage(cmd, flags, UsageOptions{FlagGroups: groups}, w)
 	})
 
 	return cmd
@@ -275,16 +259,26 @@ Plan Customization Options:
                           plan to destroy all objects currently managed by this
                           OpenTofu configuration instead of the usual behavior.
 
-  -refresh-only           Select the "refresh only" planning mode, which checks
-                          whether remote objects still match the outcome of the
-                          most recent OpenTofu apply but does not propose any
-                          actions to undo any changes made outside of OpenTofu.
+  -exclude=resource       Limit the planning operation to not operate on the
+                          given module, resource, or resource instance and all
+                          of the resources and modules that depend on it. You
+                          can use this option multiple times to exclude more
+                          than one object. This is for exceptional use only.
+                          Cannot be used together with the -target option.
+
+  -exclude-file=filename  Similar to -exclude, but specifies zero or more
+                          resource addresses from a file.
 
   -refresh=false          Skip checking for external changes to remote objects
                           while creating the plan. This can potentially make
                           planning faster, but at the expense of possibly
                           planning against a stale record of the remote system
                           state.
+
+  -refresh-only           Select the "refresh only" planning mode, which checks
+                          whether remote objects still match the outcome of the
+                          most recent OpenTofu apply but does not propose any
+                          actions to undo any changes made outside of OpenTofu.
 
   -replace=resource       Force replacement of a particular resource instance
                           using its resource address. If the plan would've
@@ -303,16 +297,6 @@ Plan Customization Options:
   -target-file=filename   Similar to -target, but specifies zero or more
                           resource addresses from a file.
 
-  -exclude=resource       Limit the planning operation to not operate on the
-                          given module, resource, or resource instance and all
-                          of the resources and modules that depend on it. You
-                          can use this option multiple times to exclude more
-                          than one object. This is for exceptional use only.
-                          Cannot be used together with the -target option.
-
-  -exclude-file=filename  Similar to -exclude, but specifies zero or more
-                          resource addresses from a file.
-
   -var 'foo=bar'          Set a value for one of the input variables in the
                           root module of the configuration. Use this option
                           more than once to set more than one variable.
@@ -329,12 +313,24 @@ Other Options:
                                compact form that includes only the summary
                                messages.
 
+  -concise                     Disable progress-related messages.
+
+  -consolidate-errors          If OpenTofu produces any errors, attempt to
+                               consolidate similar messages into a single item.
+
   -consolidate-warnings=false  If OpenTofu produces any warnings, do not
                                attempt to consolidate similar messages. All
                                locations for all warnings will be listed.
 
-  -consolidate-errors          If OpenTofu produces any errors, attempt to
-                               consolidate similar messages into a single item.
+  -deprecation=module:m        Specify what type of warnings are shown.
+                               Accepted values for "m": all, local, none. 
+                               Default: all. When "all" is selected, OpenTofu
+                               will show the deprecation warnings for all
+                               modules. When "local" is selected, the warns
+                               will be shown only for the modules that are
+                               imported with a relative path. When "none" is
+                               selected, all the deprecation warnings will be
+                               dropped.
 
   -detailed-exitcode           Return detailed exit codes when the command
                                exits. The detailed exit codes are:
@@ -353,30 +349,6 @@ Other Options:
   -input=false                 Disable prompting for required input variables
                                that are not set some other way.
 
-  -lock=false                  Don't hold a state lock during the operation.
-                               This is dangerous if others might concurrently
-                               run commands against the same workspace.
-
-  -lock-timeout=duration       Duration to retry a state lock, such as "5s"
-                               to represent five seconds.
-
-  -no-color                    Disable virtual terminal escape sequences.
-
-  -concise                     Disable progress-related messages.
-
-  -out=path                    Write a plan file to the given path. This can be
-                               used as input to the "apply" command.
-
-  -parallelism=n               Limit the number of concurrent operations.
-                               Defaults to 10.
-
-  -state=statefile             A legacy option used for the local backend only.
-                               Refer to the local backend's documentation for
-                               more information.
-
-  -show-sensitive              If specified, sensitive values will not be
-                               redacted in te UI output.
-
   -json                        Produce output in a machine-readable JSON
                                format, suitable for use in text editor
                                integrations and other automated systems.
@@ -386,15 +358,27 @@ Other Options:
                                the original human-readable output streams, while
                                capturing more detailed logs for machine analysis.
 
-  -deprecation=module:m        Specify what type of warnings are shown.
-                               Accepted values for "m": all, local, none. 
-                               Default: all. When "all" is selected, OpenTofu
-                               will show the deprecation warnings for all
-                               modules. When "local" is selected, the warns
-                               will be shown only for the modules that are
-                               imported with a relative path. When "none" is
-                               selected, all the deprecation warnings will be
-                               dropped.
+  -lock=false                  Don't hold a state lock during the operation.
+                               This is dangerous if others might concurrently
+                               run commands against the same workspace.
+
+  -lock-timeout=duration       Duration to retry a state lock, such as "5s"
+                               to represent five seconds.
+
+  -no-color                    Disable virtual terminal escape sequences.
+
+  -out=path                    Write a plan file to the given path. This can be
+                               used as input to the "apply" command.
+
+  -parallelism=n               Limit the number of concurrent operations.
+                               Defaults to 10.
+
+  -show-sensitive              If specified, sensitive values will not be
+                               redacted in te UI output.
+
+  -state=statefile             A legacy option used for the local backend only.
+                               Refer to the local backend's documentation for
+                               more information.
 `
 	return strings.TrimSpace(helpText)
 }

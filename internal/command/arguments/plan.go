@@ -7,7 +7,6 @@ package arguments
 
 import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/spf13/cobra"
 )
 
 // Plan represents the command-line arguments for the plan command.
@@ -36,49 +35,108 @@ type Plan struct {
 	ShowSensitive bool
 }
 
-func AttachPlan(cmd *cobra.Command) *Plan {
-	plan := &Plan{
-		State:     &State{},
-		Operation: &Operation{},
-		Vars:      &Vars{},
-	}
+func bindPlan(flags Flags) (*Plan, []FlagGroup, Hooks) {
+	var hooks Hooks
 
-	cextendedFlagSet(cmd.Flags(), "plan", plan.Operation, plan.Vars)
-	plan.State.addFlags(cmd.Flags(), stateFlagAll)
-	cmd.Flags().BoolVar(&plan.DetailedExitCode, "detailed-exitcode", false,
+	plan := &Plan{}
+
+	plan.ViewOptions.bind(flags, true)
+	hooks = append(hooks, plan.ViewOptions.ParseHook())
+
+	plan.Operation = &Operation{}
+	plan.Operation.bind(flags)
+	hooks = append(hooks, Hook{Pre: plan.Operation.Parse})
+
+	plan.Vars = &Vars{}
+	plan.Vars.bind(flags)
+
+	plan.State = &State{}
+	plan.State.bind(flags, stateFlagAll)
+
+	flags.BoolVar(&plan.DetailedExitCode, "detailed-exitcode", false,
 		`Return detailed exit codes when the command exits. The detailed exit codes are:
- 0 - Succeeded but no changes proposed
- 1 - Planning failed with an error
- 2 - Succeeded and changes are proposed`)
-	cmd.Flags().StringVar(&plan.OutPath, "out", "",
-		`Write a plan file to the given path. This can be used as input to the "apply" command.`)
-	cmd.Flags().StringVar(&plan.GenerateConfigPath, "generate-config-out", "",
+  0 - Succeeded but no changes proposed
+  1 - Planning failed with an error
+  2 - Succeeded and changes are proposed`)
+	flags.StringVar(&plan.OutPath, "out", "",
+		`Write a plan file to the given path. This can be used as input to the "apply" command.`,
+	).SetDisplay("=path")
+	flags.StringVar(&plan.GenerateConfigPath, "generate-config-out", "",
 		`(Experimental) If import blocks are present in configuration, instructs OpenTofu to generate HCL for any imported resources not already present. The configuration is written to a new file at PATH, which must not already exist. 
-OpenTofu may still attempt to write configuration if planning fails with an error.`)
-	cmd.Flags().BoolVar(&plan.ShowSensitive, "show-sensitive", false,
+OpenTofu may still attempt to write configuration if planning fails with an error.`,
+	).SetDisplay("=path")
+	flags.BoolVar(&plan.ShowSensitive, "show-sensitive", false,
 		`If specified, sensitive values will not be redacted in te UI output.`)
 
-	plan.ViewOptions.AddFlags(cmd.Flags(), true)
+	// Special handling for flag groups!
+	for _, name := range []string{"destroy", "refresh-only", "refresh", "replace", "target", "target-file", "exclude", "exclude-file", "var", "var-file"} {
+		flags[name].SetGroup("plan")
+	}
+	groups := []FlagGroup{{
+		ID:          "plan",
+		Title:       "Plan Customization Options:",
+		Description: `The following options customize how OpenTofu will produce its plan. You can also use these options when you run "tofu apply" without passing it a saved plan, in order to plan and apply in a single command.`,
+	}, {
+		Title: "Other Options:",
+	}}
 
-	AddPre(cmd, func() tfdiags.Diagnostics {
-		var diags tfdiags.Diagnostics
-		diags = diags.Append(plan.Operation.Parse())
-		closer, moreDiags := plan.ViewOptions.Parse()
-		diags = diags.Append(moreDiags)
-		AddPost(cmd, func() tfdiags.Diagnostics {
-			closer()
-			return nil
-		})
-		return diags
-	})
+	return plan, groups, hooks
 
-	return plan
+}
+
+func BindPlan(flags Flags) (*Plan, *View, []FlagGroup, Hooks) {
+	plan, groups, hooks := bindPlan(flags)
+	view := BindView(flags)
+	return plan, view, groups, hooks
 }
 
 // ParsePlan processes CLI arguments, returning a Plan value, a closer function, and errors.
 // If errors are encountered, a Plan value is still returned representing
 // the best effort interpretation of the arguments.
 func ParsePlan(args []string) (*Plan, func(), tfdiags.Diagnostics) {
+	flags := Flags{}
+	plan, _, hooks := bindPlan(flags)
+
+	cmdFlags := defaultFlagSet("plan")
+	for _, flag := range flags {
+		flag.Stdlib(cmdFlags)
+	}
+
+	var diags tfdiags.Diagnostics
+
+	if err := cmdFlags.Parse(args); err != nil {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Failed to parse command-line flags",
+			err.Error(),
+		))
+	}
+
+	args = cmdFlags.Args()
+
+	if len(args) > 0 {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Too many command line arguments",
+			"To specify a working directory for the plan, use the global -chdir flag.",
+		))
+	}
+
+	for _, hook := range hooks {
+		if hook.Pre != nil {
+			diags = diags.Append(hook.Pre())
+		}
+	}
+
+	return plan, func() {
+		for _, hook := range hooks {
+			if hook.Post != nil {
+				hook.Post()
+			}
+		}
+	}, diags
+}
+func ParsePlanLegacy(args []string) (*Plan, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	plan := &Plan{
 		State:     &State{},

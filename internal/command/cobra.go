@@ -8,11 +8,12 @@ package command
 import (
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 
 	"github.com/mitchellh/go-wordwrap"
+	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 )
 
 type metaFunc func() (Meta, error)
@@ -28,29 +29,15 @@ func (e ExitCodeError) Error() string {
 	return fmt.Sprintf("%#v", e)
 }
 
-type FlagGroup struct {
-	ID          string
-	Title       string
-	Description string
-}
-type FlagOption struct {
-	GroupID string
-	Display string
-}
-
 type UsageOptions struct {
-	Usage string
+	Usage      string
+	Suffix     string
+	FlagGroups []arguments.FlagGroup
 
-	// FlagGroups is a bit hacky, but is a reasonable solution pending more
-	// drastic changes to the arguments package.
-	FlagGroups      []FlagGroup
-	FlagOptions     map[string]FlagOption
 	FlagSingleSpace bool
-
-	Suffix string
 }
 
-func CommandUsage(cmd *cobra.Command, opts UsageOptions, w io.Writer) error {
+func CommandUsage(cmd *cobra.Command, flags arguments.Flags, opts UsageOptions, w io.Writer) error {
 	const TERM_WIDTH = 80
 
 	// Helpers
@@ -73,32 +60,36 @@ func CommandUsage(cmd *cobra.Command, opts UsageOptions, w io.Writer) error {
 		}
 		fmt.Fprint(w, "\n")
 	}
-	printFlags := func(title string, flags *pflag.FlagSet, group *FlagGroup) {
+	printFlags := func(title string, group *arguments.FlagGroup) {
 		// This whole thing is not terribly efficient, but it runs with no particular urgency
-		formatFlag := func(flag *pflag.Flag) string {
+		formatFlag := func(flag *arguments.Flag) string {
 			s := "-" + flag.Name
-			flagOpt := opts.FlagOptions[flag.Name]
-			if flagOpt.Display != "" {
-				s += "=" + flagOpt.Display
+			if flag.Display != "" {
+				s += flag.Display
 			}
 			return s
 		}
 
-		var flagsToPrint []*pflag.Flag
+		var flagsToPrint []*arguments.Flag
 		maxFlagLength := 0
-		flags.VisitAll(func(flag *pflag.Flag) {
-			flagOpt := opts.FlagOptions[flag.Name]
-
-			if group != nil && flagOpt.GroupID != group.ID {
-				return
+		for _, flag := range flags {
+			if group != nil && flag.GroupID != group.ID {
+				continue
+			}
+			if flag.Hidden {
+				continue
 			}
 			flagsToPrint = append(flagsToPrint, flag)
 			maxFlagLength = max(maxFlagLength, len(formatFlag(flag)))
-		})
+		}
 
 		if len(flagsToPrint) == 0 {
 			return
 		}
+
+		slices.SortFunc(flagsToPrint, func(a, b *arguments.Flag) int {
+			return strings.Compare(a.Name, b.Name)
+		})
 
 		printHeader(title)
 		if !opts.FlagSingleSpace {
@@ -156,16 +147,16 @@ func CommandUsage(cmd *cobra.Command, opts UsageOptions, w io.Writer) error {
 
 	if cmd.HasAvailableLocalFlags() {
 		if len(opts.FlagGroups) == 0 {
-			printFlags("Options:", cmd.LocalFlags(), nil)
+			printFlags("Options:", nil)
 		} else {
 			for _, group := range opts.FlagGroups {
-				printFlags(group.Title, cmd.LocalFlags(), &group)
+				printFlags(group.Title, &group)
 			}
 		}
 	}
-	if cmd.HasAvailableInheritedFlags() {
+	/*if cmd.HasAvailableInheritedFlags() {
 		printFlags("Global Options:", cmd.InheritedFlags(), nil)
-	}
+	}*/
 
 	return nil
 }

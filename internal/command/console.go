@@ -41,8 +41,11 @@ This command will never modify your state.`,
 		GroupID: OtherCommandGroup.ID,
 	}
 
-	common := arguments.AttachView(cmd)
-	args := arguments.AttachConsole(cmd)
+	flags := arguments.Flags{}
+	args, common, hooks := arguments.BindConsole(flags)
+	// TODO arg parse and hooks may not render via view, figure this out
+	hooks.Attach(cmd)
+	flags.Attach(cmd)
 
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
 		meta, err := meta()
@@ -75,6 +78,11 @@ This command will never modify your state.`,
 		}
 		return nil
 	}
+
+	cmd.SetUsageFunc(func(cmd *cobra.Command) error {
+		w := cmd.OutOrStdout()
+		return CommandUsage(cmd, flags, UsageOptions{}, w)
+	})
 
 	return cmd
 }
