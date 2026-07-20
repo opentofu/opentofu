@@ -261,7 +261,7 @@ func (n *nodeExpandPlannableResource) expandResourceInstances(ctx context.Contex
 	if mustHaveIndex {
 		for _, candidateAddr := range n.forceReplace {
 			if candidateAddr.Resource.Key == addrs.NoKey {
-				if n.Addr.Resource.Equal(candidateAddr.Resource.Resource) {
+				if n.Addr.Equal(candidateAddr.ConfigResource()) {
 					switch {
 					case len(instanceAddrs) == 0:
 						// In this case there _are_ no instances to replace, so
