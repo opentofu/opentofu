@@ -1444,6 +1444,7 @@ func TestContext2Plan_movedResourceToDifferentType(t *testing.T) {
 		newSchema     providers.Schema
 		oldType       string
 		newType       string
+		newAddr       string
 		config        map[string]string
 		attrsJSON     []byte
 		wantOp        plans.Action
@@ -1732,12 +1733,122 @@ func TestContext2Plan_movedResourceToDifferentType(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "different provider addr with same schema (explicit)",
+			oldSchema: constructProviderSchemaForTesting(map[string]*configschema.Attribute{
+				"test_number": {
+					Type:     cty.Number,
+					Required: true,
+				},
+			}),
+			newSchema: constructProviderSchemaForTesting(map[string]*configschema.Attribute{
+				"test_number": {
+					Type:     cty.Number,
+					Required: true,
+				},
+			}),
+			oldType: "provider_object",
+			newType: "provider_object",
+			newAddr: "provider_object.new[0]",
+			config: map[string]string{
+				"main.tf": `
+					resource "provider_object" "new" {
+					        count = 1
+						test_number = 1
+					}
+					moved {
+						from = provider_object.old
+						to   = provider_object.new[0]
+					}
+				`,
+			},
+			attrsJSON: []byte(`{"test_number": 1}`),
+			wantOp:    plans.NoOp,
+			providerAddr1: &addrs.AbsProviderConfig{
+				Provider: addrs.NewBuiltInProvider("provider"),
+			},
+			providerAddr2: &addrs.AbsProviderConfig{
+				Provider: addrs.NewDefaultProvider("provider"),
+			},
+			mockProvider: &MockProvider{
+				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+					ResourceTypes: map[string]providers.Schema{
+						"provider_object": constructProviderSchemaForTesting(map[string]*configschema.Attribute{
+							"test_number": {
+								Type:     cty.Number,
+								Required: true,
+							},
+						}),
+					},
+				},
+				MoveResourceStateResponse: &providers.MoveResourceStateResponse{
+					TargetState: cty.ObjectVal(map[string]cty.Value{
+						"test_number": cty.NumberIntVal(1),
+					}),
+				},
+			},
+		},
+		{
+			name: "different provider addr with same schema (implicit)",
+			oldSchema: constructProviderSchemaForTesting(map[string]*configschema.Attribute{
+				"test_number": {
+					Type:     cty.Number,
+					Required: true,
+				},
+			}),
+			newSchema: constructProviderSchemaForTesting(map[string]*configschema.Attribute{
+				"test_number": {
+					Type:     cty.Number,
+					Required: true,
+				},
+			}),
+			oldType: "provider_object",
+			newType: "provider_object",
+			config: map[string]string{
+				"main.tf": `
+					resource "provider_object" "new" {
+					        count = 1
+						test_number = 1
+					}
+					// This is an *IMPLICIT* move and should not perform a MovedResource provider request
+					// This matches what is in the provider framework documentation, but differs from
+					// terraform (as far as we can tell from black box testing)
+					// See discussion in https://github.com/opentofu/opentofu/issues/4374#issuecomment-5022178852
+				`,
+			},
+			attrsJSON: []byte(`{"test_number": 1}`),
+			providerAddr1: &addrs.AbsProviderConfig{
+				Provider: addrs.NewBuiltInProvider("provider"),
+			},
+			providerAddr2: &addrs.AbsProviderConfig{
+				Provider: addrs.NewDefaultProvider("provider"),
+			},
+			wantErrStr: "Showing Upgrade instead of moved: contrived test",
+			mockProvider: &MockProvider{
+				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+					ResourceTypes: map[string]providers.Schema{
+						"provider_object": constructProviderSchemaForTesting(map[string]*configschema.Attribute{
+							"test_number": {
+								Type:     cty.Number,
+								Required: true,
+							},
+						}),
+					},
+				},
+				UpgradeResourceStateResponse: &providers.UpgradeResourceStateResponse{
+					Diagnostics: tfdiags.New(tfdiags.Sourceless(tfdiags.Error, "Showing Upgrade instead of moved", "contrived test")),
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			oldAddr := mustResourceInstanceAddr(tt.oldType + ".old")
 			newAddr := mustResourceInstanceAddr(tt.newType + ".new")
+			if tt.newAddr != "" {
+				newAddr = mustResourceInstanceAddr(tt.newAddr)
+			}
 			m := testModuleInline(t, tt.config)
 
 			providerAddr := addrs.AbsProviderConfig{

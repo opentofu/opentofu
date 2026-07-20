@@ -534,10 +534,12 @@ func TestApplyMoves(t *testing.T) {
 					addrs.MakeMapElem(mustParseInstAddr("module.boo.foo.from"), MoveSuccess{
 						mustParseInstAddr("foo.from"),
 						mustParseInstAddr("module.boo.foo.from"),
+						false,
 					}),
 					addrs.MakeMapElem(mustParseInstAddr("module.boo.foo.to"), MoveSuccess{
 						mustParseInstAddr("module.bar[0].foo.to"),
 						mustParseInstAddr("module.boo.foo.to"),
+						false,
 					}),
 				),
 				Blocked: emptyResults.Blocked,
@@ -579,10 +581,12 @@ func TestApplyMoves(t *testing.T) {
 					addrs.MakeMapElem(mustParseInstAddr("module.bar[0].foo.to"), MoveSuccess{
 						mustParseInstAddr("foo.from"),
 						mustParseInstAddr("module.bar[0].foo.to"),
+						false,
 					}),
 					addrs.MakeMapElem(mustParseInstAddr("module.bar[0].bar.to"), MoveSuccess{
 						mustParseInstAddr("bar.from"),
 						mustParseInstAddr("module.bar[0].bar.to"),
+						false,
 					}),
 				),
 				Blocked: emptyResults.Blocked,
@@ -623,6 +627,7 @@ func TestApplyMoves(t *testing.T) {
 					addrs.MakeMapElem(mustParseInstAddr("module.boo.foo.from"), MoveSuccess{
 						mustParseInstAddr("module.bar[0].foo.from"),
 						mustParseInstAddr("module.boo.foo.from"),
+						false,
 					}),
 				),
 				Blocked: addrs.MakeMap(
