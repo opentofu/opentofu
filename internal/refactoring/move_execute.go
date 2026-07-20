@@ -72,7 +72,7 @@ func ApplyMoves(stmts []MoveStatement, state *states.State) MoveResults {
 
 	log.Printf("[TRACE] refactoring.ApplyMoves: Processing 'moved' statements in the configuration\n%s", logging.Indent(g.String()))
 
-	recordOldAddr := func(oldAddr, newAddr addrs.AbsResourceInstance) {
+	recordOldAddr := func(oldAddr, newAddr addrs.AbsResourceInstance, implied bool) {
 		if prevMove, exists := ret.Changes.GetOk(oldAddr); exists {
 			// If the old address was _already_ the result of a move then
 			// we'll replace that entry so that our results summarize a chain
@@ -81,8 +81,9 @@ func ApplyMoves(stmts []MoveStatement, state *states.State) MoveResults {
 			oldAddr = prevMove.From
 		}
 		ret.Changes.Put(newAddr, MoveSuccess{
-			From: oldAddr,
-			To:   newAddr,
+			From:    oldAddr,
+			To:      newAddr,
+			Implied: implied,
 		})
 	}
 	recordBlockage := func(newAddr, wantedAddr addrs.AbsMoveable) {
@@ -123,7 +124,7 @@ func ApplyMoves(stmts []MoveStatement, state *states.State) MoveResults {
 						for key := range rs.Instances {
 							oldInst := relAddr.Instance(key).Absolute(modAddr)
 							newInst := relAddr.Instance(key).Absolute(newAddr)
-							recordOldAddr(oldInst, newInst)
+							recordOldAddr(oldInst, newInst, stmt.Implied)
 						}
 					}
 
@@ -157,7 +158,7 @@ func ApplyMoves(stmts []MoveStatement, state *states.State) MoveResults {
 						for key := range rs.Instances {
 							oldInst := rAddr.Instance(key)
 							newInst := newAddr.Instance(key)
-							recordOldAddr(oldInst, newInst)
+							recordOldAddr(oldInst, newInst, stmt.Implied)
 						}
 						state.MoveAbsResource(rAddr, newAddr)
 						continue
@@ -176,7 +177,7 @@ func ApplyMoves(stmts []MoveStatement, state *states.State) MoveResults {
 								continue
 							}
 
-							recordOldAddr(iAddr, newAddr)
+							recordOldAddr(iAddr, newAddr, stmt.Implied)
 
 							state.MoveAbsResourceInstance(iAddr, newAddr)
 							continue
@@ -317,8 +318,9 @@ func makeMoveResults() MoveResults {
 }
 
 type MoveSuccess struct {
-	From addrs.AbsResourceInstance
-	To   addrs.AbsResourceInstance
+	From    addrs.AbsResourceInstance
+	To      addrs.AbsResourceInstance
+	Implied bool
 }
 
 type MoveBlocked struct {
@@ -333,6 +335,17 @@ type MoveBlocked struct {
 // to find its original address prior to moving.
 func (rs MoveResults) AddrMoved(newAddr addrs.AbsResourceInstance) bool {
 	return rs.Changes.Has(newAddr)
+}
+
+// AddrMovedExplicit returns true if and only if the given resource instance
+// moved to a new address in the ApplyMoves call that the receiver is describing
+// because of a "moved" block in the configuration.
+//
+// If AddrMovedExplicit returns true, you can pass the same address to method OldAddr
+// to find its original address prior to moving.
+func (rs MoveResults) AddrMovedExplicit(newAddr addrs.AbsResourceInstance) bool {
+	change, ok := rs.Changes.GetOk(newAddr)
+	return ok && !change.Implied
 }
 
 // OldAddr returns the old address of the given resource instance address, or

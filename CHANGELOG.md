@@ -10,6 +10,9 @@ SECURITY ADVISORIES:
 
   This is fixed now by ([#4363](https://github.com/opentofu/opentofu/pull/4363))
 
+BUG FIXES:
+- Fixed bug where implicit moves and provider address changes would incorrectly cause providers.MovedResourceState to be used in place of providers.UpgradeResourceState ([#4375](https://github.com/opentofu/opentofu/pull/4375))
+
 ## 1.12.4
 
 BUG FIXES:
