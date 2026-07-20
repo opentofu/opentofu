@@ -160,9 +160,10 @@ func TestExecuteLintRule(t *testing.T) {
 		}
 		src := SourceRange{Filename: "test.tf", Start: SourcePos{Line: 1, Column: 2}, End: SourcePos{Line: 1, Column: 10}}
 		var wg sync.WaitGroup
+		startTime := time.Now()
 		for i := range 500 {
+			start := startTime
 			wg.Go(func() {
-				start := time.Now()
 				_ = ExecuteLintRule(ctx, exec(i), src, ruleID)
 				durations[i] = time.Since(start)
 			})
@@ -177,7 +178,7 @@ func TestExecuteLintRule(t *testing.T) {
 			if i == idxCalled {
 				continue // we skip the one that actually called in the linting execution since we use its duration for comparison
 			}
-			if dur < minDuration-(50*time.Millisecond) { // just to give some buffer for the runners on different CI platforms
+			if dur < minDuration {
 				t.Errorf("[%d] finished unexpectedly before the goroutine that actually called the linting rule. finished in %s (smaller than %s)", i, dur, minDuration)
 			}
 		}
@@ -208,9 +209,10 @@ func TestExecuteLintRule(t *testing.T) {
 		}
 		var wg sync.WaitGroup
 		var durations [500]time.Duration
+		startTime := time.Now()
 		for i := range 500 {
+			start := startTime
 			wg.Go(func() {
-				start := time.Now()
 				_ = ExecuteLintRule(ctx, execBuilder(i%5 == 0), sources[i], linting.MustParseRuleAddr("core:foo"))
 				durations[i] = time.Since(start)
 			})
@@ -219,11 +221,11 @@ func TestExecuteLintRule(t *testing.T) {
 		for i, dur := range durations {
 			expectedToSleep := i%5 == 0
 			if expectedToSleep {
-				if dur < sleepFor-(50*time.Millisecond) { // just to give some buffer for the runners on different CI platforms
+				if dur < sleepFor {
 					t.Errorf("[%d] finished unexpectedly fast (in %s)", i, dur)
 				}
 			} else {
-				if dur > 50*time.Millisecond {
+				if dur > 100*time.Millisecond { // depends on how slow the CI runner is, this can be quite high at times
 					t.Errorf("[%d] finished later than expected (in %s)", i, dur)
 				}
 			}
