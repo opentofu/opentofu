@@ -21,6 +21,9 @@ import AZVAULTEX1 from '!!raw-loader!./examples/encryption/azure_vault_ex1.tf'
 import AZVAULTEX2 from '!!raw-loader!./examples/encryption/azure_vault_ex2.tf'
 import AZVAULTEX3 from '!!raw-loader!./examples/encryption/azure_vault_ex3.tf'
 import OpenBao from '!!raw-loader!./examples/encryption/openbao.tf'
+import OVHcloudKMS from '!!raw-loader!./examples/encryption/ovhcloud_kms.tf'
+import OVHcloudKMSAuthToken from '!!raw-loader!./examples/encryption/ovhcloud_kms_auth_token.yaml'
+import OVHcloudKMSAuthMTLS from '!!raw-loader!./examples/encryption/ovhcloud_kms_auth_mtls.yaml'
 import External from '!!raw-loader!./examples/encryption/keyprovider-external.tofu'
 import ExternalHeader from '!!raw-loader!./examples/encryption/keyprovider-external-header.json'
 import ExternalInput from '!!raw-loader!./examples/encryption/keyprovider-external-input.json'
@@ -302,6 +305,61 @@ The OpenBao key provider is compatible with the last MPL-licensed version of Has
 
 :::
 
+### OVHcloud KMS (external)
+
+This key provider uses the [OVHcloud Key Management Service](https://www.ovhcloud.com/en/identity-security-operations/key-management-service/) to generate and wrap data keys.
+It builds on OpenTofu's built-in [`external` key provider](#external-experimental): the [opentofu-kms-ovhcloud](https://github.com/ovh/opentofu-kms-ovhcloud) binary is not bundled with OpenTofu, so install it and make it available on your `PATH`.
+
+To install it, see the [documentation](https://github.com/ovh/opentofu-kms-ovhcloud#installation).
+
+Configuration is split into two parts:
+
+- **Key selection**: which KMS key to use. Passed as command-line flags in the `external` key provider's `command` block (or as `KMS_KEY_*` environment variables).
+- **Authentication**: how authenticate to your KMS.
+Configured in a YAML file (`~/.ovh-kms/okms.yaml`, or the path in the `KMS_CONFIG` environment variable) or via `KMS_RESTAPI_*` environment variables.
+Two authentication methods are supported: **mTLS** (the default) and **token**.
+
+#### Key selection options
+
+Passed as command-line flags inside the `command` block. Each flag falls back to an environment variable when omitted; the flag wins when both are set.
+
+| Flag         | Environment variable | Description                                               | Required | Default |
+|--------------|----------------------|-----------------------------------------------------------|----------|---------|
+| `--key-id`   | `KMS_KEY_ID`         | UUID of the service key used to wrap/unwrap the data key. | Yes      | -       |
+| `--key-name` | `KMS_KEY_NAME`       | Name attached to the generated data key.                  | No       | -       |
+| `--key-bits` | `KMS_KEY_BITS`       | Data key size in bits. Must be `128`, `192` or `256`.     | No       | `256`   |
+
+#### Authentication options
+
+Read from the YAML file under `profiles.<profile>.restapi`, or from the matching environment variable (the environment overrides the file).
+
+| YAML key      | Environment variable   | Description                               | Required               | Default            |
+|---------------|------------------------|-------------------------------------------|------------------------|--------------------|
+| `endpoint`    | `KMS_RESTAPI_ENDPOINT` | KMS REST API endpoint URL.                | Yes                    | -                  |
+| `ca`          | `KMS_RESTAPI_CA`       | Path to a custom CA certificate.          | No                     | System trust store |
+| `auth.type`   | `KMS_RESTAPI_TYPE`     | Authentication method: `mtls` or `token`. | No                     | `mtls`             |
+| `auth.cert`   | `KMS_RESTAPI_CERT`     | Path to the mTLS client certificate.      | If `auth.type = mtls`  | -                  |
+| `auth.key`    | `KMS_RESTAPI_KEY`      | Path to the mTLS client private key.      | If `auth.type = mtls`  | -                  |
+| `auth.okmsId` | `KMS_RESTAPI_OKMSID`   | UUID of the KMS instance.                 | If `auth.type = token` | -                  |
+| `auth.token`  | `KMS_RESTAPI_TOKEN`    | REST API token.                           | If `auth.type = token` | -                  |
+
+#### Examples
+
+Add an `encryption` block that points the `external` key provider at the binary and selects the KMS key:
+
+<CodeBlock language="hcl">{OVHcloudKMS}</CodeBlock>
+
+Then configure authentication in `~/.ovh-kms/okms.yaml`:
+
+<Tabs>
+    <TabItem value="mtls" label="mTLS authentication">
+        <CodeBlock language="yaml">{OVHcloudKMSAuthMTLS}</CodeBlock>
+    </TabItem>
+    <TabItem value="token" label="Token authentication">
+        <CodeBlock language="yaml">{OVHcloudKMSAuthToken}</CodeBlock>
+    </TabItem>
+</Tabs>
+
 ### External (experimental)
 :::info
 At the moment of writing this note, OpenTofu team has no relevant feedback to decide if this should be out of the experimental phase or not.
@@ -473,5 +531,3 @@ An external method can be anything as long as it is runnable as an application. 
 ### Unencrypted
 
 The `unencrypted` method is used to provide an explicit migration path to and from encryption.  It takes no configuration and can be seen in use above in the [Initial Setup](#initial-setup) block.
-
-
