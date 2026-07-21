@@ -93,25 +93,47 @@ func (b *Builder) ConstantProviderInstAddr(addr addrs.AbsProviderInstanceCorrect
 	return ret
 }
 
+// ResourceInstanceDesired asks the evaluator for the desired state of the
+// resource instance that has the given address.
+//
+// This operation automatically blocks awaiting the results of any upstream
+// resource instances that the requested instance's configuration depends on,
+// and prevents execution of anything that depends on its result if there
+// are any evaluation errors, even if those errors originate upstream in one
+// of the configuration's dependencies and thus would get reported separately
+// by another return path.
 func (b *Builder) ResourceInstanceDesired(
 	addr ResultRef[addrs.AbsResourceInstance],
-	waitFor AnyResultRef,
 ) ResultRef[*eval.DesiredResourceInstance] {
-	waiter := b.ensureWaiterRef(waitFor)
 	return operationRef[*eval.DesiredResourceInstance](b, operationDesc{
 		opCode:   opResourceInstanceDesired,
-		operands: []AnyResultRef{addr, waiter},
+		operands: []AnyResultRef{addr},
 	})
 }
 
+// ResourceInstancePrior returns the prior state of the resource instance that
+// has the given address.
+//
+// If the instance has no current object in the prior state then this returns
+// an object whose value is null, but not that such an object is not an
+// acceptable input to all operations that accept resource instance results,
+// and we expect that the planning engine would just skip including this
+// operation completely for any resource instance which is known during planning
+// to have no prior state because it's being created.
+//
+// Because this operation just reads static values directly from the state, it
+// does not automatically block for the completion of changes for other resource
+// instances recorded as dependencies in the prior state. Instead we expect that
+// the planning engine would record those as explicit dependencies on a
+// subsequent call to [Builder.ManagedApply] or [Builder.ManagedPerformDepose]
+// so that we constrain the ordering only of the externally-visible changes
+// and not of internal-only work.
 func (b *Builder) ResourceInstancePrior(
 	addr ResultRef[addrs.AbsResourceInstance],
-	waitFor AnyResultRef,
 ) ResourceInstanceResultRef {
-	waiter := b.ensureWaiterRef(waitFor)
 	return operationRef[*exec.ResourceInstanceObject](b, operationDesc{
 		opCode:   opResourceInstancePrior,
-		operands: []AnyResultRef{addr, waiter},
+		operands: []AnyResultRef{addr},
 	})
 }
 
@@ -158,9 +180,10 @@ func (b *Builder) ManagedApply(
 	fallbackObj ResourceInstanceResultRef,
 	waitFor AnyResultRef,
 ) ResourceInstanceResultRef {
+	waiter := b.ensureWaiterRef(waitFor)
 	return operationRef[*exec.ResourceInstanceObject](b, operationDesc{
 		opCode:   opManagedApply,
-		operands: []AnyResultRef{finalPlan, fallbackObj, waitFor},
+		operands: []AnyResultRef{finalPlan, fallbackObj, waiter},
 	})
 }
 
@@ -223,10 +246,12 @@ func (b *Builder) ManagedChangeAddr(
 func (b *Builder) DataRead(
 	desiredInst ResultRef[*eval.DesiredResourceInstance],
 	plannedVal ResultRef[cty.Value],
+	waitFor AnyResultRef,
 ) ResourceInstanceResultRef {
+	waiter := b.ensureWaiterRef(waitFor)
 	return operationRef[*exec.ResourceInstanceObject](b, operationDesc{
 		opCode:   opDataRead,
-		operands: []AnyResultRef{desiredInst, plannedVal},
+		operands: []AnyResultRef{desiredInst, plannedVal, waiter},
 	})
 }
 

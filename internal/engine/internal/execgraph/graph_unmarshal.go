@@ -148,33 +148,25 @@ func unmarshalOperationElem(protoOp *execgraphproto.Operation, prevResults []Any
 }
 
 func unmarshalOpResourceInstanceDesired(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
-	if len(rawOperands) != 2 {
+	if len(rawOperands) != 1 {
 		return nil, fmt.Errorf("wrong number of operands (%d) for opResourceInstanceDesired", len(rawOperands))
 	}
 	addr, err := unmarshalGetPrevResultOf[addrs.AbsResourceInstance](prevResults, rawOperands[0])
 	if err != nil {
 		return nil, fmt.Errorf("invalid opResourceInstanceDesired addr: %w", err)
 	}
-	waitFor, err := unmarshalGetPrevResultWaiter(prevResults, rawOperands[1])
-	if err != nil {
-		return nil, fmt.Errorf("invalid opResourceInstanceDesired waitFor: %w", err)
-	}
-	return builder.ResourceInstanceDesired(addr, waitFor), nil
+	return builder.ResourceInstanceDesired(addr), nil
 }
 
 func unmarshalOpResourceInstancePrior(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
-	if len(rawOperands) != 2 {
+	if len(rawOperands) != 1 {
 		return nil, fmt.Errorf("wrong number of operands (%d) for opResourceInstancePrior", len(rawOperands))
 	}
 	addr, err := unmarshalGetPrevResultOf[addrs.AbsResourceInstance](prevResults, rawOperands[0])
 	if err != nil {
 		return nil, fmt.Errorf("invalid opResourceInstancePrior addr: %w", err)
 	}
-	waitFor, err := unmarshalGetPrevResultWaiter(prevResults, rawOperands[1])
-	if err != nil {
-		return nil, fmt.Errorf("invalid opResourceInstancePrior waitFor: %w", err)
-	}
-	return builder.ResourceInstancePrior(addr, waitFor), nil
+	return builder.ResourceInstancePrior(addr), nil
 }
 
 func unmarshalOpManagedFinalPlan(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
@@ -280,7 +272,7 @@ func unmarshalOpManagedChangeAddr(rawOperands []uint64, prevResults []AnyResultR
 }
 
 func unmarshalOpDataRead(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
-	if len(rawOperands) != 2 {
+	if len(rawOperands) != 3 {
 		return nil, fmt.Errorf("wrong number of operands (%d) for opDataRead", len(rawOperands))
 	}
 	desiredInst, err := unmarshalGetPrevResultOf[*eval.DesiredResourceInstance](prevResults, rawOperands[0])
@@ -291,7 +283,11 @@ func unmarshalOpDataRead(rawOperands []uint64, prevResults []AnyResultRef, build
 	if err != nil {
 		return nil, fmt.Errorf("invalid opDataRead plannedVal: %w", err)
 	}
-	return builder.DataRead(desiredInst, plannedVal), nil
+	waitFor, err := unmarshalGetPrevResultWaiter(prevResults, rawOperands[2])
+	if err != nil {
+		return nil, fmt.Errorf("invalid opDataRead waitFor: %w", err)
+	}
+	return builder.DataRead(desiredInst, plannedVal, waitFor), nil
 }
 
 func unmarshalWaiterElem(protoWaiter *execgraphproto.Waiter, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {

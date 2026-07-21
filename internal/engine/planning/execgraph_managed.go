@@ -93,7 +93,7 @@ func (b *execGraphBuilder) managedResourceInstanceSubgraphCreate(
 	// Per the conventions in the old engine, After contains a marked value
 	unmarkedAfter, _ := plannedChange.After.UnmarkDeep()
 	plannedValRef := b.lower.ConstantValue(unmarkedAfter)
-	desiredInstRef := b.lower.ResourceInstanceDesired(instAddrRef, b.lower.Waiter())
+	desiredInstRef := b.lower.ResourceInstanceDesired(instAddrRef)
 	valueRef, addDesiredDep := b.managedResourceInstanceSubgraphPlanAndApply(
 		desiredInstRef,
 		execgraph.NilResultRef[*exec.ResourceInstanceObject](),
@@ -112,7 +112,7 @@ func (b *execGraphBuilder) managedResourceInstanceSubgraphUpdate(
 	// Per the conventions in the old engine, After contains a marked value
 	unmarkedAfter, _ := plannedChange.After.UnmarkDeep()
 	plannedValRef := b.lower.ConstantValue(unmarkedAfter)
-	desiredInstRef := b.lower.ResourceInstanceDesired(instAddrRef, b.lower.Waiter())
+	desiredInstRef := b.lower.ResourceInstanceDesired(instAddrRef)
 	valueRef, addDesiredDep := b.managedResourceInstanceSubgraphPlanAndApply(
 		desiredInstRef,
 		priorStateRef,
@@ -184,7 +184,7 @@ func (b *execGraphBuilder) managedResourceInstanceSubgraphDeleteOrForgetThenCrea
 	// Per the conventions in the old engine, After contains a marked value
 	unmarkedAfter, _ := plannedChange.After.UnmarkDeep()
 	plannedValRef := b.lower.ConstantValue(unmarkedAfter)
-	desiredInstRef := b.lower.ResourceInstanceDesired(instAddrRef, b.lower.Waiter())
+	desiredInstRef := b.lower.ResourceInstanceDesired(instAddrRef)
 
 	// We plan both the create and destroy parts of this process before we
 	// make any real changes, to reduce the risk that we'll be left in a
@@ -243,7 +243,7 @@ func (b *execGraphBuilder) managedResourceInstanceSubgraphCreateThenDelete(
 	// Per the conventions in the old engine, After contains a marked value
 	unmarkedAfter, _ := plannedChange.After.UnmarkDeep()
 	plannedValRef := b.lower.ConstantValue(unmarkedAfter)
-	desiredInstRef := b.lower.ResourceInstanceDesired(instAddrRef, b.lower.Waiter())
+	desiredInstRef := b.lower.ResourceInstanceDesired(instAddrRef)
 
 	// We plan both the create and destroy parts of this process before we
 	// make any real changes, to reduce the risk that we'll be left in a
@@ -360,7 +360,7 @@ func (b *execGraphBuilder) managedResourceInstanceChangeAddrAndPriorStateRefs(
 		return execgraph.NilResultRef[addrs.AbsResourceInstance](), stateRef
 	}
 	prevAddrRef := b.lower.ConstantResourceInstAddr(plannedChange.PrevRunAddr)
-	priorStateRef := b.lower.ResourceInstancePrior(prevAddrRef, b.lower.Waiter())
+	priorStateRef := b.lower.ResourceInstancePrior(prevAddrRef)
 	retAddrRef := prevAddrRef
 	retStateRef := priorStateRef
 	if !plannedChange.PrevRunAddr.Equal(plannedChange.Addr) {
