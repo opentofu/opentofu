@@ -33,35 +33,39 @@ func cobraMain(
 	providerDevOverrides map[addrs.Provider]getproviders.PackageLocalDir,
 	unmanagedProviders map[addrs.Provider]*plugin.ReattachConfig,
 ) int {
-	root := &cobra.Command{
-		Use:  "tofu",
+	root := command.Command{
+		Name: "tofu",
 		Long: `The available commands for execution are listed below. The primary workflow commands are given first, followed by less common or more advanced commands.`,
 
-		// TraverseChildren is needed to ensure that the flags from the parent command are not passed
-		// as arguments in any of its subcommands.
-		// Instead, by having this enabled, the flags are parsed for any parent command into their
-		// dedicated pointers.
-		TraverseChildren: true,
+		Commands: []command.Command{
+			command.ConsoleCommander(),
+			command.PlanCommander(),
+		},
+		Groups: []command.Group{command.MainCommandGroup, command.OtherCommandGroup},
+
+		Flags: arguments.Flags{},
+		UsageOptions: command.UsageOptions{
+			Usage: "tofu [global options] <subcommand> [args]",
+			FlagGroups: []arguments.FlagGroup{{
+				Title: "Global options (use these before the subcommand, if any)",
+			}},
+			SingleSpace: true,
+		},
 	}
-
-	root.AddGroup(command.MainCommandGroup, command.OtherCommandGroup)
-
-	flags := arguments.Flags{}
 
 	var chdirArg string
 	var help bool
-	flags.StringVar(&chdirArg, "chdir", "", "Switch to a different working directory before executing the given subcommand.").SetDisplay("=DIR")
-	flags.BoolVar(&help, "help", false, "Show this help output, or the help for a specified subcommand.")
-	flags.Attach(root)
+	root.Flags.StringVar(&chdirArg, "chdir", "", "Switch to a different working directory before executing the given subcommand.").SetDisplay("=DIR")
+	root.Flags.BoolVar(&help, "help", false, "Show this help output, or the help for a specified subcommand.")
 
 	// In practice, this is only ever called once, though we could wrap it in a sync.Once if we want to be safer.
-	meta := func() (command.Meta, error) {
+	meta := func() (command.Meta, int) {
 		// Create the workdir and apply the -chdir options.
 		// The logic inside [NewWorkdir] handles the TF_DATA_DIR env var too.
 		wd, err := workdir.NewWorkdirCobra(chdirArg)
 		if err != nil {
 			rv.Error(err.Error())
-			return command.Meta{}, command.ExitCodeError(1)
+			return command.Meta{}, 1
 		}
 
 		providerSrc, diags := providerSource(ctx,
@@ -88,35 +92,69 @@ func cobraMain(
 			log.Printf("[ERROR] Failed to create the config directory at path %s: %v", configDir, err)
 		}
 
-		return makeMeta(ctx, wd, view, config, services, modulePkgFetcher, providerSrc, providerDevOverrides, unmanagedProviders), nil
+		return makeMeta(ctx, wd, view, config, services, modulePkgFetcher, providerSrc, providerDevOverrides, unmanagedProviders), 0
 	}
 
-	root.AddCommand(command.ConsoleCommander(meta))
-	root.AddCommand(command.PlanCommander(meta))
+	cmdRoot := commandToCobra(root, meta)
 
-	root.SetHelpTemplate(`{{.UsageString}}`) // TODO return -1
-	root.SetUsageFunc(func(cmd *cobra.Command) error {
-		w := cmd.OutOrStdout()
-		if cmd == root {
-			return command.CommandUsage(cmd, flags, command.UsageOptions{
-				Usage: "tofu [global options] <subcommand> [args]",
-				FlagGroups: []arguments.FlagGroup{{
-					Title: "Global options (use these before the subcommand, if any)",
-				}},
-				FlagSingleSpace: true,
-			}, w)
-		}
-		// Default
-		return command.CommandUsage(cmd, nil, command.UsageOptions{}, w)
-	})
-
-	err := root.Execute()
+	err := cmdRoot.Execute()
 	if err != nil {
-		if exitCode, ok := err.(command.ExitCodeError); ok {
+		if exitCode, ok := err.(ExitCodeError); ok {
 			return int(exitCode)
 		}
 		rv.Error(fmt.Sprintf("Error executing CLI: %s", err.Error()))
 		return 1
 	}
 	return 0
+}
+
+type ExitCodeError int
+
+func (e ExitCodeError) Error() string {
+	return fmt.Sprintf("%#v", e)
+}
+
+func commandToCobra(cmd command.Command, meta func() (command.Meta, int)) *cobra.Command {
+	cc := &cobra.Command{
+		Use:   cmd.Name,
+		Short: cmd.Short,
+		Long:  cmd.Long,
+
+		// TraverseChildren is needed to ensure that the flags from the parent command are not passed
+		// as arguments in any of its subcommands.
+		// Instead, by having this enabled, the flags are parsed for any parent command into their
+		// dedicated pointers.
+		TraverseChildren: len(cmd.Commands) != 0,
+	}
+
+	for _, subCmd := range cmd.Commands {
+		cc.AddCommand(commandToCobra(subCmd, meta))
+	}
+	for _, group := range cmd.Groups {
+		cc.AddGroup(&cobra.Group{ID: group.ID, Title: group.Title})
+	}
+
+	cmd.Flags.Attach(cc)
+
+	if cmd.Run != nil {
+		cc.RunE = func(_ *cobra.Command, _ []string) error {
+			m, ec := meta()
+			if ec != 0 {
+				return ExitCodeError(ec)
+			}
+			ec = cmd.Run(m)
+			if ec != 0 {
+				return ExitCodeError(ec)
+			}
+			return nil
+		}
+	}
+
+	cc.SetHelpTemplate(`{{.UsageString}}`) // TODO return -1
+	cc.SetUsageFunc(func(_ *cobra.Command) error {
+		command.CommandUsage(cmd, cc.OutOrStdout())
+		return nil
+	})
+
+	return cc
 }

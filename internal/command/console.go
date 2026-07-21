@@ -20,7 +20,6 @@ import (
 	"github.com/opentofu/opentofu/internal/repl"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
-	"github.com/spf13/cobra"
 )
 
 // ConsoleCommand is a Command implementation that starts an interactive
@@ -29,9 +28,9 @@ type ConsoleCommand struct {
 	Meta
 }
 
-func ConsoleCommander(meta metaFunc) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "console",
+func ConsoleCommander() Command {
+	cmd := Command{
+		Name:  "console",
 		Short: new(ConsoleCommand).Synopsis(),
 		Long: `Starts an interactive console for experimenting with OpenTofu interpolations.
 
@@ -39,50 +38,33 @@ This will open an interactive console that you can use to type interpolations in
 
 This command will never modify your state.`,
 		GroupID: OtherCommandGroup.ID,
+		Flags:   arguments.Flags{},
 	}
 
-	flags := arguments.Flags{}
-	args, common, hooks := arguments.BindConsole(flags)
-	// TODO arg parse and hooks may not render via view, figure this out
-	hooks.Attach(cmd)
-	flags.Attach(cmd)
+	args, common, hooks := arguments.BindConsole(cmd.Flags)
 
-	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
-		meta, err := meta()
-		if err != nil {
-			return err
-		}
-		c := ConsoleCommand{Meta: meta}
-
-		c.View.Configure(common)
+	cmd.Run = func(meta Meta) int {
+		meta.View.Configure(common)
 		// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
 		// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
-		c.View.DiagsWithNewline()
+		meta.View.DiagsWithNewline()
 
 		// Instantiate the view, even if there are flag errors, so that we render
 		// diagnostics according to the desired view
-		view := views.NewConsole(args.ViewOptions, c.View)
-		c.Meta.stateArgs = *args.State
+		view := views.NewConsole(args.ViewOptions, meta.View)
 
-		// FIXME: the -input flag value is needed to initialize the backend and the
-		// operation, but there is no clear path to pass this value down, so we
-		// continue to mutate the Meta object state for now.
-		c.Meta.input = args.ViewOptions.InputEnabled
-
-		c.Meta.variableArgs = args.Vars.All()
-
-		code := c.RunInner(view)
-		if code != 0 {
-			// TODO better error code passing
-			return fmt.Errorf("Exit Code: %v", code)
+		diags := hooks.Pre()
+		defer hooks.Post()
+		if diags.HasErrors() {
+			view.Diagnostics(diags)
+			if args.ViewOptions.ViewType == arguments.ViewJSON {
+				return 1
+			}
+			return -1 // TODO Usage
 		}
-		return nil
-	}
 
-	cmd.SetUsageFunc(func(cmd *cobra.Command) error {
-		w := cmd.OutOrStdout()
-		return CommandUsage(cmd, flags, UsageOptions{}, w)
-	})
+		return ConsoleCommand{Meta: meta}.RunInner(view, args)
+	}
 
 	return cmd
 }
@@ -108,6 +90,14 @@ func (c *ConsoleCommand) Run(rawArgs []string) int {
 		}
 		return cli.RunResultHelp
 	}
+
+	return c.RunInner(view, args)
+}
+
+func (c ConsoleCommand) RunInner(view views.Console, args *arguments.Console) int {
+	var diags tfdiags.Diagnostics
+	ctx := c.CommandContext()
+
 	c.Meta.stateArgs = *args.State
 
 	// FIXME: the -input flag value is needed to initialize the backend and the
@@ -116,13 +106,6 @@ func (c *ConsoleCommand) Run(rawArgs []string) int {
 	c.Meta.input = args.ViewOptions.InputEnabled
 
 	c.Meta.variableArgs = args.Vars.All()
-
-	return c.RunInner(view)
-}
-
-func (c *ConsoleCommand) RunInner(view views.Console) int {
-	var diags tfdiags.Diagnostics
-	ctx := c.CommandContext()
 
 	configPath := c.WorkingDir.NormalizePath(c.WorkingDir.RootModuleDir())
 

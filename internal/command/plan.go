@@ -16,7 +16,6 @@ import (
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/spf13/cobra"
 )
 
 // PlanCommand is a Command implementation that compares a OpenTofu
@@ -25,59 +24,41 @@ type PlanCommand struct {
 	Meta
 }
 
-func PlanCommander(meta metaFunc) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "plan",
+func PlanCommander() Command {
+	cmd := Command{
+		Name:  "plan",
 		Short: new(PlanCommand).Synopsis(),
 		Long: `Generates a speculative execution plan, showing what actions OpenTofu would take to apply the current configuration. This command will not actually perform the planned actions. 
 
 You can optionally save the plan to a file, which you can then pass to the "apply" command to perform exactly the actions described in the plan.`,
+
 		GroupID: MainCommandGroup.ID,
+		Flags:   arguments.Flags{},
 	}
 
-	flags := arguments.Flags{}
-	args, common, groups, hooks := arguments.BindPlan(flags)
+	args, common, groups, hooks := arguments.BindPlan(cmd.Flags)
+	cmd.UsageOptions.FlagGroups = groups
 
-	// TODO arg parse and hooks may not render via view, figure this out
-	hooks.Attach(cmd)
-	flags.Attach(cmd)
-
-	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
-		meta, err := meta()
-		if err != nil {
-			return err
-		}
-		c := PlanCommand{Meta: meta}
-
-		c.View.Configure(common)
+	cmd.Run = func(meta Meta) int {
+		meta.View.Configure(common) // TODO is this missing in the main branch?
 		// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
 		// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
-		c.View.DiagsWithNewline()
+		meta.View.DiagsWithNewline()
 
 		// Instantiate the view, even if there are flag errors, so that we render
 		// diagnostics according to the desired view
-		view := views.NewPlan(args.ViewOptions, c.View)
-		c.Meta.stateArgs = *args.State
+		view := views.NewPlan(args.ViewOptions, meta.View)
 
-		// FIXME: the -input flag value is needed to initialize the backend and the
-		// operation, but there is no clear path to pass this value down, so we
-		// continue to mutate the Meta object state for now.
-		c.Meta.input = args.ViewOptions.InputEnabled
-
-		c.Meta.variableArgs = args.Vars.All()
-
-		code := c.RunInner(view, args)
-		// TODO better error code passing
-		if code != 0 {
-			return fmt.Errorf("Exit Code: %v", code)
+		diags := hooks.Pre()
+		defer hooks.Post()
+		if diags.HasErrors() {
+			view.Diagnostics(diags)
+			view.HelpPrompt()
+			return 1
 		}
-		return nil
-	}
 
-	cmd.SetUsageFunc(func(cmd *cobra.Command) error {
-		w := cmd.OutOrStdout()
-		return CommandUsage(cmd, flags, UsageOptions{FlagGroups: groups}, w)
-	})
+		return PlanCommand{Meta: meta}.RunInner(view, args)
+	}
 
 	return cmd
 }
@@ -104,7 +85,8 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 	}
 	return c.RunInner(view, args)
 }
-func (c *PlanCommand) RunInner(view views.Plan, args *arguments.Plan) int {
+
+func (c PlanCommand) RunInner(view views.Plan, args *arguments.Plan) int {
 	var diags tfdiags.Diagnostics
 	ctx := c.CommandContext()
 

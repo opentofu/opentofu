@@ -13,20 +13,32 @@ import (
 
 	"github.com/mitchellh/go-wordwrap"
 	"github.com/opentofu/opentofu/internal/command/arguments"
-	"github.com/spf13/cobra"
 )
 
 type metaFunc func() (Meta, error)
 
+type Group struct {
+	ID    string
+	Title string
+}
+
 var (
-	MainCommandGroup  = &cobra.Group{ID: "main", Title: "Main commands:"}
-	OtherCommandGroup = &cobra.Group{ID: "other", Title: "All other commands:"}
+	MainCommandGroup  = Group{ID: "main", Title: "Main commands:"}
+	OtherCommandGroup = Group{ID: "other", Title: "All other commands:"}
 )
 
-type ExitCodeError int
+type Command struct {
+	Name    string
+	Short   string
+	Long    string
+	GroupID string
 
-func (e ExitCodeError) Error() string {
-	return fmt.Sprintf("%#v", e)
+	Commands []Command
+	Groups   []Group
+
+	Flags        arguments.Flags
+	UsageOptions UsageOptions
+	Run          func(Meta) int
 }
 
 type UsageOptions struct {
@@ -34,10 +46,10 @@ type UsageOptions struct {
 	Suffix     string
 	FlagGroups []arguments.FlagGroup
 
-	FlagSingleSpace bool
+	SingleSpace bool
 }
 
-func CommandUsage(cmd *cobra.Command, flags arguments.Flags, opts UsageOptions, w io.Writer) error {
+func CommandUsage(cmd Command, w io.Writer) {
 	const TERM_WIDTH = 80
 
 	// Helpers
@@ -50,79 +62,94 @@ func CommandUsage(cmd *cobra.Command, flags arguments.Flags, opts UsageOptions, 
 		s = pad + strings.ReplaceAll(s, "\n", "\n"+pad)
 		fmt.Fprintf(w, "%s\n\n", s)
 	}
-	printSubcmds := func(title string, cmds []*cobra.Command, groupID *string) {
-		printHeader(title)
-		for _, cmd := range cmd.Commands() {
-			if groupID == nil || *groupID == cmd.GroupID {
-				name := fmt.Sprintf(fmt.Sprintf("%%-%ds", cmd.NamePadding()+1), cmd.Name())
-				fmt.Fprintf(w, "  %s%s\n", name, cmd.Short)
+	type row struct {
+		name string
+		info string
+	}
+	printTable := func(rows []row) {
+		slices.SortFunc(rows, func(a, b row) int {
+			return strings.Compare(a.name, b.name)
+		})
+
+		maxNameLength := 0
+		for _, row := range rows {
+			maxNameLength = max(maxNameLength, len(row.name))
+		}
+
+		padding := "  "
+		nameSpace := maxNameLength + len(padding)*2
+		infoPad := TERM_WIDTH - nameSpace
+		for _, row := range rows {
+			nameStr := padding + row.name
+			fmt.Fprint(w, nameStr)
+			fmt.Fprint(w, strings.Repeat(" ", nameSpace-len(nameStr)))
+
+			usage := wordwrap.WrapString(row.info, uint(infoPad))
+			pad := strings.Repeat(" ", nameSpace)
+			usage = strings.ReplaceAll(usage, "\n", "\n"+pad) + "\n"
+			fmt.Fprint(w, usage)
+			if !cmd.UsageOptions.SingleSpace {
+				fmt.Fprint(w, "\n")
 			}
 		}
+	}
+	printSubcmds := func(title string, cmds []Command, groupID *string) {
+		var commandsToPrint []row
+		for _, cmd := range cmd.Commands {
+			if groupID == nil || *groupID == cmd.GroupID {
+				commandsToPrint = append(commandsToPrint, row{
+					name: cmd.Name,
+					info: cmd.Short,
+				})
+			}
+		}
+		if len(commandsToPrint) == 0 {
+			return
+		}
+		printHeader(title)
+		printTable(commandsToPrint)
 		fmt.Fprint(w, "\n")
 	}
 	printFlags := func(title string, group *arguments.FlagGroup) {
-		// This whole thing is not terribly efficient, but it runs with no particular urgency
-		formatFlag := func(flag *arguments.Flag) string {
-			s := "-" + flag.Name
-			if flag.Display != "" {
-				s += flag.Display
-			}
-			return s
-		}
-
-		var flagsToPrint []*arguments.Flag
-		maxFlagLength := 0
-		for _, flag := range flags {
+		var flagsToPrint []row
+		for _, flag := range cmd.Flags {
 			if group != nil && flag.GroupID != group.ID {
 				continue
 			}
 			if flag.Hidden {
 				continue
 			}
-			flagsToPrint = append(flagsToPrint, flag)
-			maxFlagLength = max(maxFlagLength, len(formatFlag(flag)))
+			s := "-" + flag.Name
+			if flag.Display != "" {
+				s += flag.Display
+			}
+			flagsToPrint = append(flagsToPrint, row{
+				name: s,
+				info: flag.Usage,
+			})
 		}
 
 		if len(flagsToPrint) == 0 {
 			return
 		}
 
-		slices.SortFunc(flagsToPrint, func(a, b *arguments.Flag) int {
-			return strings.Compare(a.Name, b.Name)
-		})
-
 		printHeader(title)
-		if !opts.FlagSingleSpace {
+		if !cmd.UsageOptions.SingleSpace {
 			fmt.Fprint(w, "\n")
 		}
 		if group != nil && group.Description != "" {
 			printDescription(group.Description)
 		}
 
-		padding := "  "
-		flagSpace := maxFlagLength + len(padding)*2
-		descPad := TERM_WIDTH - flagSpace
-		for _, flag := range flagsToPrint {
-			flagStr := padding + formatFlag(flag)
-			fmt.Fprint(w, flagStr)
-			fmt.Fprint(w, strings.Repeat(" ", flagSpace-len(flagStr)))
-
-			usage := wordwrap.WrapString(flag.Usage, uint(descPad))
-			pad := strings.Repeat(" ", flagSpace)
-			usage = strings.ReplaceAll(usage, "\n", "\n"+pad) + "\n"
-			fmt.Fprint(w, usage)
-			if !opts.FlagSingleSpace {
-				fmt.Fprint(w, "\n")
-			}
-		}
+		printTable(flagsToPrint)
 	}
 
 	// Start building
 
-	if opts.Usage != "" {
-		printHeader(fmt.Sprintf("Usage: %s\n", opts.Usage))
+	if cmd.UsageOptions.Usage != "" {
+		printHeader(fmt.Sprintf("Usage: %s\n", cmd.UsageOptions.Usage))
 	} else {
-		printHeader(fmt.Sprintf("Usage: tofu [global options] %s [options]\n", cmd.Use))
+		printHeader(fmt.Sprintf("Usage: tofu [global options] %s [options]\n", cmd.Name))
 	}
 
 	if cmd.Long != "" {
@@ -131,32 +158,24 @@ func CommandUsage(cmd *cobra.Command, flags arguments.Flags, opts UsageOptions, 
 		printDescription(cmd.Short)
 	}
 
-	if cmd.HasAvailableSubCommands() {
-		if len(cmd.Groups()) == 0 {
-			printSubcmds("Subcommands:", cmd.Commands(), nil)
-		} else {
-			for _, group := range cmd.Groups() {
-				printSubcmds(group.Title, cmd.Commands(), &group.ID)
-			}
-
-			if !cmd.AllChildCommandsHaveGroup() {
-				printSubcmds("Additional Commands:", cmd.Commands(), new(""))
-			}
+	if len(cmd.Groups) == 0 {
+		printSubcmds("Subcommands:", cmd.Commands, nil)
+	} else {
+		for _, group := range cmd.Groups {
+			printSubcmds(group.Title, cmd.Commands, &group.ID)
 		}
+
+		printSubcmds("Additional Commands:", cmd.Commands, new(""))
 	}
 
-	if cmd.HasAvailableLocalFlags() {
-		if len(opts.FlagGroups) == 0 {
-			printFlags("Options:", nil)
-		} else {
-			for _, group := range opts.FlagGroups {
-				printFlags(group.Title, &group)
-			}
+	if len(cmd.UsageOptions.FlagGroups) == 0 {
+		printFlags("Options:", nil)
+	} else {
+		for _, group := range cmd.UsageOptions.FlagGroups {
+			printFlags(group.Title, &group)
 		}
 	}
 	/*if cmd.HasAvailableInheritedFlags() {
 		printFlags("Global Options:", cmd.InheritedFlags(), nil)
 	}*/
-
-	return nil
 }

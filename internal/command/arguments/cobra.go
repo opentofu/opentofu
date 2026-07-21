@@ -155,6 +155,26 @@ func (h Hooks) Attach(cmd *cobra.Command) {
 	}
 }
 
+func (h Hooks) Pre() tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+	for _, hook := range h {
+		if hook.Pre != nil {
+			diags = diags.Append(hook.Pre())
+		}
+	}
+	return diags
+}
+
+func (h Hooks) Post() tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+	for _, hook := range h {
+		if hook.Post != nil {
+			diags = diags.Append(hook.Post())
+		}
+	}
+	return diags
+}
+
 type FlagGroup struct {
 	ID          string
 	Title       string
