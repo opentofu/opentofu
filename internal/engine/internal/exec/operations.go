@@ -48,6 +48,17 @@ type Operations interface {
 	//// (mode-specific operations follow below)
 	//////////////////////////////////////////////////////////////////////////////
 
+	// ResourceInstanceCurrentMeta returns the metadata for the given resource
+	// instance's "current" (non-deposed) object address, providing information
+	// that is relevant regardless of what action is being taken for the object
+	// or whether it is "desired" or not.
+	//
+	// For deposed object metadata, use [Operations.ManagedDeposedMeta] instead.
+	ResourceInstanceCurrentMeta(
+		ctx context.Context,
+		instAddr addrs.AbsResourceInstance,
+	) (*ResourceInstanceObjectMeta, tfdiags.Diagnostics)
+
 	// ResourceInstanceDesired returns a representation of the "desired state"
 	// for the given resource instance, or a nil pointer if the given resource
 	// instance is not currently declared at all.
@@ -176,6 +187,18 @@ type Operations interface {
 		object *ResourceInstanceObject,
 		deletePlan *ManagedResourceObjectFinalPlan,
 	) (*ResourceInstanceObject, tfdiags.Diagnostics)
+
+	// ManagedDeposedMeta returns the metadata for a deposed object belonging
+	// to the given resource instance, providing information that might be
+	// needed in order to delete the object.
+	//
+	// For current object metadata, use [Operations.ResourceInstanceCurrentMeta]
+	// instead.
+	ManagedDeposedMeta(
+		ctx context.Context,
+		instAddr addrs.AbsResourceInstance,
+		deposedKey states.DeposedKey,
+	) (*ResourceInstanceObjectMeta, tfdiags.Diagnostics)
 
 	// ManagedAlreadyDeposed returns a deposed object from the prior state,
 	// nor nil if there is no such object.

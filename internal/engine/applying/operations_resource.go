@@ -62,6 +62,13 @@ func (ops *execOperations) resourceDependenciesMissingMarks(cfgVal cty.Value) (c
 	return cfgVal, marks
 }
 
+// ResourceInstanceCurrentMeta implements [exec.Operations].
+func (ops *execOperations) ResourceInstanceCurrentMeta(ctx context.Context, instAddr addrs.AbsResourceInstance) (*exec.ResourceInstanceObjectMeta, tfdiags.Diagnostics) {
+	log.Printf("[TRACE] apply phase: ResourceInstanceCurrentMeta %s", instAddr)
+	// TODO: Implement
+	panic("unimplemented")
+}
+
 // ResourceInstanceDesired implements [exec.Operations].
 func (ops *execOperations) ResourceInstanceDesired(
 	ctx context.Context,
