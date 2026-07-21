@@ -226,6 +226,25 @@ For point releases, simply copy the section from the [CHANGELOG.md](CHANGELOG.md
 
 ---
 
+## Redeploying get.opentofu.org
+
+After the release is published, `get.opentofu.org` needs to be redeployed so that the
+installer picks up the new version.
+
+> [!IMPORTANT]
+> This step must be done **after** clicking `Publish release` above. It does not happen
+> automatically: releases are created as drafts by `github-actions[bot]`, so the
+> `release` event does not reliably trigger the redeploy workflow on its own.
+
+1. Head to the [Actions tab](https://github.com/opentofu/opentofu/actions) on the main repository.
+2. Select the `Post-release` workflow on the left side.
+3. Click the `Run workflow` button and run it against the `main` branch.
+
+This invokes the Cloudflare deploy hook that redeploys `get.opentofu.org`. You no longer
+need to log into Cloudflare manually for this step.
+
+---
+
 ## Updating the website/documentation
 
 Depending on the release type, you will need to update the [opentofu.org](https://github.com/opentofu/opentofu.org) repository.
