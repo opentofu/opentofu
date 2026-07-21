@@ -19,7 +19,7 @@ func (s *server) DidOpen(ctx context.Context, params *protocol.DidOpenTextDocume
 	s.docs[u] = src
 	s.mu.Unlock()
 
-	// TODO: Add diagnostic stuff here?
+	s.publishDiagnostics(ctx, u, src)
 
 	return nil
 }
@@ -51,7 +51,7 @@ func (s *server) DidChange(ctx context.Context, params *protocol.DidChangeTextDo
 	s.docs[u] = src
 	s.mu.Unlock()
 
-	// TODO: Onchange stuff here, Add diagnostic stuff here?
+	s.publishDiagnostics(ctx, u, src) // TODO: error handling
 
 	return nil
 }
