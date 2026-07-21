@@ -175,3 +175,75 @@ func (o *ResourceInstanceObject) WithNewState(newState *states.ResourceInstanceO
 		State: newState,
 	}
 }
+
+// ResourceInstanceObjectMeta represents various metadata for a resource
+// instance object.
+//
+// "Metadata" is loosely defined as including the sort of information we rely
+// on even when an object is no longer "desired" and thus we'd plan to delete
+// it, and so there's no normal declaration for the resource instance left
+// in the configuration anymore but nonetheless there might be other information
+// assembled from any combination of the following:
+//   - Metadata that was copied from configuration into prior state in the
+//     previous round.
+//   - Arguments in a "removed" block that's acting as a sort of "tombstone" for
+//     a previously-present resource block.
+//   - The resource block that an "orphan" resource instance was previously
+//     declared from, which remains in the configuration and possibly declares
+//     some settings that apply to all instances of the resource.
+//
+// This type lives at the execution engine layer because it's an abstraction
+// over a mixture of information from the configuration and information from
+// the prior state, whereas the "evaluator"'s scope is strictly limited only
+// to the configuration.
+type ResourceInstanceObjectMeta struct {
+	// Addr identifies which resource instance object this metadata applies to.
+	//
+	// When an existing object will be moved to a new address during the
+	// apply phase, for example using a "moved" block, this reflects the address
+	// it's expected to have at the end of a successful apply phase. The address
+	// in this field must therefore NOT be used to identify objects to retrieve
+	// from the prior state.
+	//
+	// However, for objects being replaced in the create-then-destroy order note
+	// that successful execution causes the original object to be deleted and a
+	// new one to be created at the same address, and in that case we use the
+	// address where the new object would be placed instead of the address
+	// that the old object would be temporarily deposed to during the process.
+	// This reflects a small inconsistency/ambiguity in our usual terminology
+	// where "object" normally refers to the actual remote object, but in this
+	// case it refers only to the _object address_ from OpenTofu's perspective,
+	// and two different remote objects will appear at this address over
+	// the course of the apply phase.
+	Addr addrs.AbsResourceInstanceObject
+
+	// ProviderInstance is the address of the provider instance that is
+	// currently considered responsible for this resource instance object.
+	//
+	// A resource instance object is associated with a specific provider
+	// instance throughout a plan/apply round, but may change which provider
+	// instance it is associated with between rounds based on changes in the
+	// configuration.
+	ProviderInstance addrs.AbsProviderInstanceCorrect
+
+	// ResourceType is the resource type of the object this metadata is for,
+	// as would be understood by the provider identified in
+	// [ResourceInstanceObjectMeta.ProviderInstance].
+	ResourceType string
+
+	// CreateProvisioners are the provisioners to execute immediately after the
+	// resource instance object has been created.
+	//
+	// The contents of this field can only be relied on during a round where
+	// the apply phase would create a resource instance object at the associated
+	// address. Its contents are unspecified in other cases.
+	PostCreateProvisioners []eval.Provisioner
+
+	// DeleteProvisioners are the provisioners to execute immediately before the
+	// resource instance object will be deleted.
+	//
+	// The contents of this field can only be relied on during a round where
+	// the apply phase would delete a resource instance object at the associated
+	// address. Its contents are unspecified in other cases.
+	PreDeleteProvisioners []eval.Provisioner
+}

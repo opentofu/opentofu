@@ -438,6 +438,13 @@ func (ops *execOperations) ManagedPerformDepose(
 	return currentObj.IntoDeposed(deposedKey), diags
 }
 
+// ManagedDeposedMeta implements [exec.Operations].
+func (ops *execOperations) ManagedDeposedMeta(ctx context.Context, instAddr addrs.AbsResourceInstance, deposedKey states.DeposedKey) (*exec.ResourceInstanceObjectMeta, tfdiags.Diagnostics) {
+	log.Printf("[TRACE] apply phase: ManagedDeposedMeta %s deposed object %s", instAddr, deposedKey)
+	// TODO: Implement
+	panic("unimplemented")
+}
+
 // ManagedAlreadyDeposed implements [exec.Operations].
 func (ops *execOperations) ManagedAlreadyDeposed(
 	ctx context.Context,
