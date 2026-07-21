@@ -16,8 +16,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
@@ -193,16 +191,11 @@ func (c *FmtCommand) processFile(path string, r io.Reader, w io.Writer, args arg
 	// diagnostic errors can include the source code snippet
 	c.configLoader().ForceFileSource(path, src)
 
-	// File must be parseable as HCL native syntax before we'll try to format
-	// it. If not, the formatter is likely to make drastic changes that would
-	// be hard for the user to undo.
-	_, syntaxDiags := hclsyntax.ParseConfig(src, path, hcl.Pos{Line: 1, Column: 1})
-	if syntaxDiags.HasErrors() {
-		diags = diags.Append(syntaxDiags)
+	result, fmtDiags := tofufmt.Format(src, path)
+	if fmtDiags.HasErrors() {
+		diags = diags.Append(fmtDiags)
 		return diags
 	}
-
-	result := tofufmt.Format(src, path)
 
 	if !bytes.Equal(src, result) {
 		// Something was changed

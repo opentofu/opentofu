@@ -13,6 +13,7 @@ import (
 	"os"
 
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/lsp"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 

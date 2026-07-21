@@ -93,6 +93,7 @@ require (
 	github.com/zclconf/go-cty v1.18.1
 	github.com/zclconf/go-cty-debug v0.0.0-20240509010212-0d6042c53940
 	github.com/zclconf/go-cty-yaml v1.2.0
+	go.lsp.dev/uri v1.0.1
 	go.opentelemetry.io/contrib/exporters/autoexport v0.69.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.69.0
 	go.opentelemetry.io/otel v1.44.0
@@ -117,10 +118,7 @@ require (
 	oras.land/oras-go/v2 v2.6.0
 )
 
-require (
-	github.com/go-json-experiment/json v0.0.0-20260623181947-01eb4420fa68 // indirect
-	go.lsp.dev/uri v1.0.1 // indirect
-)
+require github.com/go-json-experiment/json v0.0.0-20260623181947-01eb4420fa68 // indirect
 
 require (
 	cel.dev/expr v0.25.1 // indirect

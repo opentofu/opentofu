@@ -1,2 +1,7 @@
-// lsp is a package to run the language server inside the tofu binary
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
+// Package lsp is a package to run the language server inside the tofu binary
 package lsp

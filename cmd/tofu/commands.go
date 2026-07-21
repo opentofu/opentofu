@@ -228,6 +228,10 @@ func initCommands(
 			}, nil
 		},
 
+		"ls": func() (cli.Command, error) {
+			return &command.LsCommand{}, nil
+		},
+
 		"metadata": func() (cli.Command, error) {
 			return &command.MetadataCommand{
 				Meta: meta,
