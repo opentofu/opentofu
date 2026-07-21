@@ -3557,6 +3557,159 @@ func TestContext2Plan_forceReplaceIncompleteAddr(t *testing.T) {
 	})
 }
 
+// This TestContext2Plan_forceReplaceIncompleteAddr_multipleResources is a test case for
+// https://github.com/opentofu/opentofu/issues/4368
+// I've added all the required test cases that are needed to verify the fix for the issue.
+func TestContext2Plan_forceReplaceIncompleteAddr_multipleResources(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureForceReplace)
+	rootAddr0 := mustResourceInstanceAddr("test_object.foo[0]")
+	rootAddr1 := mustResourceInstanceAddr("test_object.foo[1]")
+	childAddr0 := mustResourceInstanceAddr("module.child.test_object.foo[0]")
+	childAddr1 := mustResourceInstanceAddr("module.child.test_object.foo[1]")
+	childBare := mustResourceInstanceAddr("module.child.test_object.foo")
+
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+		resource "test_object" "foo" {
+			count = 2
+		}
+		module "child" {
+			source = "./child"
+		}
+	`,
+		"child/child.tf": `
+			resource "test_object" "foo" {
+				count = 2
+			}
+		`,
+	})
+
+	state := states.BuildState(func(s *states.SyncState) {
+		s.SetResourceInstanceCurrent(rootAddr0, &states.ResourceInstanceObjectSrc{
+			AttrsJSON: []byte(`{}`),
+			Status:    states.ObjectReady,
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
+		s.SetResourceInstanceCurrent(rootAddr1, &states.ResourceInstanceObjectSrc{
+			AttrsJSON: []byte(`{}`),
+			Status:    states.ObjectReady,
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
+		s.SetResourceInstanceCurrent(childAddr0, &states.ResourceInstanceObjectSrc{
+			AttrsJSON: []byte(`{}`),
+			Status:    states.ObjectReady,
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
+		s.SetResourceInstanceCurrent(childAddr1, &states.ResourceInstanceObjectSrc{
+			AttrsJSON: []byte(`{}`),
+			Status:    states.ObjectReady,
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
+	})
+	p := simpleMockProvider()
+	ctx := testContext2(t, &ContextOpts{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		}, nil),
+	})
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
+		Mode: plans.NormalMode,
+		ForceReplace: []addrs.AbsResourceInstance{
+			childBare,
+		},
+	})
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors\n%s", diags.Err().Error())
+	}
+	diagsErr := diags.ErrWithWarnings()
+	if diagsErr == nil {
+		t.Fatalf("no warnings were returned")
+	}
+	if got, want := diagsErr.Error(), "Incompletely-matched force-replace resource instance"; !strings.Contains(got, want) {
+		t.Errorf("missing expected warning\ngot:\n%s\n\nwant substring: %s", got, want)
+	}
+
+	t.Run(rootAddr0.String(), func(t *testing.T) {
+		instPlan := plan.Changes.ResourceInstance(rootAddr0)
+		if experimentalRuntimeEnabled() {
+			if instPlan != nil {
+				t.Fatalf("expected no plan for %s at all", rootAddr0)
+			}
+			// New engine does not generate NoOps
+			return
+		}
+		if instPlan == nil {
+			t.Fatalf("no plan for %s at all", rootAddr0)
+		}
+
+		if got, want := instPlan.Action, plans.NoOp; got != want {
+			t.Errorf("wrong planned action\ngot:  %s\nwant: %s", got, want)
+		}
+		if got, want := instPlan.ActionReason, plans.ResourceInstanceChangeNoReason; got != want {
+			t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
+		}
+	})
+
+	t.Run(rootAddr1.String(), func(t *testing.T) {
+		instPlan := plan.Changes.ResourceInstance(rootAddr1)
+		if experimentalRuntimeEnabled() {
+			if instPlan != nil {
+				t.Fatalf("expected no plan for %s at all", rootAddr1)
+			}
+			// New engine does not generate NoOps
+			return
+		}
+		if instPlan == nil {
+			t.Fatalf("no plan for %s at all", rootAddr1)
+		}
+
+		if got, want := instPlan.Action, plans.NoOp; got != want {
+			t.Errorf("wrong planned action\ngot:  %s\nwant: %s", got, want)
+		}
+		if got, want := instPlan.ActionReason, plans.ResourceInstanceChangeNoReason; got != want {
+			t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
+		}
+	})
+
+	t.Run(childAddr0.String(), func(t *testing.T) {
+		instPlan := plan.Changes.ResourceInstance(childAddr0)
+		if experimentalRuntimeEnabled() {
+			if instPlan != nil {
+				t.Fatalf("expected no plan for %s at all", childAddr0)
+			}
+			// New engine does not generate NoOps
+			return
+		}
+		if instPlan == nil {
+			t.Fatalf("no plan for %s at all", childAddr0)
+		}
+
+		if got, want := instPlan.Action, plans.NoOp; got != want {
+			t.Errorf("wrong planned action\ngot:  %s\nwant: %s", got, want)
+		}
+		if got, want := instPlan.ActionReason, plans.ResourceInstanceChangeNoReason; got != want {
+			t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
+		}
+	})
+
+	t.Run(childAddr1.String(), func(t *testing.T) {
+		instPlan := plan.Changes.ResourceInstance(childAddr1)
+		if experimentalRuntimeEnabled() {
+			if instPlan != nil {
+				t.Fatalf("expected no plan for %s at all", childAddr1)
+			}
+			// New engine does not generate NoOps
+			return
+		}
+		if instPlan == nil {
+			t.Fatalf("no plan for %s at all", childAddr1)
+		}
+
+		if got, want := instPlan.Action, plans.NoOp; got != want {
+			t.Errorf("wrong planned action\ngot:  %s\nwant: %s", got, want)
+		}
+		if got, want := instPlan.ActionReason, plans.ResourceInstanceChangeNoReason; got != want {
+			t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
+		}
+	})
+}
+
 // Verify that adding a module instance does force existing module data sources
 // to be deferred
 func TestContext2Plan_noChangeDataSourceAddingModuleInstance(t *testing.T) {
