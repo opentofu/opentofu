@@ -31,27 +31,41 @@ type StateMv struct {
 	State   *State
 }
 
+// BindStateMv registers CLI arguments, returning a StateMv value and it's corresponding hooks.
+func BindStateMv(flags Flags) (*StateMv, Hooks) {
+	var ret StateMv
+	var hooks Hooks
+
+	ret.ViewOptions.bind(flags, false)
+	hooks = append(hooks, ret.ViewOptions.ParseHook())
+
+	ret.Vars = &Vars{}
+	ret.Vars.bind(flags)
+
+	ret.Backend = &Backend{}
+	ret.Backend.bindIgnoreRemoteVersionFlag(flags)
+
+	ret.State = &State{}
+	ret.State.bind(flags, stateFlagLock|stateFlagStateIn|stateFlagStateOut)
+	ret.State.bindBackupFlag(flags, "-")
+	// StateFlagBackup omitted here to be added later with a different default value
+
+	flags.BoolVar(&ret.DryRun, "dry-run", false, "dry run")
+	flags.StringVar(&ret.BackupPathOut, "backup-out", "-", "backup")
+
+	return &ret, hooks
+}
+
 // ParseStateMv processes CLI arguments, returning a StateMv value, a closer function, and errors.
 // If errors are encountered, a StateMv value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseStateMv(args []string) (*StateMv, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	ret := &StateMv{
-		Vars:    &Vars{},
-		Backend: &Backend{},
-		State:   &State{},
-	}
+	flags := Flags{}
+	ret, hooks := BindStateMv(flags)
 
-	cmdFlags := extendedFlagSet("state mv", nil, ret.Vars)
-	ret.Backend.AddIgnoreRemoteVersionFlag(cmdFlags)
-	// StateFlagBackup omitted here to be added later with a different default value
-	ret.State.addFlags(cmdFlags, stateFlagLock|stateFlagStateIn|stateFlagStateOut)
-	ret.State.AddBackupFlag(cmdFlags, "-")
-	cmdFlags.BoolVar(&ret.DryRun, "dry-run", false, "dry run")
-	cmdFlags.StringVar(&ret.BackupPathOut, "backup-out", "-", "backup")
-
-	ret.ViewOptions.AddFlags(cmdFlags, false)
+	cmdFlags := defaultFlagSet("state mv", flags)
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -61,6 +75,7 @@ func ParseStateMv(args []string) (*StateMv, func(), tfdiags.Diagnostics) {
 		))
 	}
 
+	// TODO positional arguments
 	args = cmdFlags.Args()
 	if len(args) != 2 {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -73,8 +88,5 @@ func ParseStateMv(args []string) (*StateMv, func(), tfdiags.Diagnostics) {
 		ret.RawDestAddr = args[1]
 	}
 
-	closer, moreDiags := ret.ViewOptions.Parse()
-	diags = diags.Append(moreDiags)
-
-	return ret, closer, diags
+	return ret, func() { hooks.Post() }, diags.Append(hooks.Pre())
 }

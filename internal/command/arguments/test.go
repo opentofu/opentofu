@@ -6,8 +6,6 @@
 package arguments
 
 import (
-	"github.com/opentofu/opentofu/internal/command/flags"
-	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -35,19 +33,31 @@ type Test struct {
 	Verbose bool
 }
 
+// BindTest registers CLI arguments, returning a Test value and it's corresponding hooks.
+func BindTest(flags Flags) (*Test, Hooks) {
+	var test Test
+	var hooks Hooks
+
+	test.ViewOptions.bind(flags, false)
+	hooks = append(hooks, test.ViewOptions.ParseHook())
+
+	test.Vars = &Vars{}
+	test.Vars.bind(flags)
+
+	flags.StringArrayVar(&test.Filter, "filter", nil, "If specified, OpenTofu will only execute the test files specified by this flag. You can use this option multiple times to execute more than one test file. The path should be relative to the current working directory, even if -test-directory is set.").SetDisplay("=testfile")
+	flags.StringVar(&test.TestDirectory, "test-directory", "tests", `Set the OpenTofu test directory, defaults to "tests". When set, the test command will search for test files in the current directory and in the one specified by the flag.`).SetDisplay("=path")
+	flags.BoolVar(&test.Verbose, "verbose", false, "Print the plan or state for each test run block as it executes.")
+
+	return &test, hooks
+}
+
 func ParseTest(args []string) (*Test, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	test := Test{
-		Vars: new(Vars),
-	}
+	flags := Flags{}
+	test, hooks := BindTest(flags)
 
-	cmdFlags := extendedFlagSet("test", nil, test.Vars)
-	cmdFlags.Var((*flags.FlagStringSlice)(&test.Filter), "filter", "filter")
-	cmdFlags.StringVar(&test.TestDirectory, "test-directory", configs.DefaultTestDirectory, "test-directory")
-	cmdFlags.BoolVar(&test.Verbose, "verbose", false, "verbose")
-
-	test.ViewOptions.AddFlags(cmdFlags, false)
+	cmdFlags := defaultFlagSet("test", flags)
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -56,8 +66,5 @@ func ParseTest(args []string) (*Test, func(), tfdiags.Diagnostics) {
 			err.Error()))
 	}
 
-	closer, moreDiags := test.ViewOptions.Parse()
-	diags = diags.Append(moreDiags)
-
-	return &test, closer, diags
+	return test, func() { hooks.Post() }, diags.Append(hooks.Pre())
 }

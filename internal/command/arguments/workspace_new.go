@@ -22,17 +22,30 @@ type WorkspaceNew struct {
 	State *State
 }
 
+// BindWorkspaceNew registers CLI arguments, returning a WorkspaceNew value and it's corresponding hooks.
+func BindWorkspaceNew(flags Flags) (*WorkspaceNew, Hooks) {
+	var ret WorkspaceNew
+	var hooks Hooks
+
+	ret.ViewOptions.bind(flags, false)
+	hooks = append(hooks, ret.ViewOptions.ParseHook())
+
+	ret.Vars = &Vars{}
+	ret.Vars.bind(flags)
+
+	ret.State = &State{}
+	ret.State.bind(flags, stateFlagLock|stateFlagStateIn)
+
+	return &ret, hooks
+}
+
 func ParseWorkspaceNew(args []string) (*WorkspaceNew, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	ret := &WorkspaceNew{
-		Vars:  &Vars{},
-		State: &State{},
-	}
+	flags := Flags{}
+	ret, hooks := BindWorkspaceNew(flags)
 
-	cmdFlags := extendedFlagSet("workspace new", nil, ret.Vars)
-	ret.State.addFlags(cmdFlags, stateFlagLock|stateFlagStateIn)
-	ret.ViewOptions.AddFlags(cmdFlags, false)
+	cmdFlags := defaultFlagSet("workspace new", flags)
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -42,6 +55,7 @@ func ParseWorkspaceNew(args []string) (*WorkspaceNew, func(), tfdiags.Diagnostic
 		))
 	}
 
+	// TODO positional args
 	args = cmdFlags.Args()
 	if len(args) != 1 {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -53,7 +67,5 @@ func ParseWorkspaceNew(args []string) (*WorkspaceNew, func(), tfdiags.Diagnostic
 		ret.WorkspaceName = args[0]
 	}
 
-	closer, moreDiags := ret.ViewOptions.Parse()
-	diags = diags.Append(moreDiags)
-	return ret, closer, diags
+	return ret, func() { hooks.Post() }, diags.Append(hooks.Pre())
 }

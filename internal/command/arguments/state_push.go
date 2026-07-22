@@ -25,22 +25,38 @@ type StatePush struct {
 	State   *State
 }
 
+// BindStatePush registers CLI arguments, returning a StatePush value and it's corresponding hooks.
+func BindStatePush(flags Flags) (*StatePush, Hooks) {
+	var ret StatePush
+	var hooks Hooks
+
+	ret.ViewOptions.bind(flags, false)
+	hooks = append(hooks, ret.ViewOptions.ParseHook())
+
+	ret.Vars = &Vars{}
+	ret.Vars.bind(flags)
+
+	ret.Backend = &Backend{}
+	ret.Backend.bindIgnoreRemoteVersionFlag(flags)
+
+	ret.State = &State{}
+	ret.State.bind(flags, stateFlagLock)
+
+	flags.BoolVar(&ret.Force, "force", false, "Write the state even if lineages don't match or the remote serial is higher.")
+
+	return &ret, hooks
+}
+
 // ParseStatePush processes CLI arguments, returning a StatePush value, a closer function, and errors.
 // If errors are encountered, a StatePush value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseStatePush(args []string) (*StatePush, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	ret := &StatePush{
-		Vars:    &Vars{},
-		Backend: &Backend{},
-		State:   &State{},
-	}
-	cmdFlags := extendedFlagSet("state push", nil, ret.Vars)
-	ret.Backend.AddIgnoreRemoteVersionFlag(cmdFlags)
-	ret.State.addFlags(cmdFlags, stateFlagLock)
-	cmdFlags.BoolVar(&ret.Force, "force", false, "")
-	ret.ViewOptions.AddFlags(cmdFlags, false)
+	flags := Flags{}
+	ret, hooks := BindStatePush(flags)
+
+	cmdFlags := defaultFlagSet("state push", flags)
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -50,6 +66,7 @@ func ParseStatePush(args []string) (*StatePush, func(), tfdiags.Diagnostics) {
 		))
 	}
 
+	// TODO positional arguments
 	args = cmdFlags.Args()
 	if len(args) != 1 {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -61,8 +78,5 @@ func ParseStatePush(args []string) (*StatePush, func(), tfdiags.Diagnostics) {
 		ret.StateSrc = args[0]
 	}
 
-	closer, moreDiags := ret.ViewOptions.Parse()
-	diags = diags.Append(moreDiags)
-
-	return ret, closer, diags
+	return ret, func() { hooks.Post() }, diags.Append(hooks.Pre())
 }

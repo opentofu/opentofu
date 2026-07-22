@@ -29,21 +29,36 @@ type Graph struct {
 	Vars *Vars
 }
 
+// BindGraph registers CLI arguments, returning a Graph value and it's corresponding hooks.
+func BindGraph(flags Flags) (*Graph, Hooks) {
+	var graph Graph
+	var hooks Hooks
+
+	// we only parse but do not register the views flags since this command does not need it
+	hooks = append(hooks, graph.ViewOptions.ParseHook())
+
+	graph.Vars = &Vars{}
+	graph.Vars.bind(flags)
+
+	flags.BoolVar(&graph.DrawCycles, "draw-cycles", false, "Highlight any cycles in the graph with colored edges. This helps when diagnosing cycle errors.")
+	flags.StringVar(&graph.GraphType, "type", "", `Type of graph to output. Can be: plan, plan-refresh-only, plan-destroy, or apply. By default OpenTofu chooses "plan", or "apply" if you also set the -plan=... option.`)
+	flags.IntVar(&graph.ModuleDepth, "module-depth", -1, "(deprecated) In prior versions of OpenTofu, specified the depth of modules to show in the output.")
+	flags.BoolVar(&graph.Verbose, "verbose", false, "verbose").SetHidden(true)
+	flags.StringVar(&graph.PlanPath, "plan", "", "Render graph using the specified plan file instead of the configuration in the current directory.")
+
+	return &graph, hooks
+}
+
 // ParseGraph processes CLI arguments, returning a Graph value, a closer function, and errors.
 // If errors are encountered, a Graph value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseGraph(args []string) (*Graph, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	arguments := &Graph{
-		Vars: &Vars{},
-	}
 
-	cmdFlags := extendedFlagSet("graph", nil, arguments.Vars)
-	cmdFlags.BoolVar(&arguments.DrawCycles, "draw-cycles", false, "draw-cycles")
-	cmdFlags.StringVar(&arguments.GraphType, "type", "", "type")
-	cmdFlags.IntVar(&arguments.ModuleDepth, "module-depth", -1, "module-depth")
-	cmdFlags.BoolVar(&arguments.Verbose, "verbose", false, "verbose")
-	cmdFlags.StringVar(&arguments.PlanPath, "plan", "", "plan")
+	flags := Flags{}
+	arguments, hooks := BindGraph(flags)
+
+	cmdFlags := defaultFlagSet("graph", flags)
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -51,13 +66,6 @@ func ParseGraph(args []string) (*Graph, func(), tfdiags.Diagnostics) {
 			"Failed to parse command-line flags",
 			err.Error(),
 		))
-	}
-
-	// we only parse but do not register the views flags since this command does not need it
-	closer, moreDiags := arguments.ViewOptions.Parse()
-	diags = diags.Append(moreDiags)
-	if diags.HasErrors() {
-		return arguments, closer, diags
 	}
 
 	if len(cmdFlags.Args()) > 0 {
@@ -68,5 +76,5 @@ func ParseGraph(args []string) (*Graph, func(), tfdiags.Diagnostics) {
 		))
 	}
 
-	return arguments, closer, diags
+	return arguments, func() { hooks.Post() }, diags.Append(hooks.Pre())
 }

@@ -6,7 +6,6 @@
 package arguments
 
 import (
-	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -61,24 +60,30 @@ type ViewOptions struct {
 	JSONInto *os.File
 }
 
-func (v *ViewOptions) AddFlags(cmdFlags *flag.FlagSet, input bool) {
-	v.AddGranularFlags(cmdFlags, input, true)
+func (v *ViewOptions) bind(flags Flags, input bool) {
+	v.bindGranularFlags(flags, input, true)
 }
 
-// AddGranularFlags registers view-related flags on cmdFlags. Use input=true to
+// bindGranularFlags registers view-related flags on flags. Use input=true to
 // register the -input flag and jsonInto=true to register the -json-into flag.
 // Commands that only support -json (not -json-into) should pass jsonInto=false.
-func (v *ViewOptions) AddGranularFlags(cmdFlags *flag.FlagSet, input bool, jsonInto bool) {
+func (v *ViewOptions) bindGranularFlags(flags Flags, input bool, jsonInto bool) {
 	if input {
-		cmdFlags.BoolVar(&v.InputEnabled, "input", true, "input")
+		flags.BoolVar(&v.InputEnabled, "input", true,
+			`Disable prompting for required input variables that are not set some other way.`,
+		).SetDisplay("=false")
 	}
 
-	cmdFlags.BoolVar(&v.jsonFlag, "json", false, "json")
+	flags.BoolVar(&v.jsonFlag, "json", false,
+		`Produce output in a machine-readable JSON format, suitable for use in text editor integrations and other automated systems.`)
 	if jsonInto {
-		cmdFlags.StringVar(&v.jsonIntoFlag, "json-into", "", "json-into")
+		flags.StringVar(&v.jsonIntoFlag, "json-into", "",
+			`Produce the same output as -json, but sent directly to the given file. This allows automation to preserve the original human-readable output streams, while capturing more detailed logs for machine analysis.`,
+		).SetDisplay("=out.json")
 	}
 }
 
+// TODO merge with ParseHook
 func (v *ViewOptions) Parse() (func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	closer := func() {}
@@ -108,6 +113,21 @@ func (v *ViewOptions) Parse() (func(), tfdiags.Diagnostics) {
 		}
 	}
 	return closer, diags
+}
+
+func (v *ViewOptions) ParseHook() Hook {
+	var closer func()
+	return Hook{
+		Pre: func() tfdiags.Diagnostics {
+			var diags tfdiags.Diagnostics
+			closer, diags = v.Parse()
+			return diags
+		},
+		Post: func() tfdiags.Diagnostics {
+			closer()
+			return nil
+		},
+	}
 }
 
 func OpenJSONIntoFile(jsonIntoFlag string) (*os.File, func(), tfdiags.Diagnostics) {

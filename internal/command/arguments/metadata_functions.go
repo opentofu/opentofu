@@ -15,15 +15,46 @@ type MetadataFunctions struct {
 	ViewOptions ViewOptions
 }
 
+// BindMetadataFunctions registers CLI arguments, returning a MetadataFunctions value and it's corresponding hooks.
+func BindMetadataFunctions(flags Flags) (*MetadataFunctions, Hooks) {
+	var arguments MetadataFunctions
+	var hooks Hooks
+
+	arguments.ViewOptions.bindGranularFlags(flags, false, false) // Add only the -json flag
+	hooks = append(hooks, arguments.ViewOptions.ParseHook())
+
+	hooks = append(hooks, Hook{Pre: func() tfdiags.Diagnostics {
+		var diags tfdiags.Diagnostics
+
+		// The 'metadata functions' command just forces the user to use the `-json` flag but any of the diagnostics should
+		// be printed as human format. This makes it clear that the success output of this command will be in json and
+		// that it needs to be processed accordingly.
+		// The print of the functions will be in JSON all the time.
+		if arguments.ViewOptions.ViewType != ViewJSON {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Invalid arguments",
+				"The `tofu metadata functions` command requires the `-json` flag.",
+			))
+		}
+		arguments.ViewOptions.ViewType = ViewHuman
+
+		return diags
+	}})
+
+	return &arguments, hooks
+}
+
 // ParseMetadataFunctions processes CLI arguments, returning a MetadataFunctions value, a closer function, and errors.
 // If errors are encountered, a MetadataFunctions value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseMetadataFunctions(args []string) (*MetadataFunctions, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	arguments := &MetadataFunctions{}
 
-	cmdFlags := defaultFlagSet("metadata functions")
-	arguments.ViewOptions.AddGranularFlags(cmdFlags, false, false) // Add only the -json flag
+	flags := Flags{}
+	arguments, hooks := BindMetadataFunctions(flags)
+
+	cmdFlags := defaultFlagSet("metadata functions", flags)
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -33,24 +64,5 @@ func ParseMetadataFunctions(args []string) (*MetadataFunctions, func(), tfdiags.
 		))
 	}
 
-	closer, moreDiags := arguments.ViewOptions.Parse()
-	diags = diags.Append(moreDiags)
-	if diags.HasErrors() {
-		return arguments, closer, diags
-	}
-
-	// The 'metadata functions' command just forces the user to use the `-json` flag but any of the diagnostics should
-	// be printed as human format. This makes it clear that the success output of this command will be in json and
-	// that it needs to be processed accordingly.
-	// The print of the functions will be in JSON all the time.
-	if arguments.ViewOptions.ViewType != ViewJSON {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Invalid arguments",
-			"The `tofu metadata functions` command requires the `-json` flag.",
-		))
-	}
-	arguments.ViewOptions.ViewType = ViewHuman
-	
-	return arguments, closer, diags
+	return arguments, func() { hooks.Post() }, diags.Append(hooks.Pre())
 }

@@ -30,22 +30,33 @@ type Validate struct {
 	Vars *Vars
 }
 
+// BindValidate registers CLI arguments, returning a Validate value and it's corresponding hooks.
+func BindValidate(flags Flags) (*Validate, Hooks) {
+	var validate Validate
+	var hooks Hooks
+
+	validate.ViewOptions.bind(flags, false)
+	hooks = append(hooks, validate.ViewOptions.ParseHook())
+
+	validate.Vars = &Vars{}
+	validate.Vars.bind(flags)
+
+	flags.StringVar(&validate.TestDirectory, "test-directory", "tests", `Set the OpenTofu test directory, defaults to "tests". When set, the test command will search for test files in the current directory and in the one specified by the flag.`).SetDisplay("=path")
+	flags.BoolVar(&validate.NoTests, "no-tests", false, "If specified, OpenTofu will not validate test files.")
+
+	return &validate, hooks
+}
+
 // ParseValidate processes CLI arguments, returning a Validate value, a closer function, and errors.
 // If errors are encountered, a Validate value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseValidate(args []string) (*Validate, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	validate := &Validate{
-		Path: ".",
-		Vars: &Vars{},
-	}
+	flags := Flags{}
+	validate, hooks := BindValidate(flags)
 
-	cmdFlags := extendedFlagSet("validate", nil, validate.Vars)
-	cmdFlags.StringVar(&validate.TestDirectory, "test-directory", "tests", "test-directory")
-	cmdFlags.BoolVar(&validate.NoTests, "no-tests", false, "no-tests")
-
-	validate.ViewOptions.AddFlags(cmdFlags, false)
+	cmdFlags := defaultFlagSet("validate", flags)
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -55,6 +66,7 @@ func ParseValidate(args []string) (*Validate, func(), tfdiags.Diagnostics) {
 		))
 	}
 
+	// TODO positional arguments
 	args = cmdFlags.Args()
 	if len(args) > 1 {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -64,12 +76,10 @@ func ParseValidate(args []string) (*Validate, func(), tfdiags.Diagnostics) {
 		))
 	}
 
+	validate.Path = "."
 	if len(args) > 0 {
 		validate.Path = args[0]
 	}
 
-	closer, moreDiags := validate.ViewOptions.Parse()
-	diags = diags.Append(moreDiags)
-
-	return validate, closer, diags
+	return validate, func() { hooks.Post() }, diags.Append(hooks.Pre())
 }

@@ -15,11 +15,24 @@ type Workspace struct {
 	ViewOptions ViewOptions
 }
 
+// BindWorkspace registers CLI arguments, returning a Workspace value and it's corresponding hooks.
+func BindWorkspace(flags Flags) (*Workspace, Hooks) {
+	var get Workspace
+	var hooks Hooks
+
+	// we only parse but do not register the views flags since this command does not need it
+	hooks = append(hooks, get.ViewOptions.ParseHook())
+
+	return &get, hooks
+}
+
 func ParseWorkspace(args []string) (*Workspace, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	ret := &Workspace{}
-	cmdFlags := defaultFlagSet("workspace")
+	flags := Flags{}
+	ret, hooks := BindWorkspace(flags)
+
+	cmdFlags := defaultFlagSet("workspace", flags)
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -36,8 +49,5 @@ func ParseWorkspace(args []string) (*Workspace, func(), tfdiags.Diagnostics) {
 		))
 	}
 
-	// we only parse but do not register the views flags since this command does not need it
-	closer, moreDiags := ret.ViewOptions.Parse()
-	diags = diags.Append(moreDiags)
-	return ret, closer, diags
+	return ret, func() { hooks.Post() }, diags.Append(hooks.Pre())
 }

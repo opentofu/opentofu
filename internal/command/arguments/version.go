@@ -15,21 +15,35 @@ type Version struct {
 	ViewOptions ViewOptions
 }
 
+// BindVersion registers CLI arguments, returning a Version value and it's corresponding hooks.
+func BindVersion(flags Flags) (*Version, Hooks) {
+	var ret Version
+	var hooks Hooks
+
+	ret.ViewOptions.bindGranularFlags(flags, false, false) // Add only the -json flag
+	hooks = append(hooks, ret.ViewOptions.ParseHook())
+
+	// Enable but ignore the global version flags. In main.go, if any of the
+	// arguments are -v, -version, or --version, this command will be called
+	// with the rest of the arguments, so we need to be able to cope with
+	// those.
+	var nop bool
+	flags.BoolVar(&nop, "v", true, "version").SetHidden(true)
+	flags.BoolVar(&nop, "version", true, "version").SetHidden(true)
+
+	return &ret, hooks
+}
+
 // ParseVersion processes CLI arguments, returning a Version value, a closer function, and errors.
 // If errors are encountered, a Version value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseVersion(args []string) (*Version, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	ret := &Version{}
 
-	cmdFlags := defaultFlagSet("version")
-	// Enable but ignore the global version flags. In main.go, if any of the
-	// arguments are -v, -version, or --version, this command will be called
-	// with the rest of the arguments, so we need to be able to cope with
-	// those.
-	cmdFlags.Bool("v", true, "version")
-	cmdFlags.Bool("version", true, "version")
-	ret.ViewOptions.AddGranularFlags(cmdFlags, false, false) // Add only the -json flag
+	flags := Flags{}
+	ret, hooks := BindVersion(flags)
+
+	cmdFlags := defaultFlagSet("version", flags)
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -39,7 +53,5 @@ func ParseVersion(args []string) (*Version, func(), tfdiags.Diagnostics) {
 		))
 	}
 
-	closer, moreDiags := ret.ViewOptions.Parse()
-	diags = diags.Append(moreDiags)
-	return ret, closer, diags
+	return ret, func() { hooks.Post() }, diags.Append(hooks.Pre())
 }

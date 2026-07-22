@@ -18,16 +18,31 @@ type StatePull struct {
 	Vars *Vars
 }
 
+// BindStatePull registers CLI arguments, returning a StatePull value and it's corresponding hooks.
+func BindStatePull(flags Flags) (*StatePull, Hooks) {
+	var ret StatePull
+	var hooks Hooks
+
+	// we only parse but do not register the views flags since this command does not need it because it already
+	// prints the state in json format
+	hooks = append(hooks, ret.ViewOptions.ParseHook())
+
+	ret.Vars = &Vars{}
+	ret.Vars.bind(flags)
+
+	return &ret, hooks
+}
+
 // ParseStatePull processes CLI arguments, returning a StatePull value, a closer function, and errors.
 // If errors are encountered, a StatePull value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseStatePull(args []string) (*StatePull, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	ret := &StatePull{
-		Vars: &Vars{},
-	}
-	cmdFlags := extendedFlagSet("state pull", nil, ret.Vars)
+	flags := Flags{}
+	ret, hooks := BindStatePull(flags)
+
+	cmdFlags := defaultFlagSet("state pull", flags)
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -45,10 +60,5 @@ func ParseStatePull(args []string) (*StatePull, func(), tfdiags.Diagnostics) {
 		))
 	}
 
-	// we only parse but do not register the views flags since this command does not need it because it already
-	// prints the state in json format
-	closer, moreDiags := ret.ViewOptions.Parse()
-	diags = diags.Append(moreDiags)
-
-	return ret, closer, diags
+	return ret, func() { hooks.Post() }, diags.Append(hooks.Pre())
 }
