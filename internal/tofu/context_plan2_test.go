@@ -3560,6 +3560,7 @@ func TestContext2Plan_forceReplaceIncompleteAddr(t *testing.T) {
 // This TestContext2Plan_forceReplaceIncompleteAddr_multipleResources is a test case for
 // https://github.com/opentofu/opentofu/issues/4368
 // I've added all the required test cases that are needed to verify the fix for the issue.
+// This will cover the scope of issue #4368
 func TestContext2Plan_forceReplaceIncompleteAddr_multipleResources(t *testing.T) {
 	SkipExperimental(t, ExperimentalFeatureForceReplace)
 	rootAddr0 := mustResourceInstanceAddr("test_object.foo[0]")
