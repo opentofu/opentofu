@@ -8,8 +8,8 @@ package tfdiags
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -146,42 +146,30 @@ func TestExecuteLintRule(t *testing.T) {
 	t.Run("parallel calls locks when called for exactly the same source and lint rule", func(t *testing.T) {
 		ruleID := linting.MustParseRuleAddr("core:foo")
 		ctx := ContextWithLintFilterHints(t.Context(), collections.NewSet(ruleID), collections.NewSet[linting.RuleAddr]())
-		var durations [500]time.Duration
-		var calls int // not needed atomic here since its expected to be wrote into only by one goroutine, once
-		var idxCalled int
-		sleepFor := 300 * time.Millisecond
+		// not needed atomic here since its expected to be wrote once, by the goroutine that acquired the lock first
+		var calls int
+		var calledIn atomic.Bool
 		exec := func(i int) func() Diagnostics {
 			return func() Diagnostics {
+				defer calledIn.Store(true)
 				calls++
-				<-time.After(sleepFor)
-				idxCalled = i
 				return nil
 			}
 		}
 		src := SourceRange{Filename: "test.tf", Start: SourcePos{Line: 1, Column: 2}, End: SourcePos{Line: 1, Column: 10}}
 		var wg sync.WaitGroup
-		startTime := time.Now()
 		for i := range 500 {
-			start := startTime
 			wg.Go(func() {
 				_ = ExecuteLintRule(ctx, exec(i), src, ruleID)
-				durations[i] = time.Since(start)
+				// any goroutine that gets here (even the one that actually acquired the lock to call into the linting
+				// execution function) should see this "true". If not, then it means that some goroutine(s) didn't
+				// get from the sync.Map the right lintExecution pointer.
+				if !calledIn.Load() {
+					t.Errorf("[%d] finished before the lint rule being executed", i)
+				}
 			})
 		}
 		wg.Wait()
-		// because based on the architecture and the CI platform, time.After can return with slighlty different
-		// variation from the actually asked duration so we want to do the assertions on the actual time it took
-		// for the goroutine that managed to call into the linting rule. So we use that instead of a hardcoded
-		// duration
-		minDuration := durations[idxCalled]
-		for i, dur := range durations {
-			if i == idxCalled {
-				continue // we skip the one that actually called in the linting execution since we use its duration for comparison
-			}
-			if dur < minDuration {
-				t.Errorf("[%d] finished unexpectedly before the goroutine that actually called the linting rule. finished in %s (smaller than %s)", i, dur, minDuration)
-			}
-		}
 		if calls != 1 {
 			t.Errorf("expected in the end to have just 1 call but got %d", calls)
 		}
@@ -189,46 +177,31 @@ func TestExecuteLintRule(t *testing.T) {
 		calls = 0
 		_ = ExecuteLintRule(ctx, exec(0), src, ruleID)
 		if calls != 0 {
-			t.Errorf("the linting rule unexpectedly called. This means that something is broken in the internals of ExecuteLintRule since this was meant be registered as successfully executed")
+			t.Errorf("the linting rule unexpectedly called. This means that something is broken in the internals of ExecuteLintRule since this was meant to be registered as successfully executed and not called again")
 		}
 	})
 	t.Run("parallel calls does not lock when called for different source and lint rule", func(t *testing.T) {
 		ctx := ContextWithLintFilterHints(t.Context(), collections.NewSet(linting.MustParseRuleAddr("all")), collections.NewSet[linting.RuleAddr]())
 		var sources [500]SourceRange
-		for i := range 500 {
+		noOfExecutions := 500
+		for i := range noOfExecutions {
 			sources[i] = SourceRange{Filename: "test.tf", Start: SourcePos{Line: i, Column: 2}, End: SourcePos{Line: 1, Column: 10}}
 		}
-		sleepFor := 300 * time.Millisecond
-		execBuilder := func(shouldWait bool) func() Diagnostics {
-			return func() Diagnostics {
-				if shouldWait {
-					<-time.After(sleepFor)
-				}
-				return nil
-			}
+		var callCount atomic.Uint32
+		exec := func() Diagnostics {
+			callCount.Add(1)
+			return nil
 		}
 		var wg sync.WaitGroup
-		var durations [500]time.Duration
-		startTime := time.Now()
-		for i := range 500 {
-			start := startTime
+		for i := range noOfExecutions {
 			wg.Go(func() {
-				_ = ExecuteLintRule(ctx, execBuilder(i%5 == 0), sources[i], linting.MustParseRuleAddr("core:foo"))
-				durations[i] = time.Since(start)
+				_ = ExecuteLintRule(ctx, exec, sources[i], linting.MustParseRuleAddr("core:foo"))
 			})
 		}
 		wg.Wait()
-		for i, dur := range durations {
-			expectedToSleep := i%5 == 0
-			if expectedToSleep {
-				if dur < sleepFor {
-					t.Errorf("[%d] finished unexpectedly fast (in %s)", i, dur)
-				}
-			} else {
-				if dur > 100*time.Millisecond { // depends on how slow the CI runner is, this can be quite high at times
-					t.Errorf("[%d] finished later than expected (in %s)", i, dur)
-				}
-			}
+
+		if uint32(noOfExecutions) != callCount.Load() { // this means that no goroutine waited on any other goroutine
+			t.Errorf("expected to have %d executions but got only %d", noOfExecutions, callCount.Load())
 		}
 	})
 }
