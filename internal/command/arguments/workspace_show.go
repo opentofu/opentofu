@@ -18,14 +18,27 @@ type WorkspaceShow struct {
 	Vars *Vars
 }
 
+// BindWorkspaceShow registers CLI arguments, returning a WorkspaceShow value and it's corresponding hooks.
+func BindWorkspaceShow(flags Flags) (*WorkspaceShow, Hooks) {
+	var ret WorkspaceShow
+	var hooks Hooks
+
+	// we only parse but do not register the views flags since this command does not need it
+	hooks = append(hooks, ret.ViewOptions.ParseHook())
+
+	ret.Vars = &Vars{}
+	ret.Vars.bind(flags)
+
+	return &ret, hooks
+}
+
 func ParseWorkspaceShow(args []string) (*WorkspaceShow, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	ret := &WorkspaceShow{
-		Vars: &Vars{},
-	}
+	flags := Flags{}
+	ret, hooks := BindWorkspaceShow(flags)
 
-	cmdFlags := extendedFlagSet("workspace show", nil, ret.Vars)
+	cmdFlags := defaultFlagSet("workspace show", flags)
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -43,8 +56,5 @@ func ParseWorkspaceShow(args []string) (*WorkspaceShow, func(), tfdiags.Diagnost
 		))
 	}
 
-	// we only parse but do not register the views flags since this command does not need it
-	closer, moreDiags := ret.ViewOptions.Parse()
-	diags = diags.Append(moreDiags)
-	return ret, closer, diags
+	return ret, func() { hooks.Post() }, diags.Append(hooks.Pre())
 }

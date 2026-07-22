@@ -18,15 +18,27 @@ type WorkspaceList struct {
 	Vars *Vars
 }
 
+// BindWorkspaceList registers CLI arguments, returning a WorkspaceList value and it's corresponding hooks.
+func BindWorkspaceList(flags Flags) (*WorkspaceList, Hooks) {
+	var ret WorkspaceList
+	var hooks Hooks
+
+	ret.ViewOptions.bind(flags, false)
+	hooks = append(hooks, ret.ViewOptions.ParseHook())
+
+	ret.Vars = &Vars{}
+	ret.Vars.bind(flags)
+
+	return &ret, hooks
+}
+
 func ParseWorkspaceList(args []string) (*WorkspaceList, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	ret := &WorkspaceList{
-		Vars: &Vars{},
-	}
+	flags := Flags{}
+	ret, hooks := BindWorkspaceList(flags)
 
-	cmdFlags := extendedFlagSet("workspace list", nil, ret.Vars)
-	ret.ViewOptions.AddFlags(cmdFlags, false)
+	cmdFlags := defaultFlagSet("workspace list", flags)
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -44,7 +56,5 @@ func ParseWorkspaceList(args []string) (*WorkspaceList, func(), tfdiags.Diagnost
 		))
 	}
 
-	closer, moreDiags := ret.ViewOptions.Parse()
-	diags = diags.Append(moreDiags)
-	return ret, closer, diags
+	return ret, func() { hooks.Post() }, diags.Append(hooks.Pre())
 }

@@ -63,27 +63,45 @@ const (
 	ShowModule
 )
 
+// BindShow registers CLI arguments, returning a Show value and it's corresponding hooks.
+func BindShow(flags Flags,
+	stateTarget *bool,
+	planTarget *string,
+	configTarget *bool,
+	moduleTarget *string,
+) (*Show, Hooks) {
+	var show Show
+	var hooks Hooks
+
+	show.ViewOptions.bind(flags, false)
+	hooks = append(hooks, show.ViewOptions.ParseHook())
+
+	show.Vars = &Vars{}
+	show.Vars.bind(flags)
+
+	flags.BoolVar(&show.ShowSensitive, "show-sensitive", false, "displays sensitive values")
+	flags.BoolVar(stateTarget, "state", false, "show the latest state snapshot")
+	flags.StringVar(planTarget, "plan", "", "show the plan from a saved plan file")
+	flags.BoolVar(configTarget, "config", false, "show the current configuration")
+	flags.StringVar(moduleTarget, "module", "", "show metadata about one module")
+
+	return &show, hooks
+}
+
 // ParseShow processes CLI arguments, returning a Show value, a closer function, and errors.
 // If errors are encountered, a Show value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseShow(args []string) (*Show, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	show := &Show{
-		Vars: &Vars{},
-	}
 
 	var stateTarget bool
 	var planTarget string
 	var configTarget bool
 	var moduleTarget string
-	cmdFlags := extendedFlagSet("show", nil, show.Vars)
-	cmdFlags.BoolVar(&show.ShowSensitive, "show-sensitive", false, "displays sensitive values")
-	cmdFlags.BoolVar(&stateTarget, "state", false, "show the latest state snapshot")
-	cmdFlags.StringVar(&planTarget, "plan", "", "show the plan from a saved plan file")
-	cmdFlags.BoolVar(&configTarget, "config", false, "show the current configuration")
-	cmdFlags.StringVar(&moduleTarget, "module", "", "show metadata about one module")
 
-	show.ViewOptions.AddFlags(cmdFlags, false)
+	flags := Flags{}
+	show, hooks := BindShow(flags, &stateTarget, &planTarget, &configTarget, &moduleTarget)
+	cmdFlags := defaultFlagSet("show", flags)
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -93,8 +111,10 @@ func ParseShow(args []string) (*Show, func(), tfdiags.Diagnostics) {
 		))
 	}
 
-	closer, moreDiags := show.ViewOptions.Parse()
-	diags = diags.Append(moreDiags)
+	diags = diags.Append(hooks.Pre())
+	closer := func() { hooks.Post() }
+
+	// TODO positional arguments
 
 	// If -config or -module=... is selected, -json is required
 	if configTarget && !show.ViewOptions.jsonFlag {

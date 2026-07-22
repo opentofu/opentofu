@@ -20,20 +20,37 @@ type Refresh struct {
 	ViewOptions ViewOptions
 }
 
+// BindRefresh registers CLI arguments, returning a Refresh value and it's corresponding hooks.
+func BindRefresh(flags Flags) (*Refresh, Hooks) {
+	var refresh Refresh
+	var hooks Hooks
+
+	refresh.ViewOptions.bind(flags, true)
+	hooks = append(hooks, refresh.ViewOptions.ParseHook())
+
+	refresh.Vars = &Vars{}
+	refresh.Vars.bind(flags)
+
+	refresh.Operation = &Operation{}
+	refresh.Operation.bind(flags)
+	hooks = append(hooks, Hook{Pre: refresh.Operation.Parse})
+
+	refresh.State = &State{}
+	refresh.State.bind(flags, stateFlagAll)
+
+	return &refresh, hooks
+}
+
 // ParseRefresh processes CLI arguments, returning a Refresh value, a closer function, and errors.
 // If errors are encountered, a Refresh value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseRefresh(args []string) (*Refresh, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	refresh := &Refresh{
-		State:     &State{},
-		Operation: &Operation{},
-		Vars:      &Vars{},
-	}
 
-	cmdFlags := extendedFlagSet("refresh", refresh.Operation, refresh.Vars)
-	refresh.State.addFlags(cmdFlags, stateFlagAll)
-	refresh.ViewOptions.AddFlags(cmdFlags, true)
+	flags := Flags{}
+	refresh, hooks := BindRefresh(flags)
+
+	cmdFlags := defaultFlagSet("refresh", flags)
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -52,9 +69,5 @@ func ParseRefresh(args []string) (*Refresh, func(), tfdiags.Diagnostics) {
 		))
 	}
 
-	diags = diags.Append(refresh.Operation.Parse())
-	closer, moreDiags := refresh.ViewOptions.Parse()
-	diags = diags.Append(moreDiags)
-
-	return refresh, closer, diags
+	return refresh, func() { hooks.Post() }, diags.Append(hooks.Pre())
 }

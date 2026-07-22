@@ -6,8 +6,6 @@
 package arguments
 
 import (
-	"flag"
-
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -23,11 +21,11 @@ type Backend struct {
 	MigrateState bool
 }
 
-func (b *Backend) AddIgnoreRemoteVersionFlag(f *flag.FlagSet) {
-	f.BoolVar(&b.IgnoreRemoteVersion, "ignore-remote-version", false, "continue even if remote and local OpenTofu versions are incompatible")
+func (b *Backend) bindIgnoreRemoteVersionFlag(f Flags) {
+	f.BoolVar(&b.IgnoreRemoteVersion, "ignore-remote-version", false, "A rare option used for the remote backend only. See the remote backend documentation for more information.")
 }
 
-func (b *Backend) AddMigrationFlags(f *flag.FlagSet) {
+func (b *Backend) bindMigrationFlags(f Flags) {
 	f.BoolVar(&b.ForceInitCopy, "force-copy", false, "suppress prompts about copying state data")
 	f.BoolVar(&b.Reconfigure, "reconfigure", false, "reconfigure")
 	f.BoolVar(&b.MigrateState, "migrate-state", false, "migrate state")

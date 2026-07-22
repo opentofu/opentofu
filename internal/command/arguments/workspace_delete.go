@@ -26,18 +26,32 @@ type WorkspaceDelete struct {
 	State *State
 }
 
+// BindWorkspaceDelete registers CLI arguments, returning a WorkspaceDelete value and it's corresponding hooks.
+func BindWorkspaceDelete(flags Flags) (*WorkspaceDelete, Hooks) {
+	var ret WorkspaceDelete
+	var hooks Hooks
+
+	ret.ViewOptions.bind(flags, false)
+	hooks = append(hooks, ret.ViewOptions.ParseHook())
+
+	ret.Vars = &Vars{}
+	ret.Vars.bind(flags)
+
+	ret.State = &State{}
+	ret.State.bind(flags, stateFlagLock)
+
+	flags.BoolVar(&ret.Force, "force", false, "Remove a workspace even if it is managing resources. OpenTofu can no longer track or manage the workspace's infrastructure.")
+
+	return &ret, hooks
+}
+
 func ParseWorkspaceDelete(args []string) (*WorkspaceDelete, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	ret := &WorkspaceDelete{
-		Vars:  &Vars{},
-		State: &State{},
-	}
+	flags := Flags{}
+	ret, hooks := BindWorkspaceDelete(flags)
 
-	cmdFlags := extendedFlagSet("workspace delete", nil, ret.Vars)
-	cmdFlags.BoolVar(&ret.Force, "force", false, "force removal of a non-empty workspace")
-	ret.State.addFlags(cmdFlags, stateFlagLock)
-	ret.ViewOptions.AddFlags(cmdFlags, false)
+	cmdFlags := defaultFlagSet("workspace delete", flags)
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -47,6 +61,7 @@ func ParseWorkspaceDelete(args []string) (*WorkspaceDelete, func(), tfdiags.Diag
 		))
 	}
 
+	// TODO positional arguments
 	args = cmdFlags.Args()
 	if len(args) != 1 {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -58,7 +73,5 @@ func ParseWorkspaceDelete(args []string) (*WorkspaceDelete, func(), tfdiags.Diag
 		ret.WorkspaceName = args[0]
 	}
 
-	closer, moreDiags := ret.ViewOptions.Parse()
-	diags = diags.Append(moreDiags)
-	return ret, closer, diags
+	return ret, func() { hooks.Post() }, diags.Append(hooks.Pre())
 }

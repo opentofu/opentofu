@@ -22,18 +22,32 @@ type Unlock struct {
 	ViewOptions ViewOptions
 }
 
+// BindUnlock registers CLI arguments, returning a Unlock value and it's corresponding hooks.
+func BindUnlock(flags Flags) (*Unlock, Hooks) {
+	var arguments Unlock
+	var hooks Hooks
+
+	arguments.ViewOptions.bind(flags, false)
+	hooks = append(hooks, arguments.ViewOptions.ParseHook())
+
+	arguments.Vars = &Vars{}
+	arguments.Vars.bind(flags)
+
+	flags.BoolVar(&arguments.Force, "force", false, "Don't ask for input for unlock confirmation.")
+
+	return &arguments, hooks
+}
+
 // ParseUnlock processes CLI arguments, returning a Unlock value, a closer function, and errors.
 // If errors are encountered, a Unlock value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseUnlock(args []string) (*Unlock, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	arguments := &Unlock{
-		Vars: &Vars{},
-	}
 
-	cmdFlags := extendedFlagSet("force-unlock", nil, arguments.Vars)
-	cmdFlags.BoolVar(&arguments.Force, "force", false, "force")
-	arguments.ViewOptions.AddFlags(cmdFlags, false)
+	flags := Flags{}
+	arguments, hooks := BindUnlock(flags)
+
+	cmdFlags := defaultFlagSet("force-unlock", flags)
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -43,11 +57,7 @@ func ParseUnlock(args []string) (*Unlock, func(), tfdiags.Diagnostics) {
 		))
 	}
 
-	closer, moreDiags := arguments.ViewOptions.Parse()
-	diags = diags.Append(moreDiags)
-	if diags.HasErrors() {
-		return arguments, closer, diags
-	}
+	// TODO positional args
 	args = cmdFlags.Args()
 	if len(args) != 1 {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -59,5 +69,5 @@ func ParseUnlock(args []string) (*Unlock, func(), tfdiags.Diagnostics) {
 		arguments.LockID = args[0]
 	}
 
-	return arguments, closer, diags
+	return arguments, func() { hooks.Post() }, diags.Append(hooks.Pre())
 }
