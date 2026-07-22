@@ -1,0 +1,67 @@
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
+package core
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/linting"
+	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/zclconf/go-cty/cty"
+)
+
+// CountInsteadEnabled is a linting rule that returns linting diagnostics if the given `count` meta-argument
+// expression could be replaced by a `lifecycle.enabled` meta-argument instead.
+func CountInsteadEnabled(
+	ctx context.Context,
+	targetRes addrs.ConfigResource,
+	targetDeclRange hcl.Range,
+	countExpr hcl.Expression) tfdiags.Diagnostics {
+	exec := func() tfdiags.Diagnostics {
+		if !canLifecycleEnabledReplaceCountExpr(countExpr, cty.NumberIntVal(1)) {
+			return nil
+		}
+		return tfdiags.New(
+			tfdiags.LintMessage(
+				ruleIDcountInsteadOfEnabled,
+				[]linting.RuleAddr{GroupIDImprovement},
+				"Usage of `count` could be replace with `lifecycle.enabled`",
+				fmt.Sprintf("%q could use `lifecycle.enabled` instead of the current `count` expression.", targetRes.String()),
+				new(tfdiags.SourceRangeFromHCL(countExpr.Range())),
+				new(tfdiags.SourceRangeFromHCL(targetDeclRange)),
+			),
+		)
+	}
+	return tfdiags.ExecuteLintRule(ctx, exec, tfdiags.SourceRangeFromHCL(targetDeclRange), ruleIDcountInsteadOfEnabled, GroupIDImprovement)
+}
+
+// canLifecycleEnabledReplaceCountExpr is a function that returns true if the given `count` meta-argument expression
+// could be replaced by a `lifecycle.enabled` one instead.
+// The current rules which qualifies an expression as a candidate for such a case are as follows:
+//   - the expression is a literal value and its value is a number equals with 1
+//   - the expression is a ternary operation and one of the expressions is a literal number equals with 1 and the other one
+//     is a literal number equals wwith 0
+func canLifecycleEnabledReplaceCountExpr(expr hcl.Expression, wantedVal cty.Value) bool {
+	switch e := expr.(type) {
+	case *hclsyntax.ConditionalExpr:
+		return (canLifecycleEnabledReplaceCountExpr(e.TrueResult, cty.NumberIntVal(1)) && canLifecycleEnabledReplaceCountExpr(e.FalseResult, cty.NumberIntVal(0))) ||
+			(canLifecycleEnabledReplaceCountExpr(e.TrueResult, cty.NumberIntVal(0)) && canLifecycleEnabledReplaceCountExpr(e.FalseResult, cty.NumberIntVal(1)))
+	case *hclsyntax.ParenthesesExpr:
+		return canLifecycleEnabledReplaceCountExpr(e.Expression, wantedVal)
+	case *hclsyntax.LiteralValueExpr:
+		if e.Val.RawEquals(wantedVal) {
+			return true
+		}
+		return false
+	}
+	// anything else that is not covered in the select block above cannot be part of an expression that
+	// would indicate that `count` could be replaced with `lifecycle.enabled`.
+	return false
+}
