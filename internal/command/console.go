@@ -43,28 +43,12 @@ This command will never modify your state.`,
 
 	args, common, hooks := arguments.BindConsole(cmd.Flags)
 
-	cmd.Run = func(meta Meta) int {
-		meta.View.Configure(common)
-		// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
-		// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
-		meta.View.DiagsWithNewline()
-
+	cmd.Run = RunWith(common, hooks, func(meta Meta) int {
 		// Instantiate the view, even if there are flag errors, so that we render
 		// diagnostics according to the desired view
 		view := views.NewConsole(args.ViewOptions, meta.View)
-
-		diags := hooks.Pre()
-		defer hooks.Post()
-		if diags.HasErrors() {
-			view.Diagnostics(diags)
-			if args.ViewOptions.ViewType == arguments.ViewJSON {
-				return 1
-			}
-			return -1 // TODO Usage
-		}
-
 		return ConsoleCommand{Meta: meta}.RunInner(view, args)
-	}
+	})
 
 	return cmd
 }

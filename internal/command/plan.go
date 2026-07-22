@@ -39,26 +39,12 @@ You can optionally save the plan to a file, which you can then pass to the "appl
 	args, common, groups, hooks := arguments.BindPlan(cmd.Flags)
 	cmd.UsageOptions.FlagGroups = groups
 
-	cmd.Run = func(meta Meta) int {
-		meta.View.Configure(common) // TODO is this missing in the main branch?
-		// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
-		// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
-		meta.View.DiagsWithNewline()
-
+	cmd.Run = RunWith(common, hooks, func(meta Meta) int {
 		// Instantiate the view, even if there are flag errors, so that we render
 		// diagnostics according to the desired view
 		view := views.NewPlan(args.ViewOptions, meta.View)
-
-		diags := hooks.Pre()
-		defer hooks.Post()
-		if diags.HasErrors() {
-			view.Diagnostics(diags)
-			view.HelpPrompt()
-			return 1
-		}
-
 		return PlanCommand{Meta: meta}.RunInner(view, args)
-	}
+	})
 
 	return cmd
 }
