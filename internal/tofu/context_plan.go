@@ -778,6 +778,13 @@ func (c *Context) planWalk(ctx context.Context, config *configs.Config, prevRunS
 	var diags tfdiags.Diagnostics
 	log.Printf("[DEBUG] Building and walking plan graph for %s", opts.Mode)
 
+	// TEMP: Opt-in support for testing with the new experimental language
+	// runtime. Refer to backend_temp_new_runtime.go for more information.
+	if experimentalRuntimeEnabled() {
+		plan, moreDiags := c.newEnginePlan(ctx, config, prevRunState, opts)
+		return plan, diags.Append(moreDiags)
+	}
+
 	prevRunState = prevRunState.DeepCopy() // don't modify the caller's object when we process the moves
 	moveStmts, moveResults := c.prePlanFindAndApplyMoves(config, prevRunState)
 
@@ -789,13 +796,6 @@ func (c *Context) planWalk(ctx context.Context, config *configs.Config, prevRunS
 		// instances excluded by targeting then planning is likely to encounter
 		// strange problems that may lead to confusing error messages.
 		return nil, diags
-	}
-
-	// TEMP: Opt-in support for testing with the new experimental language
-	// runtime. Refer to backend_temp_new_runtime.go for more information.
-	if experimentalRuntimeEnabled() {
-		plan, moreDiags := c.newEnginePlan(ctx, config, prevRunState, opts)
-		return plan, diags.Append(moreDiags)
 	}
 
 	providerFunctionTracker := make(ProviderFunctionMapping)

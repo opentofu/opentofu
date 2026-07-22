@@ -2274,6 +2274,7 @@ OpenTofu has planned to destroy these objects. If OpenTofu's proposed changes ar
 }
 
 func TestContext2Plan_movedResourceUntargeted(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureMoved)
 	addrA := mustResourceInstanceAddr("test_object.a")
 	addrB := mustResourceInstanceAddr("test_object.b")
 	m := testModuleInline(t, map[string]string{

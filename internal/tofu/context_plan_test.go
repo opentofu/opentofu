@@ -4760,13 +4760,6 @@ func TestContext2Plan_actionInteractions(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("%s then %s", test.WantActions[0], test.WantActions[1]), func(t *testing.T) {
-			if test.WantActions[0] == plans.DeleteThenCreate && test.WantActions[1] == plans.Update {
-				// The experimental new runtime doesn't currently handle this
-				// interaction correctly, producing an execution graph where
-				// the two resources end up mutually-dependent on each other.
-				SkipExperimental(t, ExperimentalBugCircularReference)
-			}
-
 			cfg := testModuleInline(t, map[string]string{
 				"main.tf": test.Config,
 			})

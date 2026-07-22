@@ -3,7 +3,7 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package refactoring
+package refactoring_test
 
 import (
 	"bytes"
@@ -17,6 +17,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -193,9 +194,9 @@ func TestImpliedMoveStatements(t *testing.T) {
 		)
 	})
 
-	explicitStmts := FindMoveStatements(rootCfg)
-	got := ImpliedMoveStatements(rootCfg, prevRunState, explicitStmts)
-	want := []MoveStatement{
+	explicitStmts := refactoring.FindMoveStatements(rootCfg)
+	got := refactoring.ImpliedMoveStatements(rootCfg, prevRunState, explicitStmts)
+	want := []refactoring.MoveStatement{
 		{
 			From:    addrs.ImpliedMoveStatementEndpoint(resourceAddr("formerly_count").Instance(addrs.IntKey(0)), tfdiags.SourceRange{}),
 			To:      addrs.ImpliedMoveStatementEndpoint(resourceAddr("formerly_count").Instance(addrs.NoKey), tfdiags.SourceRange{}),

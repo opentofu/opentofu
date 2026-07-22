@@ -138,6 +138,8 @@ func TestMockProviderWhenEphemeralInConfiguration(t *testing.T) {
 		t.Errorf("expected some output on 'init', got nothing")
 	}
 
+	// TODO andrei remove this when the root cause is fixed
+	tf.AddEnv("TF_LOG=trace")
 	stdout, stderr, err = tf.Run("test")
 	if err != nil {
 		if strings.Contains(stdout, "OpenTofu crashed! This is always indicative of a bug within OpenTofu.") {
@@ -149,6 +151,6 @@ func TestMockProviderWhenEphemeralInConfiguration(t *testing.T) {
 		t.Errorf("unexpected error on 'tofu test': %v\nstderr:\n%s\nstdout:\n%s", err, stderr, stdout)
 	}
 	if !strings.Contains(stdout, "1 passed, 0 failed") {
-		t.Errorf("output doesn't have the expected success string:\n%s", stdout)
+		t.Errorf("output doesn't have the expected success string\nstderr:\n%s\nstdout:\n%s", stdout, stderr)
 	}
 }

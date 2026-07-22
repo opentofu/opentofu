@@ -2354,7 +2354,7 @@ func TestContext2Apply_countDecrease(t *testing.T) {
 }
 
 func TestContext2Apply_countDecreaseToOneX(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugStateProvider)
+	SkipExperimental(t, ExperimentalBugStateProvider, ExperimentalFeatureMoved)
 	m := testModule(t, "apply-count-dec-one")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn

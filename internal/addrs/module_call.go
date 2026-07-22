@@ -91,6 +91,14 @@ func (c AbsModuleCall) UniqueKey() UniqueKey {
 
 func (mk absModuleCallInstanceKey) uniqueKeySigil() {}
 
+func (c AbsModuleCall) Noun() string {
+	return "module call"
+}
+
+func (c AbsModuleCall) ShortNoun() string {
+	return "call"
+}
+
 // ModuleCallInstance is the address of one instance of a module created from
 // a module call, which might create multiple instances using "count" or
 // "for_each" arguments.
