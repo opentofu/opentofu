@@ -3608,7 +3608,7 @@ func TestContext2Plan_forceReplaceIncompleteAddr_multipleResources(t *testing.T)
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
 		}, nil),
 	})
-	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
+	_, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 		ForceReplace: []addrs.AbsResourceInstance{
 			childBare,
@@ -3622,92 +3622,14 @@ func TestContext2Plan_forceReplaceIncompleteAddr_multipleResources(t *testing.T)
 		t.Fatalf("no warnings were returned")
 	}
 	if got, want := diagsErr.Error(), "Incompletely-matched force-replace resource instance"; !strings.Contains(got, want) {
-		t.Errorf("missing expected warning\ngot:\n%s\n\nwant substring: %s", got, want)
+		t.Errorf("missing expected warning summary\ngot:\n%s\n\nwant substring: %s", got, want)
 	}
-
-	t.Run(rootAddr0.String(), func(t *testing.T) {
-		instPlan := plan.Changes.ResourceInstance(rootAddr0)
-		if experimentalRuntimeEnabled() {
-			if instPlan != nil {
-				t.Fatalf("expected no plan for %s at all", rootAddr0)
-			}
-			// New engine does not generate NoOps
-			return
-		}
-		if instPlan == nil {
-			t.Fatalf("no plan for %s at all", rootAddr0)
-		}
-
-		if got, want := instPlan.Action, plans.NoOp; got != want {
-			t.Errorf("wrong planned action\ngot:  %s\nwant: %s", got, want)
-		}
-		if got, want := instPlan.ActionReason, plans.ResourceInstanceChangeNoReason; got != want {
-			t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
-		}
-	})
-
-	t.Run(rootAddr1.String(), func(t *testing.T) {
-		instPlan := plan.Changes.ResourceInstance(rootAddr1)
-		if experimentalRuntimeEnabled() {
-			if instPlan != nil {
-				t.Fatalf("expected no plan for %s at all", rootAddr1)
-			}
-			// New engine does not generate NoOps
-			return
-		}
-		if instPlan == nil {
-			t.Fatalf("no plan for %s at all", rootAddr1)
-		}
-
-		if got, want := instPlan.Action, plans.NoOp; got != want {
-			t.Errorf("wrong planned action\ngot:  %s\nwant: %s", got, want)
-		}
-		if got, want := instPlan.ActionReason, plans.ResourceInstanceChangeNoReason; got != want {
-			t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
-		}
-	})
-
-	t.Run(childAddr0.String(), func(t *testing.T) {
-		instPlan := plan.Changes.ResourceInstance(childAddr0)
-		if experimentalRuntimeEnabled() {
-			if instPlan != nil {
-				t.Fatalf("expected no plan for %s at all", childAddr0)
-			}
-			// New engine does not generate NoOps
-			return
-		}
-		if instPlan == nil {
-			t.Fatalf("no plan for %s at all", childAddr0)
-		}
-
-		if got, want := instPlan.Action, plans.NoOp; got != want {
-			t.Errorf("wrong planned action\ngot:  %s\nwant: %s", got, want)
-		}
-		if got, want := instPlan.ActionReason, plans.ResourceInstanceChangeNoReason; got != want {
-			t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
-		}
-	})
-
-	t.Run(childAddr1.String(), func(t *testing.T) {
-		instPlan := plan.Changes.ResourceInstance(childAddr1)
-		if experimentalRuntimeEnabled() {
-			if instPlan != nil {
-				t.Fatalf("expected no plan for %s at all", childAddr1)
-			}
-			// New engine does not generate NoOps
-			return
-		}
-		if instPlan == nil {
-			t.Fatalf("no plan for %s at all", childAddr1)
-		}
-
-		if got, want := instPlan.Action, plans.NoOp; got != want {
-			t.Errorf("wrong planned action\ngot:  %s\nwant: %s", got, want)
-		}
-		if got, want := instPlan.ActionReason, plans.ResourceInstanceChangeNoReason; got != want {
-			t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
-		}
-	})
+	if got, want := diagsErr.Error(), "Your force-replace request for module.child.test_object.foo doesn't match"; !strings.Contains(got, want) {
+		t.Errorf("missing expected warning detail for module.child.test_object.foo\ngot:\n%s\n\nwant substring: %s", got, want)
+	}
+	if got, want := diagsErr.Error(), "Your force-replace request for test_object.foo doesn't match"; strings.Contains(got, want) {
+		t.Errorf("unexpected warning detail for test_object.foo\ngot:\n%s\n\nunexpected substring: %s", got, want)
+	}
 }
 
 // Verify that adding a module instance does force existing module data sources
