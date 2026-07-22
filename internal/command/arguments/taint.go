@@ -32,25 +32,42 @@ type Taint struct {
 	Backend *Backend
 }
 
+// BindTaint registers CLI arguments, returning a Taint value and it's corresponding hooks.
+func BindTaint(flags Flags) (*Taint, Hooks) {
+	var arguments Taint
+	var hooks Hooks
+
+	arguments.ViewOptions.bind(flags, false)
+	hooks = append(hooks, arguments.ViewOptions.ParseHook())
+
+	arguments.Vars = &Vars{}
+	arguments.Vars.bind(flags)
+
+	arguments.Backend = &Backend{}
+	arguments.Backend.bindIgnoreRemoteVersionFlag(flags)
+
+	arguments.State = &State{}
+	arguments.State.bind(flags, stateFlagAll)
+
+	flags.BoolVar(&arguments.AllowMissing, "allow-missing", false, "If specified, the command will succeed (exit code 0) even if the resource is missing.")
+
+	return &arguments, hooks
+}
+
 // ParseTaint processes CLI arguments, returning a Taint value, a closer function, and errors.
 // If errors are encountered, a Taint value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseTaint(isTaint bool, args []string) (*Taint, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	arguments := &Taint{
-		Vars:    &Vars{},
-		State:   &State{},
-		Backend: &Backend{},
-	}
+
+	flags := Flags{}
+	arguments, hooks := BindTaint(flags)
+
 	cmd := "taint"
 	if !isTaint {
 		cmd = "untaint"
 	}
-	cmdFlags := extendedFlagSet(cmd, nil, arguments.Vars)
-	arguments.State.addFlags(cmdFlags, stateFlagAll)
-	cmdFlags.BoolVar(&arguments.AllowMissing, "allow-missing", false, "allow missing")
-	arguments.Backend.AddIgnoreRemoteVersionFlag(cmdFlags)
-	arguments.ViewOptions.AddFlags(cmdFlags, false)
+	cmdFlags := defaultFlagSet(cmd, flags)
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -60,11 +77,7 @@ func ParseTaint(isTaint bool, args []string) (*Taint, func(), tfdiags.Diagnostic
 		))
 	}
 
-	closer, moreDiags := arguments.ViewOptions.Parse()
-	diags = diags.Append(moreDiags)
-	if diags.HasErrors() {
-		return arguments, closer, diags
-	}
+	// TODO positional args
 	args = cmdFlags.Args()
 	if len(args) != 1 {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -88,5 +101,5 @@ func ParseTaint(isTaint bool, args []string) (*Taint, func(), tfdiags.Diagnostic
 
 	}
 
-	return arguments, closer, diags
+	return arguments, func() { hooks.Post() }, diags.Append(hooks.Pre())
 }

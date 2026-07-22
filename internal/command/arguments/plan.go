@@ -35,25 +35,65 @@ type Plan struct {
 	ShowSensitive bool
 }
 
+// BindPlan registers CLI arguments, returning a Plan value and it's corresponding hooks.
+func BindPlan(flags Flags) (*Plan, []FlagGroup, Hooks) {
+	var plan Plan
+	var hooks Hooks
+
+	plan.ViewOptions.bind(flags, true)
+	hooks = append(hooks, plan.ViewOptions.ParseHook())
+
+	plan.Operation = &Operation{}
+	plan.Operation.bind(flags)
+	hooks = append(hooks, Hook{Pre: plan.Operation.Parse})
+
+	plan.Vars = &Vars{}
+	plan.Vars.bind(flags)
+
+	plan.State = &State{}
+	plan.State.bind(flags, stateFlagAll)
+
+	flags.BoolVar(&plan.DetailedExitCode, "detailed-exitcode", false,
+		`Return detailed exit codes when the command exits. The detailed exit codes are:
+  0 - Succeeded but no changes proposed
+  1 - Planning failed with an error
+  2 - Succeeded and changes are proposed`)
+	flags.StringVar(&plan.OutPath, "out", "",
+		`Write a plan file to the given path. This can be used as input to the "apply" command.`,
+	).SetDisplay("=path")
+	flags.StringVar(&plan.GenerateConfigPath, "generate-config-out", "",
+		`(Experimental) If import blocks are present in configuration, instructs OpenTofu to generate HCL for any imported resources not already present. The configuration is written to a new file at PATH, which must not already exist.
+OpenTofu may still attempt to write configuration if planning fails with an error.`,
+	).SetDisplay("=path")
+	flags.BoolVar(&plan.ShowSensitive, "show-sensitive", false,
+		`If specified, sensitive values will not be redacted in te UI output.`)
+
+	// Special handling for flag groups!
+	for _, name := range []string{"destroy", "refresh-only", "refresh", "replace", "target", "target-file", "exclude", "exclude-file", "var", "var-file"} {
+		flags[name].SetGroup("plan")
+	}
+	groups := []FlagGroup{{
+		ID:          "plan",
+		Title:       "Plan Customization Options:",
+		Description: `The following options customize how OpenTofu will produce its plan. You can also use these options when you run "tofu apply" without passing it a saved plan, in order to plan and apply in a single command.`,
+	}, {
+		Title: "Other Options:",
+	}}
+
+	return &plan, groups, hooks
+
+}
+
 // ParsePlan processes CLI arguments, returning a Plan value, a closer function, and errors.
 // If errors are encountered, a Plan value is still returned representing
 // the best effort interpretation of the arguments.
 func ParsePlan(args []string) (*Plan, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	plan := &Plan{
-		State:     &State{},
-		Operation: &Operation{},
-		Vars:      &Vars{},
-	}
 
-	cmdFlags := extendedFlagSet("plan", plan.Operation, plan.Vars)
-	plan.State.addFlags(cmdFlags, stateFlagAll)
-	cmdFlags.BoolVar(&plan.DetailedExitCode, "detailed-exitcode", false, "detailed-exitcode")
-	cmdFlags.StringVar(&plan.OutPath, "out", "", "out")
-	cmdFlags.StringVar(&plan.GenerateConfigPath, "generate-config-out", "", "generate-config-out")
-	cmdFlags.BoolVar(&plan.ShowSensitive, "show-sensitive", false, "displays sensitive values")
+	flags := Flags{}
+	plan, _, hooks := BindPlan(flags)
 
-	plan.ViewOptions.AddFlags(cmdFlags, true)
+	cmdFlags := defaultFlagSet("plan", flags)
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -73,9 +113,5 @@ func ParsePlan(args []string) (*Plan, func(), tfdiags.Diagnostics) {
 		))
 	}
 
-	diags = diags.Append(plan.Operation.Parse())
-	closer, moreDiags := plan.ViewOptions.Parse()
-	diags = diags.Append(moreDiags)
-
-	return plan, closer, diags
+	return plan, func() { hooks.Post() }, diags.Append(hooks.Pre())
 }

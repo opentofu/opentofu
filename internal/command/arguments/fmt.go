@@ -39,20 +39,33 @@ type Fmt struct {
 	ViewOptions ViewOptions
 }
 
+// BindFmt registers CLI arguments, returning a Fmt value and it's corresponding hooks.
+func BindFmt(flags Flags) (*Fmt, Hooks) {
+	var ret Fmt
+	var hooks Hooks
+
+	// we only parse but do not register the views flags since this command does not need it
+	hooks = append(hooks, ret.ViewOptions.ParseHook())
+
+	flags.BoolVar(&ret.List, "list", true, "Don't list files whose formatting differs (always disabled if using STDIN)").SetDisplay("=false")
+	flags.BoolVar(&ret.Write, "write", true, "Don't write to source files (always disabled if using STDIN or -check)").SetDisplay("=false")
+	flags.BoolVar(&ret.Diff, "diff", false, "Display diffs of formatting changes")
+	flags.BoolVar(&ret.Check, "check", false, "Check if the input is formatted. Exit status will be 0 if all input is properly formatted and non-zero otherwise.")
+	flags.BoolVar(&ret.Recursive, "recursive", false, "Also process files in subdirectories. By default, only the given directory (or current directory) is processed.")
+
+	return &ret, hooks
+}
+
 // ParseFmt processes CLI arguments, returning a Fmt value, a closer function, and errors.
 // If errors are encountered, a Fmt value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseFmt(args []string) (*Fmt, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	ret := &Fmt{}
+	flags := Flags{}
+	ret, hooks := BindFmt(flags)
 
-	cmdFlags := defaultFlagSet("fmt")
-	cmdFlags.BoolVar(&ret.List, "list", true, "list")
-	cmdFlags.BoolVar(&ret.Write, "write", true, "write")
-	cmdFlags.BoolVar(&ret.Diff, "diff", false, "diff")
-	cmdFlags.BoolVar(&ret.Check, "check", false, "check")
-	cmdFlags.BoolVar(&ret.Recursive, "recursive", false, "recursive")
+	cmdFlags := defaultFlagSet("fmt", flags)
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -62,6 +75,7 @@ func ParseFmt(args []string) (*Fmt, func(), tfdiags.Diagnostics) {
 		))
 	}
 
+	// TODO positional args
 	args = cmdFlags.Args()
 	if len(args) == 0 {
 		ret.Paths = []string{"."}
@@ -72,9 +86,5 @@ func ParseFmt(args []string) (*Fmt, func(), tfdiags.Diagnostics) {
 		ret.Paths = args
 	}
 
-	// we only parse but do not register the views flags since this command does not need it
-	closer, moreDiags := ret.ViewOptions.Parse()
-	diags = diags.Append(moreDiags)
-
-	return ret, closer, diags
+	return ret, func() { hooks.Post() }, diags.Append(hooks.Pre())
 }

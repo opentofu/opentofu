@@ -26,21 +26,35 @@ type StateShow struct {
 	State *State
 }
 
+// BindStateShow registers CLI arguments, returning a StateShow value and it's corresponding hooks.
+func BindStateShow(flags Flags) (*StateShow, Hooks) {
+	var ret StateShow
+	var hooks Hooks
+
+	ret.ViewOptions.bind(flags, false)
+	hooks = append(hooks, ret.ViewOptions.ParseHook())
+
+	ret.Vars = &Vars{}
+	ret.Vars.bind(flags)
+
+	ret.State = &State{}
+	ret.State.bind(flags, stateFlagStateIn)
+
+	flags.BoolVar(&ret.ShowSensitive, "show-sensitive", false, "If specified, sensitive values will be displayed.")
+
+	return &ret, hooks
+}
+
 // ParseStateShow processes CLI arguments, returning a StateShow value, a closer function, and errors.
 // If errors are encountered, a StateShow value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseStateShow(args []string) (*StateShow, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	ret := &StateShow{
-		Vars:  &Vars{},
-		State: &State{},
-	}
-	cmdFlags := extendedFlagSet("state show", nil, ret.Vars)
-	cmdFlags.BoolVar(&ret.ShowSensitive, "show-sensitive", false, "displays sensitive values")
-	ret.State.addFlags(cmdFlags, stateFlagStateIn)
+	flags := Flags{}
+	ret, hooks := BindStateShow(flags)
 
-	ret.ViewOptions.AddFlags(cmdFlags, false)
+	cmdFlags := defaultFlagSet("state show", flags)
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -50,6 +64,7 @@ func ParseStateShow(args []string) (*StateShow, func(), tfdiags.Diagnostics) {
 		))
 	}
 
+	// TODO positional arguments
 	args = cmdFlags.Args()
 	if len(args) != 1 {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -61,8 +76,5 @@ func ParseStateShow(args []string) (*StateShow, func(), tfdiags.Diagnostics) {
 		ret.TargetRawAddr = args[0]
 	}
 
-	closer, moreDiags := ret.ViewOptions.Parse()
-	diags = diags.Append(moreDiags)
-
-	return ret, closer, diags
+	return ret, func() { hooks.Post() }, diags.Append(hooks.Pre())
 }

@@ -24,23 +24,38 @@ type Output struct {
 	State *State
 }
 
+// BindOutput registers CLI arguments, returning a Output value and it's corresponding hooks.
+func BindOutput(flags Flags, raw *bool) (*Output, Hooks) {
+	var output Output
+	var hooks Hooks
+
+	output.ViewOptions.bind(flags, false)
+	hooks = append(hooks, output.ViewOptions.ParseHook())
+
+	output.Vars = &Vars{}
+	output.Vars.bind(flags)
+
+	output.State = &State{}
+	output.State.bind(flags, stateFlagStateIn)
+
+	flags.BoolVar(raw, "raw", false, "For value types that can be automatically converted to a string, will print the raw string directly, rather than a human-oriented representation of the value.")
+	flags.BoolVar(&output.ShowSensitive, "show-sensitive", false, "If specified, sensitive values will be displayed.")
+
+	return &output, hooks
+}
+
 // ParseOutput processes CLI arguments, returning an Output value, a closer function, and errors.
 // If errors are encountered, an Output value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseOutput(args []string) (*Output, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	output := &Output{
-		Vars:  &Vars{},
-		State: &State{},
-	}
 
-	var rawOutput bool
-	cmdFlags := extendedFlagSet("output", nil, output.Vars)
-	cmdFlags.BoolVar(&rawOutput, "raw", false, "raw")
-	output.State.addFlags(cmdFlags, stateFlagStateIn)
-	cmdFlags.BoolVar(&output.ShowSensitive, "show-sensitive", false, "displays sensitive values")
+	rawOutput := false
 
-	output.ViewOptions.AddFlags(cmdFlags, false)
+	flags := Flags{}
+	output, hooks := BindOutput(flags, &rawOutput)
+
+	cmdFlags := defaultFlagSet("output", flags)
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -59,8 +74,7 @@ func ParseOutput(args []string) (*Output, func(), tfdiags.Diagnostics) {
 		))
 	}
 
-	closer, moreDiags := output.ViewOptions.Parse()
-	diags = diags.Append(moreDiags)
+	// TODO positional arguments
 	if rawOutput {
 		output.ViewOptions.ViewType = ViewRaw
 		if output.ViewOptions.jsonFlag {
@@ -88,5 +102,5 @@ func ParseOutput(args []string) (*Output, func(), tfdiags.Diagnostics) {
 		))
 	}
 
-	return output, closer, diags
+	return output, func() { hooks.Post() }, diags.Append(hooks.Pre())
 }

@@ -20,17 +20,32 @@ type Providers struct {
 	ViewOptions ViewOptions
 }
 
+// BindProviders registers CLI arguments, returning a Providers value and it's corresponding hooks.
+func BindProviders(flags Flags) (*Providers, Hooks) {
+	var providers Providers
+	var hooks Hooks
+
+	// we only parse but do not register the views flags since this command does not need it
+	hooks = append(hooks, providers.ViewOptions.ParseHook())
+
+	providers.Vars = &Vars{}
+	providers.Vars.bind(flags)
+
+	flags.StringVar(&providers.TestsDirectory, "test-directory", "tests", `Set the OpenTofu test directory, defaults to "tests". When set, the test command will search for test files in the current directory and in the one specified by the flag.`).SetDisplay("=path")
+
+	return &providers, hooks
+}
+
 // ParseProviders processes CLI arguments, returning a Providers value, a closer function, and errors.
 // If errors are encountered, a Providers value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseProviders(args []string) (*Providers, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	arguments := &Providers{
-		Vars: &Vars{},
-	}
 
-	cmdFlags := extendedFlagSet("providers", nil, arguments.Vars)
-	cmdFlags.StringVar(&arguments.TestsDirectory, "test-directory", "tests", "test-directory")
+	flags := Flags{}
+	arguments, hooks := BindProviders(flags)
+
+	cmdFlags := defaultFlagSet("providers", flags)
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -40,12 +55,6 @@ func ParseProviders(args []string) (*Providers, func(), tfdiags.Diagnostics) {
 		))
 	}
 
-	// we only parse but do not register the views flags since this command does not need it
-	closer, moreDiags := arguments.ViewOptions.Parse()
-	diags = diags.Append(moreDiags)
-	if diags.HasErrors() {
-		return arguments, closer, diags
-	}
 	if len(cmdFlags.Args()) > 0 {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
@@ -54,5 +63,5 @@ func ParseProviders(args []string) (*Providers, func(), tfdiags.Diagnostics) {
 		))
 	}
 
-	return arguments, closer, diags
+	return arguments, func() { hooks.Post() }, diags.Append(hooks.Pre())
 }

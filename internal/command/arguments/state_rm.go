@@ -26,25 +26,40 @@ type StateRm struct {
 	State   *State
 }
 
+// BindStateRm registers CLI arguments, returning a StateRm value and it's corresponding hooks.
+func BindStateRm(flags Flags) (*StateRm, Hooks) {
+	var ret StateRm
+	var hooks Hooks
+
+	ret.ViewOptions.bind(flags, false)
+	hooks = append(hooks, ret.ViewOptions.ParseHook())
+
+	ret.Vars = &Vars{}
+	ret.Vars.bind(flags)
+
+	ret.Backend = &Backend{}
+	ret.Backend.bindIgnoreRemoteVersionFlag(flags)
+
+	ret.State = &State{}
+	// StateFlagBackup omitted here to be added later with a different default value
+	ret.State.bind(flags, stateFlagLock|stateFlagStateIn)
+	ret.State.bindBackupFlag(flags, "-")
+
+	flags.BoolVar(&ret.DryRun, "dry-run", false, "If set, prints out what would've been removed but doesn't actually remove anything.")
+
+	return &ret, hooks
+}
+
 // ParseStateRm processes CLI arguments, returning a StateRm value, a closer function, and errors.
 // If errors are encountered, a StateRm value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseStateRm(args []string) (*StateRm, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	ret := &StateRm{
-		Vars:    &Vars{},
-		Backend: &Backend{},
-		State:   &State{},
-	}
-	cmdFlags := extendedFlagSet("state rm", nil, ret.Vars)
-	ret.Backend.AddIgnoreRemoteVersionFlag(cmdFlags)
-	// StateFlagBackup omitted here to be added later with a different default value
-	ret.State.addFlags(cmdFlags, stateFlagLock|stateFlagStateIn)
-	ret.State.AddBackupFlag(cmdFlags, "-")
-	cmdFlags.BoolVar(&ret.DryRun, "dry-run", false, "dry run")
+	flags := Flags{}
+	ret, hooks := BindStateRm(flags)
 
-	ret.ViewOptions.AddFlags(cmdFlags, false)
+	cmdFlags := defaultFlagSet("state rm", flags)
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -54,6 +69,7 @@ func ParseStateRm(args []string) (*StateRm, func(), tfdiags.Diagnostics) {
 		))
 	}
 
+	// TODO positional arguments
 	args = cmdFlags.Args()
 	if len(args) == 0 {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -65,8 +81,5 @@ func ParseStateRm(args []string) (*StateRm, func(), tfdiags.Diagnostics) {
 		ret.TargetAddrs = args
 	}
 
-	closer, moreDiags := ret.ViewOptions.Parse()
-	diags = diags.Append(moreDiags)
-
-	return ret, closer, diags
+	return ret, func() { hooks.Post() }, diags.Append(hooks.Pre())
 }

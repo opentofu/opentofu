@@ -36,24 +36,57 @@ type Apply struct {
 	SuppressForgetErrorsDuringDestroy bool
 }
 
+// BindApply registers CLI arguments, returning a Apply value and it's corresponding hooks.
+func BindApply(flags Flags) (*Apply, Hooks) {
+	var apply Apply
+	var hooks Hooks
+
+	apply.ViewOptions.bind(flags, true)
+	hooks = append(hooks, apply.ViewOptions.ParseHook())
+
+	apply.Operation = &Operation{}
+	apply.Operation.bind(flags)
+	hooks = append(hooks, Hook{Pre: apply.Operation.Parse})
+
+	apply.Vars = &Vars{}
+	apply.Vars.bind(flags)
+
+	apply.State = &State{}
+	apply.State.bind(flags, stateFlagAll)
+
+	flags.BoolVar(&apply.AutoApprove, "auto-approve", false, "Skip interactive approval of plan before applying.")
+	flags.BoolVar(&apply.ShowSensitive, "show-sensitive", false, "If specified, sensitive values will be displayed.")
+	flags.BoolVar(&apply.SuppressForgetErrorsDuringDestroy, "suppress-forget-errors", false, "Suppress the error that occurs when a destroy operation completes successfully but leaves forgotten instances behind.")
+
+	// TODO better handling of positional arguments
+
+	hooks = append(hooks, Hook{Pre: func() tfdiags.Diagnostics {
+		// JSON view cannot confirm apply, so we require either a plan file or
+		// auto-approve to be specified. We intentionally fail here rather than
+		// override auto-approve, which would be dangerous.
+		if apply.ViewOptions.jsonFlag && apply.PlanPath == "" && !apply.AutoApprove {
+			return tfdiags.New(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Plan file or auto-approve required",
+				"OpenTofu cannot ask for interactive approval when -json is set. You can either apply a saved plan file, or enable the -auto-approve option.",
+			))
+		}
+		return nil
+	}})
+
+	return &apply, hooks
+}
+
 // ParseApply processes CLI arguments, returning an Apply value, a closer function, and errors.
 // If errors are encountered, an Apply value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseApply(args []string) (*Apply, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	apply := &Apply{
-		State:     &State{},
-		Operation: &Operation{},
-		Vars:      &Vars{},
-	}
 
-	cmdFlags := extendedFlagSet("apply", apply.Operation, apply.Vars)
-	cmdFlags.BoolVar(&apply.AutoApprove, "auto-approve", false, "auto-approve")
-	cmdFlags.BoolVar(&apply.ShowSensitive, "show-sensitive", false, "displays sensitive values")
-	cmdFlags.BoolVar(&apply.SuppressForgetErrorsDuringDestroy, "suppress-forget-errors", false, "suppress errors in destroy mode due to resources being forgotten")
+	flags := Flags{}
+	apply, hooks := BindApply(flags)
 
-	apply.State.addFlags(cmdFlags, stateFlagAll)
-	apply.ViewOptions.AddFlags(cmdFlags, true)
+	cmdFlags := defaultFlagSet("apply", flags)
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -77,22 +110,7 @@ func ParseApply(args []string) (*Apply, func(), tfdiags.Diagnostics) {
 		))
 	}
 
-	// JSON view cannot confirm apply, so we require either a plan file or
-	// auto-approve to be specified. We intentionally fail here rather than
-	// override auto-approve, which would be dangerous.
-	if apply.ViewOptions.jsonFlag && apply.PlanPath == "" && !apply.AutoApprove {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Plan file or auto-approve required",
-			"OpenTofu cannot ask for interactive approval when -json is set. You can either apply a saved plan file, or enable the -auto-approve option.",
-		))
-	}
-
-	diags = diags.Append(apply.Operation.Parse())
-	closer, moreDiags := apply.ViewOptions.Parse()
-	diags = diags.Append(moreDiags)
-
-	return apply, closer, diags
+	return apply, func() { hooks.Post() }, diags.Append(hooks.Pre())
 }
 
 // ParseApplyDestroy is a special case of ParseApply that deals with the

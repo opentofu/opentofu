@@ -22,19 +22,33 @@ type Get struct {
 	ViewOptions ViewOptions
 }
 
+// BindGet registers CLI arguments, returning a Get value and it's corresponding hooks.
+func BindGet(flags Flags) (*Get, Hooks) {
+	var arguments Get
+	var hooks Hooks
+
+	arguments.ViewOptions.bind(flags, true)
+	hooks = append(hooks, arguments.ViewOptions.ParseHook())
+
+	arguments.Vars = &Vars{}
+	arguments.Vars.bind(flags)
+
+	flags.BoolVar(&arguments.Update, "update", false, "Check already-downloaded modules for available updates and install the newest versions available.")
+	flags.StringVar(&arguments.TestsDirectory, "test-directory", "tests", `Set the OpenTofu test directory, defaults to "tests". When set, the test command will search for test files in the current directory and in the one specified by the flag.`).SetDisplay("=path")
+
+	return &arguments, hooks
+}
+
 // ParseGet processes CLI arguments, returning a Get value, a closer function, and errors.
 // If errors are encountered, a Get value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseGet(args []string) (*Get, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	arguments := &Get{
-		Vars: &Vars{},
-	}
 
-	cmdFlags := extendedFlagSet("get", nil, arguments.Vars)
-	cmdFlags.BoolVar(&arguments.Update, "update", false, "update")
-	cmdFlags.StringVar(&arguments.TestsDirectory, "test-directory", "tests", "test-directory")
-	arguments.ViewOptions.AddFlags(cmdFlags, false)
+	flags := Flags{}
+	arguments, hooks := BindGet(flags)
+
+	cmdFlags := defaultFlagSet("get", flags)
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -44,11 +58,6 @@ func ParseGet(args []string) (*Get, func(), tfdiags.Diagnostics) {
 		))
 	}
 
-	closer, moreDiags := arguments.ViewOptions.Parse()
-	diags = diags.Append(moreDiags)
-	if diags.HasErrors() {
-		return arguments, closer, diags
-	}
 	if len(cmdFlags.Args()) > 0 {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
@@ -57,5 +66,5 @@ func ParseGet(args []string) (*Get, func(), tfdiags.Diagnostics) {
 		))
 	}
 
-	return arguments, closer, diags
+	return arguments, func() { hooks.Post() }, diags.Append(hooks.Pre())
 }
