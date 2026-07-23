@@ -317,28 +317,11 @@ func (v *OperationJSON) Cancelled(planMode plans.Mode) {
 }
 
 func (v *OperationJSON) Refreshing() {
-	v.stopRefresh = make(chan struct{})
-	v.view.Log("Refreshing...")
-	go func() {
-		ticker := time.NewTicker(1 * time.Minute)
-		defer ticker.Stop()
-
-		for {
-			select {
-			case <-v.stopRefresh:
-				return
-			case t := <-ticker.C:
-				v.view.Log(fmt.Sprintf("Refreshing... [%s]", t.Format("04")))
-			}
-		}
-	}()
+	// intentionally empty. JSON output doesnt need the refreshing status output
 }
 
 func (v *OperationJSON) StopRefreshing() {
-	if v.stopRefresh != nil {
-		close(v.stopRefresh)
-		v.stopRefresh = nil
-	}
+	// intentionally empty.
 }
 
 func (v *OperationJSON) EmergencyDumpState(stateFile *statefile.File, enc encryption.StateEncryption) error {
