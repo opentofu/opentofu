@@ -46,7 +46,7 @@ func (n *nodeVariableReference) temporaryValue(op walkOperation) bool {
 }
 
 // GraphNodeDynamicExpandable
-func (n *nodeVariableReference) DynamicExpand(ctx EvalContext) (*Graph, error) {
+func (n *nodeVariableReference) DynamicExpand(_ context.Context, evalCtx EvalContext) (*Graph, error) {
 	var g Graph
 
 	// If this variable has preconditions, we need to report these checks now.
@@ -54,11 +54,11 @@ func (n *nodeVariableReference) DynamicExpand(ctx EvalContext) (*Graph, error) {
 	// We should only do this during planning as the apply phase starts with
 	// all the same checkable objects that were registered during the plan.
 	var checkableAddrs addrs.Set[addrs.Checkable]
-	if checkState := ctx.Checks(); checkState.ConfigHasChecks(n.Addr.InModule(n.Module)) {
+	if checkState := evalCtx.Checks(); checkState.ConfigHasChecks(n.Addr.InModule(n.Module)) {
 		checkableAddrs = addrs.MakeSet[addrs.Checkable]()
 	}
 
-	expander := ctx.InstanceExpander()
+	expander := evalCtx.InstanceExpander()
 	for _, module := range expander.ExpandModule(n.Module) {
 		addr := n.Addr.Absolute(module)
 		if checkableAddrs != nil {
@@ -75,7 +75,7 @@ func (n *nodeVariableReference) DynamicExpand(ctx EvalContext) (*Graph, error) {
 	addRootNodeToGraph(&g)
 
 	if checkableAddrs != nil {
-		ctx.Checks().ReportCheckableObjects(n.Addr.InModule(n.Module), checkableAddrs)
+		evalCtx.Checks().ReportCheckableObjects(n.Addr.InModule(n.Module), checkableAddrs)
 	}
 
 	return &g, nil

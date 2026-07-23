@@ -69,9 +69,9 @@ func (n *nodeExpandLocal) References() []*addrs.Reference {
 	return refs
 }
 
-func (n *nodeExpandLocal) DynamicExpand(ctx EvalContext) (*Graph, error) {
+func (n *nodeExpandLocal) DynamicExpand(_ context.Context, evalCtx EvalContext) (*Graph, error) {
 	var g Graph
-	expander := ctx.InstanceExpander()
+	expander := evalCtx.InstanceExpander()
 	for _, module := range expander.ExpandModule(n.Module) {
 		o := &NodeLocal{
 			Addr:   n.Addr.Absolute(module),

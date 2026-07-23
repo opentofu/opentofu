@@ -49,10 +49,10 @@ func (n *nodeExpandModuleVariable) temporaryValue(_ walkOperation) bool {
 	return true
 }
 
-func (n *nodeExpandModuleVariable) DynamicExpand(ctx EvalContext) (*Graph, error) {
+func (n *nodeExpandModuleVariable) DynamicExpand(_ context.Context, evalCtx EvalContext) (*Graph, error) {
 	var g Graph
 
-	expander := ctx.InstanceExpander()
+	expander := evalCtx.InstanceExpander()
 	for _, module := range expander.ExpandModule(n.Module) {
 		addr := n.Addr.Absolute(module)
 		o := &nodeModuleVariable{

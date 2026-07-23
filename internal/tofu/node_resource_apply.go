@@ -85,7 +85,7 @@ func (n *nodeExpandApplyableResource) Execute(ctx context.Context, evalCtx EvalC
 	return diags
 }
 
-func (n *nodeExpandApplyableResource) DynamicExpand(evalCtx EvalContext) (*Graph, error) {
+func (n *nodeExpandApplyableResource) DynamicExpand(_ context.Context, evalCtx EvalContext) (*Graph, error) {
 	// All of the other resource types have their information stored in the plan, but not ephemeral.
 	// Resource types with information in the plan have the associated instance nodes created during a
 	// separate transformer (ie: DiffTransfomer).

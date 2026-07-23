@@ -103,7 +103,7 @@ func (n *nodeExpandPlannableResource) ModifyCreateBeforeDestroy(v bool) error {
 	return nil
 }
 
-func (n *nodeExpandPlannableResource) DynamicExpand(evalCtx EvalContext) (*Graph, error) {
+func (n *nodeExpandPlannableResource) DynamicExpand(_ context.Context, evalCtx EvalContext) (*Graph, error) {
 	var g Graph
 
 	expander := evalCtx.InstanceExpander()

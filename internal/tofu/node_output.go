@@ -57,9 +57,9 @@ func (n *nodeExpandOutput) temporaryValue(_ walkOperation) bool {
 	return !n.Module.IsRoot()
 }
 
-func (n *nodeExpandOutput) DynamicExpand(ctx EvalContext) (*Graph, error) {
-	expander := ctx.InstanceExpander()
-	changes := ctx.Changes()
+func (n *nodeExpandOutput) DynamicExpand(_ context.Context, evalCtx EvalContext) (*Graph, error) {
+	expander := evalCtx.InstanceExpander()
+	changes := evalCtx.Changes()
 
 	// If this is an output value that participates in custom condition checks
 	// (i.e. it has preconditions or postconditions) then the check state
@@ -75,7 +75,7 @@ func (n *nodeExpandOutput) DynamicExpand(ctx EvalContext) (*Graph, error) {
 	// of those objects will have changed.
 	var checkableAddrs addrs.Set[addrs.Checkable]
 	if n.Planning {
-		if checkState := ctx.Checks(); checkState.ConfigHasChecks(n.Addr.InModule(n.Module)) {
+		if checkState := evalCtx.Checks(); checkState.ConfigHasChecks(n.Addr.InModule(n.Module)) {
 			checkableAddrs = addrs.MakeSet[addrs.Checkable]()
 		}
 	}
@@ -128,7 +128,7 @@ func (n *nodeExpandOutput) DynamicExpand(ctx EvalContext) (*Graph, error) {
 	addRootNodeToGraph(&g)
 
 	if checkableAddrs != nil {
-		checkState := ctx.Checks()
+		checkState := evalCtx.Checks()
 		checkState.ReportCheckableObjects(n.Addr.InModule(n.Module), checkableAddrs)
 	}
 

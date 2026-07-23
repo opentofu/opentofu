@@ -150,7 +150,7 @@ func (n *graphNodeImportState) Execute(ctx context.Context, evalCtx EvalContext,
 // and state inserts we need to do for our import state. Since they're new
 // resources they don't depend on anything else and refreshes are isolated
 // so this is nearly a perfect use case for dynamic expand.
-func (n *graphNodeImportState) DynamicExpand(evalCtx EvalContext) (*Graph, error) {
+func (n *graphNodeImportState) DynamicExpand(_ context.Context, evalCtx EvalContext) (*Graph, error) {
 	var diags tfdiags.Diagnostics
 
 	g := &Graph{Path: evalCtx.Path()}

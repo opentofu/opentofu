@@ -101,7 +101,7 @@ func (g *Graph) walk(ctx context.Context, walker GraphWalker, backupStateForPani
 		if ev, ok := v.(GraphNodeDynamicExpandable); ok {
 			log.Printf("[TRACE] vertex %q: expanding dynamic subgraph", dag.VertexName(v))
 
-			g, err := ev.DynamicExpand(vertexCtx)
+			g, err := ev.DynamicExpand(ctx, vertexCtx)
 			diags = diags.Append(err)
 			if diags.HasErrors() {
 				log.Printf("[TRACE] vertex %q: failed expanding dynamic subgraph: %s", dag.VertexName(v), err)
