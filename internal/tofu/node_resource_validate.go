@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
-	corelinting "github.com/opentofu/opentofu/internal/linting/core"
+	"github.com/opentofu/opentofu/internal/linting/corelinting"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/convert"
 
