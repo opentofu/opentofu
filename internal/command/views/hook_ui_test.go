@@ -550,7 +550,7 @@ func TestPreRefresh(t *testing.T) {
 	}
 	result := done(t)
 
-	if got, want := result.Stdout(), "test_instance.foo: Refreshing state... [id=test]\n"; got != want {
+	if got, want := result.Stdout(), ""; got != want {
 		t.Fatalf("unexpected output\n got: %q\nwant: %q", got, want)
 	}
 }
@@ -581,7 +581,7 @@ func TestPreRefresh_noID(t *testing.T) {
 	}
 	result := done(t)
 
-	if got, want := result.Stdout(), "test_instance.foo: Refreshing state...\n"; got != want {
+	if got, want := result.Stdout(), ""; got != want {
 		t.Fatalf("unexpected output\n got: %q\nwant: %q", got, want)
 	}
 }

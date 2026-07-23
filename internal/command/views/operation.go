@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/arguments"
@@ -39,6 +40,8 @@ type Operation interface {
 	FatalInterrupt()
 	Stopping()
 	Cancelled(planMode plans.Mode)
+	Refreshing()
+	StopRefreshing()
 
 	EmergencyDumpState(stateFile *statefile.File, enc encryption.StateEncryption) error
 
@@ -86,6 +89,18 @@ func (o OperationMulti) Cancelled(planMode plans.Mode) {
 	}
 }
 
+func (o OperationMulti) Refreshing() {
+	for _, operation := range o {
+		operation.Refreshing()
+	}
+}
+
+func (o OperationMulti) StopRefreshing() {
+	for _, operation := range o {
+		operation.StopRefreshing()
+	}
+}
+
 func (o OperationMulti) EmergencyDumpState(stateFile *statefile.File, enc encryption.StateEncryption) error {
 	var errs []error
 	for _, operation := range o {
@@ -120,6 +135,8 @@ func (o OperationMulti) Diagnostics(diags tfdiags.Diagnostics) {
 
 type OperationHuman struct {
 	view *View
+
+	stopRefresh chan struct{}
 }
 
 var _ Operation = (*OperationHuman)(nil)
@@ -142,6 +159,37 @@ func (v *OperationHuman) Cancelled(planMode plans.Mode) {
 		v.view.streams.Println("Destroy cancelled.")
 	default:
 		v.view.streams.Println("Apply cancelled.")
+	}
+}
+
+func (v *OperationHuman) Refreshing() {
+	if v.view.concise {
+		return
+	}
+
+	v.stopRefresh = make(chan struct{})
+	v.view.streams.Println("Refreshing...")
+	start := time.Now()
+	go func() {
+		ticker := time.NewTicker(time.Minute)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-v.stopRefresh:
+				return
+			case <-ticker.C:
+				elapsed := int(time.Since(start).Minutes())
+				v.view.streams.Println(fmt.Sprintf("Still refreshing... [%dm]", elapsed))
+			}
+		}
+	}()
+}
+
+func (v *OperationHuman) StopRefreshing() {
+	if v.stopRefresh != nil {
+		close(v.stopRefresh)
+		v.stopRefresh = nil
 	}
 }
 
@@ -241,6 +289,8 @@ func (v *OperationHuman) Diagnostics(diags tfdiags.Diagnostics) {
 
 type OperationJSON struct {
 	view *JSONView
+
+	stopRefresh chan struct{}
 }
 
 var _ Operation = (*OperationJSON)(nil)
@@ -263,6 +313,31 @@ func (v *OperationJSON) Cancelled(planMode plans.Mode) {
 		v.view.Log("Destroy cancelled")
 	default:
 		v.view.Log("Apply cancelled")
+	}
+}
+
+func (v *OperationJSON) Refreshing() {
+	v.stopRefresh = make(chan struct{})
+	v.view.Log("Refreshing...")
+	go func() {
+		ticker := time.NewTicker(1 * time.Minute)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-v.stopRefresh:
+				return
+			case t := <-ticker.C:
+				v.view.Log(fmt.Sprintf("Refreshing... [%s]", t.Format("04")))
+			}
+		}
+	}()
+}
+
+func (v *OperationJSON) StopRefreshing() {
+	if v.stopRefresh != nil {
+		close(v.stopRefresh)
+		v.stopRefresh = nil
 	}
 }
 

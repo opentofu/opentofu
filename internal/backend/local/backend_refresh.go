@@ -100,6 +100,7 @@ func (b *Local) opRefresh(
 	var refreshDiags tfdiags.Diagnostics
 	doneCh := make(chan struct{})
 	panicHandler := logging.PanicHandlerWithTraceFn()
+	op.View.Refreshing()
 	go func() {
 		defer panicHandler()
 		defer close(doneCh)
@@ -110,6 +111,7 @@ func (b *Local) opRefresh(
 	if b.opWait(doneCh, stopCtx, cancelCtx, lr.Core, opState, op.View) {
 		return
 	}
+	op.View.StopRefreshing()
 
 	// Write the resulting state to the running op
 	runningOp.State = newState
