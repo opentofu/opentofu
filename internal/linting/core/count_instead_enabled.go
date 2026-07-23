@@ -32,8 +32,8 @@ func CountInsteadEnabled(
 			tfdiags.LintMessage(
 				ruleIDcountInsteadOfEnabled,
 				[]linting.RuleAddr{GroupIDImprovement},
-				"Usage of `count` could be replace with `lifecycle.enabled`",
-				fmt.Sprintf("%q could use `lifecycle.enabled` instead of the current `count` expression.", targetRes.String()),
+				"Could use enabled instead of count",
+				fmt.Sprintf(`%q uses "count" to choose between zero or one instances using a boolean expression. Consider using "enabled" in a "lifecycle" block instead.`, targetRes.String()),
 				new(tfdiags.SourceRangeFromHCL(countExpr.Range())),
 				new(tfdiags.SourceRangeFromHCL(targetDeclRange)),
 			),
@@ -61,7 +61,7 @@ func canLifecycleEnabledReplaceCountExpr(expr hcl.Expression, wantedVal cty.Valu
 		}
 		return false
 	}
-	// anything else that is not covered in the select block above cannot be part of an expression that
+	// anything else that is not covered in the switch block above cannot be part of an expression that
 	// would indicate that `count` could be replaced with `lifecycle.enabled`.
 	return false
 }
