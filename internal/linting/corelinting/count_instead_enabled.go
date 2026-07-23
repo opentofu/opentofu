@@ -25,7 +25,9 @@ func CountInsteadEnabled(
 	targetDeclRange hcl.Range,
 	countExpr hcl.Expression) tfdiags.Diagnostics {
 	exec := func() tfdiags.Diagnostics {
-		if !canLifecycleEnabledReplaceCountExpr(countExpr, cty.NumberIntVal(1)) {
+		// could be replaced with `enabled = true` or `enabled = false`
+		if !canLifecycleEnabledReplaceCountExpr(countExpr, cty.NumberIntVal(1)) &&
+			!canLifecycleEnabledReplaceCountExpr(countExpr, cty.NumberIntVal(0)) {
 			return nil
 		}
 		return tfdiags.New(
@@ -46,13 +48,16 @@ func CountInsteadEnabled(
 // could be replaced by a `lifecycle.enabled` one instead.
 // The current rules which qualifies an expression as a candidate for such a case are as follows:
 //   - the expression is a literal value and its value is a number equals with 1
+//   - the expression is a literal value and its value is a number equals with 0
 //   - the expression is a ternary operation and one of the expressions is a literal number equals with 1 and the other one
 //     is a literal number equals wwith 0
 func canLifecycleEnabledReplaceCountExpr(expr hcl.Expression, wantedVal cty.Value) bool {
 	switch e := expr.(type) {
 	case *hclsyntax.ConditionalExpr:
-		return (canLifecycleEnabledReplaceCountExpr(e.TrueResult, cty.NumberIntVal(1)) && canLifecycleEnabledReplaceCountExpr(e.FalseResult, cty.NumberIntVal(0))) ||
-			(canLifecycleEnabledReplaceCountExpr(e.TrueResult, cty.NumberIntVal(0)) && canLifecycleEnabledReplaceCountExpr(e.FalseResult, cty.NumberIntVal(1)))
+		zeroVal := cty.NumberIntVal(0)
+		oneVal := cty.NumberIntVal(1)
+		return (canLifecycleEnabledReplaceCountExpr(e.TrueResult, oneVal) && canLifecycleEnabledReplaceCountExpr(e.FalseResult, zeroVal)) ||
+			(canLifecycleEnabledReplaceCountExpr(e.TrueResult, zeroVal) && canLifecycleEnabledReplaceCountExpr(e.FalseResult, oneVal))
 	case *hclsyntax.ParenthesesExpr:
 		return canLifecycleEnabledReplaceCountExpr(e.Expression, wantedVal)
 	case *hclsyntax.LiteralValueExpr:
