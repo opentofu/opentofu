@@ -23,7 +23,6 @@ import (
 func (c *compiler) compileOpResourceInstanceDesired(operands *compilerOperands) nodeExecuteRaw {
 	ops := c.ops
 	getInstAddr := nextOperand[addrs.AbsResourceInstance](operands)
-	waitForDeps := operands.OperandWaiter()
 	diags := operands.Finish()
 	c.diags = c.diags.Append(diags)
 	if diags.HasErrors() {
@@ -33,9 +32,6 @@ func (c *compiler) compileOpResourceInstanceDesired(operands *compilerOperands) 
 	return func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
 		var diags tfdiags.Diagnostics
 
-		if !waitForDeps(ctx) {
-			return nil, false, diags
-		}
 		instAddr, ok, moreDiags := getInstAddr(ctx)
 		diags = diags.Append(moreDiags)
 		if !ok {
@@ -65,7 +61,6 @@ func (c *compiler) compileOpResourceInstanceDesired(operands *compilerOperands) 
 func (c *compiler) compileOpResourceInstancePrior(operands *compilerOperands) nodeExecuteRaw {
 	ops := c.ops
 	getInstAddr := nextOperand[addrs.AbsResourceInstance](operands)
-	waitForDeps := operands.OperandWaiter()
 	diags := operands.Finish()
 	c.diags = c.diags.Append(diags)
 	if diags.HasErrors() {
@@ -75,9 +70,6 @@ func (c *compiler) compileOpResourceInstancePrior(operands *compilerOperands) no
 	return func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
 		var diags tfdiags.Diagnostics
 
-		if !waitForDeps(ctx) {
-			return nil, false, diags
-		}
 		instAddr, ok, moreDiags := getInstAddr(ctx)
 		diags = diags.Append(moreDiags)
 		if !ok {
@@ -333,6 +325,7 @@ func (c *compiler) compileOpManagedChangeAddr(operands *compilerOperands) nodeEx
 func (c *compiler) compileOpDataRead(operands *compilerOperands) nodeExecuteRaw {
 	getDesired := nextOperand[*eval.DesiredResourceInstance](operands)
 	getInitialPlanned := nextOperand[cty.Value](operands)
+	waitForDeps := operands.OperandWaiter()
 	diags := operands.Finish()
 	c.diags = c.diags.Append(diags)
 	if diags.HasErrors() {
@@ -341,6 +334,10 @@ func (c *compiler) compileOpDataRead(operands *compilerOperands) nodeExecuteRaw 
 	ops := c.ops
 
 	return func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
+		if !waitForDeps(ctx) {
+			return nil, false, diags
+		}
+
 		desired, ok, moreDiags := getDesired(ctx)
 		diags = diags.Append(moreDiags)
 		if !ok {

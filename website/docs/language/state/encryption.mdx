@@ -302,6 +302,13 @@ The OpenBao key provider is compatible with the last MPL-licensed version of Has
 
 :::
 
+### OVHcloud KMS (external)
+
+This key provider uses the [OVHcloud Key Management Service](https://www.ovhcloud.com/en/identity-security-operations/key-management-service/) to generate and wrap data keys.
+It builds on OpenTofu's built-in [`external` key provider](#external-experimental) and is maintained separately by OVHcloud.
+
+For installation and configuration instructions, see the [ovh/opentofu-kms-ovhcloud](https://github.com/ovh/opentofu-kms-ovhcloud) repository.
+
 ### External (experimental)
 :::info
 At the moment of writing this note, OpenTofu team has no relevant feedback to decide if this should be out of the experimental phase or not.
@@ -473,5 +480,3 @@ An external method can be anything as long as it is runnable as an application. 
 ### Unencrypted
 
 The `unencrypted` method is used to provide an explicit migration path to and from encryption.  It takes no configuration and can be seen in use above in the [Initial Setup](#initial-setup) block.
-
-

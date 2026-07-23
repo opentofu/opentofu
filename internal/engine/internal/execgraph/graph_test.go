@@ -68,8 +68,8 @@ func TestGraphMarshalUnmarshalValid(t *testing.T) {
 					Name: "example",
 				}.Absolute(addrs.RootModuleInstance).Instance(addrs.NoKey)
 				instAddrResult := builder.ConstantResourceInstAddr(instAddr)
-				desiredInst := builder.ResourceInstanceDesired(instAddrResult, nil)
-				priorState := builder.ResourceInstancePrior(instAddrResult, nil)
+				desiredInst := builder.ResourceInstanceDesired(instAddrResult)
+				priorState := builder.ResourceInstancePrior(instAddrResult)
 				plannedVal := builder.ConstantValue(cty.ObjectVal(map[string]cty.Value{
 					"name": cty.StringVal("thingy"),
 				}))
@@ -91,8 +91,8 @@ func TestGraphMarshalUnmarshalValid(t *testing.T) {
 					"name": cty.StringVal("thingy"),
 				});
 
-				r[0] = ResourceInstanceDesired(test.example, await());
-				r[1] = ResourceInstancePrior(test.example, await());
+				r[0] = ResourceInstanceDesired(test.example);
+				r[1] = ResourceInstancePrior(test.example);
 				r[2] = ManagedFinalPlan(r[0], r[1], v[0]);
 				r[3] = ManagedApply(r[2], nil, await());
 
@@ -109,18 +109,18 @@ func TestGraphMarshalUnmarshalValid(t *testing.T) {
 					Name: "example",
 				}.Absolute(addrs.RootModuleInstance).Instance(addrs.NoKey)
 				instAddrResult := builder.ConstantResourceInstAddr(instAddr)
-				desiredInst := builder.ResourceInstanceDesired(instAddrResult, nil)
+				desiredInst := builder.ResourceInstanceDesired(instAddrResult)
 
 				plannedVal := builder.ConstantValue(cty.DynamicVal)
-				newState := builder.DataRead(desiredInst, plannedVal)
+				newState := builder.DataRead(desiredInst, plannedVal, nil)
 				builder.SetResourceInstanceFinalStateResult(instAddr, newState)
 				return builder.Finish()
 			},
 			`
 				v[0] = cty.UnknownVal(cty.DynamicPseudoType);
 
-				r[0] = ResourceInstanceDesired(data.test.example, await());
-				r[1] = DataRead(r[0], v[0]);
+				r[0] = ResourceInstanceDesired(data.test.example);
+				r[1] = DataRead(r[0], v[0], await());
 
 				data.test.example = r[1];
 			`,
@@ -139,10 +139,10 @@ func TestGraphMarshalUnmarshalValid(t *testing.T) {
 				}.Absolute(addrs.RootModuleInstance).Instance(addrs.NoKey)
 
 				plannedVal := builder.ConstantValue(cty.DynamicVal)
-				desiredInst1 := builder.ResourceInstanceDesired(builder.ConstantResourceInstAddr(instAddr1), nil)
-				newState1 := builder.DataRead(desiredInst1, plannedVal)
-				desiredInst2 := builder.ResourceInstanceDesired(builder.ConstantResourceInstAddr(instAddr2), builder.Waiter(newState1))
-				newState2 := builder.DataRead(desiredInst2, plannedVal)
+				desiredInst1 := builder.ResourceInstanceDesired(builder.ConstantResourceInstAddr(instAddr1))
+				newState1 := builder.DataRead(desiredInst1, plannedVal, nil)
+				desiredInst2 := builder.ResourceInstanceDesired(builder.ConstantResourceInstAddr(instAddr2))
+				newState2 := builder.DataRead(desiredInst2, plannedVal, builder.Waiter(newState1))
 				builder.SetResourceInstanceFinalStateResult(instAddr1, newState1)
 				builder.SetResourceInstanceFinalStateResult(instAddr2, newState2)
 				return builder.Finish()
@@ -150,10 +150,10 @@ func TestGraphMarshalUnmarshalValid(t *testing.T) {
 			`
 				v[0] = cty.UnknownVal(cty.DynamicPseudoType);
 
-				r[0] = ResourceInstanceDesired(data.test.example1, await());
-				r[1] = DataRead(r[0], v[0]);
-				r[2] = ResourceInstanceDesired(data.test.example2, await(r[1]));
-				r[3] = DataRead(r[2], v[0]);
+				r[0] = ResourceInstanceDesired(data.test.example1);
+				r[1] = DataRead(r[0], v[0], await());
+				r[2] = ResourceInstanceDesired(data.test.example2);
+				r[3] = DataRead(r[2], v[0], await(r[1]));
 
 				data.test.example1 = r[1];
 				data.test.example2 = r[3];

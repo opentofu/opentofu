@@ -206,7 +206,7 @@ func ensureResourceInstanceObjectSubgraph(addr addrs.AbsResourceInstanceObject, 
 	// a minimum subgraph for it that only involves reading its prior state.
 	var resultRef execgraph.ResourceInstanceResultRef
 	if addr.IsCurrent() {
-		resultRef = b.lower.ResourceInstancePrior(b.lower.ConstantResourceInstAddr(addr.InstanceAddr), nil)
+		resultRef = b.lower.ResourceInstancePrior(b.lower.ConstantResourceInstAddr(addr.InstanceAddr))
 		b.lower.SetResourceInstanceFinalStateResult(addr.InstanceAddr, resultRef)
 	} else {
 		resultRef = b.lower.ManagedAlreadyDeposed(b.lower.ConstantResourceInstAddr(addr.InstanceAddr), b.lower.ConstantDeposedKey(addr.DeposedKey))
