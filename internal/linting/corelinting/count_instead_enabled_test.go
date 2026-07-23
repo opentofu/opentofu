@@ -43,6 +43,27 @@ func TestCoreRule_CountInsteadEnabled(t *testing.T) {
 				return newCtx, targetRes, targetResRange, expr, wantDiags
 			},
 		},
+		"expression is a literal number 0": {
+			setup: func(t *testing.T) (context.Context, addrs.ConfigResource, hcl.Range, hcl.Expression, tfdiags.Diagnostics) {
+				newCtx := tfdiags.ContextWithLintFilterHints(t.Context(), collections.NewSet(ruleIDcountInsteadOfEnabled), nil)
+				targetRes := addrs.MustParseResourceAddr("test.resource_name")
+				targetResRange := hcl.Range{Filename: "test.tf", Start: hcl.Pos{Line: 1, Byte: 4, Column: 4}, End: hcl.Pos{Line: 1, Byte: 10, Column: 10}}
+				expr, exprDiags := hclsyntax.ParseExpression([]byte("0"), "test.tf", hcl.Pos{Line: 1, Byte: 4, Column: 4})
+				if exprDiags.HasErrors() {
+					t.Fatalf("test setup failed: %s", exprDiags)
+				}
+
+				wantDiags := tfdiags.New(tfdiags.LintMessage(
+					ruleIDcountInsteadOfEnabled,
+					[]linting.RuleAddr{GroupIDImprovement},
+					"Could use enabled instead of count",
+					fmt.Sprintf(`%q uses "count" to choose between zero or one instances using a boolean expression. Consider using "enabled" in a "lifecycle" block instead.`, targetRes.String()),
+					new(tfdiags.SourceRangeFromHCL(expr.Range())),
+					new(tfdiags.SourceRangeFromHCL(targetResRange)),
+				))
+				return newCtx, targetRes, targetResRange, expr, wantDiags
+			},
+		},
 		"expression is a ternary condition with the truthy expression as a literal number 1 and the falsy expression is a literal number 0": {
 			setup: func(t *testing.T) (context.Context, addrs.ConfigResource, hcl.Range, hcl.Expression, tfdiags.Diagnostics) {
 				newCtx := tfdiags.ContextWithLintFilterHints(t.Context(), collections.NewSet(ruleIDcountInsteadOfEnabled), nil)
