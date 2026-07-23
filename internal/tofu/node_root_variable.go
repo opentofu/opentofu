@@ -14,7 +14,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/dag"
-	corelinting "github.com/opentofu/opentofu/internal/linting/core"
+	"github.com/opentofu/opentofu/internal/linting/corelinting"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
