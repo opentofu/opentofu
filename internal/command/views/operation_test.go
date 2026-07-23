@@ -62,6 +62,40 @@ func TestOperation_cancelled(t *testing.T) {
 	}
 }
 
+func TestOperation_refreshing(t *testing.T) {
+	testCases := map[string]struct {
+		concise bool
+		want    string
+	}{
+		"normal": {
+			concise: false,
+			want:    "Refreshing...\n",
+		},
+		"concise": {
+			concise: true,
+			want:    "",
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			streams, done := terminal.StreamsForTesting(t)
+
+			view := NewView(streams)
+			view.concise = tc.concise
+
+			v := NewOperation(arguments.ViewHuman, view)
+
+			v.Refreshing()
+			v.StopRefreshing()
+
+			if got, want := done(t).Stdout(), tc.want; got != want {
+				t.Errorf("wrong result\ngot:  %q\nwant: %q", got, want)
+			}
+		})
+	}
+}
+
 func TestOperation_emergencyDumpState(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
 	v := NewOperation(arguments.ViewHuman, NewView(streams))
