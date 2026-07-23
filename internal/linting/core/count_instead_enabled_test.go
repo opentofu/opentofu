@@ -35,8 +35,8 @@ func TestCoreRule_CountInsteadEnabled(t *testing.T) {
 				wantDiags := tfdiags.New(tfdiags.LintMessage(
 					ruleIDcountInsteadOfEnabled,
 					[]linting.RuleAddr{GroupIDImprovement},
-					"Usage of `count` could be replace with `lifecycle.enabled`",
-					fmt.Sprintf("%q could use `lifecycle.enabled` instead of the current `count` expression.", targetRes.String()),
+					"Could use enabled instead of count",
+					fmt.Sprintf(`%q uses "count" to choose between zero or one instances using a boolean expression. Consider using "enabled" in a "lifecycle" block instead.`, targetRes.String()),
 					new(tfdiags.SourceRangeFromHCL(expr.Range())),
 					new(tfdiags.SourceRangeFromHCL(targetResRange)),
 				))
@@ -56,8 +56,8 @@ func TestCoreRule_CountInsteadEnabled(t *testing.T) {
 				wantDiags := tfdiags.New(tfdiags.LintMessage(
 					ruleIDcountInsteadOfEnabled,
 					[]linting.RuleAddr{GroupIDImprovement},
-					"Usage of `count` could be replace with `lifecycle.enabled`",
-					fmt.Sprintf("%q could use `lifecycle.enabled` instead of the current `count` expression.", targetRes.String()),
+					"Could use enabled instead of count",
+					fmt.Sprintf(`%q uses "count" to choose between zero or one instances using a boolean expression. Consider using "enabled" in a "lifecycle" block instead.`, targetRes.String()),
 					new(tfdiags.SourceRangeFromHCL(expr.Range())),
 					new(tfdiags.SourceRangeFromHCL(targetResRange)),
 				))
@@ -77,8 +77,8 @@ func TestCoreRule_CountInsteadEnabled(t *testing.T) {
 				wantDiags := tfdiags.New(tfdiags.LintMessage(
 					ruleIDcountInsteadOfEnabled,
 					[]linting.RuleAddr{GroupIDImprovement},
-					"Usage of `count` could be replace with `lifecycle.enabled`",
-					fmt.Sprintf("%q could use `lifecycle.enabled` instead of the current `count` expression.", targetRes.String()),
+					"Could use enabled instead of count",
+					fmt.Sprintf(`%q uses "count" to choose between zero or one instances using a boolean expression. Consider using "enabled" in a "lifecycle" block instead.`, targetRes.String()),
 					new(tfdiags.SourceRangeFromHCL(expr.Range())),
 					new(tfdiags.SourceRangeFromHCL(targetResRange)),
 				))
@@ -126,8 +126,8 @@ func TestCoreRule_CountInsteadEnabled(t *testing.T) {
 				wantDiags := tfdiags.New(tfdiags.LintMessage(
 					ruleIDcountInsteadOfEnabled,
 					[]linting.RuleAddr{GroupIDImprovement},
-					"Usage of `count` could be replace with `lifecycle.enabled`",
-					fmt.Sprintf("%q could use `lifecycle.enabled` instead of the current `count` expression.", targetRes.String()),
+					"Could use enabled instead of count",
+					fmt.Sprintf(`%q uses "count" to choose between zero or one instances using a boolean expression. Consider using "enabled" in a "lifecycle" block instead.`, targetRes.String()),
 					new(tfdiags.SourceRangeFromHCL(expr.Range())),
 					new(tfdiags.SourceRangeFromHCL(targetResRange)),
 				))
@@ -147,8 +147,8 @@ func TestCoreRule_CountInsteadEnabled(t *testing.T) {
 				wantDiags := tfdiags.New(tfdiags.LintMessage(
 					ruleIDcountInsteadOfEnabled,
 					[]linting.RuleAddr{GroupIDImprovement},
-					"Usage of `count` could be replace with `lifecycle.enabled`",
-					fmt.Sprintf("%q could use `lifecycle.enabled` instead of the current `count` expression.", targetRes.String()),
+					"Could use enabled instead of count",
+					fmt.Sprintf(`%q uses "count" to choose between zero or one instances using a boolean expression. Consider using "enabled" in a "lifecycle" block instead.`, targetRes.String()),
 					new(tfdiags.SourceRangeFromHCL(expr.Range())),
 					new(tfdiags.SourceRangeFromHCL(targetResRange)),
 				))
