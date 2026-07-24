@@ -6,7 +6,10 @@
 package views
 
 import (
+	"fmt"
 	"maps"
+	"sort"
+	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/mitchellh/colorstring"
@@ -158,6 +161,55 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 	}
 	diags = newDiags
 
+	//This is a function that is used to consolidate warnings and errors
+	//If the user has enabled consolidate warnings, then the warnings will be consolidated and printed in a more compact form
+	//Else the warnings will be printed in the order they are encountered
+	if v.consolidateWarnings {
+		var orphanDiags []tfdiags.Diagnostic
+		var otherDiags tfdiags.Diagnostics
+		for _, diag := range diags {
+			if diag.Severity() == tfdiags.Warning && diag.Description().Summary == "Objects will be removed from state" {
+				orphanDiags = append(orphanDiags, diag)
+			} else {
+				otherDiags = append(otherDiags, diag)
+			}
+		}
+
+		if len(orphanDiags) > 1 {
+			var items []string
+			for _, d := range orphanDiags {
+				lines := strings.Split(d.Description().Detail, "\n")
+				for _, line := range lines {
+					if strings.HasPrefix(line, " - ") {
+						items = append(items, line)
+						break
+					}
+				}
+			}
+			sort.Slice(items, func(i, j int) bool {
+				return naturalLess(items[i], items[j])
+			})
+
+			detail := fmt.Sprintf(
+				"After this plan is applied, the objects associated with the following\n"+
+					"resource instances will no longer be managed by OpenTofu:\n"+
+					"%s\n\n"+
+					"These objects will continue to exist in the remote system until you delete\n"+
+					"them outside of OpenTofu. If you wish to manage any of these objects with\n"+
+					"OpenTofu again in future then you will need to re-import them.",
+				strings.Join(items, "\n"),
+			)
+
+			consolidatedDiag := customDiagnostic{
+				severity: tfdiags.Warning,
+				summary:  "Objects will be removed from state",
+				detail:   detail,
+			}
+			otherDiags = append(otherDiags, consolidatedDiag)
+			diags = otherDiags
+		}
+	}
+
 	if v.consolidateWarnings {
 		diags = diags.Consolidate(1, tfdiags.Warning, func(diag tfdiags.Diagnostic) string {
 			// Check to see if we have a DeprecationCause
@@ -270,4 +322,58 @@ func (v *View) Colorize() *colorstring.Colorize {
 // StdinPiped returns true if the input is piped.
 func (v *View) StdinPiped() bool {
 	return !v.streams.Stdin.IsTerminal()
+}
+
+// Custom Diagnostic Structure used for adding custom diagnostics in case of errors
+// This is used when an error is encountered and we need to add a custom diagnostic to the error message
+type customDiagnostic struct {
+	severity tfdiags.Severity
+	summary  string
+	detail   string
+}
+
+func (c customDiagnostic) Severity() tfdiags.Severity { return c.severity }
+func (c customDiagnostic) Description() tfdiags.Description {
+	return tfdiags.Description{
+		Summary: c.summary,
+		Detail:  c.detail,
+	}
+}
+func (c customDiagnostic) Source() tfdiags.Source      { return tfdiags.Source{} }
+func (c customDiagnostic) FromExpr() *tfdiags.FromExpr { return nil }
+func (c customDiagnostic) ExtraInfo() interface{}      { return nil }
+
+// This Function is used to sort the numbers in the string in ascending order
+// Without this the modules number are being treated as string and would be sorted in lexicographical order 1,10,2,3... instead of 1,2,3,10
+func naturalLess(a, b string) bool {
+	i, j := 0, 0
+	for i < len(a) && j < len(b) {
+		aChar, bChar := a[i], b[j]
+		if isDigit(aChar) && isDigit(bChar) {
+			numA := 0
+			for i < len(a) && isDigit(a[i]) {
+				numA = numA*10 + int(a[i]-'0')
+				i++
+			}
+			numB := 0
+			for j < len(b) && isDigit(b[j]) {
+				numB = numB*10 + int(b[j]-'0')
+				j++
+			}
+			if numA != numB {
+				return numA < numB
+			}
+		} else {
+			if aChar != bChar {
+				return aChar < bChar
+			}
+			i++
+			j++
+		}
+	}
+	return len(a) < len(b)
+}
+
+func isDigit(c byte) bool {
+	return c >= '0' && c <= '9'
 }
