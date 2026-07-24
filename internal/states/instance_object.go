@@ -63,6 +63,9 @@ type ResourceInstanceObject struct {
 	CreateBeforeDestroy bool
 
 	SkipDestroy bool
+	// DestroyOnDependencyRemoval tracks the lifecycle.destroy_on_dependency_removal
+	// setting as of the last update. Nil means the setting was not explicitly set.
+	DestroyOnDependencyRemoval *bool
 
 	// Deferred is meant for the ephemeral resources state information.
 	// When this is "true", the evaluator will return an unknown value.
@@ -170,21 +173,27 @@ func (o *ResourceInstanceObject) Encode(ty cty.Type, schemaVersion uint64, ident
 	if identityJSON != nil {
 		identitySchemaVer = &identitySchemaVersion
 	}
+	var destroyOnDependencyRemoval *bool
+	if o.DestroyOnDependencyRemoval != nil {
+		v := *o.DestroyOnDependencyRemoval
+		destroyOnDependencyRemoval = &v
+	}
 
 	return &ResourceInstanceObjectSrc{
-		SchemaVersion:           schemaVersion,
-		IdentitySchemaVersion:   identitySchemaVer,
-		AttrsJSON:               src,
-		AttrSensitivePaths:      sensitivePVMs,
-		TransientPathValueMarks: allPVMs,
-		Private:                 o.Private,
-		IdentityJSON:            identityJSON,
-		Status:                  o.Status,
-		Dependencies:            dependencies,
-		DependsOn:               absDependencies,
-		CreateBeforeDestroy:     o.CreateBeforeDestroy,
-		SkipDestroy:             o.SkipDestroy,
-		Deferred:                o.Deferred,
+		SchemaVersion:              schemaVersion,
+		IdentitySchemaVersion:      identitySchemaVer,
+		AttrsJSON:                  src,
+		AttrSensitivePaths:         sensitivePVMs,
+		TransientPathValueMarks:    allPVMs,
+		Private:                    o.Private,
+		IdentityJSON:               identityJSON,
+		Status:                     o.Status,
+		Dependencies:               dependencies,
+		DependsOn:                  absDependencies,
+		CreateBeforeDestroy:        o.CreateBeforeDestroy,
+		SkipDestroy:                o.SkipDestroy,
+		DestroyOnDependencyRemoval: destroyOnDependencyRemoval,
+		Deferred:                   o.Deferred,
 	}, nil
 }
 

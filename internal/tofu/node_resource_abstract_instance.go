@@ -2459,6 +2459,63 @@ func (n *NodeAbstractResourceInstance) dependenciesHavePendingChanges(evalCtx Ev
 	return false
 }
 
+func (n *NodeAbstractResourceInstance) hasDependencyRemovalPlanned(evalCtx EvalContext, state *states.ResourceInstanceObject) bool {
+	if state == nil {
+		return false
+	}
+
+	deps := state.Dependencies
+	if len(deps) == 0 {
+		deps = n.Dependencies
+	}
+	if len(deps) == 0 {
+		return false
+	}
+
+	nModInst := n.Addr.Module
+	nMod := nModInst.Module()
+	changes := evalCtx.Changes()
+
+	for _, dep := range deps {
+		hasRemovalChange := false
+		for _, change := range changes.GetChangesForConfigResource(dep) {
+			if change == nil || change.Addr.Equal(n.Addr) {
+				continue
+			}
+
+			changeModInst := change.Addr.Module
+			if changeModInst.IsForModule(nMod) && !changeModInst.Equal(nModInst) {
+				continue
+			}
+
+			if change.Action == plans.Delete || change.Action == plans.Forget {
+				hasRemovalChange = true
+				break
+			}
+		}
+		if hasRemovalChange {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (n *NodeAbstractResourceInstance) shouldForgetOnDependencyRemoval(state *states.ResourceInstanceObject) (bool, tfdiags.Diagnostics) {
+	// Prefer current config, if still available for this instance.
+	if n.Config != nil && n.Config.Managed != nil {
+		return n.NodeAbstractResource.shouldForgetOnDependencyRemoval()
+	}
+
+	var diags tfdiags.Diagnostics
+	// Fall back to previously-applied lifecycle setting carried in state.
+	if state == nil || state.DestroyOnDependencyRemoval == nil {
+		return false, diags
+	}
+
+	return !*state.DestroyOnDependencyRemoval, diags
+}
+
 // apply deals with the main part of the data resource lifecycle: either
 // actually reading from the data source or generating a plan to do so.
 func (n *NodeAbstractResourceInstance) applyDataSource(ctx context.Context, evalCtx EvalContext, planned *plans.ResourceInstanceChange) (*states.ResourceInstanceObject, instances.RepetitionData, tfdiags.Diagnostics) {

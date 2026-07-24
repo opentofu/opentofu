@@ -16,11 +16,13 @@ import (
 )
 
 type skipStateInstance struct {
-	addr        string
-	attrsJSON   string
-	skipDestroy bool
-	deposedKey  string            // if set, creates a deposed instance
-	instanceKey addrs.InstanceKey // optional, defaults to NoKey
+	addr                       string
+	attrsJSON                  string
+	skipDestroy                bool
+	destroyOnDependencyRemoval *bool
+	deposedKey                 string            // if set, creates a deposed instance
+	instanceKey                addrs.InstanceKey // optional, defaults to NoKey
+	dependencies               []string
 }
 
 type skipExpectedChange struct {
@@ -54,9 +56,13 @@ func setupSkipTestState(t *testing.T, instances []skipStateInstance) *states.Sta
 		}
 
 		obj := &states.ResourceInstanceObjectSrc{
-			Status:      states.ObjectReady,
-			AttrsJSON:   []byte(inst.attrsJSON),
-			SkipDestroy: inst.skipDestroy,
+			Status:                     states.ObjectReady,
+			AttrsJSON:                  []byte(inst.attrsJSON),
+			SkipDestroy:                inst.skipDestroy,
+			DestroyOnDependencyRemoval: inst.destroyOnDependencyRemoval,
+		}
+		for _, dep := range inst.dependencies {
+			obj.Dependencies = append(obj.Dependencies, mustResourceInstanceAddr(dep).ContainingResource().Config())
 		}
 
 		if inst.deposedKey != "" {
@@ -482,6 +488,83 @@ func TestSkipDestroy_Orphan_RemovedBlockOverrides(t *testing.T) {
 	t.Run(tc.name, func(t *testing.T) {
 		runSkipDestroyTestCase(t, tc)
 	})
+}
+
+func TestSkipDestroy_Orphan_DependencyDrivenDestroy(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureSkipDestroy, ExperimentalBugStateProvider)
+	tests := []skipDestroyTestCase{
+		{
+			name: "ConfiguredForgetOnDependencyDestroy",
+			config: `
+				resource "aws_instance" "parent" {
+					lifecycle {
+						enabled = false
+					}
+				}
+
+				resource "aws_instance" "child" {
+					depends_on = [aws_instance.parent]
+					lifecycle {
+						enabled = false
+						destroy_on_dependency_removal = false
+					}
+				}
+			`,
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.parent", skipDestroy: false},
+				{addr: "aws_instance.child", skipDestroy: false, dependencies: []string{"aws_instance.parent"}},
+			},
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.parent", action: plans.Delete},
+				{addr: "aws_instance.child", action: plans.Forget},
+			},
+		},
+		{
+			name: "UnconfiguredDestroyOnDependencyDestroy",
+			config: `
+				resource "aws_instance" "parent" {
+					lifecycle {
+						enabled = false
+					}
+				}
+
+				resource "aws_instance" "child" {
+					depends_on = [aws_instance.parent]
+					lifecycle {
+						enabled = false
+					}
+				}
+			`,
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.parent", skipDestroy: false},
+				{addr: "aws_instance.child", skipDestroy: false, dependencies: []string{"aws_instance.parent"}},
+			},
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.parent", action: plans.Delete},
+				{addr: "aws_instance.child", action: plans.Delete},
+			},
+		},
+		{
+			name: "DirectRemovalUnchangedWithoutMechanism",
+			config: `
+				# Empty
+			`,
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.parent", skipDestroy: false},
+				{addr: "aws_instance.child", skipDestroy: false, dependencies: []string{"aws_instance.parent"}},
+			},
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.parent", action: plans.Delete},
+				{addr: "aws_instance.child", action: plans.Delete},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			runSkipDestroyTestCase(t, tc)
+		})
+	}
 }
 
 // Resource Replacement Tests

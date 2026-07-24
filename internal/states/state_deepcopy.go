@@ -183,22 +183,28 @@ func (os *ResourceInstanceObjectSrc) DeepCopy() *ResourceInstanceObjectSrc {
 		v := *os.IdentitySchemaVersion
 		identitySchemaVersion = &v
 	}
+	var destroyOnDependencyRemoval *bool
+	if os.DestroyOnDependencyRemoval != nil {
+		v := *os.DestroyOnDependencyRemoval
+		destroyOnDependencyRemoval = &v
+	}
 
 	return &ResourceInstanceObjectSrc{
-		Status:                  os.Status,
-		SchemaVersion:           os.SchemaVersion,
-		Private:                 private,
-		AttrsFlat:               attrsFlat,
-		AttrsJSON:               attrsJSON,
-		AttrSensitivePaths:      attrPaths,
-		TransientPathValueMarks: allAttrPaths,
-		Dependencies:            dependencies,
-		DependsOn:               absDependencies,
-		CreateBeforeDestroy:     os.CreateBeforeDestroy,
-		SkipDestroy:             os.SkipDestroy,
-		Deferred:                os.Deferred,
-		IdentityJSON:            identityJSON,
-		IdentitySchemaVersion:   identitySchemaVersion,
+		Status:                     os.Status,
+		SchemaVersion:              os.SchemaVersion,
+		Private:                    private,
+		AttrsFlat:                  attrsFlat,
+		AttrsJSON:                  attrsJSON,
+		AttrSensitivePaths:         attrPaths,
+		TransientPathValueMarks:    allAttrPaths,
+		Dependencies:               dependencies,
+		DependsOn:                  absDependencies,
+		CreateBeforeDestroy:        os.CreateBeforeDestroy,
+		SkipDestroy:                os.SkipDestroy,
+		DestroyOnDependencyRemoval: destroyOnDependencyRemoval,
+		Deferred:                   os.Deferred,
+		IdentityJSON:               identityJSON,
+		IdentitySchemaVersion:      identitySchemaVersion,
 	}
 }
 
@@ -228,16 +234,22 @@ func (o *ResourceInstanceObject) DeepCopy() *ResourceInstanceObject {
 		dependencies = make([]addrs.ConfigResource, len(o.Dependencies))
 		copy(dependencies, o.Dependencies)
 	}
+	var destroyOnDependencyRemoval *bool
+	if o.DestroyOnDependencyRemoval != nil {
+		v := *o.DestroyOnDependencyRemoval
+		destroyOnDependencyRemoval = &v
+	}
 
 	return &ResourceInstanceObject{
-		Value:               o.Value,
-		Status:              o.Status,
-		Private:             private,
-		Identity:            o.Identity,
-		Dependencies:        dependencies,
-		CreateBeforeDestroy: o.CreateBeforeDestroy,
-		SkipDestroy:         o.SkipDestroy,
-		Deferred:            o.Deferred,
+		Value:                      o.Value,
+		Status:                     o.Status,
+		Private:                    private,
+		Identity:                   o.Identity,
+		Dependencies:               dependencies,
+		CreateBeforeDestroy:        o.CreateBeforeDestroy,
+		SkipDestroy:                o.SkipDestroy,
+		DestroyOnDependencyRemoval: destroyOnDependencyRemoval,
+		Deferred:                   o.Deferred,
 	}
 }
 

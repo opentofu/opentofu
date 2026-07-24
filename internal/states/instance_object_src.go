@@ -67,12 +67,13 @@ type ResourceInstanceObjectSrc struct {
 
 	// These fields all correspond to the fields of the same name on
 	// ResourceInstanceObject.
-	Private             []byte
-	Status              ObjectStatus
-	Dependencies        []addrs.ConfigResource
-	DependsOn           []addrs.AbsResourceInstance
-	CreateBeforeDestroy bool
-	SkipDestroy         bool
+	Private                    []byte
+	Status                     ObjectStatus
+	Dependencies               []addrs.ConfigResource
+	DependsOn                  []addrs.AbsResourceInstance
+	CreateBeforeDestroy        bool
+	SkipDestroy                bool
+	DestroyOnDependencyRemoval *bool
 	// Deferred is meant for the ephemeral resources state information.
 	// When this is "true", the evaluator will return an unknown value.
 	Deferred bool
@@ -179,6 +180,12 @@ func (os *ResourceInstanceObjectSrc) Equal(other *ResourceInstanceObjectSrc) boo
 	if os.SkipDestroy != other.SkipDestroy {
 		return false
 	}
+	if (os.DestroyOnDependencyRemoval == nil) != (other.DestroyOnDependencyRemoval == nil) {
+		return false
+	}
+	if os.DestroyOnDependencyRemoval != nil && other.DestroyOnDependencyRemoval != nil && *os.DestroyOnDependencyRemoval != *other.DestroyOnDependencyRemoval {
+		return false
+	}
 
 	if !bytes.Equal(os.IdentityJSON, other.IdentityJSON) {
 		return false
@@ -250,15 +257,16 @@ func (os *ResourceInstanceObjectSrc) Decode(ty cty.Type) (*ResourceInstanceObjec
 	}
 
 	return &ResourceInstanceObject{
-		Value:               val,
-		Status:              os.Status,
-		Dependencies:        os.Dependencies,
-		DependsOn:           os.DependsOn,
-		Private:             os.Private,
-		Identity:            identity,
-		CreateBeforeDestroy: os.CreateBeforeDestroy,
-		SkipDestroy:         os.SkipDestroy,
-		Deferred:            os.Deferred,
+		Value:                      val,
+		Status:                     os.Status,
+		Dependencies:               os.Dependencies,
+		DependsOn:                  os.DependsOn,
+		Private:                    os.Private,
+		Identity:                   identity,
+		CreateBeforeDestroy:        os.CreateBeforeDestroy,
+		SkipDestroy:                os.SkipDestroy,
+		DestroyOnDependencyRemoval: os.DestroyOnDependencyRemoval,
+		Deferred:                   os.Deferred,
 	}, nil
 }
 
