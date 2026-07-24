@@ -350,6 +350,16 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx context.Conte
 				instanceRefreshState.DestroyOnDependencyRemoval = nil
 			}
 
+			// Persist provider-level containment: record the parent resource
+			// addresses declared via all_objects_part_of so they survive config
+			// removal and are still available at orphan-planning time.
+			if len(n.ProviderParentAddrs) > 0 {
+				instanceRefreshState.ProviderParents = make([]addrs.ConfigResource, len(n.ProviderParentAddrs))
+				copy(instanceRefreshState.ProviderParents, n.ProviderParentAddrs)
+			} else {
+				instanceRefreshState.ProviderParents = nil
+			}
+
 			if n.skipRefresh {
 				destroyOnDependencyRemovalChanged := (prevDestroyOnDependencyRemoval == nil) != (instanceRefreshState.DestroyOnDependencyRemoval == nil)
 				if !destroyOnDependencyRemovalChanged && prevDestroyOnDependencyRemoval != nil && instanceRefreshState.DestroyOnDependencyRemoval != nil {

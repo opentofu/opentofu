@@ -116,6 +116,12 @@ type NodeAbstractResource struct {
 	// removed.provisioner configuration. If the field "Config.Managed.Provisioners" is having no provisioners, then
 	// these provisioners should be used instead.
 	removedBlockProvisioners []*configs.Provisioner
+
+	// ProviderParentAddrs holds the set of resource addresses declared via
+	// all_objects_part_of in the provider lifecycle block. Populated during
+	// graph construction. Resources managed through a provider with this field
+	// set are forgotten (not destroyed) when any listed parent is removed.
+	ProviderParentAddrs []addrs.ConfigResource
 }
 
 var (
@@ -531,6 +537,12 @@ func (n *NodeAbstractResource) AttachResourceSchema(schema *configschema.Block, 
 // GraphNodeAttachProviderMetaConfigs impl
 func (n *NodeAbstractResource) AttachProviderMetaConfigs(c map[addrs.Provider]*configs.ProviderMeta) {
 	n.ProviderMetas = c
+}
+
+// AttachProviderAllObjectsPartOf stores the resolved parent resource addresses
+// declared via all_objects_part_of in this provider's lifecycle block.
+func (n *NodeAbstractResource) AttachProviderAllObjectsPartOf(parents []addrs.ConfigResource) {
+	n.ProviderParentAddrs = parents
 }
 
 // GraphNodeDotter impl.

@@ -202,6 +202,7 @@ func (os *ResourceInstanceObjectSrc) DeepCopy() *ResourceInstanceObjectSrc {
 		CreateBeforeDestroy:        os.CreateBeforeDestroy,
 		SkipDestroy:                os.SkipDestroy,
 		DestroyOnDependencyRemoval: destroyOnDependencyRemoval,
+		ProviderParents:            slices.Clone(os.ProviderParents),
 		Deferred:                   os.Deferred,
 		IdentityJSON:               identityJSON,
 		IdentitySchemaVersion:      identitySchemaVersion,
@@ -249,6 +250,7 @@ func (o *ResourceInstanceObject) DeepCopy() *ResourceInstanceObject {
 		CreateBeforeDestroy:        o.CreateBeforeDestroy,
 		SkipDestroy:                o.SkipDestroy,
 		DestroyOnDependencyRemoval: destroyOnDependencyRemoval,
+		ProviderParents:            slices.Clone(o.ProviderParents),
 		Deferred:                   o.Deferred,
 	}
 }

@@ -50,6 +50,14 @@ type Provider struct {
 
 	ForEach   hcl.Expression
 	Instances map[addrs.InstanceKey]instances.RepetitionData
+
+	// AllObjectsPartOf is the set of resource addresses declared in the
+	// provider lifecycle block's all_objects_part_of argument. When set,
+	// all resources managed through this provider are treated as contained
+	// within those parent resources. If any listed parent is removed from
+	// the configuration, OpenTofu will forget (rather than destroy) the
+	// managed resources instead of issuing destroy calls to the provider.
+	AllObjectsPartOf []hcl.Traversal
 }
 
 func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
@@ -129,6 +137,7 @@ func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
 	}
 
 	var seenEscapeBlock *hcl.Block
+	var seenLifecycleBlock *hcl.Block
 	for _, block := range content.Blocks {
 		switch block.Type {
 		case "_":
@@ -150,6 +159,30 @@ func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
 			// existing config we extracted earlier, so later decoding
 			// will see a blend of both.
 			provider.Config = hcl.MergeBodies([]hcl.Body{provider.Config, block.Body})
+
+		case "lifecycle":
+			if seenLifecycleBlock != nil {
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Duplicate provider lifecycle block",
+					Detail: fmt.Sprintf(
+						"A provider block may have only one lifecycle block. The first lifecycle block was at %s.",
+						seenLifecycleBlock.DefRange,
+					),
+					Subject: &block.DefRange,
+				})
+				continue
+			}
+			seenLifecycleBlock = block
+
+			lcContent, lcDiags := block.Body.Content(providerLifecycleBlockSchema)
+			diags = append(diags, lcDiags...)
+
+			if attr, exists := lcContent.Attributes["all_objects_part_of"]; exists {
+				traversals, travDiags := decodeDependsOn(attr)
+				diags = append(diags, travDiags...)
+				provider.AllObjectsPartOf = traversals
+			}
 
 		default:
 			// All of the other block types in our schema are reserved for
@@ -311,10 +344,20 @@ var providerBlockSchema = &hcl.BodySchema{
 	},
 	Blocks: []hcl.BlockHeaderSchema{
 		{Type: "_"}, // meta-argument escaping block
+		{Type: "lifecycle"},
 
 		// The rest of these are reserved for future expansion.
-		{Type: "lifecycle"},
 		{Type: "locals"},
+	},
+}
+
+// providerLifecycleBlockSchema defines the schema for the lifecycle block
+// within a provider configuration block.
+var providerLifecycleBlockSchema = &hcl.BodySchema{
+	Attributes: []hcl.AttributeSchema{
+		{
+			Name: "all_objects_part_of",
+		},
 	},
 }
 

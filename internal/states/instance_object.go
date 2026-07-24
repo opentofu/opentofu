@@ -67,6 +67,13 @@ type ResourceInstanceObject struct {
 	// setting as of the last update. Nil means the setting was not explicitly set.
 	DestroyOnDependencyRemoval *bool
 
+	// ProviderParents holds the set of resource addresses declared via
+	// all_objects_part_of in the provider lifecycle block at the time this
+	// object was last planned. When the object is orphaned, this list is
+	// checked against planned deletions to decide whether to forget rather
+	// than destroy the resource.
+	ProviderParents []addrs.ConfigResource
+
 	// Deferred is meant for the ephemeral resources state information.
 	// When this is "true", the evaluator will return an unknown value.
 	Deferred bool
@@ -179,6 +186,9 @@ func (o *ResourceInstanceObject) Encode(ty cty.Type, schemaVersion uint64, ident
 		destroyOnDependencyRemoval = &v
 	}
 
+	providerParents := make([]addrs.ConfigResource, len(o.ProviderParents))
+	copy(providerParents, o.ProviderParents)
+
 	return &ResourceInstanceObjectSrc{
 		SchemaVersion:              schemaVersion,
 		IdentitySchemaVersion:      identitySchemaVer,
@@ -193,6 +203,7 @@ func (o *ResourceInstanceObject) Encode(ty cty.Type, schemaVersion uint64, ident
 		CreateBeforeDestroy:        o.CreateBeforeDestroy,
 		SkipDestroy:                o.SkipDestroy,
 		DestroyOnDependencyRemoval: destroyOnDependencyRemoval,
+		ProviderParents:            providerParents,
 		Deferred:                   o.Deferred,
 	}, nil
 }

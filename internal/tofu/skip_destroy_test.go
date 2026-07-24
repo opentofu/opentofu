@@ -20,9 +20,11 @@ type skipStateInstance struct {
 	attrsJSON                  string
 	skipDestroy                bool
 	destroyOnDependencyRemoval *bool
+	providerParents            []string // resource addresses for all_objects_part_of
 	deposedKey                 string            // if set, creates a deposed instance
 	instanceKey                addrs.InstanceKey // optional, defaults to NoKey
 	dependencies               []string
+	providerConfig             string // optional provider config addr, defaults to aws
 }
 
 type skipExpectedChange struct {
@@ -55,6 +57,11 @@ func setupSkipTestState(t *testing.T, instances []skipStateInstance) *states.Sta
 			inst.attrsJSON = `{"id":"baz","type":"aws_instance"}`
 		}
 
+		providerCfg := `provider["registry.opentofu.org/hashicorp/aws"]`
+		if inst.providerConfig != "" {
+			providerCfg = inst.providerConfig
+		}
+
 		obj := &states.ResourceInstanceObjectSrc{
 			Status:                     states.ObjectReady,
 			AttrsJSON:                  []byte(inst.attrsJSON),
@@ -64,20 +71,23 @@ func setupSkipTestState(t *testing.T, instances []skipStateInstance) *states.Sta
 		for _, dep := range inst.dependencies {
 			obj.Dependencies = append(obj.Dependencies, mustResourceInstanceAddr(dep).ContainingResource().Config())
 		}
+		for _, pp := range inst.providerParents {
+			obj.ProviderParents = append(obj.ProviderParents, mustResourceInstanceAddr(pp).ContainingResource().Config())
+		}
 
 		if inst.deposedKey != "" {
 			root.SetResourceInstanceDeposed(
 				mustResourceInstanceAddr(inst.addr).Resource,
 				states.DeposedKey(inst.deposedKey),
 				obj,
-				mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+				mustProviderConfig(providerCfg),
 				addrs.NoKey,
 			)
 		} else {
 			root.SetResourceInstanceCurrent(
 				mustResourceInstanceAddr(inst.addr).Resource,
 				obj,
-				mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+				mustProviderConfig(providerCfg),
 				addrs.NoKey,
 			)
 		}
@@ -1529,5 +1539,162 @@ func TestSkipDestroy_ConfigChange_UpdatesState(t *testing.T) {
 
 	if appliedState2.RootModule().Resources["aws_instance.foo"].Instance(addrs.NoKey).Current.SkipDestroy {
 		t.Fatal("SkipDestroy attribute not removed after config change")
+	}
+}
+
+// Provider Lifecycle - AllObjectsPartOf Tests
+//
+// When a provider declares lifecycle.all_objects_part_of, resources managed by
+// that provider record the parent addresses in state. When those parent
+// resources are removed, the child resources are forgotten rather than
+// destroyed.
+
+func TestProviderLifecycle_AllObjectsPartOf_OrphanForget(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureSkipDestroy)
+
+	tests := []struct {
+		name            string
+		stateInstances  []skipStateInstance
+		config          string
+		expectedChanges []skipExpectedChange
+	}{
+		{
+			name: "ForgetChildWhenParentDeleted",
+			// State has parent + child; child carries ProviderParents=[parent].
+			// Config is empty so both are orphans.
+			// Parent gets Delete; child should get Forget because of ProviderParents.
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.parent"},
+				{
+					addr:            "aws_instance.child",
+					providerParents: []string{"aws_instance.parent"},
+				},
+			},
+			config: `# empty`,
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.parent", action: plans.Delete},
+				{addr: "aws_instance.child", action: plans.Forget},
+			},
+		},
+		{
+			name: "NormalDestroyWithoutProviderParents",
+			// Same setup but child has no ProviderParents: both get Delete.
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.parent"},
+				{addr: "aws_instance.child"},
+			},
+			config: `# empty`,
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.parent", action: plans.Delete},
+				{addr: "aws_instance.child", action: plans.Delete},
+			},
+		},
+		{
+			name: "NoParentRemoval_DirectChildRemoval_StillDestroys",
+			// Child has ProviderParents=[parent], but parent is NOT being
+			// removed—it remains in config. Only the child is orphaned.
+			// Expected: child still gets Delete (forget only happens when the
+			// declared parent is the one going away).
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.parent"},
+				{
+					addr:            "aws_instance.child",
+					providerParents: []string{"aws_instance.parent"},
+				},
+			},
+			config: `
+				resource "aws_instance" "parent" {}
+			`,
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.child", action: plans.Delete},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			m := testModuleInline(t, map[string]string{"main.tf": tc.config})
+			ctx, _ := setupSkipTestDefaultContext(t)
+			state := setupSkipTestState(t, tc.stateInstances)
+
+			plan, diags := ctx.Plan(t.Context(), m, state, DefaultPlanOpts)
+			if diags.HasErrors() {
+				t.Fatalf("unexpected plan errors: %s", diags.Err())
+			}
+			verifySkipPlanChanges(t, plan, tc.expectedChanges)
+		})
+	}
+}
+
+// TestProviderLifecycle_AllObjectsPartOf_ConfigPropagation tests that the
+// provider lifecycle block is correctly parsed and the ProviderParents field is
+// persisted into resource state during planning.
+func TestProviderLifecycle_AllObjectsPartOf_ConfigPropagation(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureSkipDestroy)
+
+	// Use two providers: aws (manages parent) and aws.k8s alias (manages
+	// children). The k8s alias declares all_objects_part_of = [aws_instance.parent].
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+			terraform {
+				required_providers {
+					aws = { source = "hashicorp/aws" }
+				}
+			}
+
+			provider "aws" {}
+
+			provider "aws" {
+				alias = "k8s"
+				lifecycle {
+					all_objects_part_of = [aws_instance.parent]
+				}
+			}
+
+			resource "aws_instance" "parent" {
+				provider = aws
+			}
+
+			resource "aws_instance" "child" {
+				provider = aws.k8s
+			}
+		`,
+	})
+
+	p := testProvider("aws")
+	p.PlanResourceChangeFn = testDiffFn
+
+	ctx := testContext2(t, &ContextOpts{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		}, nil),
+	})
+
+	// Initial apply to build state with ProviderParents recorded.
+	plan, diags := ctx.Plan(t.Context(), m, states.NewState(), DefaultPlanOpts)
+	if diags.HasErrors() {
+		t.Fatalf("initial plan errors: %s", diags.Err())
+	}
+
+	applied, diags := ctx.Apply(t.Context(), plan, m, nil)
+	if diags.HasErrors() {
+		t.Fatalf("initial apply errors: %s", diags.Err())
+	}
+
+	childInst := applied.RootModule().ResourceInstance(
+		mustResourceInstanceAddr("aws_instance.child").Resource,
+	)
+	if childInst == nil || childInst.Current == nil {
+		t.Fatal("aws_instance.child not found in state after apply")
+	}
+
+	if len(childInst.Current.ProviderParents) == 0 {
+		t.Error("expected ProviderParents to be recorded in state for aws_instance.child, but it was empty")
+	} else {
+		got := childInst.Current.ProviderParents[0].String()
+		want := "aws_instance.parent"
+		if got != want {
+			t.Errorf("ProviderParents[0] = %q, want %q", got, want)
+		}
 	}
 }

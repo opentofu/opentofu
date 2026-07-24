@@ -74,6 +74,7 @@ type ResourceInstanceObjectSrc struct {
 	CreateBeforeDestroy        bool
 	SkipDestroy                bool
 	DestroyOnDependencyRemoval *bool
+	ProviderParents            []addrs.ConfigResource
 	// Deferred is meant for the ephemeral resources state information.
 	// When this is "true", the evaluator will return an unknown value.
 	Deferred bool
@@ -187,6 +188,10 @@ func (os *ResourceInstanceObjectSrc) Equal(other *ResourceInstanceObjectSrc) boo
 		return false
 	}
 
+	if !equalSlicesIgnoreOrder(os.ProviderParents, other.ProviderParents, addrs.ConfigResource.Equal) {
+		return false
+	}
+
 	if !bytes.Equal(os.IdentityJSON, other.IdentityJSON) {
 		return false
 	}
@@ -266,6 +271,7 @@ func (os *ResourceInstanceObjectSrc) Decode(ty cty.Type) (*ResourceInstanceObjec
 		CreateBeforeDestroy:        os.CreateBeforeDestroy,
 		SkipDestroy:                os.SkipDestroy,
 		DestroyOnDependencyRemoval: os.DestroyOnDependencyRemoval,
+		ProviderParents:            os.ProviderParents,
 		Deferred:                   os.Deferred,
 	}, nil
 }

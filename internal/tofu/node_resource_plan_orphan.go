@@ -50,7 +50,16 @@ var (
 	_ GraphNodeAttachResourceState  = (*NodePlannableResourceInstanceOrphan)(nil)
 	_ GraphNodeExecutable           = (*NodePlannableResourceInstanceOrphan)(nil)
 	_ GraphNodeProviderConsumer     = (*NodePlannableResourceInstanceOrphan)(nil)
+	_ GraphNodeDestroyer            = (*NodePlannableResourceInstanceOrphan)(nil)
 )
+
+// DestroyAddr implements GraphNodeDestroyer so that DestroyEdgeTransformer
+// can create ordering edges between orphan nodes whose state declares
+// dependencies on other orphan nodes (via Dependencies or ProviderParents).
+func (n *NodePlannableResourceInstanceOrphan) DestroyAddr() *addrs.AbsResourceInstance {
+	addr := n.ResourceInstanceAddr()
+	return &addr
+}
 
 func (n *NodePlannableResourceInstanceOrphan) Name() string {
 	return n.ResourceInstanceAddr().String() + " (orphan)"
