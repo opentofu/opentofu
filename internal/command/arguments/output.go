@@ -25,82 +25,60 @@ type Output struct {
 }
 
 // BindOutput registers CLI arguments, returning a Output value and it's corresponding hooks.
-func BindOutput(flags Flags, raw *bool) (*Output, Hooks) {
+func BindOutput(cli *CommandLine) *Output {
 	var output Output
-	var hooks Hooks
 
-	output.ViewOptions.bind(flags, false)
-	hooks = append(hooks, output.ViewOptions.ParseHook())
+	output.ViewOptions.bind(cli, false)
 
 	output.Vars = &Vars{}
-	output.Vars.bind(flags)
+	output.Vars.bind(cli)
 
 	output.State = &State{}
-	output.State.bind(flags, stateFlagStateIn)
+	output.State.bind(cli, stateFlagStateIn)
 
-	flags.BoolVar(raw, "raw", false, "For value types that can be automatically converted to a string, will print the raw string directly, rather than a human-oriented representation of the value.")
-	flags.BoolVar(&output.ShowSensitive, "show-sensitive", false, "If specified, sensitive values will be displayed.")
+	rawOutput := false
+	cli.BoolVar(&rawOutput, "raw", false, "For value types that can be automatically converted to a string, will print the raw string directly, rather than a human-oriented representation of the value.")
+	cli.BoolVar(&output.ShowSensitive, "show-sensitive", false, "If specified, sensitive values will be displayed.")
 
-	return &output, hooks
+	cli.ArgHelp = "The output command expects exactly one argument with the name of an output variable or no arguments to show all outputs."
+	cli.PositionalArg(&output.Name, "output name", true)
+
+	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
+		var diags tfdiags.Diagnostics
+		if rawOutput {
+			output.ViewOptions.ViewType = ViewRaw
+			if output.ViewOptions.jsonFlag {
+				diags = diags.Append(tfdiags.Sourceless(
+					tfdiags.Error,
+					"Invalid output format",
+					"The -raw and -json options are mutually-exclusive.",
+				))
+
+				// Since the desired output format is unknowable, fall back to default
+				output.ViewOptions.ViewType = ViewHuman
+				rawOutput = false
+			}
+		}
+
+		if rawOutput && output.Name == "" {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Output name required",
+				"You must give the name of a single output value when using the -raw option.",
+			))
+		}
+		return diags
+	}})
+
+	return &output
 }
 
 // ParseOutput processes CLI arguments, returning an Output value, a closer function, and errors.
 // If errors are encountered, an Output value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseOutput(args []string) (*Output, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	rawOutput := false
-
-	flags := Flags{}
-	output, hooks := BindOutput(flags, &rawOutput)
-
-	cmdFlags := defaultFlagSet("output", flags)
-
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error(),
-		))
-	}
-
-	args = cmdFlags.Args()
-	if len(args) > 1 {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Unexpected argument",
-			"The output command expects exactly one argument with the name of an output variable or no arguments to show all outputs.",
-		))
-	}
-
-	// TODO positional arguments
-	if rawOutput {
-		output.ViewOptions.ViewType = ViewRaw
-		if output.ViewOptions.jsonFlag {
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
-				"Invalid output format",
-				"The -raw and -json options are mutually-exclusive.",
-			))
-
-			// Since the desired output format is unknowable, fall back to default
-			output.ViewOptions.ViewType = ViewHuman
-			rawOutput = false
-		}
-	}
-
-	if len(args) > 0 {
-		output.Name = args[0]
-	}
-
-	if rawOutput && output.Name == "" {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Output name required",
-			"You must give the name of a single output value when using the -raw option.",
-		))
-	}
-
-	return output, func() { hooks.Post() }, diags.Append(hooks.Pre())
+	cli := new(CommandLine)
+	output := BindOutput(cli)
+	closer, diags := cli.Stdlib("output", args)
+	return output, closer, diags
 }

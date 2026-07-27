@@ -46,7 +46,7 @@ func TestProvidersMirror(t *testing.T) {
 		}
 
 		got := output.Stderr()
-		if !strings.Contains(got, "Error: Wrong number of arguments") {
+		if !strings.Contains(got, "The providers mirror command requires an output directory") {
 			t.Fatalf("missing directory error from output, got:\n%s\n", got)
 		}
 	})

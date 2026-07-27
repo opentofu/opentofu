@@ -19,46 +19,25 @@ type StatePull struct {
 }
 
 // BindStatePull registers CLI arguments, returning a StatePull value and it's corresponding hooks.
-func BindStatePull(flags Flags) (*StatePull, Hooks) {
+func BindStatePull(cli *CommandLine) *StatePull {
 	var ret StatePull
-	var hooks Hooks
 
 	// we only parse but do not register the views flags since this command does not need it because it already
 	// prints the state in json format
-	hooks = append(hooks, ret.ViewOptions.ParseHook())
+	ret.ViewOptions.ParseHook(cli)
 
 	ret.Vars = &Vars{}
-	ret.Vars.bind(flags)
+	ret.Vars.bind(cli)
 
-	return &ret, hooks
+	return &ret
 }
 
 // ParseStatePull processes CLI arguments, returning a StatePull value, a closer function, and errors.
 // If errors are encountered, a StatePull value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseStatePull(args []string) (*StatePull, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	flags := Flags{}
-	ret, hooks := BindStatePull(flags)
-
-	cmdFlags := defaultFlagSet("state pull", flags)
-
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error(),
-		))
-	}
-
-	if len(cmdFlags.Args()) > 0 {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Unexpected argument",
-			"Too many command line arguments. Did you mean to use -chdir?",
-		))
-	}
-
-	return ret, func() { hooks.Post() }, diags.Append(hooks.Pre())
+	cli := new(CommandLine)
+	ret := BindStatePull(cli)
+	closer, diags := cli.Stdlib("state pull", args)
+	return ret, closer, diags
 }

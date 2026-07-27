@@ -24,50 +24,28 @@ type ProvidersMirror struct {
 }
 
 // BindProvidersMirror registers CLI arguments, returning a ProvidersMirror value and it's corresponding hooks.
-func BindProvidersMirror(flags Flags) (*ProvidersMirror, Hooks) {
+func BindProvidersMirror(cli *CommandLine) *ProvidersMirror {
 	var arguments ProvidersMirror
-	var hooks Hooks
 
-	arguments.ViewOptions.bind(flags, false)
-	hooks = append(hooks, arguments.ViewOptions.ParseHook())
+	arguments.ViewOptions.bind(cli, false)
 
 	arguments.Vars = &Vars{}
-	arguments.Vars.bind(flags)
+	arguments.Vars.bind(cli)
 
-	flags.StringArrayVar(&arguments.OptPlatforms, "platform", nil, "target platform")
+	cli.StringArrayVar(&arguments.OptPlatforms, "platform", nil, "target platform")
 
-	return &arguments, hooks
+	cli.ArgHelp = "The providers mirror command requires an output directory as a command-line argument."
+	cli.PositionalArg(&arguments.Directory, "directory", false)
+
+	return &arguments
 }
 
 // ParseProvidersMirror processes CLI arguments, returning a ProvidersMirror value, a closer function, and errors.
 // If errors are encountered, a ProvidersMirror value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseProvidersMirror(args []string) (*ProvidersMirror, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	flags := Flags{}
-	arguments, hooks := BindProvidersMirror(flags)
-
-	cmdFlags := defaultFlagSet("providers mirror", flags)
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error(),
-		))
-	}
-
-	// TODO positional arguments
-	remainingArgs := cmdFlags.Args()
-	if len(remainingArgs) != 1 {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Wrong number of arguments",
-			"The providers mirror command requires an output directory as a command-line argument.",
-		))
-	} else {
-		arguments.Directory = remainingArgs[0]
-	}
-
-	return arguments, func() { hooks.Post() }, diags.Append(hooks.Pre())
+	cli := new(CommandLine)
+	arguments := BindProvidersMirror(cli)
+	closer, diags := cli.Stdlib("providers mirror", args)
+	return arguments, closer, diags
 }

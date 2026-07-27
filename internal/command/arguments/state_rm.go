@@ -27,59 +27,46 @@ type StateRm struct {
 }
 
 // BindStateRm registers CLI arguments, returning a StateRm value and it's corresponding hooks.
-func BindStateRm(flags Flags) (*StateRm, Hooks) {
+func BindStateRm(cli *CommandLine) *StateRm {
 	var ret StateRm
-	var hooks Hooks
 
-	ret.ViewOptions.bind(flags, false)
-	hooks = append(hooks, ret.ViewOptions.ParseHook())
+	ret.ViewOptions.bind(cli, false)
 
 	ret.Vars = &Vars{}
-	ret.Vars.bind(flags)
+	ret.Vars.bind(cli)
 
 	ret.Backend = &Backend{}
-	ret.Backend.bindIgnoreRemoteVersionFlag(flags)
+	ret.Backend.bindIgnoreRemoteVersionFlag(cli)
 
 	ret.State = &State{}
 	// StateFlagBackup omitted here to be added later with a different default value
-	ret.State.bind(flags, stateFlagLock|stateFlagStateIn)
-	ret.State.bindBackupFlag(flags, "-")
+	ret.State.bind(cli, stateFlagLock|stateFlagStateIn)
+	ret.State.bindBackupFlag(cli, "-")
 
-	flags.BoolVar(&ret.DryRun, "dry-run", false, "If set, prints out what would've been removed but doesn't actually remove anything.")
+	cli.BoolVar(&ret.DryRun, "dry-run", false, "If set, prints out what would've been removed but doesn't actually remove anything.")
 
-	return &ret, hooks
+	cli.VariadicArg(&ret.TargetAddrs, "target addresses")
+
+	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
+		if len(ret.TargetAddrs) == 0 {
+			return tfdiags.New(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Invalid number of arguments",
+				"At least one address is required",
+			))
+		}
+		return nil
+	}})
+
+	return &ret
 }
 
 // ParseStateRm processes CLI arguments, returning a StateRm value, a closer function, and errors.
 // If errors are encountered, a StateRm value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseStateRm(args []string) (*StateRm, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	flags := Flags{}
-	ret, hooks := BindStateRm(flags)
-
-	cmdFlags := defaultFlagSet("state rm", flags)
-
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error(),
-		))
-	}
-
-	// TODO positional arguments
-	args = cmdFlags.Args()
-	if len(args) == 0 {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Invalid number of arguments",
-			"At least one address is required",
-		))
-	} else {
-		ret.TargetAddrs = args
-	}
-
-	return ret, func() { hooks.Post() }, diags.Append(hooks.Pre())
+	cli := new(CommandLine)
+	ret := BindStateRm(cli)
+	closer, diags := cli.Stdlib("state rm", args)
+	return ret, closer, diags
 }

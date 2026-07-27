@@ -65,38 +65,38 @@ type State struct {
 }
 
 // bind is the sole logic of registering the state related flags in OpenTofu.
-func (s *State) bind(flags Flags, mask stateFlag) {
+func (s *State) bind(cli *CommandLine, mask stateFlag) {
 	if mask&stateFlagLock != 0 {
-		flags.BoolVar(&s.Lock, "lock", true,
+		cli.BoolVar(&s.Lock, "lock", true,
 			`Don't hold a state lock during the operation. This is dangerous if others might concurrently run commands against the same workspace.`,
 		).SetDisplay("=false")
-		flags.DurationVar(&s.LockTimeout, "lock-timeout", 0,
+		cli.DurationVar(&s.LockTimeout, "lock-timeout", 0,
 			`Duration to retry a state lock, such as "5s" to represent five seconds.`,
 		).SetDisplay("=duration")
 	}
 	if mask&stateFlagStateIn != 0 {
-		s.bindStateInFlag(flags, "")
+		s.bindStateInFlag(cli, "")
 	}
 	if mask&stateFlagStateOut != 0 {
-		flags.StringVar(&s.StateOutPath, "state-out", "",
+		cli.StringVar(&s.StateOutPath, "state-out", "",
 			`Path to write state to that is different than "-state". This can be used to preserve the old state.`,
 		).SetHidden(true)
 	}
 	if mask&stateFlagBackup != 0 {
-		s.bindBackupFlag(flags, "")
+		s.bindBackupFlag(cli, "")
 	}
 }
 
 // bindtateInFlag exists strictly because the default value can get a different value in some commands.
-func (s *State) bindStateInFlag(flags Flags, defVal string) {
-	flags.StringVar(&s.StatePath, "state", defVal,
+func (s *State) bindStateInFlag(cli *CommandLine, defVal string) {
+	cli.StringVar(&s.StatePath, "state", defVal,
 		`A legacy option used for the local backend only. Refer to the local backend's documentation for more information.`,
 	).SetDisplay("=statefile")
 }
 
 // bindBackupFlag exists strictly because the default value can get a different value in some commands.
-func (s *State) bindBackupFlag(flags Flags, defVal string) {
-	flags.StringVar(&s.BackupPath, "backup", defVal,
+func (s *State) bindBackupFlag(cli *CommandLine, defVal string) {
+	cli.StringVar(&s.BackupPath, "backup", defVal,
 		`Path to backup the existing state file before modifying. Defaults to the "-state-out" path with ".backup" extension. Set to "-" to disable backup.`,
 	).SetHidden(true)
 }
@@ -356,44 +356,46 @@ func (v *Vars) Empty() bool {
 }
 
 // bind registers all Operation flags
-func (operation *Operation) bind(flags Flags) {
-	flags.IntVar(&operation.Parallelism, "parallelism", DefaultParallelism,
+func (operation *Operation) bind(cli *CommandLine) {
+	cli.IntVar(&operation.Parallelism, "parallelism", DefaultParallelism,
 		`Limit the number of parallel resource operations. Defaults to 10.`,
 	).SetDisplay("=n")
-	flags.BoolVar(&operation.Refresh, "refresh", true,
+	cli.BoolVar(&operation.Refresh, "refresh", true,
 		`Skip checking for external changes to remote objects while creating the plan. This can potentially make planning faster, but at the expense of possibly planning against a stale record of the remote system state.`,
 	).SetDisplay("=false")
-	flags.BoolVar(&operation.destroyRaw, "destroy", false,
+	cli.BoolVar(&operation.destroyRaw, "destroy", false,
 		`Select the "destroy" planning mode, which creates a plan to destroy all objects currently managed by this OpenTofu configuration instead of the usual behavior.`)
-	flags.BoolVar(&operation.refreshOnlyRaw, "refresh-only", false,
+	cli.BoolVar(&operation.refreshOnlyRaw, "refresh-only", false,
 		`Select the "refresh only" planning mode, which checks whether remote objects still match the outcome of the most recent OpenTofu apply but does not propose any actions to undo any changes made outside of OpenTofu.`)
-	flags.StringArrayVar(&operation.targetsRaw, "target", nil,
+	cli.StringArrayVar(&operation.targetsRaw, "target", nil,
 		`Limit the planning operation to only the given module, resource, or resource instance and all of its dependencies. You can use this option multiple times to include more than one object. This is for exceptional use only. Cannot be used alongside the -exclude option.`,
 	).SetDisplay("=resource")
-	flags.StringArrayVar(&operation.targetsFilesRaw, "target-file", nil,
+	cli.StringArrayVar(&operation.targetsFilesRaw, "target-file", nil,
 		`Similar to -target, but specifies zero or more resource addresses from a file.`,
 	).SetDisplay("=filename")
-	flags.StringArrayVar(&operation.excludesRaw, "exclude", nil,
+	cli.StringArrayVar(&operation.excludesRaw, "exclude", nil,
 		`Limit the planning operation to not operate on the given module, resource, or resource instance and all of the resources and modules that depend on it. You can use this option multiple times to exclude more than one object. This is for exceptional use only. Cannot be used together with the -target option.`,
 	).SetDisplay("=resource")
-	flags.StringArrayVar(&operation.excludesFilesRaw, "exclude-file", nil,
+	cli.StringArrayVar(&operation.excludesFilesRaw, "exclude-file", nil,
 		`Similar to -exclude, but specifies zero or more resource addresses from a file.`,
 	).SetDisplay("=filename")
-	flags.StringArrayVar(&operation.forceReplaceRaw, "replace", nil,
+	cli.StringArrayVar(&operation.forceReplaceRaw, "replace", nil,
 		`Force replacement of a particular resource instance using its resource address. If the plan would've otherwise produced an update or no-op action for this instance, OpenTofu will plan to replace it instead. You can use this option multiple times to replace more than one object.`,
 	).SetDisplay("=resource")
+
+	cli.Hook(Hook{Pre: operation.Parse})
 }
 
 // bind registers all Vars flags
-func (vars *Vars) bind(f Flags) {
+func (vars *Vars) bind(cli *CommandLine) {
 	varsFlags := flags.NewRawFlags("-var")
 	varFilesFlags := varsFlags.Alias("-var-file")
 	vars.vars = &varsFlags
 	vars.varFiles = &varFilesFlags
-	f.RawFlags(varsFlags, "var",
+	cli.RawFlags(varsFlags, "var",
 		`Set a value for one of the input variables in the root module of the configuration. Use this option more than once to set more than one variable.`,
 	).SetDisplay(" 'foo=bar'")
-	f.RawFlags(varFilesFlags, "var-file",
+	cli.RawFlags(varFilesFlags, "var-file",
 		`Load variable values from the given file, in addition to the default files terraform.tfvars and *.auto.tfvars. Use this option more than once to include more than one variables file.`,
 	).SetDisplay("=filename")
 }

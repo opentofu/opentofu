@@ -19,17 +19,15 @@ type ProvidersSchema struct {
 }
 
 // BindProvidersSchema registers CLI arguments, returning a ProvidersSchema value and it's corresponding hooks.
-func BindProvidersSchema(flags Flags) (*ProvidersSchema, Hooks) {
+func BindProvidersSchema(cli *CommandLine) *ProvidersSchema {
 	var schema ProvidersSchema
-	var hooks Hooks
 
-	schema.ViewOptions.bindGranularFlags(flags, false, false)
-	hooks = append(hooks, schema.ViewOptions.ParseHook())
+	schema.ViewOptions.bindGranularFlags(cli, false, false)
 
 	schema.Vars = &Vars{}
-	schema.Vars.bind(flags)
+	schema.Vars.bind(cli)
 
-	hooks = append(hooks, Hook{Pre: func() tfdiags.Diagnostics {
+	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
 		if schema.ViewOptions.ViewType != ViewJSON {
 			return tfdiags.New(tfdiags.Sourceless(
 				tfdiags.Error,
@@ -46,36 +44,15 @@ func BindProvidersSchema(flags Flags) (*ProvidersSchema, Hooks) {
 		return nil
 	}})
 
-	return &schema, hooks
+	return &schema
 }
 
 // ParseProvidersSchema processes CLI arguments, returning a ProvidersSchema value, a closer function, and errors.
 // If errors are encountered, a ProvidersSchema value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseProvidersSchema(args []string) (*ProvidersSchema, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	flags := Flags{}
-	schema, hooks := BindProvidersSchema(flags)
-
-	cmdFlags := defaultFlagSet("providers schema", flags)
-
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error(),
-		))
-	}
-
-	args = cmdFlags.Args()
-	if len(args) > 0 {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Too many command line arguments",
-			"Expected at most zero positional arguments.",
-		))
-	}
-
-	return schema, func() { hooks.Post() }, diags.Append(hooks.Pre())
+	cli := new(CommandLine)
+	schema := BindProvidersSchema(cli)
+	closer, diags := cli.Stdlib("providers schema", args)
+	return schema, closer, diags
 }

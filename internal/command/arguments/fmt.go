@@ -40,51 +40,39 @@ type Fmt struct {
 }
 
 // BindFmt registers CLI arguments, returning a Fmt value and it's corresponding hooks.
-func BindFmt(flags Flags) (*Fmt, Hooks) {
+func BindFmt(cli *CommandLine) *Fmt {
 	var ret Fmt
-	var hooks Hooks
 
 	// we only parse but do not register the views flags since this command does not need it
-	hooks = append(hooks, ret.ViewOptions.ParseHook())
+	ret.ViewOptions.ParseHook(cli)
 
-	flags.BoolVar(&ret.List, "list", true, "Don't list files whose formatting differs (always disabled if using STDIN)").SetDisplay("=false")
-	flags.BoolVar(&ret.Write, "write", true, "Don't write to source files (always disabled if using STDIN or -check)").SetDisplay("=false")
-	flags.BoolVar(&ret.Diff, "diff", false, "Display diffs of formatting changes")
-	flags.BoolVar(&ret.Check, "check", false, "Check if the input is formatted. Exit status will be 0 if all input is properly formatted and non-zero otherwise.")
-	flags.BoolVar(&ret.Recursive, "recursive", false, "Also process files in subdirectories. By default, only the given directory (or current directory) is processed.")
+	cli.BoolVar(&ret.List, "list", true, "Don't list files whose formatting differs (always disabled if using STDIN)").SetDisplay("=false")
+	cli.BoolVar(&ret.Write, "write", true, "Don't write to source files (always disabled if using STDIN or -check)").SetDisplay("=false")
+	cli.BoolVar(&ret.Diff, "diff", false, "Display diffs of formatting changes")
+	cli.BoolVar(&ret.Check, "check", false, "Check if the input is formatted. Exit status will be 0 if all input is properly formatted and non-zero otherwise.")
+	cli.BoolVar(&ret.Recursive, "recursive", false, "Also process files in subdirectories. By default, only the given directory (or current directory) is processed.")
 
-	return &ret, hooks
+	cli.VariadicArg(&ret.Paths, "paths")
+	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
+		if len(ret.Paths) == 0 {
+			ret.Paths = []string{"."}
+		} else if ret.Paths[0] == stdinArg {
+			ret.Paths = nil
+			ret.List = false
+			ret.Write = false
+		}
+		return nil
+	}})
+
+	return &ret
 }
 
 // ParseFmt processes CLI arguments, returning a Fmt value, a closer function, and errors.
 // If errors are encountered, a Fmt value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseFmt(args []string) (*Fmt, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	flags := Flags{}
-	ret, hooks := BindFmt(flags)
-
-	cmdFlags := defaultFlagSet("fmt", flags)
-
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error(),
-		))
-	}
-
-	// TODO positional args
-	args = cmdFlags.Args()
-	if len(args) == 0 {
-		ret.Paths = []string{"."}
-	} else if args[0] == stdinArg {
-		ret.List = false
-		ret.Write = false
-	} else {
-		ret.Paths = args
-	}
-
-	return ret, func() { hooks.Post() }, diags.Append(hooks.Pre())
+	cli := new(CommandLine)
+	ret := BindFmt(cli)
+	closer, diags := cli.Stdlib("fmt", args)
+	return ret, closer, diags
 }

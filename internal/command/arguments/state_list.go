@@ -26,45 +26,30 @@ type StateList struct {
 }
 
 // BindStateList registers CLI arguments, returning a StateList value and it's corresponding hooks.
-func BindStateList(flags Flags) (*StateList, Hooks) {
+func BindStateList(cli *CommandLine) *StateList {
 	var ret StateList
-	var hooks Hooks
 
-	ret.ViewOptions.bind(flags, false)
-	hooks = append(hooks, ret.ViewOptions.ParseHook())
+	ret.ViewOptions.bind(cli, false)
 
 	ret.Vars = &Vars{}
-	ret.Vars.bind(flags)
+	ret.Vars.bind(cli)
 
 	ret.State = &State{}
-	ret.State.bind(flags, stateFlagStateIn)
+	ret.State.bind(cli, stateFlagStateIn)
 
-	flags.StringVar(&ret.LookupId, "id", "", `Filters the results to include only instances whose resource types have an attribute named "id" whose value equals the given id string.`)
+	cli.StringVar(&ret.LookupId, "id", "", `Filters the results to include only instances whose resource types have an attribute named "id" whose value equals the given id string.`)
 
-	return &ret, hooks
+	cli.VariadicArg(&ret.InstancesRawAddr, "instances")
+
+	return &ret
 }
 
 // ParseStateList processes CLI arguments, returning a StateList value, a closer function, and errors.
 // If errors are encountered, a StateList value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseStateList(args []string) (*StateList, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	flags := Flags{}
-	ret, hooks := BindStateList(flags)
-
-	cmdFlags := defaultFlagSet("state list", flags)
-
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error(),
-		))
-	}
-
-	// TODO positional arguments
-	ret.InstancesRawAddr = cmdFlags.Args()
-
-	return ret, func() { hooks.Post() }, diags.Append(hooks.Pre())
+	cli := new(CommandLine)
+	ret := BindStateList(cli)
+	closer, diags := cli.Stdlib("state list", args)
+	return ret, closer, diags
 }

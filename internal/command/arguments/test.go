@@ -34,37 +34,24 @@ type Test struct {
 }
 
 // BindTest registers CLI arguments, returning a Test value and it's corresponding hooks.
-func BindTest(flags Flags) (*Test, Hooks) {
+func BindTest(cli *CommandLine) *Test {
 	var test Test
-	var hooks Hooks
 
-	test.ViewOptions.bind(flags, false)
-	hooks = append(hooks, test.ViewOptions.ParseHook())
+	test.ViewOptions.bind(cli, false)
 
 	test.Vars = &Vars{}
-	test.Vars.bind(flags)
+	test.Vars.bind(cli)
 
-	flags.StringArrayVar(&test.Filter, "filter", nil, "If specified, OpenTofu will only execute the test files specified by this flag. You can use this option multiple times to execute more than one test file. The path should be relative to the current working directory, even if -test-directory is set.").SetDisplay("=testfile")
-	flags.StringVar(&test.TestDirectory, "test-directory", "tests", `Set the OpenTofu test directory, defaults to "tests". When set, the test command will search for test files in the current directory and in the one specified by the flag.`).SetDisplay("=path")
-	flags.BoolVar(&test.Verbose, "verbose", false, "Print the plan or state for each test run block as it executes.")
+	cli.StringArrayVar(&test.Filter, "filter", nil, "If specified, OpenTofu will only execute the test files specified by this flag. You can use this option multiple times to execute more than one test file. The path should be relative to the current working directory, even if -test-directory is set.").SetDisplay("=testfile")
+	cli.StringVar(&test.TestDirectory, "test-directory", "tests", `Set the OpenTofu test directory, defaults to "tests". When set, the test command will search for test files in the current directory and in the one specified by the flag.`).SetDisplay("=path")
+	cli.BoolVar(&test.Verbose, "verbose", false, "Print the plan or state for each test run block as it executes.")
 
-	return &test, hooks
+	return &test
 }
 
 func ParseTest(args []string) (*Test, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	flags := Flags{}
-	test, hooks := BindTest(flags)
-
-	cmdFlags := defaultFlagSet("test", flags)
-
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error()))
-	}
-
-	return test, func() { hooks.Post() }, diags.Append(hooks.Pre())
+	cli := new(CommandLine)
+	test := BindTest(cli)
+	closer, diags := cli.Stdlib("test", args)
+	return test, closer, diags
 }
