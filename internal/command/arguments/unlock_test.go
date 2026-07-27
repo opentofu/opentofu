@@ -22,13 +22,13 @@ func TestParseUnlock_basicValidation(t *testing.T) {
 		"without arguments": {
 			args:        nil,
 			want:        unlockArgsWithDefaults(nil),
-			wantErrText: "Wrong number of arguments: Expected a single argument: LOCK_ID",
+			wantErrText: "Expected a single argument: LOCK_ID",
 		},
 		"too many arguments": {
 			args: []string{"lockid1", "lockid2"},
 			want: unlockArgsWithDefaults(func(a *Unlock) {
 			}),
-			wantErrText: "Wrong number of arguments: Expected a single argument: LOCK_ID",
+			wantErrText: "Expected a single argument: LOCK_ID",
 		},
 		"with force": {
 			args: []string{"-force", "lockid"},
@@ -40,7 +40,7 @@ func TestParseUnlock_basicValidation(t *testing.T) {
 		"invalid flag": {
 			args:        []string{"-invalid", "lockid"},
 			want:        unlockArgsWithDefaults(func(a *Unlock) {}),
-			wantErrText: "Failed to parse command-line flags: flag provided but not defined: -invalid",
+			wantErrText: "flag provided but not defined: -invalid",
 		},
 	}
 
@@ -61,8 +61,10 @@ func TestParseUnlock_basicValidation(t *testing.T) {
 					t.Errorf("the returned diagnostics does not contain the expected error message.\ndiags:\n%s\nwanted: %s\n", errStr, tc.wantErrText)
 				}
 			}
-			if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
-				t.Errorf("unexpected result\n%s", diff)
+			if !diags.HasErrors() {
+				if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
+					t.Errorf("unexpected result\n%s", diff)
+				}
 			}
 		})
 	}

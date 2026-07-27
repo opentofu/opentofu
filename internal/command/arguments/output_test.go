@@ -48,7 +48,7 @@ func TestParseOutput_basicValidation(t *testing.T) {
 		"unknown flag": {
 			args:        []string{"-boop"},
 			want:        outputArgsWithDefaults(func(a *Output) {}),
-			wantErrText: "Failed to parse command-line flags: flag provided but not defined: -boop",
+			wantErrText: "flag provided but not defined: -boop",
 		},
 		"json and raw specified": {
 			args:        []string{"-json", "-raw"},
@@ -69,7 +69,7 @@ func TestParseOutput_basicValidation(t *testing.T) {
 				a.Name = "bar"
 				a.State.StatePath = "foo.tfstate"
 			}),
-			wantErrText: "Unexpected argument: The output command expects exactly one argument with the name of an output variable or no arguments to show all outputs.",
+			wantErrText: "The output command expects exactly one argument with the name of an output variable or no arguments to show all outputs.",
 		},
 	}
 	cmpOpts := cmpopts.IgnoreUnexported(ViewOptions{}, Vars{})

@@ -27,7 +27,7 @@ func BindLogout(cli *CommandLine) *Logout {
 	arguments.ViewOptions.bind(cli, false)
 
 	cli.ArgHelp = "The logout command expects exactly one argument: the host to log out of."
-	cli.PositionalArg(&arguments.Host, "host", false)
+	cli.PositionalArg(&arguments.Host, "hostname", false)
 
 	return &arguments
 }

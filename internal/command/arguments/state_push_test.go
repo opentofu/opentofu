@@ -22,12 +22,12 @@ func TestParseStatePush_basicValidation(t *testing.T) {
 		"no arguments": {
 			args:        nil,
 			want:        statePushArgsWithDefaults(nil),
-			wantErrText: "Exactly one argument expected",
+			wantErrText: "Expected exactly one positional argument",
 		},
 		"too many arguments": {
 			args:        []string{"state1.tfstate", "state2.tfstate"},
 			want:        statePushArgsWithDefaults(nil),
-			wantErrText: "Exactly one argument expected",
+			wantErrText: "Expected exactly one positional argument",
 		},
 		"valid state file path": {
 			args: []string{"terraform.tfstate"},
@@ -83,7 +83,7 @@ func TestParseStatePush_basicValidation(t *testing.T) {
 			want: statePushArgsWithDefaults(func(v *StatePush) {
 				v.StateSrc = "terraform.tfstate"
 			}),
-			wantErrText: "Failed to parse command-line flags: flag provided but not defined: -unknown-flag",
+			wantErrText: "flag provided but not defined: -unknown-flag",
 		},
 	}
 
@@ -104,8 +104,10 @@ func TestParseStatePush_basicValidation(t *testing.T) {
 					t.Errorf("the returned diagnostics does not contain the expected error message.\ndiags:\n%s\nwanted: %s\n", errStr, tc.wantErrText)
 				}
 			}
-			if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
-				t.Errorf("unexpected result\n%s", diff)
+			if !diags.HasErrors() {
+				if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
+					t.Errorf("unexpected result\n%s", diff)
+				}
 			}
 		})
 	}

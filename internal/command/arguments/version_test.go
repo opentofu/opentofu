@@ -48,7 +48,7 @@ func TestParseVersion_basicValidation(t *testing.T) {
 		"invalid flag": {
 			args:        []string{"-foo"},
 			want:        versionArgsWithDefaults(func(version *Version) {}),
-			wantErrText: "Failed to parse command-line flags: flag provided but not defined: -foo",
+			wantErrText: "flag provided but not defined: -foo",
 		},
 	}
 

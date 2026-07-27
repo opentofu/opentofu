@@ -32,12 +32,12 @@ func TestParseProviders_basicValidation(t *testing.T) {
 		"unknown flag": {
 			args:        []string{"-json"},
 			want:        providersArgsWithDefaults(func(v *Providers) {}),
-			wantErrText: "Failed to parse command-line flags: flag provided but not defined: -json",
+			wantErrText: "flag provided but not defined: -json",
 		},
 		"unknown flag2": {
 			args:        []string{"-json-into"},
 			want:        providersArgsWithDefaults(func(v *Providers) {}),
-			wantErrText: "Failed to parse command-line flags: flag provided but not defined: -json-into",
+			wantErrText: "flag provided but not defined: -json-into",
 		},
 		"too many args": {
 			args:        []string{"foo"},

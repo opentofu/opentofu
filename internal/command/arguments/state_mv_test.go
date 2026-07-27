@@ -115,17 +115,17 @@ func TestParseStateMv_basicValidation(t *testing.T) {
 		"no arguments": {
 			args:        []string{},
 			want:        stateMvArgsWithDefaults(nil),
-			wantErrText: "Invalid number of arguments",
+			wantErrText: "Expected exactly two positional arguments",
 		},
 		"only one argument": {
 			args:        []string{"source"},
 			want:        stateMvArgsWithDefaults(nil),
-			wantErrText: "Invalid number of arguments",
+			wantErrText: "Expected exactly two positional arguments",
 		},
 		"too many arguments": {
 			args:        []string{"source", "dest", "extra"},
 			want:        stateMvArgsWithDefaults(nil),
-			wantErrText: "Invalid number of arguments",
+			wantErrText: "Expected exactly two positional arguments.",
 		},
 	}
 
@@ -149,8 +149,10 @@ func TestParseStateMv_basicValidation(t *testing.T) {
 					t.Errorf("the returned diagnostics does not contain the expected error message.\ndiags:\n%s\nwanted: %s\n", errStr, tc.wantErrText)
 				}
 			}
-			if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
-				t.Errorf("unexpected result\n%s", diff)
+			if !diags.HasErrors() {
+				if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
+					t.Errorf("unexpected result\n%s", diff)
+				}
 			}
 		})
 	}

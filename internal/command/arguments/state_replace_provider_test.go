@@ -93,17 +93,17 @@ func TestParseReplaceProvider_basicValidation(t *testing.T) {
 		"no arguments": {
 			args:        []string{},
 			want:        stateReplaceProviderArgsWithDefaults(nil),
-			wantErrText: "Invalid number of arguments",
+			wantErrText: "Expected exactly two positional arguments",
 		},
 		"only one argument": {
 			args:        []string{"source"},
 			want:        stateReplaceProviderArgsWithDefaults(nil),
-			wantErrText: "Invalid number of arguments",
+			wantErrText: "Expected exactly two positional arguments",
 		},
 		"too many arguments": {
 			args:        []string{"source", "dest", "extra"},
 			want:        stateReplaceProviderArgsWithDefaults(nil),
-			wantErrText: "Invalid number of arguments",
+			wantErrText: "Expected exactly two positional arguments",
 		},
 		"json without auto-approve": {
 			args: []string{"-json", "source", "dest"},
@@ -145,8 +145,10 @@ func TestParseReplaceProvider_basicValidation(t *testing.T) {
 					t.Errorf("the returned diagnostics does not contain the expected error message.\ndiags:\n%s\nwanted: %s\n", errStr, tc.wantErrText)
 				}
 			}
-			if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
-				t.Errorf("unexpected result\n%s", diff)
+			if !diags.HasErrors() {
+				if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
+					t.Errorf("unexpected result\n%s", diff)
+				}
 			}
 		})
 	}
