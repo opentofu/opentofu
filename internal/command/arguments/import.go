@@ -52,8 +52,9 @@ func BindImport(cli *CommandLine, wd *workdir.Dir) *Import {
 	cli.IntVar(&ret.Parallelism, "parallelism", DefaultParallelism, "parallelism")
 	cli.StringVar(&ret.ConfigPath, "config", pwd, "path")
 
-	cli.PositionalArg(&ret.ResourceAddress, "resource address", false)
-	cli.PositionalArg(&ret.ResourceID, "resource id", false)
+	cli.ArgHelp = "The import command expects two arguments"
+	cli.PositionalArg(&ret.ResourceAddress, "ADDR", false)
+	cli.PositionalArg(&ret.ResourceID, "ID", false)
 
 	return &ret
 }

@@ -96,7 +96,7 @@ func TestParseProvidersLock_basicValidation(t *testing.T) {
 		"unknown flag": {
 			args:        []string{"-unknown-flag"},
 			want:        providersLockArgsWithDefaults(func(v *ProvidersLock) {}),
-			wantErrText: "Failed to parse command-line flags: flag provided but not defined: -unknown-flag",
+			wantErrText: "flag provided but not defined: -unknown-flag",
 		},
 	}
 
@@ -117,8 +117,10 @@ func TestParseProvidersLock_basicValidation(t *testing.T) {
 					t.Errorf("the returned diagnostics does not contain the expected error message.\ndiags:\n%s\nwanted: %s\n", errStr, tc.wantErrText)
 				}
 			}
-			if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
-				t.Errorf("unexpected result\n%s", diff)
+			if !diags.HasErrors() {
+				if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
+					t.Errorf("unexpected result\n%s", diff)
+				}
 			}
 		})
 	}

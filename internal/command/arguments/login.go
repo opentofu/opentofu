@@ -37,7 +37,7 @@ func BindLogin(cli *CommandLine) *Login {
 	arguments.State = &State{Lock: true}
 
 	cli.ArgHelp = "The login command expects exactly one argument: the host to log in to."
-	cli.PositionalArg(&arguments.Host, "host", false)
+	cli.PositionalArg(&arguments.Host, "hostname", false)
 
 	return &arguments
 }

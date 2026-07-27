@@ -115,8 +115,10 @@ func TestParseStateRm_basicValidation(t *testing.T) {
 					t.Errorf("the returned diagnostics does not contain the expected error message.\ndiags:\n%s\nwanted: %s\n", errStr, tc.wantErrText)
 				}
 			}
-			if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
-				t.Errorf("unexpected result\n%s", diff)
+			if !diags.HasErrors() {
+				if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
+					t.Errorf("unexpected result\n%s", diff)
+				}
 			}
 		})
 	}

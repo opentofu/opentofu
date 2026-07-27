@@ -26,7 +26,7 @@ type Get struct {
 func BindGet(cli *CommandLine) *Get {
 	var arguments Get
 
-	arguments.ViewOptions.bind(cli, true)
+	arguments.ViewOptions.bind(cli, false)
 
 	arguments.Vars = &Vars{}
 	arguments.Vars.bind(cli)

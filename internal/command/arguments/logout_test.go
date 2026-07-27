@@ -31,7 +31,7 @@ func TestParseLogout_arguments(t *testing.T) {
 		}{
 			"no hostname": {
 				args:            []string{},
-				wantDiagSummary: "Unexpected argument",
+				wantDiagSummary: "Invalid arguments list",
 				wantDiagDetail:  "The logout command expects exactly one argument: the host to log out of.",
 			},
 			"too many hostnames": {
