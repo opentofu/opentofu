@@ -280,9 +280,9 @@ block for a managed resource:
   - If the reference is to a single attribute of a resource instance, any
     change to the attribute value will trigger replacement.
 
-  You can only refer to managed resources in `replace_triggered_by`
-  expressions. This lets you modify these expressions without forcing
-  replacement.
+  You can only refer to managed resources, their instances, and their
+  instance attributes in `replace_triggered_by` expressions. This lets you
+  modify these expressions without forcing replacement.
 
   ```hcl
   resource "aws_appautoscaling_target" "ecs_target" {
