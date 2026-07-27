@@ -27,51 +27,28 @@ type WorkspaceDelete struct {
 }
 
 // BindWorkspaceDelete registers CLI arguments, returning a WorkspaceDelete value and it's corresponding hooks.
-func BindWorkspaceDelete(flags Flags) (*WorkspaceDelete, Hooks) {
+func BindWorkspaceDelete(cli *CommandLine) *WorkspaceDelete {
 	var ret WorkspaceDelete
-	var hooks Hooks
 
-	ret.ViewOptions.bind(flags, false)
-	hooks = append(hooks, ret.ViewOptions.ParseHook())
+	ret.ViewOptions.bind(cli, false)
 
 	ret.Vars = &Vars{}
-	ret.Vars.bind(flags)
+	ret.Vars.bind(cli)
 
 	ret.State = &State{}
-	ret.State.bind(flags, stateFlagLock)
+	ret.State.bind(cli, stateFlagLock)
 
-	flags.BoolVar(&ret.Force, "force", false, "Remove a workspace even if it is managing resources. OpenTofu can no longer track or manage the workspace's infrastructure.")
+	cli.BoolVar(&ret.Force, "force", false, "Remove a workspace even if it is managing resources. OpenTofu can no longer track or manage the workspace's infrastructure.")
 
-	return &ret, hooks
+	cli.ArgHelp = "Expected a single argument: NAME."
+	cli.PositionalArg(&ret.WorkspaceName, "NAME", false)
+
+	return &ret
 }
 
 func ParseWorkspaceDelete(args []string) (*WorkspaceDelete, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	flags := Flags{}
-	ret, hooks := BindWorkspaceDelete(flags)
-
-	cmdFlags := defaultFlagSet("workspace delete", flags)
-
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error(),
-		))
-	}
-
-	// TODO positional arguments
-	args = cmdFlags.Args()
-	if len(args) != 1 {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Invalid arguments list",
-			"Expected a single argument: NAME.",
-		))
-	} else {
-		ret.WorkspaceName = args[0]
-	}
-
-	return ret, func() { hooks.Post() }, diags.Append(hooks.Pre())
+	cli := new(CommandLine)
+	ret := BindWorkspaceDelete(cli)
+	closer, diags := cli.Stdlib("workspace delete", args)
+	return ret, closer, diags
 }

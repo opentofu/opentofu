@@ -37,22 +37,22 @@ type ProvidersLock struct {
 }
 
 // BindProvidersLock registers CLI arguments, returning a ProvidersLock value and it's corresponding hooks.
-func BindProvidersLock(flags Flags) (*ProvidersLock, Hooks) {
+func BindProvidersLock(cli *CommandLine) *ProvidersLock {
 	var arguments ProvidersLock
-	var hooks Hooks
 
-	arguments.ViewOptions.bind(flags, false)
-	hooks = append(hooks, arguments.ViewOptions.ParseHook())
+	arguments.ViewOptions.bind(cli, false)
 
 	arguments.Vars = &Vars{}
-	arguments.Vars.bind(flags)
+	arguments.Vars.bind(cli)
 
-	flags.StringArrayVar(&arguments.OptPlatforms, "platform", nil, "target platform")
-	flags.StringVar(&arguments.FsMirrorDir, "fs-mirror", "", "filesystem mirror directory")
-	flags.StringVar(&arguments.NetMirrorURL, "net-mirror", "", "network mirror base URL")
-	flags.StringVar(&arguments.OciMirrorTemplate, "oci-mirror", "", "oci mirror URI template")
+	cli.StringArrayVar(&arguments.OptPlatforms, "platform", nil, "target platform")
+	cli.StringVar(&arguments.FsMirrorDir, "fs-mirror", "", "filesystem mirror directory")
+	cli.StringVar(&arguments.NetMirrorURL, "net-mirror", "", "network mirror base URL")
+	cli.StringVar(&arguments.OciMirrorTemplate, "oci-mirror", "", "oci mirror URI template")
 
-	hooks = append(hooks, Hook{Pre: func() tfdiags.Diagnostics {
+	cli.VariadicArg(&arguments.Providers, "providers")
+
+	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
 		var diags tfdiags.Diagnostics
 
 		mirrorSet := false
@@ -82,30 +82,15 @@ func BindProvidersLock(flags Flags) (*ProvidersLock, Hooks) {
 		return diags
 	}})
 
-	return &arguments, hooks
+	return &arguments
 }
 
 // ParseProvidersLock processes CLI arguments, returning a ProvidersLock value, a closer function, and errors.
 // If errors are encountered, a ProvidersLock value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseProvidersLock(args []string) (*ProvidersLock, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	flags := Flags{}
-	arguments, hooks := BindProvidersLock(flags)
-
-	cmdFlags := defaultFlagSet("providers lock", flags)
-
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error(),
-		))
-	}
-
-	// TODO positional arguments
-	arguments.Providers = cmdFlags.Args()
-
-	return arguments, func() { hooks.Post() }, diags.Append(hooks.Pre())
+	cli := new(CommandLine)
+	arguments := BindProvidersLock(cli)
+	closer, diags := cli.Stdlib("providers lock", args)
+	return arguments, closer, diags
 }

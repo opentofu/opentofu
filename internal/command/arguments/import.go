@@ -32,62 +32,38 @@ type Import struct {
 }
 
 // BindImport registers CLI arguments, returning a Import value and it's corresponding hooks.
-func BindImport(flags Flags, wd *workdir.Dir) (*Import, Hooks) {
-	var imp Import
-	var hooks Hooks
+func BindImport(cli *CommandLine, wd *workdir.Dir) *Import {
+	var ret Import
 
-	imp.ViewOptions.bind(flags, true)
-	hooks = append(hooks, imp.ViewOptions.ParseHook())
+	ret.ViewOptions.bind(cli, true)
 
-	imp.Vars = &Vars{}
-	imp.Vars.bind(flags)
+	ret.Vars = &Vars{}
+	ret.Vars.bind(cli)
 
-	imp.Backend = &Backend{}
-	imp.Backend.bindIgnoreRemoteVersionFlag(flags)
+	ret.Backend = &Backend{}
+	ret.Backend.bindIgnoreRemoteVersionFlag(cli)
 
-	imp.State = &State{}
-	imp.State.bind(flags, stateFlagAll)
+	ret.State = &State{}
+	ret.State.bind(cli, stateFlagAll)
 
 	// Get the pwd since its our default -config flag value
 	pwd := wd.NormalizePath(wd.RootModuleDir())
 
-	flags.IntVar(&imp.Parallelism, "parallelism", DefaultParallelism, "parallelism")
-	flags.StringVar(&imp.ConfigPath, "config", pwd, "path")
+	cli.IntVar(&ret.Parallelism, "parallelism", DefaultParallelism, "parallelism")
+	cli.StringVar(&ret.ConfigPath, "config", pwd, "path")
 
-	// TODO positional args
+	cli.PositionalArg(&ret.ResourceAddress, "resource address", false)
+	cli.PositionalArg(&ret.ResourceID, "resource id", false)
 
-	return &imp, hooks
+	return &ret
 }
 
 // ParseImport processes CLI arguments, returning an Import value, a closer function, and errors.
 // If errors are encountered, an Import value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseImport(args []string, wd *workdir.Dir) (*Import, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	flags := Flags{}
-	ret, hooks := BindImport(flags, wd)
-
-	cmdFlags := defaultFlagSet("import", flags)
-
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error(),
-		))
-	}
-
-	args = cmdFlags.Args()
-	if len(args) != 2 {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Invalid number of arguments",
-			"The import command expects two arguments",
-		))
-	} else {
-		ret.ResourceAddress = args[0]
-		ret.ResourceID = args[1]
-	}
-	return ret, func() { hooks.Post() }, diags.Append(hooks.Pre())
+	cli := new(CommandLine)
+	ret := BindImport(cli, wd)
+	closer, diags := cli.Stdlib("import", args)
+	return ret, closer, diags
 }

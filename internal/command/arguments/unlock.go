@@ -23,51 +23,28 @@ type Unlock struct {
 }
 
 // BindUnlock registers CLI arguments, returning a Unlock value and it's corresponding hooks.
-func BindUnlock(flags Flags) (*Unlock, Hooks) {
+func BindUnlock(cli *CommandLine) *Unlock {
 	var arguments Unlock
-	var hooks Hooks
 
-	arguments.ViewOptions.bind(flags, false)
-	hooks = append(hooks, arguments.ViewOptions.ParseHook())
+	arguments.ViewOptions.bind(cli, false)
 
 	arguments.Vars = &Vars{}
-	arguments.Vars.bind(flags)
+	arguments.Vars.bind(cli)
 
-	flags.BoolVar(&arguments.Force, "force", false, "Don't ask for input for unlock confirmation.")
+	cli.BoolVar(&arguments.Force, "force", false, "Don't ask for input for unlock confirmation.")
 
-	return &arguments, hooks
+	cli.ArgHelp = "Expected a single argument: LOCK_ID"
+	cli.PositionalArg(&arguments.LockID, "LOCK_ID", false)
+
+	return &arguments
 }
 
 // ParseUnlock processes CLI arguments, returning a Unlock value, a closer function, and errors.
 // If errors are encountered, a Unlock value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseUnlock(args []string) (*Unlock, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	flags := Flags{}
-	arguments, hooks := BindUnlock(flags)
-
-	cmdFlags := defaultFlagSet("force-unlock", flags)
-
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error(),
-		))
-	}
-
-	// TODO positional args
-	args = cmdFlags.Args()
-	if len(args) != 1 {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Wrong number of arguments",
-			"Expected a single argument: LOCK_ID",
-		))
-	} else {
-		arguments.LockID = args[0]
-	}
-
-	return arguments, func() { hooks.Post() }, diags.Append(hooks.Pre())
+	cli := new(CommandLine)
+	arguments := BindUnlock(cli)
+	closer, diags := cli.Stdlib("force-unlock", args)
+	return arguments, closer, diags
 }

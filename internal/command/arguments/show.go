@@ -64,139 +64,118 @@ const (
 )
 
 // BindShow registers CLI arguments, returning a Show value and it's corresponding hooks.
-func BindShow(flags Flags,
-	stateTarget *bool,
-	planTarget *string,
-	configTarget *bool,
-	moduleTarget *string,
-) (*Show, Hooks) {
+func BindShow(cli *CommandLine) *Show {
 	var show Show
-	var hooks Hooks
 
-	show.ViewOptions.bind(flags, false)
-	hooks = append(hooks, show.ViewOptions.ParseHook())
+	show.ViewOptions.bind(cli, false)
 
 	show.Vars = &Vars{}
-	show.Vars.bind(flags)
+	show.Vars.bind(cli)
 
-	flags.BoolVar(&show.ShowSensitive, "show-sensitive", false, "displays sensitive values")
-	flags.BoolVar(stateTarget, "state", false, "show the latest state snapshot")
-	flags.StringVar(planTarget, "plan", "", "show the plan from a saved plan file")
-	flags.BoolVar(configTarget, "config", false, "show the current configuration")
-	flags.StringVar(moduleTarget, "module", "", "show metadata about one module")
+	var stateTarget bool
+	var planTarget string
+	var configTarget bool
+	var moduleTarget string
+	var args []string
 
-	return &show, hooks
+	cli.BoolVar(&show.ShowSensitive, "show-sensitive", false, "displays sensitive values")
+	cli.BoolVar(&stateTarget, "state", false, "show the latest state snapshot")
+	cli.StringVar(&planTarget, "plan", "", "show the plan from a saved plan file")
+	cli.BoolVar(&configTarget, "config", false, "show the current configuration")
+	cli.StringVar(&moduleTarget, "module", "", "show metadata about one module")
+
+	cli.VariadicArg(&args, "arguments")
+	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
+		// If -config or -module=... is selected, -json is required
+		if configTarget && !show.ViewOptions.jsonFlag {
+			return tfdiags.New(tfdiags.Sourceless(
+				tfdiags.Error,
+				"JSON output required for configuration",
+				"The -config option requires -json to be specified.",
+			))
+		}
+		if moduleTarget != "" && !show.ViewOptions.jsonFlag {
+			return tfdiags.New(tfdiags.Sourceless(
+				tfdiags.Error,
+				"JSON output required for module",
+				"The -module=DIR option requires -json to be specified.",
+			))
+		}
+
+		if planTarget == "" && moduleTarget == "" && !stateTarget && !configTarget {
+			// If none of the target type options was provided then we're
+			// in the legacy mode where the target type is implied by
+			// the number of arguments.
+			switch len(args) {
+			case 0:
+				show.TargetType = ShowState
+				show.TargetArg = ""
+			case 1:
+				// This case is ambiguous: the argument could be either
+				// a saved plan file or a local state snapshot such as
+				// the output from "tofu state pull". The caller will need
+				// to probe TargetArg to decide which it is.
+				show.TargetType = ShowUnknownType
+				show.TargetArg = args[0]
+			default:
+				return tfdiags.New(tfdiags.Sourceless(
+					tfdiags.Error,
+					"Too many command line arguments",
+					"Expected at most one positional argument for the legacy positional argument mode.",
+				))
+			}
+			return nil
+		}
+
+		// The following handles the modern mode where the target type is
+		// chosen based on which target type option was used.
+		if len(args) != 0 {
+			return tfdiags.New(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Unexpected command line arguments",
+				"This command does not expect any positional arguments when using a target-selection option.",
+			))
+		}
+		targetTypes := 0
+		if stateTarget {
+			targetTypes++
+			show.TargetType = ShowState
+			show.TargetArg = ""
+		}
+		if planTarget != "" {
+			targetTypes++
+			show.TargetType = ShowPlan
+			show.TargetArg = planTarget
+		}
+		if configTarget {
+			targetTypes++
+			show.TargetType = ShowConfig
+			show.TargetArg = ""
+		}
+		if moduleTarget != "" {
+			targetTypes++
+			show.TargetType = ShowModule
+			show.TargetArg = moduleTarget
+		}
+		if targetTypes != 1 {
+			return tfdiags.New(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Conflicting object types to show",
+				"The -state, -plan=FILENAME, -config, and -module=DIR options are mutually-exclusive, to specify which kind of object to show.",
+			))
+		}
+		return nil
+	}})
+
+	return &show
 }
 
 // ParseShow processes CLI arguments, returning a Show value, a closer function, and errors.
 // If errors are encountered, a Show value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseShow(args []string) (*Show, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	var stateTarget bool
-	var planTarget string
-	var configTarget bool
-	var moduleTarget string
-
-	flags := Flags{}
-	show, hooks := BindShow(flags, &stateTarget, &planTarget, &configTarget, &moduleTarget)
-	cmdFlags := defaultFlagSet("show", flags)
-
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line options",
-			err.Error(),
-		))
-	}
-
-	diags = diags.Append(hooks.Pre())
-	closer := func() { hooks.Post() }
-
-	// TODO positional arguments
-
-	// If -config or -module=... is selected, -json is required
-	if configTarget && !show.ViewOptions.jsonFlag {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"JSON output required for configuration",
-			"The -config option requires -json to be specified.",
-		))
-		return show, closer, diags
-	}
-	if moduleTarget != "" && !show.ViewOptions.jsonFlag {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"JSON output required for module",
-			"The -module=DIR option requires -json to be specified.",
-		))
-		return show, closer, diags
-	}
-
-	if planTarget == "" && moduleTarget == "" && !stateTarget && !configTarget {
-		// If none of the target type options was provided then we're
-		// in the legacy mode where the target type is implied by
-		// the number of arguments.
-		args = cmdFlags.Args()
-		switch len(args) {
-		case 0:
-			show.TargetType = ShowState
-			show.TargetArg = ""
-		case 1:
-			// This case is ambiguous: the argument could be either
-			// a saved plan file or a local state snapshot such as
-			// the output from "tofu state pull". The caller will need
-			// to probe TargetArg to decide which it is.
-			show.TargetType = ShowUnknownType
-			show.TargetArg = args[0]
-		default:
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
-				"Too many command line arguments",
-				"Expected at most one positional argument for the legacy positional argument mode.",
-			))
-		}
-		return show, closer, diags
-	}
-
-	// The following handles the modern mode where the target type is
-	// chosen based on which target type option was used.
-	if len(cmdFlags.Args()) != 0 {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Unexpected command line arguments",
-			"This command does not expect any positional arguments when using a target-selection option.",
-		))
-		return show, closer, diags
-	}
-	targetTypes := 0
-	if stateTarget {
-		targetTypes++
-		show.TargetType = ShowState
-		show.TargetArg = ""
-	}
-	if planTarget != "" {
-		targetTypes++
-		show.TargetType = ShowPlan
-		show.TargetArg = planTarget
-	}
-	if configTarget {
-		targetTypes++
-		show.TargetType = ShowConfig
-		show.TargetArg = ""
-	}
-	if moduleTarget != "" {
-		targetTypes++
-		show.TargetType = ShowModule
-		show.TargetArg = moduleTarget
-	}
-	if targetTypes != 1 {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Conflicting object types to show",
-			"The -state, -plan=FILENAME, -config, and -module=DIR options are mutually-exclusive, to specify which kind of object to show.",
-		))
-	}
+	cli := new(CommandLine)
+	show := BindShow(cli)
+	closer, diags := cli.Stdlib("show", args)
 	return show, closer, diags
 }

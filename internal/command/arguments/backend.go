@@ -21,11 +21,11 @@ type Backend struct {
 	MigrateState bool
 }
 
-func (b *Backend) bindIgnoreRemoteVersionFlag(f Flags) {
+func (b *Backend) bindIgnoreRemoteVersionFlag(f *CommandLine) {
 	f.BoolVar(&b.IgnoreRemoteVersion, "ignore-remote-version", false, "A rare option used for the remote backend only. See the remote backend documentation for more information.")
 }
 
-func (b *Backend) bindMigrationFlags(f Flags) {
+func (b *Backend) bindMigrationFlags(f *CommandLine) {
 	f.BoolVar(&b.ForceInitCopy, "force-copy", false, "suppress prompts about copying state data")
 	f.BoolVar(&b.Reconfigure, "reconfigure", false, "reconfigure")
 	f.BoolVar(&b.MigrateState, "migrate-state", false, "migrate state")

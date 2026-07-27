@@ -20,21 +20,19 @@ type Console struct {
 }
 
 // BindConsole registers CLI arguments, returning a Console value and it's corresponding hooks.
-func BindConsole(flags Flags) (*Console, Hooks) {
+func BindConsole(cli *CommandLine) *Console {
 	var console Console
-	var hooks Hooks
 
 	console.Vars = &Vars{}
-	console.Vars.bind(flags)
+	console.Vars.bind(cli)
 
 	console.State = &State{}
-	console.State.bind(flags, stateFlagLock)
-	console.State.bindStateInFlag(flags, DefaultStateFilename)
+	console.State.bind(cli, stateFlagLock)
+	console.State.bindStateInFlag(cli, DefaultStateFilename)
 
-	console.ViewOptions.bind(flags, true)
+	console.ViewOptions.bind(cli, true)
 
-	hooks = append(hooks, console.ViewOptions.ParseHook())
-	hooks = append(hooks, Hook{Pre: func() tfdiags.Diagnostics {
+	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
 		// If the user provided the -json flag, we don't allow it since the UX is just poor in this case.
 		// We allow only the streaming of the evaluated values in a json file, by using the `-json-into` flag.
 		if console.ViewOptions.ViewType == ViewJSON {
@@ -49,37 +47,15 @@ func BindConsole(flags Flags) (*Console, Hooks) {
 		return nil
 	}})
 
-	return &console, hooks
+	return &console
 }
 
 // ParseConsole processes CLI arguments, returning a Console value, a closer function, and errors.
 // If errors are encountered, a Console value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseConsole(args []string) (*Console, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	flags := Flags{}
-	console, hooks := BindConsole(flags)
-
-	cmdFlags := defaultFlagSet("console", flags)
-
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error(),
-		))
-	}
-
-	args = cmdFlags.Args()
-	if len(args) > 0 {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Too many command line arguments",
-			"Expected at most one positional argument.",
-		))
-	}
-
-	diags = diags.Append(hooks.Pre())
-	return console, func() { hooks.Post() }, diags
+	cli := new(CommandLine)
+	console := BindConsole(cli)
+	closer, diags := cli.Stdlib("console", args)
+	return console, closer, diags
 }

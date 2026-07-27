@@ -16,14 +16,12 @@ type MetadataFunctions struct {
 }
 
 // BindMetadataFunctions registers CLI arguments, returning a MetadataFunctions value and it's corresponding hooks.
-func BindMetadataFunctions(flags Flags) (*MetadataFunctions, Hooks) {
+func BindMetadataFunctions(cli *CommandLine) *MetadataFunctions {
 	var arguments MetadataFunctions
-	var hooks Hooks
 
-	arguments.ViewOptions.bindGranularFlags(flags, false, false) // Add only the -json flag
-	hooks = append(hooks, arguments.ViewOptions.ParseHook())
+	arguments.ViewOptions.bindGranularFlags(cli, false, false) // Add only the -json flag
 
-	hooks = append(hooks, Hook{Pre: func() tfdiags.Diagnostics {
+	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
 		var diags tfdiags.Diagnostics
 
 		// The 'metadata functions' command just forces the user to use the `-json` flag but any of the diagnostics should
@@ -42,27 +40,15 @@ func BindMetadataFunctions(flags Flags) (*MetadataFunctions, Hooks) {
 		return diags
 	}})
 
-	return &arguments, hooks
+	return &arguments
 }
 
 // ParseMetadataFunctions processes CLI arguments, returning a MetadataFunctions value, a closer function, and errors.
 // If errors are encountered, a MetadataFunctions value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseMetadataFunctions(args []string) (*MetadataFunctions, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	flags := Flags{}
-	arguments, hooks := BindMetadataFunctions(flags)
-
-	cmdFlags := defaultFlagSet("metadata functions", flags)
-
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error(),
-		))
-	}
-
-	return arguments, func() { hooks.Post() }, diags.Append(hooks.Pre())
+	cli := new(CommandLine)
+	arguments := BindMetadataFunctions(cli)
+	closer, diags := cli.Stdlib("metadata functions", args)
+	return arguments, closer, diags
 }

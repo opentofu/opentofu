@@ -23,48 +23,26 @@ type Get struct {
 }
 
 // BindGet registers CLI arguments, returning a Get value and it's corresponding hooks.
-func BindGet(flags Flags) (*Get, Hooks) {
+func BindGet(cli *CommandLine) *Get {
 	var arguments Get
-	var hooks Hooks
 
-	arguments.ViewOptions.bind(flags, true)
-	hooks = append(hooks, arguments.ViewOptions.ParseHook())
+	arguments.ViewOptions.bind(cli, true)
 
 	arguments.Vars = &Vars{}
-	arguments.Vars.bind(flags)
+	arguments.Vars.bind(cli)
 
-	flags.BoolVar(&arguments.Update, "update", false, "Check already-downloaded modules for available updates and install the newest versions available.")
-	flags.StringVar(&arguments.TestsDirectory, "test-directory", "tests", `Set the OpenTofu test directory, defaults to "tests". When set, the test command will search for test files in the current directory and in the one specified by the flag.`).SetDisplay("=path")
+	cli.BoolVar(&arguments.Update, "update", false, "Check already-downloaded modules for available updates and install the newest versions available.")
+	cli.StringVar(&arguments.TestsDirectory, "test-directory", "tests", `Set the OpenTofu test directory, defaults to "tests". When set, the test command will search for test files in the current directory and in the one specified by the flag.`).SetDisplay("=path")
 
-	return &arguments, hooks
+	return &arguments
 }
 
 // ParseGet processes CLI arguments, returning a Get value, a closer function, and errors.
 // If errors are encountered, a Get value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseGet(args []string) (*Get, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	flags := Flags{}
-	arguments, hooks := BindGet(flags)
-
-	cmdFlags := defaultFlagSet("get", flags)
-
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error(),
-		))
-	}
-
-	if len(cmdFlags.Args()) > 0 {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Unexpected argument",
-			"Too many command line arguments. Did you mean to use -chdir?",
-		))
-	}
-
-	return arguments, func() { hooks.Post() }, diags.Append(hooks.Pre())
+	cli := new(CommandLine)
+	arguments := BindGet(cli)
+	closer, diags := cli.Stdlib("get", args)
+	return arguments, closer, diags
 }

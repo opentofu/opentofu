@@ -55,86 +55,61 @@ type Init struct {
 }
 
 // BindInit registers CLI arguments, returning a Init value and it's corresponding hooks.
-func BindInit(flags Flags) (*Init, Hooks) {
+func BindInit(cli *CommandLine) *Init {
 	var init Init
-	var hooks Hooks
 
-	init.ViewOptions.bind(flags, true)
-	hooks = append(hooks, init.ViewOptions.ParseHook())
+	init.ViewOptions.bind(cli, true)
 
 	init.Vars = &Vars{}
-	init.Vars.bind(flags)
+	init.Vars.bind(cli)
 
 	init.State = &State{}
-	init.State.bind(flags, stateFlagLock)
+	init.State.bind(cli, stateFlagLock)
 
 	init.Backend = &Backend{}
-	init.Backend.bindIgnoreRemoteVersionFlag(flags)
-	init.Backend.bindMigrationFlags(flags)
+	init.Backend.bindIgnoreRemoteVersionFlag(cli)
+	init.Backend.bindMigrationFlags(cli)
 
 	init.FlagConfigExtra = flagspkg.NewRawFlags("-backend-config")
 
-	flags.BoolVar(&init.FlagBackend, "backend", true, "Disable backend or cloud backend initialization for this configuration and use what was previously initialized instead.").SetDisplay("=false")
-	flags.BoolVar(&init.FlagCloud, "cloud", true, "") // TODO alias of -backend
-	flags.RawFlags(init.FlagConfigExtra, "backend-config", "Configuration to be merged with what is in the configuration file's 'backend' block. This can be either a path to an HCL file with key/value assignments (same format as terraform.tfvars) or a 'key=value' format, and can be specified multiple times. The backend type must be in the configuration itself.").SetDisplay("=path")
-	flags.StringVar(&init.FlagFromModule, "from-module", "", "Copy the contents of the given module into the target directory before initialization.").SetDisplay("=SOURCE")
-	flags.BoolVar(&init.FlagGet, "get", true, "Disable downloading modules for this configuration.").SetDisplay("=false")
-	flags.BoolVar(&init.FlagUpgrade, "upgrade", false, "Install the latest module and provider versions allowed within configured constraints, overriding the default behavior of selecting exactly the version recorded in the dependency lockfile.")
-	flags.StringArrayVar(&init.FlagPluginPath, "plugin-dir", nil, "Directory containing plugin binaries. This overrides all default search paths for plugins, and prevents the automatic installation of plugins. This flag can be used multiple times.")
-	flags.StringVar(&init.FlagLockfile, "lockfile", "", `Set a dependency lockfile mode. Currently only "readonly" is valid.`).SetDisplay("=MODE")
-	flags.StringVar(&init.TestsDirectory, "test-directory", "tests", `Set the OpenTofu test directory, defaults to "tests". When set, the test command will search for test files in the current directory and in the one specified by the flag.`).SetDisplay("=path")
+	backend := cli.BoolVar(&init.FlagBackend, "backend", true, "Disable backend or cloud backend initialization for this configuration and use what was previously initialized instead.").SetDisplay("=false")
+	cloud := cli.BoolVar(&init.FlagCloud, "cloud", true, "").SetHidden(true)
+	cli.RawFlags(init.FlagConfigExtra, "backend-config", "Configuration to be merged with what is in the configuration file's 'backend' block. This can be either a path to an HCL file with key/value assignments (same format as terraform.tfvars) or a 'key=value' format, and can be specified multiple times. The backend type must be in the configuration itself.").SetDisplay("=path")
+	cli.StringVar(&init.FlagFromModule, "from-module", "", "Copy the contents of the given module into the target directory before initialization.").SetDisplay("=SOURCE")
+	cli.BoolVar(&init.FlagGet, "get", true, "Disable downloading modules for this configuration.").SetDisplay("=false")
+	cli.BoolVar(&init.FlagUpgrade, "upgrade", false, "Install the latest module and provider versions allowed within configured constraints, overriding the default behavior of selecting exactly the version recorded in the dependency lockfile.")
+	cli.StringArrayVar(&init.FlagPluginPath, "plugin-dir", nil, "Directory containing plugin binaries. This overrides all default search paths for plugins, and prevents the automatic installation of plugins. This flag can be used multiple times.")
+	cli.StringVar(&init.FlagLockfile, "lockfile", "", `Set a dependency lockfile mode. Currently only "readonly" is valid.`).SetDisplay("=MODE")
+	cli.StringVar(&init.TestsDirectory, "test-directory", "tests", `Set the OpenTofu test directory, defaults to "tests". When set, the test command will search for test files in the current directory and in the one specified by the flag.`).SetDisplay("=path")
 
-	// TODO complex cloud and backend hook alias/logic
+	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
+		init.BackendFlagSet = backend.IsSet
+		init.CloudFlagSet = cloud.IsSet
 
-	return &init, hooks
+		switch {
+		case init.BackendFlagSet && init.CloudFlagSet:
+			return tfdiags.New(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Wrong combination of options",
+				"The -backend and -cloud options are aliases of one another and mutually-exclusive in their use",
+			))
+		case init.BackendFlagSet:
+			init.FlagCloud = init.FlagBackend
+		case init.CloudFlagSet:
+			init.FlagBackend = init.FlagCloud
+		}
+		return init.Backend.migrationFlagsCheck()
+	}})
+
+	return &init
 }
 
 // ParseInit processes CLI arguments, returning an Init value, a closer function, and errors.
 // If errors are encountered, an Init value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseInit(args []string) (*Init, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	flags := Flags{}
-	init, hooks := BindInit(flags)
-
-	cmdFlags := defaultFlagSet("init", flags)
-
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error(),
-		))
-	}
-
-	if len(cmdFlags.Args()) > 0 {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Unexpected argument",
-			"Too many command line arguments. Did you mean to use -chdir?",
-		))
-	}
-
-	init.BackendFlagSet = flagspkg.FlagIsSet(cmdFlags, "backend")
-	init.CloudFlagSet = flagspkg.FlagIsSet(cmdFlags, "cloud")
-
-	diags = diags.Append(hooks.Pre())
-	closer := func() { hooks.Post() }
-
-	switch {
-	case init.BackendFlagSet && init.CloudFlagSet:
-		return init, closer, diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Wrong combination of options",
-			"The -backend and -cloud options are aliases of one another and mutually-exclusive in their use",
-		))
-	case init.BackendFlagSet:
-		init.FlagCloud = init.FlagBackend
-	case init.CloudFlagSet:
-		init.FlagBackend = init.FlagCloud
-	}
-	diags = diags.Append(init.Backend.migrationFlagsCheck())
-
+	cli := new(CommandLine)
+	init := BindInit(cli)
+	closer, diags := cli.Stdlib("init", args)
 	return init, closer, diags
 }

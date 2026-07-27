@@ -22,55 +22,32 @@ type Login struct {
 }
 
 // BindLogin registers CLI arguments, returning a Login value and it's corresponding hooks.
-func BindLogin(flags Flags) (*Login, Hooks) {
-	var login Login
-	var hooks Hooks
+func BindLogin(cli *CommandLine) *Login {
+	var arguments Login
 
-	login.ViewOptions.bind(flags, true)
-	hooks = append(hooks, login.ViewOptions.ParseHook())
+	arguments.ViewOptions.bind(cli, true)
 
 	// Even though the command does not use the -var/-var-file content, we will keep this for the moment
 	// just to keep backwards compatibility for users (in case any of them are using these flags with this command)
-	login.Vars = &Vars{}
-	login.Vars.bind(flags)
+	arguments.Vars = &Vars{}
+	arguments.Vars.bind(cli)
 
 	// State is only initialised and no flags are registered since the login command needs to lock the
 	// state by default, with no user input on that.
-	login.State = &State{Lock: true}
+	arguments.State = &State{Lock: true}
 
-	// TODO positional arguments
+	cli.ArgHelp = "The login command expects exactly one argument: the host to log in to."
+	cli.PositionalArg(&arguments.Host, "host", false)
 
-	return &login, hooks
+	return &arguments
 }
 
 // ParseLogin processes CLI arguments, returning a Login value, a closer function, and errors.
 // If errors are encountered, a Login value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseLogin(args []string) (*Login, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	flags := Flags{}
-	arguments, hooks := BindLogin(flags)
-
-	cmdFlags := defaultFlagSet("login", flags)
-
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error(),
-		))
-	}
-
-	if len(cmdFlags.Args()) != 1 {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Unexpected argument",
-			"The login command expects exactly one argument: the host to log in to.",
-		))
-	} else {
-		arguments.Host = cmdFlags.Args()[0]
-	}
-
-	return arguments, func() { hooks.Post() }, diags.Append(hooks.Pre())
+	cli := new(CommandLine)
+	arguments := BindLogin(cli)
+	closer, diags := cli.Stdlib("login", args)
+	return arguments, closer, diags
 }

@@ -19,42 +19,21 @@ type WorkspaceShow struct {
 }
 
 // BindWorkspaceShow registers CLI arguments, returning a WorkspaceShow value and it's corresponding hooks.
-func BindWorkspaceShow(flags Flags) (*WorkspaceShow, Hooks) {
+func BindWorkspaceShow(cli *CommandLine) *WorkspaceShow {
 	var ret WorkspaceShow
-	var hooks Hooks
 
 	// we only parse but do not register the views flags since this command does not need it
-	hooks = append(hooks, ret.ViewOptions.ParseHook())
+	ret.ViewOptions.ParseHook(cli)
 
 	ret.Vars = &Vars{}
-	ret.Vars.bind(flags)
+	ret.Vars.bind(cli)
 
-	return &ret, hooks
+	return &ret
 }
 
 func ParseWorkspaceShow(args []string) (*WorkspaceShow, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	flags := Flags{}
-	ret, hooks := BindWorkspaceShow(flags)
-
-	cmdFlags := defaultFlagSet("workspace show", flags)
-
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error(),
-		))
-	}
-
-	if len(cmdFlags.Args()) > 0 {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Unexpected argument",
-			"Too many command line arguments. Did you mean to use -chdir?",
-		))
-	}
-
-	return ret, func() { hooks.Post() }, diags.Append(hooks.Pre())
+	cli := new(CommandLine)
+	ret := BindWorkspaceShow(cli)
+	closer, diags := cli.Stdlib("workspace show", args)
+	return ret, closer, diags
 }

@@ -60,74 +60,65 @@ type ViewOptions struct {
 	JSONInto *os.File
 }
 
-func (v *ViewOptions) bind(flags Flags, input bool) {
-	v.bindGranularFlags(flags, input, true)
+func (v *ViewOptions) bind(cli *CommandLine, input bool) {
+	v.bindGranularFlags(cli, input, true)
 }
 
-// bindGranularFlags registers view-related flags on flags. Use input=true to
+// bindGranularFlags registers view-related flags on cli. Use input=true to
 // register the -input flag and jsonInto=true to register the -json-into flag.
 // Commands that only support -json (not -json-into) should pass jsonInto=false.
-func (v *ViewOptions) bindGranularFlags(flags Flags, input bool, jsonInto bool) {
+func (v *ViewOptions) bindGranularFlags(cli *CommandLine, input bool, jsonInto bool) {
 	if input {
-		flags.BoolVar(&v.InputEnabled, "input", true,
+		cli.BoolVar(&v.InputEnabled, "input", true,
 			`Disable prompting for required input variables that are not set some other way.`,
 		).SetDisplay("=false")
 	}
 
-	flags.BoolVar(&v.jsonFlag, "json", false,
+	cli.BoolVar(&v.jsonFlag, "json", false,
 		`Produce output in a machine-readable JSON format, suitable for use in text editor integrations and other automated systems.`)
 	if jsonInto {
-		flags.StringVar(&v.jsonIntoFlag, "json-into", "",
+		cli.StringVar(&v.jsonIntoFlag, "json-into", "",
 			`Produce the same output as -json, but sent directly to the given file. This allows automation to preserve the original human-readable output streams, while capturing more detailed logs for machine analysis.`,
 		).SetDisplay("=out.json")
 	}
+
+	v.ParseHook(cli)
 }
 
-// TODO merge with ParseHook
-func (v *ViewOptions) Parse() (func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
+func (v *ViewOptions) ParseHook(cli *CommandLine) {
 	closer := func() {}
+	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
+		var diags tfdiags.Diagnostics
 
-	if v.jsonIntoFlag != "" {
-		// Although it seems odd to add complex logic to the arguments
-		// package, it is currently the most reasonable place for this
-		// particular concern. The only other reasonable spot currently
-		// in the codebase is within the view constructor. Unfortunately
-		// that is not an option due to command code paths opening
-		// multiple concurrent views.
-		v.JSONInto, closer, diags = OpenJSONIntoFile(v.jsonIntoFlag)
-	}
-
-	// Default to Human
-	v.ViewType = ViewHuman
-	if v.jsonFlag {
-		v.ViewType = ViewJSON
-		// JSON view currently does not support input, so we disable it here
-		v.InputEnabled = false
 		if v.jsonIntoFlag != "" {
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
-				"Invalid output format",
-				"The -json and -json-into arguments are mutually exclusive",
-			))
+			// Although it seems odd to add complex logic to the arguments
+			// package, it is currently the most reasonable place for this
+			// particular concern. The only other reasonable spot currently
+			// in the codebase is within the view constructor. Unfortunately
+			// that is not an option due to command code paths opening
+			// multiple concurrent views.
+			v.JSONInto, closer, diags = OpenJSONIntoFile(v.jsonIntoFlag)
 		}
-	}
-	return closer, diags
-}
 
-func (v *ViewOptions) ParseHook() Hook {
-	var closer func()
-	return Hook{
-		Pre: func() tfdiags.Diagnostics {
-			var diags tfdiags.Diagnostics
-			closer, diags = v.Parse()
-			return diags
-		},
-		Post: func() tfdiags.Diagnostics {
-			closer()
-			return nil
-		},
-	}
+		// Default to Human
+		v.ViewType = ViewHuman
+		if v.jsonFlag {
+			v.ViewType = ViewJSON
+			// JSON view currently does not support input, so we disable it here
+			v.InputEnabled = false
+			if v.jsonIntoFlag != "" {
+				diags = diags.Append(tfdiags.Sourceless(
+					tfdiags.Error,
+					"Invalid output format",
+					"The -json and -json-into arguments are mutually exclusive",
+				))
+			}
+		}
+		return diags
+	}, Post: func() tfdiags.Diagnostics {
+		closer()
+		return nil
+	}})
 }
 
 func OpenJSONIntoFile(jsonIntoFlag string) (*os.File, func(), tfdiags.Diagnostics) {

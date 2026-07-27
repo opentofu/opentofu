@@ -21,45 +21,23 @@ type Logout struct {
 }
 
 // BindLogout registers CLI arguments, returning a Logout value and it's corresponding hooks.
-func BindLogout(flags Flags) (*Logout, Hooks) {
+func BindLogout(cli *CommandLine) *Logout {
 	var arguments Logout
-	var hooks Hooks
 
-	arguments.ViewOptions.bind(flags, false)
-	hooks = append(hooks, arguments.ViewOptions.ParseHook())
+	arguments.ViewOptions.bind(cli, false)
 
-	return &arguments, hooks
+	cli.ArgHelp = "The logout command expects exactly one argument: the host to log out of."
+	cli.PositionalArg(&arguments.Host, "host", false)
+
+	return &arguments
 }
 
 // ParseLogout processes CLI arguments, returning a Logout value, a closer function, and errors.
 // If errors are encountered, a Logout value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseLogout(args []string) (*Logout, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	flags := Flags{}
-	arguments, hooks := BindLogout(flags)
-
-	cmdFlags := defaultFlagSet("logout", flags)
-
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error(),
-		))
-	}
-
-	// TODO positional args
-	if len(cmdFlags.Args()) != 1 {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Unexpected argument",
-			"The logout command expects exactly one argument: the host to log out of.",
-		))
-	} else {
-		arguments.Host = cmdFlags.Args()[0]
-	}
-
-	return arguments, func() { hooks.Post() }, diags.Append(hooks.Pre())
+	cli := new(CommandLine)
+	arguments := BindLogout(cli)
+	closer, diags := cli.Stdlib("logout", args)
+	return arguments, closer, diags
 }
