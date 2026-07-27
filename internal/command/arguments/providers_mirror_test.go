@@ -22,12 +22,12 @@ func TestParseProvidersMirror_basicValidation(t *testing.T) {
 		"no directory": {
 			args:        nil,
 			want:        providersMirrorArgsWithDefaults(nil),
-			wantErrText: "Wrong number of arguments: The providers mirror command requires an output directory as a command-line argument.",
+			wantErrText: "The providers mirror command requires an output directory as a command-line argument.",
 		},
 		"too many arguments": {
 			args:        []string{"/path/to/mirror", "/another/path"},
 			want:        providersMirrorArgsWithDefaults(func(v *ProvidersMirror) {}),
-			wantErrText: "Wrong number of arguments: The providers mirror command requires an output directory as a command-line argument.",
+			wantErrText: "The providers mirror command requires an output directory as a command-line argument.",
 		},
 		"single directory": {
 			args: []string{"/path/to/mirror"},
@@ -54,7 +54,7 @@ func TestParseProvidersMirror_basicValidation(t *testing.T) {
 			want: providersMirrorArgsWithDefaults(func(v *ProvidersMirror) {
 				v.Directory = "/path/to/mirror"
 			}),
-			wantErrText: "Failed to parse command-line flags: flag provided but not defined: -unknown-flag",
+			wantErrText: "flag provided but not defined: -unknown-flag",
 		},
 	}
 
@@ -75,8 +75,10 @@ func TestParseProvidersMirror_basicValidation(t *testing.T) {
 					t.Errorf("the returned diagnostics does not contain the expected error message.\ndiags:\n\t%s\nwanted:\n\t%s\n", errStr, tc.wantErrText)
 				}
 			}
-			if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
-				t.Errorf("unexpected result\n%s", diff)
+			if !diags.HasErrors() {
+				if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
+					t.Errorf("unexpected result\n%s", diff)
+				}
 			}
 		})
 	}

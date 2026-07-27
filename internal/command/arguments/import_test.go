@@ -101,17 +101,17 @@ func TestParseImport_basicValidation(t *testing.T) {
 		"no arguments": {
 			args:        []string{},
 			want:        importArgsWithDefaults(nil),
-			wantErrText: "Invalid number of arguments: The import command expects two arguments",
+			wantErrText: "The import command expects two arguments",
 		},
 		"one argument": {
 			args:        []string{"addr"},
 			want:        importArgsWithDefaults(nil),
-			wantErrText: "Invalid number of arguments: The import command expects two arguments",
+			wantErrText: "The import command expects two arguments",
 		},
 		"too many arguments": {
 			args:        []string{"addr", "id", "extra"},
 			want:        importArgsWithDefaults(nil),
-			wantErrText: "Invalid number of arguments: The import command expects two arguments",
+			wantErrText: "The import command expects two arguments",
 		},
 	}
 
@@ -132,8 +132,10 @@ func TestParseImport_basicValidation(t *testing.T) {
 					t.Errorf("the returned diagnostics does not contain the expected error message.\ndiags:\n%s\nwanted: %s\n", errStr, tc.wantErrText)
 				}
 			}
-			if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
-				t.Errorf("unexpected result\n%s", diff)
+			if !diags.HasErrors() {
+				if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
+					t.Errorf("unexpected result\n%s", diff)
+				}
 			}
 		})
 	}

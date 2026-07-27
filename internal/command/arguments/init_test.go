@@ -82,14 +82,14 @@ func TestParseInit_basicValidation(t *testing.T) {
 		"one plugin dir configured": {
 			[]string{"-plugin-dir=/test1"},
 			initArgsWithDefaults(func(init *Init) {
-				_ = init.FlagPluginPath.Set("/test1")
+				init.FlagPluginPath = append(init.FlagPluginPath, "/test1")
 			}),
 		},
 		"multiple plugin dirs configured": {
 			[]string{"-plugin-dir=/test1", "-plugin-dir=/test2"},
 			initArgsWithDefaults(func(init *Init) {
-				_ = init.FlagPluginPath.Set("/test1")
-				_ = init.FlagPluginPath.Set("/test2")
+				init.FlagPluginPath = append(init.FlagPluginPath, "/test1")
+				init.FlagPluginPath = append(init.FlagPluginPath, "/test2")
 			}),
 		},
 		"lock disabled": {

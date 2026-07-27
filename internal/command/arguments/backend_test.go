@@ -6,7 +6,6 @@
 package arguments
 
 import (
-	"flag"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -42,12 +41,11 @@ func TestBackend_AddIgnoreRemoteVersionFlag(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
+			var cli CommandLine
 			backend := &Backend{}
-			fs := flag.NewFlagSet("test", flag.ContinueOnError)
-			backend.AddIgnoreRemoteVersionFlag(fs)
-
-			if err := fs.Parse(tc.args); err != nil {
-				t.Fatalf("unexpected error parsing flags: %v", err)
+			backend.bindIgnoreRemoteVersionFlag(&cli)
+			if _, diags := cli.Stdlib("test", tc.args); diags.HasErrors() {
+				t.Fatalf("unexpected error parsing flags: %v", diags.Err().Error())
 			}
 
 			if got := backend.IgnoreRemoteVersion; got != tc.want {
@@ -140,12 +138,11 @@ func TestBackend_AddMigrationFlags(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
+			var cli CommandLine
 			backend := &Backend{}
-			fs := flag.NewFlagSet("test", flag.ContinueOnError)
-			backend.AddMigrationFlags(fs)
-
-			if err := fs.Parse(tc.args); err != nil {
-				t.Fatalf("unexpected error parsing flags: %v", err)
+			backend.bindMigrationFlags(&cli)
+			if _, diags := cli.Stdlib("test", tc.args); diags.HasErrors() {
+				t.Fatalf("unexpected error parsing flags: %v", diags.Err().Error())
 			}
 
 			if got := backend.ForceInitCopy; got != tc.wantForceInitCopy {
@@ -325,13 +322,13 @@ func TestBackend_AllFlags(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
+			var cli CommandLine
 			backend := &Backend{}
-			fs := flag.NewFlagSet("test", flag.ContinueOnError)
-			backend.AddIgnoreRemoteVersionFlag(fs)
-			backend.AddMigrationFlags(fs)
+			backend.bindIgnoreRemoteVersionFlag(&cli)
+			backend.bindMigrationFlags(&cli)
 
-			if err := fs.Parse(tc.args); err != nil {
-				t.Fatalf("unexpected error parsing flags: %v", err)
+			if _, diags := cli.Stdlib("test", tc.args); diags.HasErrors() {
+				t.Fatalf("unexpected error parsing flags: %v", diags.Err().Error())
 			}
 
 			if diff := cmp.Diff(tc.want, *backend); diff != "" {

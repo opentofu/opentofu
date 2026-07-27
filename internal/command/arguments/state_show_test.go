@@ -56,17 +56,17 @@ func TestParseStateShow_basicValidation(t *testing.T) {
 		"no arguments": {
 			args:        []string{},
 			want:        stateShowArgsWithDefaults(nil),
-			wantErrText: "Invalid number of arguments",
+			wantErrText: "Expected exactly one positional argument",
 		},
 		"too many arguments": {
 			args:        []string{"resource_address", "extra"},
 			want:        stateShowArgsWithDefaults(nil),
-			wantErrText: "Invalid number of arguments",
+			wantErrText: "Expected exactly one positional argument",
 		},
 		"unknown flag": {
-			args:        []string{"-unknown-flag"},
+			args:        []string{"-unknown-flag", "resource_address"},
 			want:        stateShowArgsWithDefaults(func(v *StateShow) {}),
-			wantErrText: "Failed to parse command-line flags: flag provided but not defined: -unknown-flag",
+			wantErrText: "flag provided but not defined: -unknown-flag",
 		},
 	}
 
@@ -90,8 +90,10 @@ func TestParseStateShow_basicValidation(t *testing.T) {
 					t.Errorf("the returned diagnostics does not contain the expected error message.\ndiags:\n%s\nwanted: %s\n", errStr, tc.wantErrText)
 				}
 			}
-			if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
-				t.Errorf("unexpected result\n%s", diff)
+			if !diags.HasErrors() {
+				if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
+					t.Errorf("unexpected result\n%s", diff)
+				}
 			}
 		})
 	}

@@ -43,40 +43,59 @@ func (c CommandLine) Stdlib(name string, args []string) (func(), tfdiags.Diagnos
 	}
 
 	remaining := cmdFlags.Args()
+	argsErrored := false
+	nRequired := 0
+	nOptional := 0
 	for _, arg := range c.Args {
+		if arg.Optional {
+			nOptional += 1
+		} else {
+			nRequired += 1
+		}
+
 		var err error
 		remaining, err = arg.Process(remaining)
 		if err != nil {
-			detail := err.Error()
-			if c.ArgHelp != "" {
-				detail = c.ArgHelp
-			}
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
-				"Invalid arguments list",
-				detail,
-			))
+			// For now, we don't care about the more specific error text
+			argsErrored = true
 		}
 	}
-	if len(remaining) > 0 {
+	if len(remaining) > 0 || argsErrored {
+		summary := "Unexpected argument"
+		if argsErrored {
+			summary = "Invalid arguments list"
+		}
+
 		detail := c.ArgHelp
 		if detail == "" {
-			switch len(c.Args) {
-			case 0:
-				detail = "Too many command line arguments. Did you mean to use -chdir?"
-			case 1:
-				detail = "Expected at most one positional argument."
-			case 2:
-				detail = "Expected at most two positional arguments."
-			case 3:
-				detail = "Expected at most three positional arguments."
-			default:
-				detail = fmt.Sprintf("Expected at most %s positional arguments.", len(c.Args))
+			numText := func(i int) string {
+				switch i {
+				case 0:
+					return "two positional arguments."
+				case 1:
+					return "one positional argument."
+				case 2:
+					return "two positional arguments."
+				case 3:
+					return "three positional arguments."
+				default:
+					return fmt.Sprintf("%v positional arguments.", len(c.Args))
+				}
 			}
+			if nRequired == 0 {
+				if nOptional == 0 {
+					detail = "Did you mean to use -chdir?"
+				} else {
+					detail = "Expected at most " + numText(nOptional)
+				}
+			} else {
+				detail = "Expected exactly " + numText(nRequired)
+			}
+			detail = "Too many command line arguments. " + detail
 		}
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
-			"Too many command line arguments",
+			summary,
 			detail,
 		))
 	}
@@ -90,12 +109,13 @@ func (c *CommandLine) Hook(h Hook) {
 }
 
 type Argument struct {
-	Name    string
-	Process func([]string) ([]string, error)
+	Name     string
+	Optional bool
+	Process  func([]string) ([]string, error)
 }
 
 func (c *CommandLine) PositionalArg(p *string, name string, optional bool) {
-	c.Args = append(c.Args, Argument{Name: name, Process: func(args []string) ([]string, error) {
+	c.Args = append(c.Args, Argument{Name: name, Optional: optional, Process: func(args []string) ([]string, error) {
 		if len(args) == 0 {
 			if !optional {
 				return args, fmt.Errorf("Missing positional argument %s", name)

@@ -48,7 +48,6 @@ func BindStateReplaceProvider(cli *CommandLine) *StateReplaceProvider {
 
 	cli.BoolVar(&ret.AutoApprove, "auto-approve", false, "Skip interactive approval.")
 
-	cli.ArgHelp = "Exactly two arguments expected"
 	cli.PositionalArg(&ret.RawSrcAddr, "src addr", false)
 	cli.PositionalArg(&ret.RawDestAddr, "dest addr", false)
 

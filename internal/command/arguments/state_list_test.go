@@ -58,7 +58,7 @@ func TestParseStateList_basicValidation(t *testing.T) {
 		"invalid flags": {
 			args:        []string{"-unknown"},
 			want:        stateListArgsWithDefaults(nil),
-			wantErrText: "Failed to parse command-line flags: flag provided but not defined: -unknown",
+			wantErrText: "flag provided but not defined: -unknown",
 		},
 	}
 
