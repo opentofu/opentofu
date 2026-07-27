@@ -25,48 +25,25 @@ type WorkspaceSelect struct {
 }
 
 // BindWorkspaceSelect registers CLI arguments, returning a WorkspaceSelect value and it's corresponding hooks.
-func BindWorkspaceSelect(flags Flags) (*WorkspaceSelect, Hooks) {
+func BindWorkspaceSelect(cli *CommandLine) *WorkspaceSelect {
 	var ret WorkspaceSelect
-	var hooks Hooks
 
-	ret.ViewOptions.bind(flags, false)
-	hooks = append(hooks, ret.ViewOptions.ParseHook())
+	ret.ViewOptions.bind(cli, false)
 
 	ret.Vars = &Vars{}
-	ret.Vars.bind(flags)
+	ret.Vars.bind(cli)
 
-	flags.BoolVar(&ret.CreateIfMissing, "or-create", false, "Create the OpenTofu workspace if it doesn't exist.")
+	cli.BoolVar(&ret.CreateIfMissing, "or-create", false, "Create the OpenTofu workspace if it doesn't exist.")
 
-	return &ret, hooks
+	cli.ArgHelp = "Expected a single argument: NAME."
+	cli.PositionalArg(&ret.WorkspaceName, "NAME", false)
+
+	return &ret
 }
 
 func ParseWorkspaceSelect(args []string) (*WorkspaceSelect, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	flags := Flags{}
-	ret, hooks := BindWorkspaceSelect(flags)
-
-	cmdFlags := defaultFlagSet("workspace select", flags)
-
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error(),
-		))
-	}
-
-	// TODO positional args
-	args = cmdFlags.Args()
-	if len(args) != 1 {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Invalid arguments list",
-			"Expected a single argument: NAME.",
-		))
-	} else {
-		ret.WorkspaceName = args[0]
-	}
-
-	return ret, func() { hooks.Post() }, diags.Append(hooks.Pre())
+	cli := new(CommandLine)
+	ret := BindWorkspaceSelect(cli)
+	closer, diags := cli.Stdlib("workspace select", args)
+	return ret, closer, diags
 }

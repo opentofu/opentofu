@@ -27,54 +27,30 @@ type StateShow struct {
 }
 
 // BindStateShow registers CLI arguments, returning a StateShow value and it's corresponding hooks.
-func BindStateShow(flags Flags) (*StateShow, Hooks) {
+func BindStateShow(cli *CommandLine) *StateShow {
 	var ret StateShow
-	var hooks Hooks
 
-	ret.ViewOptions.bind(flags, false)
-	hooks = append(hooks, ret.ViewOptions.ParseHook())
+	ret.ViewOptions.bind(cli, false)
 
 	ret.Vars = &Vars{}
-	ret.Vars.bind(flags)
+	ret.Vars.bind(cli)
 
 	ret.State = &State{}
-	ret.State.bind(flags, stateFlagStateIn)
+	ret.State.bind(cli, stateFlagStateIn)
 
-	flags.BoolVar(&ret.ShowSensitive, "show-sensitive", false, "If specified, sensitive values will be displayed.")
+	cli.BoolVar(&ret.ShowSensitive, "show-sensitive", false, "If specified, sensitive values will be displayed.")
 
-	return &ret, hooks
+	cli.PositionalArg(&ret.TargetRawAddr, "target address", false)
+
+	return &ret
 }
 
 // ParseStateShow processes CLI arguments, returning a StateShow value, a closer function, and errors.
 // If errors are encountered, a StateShow value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseStateShow(args []string) (*StateShow, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	flags := Flags{}
-	ret, hooks := BindStateShow(flags)
-
-	cmdFlags := defaultFlagSet("state show", flags)
-
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error(),
-		))
-	}
-
-	// TODO positional arguments
-	args = cmdFlags.Args()
-	if len(args) != 1 {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Invalid number of arguments",
-			"Exactly one argument expected",
-		))
-	} else {
-		ret.TargetRawAddr = args[0]
-	}
-
-	return ret, func() { hooks.Post() }, diags.Append(hooks.Pre())
+	cli := new(CommandLine)
+	ret := BindStateShow(cli)
+	closer, diags := cli.Stdlib("state show", args)
+	return ret, closer, diags
 }

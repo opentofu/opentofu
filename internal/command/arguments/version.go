@@ -16,42 +16,28 @@ type Version struct {
 }
 
 // BindVersion registers CLI arguments, returning a Version value and it's corresponding hooks.
-func BindVersion(flags Flags) (*Version, Hooks) {
+func BindVersion(cli *CommandLine) *Version {
 	var ret Version
-	var hooks Hooks
 
-	ret.ViewOptions.bindGranularFlags(flags, false, false) // Add only the -json flag
-	hooks = append(hooks, ret.ViewOptions.ParseHook())
+	ret.ViewOptions.bindGranularFlags(cli, false, false) // Add only the -json flag
 
-	// Enable but ignore the global version flags. In main.go, if any of the
+	// Enable but ignore the global version cli. In main.go, if any of the
 	// arguments are -v, -version, or --version, this command will be called
 	// with the rest of the arguments, so we need to be able to cope with
 	// those.
 	var nop bool
-	flags.BoolVar(&nop, "v", true, "version").SetHidden(true)
-	flags.BoolVar(&nop, "version", true, "version").SetHidden(true)
+	cli.BoolVar(&nop, "v", true, "version").SetHidden(true)
+	cli.BoolVar(&nop, "version", true, "version").SetHidden(true)
 
-	return &ret, hooks
+	return &ret
 }
 
 // ParseVersion processes CLI arguments, returning a Version value, a closer function, and errors.
 // If errors are encountered, a Version value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseVersion(args []string) (*Version, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	flags := Flags{}
-	ret, hooks := BindVersion(flags)
-
-	cmdFlags := defaultFlagSet("version", flags)
-
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error(),
-		))
-	}
-
-	return ret, func() { hooks.Post() }, diags.Append(hooks.Pre())
+	cli := new(CommandLine)
+	ret := BindVersion(cli)
+	closer, diags := cli.Stdlib("version", args)
+	return ret, closer, diags
 }

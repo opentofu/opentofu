@@ -26,57 +26,33 @@ type StatePush struct {
 }
 
 // BindStatePush registers CLI arguments, returning a StatePush value and it's corresponding hooks.
-func BindStatePush(flags Flags) (*StatePush, Hooks) {
+func BindStatePush(cli *CommandLine) *StatePush {
 	var ret StatePush
-	var hooks Hooks
 
-	ret.ViewOptions.bind(flags, false)
-	hooks = append(hooks, ret.ViewOptions.ParseHook())
+	ret.ViewOptions.bind(cli, false)
 
 	ret.Vars = &Vars{}
-	ret.Vars.bind(flags)
+	ret.Vars.bind(cli)
 
 	ret.Backend = &Backend{}
-	ret.Backend.bindIgnoreRemoteVersionFlag(flags)
+	ret.Backend.bindIgnoreRemoteVersionFlag(cli)
 
 	ret.State = &State{}
-	ret.State.bind(flags, stateFlagLock)
+	ret.State.bind(cli, stateFlagLock)
 
-	flags.BoolVar(&ret.Force, "force", false, "Write the state even if lineages don't match or the remote serial is higher.")
+	cli.BoolVar(&ret.Force, "force", false, "Write the state even if lineages don't match or the remote serial is higher.")
 
-	return &ret, hooks
+	cli.PositionalArg(&ret.StateSrc, "state", false)
+
+	return &ret
 }
 
 // ParseStatePush processes CLI arguments, returning a StatePush value, a closer function, and errors.
 // If errors are encountered, a StatePush value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseStatePush(args []string) (*StatePush, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	flags := Flags{}
-	ret, hooks := BindStatePush(flags)
-
-	cmdFlags := defaultFlagSet("state push", flags)
-
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error(),
-		))
-	}
-
-	// TODO positional arguments
-	args = cmdFlags.Args()
-	if len(args) != 1 {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Invalid number of arguments",
-			"Exactly one argument expected",
-		))
-	} else {
-		ret.StateSrc = args[0]
-	}
-
-	return ret, func() { hooks.Post() }, diags.Append(hooks.Pre())
+	cli := new(CommandLine)
+	ret := BindStatePush(cli)
+	closer, diags := cli.Stdlib("state push", args)
+	return ret, closer, diags
 }

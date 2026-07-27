@@ -19,42 +19,20 @@ type WorkspaceList struct {
 }
 
 // BindWorkspaceList registers CLI arguments, returning a WorkspaceList value and it's corresponding hooks.
-func BindWorkspaceList(flags Flags) (*WorkspaceList, Hooks) {
+func BindWorkspaceList(cli *CommandLine) *WorkspaceList {
 	var ret WorkspaceList
-	var hooks Hooks
 
-	ret.ViewOptions.bind(flags, false)
-	hooks = append(hooks, ret.ViewOptions.ParseHook())
+	ret.ViewOptions.bind(cli, false)
 
 	ret.Vars = &Vars{}
-	ret.Vars.bind(flags)
+	ret.Vars.bind(cli)
 
-	return &ret, hooks
+	return &ret
 }
 
 func ParseWorkspaceList(args []string) (*WorkspaceList, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	flags := Flags{}
-	ret, hooks := BindWorkspaceList(flags)
-
-	cmdFlags := defaultFlagSet("workspace list", flags)
-
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error(),
-		))
-	}
-
-	if len(cmdFlags.Args()) > 0 {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Unexpected argument",
-			"Too many command line arguments. Did you mean to use -chdir?",
-		))
-	}
-
-	return ret, func() { hooks.Post() }, diags.Append(hooks.Pre())
+	cli := new(CommandLine)
+	ret := BindWorkspaceList(cli)
+	closer, diags := cli.Stdlib("workspace list", args)
+	return ret, closer, diags
 }

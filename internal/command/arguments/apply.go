@@ -37,30 +37,27 @@ type Apply struct {
 }
 
 // BindApply registers CLI arguments, returning a Apply value and it's corresponding hooks.
-func BindApply(flags Flags) (*Apply, Hooks) {
+func BindApply(cli *CommandLine) *Apply {
 	var apply Apply
-	var hooks Hooks
 
-	apply.ViewOptions.bind(flags, true)
-	hooks = append(hooks, apply.ViewOptions.ParseHook())
+	apply.ViewOptions.bind(cli, true)
 
 	apply.Operation = &Operation{}
-	apply.Operation.bind(flags)
-	hooks = append(hooks, Hook{Pre: apply.Operation.Parse})
+	apply.Operation.bind(cli)
 
 	apply.Vars = &Vars{}
-	apply.Vars.bind(flags)
+	apply.Vars.bind(cli)
 
 	apply.State = &State{}
-	apply.State.bind(flags, stateFlagAll)
+	apply.State.bind(cli, stateFlagAll)
 
-	flags.BoolVar(&apply.AutoApprove, "auto-approve", false, "Skip interactive approval of plan before applying.")
-	flags.BoolVar(&apply.ShowSensitive, "show-sensitive", false, "If specified, sensitive values will be displayed.")
-	flags.BoolVar(&apply.SuppressForgetErrorsDuringDestroy, "suppress-forget-errors", false, "Suppress the error that occurs when a destroy operation completes successfully but leaves forgotten instances behind.")
+	cli.BoolVar(&apply.AutoApprove, "auto-approve", false, "Skip interactive approval of plan before applying.")
+	cli.BoolVar(&apply.ShowSensitive, "show-sensitive", false, "If specified, sensitive values will be displayed.")
+	cli.BoolVar(&apply.SuppressForgetErrorsDuringDestroy, "suppress-forget-errors", false, "Suppress the error that occurs when a destroy operation completes successfully but leaves forgotten instances behind.")
 
-	// TODO better handling of positional arguments
+	cli.PositionalArg(&apply.PlanPath, "plan path", true)
 
-	hooks = append(hooks, Hook{Pre: func() tfdiags.Diagnostics {
+	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
 		// JSON view cannot confirm apply, so we require either a plan file or
 		// auto-approve to be specified. We intentionally fail here rather than
 		// override auto-approve, which would be dangerous.
@@ -74,43 +71,17 @@ func BindApply(flags Flags) (*Apply, Hooks) {
 		return nil
 	}})
 
-	return &apply, hooks
+	return &apply
 }
 
 // ParseApply processes CLI arguments, returning an Apply value, a closer function, and errors.
 // If errors are encountered, an Apply value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseApply(args []string) (*Apply, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	flags := Flags{}
-	apply, hooks := BindApply(flags)
-
-	cmdFlags := defaultFlagSet("apply", flags)
-
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error(),
-		))
-	}
-
-	args = cmdFlags.Args()
-	if len(args) > 0 {
-		apply.PlanPath = args[0]
-		args = args[1:]
-	}
-
-	if len(args) > 0 {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Too many command line arguments",
-			"Expected at most one positional argument.",
-		))
-	}
-
-	return apply, func() { hooks.Post() }, diags.Append(hooks.Pre())
+	cli := new(CommandLine)
+	apply := BindApply(cli)
+	closer, diags := cli.Stdlib("apply", args)
+	return apply, closer, diags
 }
 
 // ParseApplyDestroy is a special case of ParseApply that deals with the

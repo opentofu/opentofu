@@ -30,51 +30,30 @@ type Graph struct {
 }
 
 // BindGraph registers CLI arguments, returning a Graph value and it's corresponding hooks.
-func BindGraph(flags Flags) (*Graph, Hooks) {
+func BindGraph(cli *CommandLine) *Graph {
 	var graph Graph
-	var hooks Hooks
 
 	// we only parse but do not register the views flags since this command does not need it
-	hooks = append(hooks, graph.ViewOptions.ParseHook())
+	graph.ViewOptions.ParseHook(cli)
 
 	graph.Vars = &Vars{}
-	graph.Vars.bind(flags)
+	graph.Vars.bind(cli)
 
-	flags.BoolVar(&graph.DrawCycles, "draw-cycles", false, "Highlight any cycles in the graph with colored edges. This helps when diagnosing cycle errors.")
-	flags.StringVar(&graph.GraphType, "type", "", `Type of graph to output. Can be: plan, plan-refresh-only, plan-destroy, or apply. By default OpenTofu chooses "plan", or "apply" if you also set the -plan=... option.`)
-	flags.IntVar(&graph.ModuleDepth, "module-depth", -1, "(deprecated) In prior versions of OpenTofu, specified the depth of modules to show in the output.")
-	flags.BoolVar(&graph.Verbose, "verbose", false, "verbose").SetHidden(true)
-	flags.StringVar(&graph.PlanPath, "plan", "", "Render graph using the specified plan file instead of the configuration in the current directory.")
+	cli.BoolVar(&graph.DrawCycles, "draw-cycles", false, "Highlight any cycles in the graph with colored edges. This helps when diagnosing cycle errors.")
+	cli.StringVar(&graph.GraphType, "type", "", `Type of graph to output. Can be: plan, plan-refresh-only, plan-destroy, or apply. By default OpenTofu chooses "plan", or "apply" if you also set the -plan=... option.`)
+	cli.IntVar(&graph.ModuleDepth, "module-depth", -1, "(deprecated) In prior versions of OpenTofu, specified the depth of modules to show in the output.")
+	cli.BoolVar(&graph.Verbose, "verbose", false, "verbose").SetHidden(true)
+	cli.StringVar(&graph.PlanPath, "plan", "", "Render graph using the specified plan file instead of the configuration in the current directory.")
 
-	return &graph, hooks
+	return &graph
 }
 
 // ParseGraph processes CLI arguments, returning a Graph value, a closer function, and errors.
 // If errors are encountered, a Graph value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseGraph(args []string) (*Graph, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	flags := Flags{}
-	arguments, hooks := BindGraph(flags)
-
-	cmdFlags := defaultFlagSet("graph", flags)
-
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error(),
-		))
-	}
-
-	if len(cmdFlags.Args()) > 0 {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Unexpected argument",
-			"Too many command line arguments. Did you mean to use -chdir?",
-		))
-	}
-
-	return arguments, func() { hooks.Post() }, diags.Append(hooks.Pre())
+	cli := new(CommandLine)
+	arguments := BindGraph(cli)
+	closer, diags := cli.Stdlib("graph", args)
+	return arguments, closer, diags
 }

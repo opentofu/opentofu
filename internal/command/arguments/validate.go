@@ -31,55 +31,29 @@ type Validate struct {
 }
 
 // BindValidate registers CLI arguments, returning a Validate value and it's corresponding hooks.
-func BindValidate(flags Flags) (*Validate, Hooks) {
+func BindValidate(cli *CommandLine) *Validate {
 	var validate Validate
-	var hooks Hooks
 
-	validate.ViewOptions.bind(flags, false)
-	hooks = append(hooks, validate.ViewOptions.ParseHook())
+	validate.ViewOptions.bind(cli, false)
 
 	validate.Vars = &Vars{}
-	validate.Vars.bind(flags)
+	validate.Vars.bind(cli)
 
-	flags.StringVar(&validate.TestDirectory, "test-directory", "tests", `Set the OpenTofu test directory, defaults to "tests". When set, the test command will search for test files in the current directory and in the one specified by the flag.`).SetDisplay("=path")
-	flags.BoolVar(&validate.NoTests, "no-tests", false, "If specified, OpenTofu will not validate test files.")
+	cli.StringVar(&validate.TestDirectory, "test-directory", "tests", `Set the OpenTofu test directory, defaults to "tests". When set, the test command will search for test files in the current directory and in the one specified by the flag.`).SetDisplay("=path")
+	cli.BoolVar(&validate.NoTests, "no-tests", false, "If specified, OpenTofu will not validate test files.")
 
-	return &validate, hooks
+	validate.Path = "."
+	cli.PositionalArg(&validate.Path, "path", true)
+
+	return &validate
 }
 
 // ParseValidate processes CLI arguments, returning a Validate value, a closer function, and errors.
 // If errors are encountered, a Validate value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseValidate(args []string) (*Validate, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	flags := Flags{}
-	validate, hooks := BindValidate(flags)
-
-	cmdFlags := defaultFlagSet("validate", flags)
-
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error(),
-		))
-	}
-
-	// TODO positional arguments
-	args = cmdFlags.Args()
-	if len(args) > 1 {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Too many command line arguments",
-			"Expected at most one positional argument.",
-		))
-	}
-
-	validate.Path = "."
-	if len(args) > 0 {
-		validate.Path = args[0]
-	}
-
-	return validate, func() { hooks.Post() }, diags.Append(hooks.Pre())
+	cli := new(CommandLine)
+	validate := BindValidate(cli)
+	closer, diags := cli.Stdlib("validate", args)
+	return validate, closer, diags
 }

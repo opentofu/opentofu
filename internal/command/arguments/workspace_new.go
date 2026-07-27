@@ -23,49 +23,26 @@ type WorkspaceNew struct {
 }
 
 // BindWorkspaceNew registers CLI arguments, returning a WorkspaceNew value and it's corresponding hooks.
-func BindWorkspaceNew(flags Flags) (*WorkspaceNew, Hooks) {
+func BindWorkspaceNew(cli *CommandLine) *WorkspaceNew {
 	var ret WorkspaceNew
-	var hooks Hooks
 
-	ret.ViewOptions.bind(flags, false)
-	hooks = append(hooks, ret.ViewOptions.ParseHook())
+	ret.ViewOptions.bind(cli, false)
 
 	ret.Vars = &Vars{}
-	ret.Vars.bind(flags)
+	ret.Vars.bind(cli)
 
 	ret.State = &State{}
-	ret.State.bind(flags, stateFlagLock|stateFlagStateIn)
+	ret.State.bind(cli, stateFlagLock|stateFlagStateIn)
 
-	return &ret, hooks
+	cli.ArgHelp = "Expected a single argument: NAME."
+	cli.PositionalArg(&ret.WorkspaceName, "NAME", false)
+
+	return &ret
 }
 
 func ParseWorkspaceNew(args []string) (*WorkspaceNew, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	flags := Flags{}
-	ret, hooks := BindWorkspaceNew(flags)
-
-	cmdFlags := defaultFlagSet("workspace new", flags)
-
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error(),
-		))
-	}
-
-	// TODO positional args
-	args = cmdFlags.Args()
-	if len(args) != 1 {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Invalid arguments list",
-			"Expected a single argument: NAME.",
-		))
-	} else {
-		ret.WorkspaceName = args[0]
-	}
-
-	return ret, func() { hooks.Post() }, diags.Append(hooks.Pre())
+	cli := new(CommandLine)
+	ret := BindWorkspaceNew(cli)
+	closer, diags := cli.Stdlib("workspace new", args)
+	return ret, closer, diags
 }
