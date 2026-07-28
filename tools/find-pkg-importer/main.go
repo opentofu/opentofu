@@ -52,7 +52,7 @@ func main() {
 		fatalf("Failed to run 'go list': %s", err)
 	}
 	defer func() {
-		// Error intentionally ignored becuse there's nothing useful we could
+		// Error intentionally ignored because there's nothing useful we could
 		// do about it anyway.
 		_ = cmd.Wait()
 	}()
