@@ -29,19 +29,18 @@ type StateListCommand struct {
 func (c *StateListCommand) Run(rawArgs []string) int {
 	ctx := c.CommandContext()
 
-	common, rawArgs := arguments.ParseView(rawArgs)
-	c.View.Configure(common)
-
 	// Parse and validate flags
 	args, closer, diags := arguments.ParseStateList(rawArgs)
 	defer closer()
 
+	c.View.Configure(args.View)
+
 	// Instantiate the view, even if there are flag errors, so that we render
 	// diagnostics according to the desired view
-	view := views.NewState(args.ViewOptions, c.View)
+	view := views.NewState(args.View, c.View)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
-		if args.ViewOptions.ViewType == arguments.ViewJSON {
+		if args.View.ViewType == arguments.ViewJSON {
 			return 1 // in case it's json, do not print the help of the command
 		}
 		return cli.RunResultHelp
