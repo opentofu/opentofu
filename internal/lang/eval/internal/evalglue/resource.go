@@ -77,12 +77,12 @@ type ConfiguredResourceInstanceObjectMeta struct {
 	// engine will use to force a "replace" action where an "update" might
 	// otherwise have been sufficient.
 
-	// CreateProvisioners and DestroyProvisioners both represent a sequence
-	// of provisioners configured for this resource instance object.
+	// PostCreateProvisioners and PreDestroyProvisioners both represent a
+	// sequence of provisioners configured for this resource instance object.
 	//
 	// These fields are relevant only for managed resource mode and their
 	// content is unspecified for other resource modes.
-	CreateProvisioners, DestroyProvisioners []*ResourceProvisioner
+	PostCreateProvisioners, PreDestroyProvisioners []*ResourceProvisioner
 }
 
 // ResourceProvisioner represents a single provisioner configured for a
