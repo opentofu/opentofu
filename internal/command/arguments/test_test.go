@@ -79,7 +79,7 @@ func TestParseTest(t *testing.T) {
 			want: &Test{
 				Filter:        nil,
 				TestDirectory: "tests",
-				ViewOptions:   ViewOptions{ViewType: ViewHuman},
+				View:          &View{ConsolidateWarnings: true, ViewType: ViewHuman},
 				Vars:          &Vars{},
 			},
 			wantDiags: nil,
@@ -89,7 +89,7 @@ func TestParseTest(t *testing.T) {
 			want: &Test{
 				Filter:        []string{"one.tftest.hcl", "two.tftest.hcl"},
 				TestDirectory: "tests",
-				ViewOptions:   ViewOptions{ViewType: ViewHuman},
+				View:          &View{ConsolidateWarnings: true, ViewType: ViewHuman},
 				Vars:          &Vars{},
 			},
 			wantDiags: nil,
@@ -99,7 +99,7 @@ func TestParseTest(t *testing.T) {
 			want: &Test{
 				Filter:        nil,
 				TestDirectory: "tests",
-				ViewOptions:   ViewOptions{ViewType: ViewJSON},
+				View:          &View{ConsolidateWarnings: true, ViewType: ViewJSON},
 				Vars:          &Vars{},
 			},
 			wantDiags: nil,
@@ -109,7 +109,7 @@ func TestParseTest(t *testing.T) {
 			want: &Test{
 				Filter:        nil,
 				TestDirectory: "other",
-				ViewOptions:   ViewOptions{ViewType: ViewHuman},
+				View:          &View{ConsolidateWarnings: true, ViewType: ViewHuman},
 				Vars:          &Vars{},
 			},
 			wantDiags: nil,
@@ -119,7 +119,7 @@ func TestParseTest(t *testing.T) {
 			want: &Test{
 				Filter:        nil,
 				TestDirectory: "tests",
-				ViewOptions:   ViewOptions{ViewType: ViewHuman},
+				View:          &View{ConsolidateWarnings: true, ViewType: ViewHuman},
 				Verbose:       true,
 				Vars:          &Vars{},
 			},
@@ -129,7 +129,7 @@ func TestParseTest(t *testing.T) {
 			want: &Test{
 				Filter:        nil,
 				TestDirectory: "tests",
-				ViewOptions:   ViewOptions{ViewType: ViewHuman},
+				View:          &View{ConsolidateWarnings: true, ViewType: ViewHuman},
 				Vars:          &Vars{},
 			},
 			wantDiags: tfdiags.Diagnostics{
@@ -142,7 +142,7 @@ func TestParseTest(t *testing.T) {
 		},
 	}
 
-	cmpOpts := cmpopts.IgnoreUnexported(Operation{}, Vars{}, State{}, ViewOptions{})
+	cmpOpts := cmpopts.IgnoreUnexported(Operation{}, Vars{}, State{})
 
 	for name, tc := range tcs {
 		t.Run(name, func(t *testing.T) {

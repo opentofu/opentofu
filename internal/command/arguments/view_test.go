@@ -6,6 +6,7 @@
 package arguments
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -13,99 +14,107 @@ import (
 
 func TestParseView(t *testing.T) {
 	testCases := map[string]struct {
-		args     []string
-		want     *View
-		wantArgs []string
+		args    []string
+		want    *View
+		wantErr string
 	}{
 		"nil": {
 			nil,
 			&View{NoColor: false, CompactWarnings: false, ConsolidateWarnings: true, Concise: false},
-			nil,
+			"",
 		},
 		"empty": {
 			[]string{},
 			&View{NoColor: false, CompactWarnings: false, ConsolidateWarnings: true, Concise: false},
-			[]string{},
-		},
-		"none matching": {
-			[]string{"-foo", "bar", "-baz"},
-			&View{NoColor: false, CompactWarnings: false, ConsolidateWarnings: true, Concise: false},
-			[]string{"-foo", "bar", "-baz"},
+			"",
 		},
 		"no-color": {
-			[]string{"-foo", "-no-color", "-baz"},
+			[]string{"-no-color"},
 			&View{NoColor: true, CompactWarnings: false, ConsolidateWarnings: true, Concise: false},
-			[]string{"-foo", "-baz"},
+			"",
 		},
 		"compact-warnings": {
-			[]string{"-foo", "-compact-warnings", "-baz"},
+			[]string{"-compact-warnings"},
 			&View{NoColor: false, CompactWarnings: true, ConsolidateWarnings: true, Concise: false},
-			[]string{"-foo", "-baz"},
+			"",
 		},
 		"concise": {
-			[]string{"-foo", "-concise", "-baz"},
+			[]string{"-concise"},
 			&View{NoColor: false, CompactWarnings: false, ConsolidateWarnings: true, Concise: true},
-			[]string{"-foo", "-baz"},
+			"",
 		},
 		"no-color and compact-warnings": {
-			[]string{"-foo", "-no-color", "-compact-warnings", "-baz"},
+			[]string{"-no-color", "-compact-warnings"},
 			&View{NoColor: true, CompactWarnings: true, ConsolidateWarnings: true, Concise: false},
-			[]string{"-foo", "-baz"},
+			"",
 		},
 		"no-color and concise": {
-			[]string{"-foo", "-no-color", "-concise", "-baz"},
+			[]string{"-no-color", "-concise"},
 			&View{NoColor: true, CompactWarnings: false, ConsolidateWarnings: true, Concise: true},
-			[]string{"-foo", "-baz"},
+			"",
 		},
 		"concise and compact-warnings": {
-			[]string{"-foo", "-concise", "-compact-warnings", "-baz"},
+			[]string{"-concise", "-compact-warnings"},
 			&View{NoColor: false, CompactWarnings: true, ConsolidateWarnings: true, Concise: true},
-			[]string{"-foo", "-baz"},
+			"",
 		},
 		"all three": {
-			[]string{"-foo", "-no-color", "-compact-warnings", "-concise", "-baz"},
+			[]string{"-no-color", "-compact-warnings", "-concise"},
 			&View{NoColor: true, CompactWarnings: true, ConsolidateWarnings: true, Concise: true},
-			[]string{"-foo", "-baz"},
+			"",
 		},
 		"all three, resulting in empty args": {
 			[]string{"-no-color", "-compact-warnings", "-concise"},
 			&View{NoColor: true, CompactWarnings: true, ConsolidateWarnings: true, Concise: true},
-			[]string{},
+			"",
 		},
 		"turn off warning consolidation": {
 			[]string{"-consolidate-warnings=false"},
 			&View{NoColor: false, CompactWarnings: false, ConsolidateWarnings: false, Concise: false},
-			[]string{},
+			"",
 		},
 		"show all deprecation warnings": {
 			[]string{"-deprecation=module:all"},
 			&View{ModuleDeprecationWarnLvl: DeprecationWarningLevelAll, ConsolidateWarnings: true},
-			[]string{},
+			"",
 		},
 		"show only local deprecation warnings": {
 			[]string{"-deprecation=module:local"},
 			&View{ModuleDeprecationWarnLvl: DeprecationWarningLevelLocal, ConsolidateWarnings: true},
-			[]string{},
+			"",
 		},
 		"show no deprecation warnings": {
 			[]string{"-deprecation=module:none"},
 			&View{ModuleDeprecationWarnLvl: DeprecationWarningLevelNone, ConsolidateWarnings: true},
-			[]string{},
+			"",
 		},
 		"deprecation used with other yet non-existing namespaces is returning those in the unparsed args": {
 			[]string{"-deprecation=othernamespace:arg", "-deprecation=module:none", "-deprecation=backend:arg"},
 			&View{ModuleDeprecationWarnLvl: DeprecationWarningLevelNone, ConsolidateWarnings: true},
-			[]string{"-deprecation=othernamespace:arg", "-deprecation=backend:arg"},
+			"Expected -deprecation prefix \"module:\"",
 		},
 	}
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			got, gotArgs := ParseView(tc.args)
-			if *got != *tc.want {
-				t.Errorf("unexpected result\n got: %#v\nwant: %#v", got, tc.want)
+			var cli CommandLine
+
+			tc.want.ViewType = ViewHuman
+
+			got := BindView(&cli, viewFlagNone)
+			_, diags := cli.Stdlib("view", tc.args)
+
+			if tc.wantErr == "" && len(diags) > 0 {
+				t.Fatalf("unexpected diags: %v", diags)
+			} else if tc.wantErr != "" {
+				if len(diags) == 0 {
+					t.Fatalf("expected diags but got none")
+				} else if got := diags.Err().Error(); !strings.Contains(got, tc.wantErr) {
+					t.Fatalf("wrong diags\n got: %s\nwant: %s", got, tc.wantErr)
+				}
 			}
-			if !cmp.Equal(gotArgs, tc.wantArgs) {
-				t.Errorf("unexpected args\n got: %#v\nwant: %#v", gotArgs, tc.wantArgs)
+
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("unexpected result\n%s", diff)
 			}
 		})
 	}

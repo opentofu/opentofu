@@ -10,9 +10,8 @@ import (
 )
 
 type WorkspaceList struct {
-	// ViewOptions contains the options that allows the user to configure different types of outputs
-	// from the current command.
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 
 	// Vars holds the information that might be needed to be given through `-var`/`-var-file`.
 	Vars *Vars
@@ -20,13 +19,10 @@ type WorkspaceList struct {
 
 // BindWorkspaceList registers CLI arguments, returning a WorkspaceList value and it's corresponding hooks.
 func BindWorkspaceList(cli *CommandLine) *WorkspaceList {
-	var ret WorkspaceList
-
-	ret.ViewOptions.bind(cli, false)
-
-	ret.Vars = BindVars(cli)
-
-	return &ret
+	return &WorkspaceList{
+		View: BindView(cli, viewFlagNoInput),
+		Vars: BindVars(cli),
+	}
 }
 
 func ParseWorkspaceList(args []string) (*WorkspaceList, func(), tfdiags.Diagnostics) {

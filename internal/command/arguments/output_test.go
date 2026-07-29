@@ -27,21 +27,21 @@ func TestParseOutput_basicValidation(t *testing.T) {
 		"json": {
 			args: []string{"-json"},
 			want: outputArgsWithDefaults(func(a *Output) {
-				a.ViewOptions.ViewType = ViewJSON
+				a.View.ViewType = ViewJSON
 			}),
 		},
 		"raw": {
 			args: []string{"-raw", "foo"},
 			want: outputArgsWithDefaults(func(a *Output) {
 				a.Name = "foo"
-				a.ViewOptions.ViewType = ViewRaw
+				a.View.ViewType = ViewRaw
 			}),
 		},
 		"state": {
 			args: []string{"-state=foobar.tfstate", "-raw", "foo"},
 			want: outputArgsWithDefaults(func(a *Output) {
 				a.Name = "foo"
-				a.ViewOptions.ViewType = ViewRaw
+				a.View.ViewType = ViewRaw
 				a.State.StatePath = "foobar.tfstate"
 			}),
 		},
@@ -58,21 +58,21 @@ func TestParseOutput_basicValidation(t *testing.T) {
 		"raw with no name": {
 			args: []string{"-raw"},
 			want: outputArgsWithDefaults(func(a *Output) {
-				a.ViewOptions.ViewType = ViewRaw
+				a.View.ViewType = ViewRaw
 			}),
 			wantErrText: "Output name required: You must give the name of a single output value when using the -raw option.",
 		},
 		"too many arguments": {
 			args: []string{"-raw", "-state=foo.tfstate", "bar", "baz"},
 			want: outputArgsWithDefaults(func(a *Output) {
-				a.ViewOptions.ViewType = ViewRaw
+				a.View.ViewType = ViewRaw
 				a.Name = "bar"
 				a.State.StatePath = "foo.tfstate"
 			}),
 			wantErrText: "The output command expects exactly one argument with the name of an output variable or no arguments to show all outputs.",
 		},
 	}
-	cmpOpts := cmpopts.IgnoreUnexported(ViewOptions{}, Vars{})
+	cmpOpts := cmpopts.IgnoreUnexported(Vars{})
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			got, closer, diags := ParseOutput(tc.args)
@@ -96,10 +96,11 @@ func TestParseOutput_basicValidation(t *testing.T) {
 
 func outputArgsWithDefaults(mutate func(a *Output)) *Output {
 	ret := &Output{
-		Name:          "",
-		ShowSensitive: false,
-		ViewOptions: ViewOptions{
-			ViewType: ViewHuman,
+		Name: "",
+		View: &View{
+			ShowSensitive:       false,
+			ConsolidateWarnings: true,
+			ViewType:            ViewHuman,
 		},
 		Vars:  &Vars{},
 		State: &State{},

@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 func TestParseMetadataFunctions_basicValidation(t *testing.T) {
@@ -29,7 +28,7 @@ func TestParseMetadataFunctions_basicValidation(t *testing.T) {
 				// The -json flag is just to validate that the user understands that the output will be in json.
 				// While parsing the arguments, we revert back to human format to be sure that the diagnostics
 				// are printed in human format
-				args.ViewOptions.ViewType = ViewHuman
+				args.View.ViewType = ViewHuman
 			}),
 		},
 		"invalid flag": {
@@ -38,8 +37,6 @@ func TestParseMetadataFunctions_basicValidation(t *testing.T) {
 			wantErrText: "flag provided but not defined: -foo",
 		},
 	}
-
-	cmpOpts := cmpopts.IgnoreUnexported(ViewOptions{})
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
@@ -56,7 +53,7 @@ func TestParseMetadataFunctions_basicValidation(t *testing.T) {
 					t.Errorf("the returned diagnostics does not contain the expected error message.\ndiags:\n%s\nwanted: %s\n", errStr, tc.wantErrText)
 				}
 			}
-			if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
+			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("unexpected result\n%s", diff)
 			}
 		})
@@ -65,9 +62,10 @@ func TestParseMetadataFunctions_basicValidation(t *testing.T) {
 
 func metadataFunctionsArgsWithDefaults(mutate func(version *MetadataFunctions)) *MetadataFunctions {
 	ret := &MetadataFunctions{
-		ViewOptions: ViewOptions{
-			ViewType:     ViewHuman,
-			InputEnabled: false,
+		View: &View{
+			ConsolidateWarnings: true,
+			ViewType:            ViewHuman,
+			InputEnabled:        false,
 		},
 	}
 	if mutate != nil {

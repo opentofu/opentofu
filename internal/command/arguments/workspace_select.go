@@ -16,9 +16,8 @@ type WorkspaceSelect struct {
 	// in case it's missing from the current list of workspaces.
 	CreateIfMissing bool
 
-	// ViewOptions contains the options that allows the user to configure different types of outputs
-	// from the current command.
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 
 	// Vars holds the information that might be needed to be given through `-var`/`-var-file`.
 	Vars *Vars
@@ -26,11 +25,10 @@ type WorkspaceSelect struct {
 
 // BindWorkspaceSelect registers CLI arguments, returning a WorkspaceSelect value and it's corresponding hooks.
 func BindWorkspaceSelect(cli *CommandLine) *WorkspaceSelect {
-	var ret WorkspaceSelect
-
-	ret.ViewOptions.bind(cli, false)
-
-	ret.Vars = BindVars(cli)
+	ret := WorkspaceSelect{
+		View: BindView(cli, viewFlagNoInput),
+		Vars: BindVars(cli),
+	}
 
 	cli.BoolVar(&ret.CreateIfMissing, "or-create", false, "Create the OpenTofu workspace if it doesn't exist.")
 

@@ -17,8 +17,8 @@ type StateList struct {
 	// to be listed.
 	InstancesRawAddr []string
 
-	// ViewOptions specifies which view options to use
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 
 	// Vars and State are the common extended flags
 	Vars  *Vars
@@ -27,13 +27,11 @@ type StateList struct {
 
 // BindStateList registers CLI arguments, returning a StateList value and it's corresponding hooks.
 func BindStateList(cli *CommandLine) *StateList {
-	var ret StateList
-
-	ret.ViewOptions.bind(cli, false)
-
-	ret.Vars = BindVars(cli)
-
-	ret.State = BindState(cli, stateFlagStateIn)
+	ret := StateList{
+		View:  BindView(cli, viewFlagNoInput),
+		Vars:  BindVars(cli),
+		State: BindState(cli, stateFlagStateIn),
+	}
 
 	cli.StringVar(&ret.LookupId, "id", "", `Filters the results to include only instances whose resource types have an attribute named "id" whose value equals the given id string.`).SetDisplay("=ID")
 

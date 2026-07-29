@@ -24,27 +24,30 @@ func TestParseRefresh_basicValid(t *testing.T) {
 		"defaults": {
 			nil,
 			&Refresh{
-				ViewOptions: ViewOptions{
-					InputEnabled: true,
-					ViewType:     ViewHuman,
+				View: &View{
+					ConsolidateWarnings: true,
+					InputEnabled:        true,
+					ViewType:            ViewHuman,
 				},
 			},
 		},
 		"input=false": {
 			[]string{"-input=false"},
 			&Refresh{
-				ViewOptions: ViewOptions{
-					InputEnabled: false,
-					ViewType:     ViewHuman,
+				View: &View{
+					ConsolidateWarnings: true,
+					InputEnabled:        false,
+					ViewType:            ViewHuman,
 				},
 			},
 		},
 		"JSON view disables input": {
 			[]string{"-json"},
 			&Refresh{
-				ViewOptions: ViewOptions{
-					InputEnabled: false,
-					ViewType:     ViewJSON,
+				View: &View{
+					ConsolidateWarnings: true,
+					InputEnabled:        false,
+					ViewType:            ViewJSON,
 				},
 			},
 		},
@@ -60,9 +63,8 @@ func TestParseRefresh_basicValid(t *testing.T) {
 			got.State = nil
 			got.Operation = nil
 			got.Vars = nil
-			got.ViewOptions.jsonFlag = tc.want.ViewOptions.jsonFlag
-			if *got != *tc.want {
-				t.Fatalf("unexpected result\n got: %#v\nwant: %#v", got, tc.want)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("unexpected result\n%s", diff)
 			}
 		})
 	}
@@ -76,8 +78,8 @@ func TestParseRefresh_invalid(t *testing.T) {
 	if got, want := diags.Err().Error(), "flag provided but not defined"; !strings.Contains(got, want) {
 		t.Fatalf("wrong diags\n got: %s\nwant: %s", got, want)
 	}
-	if got.ViewOptions.ViewType != ViewHuman {
-		t.Fatalf("wrong view type, got %#v, want %#v", got.ViewOptions.ViewType, ViewHuman)
+	if got.View.ViewType != ViewHuman {
+		t.Fatalf("wrong view type, got %#v, want %#v", got.View.ViewType, ViewHuman)
 	}
 }
 
@@ -89,8 +91,8 @@ func TestParseRefresh_tooManyArguments(t *testing.T) {
 	if got, want := diags.Err().Error(), "Too many command line arguments"; !strings.Contains(got, want) {
 		t.Fatalf("wrong diags\n got: %s\nwant: %s", got, want)
 	}
-	if got.ViewOptions.ViewType != ViewHuman {
-		t.Fatalf("wrong view type, got %#v, want %#v", got.ViewOptions.ViewType, ViewHuman)
+	if got.View.ViewType != ViewHuman {
+		t.Fatalf("wrong view type, got %#v, want %#v", got.View.ViewType, ViewHuman)
 	}
 }
 

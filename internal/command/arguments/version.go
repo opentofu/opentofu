@@ -11,15 +11,15 @@ import (
 
 // Version represents the command-line arguments for the version command.
 type Version struct {
-	// ViewOptions specifies which view options to use
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 }
 
 // BindVersion registers CLI arguments, returning a Version value and it's corresponding hooks.
 func BindVersion(cli *CommandLine) *Version {
-	var ret Version
-
-	ret.ViewOptions.bindGranularFlags(cli, false, false) // Add only the -json flag
+	ret := Version{
+		View: BindView(cli, viewFlagJson),
+	}
 
 	// Enable but ignore the global version cli. In main.go, if any of the
 	// arguments are -v, -version, or --version, this command will be called

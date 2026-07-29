@@ -42,8 +42,8 @@ func TestParseWorkspaceList_viewOptions(t *testing.T) {
 				t.Fatalf("unexpected diagnostics: %v", diags)
 			}
 
-			if got.ViewOptions.ViewType != tc.wantViewType {
-				t.Errorf("ViewOptions.ViewType = %v, want %v", got.ViewOptions.ViewType, tc.wantViewType)
+			if got.View.ViewType != tc.wantViewType {
+				t.Errorf("View.ViewType = %v, want %v", got.View.ViewType, tc.wantViewType)
 			}
 		})
 	}

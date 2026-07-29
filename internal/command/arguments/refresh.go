@@ -16,22 +16,18 @@ type Refresh struct {
 	Operation *Operation
 	Vars      *Vars
 
-	// ViewOptions specifies which view options to use
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 }
 
 // BindRefresh registers CLI arguments, returning a Refresh value and it's corresponding hooks.
 func BindRefresh(cli *CommandLine) *Refresh {
-	var refresh Refresh
-
-	refresh.ViewOptions.bind(cli, true)
-
-	refresh.Vars = BindVars(cli)
-	refresh.Operation = BindOperation(cli)
-
-	refresh.State = BindState(cli, stateFlagAll)
-
-	return &refresh
+	return &Refresh{
+		View:      BindView(cli, viewFlagAll),
+		Vars:      BindVars(cli),
+		Operation: BindOperation(cli),
+		State:     BindState(cli, stateFlagAll),
+	}
 }
 
 // ParseRefresh processes CLI arguments, returning a Refresh value, a closer function, and errors.

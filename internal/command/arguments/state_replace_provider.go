@@ -20,8 +20,8 @@ type StateReplaceProvider struct {
 	// process.
 	AutoApprove bool
 
-	// ViewOptions specifies which view options to use
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 
 	// Vars, Backend and State are the common extended flags
 	Vars    *Vars
@@ -31,13 +31,12 @@ type StateReplaceProvider struct {
 
 // BindStateReplaceProvider registers CLI arguments, returning a StateReplaceProvider value and it's corresponding hooks.
 func BindStateReplaceProvider(cli *CommandLine) *StateReplaceProvider {
-	var ret StateReplaceProvider
-
-	ret.ViewOptions.bind(cli, false)
-
-	ret.Vars = BindVars(cli)
-	ret.Backend = BindBackend(cli)
-	ret.State = BindState(cli, stateFlagLock|stateFlagStateIn|stateFlagBackup)
+	ret := StateReplaceProvider{
+		View:    BindView(cli, viewFlagNoInput),
+		Vars:    BindVars(cli),
+		Backend: BindBackend(cli),
+		State:   BindState(cli, stateFlagLock|stateFlagStateIn|stateFlagBackup),
+	}
 
 	cli.BoolVar(&ret.AutoApprove, "auto-approve", false, "Skip interactive approval.")
 
@@ -50,7 +49,7 @@ func BindStateReplaceProvider(cli *CommandLine) *StateReplaceProvider {
 		}
 		// In OpenTofu, there is no way to run a command with `-json` flag and allow asking for user input in the same time.
 		// Therefore, the JSON view can used only when the `-auto-approve` is provided too.
-		if ret.ViewOptions.ViewType == ViewJSON && !ret.AutoApprove {
+		if ret.View.ViewType == ViewJSON && !ret.AutoApprove {
 			return tfdiags.New(tfdiags.Sourceless(
 				tfdiags.Error,
 				"Invalid usage",
@@ -59,6 +58,12 @@ func BindStateReplaceProvider(cli *CommandLine) *StateReplaceProvider {
 		}
 		return nil
 	})
+
+	cli.FlagGroups = []FlagGroup{{
+		ID:     "",
+		Title:  "Options:",
+		Suffix: `-state, state-out, and -backup are legacy options supported for the local backend only. For more information, see the local backend's documentation.`,
+	}}
 
 	return &ret
 }

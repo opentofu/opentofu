@@ -105,7 +105,7 @@ func TestParseProvidersLock_basicValidation(t *testing.T) {
 		},
 	}
 
-	cmpOpts := cmpopts.IgnoreUnexported(Vars{}, ViewOptions{})
+	cmpOpts := cmpopts.IgnoreUnexported(Vars{})
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
@@ -186,9 +186,10 @@ func providersLockArgsWithDefaults(mutate func(v *ProvidersLock)) *ProvidersLock
 		OptPlatforms: nil,
 		FsMirrorDir:  "",
 		NetMirrorURL: "",
-		ViewOptions: ViewOptions{
-			ViewType:     ViewHuman,
-			InputEnabled: false,
+		View: &View{
+			ConsolidateWarnings: true,
+			ViewType:            ViewHuman,
+			InputEnabled:        false,
 		},
 		Vars: &Vars{},
 	}

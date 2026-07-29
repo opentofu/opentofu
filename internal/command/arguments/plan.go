@@ -28,22 +28,18 @@ type Plan struct {
 	// be written to.
 	GenerateConfigPath string
 
-	// ViewOptions specifies which view options to use
-	ViewOptions ViewOptions
-
-	// ShowSensitive is used to display the value of variables marked as sensitive.
-	ShowSensitive bool
+	// View represents the global view options
+	View *View
 }
 
 // BindPlan registers CLI arguments, returning a Plan value and it's corresponding hooks.
 func BindPlan(cli *CommandLine) *Plan {
-	var plan Plan
-
-	plan.ViewOptions.bind(cli, true)
-
-	plan.Operation = BindOperation(cli)
-	plan.Vars = BindVars(cli)
-	plan.State = BindState(cli, stateFlagAll)
+	plan := Plan{
+		View:      BindView(cli, viewFlagAll),
+		Operation: BindOperation(cli),
+		Vars:      BindVars(cli),
+		State:     BindState(cli, stateFlagAll),
+	}
 
 	cli.BoolVar(&plan.DetailedExitCode, "detailed-exitcode", false,
 		`Return detailed exit codes when the command exits. The detailed exit codes are:
@@ -57,8 +53,6 @@ func BindPlan(cli *CommandLine) *Plan {
 		`(Experimental) If import blocks are present in configuration, instructs OpenTofu to generate HCL for any imported resources not already present. The configuration is written to a new file at PATH, which must not already exist.
 OpenTofu may still attempt to write configuration if planning fails with an error.`,
 	).SetDisplay("=path")
-	cli.BoolVar(&plan.ShowSensitive, "show-sensitive", false,
-		`If specified, sensitive values will not be redacted in te UI output.`)
 
 	// Special handling for flag groups!
 	for _, name := range []string{"destroy", "refresh-only", "refresh", "replace", "target", "target-file", "exclude", "exclude-file", "var", "var-file"} {
