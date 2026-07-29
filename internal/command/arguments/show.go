@@ -19,13 +19,10 @@ type Show struct {
 	TargetType ShowTargetType
 	TargetArg  string
 
-	// ViewOptions specifies which view options to use
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 
 	Vars *Vars
-
-	// ShowSensitive is used to display the value of variables marked as sensitive.
-	ShowSensitive bool
 }
 
 // ShowTargetType represents the type of object that is requested to be
@@ -67,7 +64,7 @@ const (
 func BindShow(cli *CommandLine) *Show {
 	var show Show
 
-	show.ViewOptions.bind(cli, false)
+	show.View = BindView(cli, viewFlagNoInput|viewFlagSensitive)
 
 	show.Vars = &Vars{}
 	show.Vars.bind(cli)
@@ -78,7 +75,6 @@ func BindShow(cli *CommandLine) *Show {
 	var moduleTarget string
 	var args []string
 
-	cli.BoolVar(&show.ShowSensitive, "show-sensitive", false, "displays sensitive values")
 	cli.BoolVar(&stateTarget, "state", false, "show the latest state snapshot")
 	cli.StringVar(&planTarget, "plan", "", "show the plan from a saved plan file")
 	cli.BoolVar(&configTarget, "config", false, "show the current configuration")
@@ -87,14 +83,14 @@ func BindShow(cli *CommandLine) *Show {
 	cli.VariadicArg(&args, "arguments")
 	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
 		// If -config or -module=... is selected, -json is required
-		if configTarget && !show.ViewOptions.jsonFlag {
+		if configTarget && show.View.ViewType != ViewJSON {
 			return tfdiags.New(tfdiags.Sourceless(
 				tfdiags.Error,
 				"JSON output required for configuration",
 				"The -config option requires -json to be specified.",
 			))
 		}
-		if moduleTarget != "" && !show.ViewOptions.jsonFlag {
+		if moduleTarget != "" && show.View.ViewType != ViewJSON {
 			return tfdiags.New(tfdiags.Sourceless(
 				tfdiags.Error,
 				"JSON output required for module",

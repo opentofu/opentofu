@@ -25,11 +25,8 @@ type Apply struct {
 	// PlanPath contains an optional path to a stored plan file
 	PlanPath string
 
-	// ViewOptions specifies which view options to use
-	ViewOptions ViewOptions
-
-	// ShowSensitive is used to display the value of variables marked as sensitive.
-	ShowSensitive bool
+	// View represents the global view options
+	View *View
 
 	// SuppressForgetErrorsDuringDestroy suppresses the error that occurs when a
 	// destroy operation completes successfully but leaves forgotten instances behind.
@@ -40,7 +37,7 @@ type Apply struct {
 func BindApply(cli *CommandLine) *Apply {
 	var apply Apply
 
-	apply.ViewOptions.bind(cli, true)
+	apply.View = BindView(cli, viewFlagAll)
 
 	apply.Operation = &Operation{}
 	apply.Operation.bind(cli)
@@ -52,7 +49,6 @@ func BindApply(cli *CommandLine) *Apply {
 	apply.State.bind(cli, stateFlagAll)
 
 	cli.BoolVar(&apply.AutoApprove, "auto-approve", false, "Skip interactive approval of plan before applying.")
-	cli.BoolVar(&apply.ShowSensitive, "show-sensitive", false, "If specified, sensitive values will be displayed.")
 	cli.BoolVar(&apply.SuppressForgetErrorsDuringDestroy, "suppress-forget-errors", false, "Suppress the error that occurs when a destroy operation completes successfully but leaves forgotten instances behind.")
 
 	cli.PositionalArg(&apply.PlanPath, "plan path", true)
@@ -61,7 +57,7 @@ func BindApply(cli *CommandLine) *Apply {
 		// JSON view cannot confirm apply, so we require either a plan file or
 		// auto-approve to be specified. We intentionally fail here rather than
 		// override auto-approve, which would be dangerous.
-		if apply.ViewOptions.jsonFlag && apply.PlanPath == "" && !apply.AutoApprove {
+		if apply.View.ViewType == ViewJSON && apply.PlanPath == "" && !apply.AutoApprove {
 			return tfdiags.New(tfdiags.Sourceless(
 				tfdiags.Error,
 				"Plan file or auto-approve required",

@@ -35,16 +35,15 @@ type Fmt struct {
 	// subdirectories.
 	Recursive bool
 
-	// ViewOptions specifies which view options to use
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 }
 
 // BindFmt registers CLI arguments, returning a Fmt value and it's corresponding hooks.
 func BindFmt(cli *CommandLine) *Fmt {
 	var ret Fmt
 
-	// we only parse but do not register the views flags since this command does not need it
-	ret.ViewOptions.ParseHook(cli)
+	ret.View = BindView(cli, viewFlagNone)
 
 	cli.BoolVar(&ret.List, "list", true, "Don't list files whose formatting differs (always disabled if using STDIN)").SetDisplay("=false")
 	cli.BoolVar(&ret.Write, "write", true, "Don't write to source files (always disabled if using STDIN or -check)").SetDisplay("=false")

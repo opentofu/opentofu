@@ -16,8 +16,8 @@ type StatePush struct {
 	StateSrc string
 	// Force will try to forcefully push the state remotely. This will happen only if the backend supports it.
 	Force bool
-	// ViewOptions specifies which view options to use
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 
 	// Vars, Backend and State are the common extended flags
 	Vars    *Vars
@@ -29,7 +29,7 @@ type StatePush struct {
 func BindStatePush(cli *CommandLine) *StatePush {
 	var ret StatePush
 
-	ret.ViewOptions.bind(cli, false)
+	ret.View = BindView(cli, viewFlagNoInput)
 
 	ret.Vars = &Vars{}
 	ret.Vars.bind(cli)

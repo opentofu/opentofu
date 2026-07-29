@@ -96,8 +96,8 @@ func TestParseStateRm_basicValidation(t *testing.T) {
 	}
 
 	cmpOpts := cmp.Options{
-		cmpopts.IgnoreUnexported(Vars{}, ViewOptions{}, State{}),
-		cmpopts.IgnoreFields(ViewOptions{}, "JSONInto"), // We ignore JSONInto because it contains a file which is not really diffable
+		cmpopts.IgnoreUnexported(Vars{}, State{}),
+		cmpopts.IgnoreFields(View{}, "JSONInto"), // We ignore JSONInto because it contains a file which is not really diffable
 	}
 
 	for name, tc := range testCases {
@@ -127,9 +127,10 @@ func TestParseStateRm_basicValidation(t *testing.T) {
 func stateRmArgsWithDefaults(mutate func(stateRm *StateRm)) *StateRm {
 	ret := &StateRm{
 		DryRun: false,
-		ViewOptions: ViewOptions{
-			ViewType:     ViewHuman,
-			InputEnabled: false,
+		View: &View{
+			ConsolidateWarnings: true,
+			ViewType:            ViewHuman,
+			InputEnabled:        false,
 		},
 		Backend: &Backend{
 			IgnoreRemoteVersion: false,

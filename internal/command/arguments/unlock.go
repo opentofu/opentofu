@@ -18,15 +18,15 @@ type Unlock struct {
 
 	// Vars holds and provides information for the flags related to variables that a user can give into the process
 	Vars *Vars
-	// ViewOptions specifies which view options to use
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 }
 
 // BindUnlock registers CLI arguments, returning a Unlock value and it's corresponding hooks.
 func BindUnlock(cli *CommandLine) *Unlock {
 	var arguments Unlock
 
-	arguments.ViewOptions.bind(cli, false)
+	arguments.View = BindView(cli, viewFlagNoInput)
 
 	arguments.Vars = &Vars{}
 	arguments.Vars.bind(cli)

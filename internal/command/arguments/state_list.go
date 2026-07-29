@@ -17,8 +17,8 @@ type StateList struct {
 	// to be listed.
 	InstancesRawAddr []string
 
-	// ViewOptions specifies which view options to use
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 
 	// Vars and State are the common extended flags
 	Vars  *Vars
@@ -29,7 +29,7 @@ type StateList struct {
 func BindStateList(cli *CommandLine) *StateList {
 	var ret StateList
 
-	ret.ViewOptions.bind(cli, false)
+	ret.View = BindView(cli, viewFlagNoInput)
 
 	ret.Vars = &Vars{}
 	ret.Vars.bind(cli)

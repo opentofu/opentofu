@@ -10,9 +10,8 @@ import (
 )
 
 type WorkspaceList struct {
-	// ViewOptions contains the options that allows the user to configure different types of outputs
-	// from the current command.
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 
 	// Vars holds the information that might be needed to be given through `-var`/`-var-file`.
 	Vars *Vars
@@ -22,7 +21,7 @@ type WorkspaceList struct {
 func BindWorkspaceList(cli *CommandLine) *WorkspaceList {
 	var ret WorkspaceList
 
-	ret.ViewOptions.bind(cli, false)
+	ret.View = BindView(cli, viewFlagNoInput)
 
 	ret.Vars = &Vars{}
 	ret.Vars.bind(cli)

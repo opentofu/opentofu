@@ -14,11 +14,9 @@ type Output struct {
 	// Name identifies which root module output to show.  If empty, show all
 	// outputs.
 	Name string
-	// ShowSensitive is used to display the value of variables marked as sensitive.
-	ShowSensitive bool
 
-	// ViewOptions specifies which view options to use
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 	// Vars and State are the common extended flags
 	Vars  *Vars
 	State *State
@@ -28,7 +26,7 @@ type Output struct {
 func BindOutput(cli *CommandLine) *Output {
 	var output Output
 
-	output.ViewOptions.bind(cli, false)
+	output.View = BindView(cli, viewFlagNoInput|viewFlagSensitive)
 
 	output.Vars = &Vars{}
 	output.Vars.bind(cli)
@@ -38,7 +36,6 @@ func BindOutput(cli *CommandLine) *Output {
 
 	rawOutput := false
 	cli.BoolVar(&rawOutput, "raw", false, "For value types that can be automatically converted to a string, will print the raw string directly, rather than a human-oriented representation of the value.")
-	cli.BoolVar(&output.ShowSensitive, "show-sensitive", false, "If specified, sensitive values will be displayed.")
 
 	cli.ArgHelp = "The output command expects exactly one argument with the name of an output variable or no arguments to show all outputs."
 	cli.PositionalArg(&output.Name, "output name", true)
@@ -46,8 +43,9 @@ func BindOutput(cli *CommandLine) *Output {
 	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
 		var diags tfdiags.Diagnostics
 		if rawOutput {
-			output.ViewOptions.ViewType = ViewRaw
-			if output.ViewOptions.jsonFlag {
+			jsonSet := output.View.ViewType == ViewJSON
+			output.View.ViewType = ViewRaw
+			if jsonSet {
 				diags = diags.Append(tfdiags.Sourceless(
 					tfdiags.Error,
 					"Invalid output format",
@@ -55,7 +53,7 @@ func BindOutput(cli *CommandLine) *Output {
 				))
 
 				// Since the desired output format is unknowable, fall back to default
-				output.ViewOptions.ViewType = ViewHuman
+				output.View.ViewType = ViewHuman
 				rawOutput = false
 			}
 		}

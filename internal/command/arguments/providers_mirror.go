@@ -17,8 +17,8 @@ type ProvidersMirror struct {
 	// copy for
 	OptPlatforms []string
 
-	// ViewOptions specifies which view options to use
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 	// Vars holds and provides information for the flags related to variables that a user can give into the process
 	Vars *Vars
 }
@@ -27,7 +27,7 @@ type ProvidersMirror struct {
 func BindProvidersMirror(cli *CommandLine) *ProvidersMirror {
 	var arguments ProvidersMirror
 
-	arguments.ViewOptions.bind(cli, false)
+	arguments.View = BindView(cli, viewFlagNoInput)
 
 	arguments.Vars = &Vars{}
 	arguments.Vars.bind(cli)

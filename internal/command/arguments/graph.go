@@ -22,8 +22,8 @@ type Graph struct {
 	// PlanPath specifies the path to a plan file to render the graph from.
 	PlanPath string
 
-	// ViewOptions specifies which view options to use
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 
 	// Vars holds and provides information for the flags related to variables that a user can give into the process
 	Vars *Vars
@@ -33,8 +33,7 @@ type Graph struct {
 func BindGraph(cli *CommandLine) *Graph {
 	var graph Graph
 
-	// we only parse but do not register the views flags since this command does not need it
-	graph.ViewOptions.ParseHook(cli)
+	graph.View = BindView(cli, viewFlagNone)
 
 	graph.Vars = &Vars{}
 	graph.Vars.bind(cli)

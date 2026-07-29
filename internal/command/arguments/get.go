@@ -18,15 +18,15 @@ type Get struct {
 
 	// Vars holds and provides information for the flags related to variables that a user can give into the process
 	Vars *Vars
-	// ViewOptions specifies which view options to use
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 }
 
 // BindGet registers CLI arguments, returning a Get value and it's corresponding hooks.
 func BindGet(cli *CommandLine) *Get {
 	var arguments Get
 
-	arguments.ViewOptions.bind(cli, false)
+	arguments.View = BindView(cli, viewFlagNoInput)
 
 	arguments.Vars = &Vars{}
 	arguments.Vars.bind(cli)

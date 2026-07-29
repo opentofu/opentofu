@@ -8,6 +8,7 @@ package arguments
 import (
 	"flag"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/opentofu/opentofu/internal/command/flags"
@@ -24,6 +25,28 @@ type CommandLine struct {
 
 func (c CommandLine) Stdlib(name string, args []string) (func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
+
+	// Special re-ordering of arguments for "global" options
+	var globalFlags []string
+	var rest []string
+	for _, arg := range args {
+		isGlobal := false
+		for _, flag := range c.Flags {
+			if flag.Global {
+				if strings.HasPrefix(arg, "-"+flag.Name) || strings.HasPrefix(arg, "--"+flag.Name) {
+					isGlobal = true
+				}
+			}
+		}
+		if isGlobal {
+			globalFlags = append(globalFlags, arg)
+		} else {
+			rest = append(rest, arg)
+		}
+	}
+	if len(globalFlags) > 0 {
+		args = append(globalFlags, rest...)
+	}
 
 	cmdFlags := defaultFlagSet(name)
 	for _, flag := range c.Flags {
@@ -198,6 +221,7 @@ type Flag struct {
 	GroupID string
 	Display string
 	Hidden  bool
+	Global  bool
 
 	Cobra  func(*pflag.FlagSet)
 	Stdlib func(*flag.FlagSet)
@@ -216,6 +240,10 @@ func (f *Flag) SetDisplay(display string) *Flag {
 }
 func (f *Flag) SetHidden(hidden bool) *Flag {
 	f.Hidden = hidden
+	return f
+}
+func (f *Flag) SetGlobal(mixed bool) *Flag {
+	f.Global = mixed
 	return f
 }
 

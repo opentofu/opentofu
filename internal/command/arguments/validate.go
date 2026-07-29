@@ -24,8 +24,8 @@ type Validate struct {
 	// included with the module.
 	NoTests bool
 
-	// ViewOptions specifies which view options to use
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 
 	Vars *Vars
 }
@@ -34,7 +34,7 @@ type Validate struct {
 func BindValidate(cli *CommandLine) *Validate {
 	var validate Validate
 
-	validate.ViewOptions.bind(cli, false)
+	validate.View = BindView(cli, viewFlagNoInput)
 
 	validate.Vars = &Vars{}
 	validate.Vars.bind(cli)

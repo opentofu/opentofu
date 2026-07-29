@@ -14,17 +14,15 @@ type Logout struct {
 	// Host represents the host that OpenTofu will try to log out of
 	Host string
 
-	// ViewOptions specifies which view options to use
-	ViewOptions ViewOptions
-	// Vars holds and provides information for the flags related to variables that a user can give into the process
-	Vars *Vars
+	// View represents the global view options
+	View *View
 }
 
 // BindLogout registers CLI arguments, returning a Logout value and it's corresponding hooks.
 func BindLogout(cli *CommandLine) *Logout {
 	var arguments Logout
 
-	arguments.ViewOptions.bind(cli, false)
+	arguments.View = BindView(cli, viewFlagNoInput)
 
 	cli.ArgHelp = "The logout command expects exactly one argument: the host to log out of."
 	cli.PositionalArg(&arguments.Host, "hostname", false)

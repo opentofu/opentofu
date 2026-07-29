@@ -22,8 +22,8 @@ type StateMv struct {
 	// BackupPathOut can be used by the user to configure where to save the backup file of the state file.
 	BackupPathOut string
 
-	// ViewOptions specifies which view options to use
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 
 	// Vars, Backend and State are the common extended flags
 	Vars    *Vars
@@ -35,7 +35,7 @@ type StateMv struct {
 func BindStateMv(cli *CommandLine) *StateMv {
 	var ret StateMv
 
-	ret.ViewOptions.bind(cli, false)
+	ret.View = BindView(cli, viewFlagNoInput)
 
 	ret.Vars = &Vars{}
 	ret.Vars.bind(cli)

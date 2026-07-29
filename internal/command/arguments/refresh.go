@@ -16,15 +16,15 @@ type Refresh struct {
 	Operation *Operation
 	Vars      *Vars
 
-	// ViewOptions specifies which view options to use
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 }
 
 // BindRefresh registers CLI arguments, returning a Refresh value and it's corresponding hooks.
 func BindRefresh(cli *CommandLine) *Refresh {
 	var refresh Refresh
 
-	refresh.ViewOptions.bind(cli, true)
+	refresh.View = BindView(cli, viewFlagAll)
 
 	refresh.Vars = &Vars{}
 	refresh.Vars.bind(cli)

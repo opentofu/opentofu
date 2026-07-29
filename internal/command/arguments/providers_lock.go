@@ -30,8 +30,8 @@ type ProvidersLock struct {
 	// to use for the providers.
 	OciMirrorTemplate string
 
-	// ViewOptions specifies which view options to use
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 	// Vars holds and provides information for the flags related to variables that a user can give into the process
 	Vars *Vars
 }
@@ -40,7 +40,7 @@ type ProvidersLock struct {
 func BindProvidersLock(cli *CommandLine) *ProvidersLock {
 	var arguments ProvidersLock
 
-	arguments.ViewOptions.bind(cli, false)
+	arguments.View = BindView(cli, viewFlagNoInput)
 
 	arguments.Vars = &Vars{}
 	arguments.Vars.bind(cli)

@@ -16,23 +16,22 @@ type Providers struct {
 
 	// Vars holds and provides information for the flags related to variables that a user can give into the process
 	Vars *Vars
-	// ViewOptions specifies which view options to use
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 }
 
 // BindProviders registers CLI arguments, returning a Providers value and it's corresponding hooks.
 func BindProviders(cli *CommandLine) *Providers {
-	var providers Providers
+	var arguments Providers
 
-	// we only parse but do not register the views flags since this command does not need it
-	providers.ViewOptions.ParseHook(cli)
+	arguments.View = BindView(cli, viewFlagNone)
 
-	providers.Vars = &Vars{}
-	providers.Vars.bind(cli)
+	arguments.Vars = &Vars{}
+	arguments.Vars.bind(cli)
 
-	cli.StringVar(&providers.TestsDirectory, "test-directory", "tests", `Set the OpenTofu test directory, defaults to "tests". When set, the test command will search for test files in the current directory and in the one specified by the flag.`).SetDisplay("=path")
+	cli.StringVar(&arguments.TestsDirectory, "test-directory", "tests", `Set the OpenTofu test directory, defaults to "tests". When set, the test command will search for test files in the current directory and in the one specified by the flag.`).SetDisplay("=path")
 
-	return &providers
+	return &arguments
 }
 
 // ParseProviders processes CLI arguments, returning a Providers value, a closer function, and errors.

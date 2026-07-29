@@ -21,8 +21,8 @@ type Test struct {
 	// always be discovered.
 	TestDirectory string
 
-	// ViewOptions specifies which view options to use
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 
 	// You can specify common variables for all tests from the command line.
 	Vars *Vars
@@ -37,7 +37,7 @@ type Test struct {
 func BindTest(cli *CommandLine) *Test {
 	var test Test
 
-	test.ViewOptions.bind(cli, false)
+	test.View = BindView(cli, viewFlagNoInput)
 
 	test.Vars = &Vars{}
 	test.Vars.bind(cli)

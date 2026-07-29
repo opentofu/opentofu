@@ -77,8 +77,8 @@ func TestParseConsole_basicValidation(t *testing.T) {
 	}
 
 	cmpOpts := cmp.Options{
-		cmpopts.IgnoreUnexported(Vars{}, ViewOptions{}),
-		cmpopts.IgnoreFields(ViewOptions{}, "JSONInto"), // We ignore JSONInto because it contains a file which is not really diffable
+		cmpopts.IgnoreUnexported(Vars{}),
+		cmpopts.IgnoreFields(View{}, "JSONInto"), // We ignore JSONInto because it contains a file which is not really diffable
 	}
 
 	for name, tc := range testCases {
@@ -98,9 +98,10 @@ func TestParseConsole_basicValidation(t *testing.T) {
 
 func consoleArgsWithDefaults(mutate func(console *Console)) *Console {
 	ret := &Console{
-		ViewOptions: ViewOptions{
-			ViewType:     ViewHuman,
-			InputEnabled: true,
+		View: &View{
+			ConsolidateWarnings: true,
+			ViewType:            ViewHuman,
+			InputEnabled:        true,
 		},
 		Vars: &Vars{},
 		State: &State{

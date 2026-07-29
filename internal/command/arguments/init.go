@@ -42,8 +42,8 @@ type Init struct {
 	BackendFlagSet bool
 	CloudFlagSet   bool
 
-	// ViewOptions specifies which view options to use
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 
 	// Vars holds and provides information for the flags related to variables that a user can give into the process
 	Vars *Vars
@@ -58,7 +58,7 @@ type Init struct {
 func BindInit(cli *CommandLine) *Init {
 	var init Init
 
-	init.ViewOptions.bind(cli, true)
+	init.View = BindView(cli, viewFlagAll)
 
 	init.Vars = &Vars{}
 	init.Vars.bind(cli)

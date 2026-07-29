@@ -11,8 +11,8 @@ import (
 
 // Console represents the command-line arguments for the console command.
 type Console struct {
-	// ViewOptions specifies which view options to use
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 	// Vars holds and provides information for the flags related to variables that a user can give into the process
 	Vars *Vars
 	// State is used for the state related flags
@@ -30,19 +30,19 @@ func BindConsole(cli *CommandLine) *Console {
 	console.State.bind(cli, stateFlagLock)
 	console.State.bindStateInFlag(cli, DefaultStateFilename)
 
-	console.ViewOptions.bind(cli, true)
+	console.View = BindView(cli, viewFlagAll)
 
 	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
 		// If the user provided the -json flag, we don't allow it since the UX is just poor in this case.
 		// We allow only the streaming of the evaluated values in a json file, by using the `-json-into` flag.
-		if console.ViewOptions.ViewType == ViewJSON {
+		if console.View.ViewType == ViewJSON {
 			return tfdiags.New(tfdiags.Sourceless(
 				tfdiags.Error,
 				"Output only in json is not allowed",
 				"In case you want to stream the output of the console into json, use the \"-json-into\" instead.",
 			))
 			// Revert the view type to be able to print the diagnostic properly
-			console.ViewOptions.ViewType = ViewHuman
+			console.View.ViewType = ViewHuman
 		}
 		return nil
 	}})

@@ -17,8 +17,8 @@ type StateRm struct {
 	// When running in this mode, the state will suffer no change.
 	DryRun bool
 
-	// ViewOptions specifies which view options to use
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 
 	// Vars, Backend and State are the common extended flags
 	Vars    *Vars
@@ -30,7 +30,7 @@ type StateRm struct {
 func BindStateRm(cli *CommandLine) *StateRm {
 	var ret StateRm
 
-	ret.ViewOptions.bind(cli, false)
+	ret.View = BindView(cli, viewFlagNoInput)
 
 	ret.Vars = &Vars{}
 	ret.Vars.bind(cli)

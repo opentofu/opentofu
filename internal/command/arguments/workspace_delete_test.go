@@ -44,8 +44,8 @@ func TestParseWorkspaceDelete_viewOptions(t *testing.T) {
 				t.Fatalf("unexpected diagnostics: %v", diags)
 			}
 
-			if got.ViewOptions.ViewType != tc.wantViewType {
-				t.Errorf("ViewOptions.ViewType = %v, want %v", got.ViewOptions.ViewType, tc.wantViewType)
+			if got.View.ViewType != tc.wantViewType {
+				t.Errorf("View.ViewType = %v, want %v", got.View.ViewType, tc.wantViewType)
 			}
 		})
 	}
@@ -85,7 +85,7 @@ func TestParseWorkspaceDelete_basicValidation(t *testing.T) {
 		},
 	}
 
-	cmpOpts := cmpopts.IgnoreUnexported(Vars{}, ViewOptions{})
+	cmpOpts := cmpopts.IgnoreUnexported(Vars{})
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
@@ -165,8 +165,9 @@ func workspaceDeleteArgsWithDefaults(mutate func(in *WorkspaceDelete)) *Workspac
 	ret := &WorkspaceDelete{
 		Force: false,
 		Vars:  &Vars{},
-		ViewOptions: ViewOptions{
-			ViewType: ViewHuman,
+		View: &View{
+			ConsolidateWarnings: true,
+			ViewType:            ViewHuman,
 		},
 		State: &State{
 			Lock: true,

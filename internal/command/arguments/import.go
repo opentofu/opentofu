@@ -23,8 +23,8 @@ type Import struct {
 	// Parallelism is the limit of concurrent operation as OpenTofu walks the graph
 	Parallelism int
 
-	// ViewOptions specifies which view options to use
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 	// State, Backend and Vars are the common extended flags
 	State   *State
 	Backend *Backend
@@ -35,7 +35,7 @@ type Import struct {
 func BindImport(cli *CommandLine, wd *workdir.Dir) *Import {
 	var ret Import
 
-	ret.ViewOptions.bind(cli, true)
+	ret.View = BindView(cli, viewFlagAll)
 
 	ret.Vars = &Vars{}
 	ret.Vars.bind(cli)
