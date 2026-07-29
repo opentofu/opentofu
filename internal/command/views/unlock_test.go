@@ -191,7 +191,7 @@ Local state cannot be unlocked by another process.
 
 func testUnlockHuman(t *testing.T, call func(v Unlock), wantStdout, wantStderr string) {
 	view, done := testView(t)
-	getView := NewUnlock(arguments.ViewOptions{ViewType: arguments.ViewHuman}, view)
+	getView := NewUnlock(&arguments.View{ViewType: arguments.ViewHuman}, view)
 	call(getView)
 	output := done(t)
 	if diff := cmp.Diff(wantStderr, output.Stderr()); diff != "" {
@@ -204,7 +204,7 @@ func testUnlockHuman(t *testing.T, call func(v Unlock), wantStdout, wantStderr s
 
 func testUnlockJson(t *testing.T, call func(v Unlock), want []map[string]interface{}) {
 	view, done := testView(t)
-	getView := NewUnlock(arguments.ViewOptions{ViewType: arguments.ViewJSON}, view)
+	getView := NewUnlock(&arguments.View{ViewType: arguments.ViewJSON}, view)
 	call(getView)
 	output := done(t)
 	if output.Stderr() != "" {
@@ -220,7 +220,7 @@ func testUnlockMulti(t *testing.T, call func(v Unlock), wantStdout string, wantS
 		t.Fatalf("failed to create the file to write json content into: %s", err)
 	}
 	view, done := testView(t)
-	getView := NewUnlock(arguments.ViewOptions{ViewType: arguments.ViewHuman, JSONInto: jsonInto}, view)
+	getView := NewUnlock(&arguments.View{ViewType: arguments.ViewHuman, JSONInto: jsonInto}, view)
 	call(getView)
 	{
 		if err := jsonInto.Close(); err != nil {

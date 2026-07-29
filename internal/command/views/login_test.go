@@ -356,7 +356,7 @@ func TestLoginViews(t *testing.T) {
 
 func testLoginHuman(t *testing.T, call func(login Login), wantStdout, wantStderr string) {
 	view, done := testView(t)
-	loginView := NewLogin(arguments.ViewOptions{ViewType: arguments.ViewHuman}, view)
+	loginView := NewLogin(&arguments.View{ViewType: arguments.ViewHuman}, view)
 	call(loginView)
 	output := done(t)
 	if diff := cmp.Diff(wantStderr, output.Stderr()); diff != "" {
@@ -369,7 +369,7 @@ func testLoginHuman(t *testing.T, call func(login Login), wantStdout, wantStderr
 
 func testLoginJson(t *testing.T, call func(login Login), want []map[string]any) {
 	view, done := testView(t)
-	loginView := NewLogin(arguments.ViewOptions{ViewType: arguments.ViewJSON}, view)
+	loginView := NewLogin(&arguments.View{ViewType: arguments.ViewJSON}, view)
 	call(loginView)
 	output := done(t)
 	if output.Stderr() != "" {
@@ -385,7 +385,7 @@ func testLoginMulti(t *testing.T, call func(login Login), wantStdout string, wan
 		t.Fatalf("failed to create the file to write json content into: %s", err)
 	}
 	view, done := testView(t)
-	loginView := NewLogin(arguments.ViewOptions{ViewType: arguments.ViewHuman, JSONInto: jsonInto}, view)
+	loginView := NewLogin(&arguments.View{ViewType: arguments.ViewHuman, JSONInto: jsonInto}, view)
 	call(loginView)
 	{
 		if err := jsonInto.Close(); err != nil {

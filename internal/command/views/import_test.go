@@ -260,7 +260,7 @@ operation.
 
 func testImportHuman(t *testing.T, call func(v Import), wantStdout, wantStderr string) {
 	view, done := testView(t)
-	v := NewImport(arguments.ViewOptions{ViewType: arguments.ViewHuman}, view)
+	v := NewImport(&arguments.View{ViewType: arguments.ViewHuman}, view)
 	call(v)
 	output := done(t)
 	if diff := cmp.Diff(wantStderr, output.Stderr()); diff != "" {
@@ -274,7 +274,7 @@ func testImportHuman(t *testing.T, call func(v Import), wantStdout, wantStderr s
 func testImportJson(t *testing.T, call func(v Import), want []map[string]interface{}) {
 	// New type just to assert the fields that we are interested in
 	view, done := testView(t)
-	v := NewImport(arguments.ViewOptions{ViewType: arguments.ViewJSON}, view)
+	v := NewImport(&arguments.View{ViewType: arguments.ViewJSON}, view)
 	call(v)
 	output := done(t)
 	if output.Stderr() != "" {
@@ -290,7 +290,7 @@ func testImportMulti(t *testing.T, call func(v Import), wantStdout string, wantS
 		t.Fatalf("failed to create the file to write json content into: %s", err)
 	}
 	view, done := testView(t)
-	v := NewImport(arguments.ViewOptions{ViewType: arguments.ViewHuman, JSONInto: jsonInto}, view)
+	v := NewImport(&arguments.View{ViewType: arguments.ViewHuman, JSONInto: jsonInto}, view)
 	call(v)
 	{
 		if err := jsonInto.Close(); err != nil {

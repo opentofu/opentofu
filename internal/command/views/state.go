@@ -64,7 +64,7 @@ type State interface {
 }
 
 // NewState returns an initialized State implementation for the given ViewType.
-func NewState(args arguments.ViewOptions, view *View) State {
+func NewState(args *arguments.View, view *View) State {
 	var ret State
 	switch args.ViewType {
 	case arguments.ViewJSON:
