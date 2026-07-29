@@ -44,10 +44,6 @@ func (o *PlanningOracle) ProviderInstance(ctx context.Context, addr addrs.AbsPro
 	return o.providers.ProviderInstance(ctx, addr)
 }
 
-func (o *PlanningOracle) DestroyProvisioners(ctx context.Context, addr addrs.AbsResourceInstance) []Provisioner {
-	return evalglue.DestroyProvisioners(ctx, o.root, addr)
-}
-
 func (o *PlanningOracle) PreventDestroy(ctx context.Context, addr addrs.AbsResourceInstance) (cty.Value, *tfdiags.SourceRange, tfdiags.Diagnostics) {
 	mod := evalglue.ModuleInstance(ctx, o.root, addr.Module)
 	if mod == nil {

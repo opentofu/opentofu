@@ -79,12 +79,16 @@ type ManagedResourceObjectFinalPlan struct {
 	// TODO: Anything else we'd need to populate an "ApplyResourceChanges"
 	// request to the associated provider.
 
-	// CreateProvisioners are the provisioners to execute if the resource
-	// instance is being created.
-	CreateProvisioners []eval.Provisioner
-	// DestroyProvisioners are the provisioners to execute if the resource
-	// instance is being destroyed.
-	DestroyProvisioners []eval.Provisioner
+	// ProvisionersBefore and ProvisionersAfter are provisioners to run
+	// before or after applying the plan, respectively.
+	//
+	// If ProvisionersBefore fail and are not configured to continue on failure
+	// then the changes are not applied at all.
+	//
+	// ProvisionersAfter run only if the changes are applied successfully, and
+	// then if they fail the object is left in a "tainted" state so that the
+	// next plan/apply round knows that the object is not yet ready to use.
+	ProvisionersBefore, ProvisionersAfter []*eval.ResourceProvisioner
 }
 
 // IntoDeposed returns a new [ManagedResourceObjectFinalPlan] that represents
@@ -240,15 +244,15 @@ type ResourceInstanceObjectMeta struct {
 	// The contents of this field can only be relied on during a round where
 	// the apply phase would create a resource instance object at the associated
 	// address. Its contents are unspecified in other cases.
-	PostCreateProvisioners []eval.ResourceProvisioner
+	PostCreateProvisioners []*eval.ResourceProvisioner
 
 	// PreDeleteProvisioners are the provisioners to execute immediately before
-	// the resource instance object will be deleted.
+	// the resource instance object would be deleted.
 	//
 	// The contents of this field can only be relied on during a round where
 	// the apply phase would delete a resource instance object at the associated
 	// address. Its contents are unspecified in other cases.
-	PreDeleteProvisioners []eval.ResourceProvisioner
+	PreDeleteProvisioners []*eval.ResourceProvisioner
 }
 
 // BuildResourceInstanceObjectMeta constructs a [ResourceInstanceObjectMeta]
@@ -282,16 +286,25 @@ func BuildResourceInstanceObjectMeta(
 	}
 
 	// If both state and fromConfig are present then we'll start with state
-	// so that the config values can potentially override.
+	// so that the config values can potentially override the state values.
 	if state != nil {
 		// Note that if this object is participating in a cross-resource-type
 		// move in this plan/apply round this will initially reflect the
 		// old resource type, but then we'll overwrite it with the new resource
 		// type from the configuration object below.
 		ret.ResourceType = state.ResourceType
+
+		// TODO: Everything else
 	}
 
-	// TODO: The rest of this
+	if fromConfig != nil {
+		ret.ResourceType = fromConfig.ResourceType
+
+		ret.PostCreateProvisioners = fromConfig.PostCreateProvisioners
+		ret.PreDeleteProvisioners = fromConfig.PreDestroyProvisioners
+
+		// TODO: Everything else
+	}
 
 	return ret
 }
