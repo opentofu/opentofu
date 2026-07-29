@@ -63,19 +63,29 @@ func (ops *execOperations) resourceDependenciesMissingMarks(cfgVal cty.Value) (c
 }
 
 // ResourceInstanceCurrentMeta implements [exec.Operations].
-func (ops *execOperations) ResourceInstanceCurrentMeta(ctx context.Context, instAddr addrs.AbsResourceInstance) (*exec.ResourceInstanceObjectMeta, tfdiags.Diagnostics) {
+func (ops *execOperations) ResourceInstanceCurrentMeta(ctx context.Context, instAddr addrs.AbsResourceInstance, prior *exec.ResourceInstanceObject) (*exec.ResourceInstanceObjectMeta, tfdiags.Diagnostics) {
 	log.Printf("[TRACE] apply phase: ResourceInstanceCurrentMeta %s", instAddr)
-	// TODO: Implement
-	panic("unimplemented")
+
+	objAddr := instAddr.CurrentObject()
+	configMeta := ops.configOracle.ResourceInstanceObjectMeta(ctx, objAddr)
+	var state *states.ResourceInstanceObjectFull
+	if prior != nil {
+		state = prior.State
+	}
+
+	return exec.BuildResourceInstanceObjectMeta(objAddr, configMeta, state), nil
 }
 
 // ResourceInstanceDesired implements [exec.Operations].
 func (ops *execOperations) ResourceInstanceDesired(
 	ctx context.Context,
-	instAddr addrs.AbsResourceInstance,
+	meta *exec.ResourceInstanceObjectMeta,
 ) (*eval.DesiredResourceInstance, tfdiags.Diagnostics) {
-	log.Printf("[TRACE] apply phase: ResourceInstanceDesired %s", instAddr)
-	return ops.configOracle.DesiredResourceInstance(ctx, instAddr)
+	log.Printf("[TRACE] apply phase: ResourceInstanceDesired %s", meta.Addr)
+	if !meta.Addr.IsCurrent() {
+		panic(fmt.Sprintf("no desired state for %s", meta.Addr))
+	}
+	return ops.configOracle.DesiredResourceInstance(ctx, meta.Addr.InstanceAddr)
 }
 
 // ResourceInstancePrior implements [exec.Operations].

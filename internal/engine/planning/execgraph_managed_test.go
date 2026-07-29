@@ -56,12 +56,13 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 			},
 			`
 				v[0] = cty.EmptyObjectVal;
-				
-				r[0] = ResourceInstanceDesired(test.placeholder);
-				r[1] = ManagedFinalPlan(r[0], nil, v[0]);
-				r[2] = ManagedApply(r[1], nil, await());
 
-				test.placeholder = r[2];
+				r[0] = ResourceInstanceCurrentMeta(test.placeholder, nil);
+				r[1] = ResourceInstanceDesired(r[0]);
+				r[2] = ManagedFinalPlan(r[0], r[1], nil, v[0]);
+				r[3] = ManagedApply(r[2], nil, await());
+
+				test.placeholder = r[3];
 			`,
 		},
 		"update": {
@@ -81,13 +82,14 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 			},
 			`
 				v[0] = cty.StringVal("after");
-				
-				r[0] = ResourceInstancePrior(test.placeholder);
-				r[1] = ResourceInstanceDesired(test.placeholder);
-				r[2] = ManagedFinalPlan(r[1], r[0], v[0]);
-				r[3] = ManagedApply(r[2], nil, await());
 
-				test.placeholder = r[3];
+				r[0] = ResourceInstancePrior(test.placeholder);
+				r[1] = ResourceInstanceCurrentMeta(test.placeholder, r[0]);
+				r[2] = ResourceInstanceDesired(r[1]);
+				r[3] = ManagedFinalPlan(r[1], r[2], r[0], v[0]);
+				r[4] = ManagedApply(r[3], nil, await());
+
+				test.placeholder = r[4];
 			`,
 		},
 		"update with move": {
@@ -114,12 +116,13 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 				v[0] = cty.StringVal("after");
 
 				r[0] = ResourceInstancePrior(test.old);
-				r[1] = ManagedChangeAddr(r[0], test.placeholder);
-				r[2] = ResourceInstanceDesired(test.placeholder);
-				r[3] = ManagedFinalPlan(r[2], r[1], v[0]);
-				r[4] = ManagedApply(r[3], nil, await());
+				r[1] = ResourceInstanceCurrentMeta(test.placeholder, r[0]);
+				r[2] = ResourceInstanceDesired(r[1]);
+				r[3] = ManagedChangeAddr(r[0], test.placeholder);
+				r[4] = ManagedFinalPlan(r[1], r[2], r[3], v[0]);
+				r[5] = ManagedApply(r[4], nil, await());
 
-				test.placeholder = r[4];
+				test.placeholder = r[5];
 			`,
 		},
 		"delete": {
@@ -141,8 +144,9 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 				v[0] = cty.NullVal(cty.EmptyObject);
 				
 				r[0] = ResourceInstancePrior(test.placeholder);
-				r[1] = ManagedFinalPlan(nil, r[0], v[0]);
-				r[2] = ManagedApply(r[1], nil, await());
+				r[1] = ResourceInstanceCurrentMeta(test.placeholder, r[0]);
+				r[2] = ManagedFinalPlan(r[1], nil, r[0], v[0]);
+				r[3] = ManagedApply(r[2], nil, await());
 
 				test.placeholder = r[0];
 			`,
@@ -176,13 +180,14 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 				v[1] = cty.NullVal(cty.String);
 				
 				r[0] = ResourceInstancePrior(test.placeholder);
-				r[1] = ResourceInstanceDesired(test.placeholder);
-				r[2] = ManagedFinalPlan(r[1], nil, v[0]);
-				r[3] = ManagedFinalPlan(nil, r[0], v[1]);
-				r[4] = ManagedApply(r[3], nil, await(r[2]));
-				r[5] = ManagedApply(r[2], nil, await(r[4]));
+				r[1] = ResourceInstanceCurrentMeta(test.placeholder, r[0]);
+				r[2] = ResourceInstanceDesired(r[1]);
+				r[3] = ManagedFinalPlan(r[1], r[2], nil, v[0]);
+				r[4] = ManagedFinalPlan(r[1], nil, r[0], v[1]);
+				r[5] = ManagedApply(r[4], nil, await(r[3]));
+				r[6] = ManagedApply(r[3], nil, await(r[5]));
 
-				test.placeholder = r[5];
+				test.placeholder = r[6];
 			`,
 		},
 		"delete then create with move": {
@@ -210,14 +215,15 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 				v[1] = cty.NullVal(cty.String);
 
 				r[0] = ResourceInstancePrior(test.old);
-				r[1] = ManagedChangeAddr(r[0], test.placeholder);
-				r[2] = ResourceInstanceDesired(test.placeholder);
-				r[3] = ManagedFinalPlan(r[2], nil, v[0]);
-				r[4] = ManagedFinalPlan(nil, r[1], v[1]);
-				r[5] = ManagedApply(r[4], nil, await(r[3]));
-				r[6] = ManagedApply(r[3], nil, await(r[5]));
+				r[1] = ResourceInstanceCurrentMeta(test.placeholder, r[0]);
+				r[2] = ResourceInstanceDesired(r[1]);
+				r[3] = ManagedChangeAddr(r[0], test.placeholder);
+				r[4] = ManagedFinalPlan(r[1], r[2], nil, v[0]);
+				r[5] = ManagedFinalPlan(r[1], nil, r[3], v[1]);
+				r[6] = ManagedApply(r[5], nil, await(r[4]));
+				r[7] = ManagedApply(r[4], nil, await(r[6]));
 
-				test.placeholder = r[6];
+				test.placeholder = r[7];
 			`,
 		},
 		"create then delete": {
@@ -240,15 +246,16 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 				v[1] = cty.NullVal(cty.String);
 
 				r[0] = ResourceInstancePrior(test.placeholder);
-				r[1] = ResourceInstanceDesired(test.placeholder);
-				r[2] = ManagedFinalPlan(r[1], nil, v[0]);
-				r[3] = ManagedFinalPlan(nil, r[0], v[1]);
-				r[4] = ManagedPrepareDepose(r[3], "00000001");
-				r[5] = ManagedPerformDepose(r[0], r[4], await(r[2]));
-				r[6] = ManagedApply(r[2], r[5], await());
-				r[7] = ManagedApply(r[4], nil, await(r[6]));
+				r[1] = ResourceInstanceCurrentMeta(test.placeholder, r[0]);
+				r[2] = ResourceInstanceDesired(r[1]);
+				r[3] = ManagedFinalPlan(r[1], r[2], nil, v[0]);
+				r[4] = ManagedFinalPlan(r[1], nil, r[0], v[1]);
+				r[5] = ManagedPrepareDepose(r[4], "00000001");
+				r[6] = ManagedPerformDepose(r[0], r[5], await(r[3]));
+				r[7] = ManagedApply(r[3], r[6], await());
+				r[8] = ManagedApply(r[5], nil, await(r[7]));
 
-				test.placeholder = r[6];
+				test.placeholder = r[7];
 			`,
 		},
 		"create then delete with move": {
@@ -276,16 +283,17 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 				v[1] = cty.NullVal(cty.String);
 
 				r[0] = ResourceInstancePrior(test.old);
-				r[1] = ManagedChangeAddr(r[0], test.placeholder);
-				r[2] = ResourceInstanceDesired(test.placeholder);
-				r[3] = ManagedFinalPlan(r[2], nil, v[0]);
-				r[4] = ManagedFinalPlan(nil, r[1], v[1]);
-				r[5] = ManagedPrepareDepose(r[4], "00000001");
-				r[6] = ManagedPerformDepose(r[1], r[5], await(r[3]));
-				r[7] = ManagedApply(r[3], r[6], await());
-				r[8] = ManagedApply(r[5], nil, await(r[7]));
+				r[1] = ResourceInstanceCurrentMeta(test.placeholder, r[0]);
+				r[2] = ResourceInstanceDesired(r[1]);
+				r[3] = ManagedChangeAddr(r[0], test.placeholder);
+				r[4] = ManagedFinalPlan(r[1], r[2], nil, v[0]);
+				r[5] = ManagedFinalPlan(r[1], nil, r[3], v[1]);
+				r[6] = ManagedPrepareDepose(r[5], "00000001");
+				r[7] = ManagedPerformDepose(r[3], r[6], await(r[4]));
+				r[8] = ManagedApply(r[4], r[7], await());
+				r[9] = ManagedApply(r[6], nil, await(r[8]));
 
-				test.placeholder = r[7];
+				test.placeholder = r[8];
 			`,
 		},
 	}

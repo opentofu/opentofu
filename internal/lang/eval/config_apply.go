@@ -157,6 +157,35 @@ type ApplyOracle struct {
 	providers *managedProviders
 }
 
+// ResourceInstanceObjectMeta returns the subset of metadata for the given
+// resource instance that's defined in the configuration.
+//
+// The apply engine will generally need to combine the result with information
+// from the prior state to produce the full set of metadata for a resource
+// instance object, since this result only reflects what's currently present
+// in the configuration and so is likely to be lacking some or all information
+// for non-desired objects.
+//
+// If the given address identifies an object in a module instance that is not
+// currently in the configuration then the result is nil. Otherwise, whatever
+// language edition implementation is responsible for the relevant module
+// instance uses its own rules to decide the metadata for the requested object.
+//
+// This function always succeeds but may include unknown values as placeholders
+// for metadata whose configuration is defined in an invalid way. The caller
+// is expected to concurrently connect diagnostics from module instances in
+// the configuration, which would then include any errors related to with the
+// metadata settings.
+func (o *ApplyOracle) ResourceInstanceObjectMeta(ctx context.Context, addr addrs.AbsResourceInstanceObject) *ConfiguredResourceInstanceObjectMeta {
+	moduleInst := evalglue.ModuleInstance(ctx, o.root, addr.InstanceAddr.Module)
+	if moduleInst == nil {
+		// The relevant module instance is not currently configured at all,
+		// so the caller will need to rely on the state exclusively for this one.
+		return nil
+	}
+	return moduleInst.ResourceInstanceObjectMeta(ctx, addr.ModuleRelative())
+}
+
 // DesiredResourceInstance returns the [DesiredResourceInstance] object
 // associated with the given resource instance address, or nil if the given
 // address does not match a desired resource instance.

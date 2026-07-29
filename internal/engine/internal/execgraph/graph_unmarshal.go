@@ -121,6 +121,8 @@ func UnmarshalGraph(src []byte) (*Graph, error) {
 
 func unmarshalOperationElem(protoOp *execgraphproto.Operation, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
 	switch c := protoOp.GetOpcode(); opCode(c) {
+	case opResourceInstanceCurrentMeta:
+		return unmarshalOpResourceInstanceCurrentMeta(protoOp.GetOperands(), prevResults, builder)
 	case opResourceInstanceDesired:
 		return unmarshalOpResourceInstanceDesired(protoOp.GetOperands(), prevResults, builder)
 	case opResourceInstancePrior:
@@ -133,6 +135,8 @@ func unmarshalOperationElem(protoOp *execgraphproto.Operation, prevResults []Any
 		return unmarshalOpManagedPrepareDepose(protoOp.GetOperands(), prevResults, builder)
 	case opManagedPerformDepose:
 		return unmarshalOpManagedPerformDepose(protoOp.GetOperands(), prevResults, builder)
+	case opManagedDesposedMeta:
+		return unmarshalOpManagedDeposedMeta(protoOp.GetOperands(), prevResults, builder)
 	case opManagedAlreadyDeposed:
 		return unmarshalOpManagedAlreadyDeposed(protoOp.GetOperands(), prevResults, builder)
 	case opManagedChangeAddr:
@@ -147,15 +151,30 @@ func unmarshalOperationElem(protoOp *execgraphproto.Operation, prevResults []Any
 	}
 }
 
+func unmarshalOpResourceInstanceCurrentMeta(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
+	if len(rawOperands) != 2 {
+		return nil, fmt.Errorf("wrong number of operands (%d) for opResourceInstanceCurrentMeta", len(rawOperands))
+	}
+	instAddr, err := unmarshalGetPrevResultOf[addrs.AbsResourceInstance](prevResults, rawOperands[0])
+	if err != nil {
+		return nil, fmt.Errorf("invalid opResourceInstanceCurrentMeta instAddr: %w", err)
+	}
+	prior, err := unmarshalGetPrevResultOf[*exec.ResourceInstanceObject](prevResults, rawOperands[1])
+	if err != nil {
+		return nil, fmt.Errorf("invalid opResourceInstanceCurrentMeta prior: %w", err)
+	}
+	return builder.ResourceInstanceCurrentMeta(instAddr, prior), nil
+}
+
 func unmarshalOpResourceInstanceDesired(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
 	if len(rawOperands) != 1 {
 		return nil, fmt.Errorf("wrong number of operands (%d) for opResourceInstanceDesired", len(rawOperands))
 	}
-	addr, err := unmarshalGetPrevResultOf[addrs.AbsResourceInstance](prevResults, rawOperands[0])
+	meta, err := unmarshalGetPrevResultOf[*exec.ResourceInstanceObjectMeta](prevResults, rawOperands[0])
 	if err != nil {
-		return nil, fmt.Errorf("invalid opResourceInstanceDesired addr: %w", err)
+		return nil, fmt.Errorf("invalid opResourceInstanceDesired meta: %w", err)
 	}
-	return builder.ResourceInstanceDesired(addr), nil
+	return builder.ResourceInstanceDesired(meta), nil
 }
 
 func unmarshalOpResourceInstancePrior(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
@@ -170,22 +189,26 @@ func unmarshalOpResourceInstancePrior(rawOperands []uint64, prevResults []AnyRes
 }
 
 func unmarshalOpManagedFinalPlan(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
-	if len(rawOperands) != 3 {
+	if len(rawOperands) != 4 {
 		return nil, fmt.Errorf("wrong number of operands (%d) for opManagedFinalPlan", len(rawOperands))
 	}
-	desiredInst, err := unmarshalGetPrevResultOf[*eval.DesiredResourceInstance](prevResults, rawOperands[0])
+	metadata, err := unmarshalGetPrevResultOf[*exec.ResourceInstanceObjectMeta](prevResults, rawOperands[0])
+	if err != nil {
+		return nil, fmt.Errorf("invalid opManagedFinalPlan metadata: %w", err)
+	}
+	desiredInst, err := unmarshalGetPrevResultOf[*eval.DesiredResourceInstance](prevResults, rawOperands[1])
 	if err != nil {
 		return nil, fmt.Errorf("invalid opManagedFinalPlan desiredInst: %w", err)
 	}
-	priorState, err := unmarshalGetPrevResultOf[*exec.ResourceInstanceObject](prevResults, rawOperands[1])
+	priorState, err := unmarshalGetPrevResultOf[*exec.ResourceInstanceObject](prevResults, rawOperands[2])
 	if err != nil {
 		return nil, fmt.Errorf("invalid opManagedFinalPlan priorState: %w", err)
 	}
-	plannedVal, err := unmarshalGetPrevResultOf[cty.Value](prevResults, rawOperands[2])
+	plannedVal, err := unmarshalGetPrevResultOf[cty.Value](prevResults, rawOperands[3])
 	if err != nil {
 		return nil, fmt.Errorf("invalid opManagedFinalPlan plannedVal: %w", err)
 	}
-	return builder.ManagedFinalPlan(desiredInst, priorState, plannedVal), nil
+	return builder.ManagedFinalPlan(metadata, desiredInst, priorState, plannedVal), nil
 }
 
 func unmarshalOpManagedApply(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
@@ -241,6 +264,25 @@ func unmarshalOpManagedPerformDepose(rawOperands []uint64, prevResults []AnyResu
 	return builder.ManagedPerformDepose(currentObj, finalDeletePlan, waitFor), nil
 }
 
+func unmarshalOpManagedDeposedMeta(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
+	if len(rawOperands) != 3 {
+		return nil, fmt.Errorf("wrong number of operands (%d) for unmarshalOpManagedDeposedMeta", len(rawOperands))
+	}
+	instAddr, err := unmarshalGetPrevResultOf[addrs.AbsResourceInstance](prevResults, rawOperands[0])
+	if err != nil {
+		return nil, fmt.Errorf("invalid unmarshalOpManagedDeposedMeta instAddr: %w", err)
+	}
+	deposedKey, err := unmarshalGetPrevResultOf[states.DeposedKey](prevResults, rawOperands[1])
+	if err != nil {
+		return nil, fmt.Errorf("invalid unmarshalOpManagedDeposedMeta deposedKey: %w", err)
+	}
+	prior, err := unmarshalGetPrevResultOf[*exec.ResourceInstanceObject](prevResults, rawOperands[2])
+	if err != nil {
+		return nil, fmt.Errorf("invalid unmarshalOpManagedDeposedMeta prior: %w", err)
+	}
+	return builder.ManagedDeposedMeta(instAddr, deposedKey, prior), nil
+}
+
 func unmarshalOpManagedAlreadyDeposed(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
 	if len(rawOperands) != 2 {
 		return nil, fmt.Errorf("wrong number of operands (%d) for opManagedAlreadyDeposed", len(rawOperands))
@@ -272,22 +314,26 @@ func unmarshalOpManagedChangeAddr(rawOperands []uint64, prevResults []AnyResultR
 }
 
 func unmarshalOpDataRead(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
-	if len(rawOperands) != 3 {
+	if len(rawOperands) != 4 {
 		return nil, fmt.Errorf("wrong number of operands (%d) for opDataRead", len(rawOperands))
 	}
-	desiredInst, err := unmarshalGetPrevResultOf[*eval.DesiredResourceInstance](prevResults, rawOperands[0])
+	metadata, err := unmarshalGetPrevResultOf[*exec.ResourceInstanceObjectMeta](prevResults, rawOperands[0])
+	if err != nil {
+		return nil, fmt.Errorf("invalid opDataRead metadata: %w", err)
+	}
+	desiredInst, err := unmarshalGetPrevResultOf[*eval.DesiredResourceInstance](prevResults, rawOperands[1])
 	if err != nil {
 		return nil, fmt.Errorf("invalid opDataRead desiredInst: %w", err)
 	}
-	plannedVal, err := unmarshalGetPrevResultOf[cty.Value](prevResults, rawOperands[1])
+	plannedVal, err := unmarshalGetPrevResultOf[cty.Value](prevResults, rawOperands[2])
 	if err != nil {
 		return nil, fmt.Errorf("invalid opDataRead plannedVal: %w", err)
 	}
-	waitFor, err := unmarshalGetPrevResultWaiter(prevResults, rawOperands[2])
+	waitFor, err := unmarshalGetPrevResultWaiter(prevResults, rawOperands[3])
 	if err != nil {
 		return nil, fmt.Errorf("invalid opDataRead waitFor: %w", err)
 	}
-	return builder.DataRead(desiredInst, plannedVal, waitFor), nil
+	return builder.DataRead(metadata, desiredInst, plannedVal, waitFor), nil
 }
 
 func unmarshalWaiterElem(protoWaiter *execgraphproto.Waiter, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {

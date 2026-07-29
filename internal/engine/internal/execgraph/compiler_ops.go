@@ -20,9 +20,10 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-func (c *compiler) compileOpResourceInstanceDesired(operands *compilerOperands) nodeExecuteRaw {
+func (c *compiler) compileOpResourceInstanceCurrentMeta(operands *compilerOperands) nodeExecuteRaw {
 	ops := c.ops
 	getInstAddr := nextOperand[addrs.AbsResourceInstance](operands)
+	getPrior := nextOperand[*exec.ResourceInstanceObject](operands)
 	diags := operands.Finish()
 	c.diags = c.diags.Append(diags)
 	if diags.HasErrors() {
@@ -37,8 +38,38 @@ func (c *compiler) compileOpResourceInstanceDesired(operands *compilerOperands) 
 		if !ok {
 			return nil, false, diags
 		}
+		prior, ok, moreDiags := getPrior(ctx)
+		diags = diags.Append(moreDiags)
+		if !ok {
+			return nil, false, diags
+		}
 
-		ret, moreDiags := ops.ResourceInstanceDesired(ctx, instAddr)
+		ret, moreDiags := ops.ResourceInstanceCurrentMeta(ctx, instAddr, prior)
+		diags = diags.Append(moreDiags)
+
+		return ret, !diags.HasErrors(), diags
+	}
+}
+
+func (c *compiler) compileOpResourceInstanceDesired(operands *compilerOperands) nodeExecuteRaw {
+	ops := c.ops
+	getMeta := nextOperand[*exec.ResourceInstanceObjectMeta](operands)
+	diags := operands.Finish()
+	c.diags = c.diags.Append(diags)
+	if diags.HasErrors() {
+		return nil
+	}
+
+	return func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
+		var diags tfdiags.Diagnostics
+
+		meta, ok, moreDiags := getMeta(ctx)
+		diags = diags.Append(moreDiags)
+		if !ok {
+			return nil, false, diags
+		}
+
+		ret, moreDiags := ops.ResourceInstanceDesired(ctx, meta)
 		diags = diags.Append(moreDiags)
 
 		if ret != nil && ret.ConfigVal.HasMarkDeep(exprs.EvalError) {
@@ -50,7 +81,7 @@ func (c *compiler) compileOpResourceInstanceDesired(operands *compilerOperands) 
 			// expected to be clear from other diagnostics reported upstream,
 			// but just in case that isn't true due to a bug we'll include
 			// a log line to note why we're intentionally halting here.
-			log.Printf("[DEBUG] Cannot finalize desired object for %s because something it depends on encountered an error.", instAddr)
+			log.Printf("[DEBUG] Cannot finalize desired object for %s because something it depends on encountered an error.", meta.Addr)
 			return ret, false, diags
 		}
 
@@ -83,6 +114,7 @@ func (c *compiler) compileOpResourceInstancePrior(operands *compilerOperands) no
 }
 
 func (c *compiler) compileOpManagedFinalPlan(operands *compilerOperands) nodeExecuteRaw {
+	getMetadata := nextOperand[*exec.ResourceInstanceObjectMeta](operands)
 	getDesired := nextOperand[*eval.DesiredResourceInstance](operands)
 	getPrior := nextOperand[*exec.ResourceInstanceObject](operands)
 	getInitialPlanned := nextOperand[cty.Value](operands)
@@ -94,7 +126,15 @@ func (c *compiler) compileOpManagedFinalPlan(operands *compilerOperands) nodeExe
 	ops := c.ops
 
 	return func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
+		// We intentionally ask for "desired" before "metadata" here, despite
+		// the argument order, because if both of them would fail then we'd
+		// prefer to return the diagnostics from "desired".
 		desired, ok, moreDiags := getDesired(ctx)
+		diags = diags.Append(moreDiags)
+		if !ok {
+			return nil, false, diags
+		}
+		metadata, ok, moreDiags := getMetadata(ctx)
 		diags = diags.Append(moreDiags)
 		if !ok {
 			return nil, false, diags
@@ -110,7 +150,7 @@ func (c *compiler) compileOpManagedFinalPlan(operands *compilerOperands) nodeExe
 			return nil, false, diags
 		}
 
-		ret, moreDiags := ops.ManagedFinalPlan(ctx, desired, prior, initialPlanned)
+		ret, moreDiags := ops.ManagedFinalPlan(ctx, metadata, desired, prior, initialPlanned)
 		diags = diags.Append(moreDiags)
 		return ret, !diags.HasErrors(), diags
 	}
@@ -247,6 +287,43 @@ func (c *compiler) compileOpManagedPerformDepose(operands *compilerOperands) nod
 				diags = diags.Append(fmt.Errorf("opManagedPerformDepose for %s result has wrong instance address %s; this is a bug in OpenTofu", currentObj.Addr.InstanceAddr, ret.Addr.InstanceAddr))
 			}
 		}
+		return ret, !diags.HasErrors(), diags
+	}
+}
+
+func (c *compiler) compileOpManagedDeposedMeta(operands *compilerOperands) nodeExecuteRaw {
+	ops := c.ops
+	getInstAddr := nextOperand[addrs.AbsResourceInstance](operands)
+	getDeposedKey := nextOperand[states.DeposedKey](operands)
+	getPrior := nextOperand[*exec.ResourceInstanceObject](operands)
+	diags := operands.Finish()
+	c.diags = c.diags.Append(diags)
+	if diags.HasErrors() {
+		return nil
+	}
+
+	return func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
+		var diags tfdiags.Diagnostics
+
+		instAddr, ok, moreDiags := getInstAddr(ctx)
+		diags = diags.Append(moreDiags)
+		if !ok {
+			return nil, false, diags
+		}
+		deposedKey, ok, moreDiags := getDeposedKey(ctx)
+		diags = diags.Append(moreDiags)
+		if !ok {
+			return nil, false, diags
+		}
+		prior, ok, moreDiags := getPrior(ctx)
+		diags = diags.Append(moreDiags)
+		if !ok {
+			return nil, false, diags
+		}
+
+		ret, moreDiags := ops.ManagedDeposedMeta(ctx, instAddr, deposedKey, prior)
+		diags = diags.Append(moreDiags)
+
 		return ret, !diags.HasErrors(), diags
 	}
 }

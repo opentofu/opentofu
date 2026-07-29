@@ -126,7 +126,8 @@ func (ops *execOperations) Finish(ctx context.Context) (*states.State, tfdiags.D
 	moreDiags := ops.configOracle.Close(ctx)
 	diags = diags.Append(moreDiags)
 
-	// Snapshot the working SyncState
+	// Take a snapshot of some of our state objects
+	priorState := ops.priorState.Close()
 	finalState := ops.workingState.Close()
 
 	// This operations object is now invalid and must not be used any further,
@@ -157,7 +158,7 @@ func (ops *execOperations) Finish(ctx context.Context) (*states.State, tfdiags.D
 				deprecated := "" // TODO
 				finalState.EnsureModule(addrs.RootModuleInstance).SetOutputValue(k, unmarkedVal, sensitive, deprecated)
 			} else {
-				prev := ops.priorState.OutputValue(addrs.AbsOutputValue{OutputValue: addrs.OutputValue{Name: k}})
+				prev := priorState.OutputValue(addrs.AbsOutputValue{OutputValue: addrs.OutputValue{Name: k}})
 				if prev != nil {
 					finalState.EnsureModule(addrs.RootModuleInstance).SetOutputValue(k, prev.Value, prev.Sensitive, prev.Deprecated)
 				}
