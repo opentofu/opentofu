@@ -469,10 +469,8 @@ func TestFmt_check(t *testing.T) {
 		t.Fatalf("wrong exit code. expected 3")
 	}
 
-	// Given that we give relative paths back to the user, normalize this temp
-	// dir so that we're comparing against a relative-ized (normalized) path
-	tempDir = c.Meta.WorkingDir.NormalizePath(tempDir)
-
+	// The paths given back to the user are based on the path they gave us,
+	// so the output here should include the temporary directory path as-is.
 	if actual := output.Stdout(); !strings.Contains(actual, tempDir) {
 		t.Fatalf("expected:\n%s\n\nto include: %q", actual, tempDir)
 	}
@@ -506,6 +504,82 @@ func TestFmt_checkStdin(t *testing.T) {
 	if len(stdout) > 0 {
 		t.Fatalf("expected no output, got: %q", stdout)
 	}
+}
+
+func TestFmt_symlinkedWorkingDir(t *testing.T) {
+	// Regression test for the problem described in
+	// https://github.com/opentofu/opentofu/issues/3879 : when the
+	// working directory is reached through a symlink whose target is at
+	// a different directory depth, normalizing an absolute path into a
+	// working-directory-relative path produces a path that doesn't
+	// resolve correctly, so "tofu fmt" must use the given path as-is.
+	tempDir := testTempDirRealpath(t)
+
+	// The symlink and its target are at different depths:
+	//   tempDir/a/b/c/test.tf
+	//   tempDir/z -> tempDir/a/b
+	targetDir := filepath.Join(tempDir, "a", "b", "c")
+	if err := os.MkdirAll(targetDir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	targetFile := filepath.Join(targetDir, "test.tf")
+	symlinkDir := filepath.Join(tempDir, "z")
+	if err := os.Symlink(filepath.Join(tempDir, "a", "b"), symlinkDir); err != nil {
+		t.Skipf("cannot create symlink: %s", err)
+	}
+
+	t.Chdir(symlinkDir)
+
+	run := func(t *testing.T, pathArg string) string {
+		t.Helper()
+
+		if err := os.WriteFile(targetFile, fmtFixture.input, 0600); err != nil {
+			t.Fatal(err)
+		}
+
+		view, done := testView(t)
+		c := &FmtCommand{
+			Meta: Meta{
+				WorkingDir:       workdir.NewDir("."),
+				testingOverrides: metaOverridesForProvider(testProvider()),
+				View:             view,
+			},
+		}
+
+		code := c.Run([]string{pathArg})
+		output := done(t)
+		if code != 0 {
+			t.Fatalf("wrong exit code. got %d. errors: \n%s", code, output.Stderr())
+		}
+		if stderr := output.Stderr(); strings.Contains(stderr, "No file or directory") {
+			t.Fatalf("unexpected missing-path diagnostic:\n%s", stderr)
+		}
+
+		got, err := os.ReadFile(targetFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(got, fmtFixture.golden) {
+			t.Fatalf("target file was not formatted\ngot:  %q\nwant: %q", got, fmtFixture.golden)
+		}
+
+		return strings.TrimSpace(output.Stdout())
+	}
+
+	t.Run("absolute path", func(t *testing.T) {
+		gotPath := run(t, targetFile)
+		if gotPath != targetFile {
+			t.Fatalf("wrong path in output\ngot:  %s\nwant: %s", gotPath, targetFile)
+		}
+	})
+
+	t.Run("relative path", func(t *testing.T) {
+		relPath := filepath.Join("c", "test.tf")
+		gotPath := run(t, relPath)
+		if gotPath != relPath {
+			t.Fatalf("wrong path in output\ngot:  %s\nwant: %s", gotPath, relPath)
+		}
+	})
 }
 
 var fmtFixture = struct {

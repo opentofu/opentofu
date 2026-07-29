@@ -119,7 +119,11 @@ func (c *FmtCommand) fmt(paths []string, stdin io.Reader, stdout io.Writer, args
 	}
 
 	for _, path := range paths {
-		path = c.Meta.WorkingDir.NormalizePath(path)
+		// We intentionally don't normalize the given path to be relative to
+		// the working directory: "tofu fmt" doesn't persist paths anywhere,
+		// and normalization can produce a path that doesn't resolve
+		// correctly when the working directory is reached through a
+		// symlink. See https://github.com/opentofu/opentofu/issues/3879 .
 		info, err := os.Stat(path)
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
@@ -148,7 +152,7 @@ func (c *FmtCommand) fmt(paths []string, stdin io.Reader, stdout io.Writer, args
 						continue
 					}
 
-					fileDiags := c.processFile(c.Meta.WorkingDir.NormalizePath(path), f, stdout, args)
+					fileDiags := c.processFile(path, f, stdout, args)
 					diags = diags.Append(fileDiags)
 					_ = f.Close()
 
@@ -312,7 +316,7 @@ func (c *FmtCommand) processDir(path string, stdout io.Writer, args arguments.Fm
 					continue
 				}
 
-				fileDiags := c.processFile(c.Meta.WorkingDir.NormalizePath(subPath), f, stdout, args)
+				fileDiags := c.processFile(subPath, f, stdout, args)
 				diags = diags.Append(fileDiags)
 				_ = f.Close()
 
