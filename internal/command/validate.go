@@ -27,10 +27,6 @@ type ValidateCommand struct {
 func (c *ValidateCommand) Run(rawArgs []string) int {
 	ctx := c.CommandContext()
 
-	// Parse and apply global view arguments
-	common, rawArgs := arguments.ParseView(rawArgs)
-	c.View.Configure(common)
-
 	// Parse and validate flags
 	args, closer, diags := arguments.ParseValidate(rawArgs)
 	defer closer()
@@ -40,7 +36,7 @@ func (c *ValidateCommand) Run(rawArgs []string) int {
 		return 1
 	}
 
-	view := views.NewValidate(args.ViewOptions, c.View)
+	view := views.NewValidate(args.View, c.View)
 
 	// After this point, we must only produce JSON output if JSON mode is
 	// enabled, so all errors should be accumulated into diags and we'll

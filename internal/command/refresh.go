@@ -28,17 +28,13 @@ func (c *RefreshCommand) Run(rawArgs []string) int {
 	var diags tfdiags.Diagnostics
 	ctx := c.CommandContext()
 
-	// Parse and apply global view arguments
-	common, rawArgs := arguments.ParseView(rawArgs)
-	c.View.Configure(common)
-
 	// Parse and validate flags
 	args, closer, diags := arguments.ParseRefresh(rawArgs)
 	defer closer()
 
 	// Instantiate the view, even if there are flag errors, so that we render
 	// diagnostics according to the desired view
-	view := views.NewRefresh(args.ViewOptions, c.View)
+	view := views.NewRefresh(args.View, c.View)
 
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
@@ -57,7 +53,7 @@ func (c *RefreshCommand) Run(rawArgs []string) int {
 	// FIXME: the -input flag value is needed to initialize the backend and the
 	// operation, but there is no clear path to pass this value down, so we
 	// continue to mutate the Meta object state for now.
-	c.Meta.input = args.ViewOptions.InputEnabled
+	c.Meta.input = args.View.InputEnabled
 
 	// FIXME: the -parallelism flag is used to control the concurrency of
 	// OpenTofu operations. At the moment, this value is used both to

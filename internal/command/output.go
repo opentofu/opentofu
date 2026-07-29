@@ -25,9 +25,6 @@ type OutputCommand struct {
 
 func (c *OutputCommand) Run(rawArgs []string) int {
 	ctx := c.CommandContext()
-	// Parse and apply global view arguments
-	common, rawArgs := arguments.ParseView(rawArgs)
-	c.View.Configure(common)
 
 	// Parse and validate flags
 	args, closer, diags := arguments.ParseOutput(rawArgs)
@@ -38,9 +35,7 @@ func (c *OutputCommand) Run(rawArgs []string) int {
 		return 1
 	}
 
-	c.View.SetShowSensitive(args.ShowSensitive)
-
-	view := views.NewOutput(args.ViewOptions, c.View)
+	view := views.NewOutput(args.View, c.View)
 
 	// Inject variables from args into meta for static evaluation
 	c.Meta.variableArgs = args.Vars.All()

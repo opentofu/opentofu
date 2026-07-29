@@ -48,16 +48,13 @@ func (c *FmtCommand) Run(rawArgs []string) int {
 		c.input = os.Stdin
 	}
 
-	// new view
-	common, rawArgs := arguments.ParseView(rawArgs)
-	c.View.Configure(common)
-	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
-	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
-	c.View.DiagsWithNewline()
-
 	// Parse and validate flags
 	args, closer, diags := arguments.ParseFmt(rawArgs)
 	defer closer()
+
+	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
+	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
+	c.View.DiagsWithNewline()
 
 	// Instantiate the view, even if there are flag errors, so that we render
 	// diagnostics according to the desired view

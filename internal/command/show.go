@@ -58,34 +58,30 @@ type ShowCommand struct {
 func (c *ShowCommand) Run(rawArgs []string) int {
 	ctx := c.CommandContext()
 
-	// Parse and apply global view arguments
-	common, rawArgs := arguments.ParseView(rawArgs)
-	c.View.Configure(common)
-
 	// Parse and validate flags
 	args, closer, diags := arguments.ParseShow(rawArgs)
 	defer closer()
+
 	if diags.HasErrors() {
 		c.View.Diagnostics(diags)
 		c.View.HelpPrompt("show")
 		return 1
 	}
-	c.viewType = args.ViewOptions.ViewType
-	c.View.SetShowSensitive(args.ShowSensitive)
+	c.viewType = args.View.ViewType
 
 	//nolint:ineffassign - As this is a high-level call, we want to ensure that we are correctly using the right ctx later on when
 	ctx, span := tracing.Tracer().Start(ctx, "Show",
 		tracing.SpanAttributes(
-			traceattrs.String("opentofu.show.view", args.ViewOptions.ViewType.String()),
+			traceattrs.String("opentofu.show.view", args.View.ViewType.String()),
 			traceattrs.String("opentofu.show.target", args.TargetType.String()),
 			traceattrs.String("opentofu.show.target_arg", args.TargetArg),
-			traceattrs.Bool("opentofu.show.show_sensitive", args.ShowSensitive),
+			traceattrs.Bool("opentofu.show.show_sensitive", args.View.ShowSensitive),
 		),
 	)
 	defer span.End()
 
 	// Set up view
-	view := views.NewShow(args.ViewOptions, c.View)
+	view := views.NewShow(args.View, c.View)
 
 	// Check for user-supplied plugin path
 	var err error

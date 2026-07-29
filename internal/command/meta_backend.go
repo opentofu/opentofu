@@ -60,7 +60,7 @@ type BackendOpts struct {
 	// You probably don't want to set this.
 	ForceLocal bool
 
-	// ViewOptions will set console output format for the
+	// View will set console output format for the
 	// initialization operation (JSON or human-readable).
 	View views.Backend
 }

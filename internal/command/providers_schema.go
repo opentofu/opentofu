@@ -35,9 +35,6 @@ func (c *ProvidersSchemaCommand) Synopsis() string {
 func (c *ProvidersSchemaCommand) Run(rawArgs []string) int {
 	ctx := c.CommandContext()
 
-	common, rawArgs := arguments.ParseView(rawArgs)
-	c.View.Configure(common)
-
 	args, closer, diags := arguments.ParseProvidersSchema(rawArgs)
 	defer closer()
 

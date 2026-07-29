@@ -31,22 +31,20 @@ type ConsoleCommand struct {
 func (c *ConsoleCommand) Run(rawArgs []string) int {
 	ctx := c.CommandContext()
 
-	common, rawArgs := arguments.ParseView(rawArgs)
-	c.View.Configure(common)
-	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
-	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
-	c.View.DiagsWithNewline()
-
 	// Parse and validate flags
 	args, closer, diags := arguments.ParseConsole(rawArgs)
 	defer closer()
 
+	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
+	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
+	c.View.DiagsWithNewline()
+
 	// Instantiate the view, even if there are flag errors, so that we render
 	// diagnostics according to the desired view
-	view := views.NewConsole(args.ViewOptions, c.View)
+	view := views.NewConsole(args.View, c.View)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
-		if args.ViewOptions.ViewType == arguments.ViewJSON {
+		if args.View.ViewType == arguments.ViewJSON {
 			return 1
 		}
 		return cli.RunResultHelp
@@ -56,7 +54,7 @@ func (c *ConsoleCommand) Run(rawArgs []string) int {
 	// FIXME: the -input flag value is needed to initialize the backend and the
 	// operation, but there is no clear path to pass this value down, so we
 	// continue to mutate the Meta object state for now.
-	c.Meta.input = args.ViewOptions.InputEnabled
+	c.Meta.input = args.View.InputEnabled
 
 	c.Meta.variableArgs = args.Vars.All()
 
