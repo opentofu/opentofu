@@ -30,15 +30,14 @@ type GraphCommand struct {
 func (c *GraphCommand) Run(rawArgs []string) int {
 	ctx := c.CommandContext()
 
-	common, rawArgs := arguments.ParseView(rawArgs)
-	c.View.Configure(common)
-	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
-	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
-	c.View.DiagsWithNewline()
-
 	// Parse and validate flags
 	args, closer, diags := arguments.ParseGraph(rawArgs)
 	defer closer()
+
+	c.View.Configure(args.View)
+	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
+	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
+	c.View.DiagsWithNewline()
 
 	// Instantiate the view, even if there are flag errors, so that we render
 	// diagnostics according to the desired view

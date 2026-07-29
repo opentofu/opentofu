@@ -127,18 +127,18 @@ func (c *TestCommand) Run(rawArgs []string) int {
 	var diags tfdiags.Diagnostics
 	ctx := c.CommandContext()
 
-	common, rawArgs := arguments.ParseView(rawArgs)
-	c.View.Configure(common)
-
 	args, closer, diags := arguments.ParseTest(rawArgs)
 	defer closer()
+
+	c.View.Configure(args.View)
+
 	if diags.HasErrors() {
 		c.View.Diagnostics(diags)
 		c.View.HelpPrompt("test")
 		return 1
 	}
 
-	view := views.NewTest(args.ViewOptions, c.View)
+	view := views.NewTest(args.View, c.View)
 
 	// Users can also specify variables via the command line, so we'll parse
 	// all that here.

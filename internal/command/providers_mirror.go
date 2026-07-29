@@ -39,23 +39,22 @@ func (c *ProvidersMirrorCommand) Synopsis() string {
 }
 
 func (c *ProvidersMirrorCommand) Run(rawArgs []string) int {
-	// new view
-	common, rawArgs := arguments.ParseView(rawArgs)
-	c.View.Configure(common)
-	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
-	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
-	c.View.DiagsWithNewline()
-
 	// Parse and validate flags
 	args, closer, diags := arguments.ParseProvidersMirror(rawArgs)
 	defer closer()
 
+	// new view
+	c.View.Configure(args.View)
+	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
+	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
+	c.View.DiagsWithNewline()
+
 	// Instantiate the view, even if there are flag errors, so that we render
 	// diagnostics according to the desired view
-	view := views.NewProvidersMirror(args.ViewOptions, c.View)
+	view := views.NewProvidersMirror(args.View, c.View)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
-		if args.ViewOptions.ViewType == arguments.ViewJSON {
+		if args.View.ViewType == arguments.ViewJSON {
 			return 1 // in case it's json, do not print the help of the command
 		}
 		return cli.RunResultHelp
