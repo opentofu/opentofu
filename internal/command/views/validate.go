@@ -27,7 +27,7 @@ type Validate interface {
 }
 
 // NewValidate returns an initialized Validate implementation for the given ViewType.
-func NewValidate(args arguments.ViewOptions, view *View) Validate {
+func NewValidate(args *arguments.View, view *View) Validate {
 	var validate Validate
 	switch args.ViewType {
 	case arguments.ViewJSON:

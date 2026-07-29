@@ -510,7 +510,7 @@ test_instance.foo (winrm): bar
 		t.Run(name, func(t *testing.T) {
 			streams, done := terminal.StreamsForTesting(t)
 			view := NewView(streams)
-			view.SetShowSensitive(tc.showSensitive)
+			view.showSensitive = tc.showSensitive
 			h := NewUiHook(view)
 
 			h.ProvisionOutput(addr, tc.provisioner, tc.input, tc.configMarks)

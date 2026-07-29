@@ -111,6 +111,7 @@ func (v *View) Configure(view *arguments.View) {
 	v.consolidateWarnings = view.ConsolidateWarnings
 	v.consolidateErrors = view.ConsolidateErrors
 	v.concise = view.Concise
+	v.showSensitive = view.ShowSensitive
 	v.ModuleDeprecationWarnLvl = view.ModuleDeprecationWarnLvl
 }
 
@@ -253,10 +254,6 @@ func (v *View) errorColumns() int {
 // visually de-emphasize it.
 func (v *View) outputHorizRule() {
 	v.streams.Println(format.HorizontalRule(v.colorize, v.outputColumns()))
-}
-
-func (v *View) SetShowSensitive(showSensitive bool) {
-	v.showSensitive = showSensitive
 }
 
 // Colorize returns the [colorstring.Colorize] object within to be used in other places.

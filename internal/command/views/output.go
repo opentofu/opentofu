@@ -31,7 +31,7 @@ type Output interface {
 }
 
 // NewOutput returns an initialized Output implementation for the given ViewType.
-func NewOutput(args arguments.ViewOptions, view *View) Output {
+func NewOutput(args *arguments.View, view *View) Output {
 	var output Output
 	switch args.ViewType {
 	case arguments.ViewJSON:

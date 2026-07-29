@@ -24,7 +24,7 @@ type Taint interface {
 }
 
 // NewTaint returns an initialized Taint implementation for the given ViewType.
-func NewTaint(args arguments.ViewOptions, view *View) Taint {
+func NewTaint(args *arguments.View, view *View) Taint {
 	var ret Taint
 	switch args.ViewType {
 	case arguments.ViewJSON:

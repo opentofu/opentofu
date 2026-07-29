@@ -651,7 +651,7 @@ resource "test_resource" "foo" {
 
 func testStateHuman(t *testing.T, call func(state State), wantStdout, wantStderr string) {
 	view, done := testView(t)
-	stateView := NewState(arguments.ViewOptions{ViewType: arguments.ViewHuman}, view)
+	stateView := NewState(&arguments.View{ViewType: arguments.ViewHuman}, view)
 	call(stateView)
 	output := done(t)
 	if diff := cmp.Diff(wantStderr, output.Stderr()); diff != "" {
@@ -664,7 +664,7 @@ func testStateHuman(t *testing.T, call func(state State), wantStdout, wantStderr
 
 func testStateJson(t *testing.T, call func(state State), want []map[string]interface{}, withTimestamp bool) {
 	view, done := testView(t)
-	stateView := NewState(arguments.ViewOptions{ViewType: arguments.ViewJSON}, view)
+	stateView := NewState(&arguments.View{ViewType: arguments.ViewJSON}, view)
 	call(stateView)
 	output := done(t)
 	if output.Stderr() != "" {
@@ -684,7 +684,7 @@ func testStateMulti(t *testing.T, call func(state State), wantStdout string, wan
 		t.Fatalf("failed to create the file to write json content into: %s", err)
 	}
 	view, done := testView(t)
-	stateView := NewState(arguments.ViewOptions{ViewType: arguments.ViewHuman, JSONInto: jsonInto}, view)
+	stateView := NewState(&arguments.View{ViewType: arguments.ViewHuman, JSONInto: jsonInto}, view)
 	call(stateView)
 	{
 		if err := jsonInto.Close(); err != nil {
