@@ -34,10 +34,9 @@ func (ops *execOperations) ManagedFinalPlan(
 
 	var instAddr addrs.AbsResourceInstance
 	var providerConfigAddr addrs.AbsProviderInstanceCorrect
-	var createProvisioners []eval.Provisioner
-	var destroyProvisioners []eval.Provisioner
 	var resourceTypeName string
 	var requiredConfigResources addrs.Set[addrs.AbsResourceInstance]
+	var provisionersBefore, provisionersAfter []*eval.ResourceProvisioner
 	deposedKey := states.NotDeposed
 	if desired != nil {
 		// By the time we're in the apply phase the desired and prior addresses
@@ -51,21 +50,11 @@ func (ops *execOperations) ManagedFinalPlan(
 		// TODO possibly nil here
 		providerConfigAddr = *desired.ProviderInstance
 		requiredConfigResources = desired.RequiredResourceInstances
-
-		createProvisioners = desired.CreateProvisioners
 	} else if prior != nil {
 		instAddr = prior.Addr.InstanceAddr
 		deposedKey = prior.Addr.DeposedKey
 		resourceTypeName = prior.State.ResourceType
 		providerConfigAddr = prior.State.ProviderInstanceAddr
-
-		if prior.State.Status == states.ObjectTainted {
-			// No point in provisioning an object that is already tainted, since
-			// it's going to get recreated on the next apply anyway.
-			log.Printf("[TRACE] %s is tainted, so skipping provisioning", instAddr)
-		} else {
-			destroyProvisioners = ops.configOracle.DestroyProvisioners(ctx, instAddr)
-		}
 	} else {
 		// Both should not be nil but if they are then we'll treat it the same
 		// way as if we dynamically discover that no change is actually
@@ -75,6 +64,18 @@ func (ops *execOperations) ManagedFinalPlan(
 	}
 	objAddr := instAddr.Object(deposedKey)
 	log.Printf("[TRACE] apply phase: ManagedFinalPlan %s using %s", objAddr, providerConfigAddr)
+
+	if desired != nil && prior == nil { // creating
+		provisionersAfter = metadata.PostCreateProvisioners
+	} else if prior != nil && desired == nil { // deleting
+		if prior.State.Status == states.ObjectTainted {
+			// No point in provisioning an object that is already tainted, since
+			// it's going to get recreated on the next apply anyway.
+			log.Printf("[TRACE] %s is tainted, so skipping provisioning", instAddr)
+		} else {
+			provisionersBefore = metadata.PreDeleteProvisioners
+		}
+	}
 
 	tracer := contextTracer(ctx)
 	if cb := tracer.StartManagedResourceInstanceObjectFinalPlan; cb != nil {
@@ -154,8 +155,8 @@ func (ops *execOperations) ManagedFinalPlan(
 		PriorStateVal:             resp.Current.Value,
 		ConfigVal:                 resp.DesiredValue,
 		PlannedVal:                resp.Planned.Value,
-		CreateProvisioners:        createProvisioners,
-		DestroyProvisioners:       destroyProvisioners,
+		ProvisionersBefore:        provisionersBefore,
+		ProvisionersAfter:         provisionersAfter,
 		ProviderInstance:          providerConfigAddr,
 		ProviderPrivate:           resp.Planned.Private,
 	}, diags
@@ -271,15 +272,17 @@ func (ops *execOperations) ManagedApply(
 		return nil, diags
 	}
 
-	// Destroy Provisioners
-	if plannedValUnmarked.IsNull() {
-		for _, prov := range plan.DestroyProvisioners {
-			cont, provDiags := ops.runProvisioner(ctx, objAddr, prov, priorValUnmarked)
+	if provs := plan.ProvisionersBefore; len(provs) != 0 {
+		log.Printf("[TRACE] apply phase: ManagedApply running %d pre-apply provisioner(s) for %s", len(provs), plan.Addr)
+		for _, prov := range provs {
+			cont, provDiags := ops.runProvisioner(ctx, objAddr, prov, plan.PriorStateVal)
 			diags = diags.Append(provDiags)
 			if !cont {
+				log.Printf("[TRACE] apply phase: ManagedApply %s pre-apply provisioner failed, so aborting", plan.Addr)
 				return nil, diags
 			}
 		}
+		log.Printf("[TRACE] apply phase: ManagedApply %s pre-apply provisioners finished", plan.Addr)
 	}
 
 	resp := providerClient.ApplyResourceChange(ctx, providers.ApplyResourceChangeRequest{
@@ -325,15 +328,21 @@ func (ops *execOperations) ManagedApply(
 		return result, diags
 	}
 
-	// Create Provisioners
-	if !plannedValUnmarked.IsNull() && priorValUnmarked.IsNull() {
-		for _, prov := range plan.CreateProvisioners {
+	if provs := plan.ProvisionersAfter; len(provs) != 0 {
+		log.Printf("[TRACE] apply phase: ManagedApply running %d post-apply provisioner(s) for %s", len(provs), plan.Addr)
+		for _, prov := range provs {
+			// FIXME: resp.NewState isn't the correct value to use here because
+			// it hasn't yet had marks applied to it, and so provisioner
+			// execution won't be able to notice when arguments are sensitive,
+			// etc.
 			cont, provDiags := ops.runProvisioner(ctx, objAddr, prov, resp.NewState)
 			diags = diags.Append(provDiags)
 			if !cont {
+				log.Printf("[TRACE] apply phase: ManagedApply %s post-apply provisioner failed, so aborting", plan.Addr)
 				break
 			}
 		}
+		log.Printf("[TRACE] apply phase: ManagedApply %s post-apply provisioners finished", plan.Addr)
 	}
 
 	// TODO: objchange.AssertObjectCompatible to verify that the result is

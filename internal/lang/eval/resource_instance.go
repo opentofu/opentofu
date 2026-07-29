@@ -175,20 +175,7 @@ type DesiredResourceInstance struct {
 	// Any resource instance mentioned in this collection will always also
 	// appear in RequiredResourceInstances.
 	ReplaceTriggeredBy []ResourceInstanceAttributePath
-
-	// CreateProvisioners are the provisioners that will be run if the resource
-	// is created
-	CreateProvisioners []Provisioner
 }
-
-// ResourceProvisioner represents a single provisioner configured for a
-// resource instance object.
-type ResourceProvisioner = evalglue.ResourceProvisioner
-
-// Exposing configgraph details is not idea, but it's a very simple structure
-// that is probably not worth duplicating right now
-type Provisioner = configgraph.Provisioner
-type ResourceInstanceAttributePath = configgraph.ResourceInstanceAttributePath
 
 // IsPlaceholder returns true if this object is acting as a placeholder for
 // zero or more resource instances whose full expansion is not yet known.
@@ -210,3 +197,12 @@ type ResourceInstanceAttributePath = configgraph.ResourceInstanceAttributePath
 func (ri *DesiredResourceInstance) IsPlaceholder() bool {
 	return ri.Addr.IsPlaceholder()
 }
+
+// ResourceProvisioner represents a single provisioner configured for a
+// resource instance object.
+type ResourceProvisioner = evalglue.ResourceProvisioner
+
+// FIXME: Don't directly expose a configgraph type here, since that package
+// is supposed to be an implementation detail of tofu2024 and any other future
+// HCL-based language editions.
+type ResourceInstanceAttributePath = configgraph.ResourceInstanceAttributePath

@@ -15,6 +15,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
@@ -104,10 +105,6 @@ func (c *CompiledModuleInstance) ResultValuer(ctx context.Context) exprs.Valuer 
 
 // ResourceInstanceObjectMeta implements [evalglue.CompiledModuleInstance].
 func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context, addr addrs.ResourceInstanceObject) *evalglue.ConfiguredResourceInstanceObjectMeta {
-	// TODO: The logic here should also consider whether any "removed" block
-	// matches the requested object, and return information derived from
-	// that block if so.
-
 	// We'll start with a suitable placeholder to use if there's no mention
 	// of this object in the configuration at all, and then improve it gradually
 	// as we find relevant information in the configuration.
@@ -124,6 +121,10 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 		// the prior state, if any.
 		ProviderInstance: exprs.Known[*addrs.AbsProviderInstanceCorrect](nil),
 	}
+
+	// TODO: The logic here should also consider whether any "removed" block
+	// matches the requested object, and incorporate information derived from
+	// that block if so.
 
 	rsrc, ok := c.resourceNodes[addr.InstanceAddr.Resource]
 	if !ok {
@@ -149,6 +150,9 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 	})
 	ret.DeletionInvalid = preventDestroy
 
+	destroyProvisioners := rsrc.DestroyProvisioners(ctx, addr.InstanceAddr)
+	ret.PreDestroyProvisioners = prepareResourceProvisioners(destroyProvisioners)
+
 	insts := rsrc.Instances(ctx)
 	inst, ok := insts[addr.InstanceAddr.Key]
 	if !ok {
@@ -162,8 +166,34 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 		return &providerInst.Addr, nil
 	})
 
+	ret.PostCreateProvisioners = prepareResourceProvisioners(inst.CreateProvisioners)
+
 	// TODO: All of the other fields of ConfiguredResourceInstanceObjectMeta
 
+	return ret
+}
+
+func prepareResourceProvisioners(pcs []configgraph.Provisioner) []*evalglue.ResourceProvisioner {
+	if len(pcs) == 0 {
+		return nil
+	}
+	ret := make([]*evalglue.ResourceProvisioner, 0, len(pcs))
+	for _, pc := range pcs {
+		provisioner := &evalglue.ResourceProvisioner{
+			Type: pc.Type,
+			BuildConfig: func(ctx context.Context, selfValue cty.Value) (evalglue.ResourceProvisionerConfig, tfdiags.Diagnostics) {
+				cfg, diags := pc.Config(ctx, selfValue)
+				return evalglue.ResourceProvisionerConfig{
+					MainConfig:       cfg.Value,
+					ConnectionConfig: cfg.Connection,
+				}, diags
+			},
+		}
+		if pc.OnFailure == configs.ProvisionerOnFailureContinue {
+			provisioner.ContinueOnFailure = true
+		}
+		ret = append(ret, provisioner)
+	}
 	return ret
 }
 

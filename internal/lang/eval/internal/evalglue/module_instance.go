@@ -370,16 +370,3 @@ func ProviderInstance(ctx context.Context, root CompiledModuleInstance, addr add
 	}
 	return moduleInst.ProviderInstance(ctx, addr.LocalConfig())
 }
-
-func DestroyProvisioners(ctx context.Context, root CompiledModuleInstance, addr addrs.AbsResourceInstance) []configgraph.Provisioner {
-	// TODO removed block provisioners
-	mod := ModuleInstance(ctx, root, addr.Module)
-	if mod == nil {
-		return nil
-	}
-	resource := mod.Resource(ctx, addr.Resource.Resource)
-	if resource == nil {
-		return nil
-	}
-	return resource.DestroyProvisioners(ctx, addr.Resource)
-}

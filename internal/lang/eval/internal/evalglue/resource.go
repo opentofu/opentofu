@@ -6,10 +6,13 @@
 package evalglue
 
 import (
+	"context"
+
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // ConfiguredResourceInstanceObjectMeta is the true internal name of what
@@ -88,13 +91,30 @@ type ConfiguredResourceInstanceObjectMeta struct {
 // ResourceProvisioner represents a single provisioner configured for a
 // resource instance object.
 type ResourceProvisioner struct {
-	// Type and Config represent the type of provisioner to run (e.g "local-exec")
-	// and a configuration object suitable for that provisioner type.
-	Type   string
-	Config cty.Value
+	// Type represents the type of provisioner to run (e.g "local-exec").
+	Type string
 
-	// ConnectionConfig is an object representation of the configuration for how
-	// to connect to a remote system to run the provisioner.
+	// BuildConfig takes a value representing the object that is being
+	// provisioned and returns the final configuration values to use when
+	// actually executing the provisioner.
+	BuildConfig func(ctx context.Context, selfValue cty.Value) (ResourceProvisionerConfig, tfdiags.Diagnostics)
+
+	// ContinueOnFailure is set if a failure to run the provisioner should not
+	// block running any subsequent provisioners in the same sequence and should
+	// not block any other work that is blocked until the provisioner has
+	// finished running.
+	ContinueOnFailure bool
+}
+
+// ResourceProvisionerConfig represents the fully-evaluated configuration for
+// a [ResourceProvisioner], constructed only once we know the value of the
+// resource instance object that is being provisioned.
+type ResourceProvisionerConfig struct {
+	// MainConfig is the direct configuration for this specific provisioner.
+	MainConfig cty.Value
+
+	// ConnectionConfig is configuration for how to connect to a remote system
+	// if this provisioner will take a remote action.
 	//
 	// Not all provisioner types make remote connections. Those that don't need
 	// it will just ignore this field completely.

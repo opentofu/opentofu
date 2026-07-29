@@ -620,11 +620,20 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 	}
 
 	// Include destroy provisioner dependencies
-	for _, prov := range p.oracle.DestroyProvisioners(ctx, addr.InstanceAddr) {
-		for ri := range prov.Dependencies {
-			ret.ConfigDependencies.Add(ri.Addr.CurrentObject())
+	// FIXME: Use the resource instance object metadata API to do this, which
+	// means extending [evalglue.ResourceProvisionerConfig] to include a set
+	// of resource instances required for each provisioner configuration.
+	// (Intentionally leaving this unresolved for now because the work to
+	// implement "moved" blocks is likely to cause significant changes to how
+	// we handle "unwanted" resource instances, so don't want to change the
+	// flow of things here too much right now.)
+	/*
+		for _, prov := range p.oracle.DestroyProvisioners(ctx, addr.InstanceAddr) {
+			for ri := range prov.Dependencies {
+				ret.ConfigDependencies.Add(ri.Addr.CurrentObject())
+			}
 		}
-	}
+	*/
 
 	// TODO: Call providerClient.ReadResource and update the "refreshed state"
 	// and reassign this refreshedVal to the refreshed result.
