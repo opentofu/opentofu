@@ -19,6 +19,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/lang/eval"
+	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -58,9 +59,11 @@ func TestCompiler_resourceInstanceBasics(t *testing.T) {
 		"name": cty.StringVal("thingy"),
 	}))
 	instAddrResult := builder.ConstantResourceInstAddr(resourceInstAddr)
-	desiredInst := builder.ResourceInstanceDesired(instAddrResult)
 	priorState := builder.ResourceInstancePrior(instAddrResult)
+	metadata := builder.ResourceInstanceCurrentMeta(instAddrResult, priorState)
+	desiredInst := builder.ResourceInstanceDesired(metadata)
 	finalPlan := builder.ManagedFinalPlan(
+		metadata,
 		desiredInst,
 		priorState,
 		initialPlannedValue,
@@ -79,19 +82,29 @@ func TestCompiler_resourceInstanceBasics(t *testing.T) {
 	// focused only on testing the compiler and our ability to execute what
 	// it produces.
 	ops := &mockOperations{
-		ResourceInstanceDesiredFunc: func(ctx context.Context, addr addrs.AbsResourceInstance) (*eval.DesiredResourceInstance, tfdiags.Diagnostics) {
-			if !addr.Equal(resourceInstAddr) {
+		ResourceInstanceCurrentMetaFunc: func(ctx context.Context, instAddr addrs.AbsResourceInstance, prior *exec.ResourceInstanceObject) (*exec.ResourceInstanceObjectMeta, tfdiags.Diagnostics) {
+			if !instAddr.Equal(resourceInstAddr) {
+				return nil, nil
+			}
+			return &exec.ResourceInstanceObjectMeta{
+				Addr:             instAddr.CurrentObject(),
+				ProviderInstance: exprs.Known(providerInstAddr),
+				ResourceType:     instAddr.Resource.Resource.Type,
+			}, nil
+		},
+		ResourceInstanceDesiredFunc: func(ctx context.Context, meta *exec.ResourceInstanceObjectMeta) (*eval.DesiredResourceInstance, tfdiags.Diagnostics) {
+			if !meta.Addr.InstanceAddr.Equal(resourceInstAddr) {
 				return nil, nil
 			}
 			return &eval.DesiredResourceInstance{
-				Addr: addr,
+				Addr: meta.Addr.InstanceAddr,
 				ConfigVal: cty.ObjectVal(map[string]cty.Value{
 					"name": cty.StringVal("thingy"),
 				}),
 				Provider:         providerAddr,
 				ProviderInstance: &providerInstAddr,
 				ResourceMode:     addrs.ManagedResourceMode,
-				ResourceType:     addr.Resource.Resource.Type,
+				ResourceType:     meta.Addr.InstanceAddr.Resource.Resource.Type,
 			}, nil
 		},
 		ResourceInstancePriorFunc: func(ctx context.Context, addr addrs.AbsResourceInstance) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
@@ -113,7 +126,7 @@ func TestCompiler_resourceInstanceBasics(t *testing.T) {
 				},
 			}, nil
 		},
-		ManagedFinalPlanFunc: func(ctx context.Context, desired *eval.DesiredResourceInstance, prior *exec.ResourceInstanceObject, plannedVal cty.Value) (*exec.ManagedResourceObjectFinalPlan, tfdiags.Diagnostics) {
+		ManagedFinalPlanFunc: func(ctx context.Context, _ *exec.ResourceInstanceObjectMeta, desired *eval.DesiredResourceInstance, prior *exec.ResourceInstanceObject, plannedVal cty.Value) (*exec.ManagedResourceObjectFinalPlan, tfdiags.Diagnostics) {
 			return &exec.ManagedResourceObjectFinalPlan{
 				Addr:          desired.Addr.CurrentObject(),
 				ResourceType:  desired.ResourceType,
@@ -243,7 +256,11 @@ func TestCompiler_resourceInstanceBasics(t *testing.T) {
 		{
 			MethodName: "ResourceInstanceDesired",
 			Args: []any{
-				resourceInstAddr,
+				&exec.ResourceInstanceObjectMeta{
+					Addr:             resourceInstAddr.CurrentObject(),
+					ProviderInstance: exprs.Known(providerInstAddr),
+					ResourceType:     resourceInstAddr.Resource.Resource.Type,
+				},
 			},
 			Result: &eval.DesiredResourceInstance{
 				Addr:             resourceInstAddr,
@@ -251,6 +268,17 @@ func TestCompiler_resourceInstanceBasics(t *testing.T) {
 				Provider:         providerAddr,
 				ProviderInstance: &providerInstAddr,
 				ResourceMode:     addrs.ManagedResourceMode,
+				ResourceType:     resourceInstAddr.Resource.Resource.Type,
+			},
+		},
+		{
+			MethodName: "ResourceInstanceObjectMeta",
+			Args: []any{
+				resourceInstAddr,
+			},
+			Result: &exec.ResourceInstanceObjectMeta{
+				Addr:             resourceInstAddr.CurrentObject(),
+				ProviderInstance: exprs.Known(providerInstAddr),
 				ResourceType:     resourceInstAddr.Resource.Resource.Type,
 			},
 		},

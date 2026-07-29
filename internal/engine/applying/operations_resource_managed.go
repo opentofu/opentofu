@@ -25,6 +25,7 @@ import (
 // ManagedFinalPlan implements [exec.Operations].
 func (ops *execOperations) ManagedFinalPlan(
 	ctx context.Context,
+	metadata *exec.ResourceInstanceObjectMeta,
 	desired *eval.DesiredResourceInstance,
 	prior *exec.ResourceInstanceObject,
 	initialPlannedVal cty.Value,
@@ -439,10 +440,17 @@ func (ops *execOperations) ManagedPerformDepose(
 }
 
 // ManagedDeposedMeta implements [exec.Operations].
-func (ops *execOperations) ManagedDeposedMeta(ctx context.Context, instAddr addrs.AbsResourceInstance, deposedKey states.DeposedKey) (*exec.ResourceInstanceObjectMeta, tfdiags.Diagnostics) {
+func (ops *execOperations) ManagedDeposedMeta(ctx context.Context, instAddr addrs.AbsResourceInstance, deposedKey states.DeposedKey, prior *exec.ResourceInstanceObject) (*exec.ResourceInstanceObjectMeta, tfdiags.Diagnostics) {
 	log.Printf("[TRACE] apply phase: ManagedDeposedMeta %s deposed object %s", instAddr, deposedKey)
-	// TODO: Implement
-	panic("unimplemented")
+
+	objAddr := instAddr.Object(deposedKey)
+	configMeta := ops.configOracle.ResourceInstanceObjectMeta(ctx, objAddr)
+	var state *states.ResourceInstanceObjectFull
+	if prior != nil {
+		state = prior.State
+	}
+
+	return exec.BuildResourceInstanceObjectMeta(objAddr, configMeta, state), nil
 }
 
 // ManagedAlreadyDeposed implements [exec.Operations].

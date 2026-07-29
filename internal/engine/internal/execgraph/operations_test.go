@@ -26,11 +26,11 @@ type mockOperations struct {
 	ManagedAlreadyDeposedFunc          func(ctx context.Context, instAddr addrs.AbsResourceInstance, deposedKey states.DeposedKey) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
 	ManagedApplyFunc                   func(ctx context.Context, plan *exec.ManagedResourceObjectFinalPlan, fallback *exec.ResourceInstanceObject) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
 	ManagedChangeAddrFunc              func(ctx context.Context, currentObj *exec.ResourceInstanceObject, newAddr addrs.AbsResourceInstance) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
-	ManagedDeposedMetaFunc             func(ctx context.Context, instAddr addrs.AbsResourceInstance, deposedKey states.DeposedKey) (*exec.ResourceInstanceObjectMeta, tfdiags.Diagnostics)
+	ManagedDeposedMetaFunc             func(ctx context.Context, instAddr addrs.AbsResourceInstance, deposedKey states.DeposedKey, prior *exec.ResourceInstanceObject) (*exec.ResourceInstanceObjectMeta, tfdiags.Diagnostics)
 	ManagedPerformDeposeFunc           func(ctx context.Context, currentObj *exec.ResourceInstanceObject, deletePlan *exec.ManagedResourceObjectFinalPlan) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
-	ManagedFinalPlanFunc               func(ctx context.Context, desired *eval.DesiredResourceInstance, prior *exec.ResourceInstanceObject, plannedVal cty.Value) (*exec.ManagedResourceObjectFinalPlan, tfdiags.Diagnostics)
-	ResourceInstanceDesiredFunc        func(ctx context.Context, instAddr addrs.AbsResourceInstance) (*eval.DesiredResourceInstance, tfdiags.Diagnostics)
-	ResourceInstanceCurrentMetaFunc    func(ctx context.Context, instAddr addrs.AbsResourceInstance) (*exec.ResourceInstanceObjectMeta, tfdiags.Diagnostics)
+	ManagedFinalPlanFunc               func(ctx context.Context, metadata *exec.ResourceInstanceObjectMeta, desired *eval.DesiredResourceInstance, prior *exec.ResourceInstanceObject, plannedVal cty.Value) (*exec.ManagedResourceObjectFinalPlan, tfdiags.Diagnostics)
+	ResourceInstanceDesiredFunc        func(ctx context.Context, meta *exec.ResourceInstanceObjectMeta) (*eval.DesiredResourceInstance, tfdiags.Diagnostics)
+	ResourceInstanceCurrentMetaFunc    func(ctx context.Context, instAddr addrs.AbsResourceInstance, prior *exec.ResourceInstanceObject) (*exec.ResourceInstanceObjectMeta, tfdiags.Diagnostics)
 	ResourceInstancePostconditionsFunc func(ctx context.Context, result *exec.ResourceInstanceObject) tfdiags.Diagnostics
 	ResourceInstancePriorFunc          func(ctx context.Context, instAddr addrs.AbsResourceInstance) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
 
@@ -84,11 +84,11 @@ func (m *mockOperations) ManagedChangeAddr(ctx context.Context, currentObj *exec
 }
 
 // ManagedDeposedMeta implements [exec.Operations].
-func (m *mockOperations) ManagedDeposedMeta(ctx context.Context, instAddr addrs.AbsResourceInstance, deposedKey states.DeposedKey) (*exec.ResourceInstanceObjectMeta, tfdiags.Diagnostics) {
+func (m *mockOperations) ManagedDeposedMeta(ctx context.Context, instAddr addrs.AbsResourceInstance, deposedKey states.DeposedKey, prior *exec.ResourceInstanceObject) (*exec.ResourceInstanceObjectMeta, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	var result *exec.ResourceInstanceObjectMeta
-	if m.ManagedChangeAddrFunc != nil {
-		result, diags = m.ManagedDeposedMetaFunc(ctx, instAddr, deposedKey)
+	if m.ManagedDeposedMetaFunc != nil {
+		result, diags = m.ManagedDeposedMetaFunc(ctx, instAddr, deposedKey, prior)
 	}
 	m.appendLog("ManagedDeposedMeta", []any{instAddr, deposedKey}, result)
 	return result, diags
@@ -106,33 +106,33 @@ func (m *mockOperations) ManagedPerformDepose(ctx context.Context, currentObj *e
 }
 
 // ManagedFinalPlan implements [exec.Operations].
-func (m *mockOperations) ManagedFinalPlan(ctx context.Context, desired *eval.DesiredResourceInstance, prior *exec.ResourceInstanceObject, plannedVal cty.Value) (*exec.ManagedResourceObjectFinalPlan, tfdiags.Diagnostics) {
+func (m *mockOperations) ManagedFinalPlan(ctx context.Context, metadata *exec.ResourceInstanceObjectMeta, desired *eval.DesiredResourceInstance, prior *exec.ResourceInstanceObject, plannedVal cty.Value) (*exec.ManagedResourceObjectFinalPlan, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	var result *exec.ManagedResourceObjectFinalPlan
 	if m.ManagedFinalPlanFunc != nil {
-		result, diags = m.ManagedFinalPlanFunc(ctx, desired, prior, plannedVal)
+		result, diags = m.ManagedFinalPlanFunc(ctx, metadata, desired, prior, plannedVal)
 	}
 	m.appendLog("ManagedFinalPlan", []any{desired, prior, plannedVal}, result)
 	return result, diags
 }
 
 // ResourceInstanceDesired implements [exec.Operations].
-func (m *mockOperations) ResourceInstanceDesired(ctx context.Context, instAddr addrs.AbsResourceInstance) (*eval.DesiredResourceInstance, tfdiags.Diagnostics) {
+func (m *mockOperations) ResourceInstanceDesired(ctx context.Context, meta *exec.ResourceInstanceObjectMeta) (*eval.DesiredResourceInstance, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	var result *eval.DesiredResourceInstance
 	if m.ResourceInstanceDesiredFunc != nil {
-		result, diags = m.ResourceInstanceDesiredFunc(ctx, instAddr)
+		result, diags = m.ResourceInstanceDesiredFunc(ctx, meta)
 	}
-	m.appendLog("ResourceInstanceDesired", []any{instAddr}, result)
+	m.appendLog("ResourceInstanceDesired", []any{meta}, result)
 	return result, diags
 }
 
 // ResourceInstanceCurrentMeta implements [exec.Operations].
-func (m *mockOperations) ResourceInstanceCurrentMeta(ctx context.Context, instAddr addrs.AbsResourceInstance) (*exec.ResourceInstanceObjectMeta, tfdiags.Diagnostics) {
+func (m *mockOperations) ResourceInstanceCurrentMeta(ctx context.Context, instAddr addrs.AbsResourceInstance, prior *exec.ResourceInstanceObject) (*exec.ResourceInstanceObjectMeta, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	var result *exec.ResourceInstanceObjectMeta
-	if m.ResourceInstanceDesiredFunc != nil {
-		result, diags = m.ResourceInstanceCurrentMetaFunc(ctx, instAddr)
+	if m.ResourceInstanceCurrentMetaFunc != nil {
+		result, diags = m.ResourceInstanceCurrentMetaFunc(ctx, instAddr, prior)
 	}
 	m.appendLog("ResourceInstanceObjectMeta", []any{instAddr}, result)
 	return result, diags

@@ -25,6 +25,7 @@ type opCode int
 const (
 	_ = opCode(iota) // the zero value is not a valid operation
 
+	opResourceInstanceCurrentMeta
 	opResourceInstanceDesired
 	opResourceInstancePrior
 
@@ -32,6 +33,7 @@ const (
 	opManagedApply
 	opManagedPrepareDepose
 	opManagedPerformDepose
+	opManagedDesposedMeta
 	opManagedAlreadyDeposed
 	opManagedChangeAddr
 

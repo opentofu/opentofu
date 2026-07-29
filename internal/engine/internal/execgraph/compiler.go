@@ -102,6 +102,8 @@ func (c *compiler) Compile() (*CompiledGraph, tfdiags.Diagnostics) {
 		operands := newCompilerOperands(opDesc.opCode, c.compileOperands(opDesc.operands))
 		var compileFunc func(operands *compilerOperands) nodeExecuteRaw
 		switch opDesc.opCode {
+		case opResourceInstanceCurrentMeta:
+			compileFunc = c.compileOpResourceInstanceCurrentMeta
 		case opResourceInstanceDesired:
 			compileFunc = c.compileOpResourceInstanceDesired
 		case opResourceInstancePrior:
@@ -114,6 +116,8 @@ func (c *compiler) Compile() (*CompiledGraph, tfdiags.Diagnostics) {
 			compileFunc = c.compileOpManagedPrepareDepose
 		case opManagedPerformDepose:
 			compileFunc = c.compileOpManagedPerformDepose
+		case opManagedDesposedMeta:
+			compileFunc = c.compileOpManagedDeposedMeta
 		case opManagedAlreadyDeposed:
 			compileFunc = c.compileOpManagedAlreadyDeposed
 		case opManagedChangeAddr:

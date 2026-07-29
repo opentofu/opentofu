@@ -93,8 +93,26 @@ func (b *Builder) ConstantProviderInstAddr(addr addrs.AbsProviderInstanceCorrect
 	return ret
 }
 
+// ResourceInstanceCurrentMeta asks the evaluator for the configured metadata
+// for the current object of the identified resource instance and then combines
+// it with the prior state of that object (if any) to produce the effective
+// metadata for that resource instance object.
+//
+// For objects that exist in the prior state, set "prior" to the result of a
+// call to [Builder.ResourceInstancePrior]. Otherwise leave it set to nil to
+// indicate that there is no prior state available.
+func (b *Builder) ResourceInstanceCurrentMeta(
+	addr ResultRef[addrs.AbsResourceInstance],
+	prior ResourceInstanceResultRef,
+) ResultRef[*exec.ResourceInstanceObjectMeta] {
+	return operationRef[*exec.ResourceInstanceObjectMeta](b, operationDesc{
+		opCode:   opResourceInstanceCurrentMeta,
+		operands: []AnyResultRef{addr, prior},
+	})
+}
+
 // ResourceInstanceDesired asks the evaluator for the desired state of the
-// resource instance that has the given address.
+// resource instance object whose metadata is provided.
 //
 // This operation automatically blocks awaiting the results of any upstream
 // resource instances that the requested instance's configuration depends on,
@@ -102,12 +120,15 @@ func (b *Builder) ConstantProviderInstAddr(addr addrs.AbsProviderInstanceCorrect
 // are any evaluation errors, even if those errors originate upstream in one
 // of the configuration's dependencies and thus would get reported separately
 // by another return path.
+//
+// Only current (i.e. not "deposed") objects can be "desired", so this operation
+// must not be sent a result from [Builder.ManagedDeposedMeta].
 func (b *Builder) ResourceInstanceDesired(
-	addr ResultRef[addrs.AbsResourceInstance],
+	meta ResultRef[*exec.ResourceInstanceObjectMeta],
 ) ResultRef[*eval.DesiredResourceInstance] {
 	return operationRef[*eval.DesiredResourceInstance](b, operationDesc{
 		opCode:   opResourceInstanceDesired,
-		operands: []AnyResultRef{addr},
+		operands: []AnyResultRef{meta},
 	})
 }
 
@@ -154,13 +175,14 @@ func (b *Builder) ResourceInstancePrior(
 // and the other has a nil priorState. desiredInst and priorState should only
 // both be set when handling an in-place update.
 func (b *Builder) ManagedFinalPlan(
+	metadata ResultRef[*exec.ResourceInstanceObjectMeta],
 	desiredInst ResultRef[*eval.DesiredResourceInstance],
 	priorState ResourceInstanceResultRef,
 	plannedVal ResultRef[cty.Value],
 ) ResultRef[*exec.ManagedResourceObjectFinalPlan] {
 	return operationRef[*exec.ManagedResourceObjectFinalPlan](b, operationDesc{
 		opCode:   opManagedFinalPlan,
-		operands: []AnyResultRef{desiredInst, priorState, plannedVal},
+		operands: []AnyResultRef{metadata, desiredInst, priorState, plannedVal},
 	})
 }
 
@@ -223,6 +245,17 @@ func (b *Builder) ManagedPerformDepose(
 	})
 }
 
+func (b *Builder) ManagedDeposedMeta(
+	instAddr ResultRef[addrs.AbsResourceInstance],
+	deposedKey ResultRef[states.DeposedKey],
+	prior ResourceInstanceResultRef,
+) ResultRef[*exec.ResourceInstanceObjectMeta] {
+	return operationRef[*exec.ResourceInstanceObjectMeta](b, operationDesc{
+		opCode:   opManagedDesposedMeta,
+		operands: []AnyResultRef{instAddr, deposedKey, prior},
+	})
+}
+
 func (b *Builder) ManagedAlreadyDeposed(
 	instAddr ResultRef[addrs.AbsResourceInstance],
 	deposedKey ResultRef[states.DeposedKey],
@@ -244,6 +277,7 @@ func (b *Builder) ManagedChangeAddr(
 }
 
 func (b *Builder) DataRead(
+	metadata ResultRef[*exec.ResourceInstanceObjectMeta],
 	desiredInst ResultRef[*eval.DesiredResourceInstance],
 	plannedVal ResultRef[cty.Value],
 	waitFor AnyResultRef,
@@ -251,7 +285,7 @@ func (b *Builder) DataRead(
 	waiter := b.ensureWaiterRef(waitFor)
 	return operationRef[*exec.ResourceInstanceObject](b, operationDesc{
 		opCode:   opDataRead,
-		operands: []AnyResultRef{desiredInst, plannedVal, waiter},
+		operands: []AnyResultRef{metadata, desiredInst, plannedVal, waiter},
 	})
 }
 

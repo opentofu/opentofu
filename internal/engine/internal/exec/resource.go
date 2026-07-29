@@ -6,10 +6,13 @@
 package exec
 
 import (
+	"fmt"
+
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/eval"
+	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/states"
 )
 
@@ -224,26 +227,71 @@ type ResourceInstanceObjectMeta struct {
 	// instance throughout a plan/apply round, but may change which provider
 	// instance it is associated with between rounds based on changes in the
 	// configuration.
-	ProviderInstance addrs.AbsProviderInstanceCorrect
+	ProviderInstance exprs.FromValue[addrs.AbsProviderInstanceCorrect]
 
 	// ResourceType is the resource type of the object this metadata is for,
 	// as would be understood by the provider identified in
 	// [ResourceInstanceObjectMeta.ProviderInstance].
 	ResourceType string
 
-	// CreateProvisioners are the provisioners to execute immediately after the
-	// resource instance object has been created.
+	// PostCreateProvisioners are the provisioners to execute immediately after
+	// the resource instance object has been created.
 	//
 	// The contents of this field can only be relied on during a round where
 	// the apply phase would create a resource instance object at the associated
 	// address. Its contents are unspecified in other cases.
-	PostCreateProvisioners []eval.Provisioner
+	PostCreateProvisioners []eval.ResourceProvisioner
 
-	// DeleteProvisioners are the provisioners to execute immediately before the
-	// resource instance object will be deleted.
+	// PreDeleteProvisioners are the provisioners to execute immediately before
+	// the resource instance object will be deleted.
 	//
 	// The contents of this field can only be relied on during a round where
 	// the apply phase would delete a resource instance object at the associated
 	// address. Its contents are unspecified in other cases.
-	PreDeleteProvisioners []eval.Provisioner
+	PreDeleteProvisioners []eval.ResourceProvisioner
+}
+
+// BuildResourceInstanceObjectMeta constructs a [ResourceInstanceObjectMeta]
+// object that incorporates information from both the configuration and the
+// prior state, generally preferring to use the configuration information when
+// possible but using the prior state as a fallback.
+//
+// This is our primary logic for deciding the effective metadata for a resource
+// instance object based on all of the information currently known. The planning
+// and applying engines should both use this function to ensure that they always
+// agree about the metadata for a given resource instance object.
+//
+// It's the caller's responsibility to ensure that all of the arguments agree
+// about which resource instance object they are describing. The given object
+// address will be the value of [ResourceInstanceObjectMeta.Addr] and so must
+// be consistent with the documentation of that field.
+//
+// At least one of fromConfig and state must be non-nil, or this function will
+// panic. There is no reason to ask for metadata for an object that exists in
+// neither the desired nor the prior state.
+func BuildResourceInstanceObjectMeta(
+	addr addrs.AbsResourceInstanceObject,
+	fromConfig *eval.ConfiguredResourceInstanceObjectMeta,
+	state *states.ResourceInstanceObjectFull,
+) *ResourceInstanceObjectMeta {
+	if fromConfig == nil && state == nil {
+		panic(fmt.Sprintf("cannot build resource instance object metadata for %s with neither configured nor prior state metadata", addr))
+	}
+	ret := &ResourceInstanceObjectMeta{
+		Addr: addr,
+	}
+
+	// If both state and fromConfig are present then we'll start with state
+	// so that the config values can potentially override.
+	if state != nil {
+		// Note that if this object is participating in a cross-resource-type
+		// move in this plan/apply round this will initially reflect the
+		// old resource type, but then we'll overwrite it with the new resource
+		// type from the configuration object below.
+		ret.ResourceType = state.ResourceType
+	}
+
+	// TODO: The rest of this
+
+	return ret
 }

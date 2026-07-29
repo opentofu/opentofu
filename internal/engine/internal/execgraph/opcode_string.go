@@ -8,20 +8,22 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[opResourceInstanceDesired-1]
-	_ = x[opResourceInstancePrior-2]
-	_ = x[opManagedFinalPlan-3]
-	_ = x[opManagedApply-4]
-	_ = x[opManagedPrepareDepose-5]
-	_ = x[opManagedPerformDepose-6]
-	_ = x[opManagedAlreadyDeposed-7]
-	_ = x[opManagedChangeAddr-8]
-	_ = x[opDataRead-9]
+	_ = x[opResourceInstanceCurrentMeta-1]
+	_ = x[opResourceInstanceDesired-2]
+	_ = x[opResourceInstancePrior-3]
+	_ = x[opManagedFinalPlan-4]
+	_ = x[opManagedApply-5]
+	_ = x[opManagedPrepareDepose-6]
+	_ = x[opManagedPerformDepose-7]
+	_ = x[opManagedDesposedMeta-8]
+	_ = x[opManagedAlreadyDeposed-9]
+	_ = x[opManagedChangeAddr-10]
+	_ = x[opDataRead-11]
 }
 
-const _opCode_name = "opResourceInstanceDesiredopResourceInstancePrioropManagedFinalPlanopManagedApplyopManagedPrepareDeposeopManagedPerformDeposeopManagedAlreadyDeposedopManagedChangeAddropDataRead"
+const _opCode_name = "opResourceInstanceCurrentMetaopResourceInstanceDesiredopResourceInstancePrioropManagedFinalPlanopManagedApplyopManagedPrepareDeposeopManagedPerformDeposeopManagedDesposedMetaopManagedAlreadyDeposedopManagedChangeAddropDataRead"
 
-var _opCode_index = [...]uint8{0, 25, 48, 66, 80, 102, 124, 147, 166, 176}
+var _opCode_index = [...]uint8{0, 29, 54, 77, 95, 109, 131, 153, 174, 197, 216, 226}
 
 func (i opCode) String() string {
 	idx := int(i) - 1

@@ -61,10 +61,8 @@ func (b *execGraphBuilder) ManagedResourceInstanceSubgraph(
 	// The shape of execution subgraph we generate here varies depending on
 	// which change action was planned.
 	switch changeAction {
-	case plans.Create:
-		return b.managedResourceInstanceSubgraphCreate(plannedChange)
-	case plans.Update:
-		return b.managedResourceInstanceSubgraphUpdate(plannedChange)
+	case plans.Create, plans.Update:
+		return b.managedResourceInstanceSubgraphCreateOrUpdate(plannedChange)
 	case plans.Delete:
 		return b.managedResourceInstanceSubgraphDelete(plannedChange)
 	case plans.Forget:
@@ -86,37 +84,21 @@ func (b *execGraphBuilder) ManagedResourceInstanceSubgraph(
 	}
 }
 
-func (b *execGraphBuilder) managedResourceInstanceSubgraphCreate(
+func (b *execGraphBuilder) managedResourceInstanceSubgraphCreateOrUpdate(
 	plannedChange *plans.ResourceInstanceChange,
 ) resourceInstanceObjectSubgraph {
-	instAddrRef, _ := b.managedResourceInstanceChangeAddrAndPriorStateRefs(plannedChange)
-	// Per the conventions in the old engine, After contains a marked value
-	unmarkedAfter, _ := plannedChange.After.UnmarkDeep()
-	plannedValRef := b.lower.ConstantValue(unmarkedAfter)
-	desiredInstRef := b.lower.ResourceInstanceDesired(instAddrRef)
-	valueRef, addDesiredDep := b.managedResourceInstanceSubgraphPlanAndApply(
-		desiredInstRef,
-		execgraph.NilResultRef[*exec.ResourceInstanceObject](),
-		plannedValRef,
+	metadataRef, desiredRef, priorRef, plannedValueRef := b.managedResourceInstanceChangeInputs(plannedChange)
+	finalPlanRef := b.lower.ManagedFinalPlan(
+		metadataRef,
+		desiredRef,
+		priorRef,
+		plannedValueRef,
 	)
-	return resourceInstanceObjectSubgraph{
-		valueRef:      valueRef,
-		addDesiredDep: addDesiredDep,
-	}
-}
-
-func (b *execGraphBuilder) managedResourceInstanceSubgraphUpdate(
-	plannedChange *plans.ResourceInstanceChange,
-) resourceInstanceObjectSubgraph {
-	instAddrRef, priorStateRef := b.managedResourceInstanceChangeAddrAndPriorStateRefs(plannedChange)
-	// Per the conventions in the old engine, After contains a marked value
-	unmarkedAfter, _ := plannedChange.After.UnmarkDeep()
-	plannedValRef := b.lower.ConstantValue(unmarkedAfter)
-	desiredInstRef := b.lower.ResourceInstanceDesired(instAddrRef)
-	valueRef, addDesiredDep := b.managedResourceInstanceSubgraphPlanAndApply(
-		desiredInstRef,
-		priorStateRef,
-		plannedValRef,
+	waitFor, addDesiredDep := b.lower.MutableWaiter()
+	valueRef := b.lower.ManagedApply(
+		finalPlanRef,
+		execgraph.NilResultRef[*exec.ResourceInstanceObject](),
+		waitFor,
 	)
 	return resourceInstanceObjectSubgraph{
 		valueRef:      valueRef,
@@ -127,15 +109,13 @@ func (b *execGraphBuilder) managedResourceInstanceSubgraphUpdate(
 func (b *execGraphBuilder) managedResourceInstanceSubgraphDelete(
 	plannedChange *plans.ResourceInstanceChange,
 ) resourceInstanceObjectSubgraph {
-	_, priorStateRef := b.managedResourceInstanceChangeAddrAndPriorStateRefs(plannedChange)
-	// Per the conventions in the old engine, After contains a marked value
-	unmarkedAfter, _ := plannedChange.After.UnmarkDeep()
-	plannedValRef := b.lower.ConstantValue(unmarkedAfter)
+	metadataRef, desiredRef, priorRef, plannedValueRef := b.managedResourceInstanceChangeInputs(plannedChange)
 	waitFor, addDeleteDep := b.lower.MutableWaiter()
 	finalPlanRef := b.lower.ManagedFinalPlan(
-		execgraph.NilResultRef[*eval.DesiredResourceInstance](),
-		priorStateRef,
-		plannedValRef,
+		metadataRef,
+		desiredRef, // always produces nil in this case
+		priorRef,
+		plannedValueRef,
 	)
 	deletionRef := b.lower.ManagedApply(
 		finalPlanRef,
@@ -150,7 +130,7 @@ func (b *execGraphBuilder) managedResourceInstanceSubgraphDelete(
 		// to refer to an object being deleted in that case, so that ephemeral
 		// objects like provider instances can configure themselves based on
 		// the prior state before the object is deleted.
-		valueRef:     priorStateRef,
+		valueRef:     priorRef,
 		deletionRef:  deletionRef,
 		addOrphanDep: addDeleteDep,
 	}
@@ -180,24 +160,22 @@ func (b *execGraphBuilder) managedResourceInstanceSubgraphDeleteOrForgetThenCrea
 	// actions chained together, but we arrange the operations in such a
 	// way that the delete leg can't start unless the desired state is
 	// successfully evaluated.
-	instAddrRef, priorStateRef := b.managedResourceInstanceChangeAddrAndPriorStateRefs(plannedChange)
-	// Per the conventions in the old engine, After contains a marked value
-	unmarkedAfter, _ := plannedChange.After.UnmarkDeep()
-	plannedValRef := b.lower.ConstantValue(unmarkedAfter)
-	desiredInstRef := b.lower.ResourceInstanceDesired(instAddrRef)
+	metadataRef, desiredRef, priorRef, plannedValueRef := b.managedResourceInstanceChangeInputs(plannedChange)
 
 	// We plan both the create and destroy parts of this process before we
 	// make any real changes, to reduce the risk that we'll be left in a
 	// partially-applied state where neither object exists. (Though of course
 	// that's always possible, if the "create" step fails at apply.)
 	createPlanRef := b.lower.ManagedFinalPlan(
-		desiredInstRef,
+		metadataRef,
+		desiredRef,
 		execgraph.NilResultRef[*exec.ResourceInstanceObject](),
-		plannedValRef,
+		plannedValueRef,
 	)
 	destroyPlanRef := b.lower.ManagedFinalPlan(
+		metadataRef,
 		execgraph.NilResultRef[*eval.DesiredResourceInstance](),
-		priorStateRef,
+		priorRef,
 		b.lower.ConstantValue(cty.NullVal(
 			// TODO: is this okay or do we need to use the type constraint derived from the schema?
 			// The two could differ for resource types that have cty.DynamicPseudoType
@@ -235,28 +213,26 @@ func (b *execGraphBuilder) managedResourceInstanceSubgraphCreateThenDelete(
 	desiredWaitFor, addCreateDep := b.lower.MutableWaiter()
 	deleteWaitFor, addDeleteDep := b.lower.MutableWaiter()
 
-	// This has much the same effect as the separate delete and create
+	// This has much the same effect as the separate create and delete
 	// actions chained together, but we arrange the operations in such a
 	// way that we don't make any changes unless we can produce valid final
 	// plans for both changes.
-	instAddrRef, priorStateRef := b.managedResourceInstanceChangeAddrAndPriorStateRefs(plannedChange)
-	// Per the conventions in the old engine, After contains a marked value
-	unmarkedAfter, _ := plannedChange.After.UnmarkDeep()
-	plannedValRef := b.lower.ConstantValue(unmarkedAfter)
-	desiredInstRef := b.lower.ResourceInstanceDesired(instAddrRef)
+	metadataRef, desiredRef, priorRef, plannedValueRef := b.managedResourceInstanceChangeInputs(plannedChange)
 
 	// We plan both the create and destroy parts of this process before we
 	// make any real changes, to reduce the risk that we'll be left in a
 	// partially-applied state where we're left with a deposed object present
 	// in the final state.
 	createPlanRef := b.lower.ManagedFinalPlan(
-		desiredInstRef,
+		metadataRef,
+		desiredRef,
 		execgraph.NilResultRef[*exec.ResourceInstanceObject](),
-		plannedValRef,
+		plannedValueRef,
 	)
 	destroyPlanRef := b.lower.ManagedFinalPlan(
+		metadataRef,
 		execgraph.NilResultRef[*eval.DesiredResourceInstance](),
-		priorStateRef,
+		priorRef,
 		b.lower.ConstantValue(cty.NullVal(
 			// TODO: is this okay or do we need to use the type constraint derived from the schema?
 			// The two could differ for resource types that have cty.DynamicPseudoType
@@ -282,7 +258,7 @@ func (b *execGraphBuilder) managedResourceInstanceSubgraphCreateThenDelete(
 	// dependencies that ManagedPerformDepose does not also have.
 	addCreateDep(createPlanRef) // don't depose unless we successfully create a plan
 	deposedObjRef := b.lower.ManagedPerformDepose(
-		priorStateRef,
+		priorRef,
 		destroyPlanRef,
 		desiredWaitFor,
 	)
@@ -314,61 +290,60 @@ func (b *execGraphBuilder) managedResourceInstanceSubgraphCreateThenDelete(
 	}
 }
 
-// managedResourceInstanceSubgraphPlanAndApply deals with the simple case
-// of "create a final plan and then apply it" that is shared between "create"
-// and "update", but not for deleting or for the more complicated ones involving
-// multiple primitive actions that need to be carefully coordinated with each
-// other.
-func (b *execGraphBuilder) managedResourceInstanceSubgraphPlanAndApply(
-	desiredInstRef execgraph.ResultRef[*eval.DesiredResourceInstance],
-	priorStateRef execgraph.ResourceInstanceResultRef,
-	plannedValRef execgraph.ResultRef[cty.Value],
-) (
-	resultRef execgraph.ResourceInstanceResultRef,
-	addApplyDep func(execgraph.AnyResultRef),
-) {
-	finalPlanRef := b.lower.ManagedFinalPlan(
-		desiredInstRef,
-		priorStateRef,
-		plannedValRef,
-	)
-	waitFor, addApplyDep := b.lower.MutableWaiter()
-	return b.lower.ManagedApply(
-		finalPlanRef,
-		execgraph.NilResultRef[*exec.ResourceInstanceObject](),
-		waitFor,
-	), addApplyDep
-}
-
-func (b *execGraphBuilder) managedResourceInstanceChangeAddrAndPriorStateRefs(
+// managedResourceInstanceChangeInputs adds to the graph the operations needed
+// to obtain the metadata, desired object, and prior object needed to
+// perform the given resource instance change during the apply phase.
+//
+// The "metadata" result always provides a non-nil value if it succeeds. The
+// "desired" and "prior" results may each produce a nil value depending on
+// the action specified in the resource instance change.
+func (b *execGraphBuilder) managedResourceInstanceChangeInputs(
 	plannedChange *plans.ResourceInstanceChange,
 ) (
-	newAddr execgraph.ResultRef[addrs.AbsResourceInstance],
-	priorState execgraph.ResourceInstanceResultRef,
+	metadata execgraph.ResultRef[*exec.ResourceInstanceObjectMeta],
+	desired execgraph.ResultRef[*eval.DesiredResourceInstance],
+	prior execgraph.ResourceInstanceResultRef,
+	plannedValue execgraph.ResultRef[cty.Value],
 ) {
-	if plannedChange.Action == plans.Create {
-		// For a create change there is no prior state at all, but we still
-		// need the new instance address.
-		newAddrRef := b.lower.ConstantResourceInstAddr(plannedChange.Addr)
-		return newAddrRef, execgraph.NilResultRef[*exec.ResourceInstanceObject]()
-	}
+	unmarkedAfter, _ := plannedChange.After.UnmarkDeep()
+	plannedValue = b.lower.ConstantValue(unmarkedAfter)
 	if plannedChange.DeposedKey != states.NotDeposed {
-		// We need to use a different operation to access deposed objects.
+		// We use different operations to access deposed objects.
+		if plannedChange.Action != plans.Delete {
+			// Delete is the only reasonable action for a deposed object.
+			panic(fmt.Sprintf("cannot perform %s on %s", plannedChange.Action, plannedChange.PrevRunAddr))
+		}
 		prevAddrRef := b.lower.ConstantResourceInstAddr(plannedChange.PrevRunAddr)
 		dkRef := b.lower.ConstantDeposedKey(plannedChange.DeposedKey)
-		stateRef := b.lower.ManagedAlreadyDeposed(prevAddrRef, dkRef)
-		return execgraph.NilResultRef[addrs.AbsResourceInstance](), stateRef
+		prior = b.lower.ManagedAlreadyDeposed(prevAddrRef, dkRef)
+		metadata = b.lower.ManagedDeposedMeta(prevAddrRef, dkRef, prior)
+		return metadata, execgraph.NilResultRef[*eval.DesiredResourceInstance](), prior, plannedValue
 	}
-	prevAddrRef := b.lower.ConstantResourceInstAddr(plannedChange.PrevRunAddr)
-	priorStateRef := b.lower.ResourceInstancePrior(prevAddrRef)
-	retAddrRef := prevAddrRef
-	retStateRef := priorStateRef
-	if !plannedChange.PrevRunAddr.Equal(plannedChange.Addr) {
-		// If the address is changing then we'll also include the
-		// "change address" operation so that the object will get rebound
-		// to its new address before we do any other work.
-		retAddrRef = b.lower.ConstantResourceInstAddr(plannedChange.Addr)
-		retStateRef = b.lower.ManagedChangeAddr(retStateRef, retAddrRef)
+
+	switch plannedChange.Action {
+	case plans.Create:
+		newAddrRef := b.lower.ConstantResourceInstAddr(plannedChange.Addr)
+		metadata = b.lower.ResourceInstanceCurrentMeta(newAddrRef, execgraph.NilResultRef[*exec.ResourceInstanceObject]())
+		desired = b.lower.ResourceInstanceDesired(metadata)
+	case plans.Delete:
+		prevAddrRef := b.lower.ConstantResourceInstAddr(plannedChange.PrevRunAddr)
+		prior = b.lower.ResourceInstancePrior(prevAddrRef)
+		metadata = b.lower.ResourceInstanceCurrentMeta(prevAddrRef, prior)
+	default:
+		var newAddrRef, prevAddrRef execgraph.ResultRef[addrs.AbsResourceInstance]
+		newAddrRef = b.lower.ConstantResourceInstAddr(plannedChange.Addr)
+		if plannedChange.PrevRunAddr.Equal(plannedChange.Addr) {
+			prevAddrRef = newAddrRef
+		} else {
+			prevAddrRef = b.lower.ConstantResourceInstAddr(plannedChange.PrevRunAddr)
+		}
+
+		prior = b.lower.ResourceInstancePrior(prevAddrRef)
+		metadata = b.lower.ResourceInstanceCurrentMeta(newAddrRef, prior)
+		desired = b.lower.ResourceInstanceDesired(metadata)
+		if !plannedChange.PrevRunAddr.Equal(plannedChange.Addr) {
+			prior = b.lower.ManagedChangeAddr(prior, newAddrRef)
+		}
 	}
-	return retAddrRef, retStateRef
+	return metadata, desired, prior, plannedValue
 }
