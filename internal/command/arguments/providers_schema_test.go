@@ -25,7 +25,7 @@ func TestParseProvidersSchema_basicValidation(t *testing.T) {
 			want: providersSchemaArgsWithDefaults(func(ps *ProvidersSchema) {
 				// even though the -json flag is given, that is only to force the user to handle the successfull output
 				// of this command as json
-				ps.ViewOptions.ViewType = ViewHuman
+				ps.View.ViewType = ViewHuman
 			}),
 		},
 		"missing json flag": {
@@ -41,7 +41,7 @@ func TestParseProvidersSchema_basicValidation(t *testing.T) {
 			want: providersSchemaArgsWithDefaults(func(ps *ProvidersSchema) {
 				// even though the -json flag is given, that is only to force the user to handle the successfull output
 				// of this command as json
-				ps.ViewOptions.ViewType = ViewHuman
+				ps.View.ViewType = ViewHuman
 			}),
 			wantDiags: true,
 			wantContain: []string{
@@ -53,7 +53,7 @@ func TestParseProvidersSchema_basicValidation(t *testing.T) {
 			want: providersSchemaArgsWithDefaults(func(ps *ProvidersSchema) {
 				// even though the -json flag is given, that is only to force the user to handle the successfull output
 				// of this command as json
-				ps.ViewOptions.ViewType = ViewHuman
+				ps.View.ViewType = ViewHuman
 			}),
 			wantDiags: true,
 			wantContain: []string{
@@ -63,7 +63,7 @@ func TestParseProvidersSchema_basicValidation(t *testing.T) {
 	}
 
 	cmpOpts := cmp.Options{
-		cmpopts.IgnoreUnexported(Vars{}, ViewOptions{}),
+		cmpopts.IgnoreUnexported(Vars{}),
 	}
 
 	for name, tc := range testCases {
@@ -96,9 +96,10 @@ func TestParseProvidersSchema_basicValidation(t *testing.T) {
 
 func providersSchemaArgsWithDefaults(mutate func(ps *ProvidersSchema)) *ProvidersSchema {
 	ret := &ProvidersSchema{
-		ViewOptions: ViewOptions{
-			ViewType:     ViewHuman,
-			InputEnabled: false,
+		View: &View{
+			ConsolidateWarnings: true,
+			ViewType:            ViewHuman,
+			InputEnabled:        false,
 		},
 		Vars: &Vars{},
 	}

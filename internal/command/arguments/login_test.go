@@ -148,11 +148,11 @@ func TestParseLogin_viewOptions(t *testing.T) {
 			if len(diags) > 0 {
 				t.Fatalf("unexpected diags: %v", diags)
 			}
-			if got.ViewOptions.ViewType != tc.wantViewType {
-				t.Errorf("ViewOptions.ViewType = %v, want %v", got.ViewOptions.ViewType, tc.wantViewType)
+			if got.View.ViewType != tc.wantViewType {
+				t.Errorf("View.ViewType = %v, want %v", got.View.ViewType, tc.wantViewType)
 			}
-			if got.ViewOptions.InputEnabled != tc.wantInputEnabled {
-				t.Errorf("ViewOptions.InputEnabled = %v, want %v", got.ViewOptions.InputEnabled, tc.wantInputEnabled)
+			if got.View.InputEnabled != tc.wantInputEnabled {
+				t.Errorf("View.InputEnabled = %v, want %v", got.View.InputEnabled, tc.wantInputEnabled)
 			}
 		})
 	}

@@ -17,19 +17,18 @@ type ProvidersMirror struct {
 	// copy for
 	OptPlatforms []string
 
-	// ViewOptions specifies which view options to use
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 	// Vars holds and provides information for the flags related to variables that a user can give into the process
 	Vars *Vars
 }
 
 // BindProvidersMirror registers CLI arguments, returning a ProvidersMirror value and it's corresponding hooks.
 func BindProvidersMirror(cli *CommandLine) *ProvidersMirror {
-	var arguments ProvidersMirror
-
-	arguments.ViewOptions.bind(cli, false)
-
-	arguments.Vars = BindVars(cli)
+	arguments := ProvidersMirror{
+		View: BindView(cli, viewFlagNoInput),
+		Vars: BindVars(cli),
+	}
 
 	cli.StringArrayVar(&arguments.OptPlatforms, "platform", nil, `Choose which target platform to build a mirror for. By default OpenTofu will obtain plugin packages suitable for the platform where you run this command. Use this flag multiple times to include packages for multiple target systems.
 

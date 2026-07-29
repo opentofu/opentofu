@@ -13,13 +13,9 @@ import (
 type StateShow struct {
 	// TargetRawAddr represents the raw resource address of the resource requested to have the state shown for.
 	TargetRawAddr string
-	// ShowSensitive forces the show command to print also the sensitive values of the targeted resource.
-	// This applies only to the [views.StateHuman] since the [views.StateJSON] shows the sensitive values
-	// all the time.
-	ShowSensitive bool
 
-	// ViewOptions specifies which view options to use
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 
 	// Vars and State are the common extended flags
 	Vars  *Vars
@@ -28,15 +24,11 @@ type StateShow struct {
 
 // BindStateShow registers CLI arguments, returning a StateShow value and it's corresponding hooks.
 func BindStateShow(cli *CommandLine) *StateShow {
-	var ret StateShow
-
-	ret.ViewOptions.bind(cli, false)
-
-	ret.Vars = BindVars(cli)
-
-	ret.State = BindState(cli, stateFlagStateIn)
-
-	cli.BoolVar(&ret.ShowSensitive, "show-sensitive", false, "If specified, sensitive values will be displayed.")
+	ret := StateShow{
+		View:  BindView(cli, viewFlagNoInput|viewFlagSensitive),
+		Vars:  BindVars(cli),
+		State: BindState(cli, stateFlagStateIn),
+	}
 
 	cli.PositionalArg(&ret.TargetRawAddr, "ADDRESS", false)
 

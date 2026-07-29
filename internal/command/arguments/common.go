@@ -24,6 +24,9 @@ type CommandLine struct {
 	ArgHelp string
 
 	Hooks Hooks
+
+	// This is a bit of a hack so we can correctly report diagnostics before actually executing the command
+	View *View
 }
 
 func (c CommandLine) PositionalArgs(remaining []string) tfdiags.Diagnostics {
