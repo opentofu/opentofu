@@ -7,10 +7,12 @@ package tofu2024
 
 import (
 	"context"
+	"fmt"
 	"iter"
 	"maps"
 
 	"github.com/apparentlymart/go-workgraph/workgraph"
+	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/getproviders"
@@ -98,6 +100,71 @@ func (c *CompiledModuleInstance) ResultValuer(ctx context.Context) exprs.Valuer 
 	// the calling module instance, without the caller needing to be aware
 	// of that implementation detail.
 	return c.moduleInstanceNode
+}
+
+// ResourceInstanceObjectMeta implements [evalglue.CompiledModuleInstance].
+func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context, addr addrs.ResourceInstanceObject) *evalglue.ConfiguredResourceInstanceObjectMeta {
+	// TODO: The logic here should also consider whether any "removed" block
+	// matches the requested object, and return information derived from
+	// that block if so.
+
+	// We'll start with a suitable placeholder to use if there's no mention
+	// of this object in the configuration at all, and then improve it gradually
+	// as we find relevant information in the configuration.
+	ret := &evalglue.ConfiguredResourceInstanceObjectMeta{
+		// In this language edition the author-specified resource type always
+		// matches the provider's chosen resource type name, so we can just
+		// derive these directly from the resource address.
+		Provider:     addrs.ImpliedProviderForUnqualifiedType(addr.InstanceAddr.Resource.ImpliedProvider()),
+		ResourceMode: addr.InstanceAddr.Resource.Mode,
+		ResourceType: addr.InstanceAddr.Resource.Type,
+
+		// An undeclared resource has no configured provider instance, which
+		// means that a caller can know to fall back to an address specified in
+		// the prior state, if any.
+		ProviderInstance: exprs.Known[*addrs.AbsProviderInstanceCorrect](nil),
+	}
+
+	rsrc, ok := c.resourceNodes[addr.InstanceAddr.Resource]
+	if !ok {
+		// We'll just return the placeholder, then!
+		return ret
+	}
+
+	// In the remaining code we intentionally ignore all diagnostics from
+	// accessing the configgraph.Resource and configgraph.ResourceInstance
+	// methods because our caller is expected to collect them separately
+	// using [CompiledModuleInstance.CheckAll].
+
+	preventDestroyVal, _, _ := rsrc.PreventDestroy(ctx)
+	preventDestroy, _ := exprs.DeriveFromValue(preventDestroyVal, func(v cty.Value) (bool, error) {
+		if v.True() {
+			return true, nil
+		}
+		if v.False() {
+			return false, nil
+		}
+		// No other value is expected, based on the documentation of [configgraph.Resource.PreventDestroy].
+		panic(fmt.Sprintf("method PreventDestroy for %s returned unexpected value %#v", addr.InstanceAddr.Resource, v))
+	})
+	ret.DeletionInvalid = preventDestroy
+
+	insts := rsrc.Instances(ctx)
+	inst, ok := insts[addr.InstanceAddr.Key]
+	if !ok {
+		// Only the resource-level settings are used when we're dealing with
+		// a resource instance that is not currently declared in the configuration.
+		return ret
+	}
+
+	providerInst, _ := inst.ProviderInstance(ctx)
+	ret.ProviderInstance, _ = exprs.DeriveFromDerived(providerInst, func(providerInst *configgraph.ProviderInstance) (*addrs.AbsProviderInstanceCorrect, error) {
+		return &providerInst.Addr, nil
+	})
+
+	// TODO: All of the other fields of ConfiguredResourceInstanceObjectMeta
+
+	return ret
 }
 
 // ChildModuleCalls implements evalglue.CompiledModuleInstance.
