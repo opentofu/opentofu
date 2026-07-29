@@ -7,6 +7,7 @@ package views
 
 import (
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views/jsonfunction"
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -29,7 +30,8 @@ type MetadataFunctions interface {
 // NewMetadataFunctions returns an initialized MetadataFunctions implementation for the given ViewType.
 // In case of this command, the returned [MetadataFunctions] will always print the diagnostics in human format
 // and the functions in JSON format.
-func NewMetadataFunctions(view *View) MetadataFunctions {
+func NewMetadataFunctions(args *arguments.View, view *View) MetadataFunctions {
+	view.Configure(args)
 	return &MetadataFunctionsMixed{view: view}
 }
 

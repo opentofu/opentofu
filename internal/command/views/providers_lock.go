@@ -23,7 +23,8 @@ type ProvidersLock interface {
 }
 
 // NewProvidersLock returns an initialized ProvidersLock implementation for the given ViewType.
-func NewProvidersLock(args arguments.ViewOptions, view *View) ProvidersLock {
+func NewProvidersLock(args *arguments.View, view *View) ProvidersLock {
+	view.Configure(args)
 	var ret ProvidersLock
 	switch args.ViewType {
 	case arguments.ViewJSON:

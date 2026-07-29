@@ -27,7 +27,8 @@ type Plan interface {
 }
 
 // NewPlan returns an initialized Plan implementation for the given ViewType.
-func NewPlan(args arguments.ViewOptions, view *View) Plan {
+func NewPlan(args *arguments.View, view *View) Plan {
+	view.Configure(args)
 	var plan Plan
 	switch args.ViewType {
 	case arguments.ViewJSON:

@@ -74,7 +74,8 @@ type Test interface {
 	FatalInterruptSummary(run *moduletest.Run, file *moduletest.File, states map[*moduletest.Run]*states.State, created []*plans.ResourceInstanceChangeSrc)
 }
 
-func NewTest(args arguments.ViewOptions, view *View) Test {
+func NewTest(args *arguments.View, view *View) Test {
+	view.Configure(args)
 	var test Test
 	switch args.ViewType {
 	case arguments.ViewJSON:

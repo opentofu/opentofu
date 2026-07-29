@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -60,7 +61,7 @@ func TestMetadataFunctions_Diagnostics(t *testing.T) {
 
 func TestMetadataFunctions_printFunctions(t *testing.T) {
 	view, done := testView(t)
-	v := NewMetadataFunctions(view)
+	v := NewMetadataFunctions(&arguments.View{NoColor: true}, view)
 	status := v.PrintFunctions()
 	output := done(t)
 	if !status {
@@ -112,7 +113,7 @@ type functions struct {
 
 func testMetadataFunctions(t *testing.T, call func(v MetadataFunctions), wantStdout, wantStderr string) {
 	view, done := testView(t)
-	v := NewMetadataFunctions(view)
+	v := NewMetadataFunctions(&arguments.View{NoColor: true}, view)
 	call(v)
 	output := done(t)
 	if diff := cmp.Diff(wantStderr, output.Stderr()); diff != "" {

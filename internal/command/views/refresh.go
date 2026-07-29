@@ -31,7 +31,8 @@ type Refresh interface {
 }
 
 // NewRefresh returns an initialized Refresh implementation for the given ViewType.
-func NewRefresh(args arguments.ViewOptions, view *View) Refresh {
+func NewRefresh(args *arguments.View, view *View) Refresh {
+	view.Configure(args)
 	var refresh Refresh
 	switch args.ViewType {
 	case arguments.ViewJSON:
@@ -117,7 +118,7 @@ var _ Refresh = (*RefreshHuman)(nil)
 func (v *RefreshHuman) Outputs(outputValues map[string]*states.OutputValue) {
 	if len(outputValues) > 0 {
 		v.view.streams.Print(v.view.colorize.Color("[reset][bold][green]\nOutputs:\n\n"))
-		NewOutput(arguments.ViewOptions{ViewType: arguments.ViewHuman}, v.view).Output("", outputValues)
+		NewOutput(&arguments.View{ViewType: arguments.ViewHuman}, v.view).Output("", outputValues)
 	}
 }
 

@@ -48,7 +48,8 @@ type Workspace interface {
 }
 
 // NewWorkspace returns an initialized Workspace implementation for the given ViewType.
-func NewWorkspace(args arguments.ViewOptions, view *View) Workspace {
+func NewWorkspace(args *arguments.View, view *View) Workspace {
+	view.Configure(args)
 	var ret Workspace
 	switch args.ViewType {
 	case arguments.ViewJSON:

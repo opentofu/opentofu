@@ -24,7 +24,8 @@ type ProvidersMirror interface {
 }
 
 // NewProvidersMirror returns an initialized ProvidersMirror implementation for the given ViewType.
-func NewProvidersMirror(args arguments.ViewOptions, view *View) ProvidersMirror {
+func NewProvidersMirror(args *arguments.View, view *View) ProvidersMirror {
+	view.Configure(args)
 	var ret ProvidersMirror
 	switch args.ViewType {
 	case arguments.ViewJSON:

@@ -24,7 +24,8 @@ type Console interface {
 }
 
 // NewConsole returns an initialized Console implementation for the given ViewType.
-func NewConsole(args arguments.ViewOptions, view *View) Console {
+func NewConsole(args *arguments.View, view *View) Console {
+	view.Configure(args)
 	var ret Console
 	switch args.ViewType {
 	case arguments.ViewJSON:
