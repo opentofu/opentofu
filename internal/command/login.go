@@ -22,7 +22,6 @@ import (
 	"sync"
 
 	tfe "github.com/hashicorp/go-tfe"
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/tracing"
@@ -46,6 +45,25 @@ import (
 // There are a few special circumstances that depend on this whitelisted hostname.
 const hcpTerraformHost = "app.terraform.io"
 
+func LoginCommander() Command {
+	cmd := Command{
+		Name:  "login",
+		Short: "Obtain and save credentials for a remote host",
+		Long: `Retrieves an authentication token for the given hostname, if it supports automatic login, and saves it in a credentials file in your home directory.
+
+If not overridden by credentials helper settings in the CLI configuration, the credentials will be written to the following local file:`,
+
+		DiagsWithNewline: true,
+	}
+
+	args := arguments.BindLogin(&cmd.CommandLine)
+	cmd.Run = func(meta Meta) int {
+		return LoginCommand{meta}.Execute(args, views.NewLogin(args.View, meta.View))
+	}
+
+	return cmd
+}
+
 // LoginCommand is a Command implementation that runs an interactive login
 // flow for a remote service host. It then stashes credentials in a tfrc
 // file in the user's home directory.
@@ -53,36 +71,17 @@ type LoginCommand struct {
 	Meta
 }
 
-// Run implements cli.Command.
 func (c *LoginCommand) Run(rawArgs []string) int {
+	return RunCommand(LoginCommander(), c.Meta, rawArgs)
+}
+func (c LoginCommand) Execute(args *arguments.Login, view views.Login) int {
+	var diags tfdiags.Diagnostics
+
 	ctx := c.CommandContext()
 	ctx, span := tracing.Tracer().Start(ctx, "Login")
 	defer span.End()
 
-	// Parse and validate flags
-	args, closer, diags := arguments.ParseLogin(rawArgs)
-	defer closer()
-
-	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
-	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
-	c.View.DiagsWithNewline()
-
-	// Instantiate the view, even if there are flag errors, so that we render
-	// diagnostics according to the desired view
-	view := views.NewLogin(args.View, c.View)
-	if diags.HasErrors() {
-		view.Diagnostics(diags)
-		if args.View.ViewType == arguments.ViewJSON {
-			return 1
-		}
-		return cli.RunResultHelp
-	}
 	c.Meta.stateArgs = *args.State
-
-	// FIXME: the -input flag value is needed to initialize the backend and the
-	// operation, but there is no clear path to pass this value down, so we
-	// continue to mutate the Meta object state for now.
-	c.Meta.input = args.View.InputEnabled
 
 	if !c.input {
 		diags = diags.Append(tfdiags.Sourceless(

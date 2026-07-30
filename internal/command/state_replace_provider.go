@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/clistate"
@@ -19,6 +18,23 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
 )
+
+func StateReplaceProviderCommander() Command {
+	cmd := Command{
+		Name:  "replace-provider",
+		Short: "Replace provider in the state",
+		Long:  `Replace provider for resources in the OpenTofu state.`,
+
+		DiagsWithNewline: true,
+	}
+
+	args := arguments.BindStateReplaceProvider(&cmd.CommandLine)
+	cmd.Run = func(meta Meta) int {
+		return StateReplaceProviderCommand{StateMeta{meta}}.Execute(args, views.NewState(args.View, meta.View))
+	}
+
+	return cmd
+}
 
 // StateReplaceProviderCommand is a Command implementation that allows users
 // to change the provider associated with existing resources. This is only
@@ -29,26 +45,13 @@ type StateReplaceProviderCommand struct {
 }
 
 func (c *StateReplaceProviderCommand) Run(rawArgs []string) int {
+	return RunCommand(StateReplaceProviderCommander(), c.Meta, rawArgs)
+}
+func (c StateReplaceProviderCommand) Execute(args *arguments.StateReplaceProvider, view views.State) int {
+	var diags tfdiags.Diagnostics
+
 	ctx := c.CommandContext()
 
-	// Parse and validate flags
-	args, closer, diags := arguments.ParseReplaceProvider(rawArgs)
-	defer closer()
-
-	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
-	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
-	c.View.DiagsWithNewline()
-
-	// Instantiate the view, even if there are flag errors, so that we render
-	// diagnostics according to the desired view
-	view := views.NewState(args.View, c.View)
-	if diags.HasErrors() {
-		view.Diagnostics(diags)
-		if args.View.ViewType == arguments.ViewJSON {
-			return 1 // We don't want to print the help of the command in JSON view
-		}
-		return cli.RunResultHelp
-	}
 	c.Meta.stateArgs = *args.State
 	c.Meta.variableArgs = args.Vars.All()
 	c.Meta.backendArgs = *args.Backend

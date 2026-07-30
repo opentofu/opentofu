@@ -11,7 +11,6 @@ import (
 	"net/url"
 	"os"
 
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/cliconfig/ociauthconfig"
@@ -34,6 +33,29 @@ const (
 	providersLockChangeTypeNewHashes   providersLockChangeType = "providersLockChangeTypeNewHashes"
 )
 
+func ProvidersLockCommander() Command {
+	cmd := Command{
+		Name:  "lock",
+		Short: "Write out dependency locks for the configured providers",
+		Long: `Normally the dependency lock file (.terraform.lock.hcl) is updated automatically by "tofu init", but the information available to the normal provider installer can be constrained when you're installing providers from filesystem or network mirrors, and so the generated lock file can end up incomplete.
+
+The "providers lock" subcommand addresses that by updating the lock file based on the official packages available in the origin registry, ignoring the currently-configured installation strategy.
+
+After this command succeeds, the lock file will contain suitable checksums to allow installation of the providers needed by the current configuration on all of the selected platforms.
+
+By default this command updates the lock file for every provider declared in the configuration. You can override that behavior by providing one or more provider source addresses on the command line.`,
+
+		DiagsWithNewline: true,
+	}
+
+	args := arguments.BindProvidersLock(&cmd.CommandLine)
+	cmd.Run = func(meta Meta) int {
+		return ProvidersLockCommand{meta}.Execute(args, views.NewProvidersLock(args.View, meta.View))
+	}
+
+	return cmd
+}
+
 // ProvidersLockCommand is a Command implementation that implements the
 // "tofu providers lock" command, which creates or updates the current
 // configuration's dependency lock file using information from upstream
@@ -48,28 +70,15 @@ func (c *ProvidersLockCommand) Synopsis() string {
 }
 
 func (c *ProvidersLockCommand) Run(rawArgs []string) int {
+	return RunCommand(ProvidersLockCommander(), c.Meta, rawArgs)
+}
+func (c ProvidersLockCommand) Execute(args *arguments.ProvidersLock, view views.ProvidersLock) int {
+	var diags tfdiags.Diagnostics
+
 	ctx := c.CommandContext()
 	ctx, span := tracing.Tracer().Start(ctx, "Providers lock")
 	defer span.End()
 
-	// Parse and validate flags
-	args, closer, diags := arguments.ParseProvidersLock(rawArgs)
-	defer closer()
-
-	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
-	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
-	c.View.DiagsWithNewline()
-
-	// Instantiate the view, even if there are flag errors, so that we render
-	// diagnostics according to the desired view
-	view := views.NewProvidersLock(args.View, c.View)
-	if diags.HasErrors() {
-		view.Diagnostics(diags)
-		if args.View.ViewType == arguments.ViewJSON {
-			return 1 // in case it's json, do not print the help of the command
-		}
-		return cli.RunResultHelp
-	}
 	c.Meta.variableArgs = args.Vars.All()
 
 	span.SetAttributes(traceattrs.StringSlice("opentofu.provider.lock.targetplatforms", args.OptPlatforms))

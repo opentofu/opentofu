@@ -14,7 +14,6 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/svchost"
 	"github.com/posener/complete"
@@ -39,6 +38,28 @@ import (
 	tfversion "github.com/opentofu/opentofu/version"
 )
 
+func InitCommander() Command {
+	cmd := Command{
+		Name:  "init",
+		Short: "Prepare your working directory for other commands",
+		Long: `Initialize a new or existing OpenTofu working directory by creating initial files, loading any remote state, downloading modules, etc.
+
+This is the first command that should be run for any new or existing OpenTofu configuration per machine. This sets up all the local data necessary to run OpenTofu that is typically not committed to version control.
+
+This command is always safe to run multiple times. Though subsequent runs may give errors, this command will never delete your configuration or state. Even so, if you have important information, please back it up prior to running this command, just in case.`,
+		GroupID: MainCommandGroup.ID,
+
+		DiagsWithNewline: true,
+	}
+
+	args := arguments.BindInit(&cmd.CommandLine)
+	cmd.Run = func(meta Meta) int {
+		return InitCommand{meta}.Execute(args, views.NewInit(args.View, meta.View))
+	}
+
+	return cmd
+}
+
 // InitCommand is a Command implementation that takes a Terraform
 // module and clones it to the working directory.
 type InitCommand struct {
@@ -46,34 +67,14 @@ type InitCommand struct {
 }
 
 func (c *InitCommand) Run(rawArgs []string) int {
+	return RunCommand(InitCommander(), c.Meta, rawArgs)
+}
+func (c InitCommand) Execute(args *arguments.Init, view views.Init) int {
 	ctx := c.CommandContext()
 	ctx, span := tracing.Tracer().Start(ctx, "Init")
 	defer span.End()
 
-	// Parse and validate flags
-	args, closer, diags := arguments.ParseInit(rawArgs)
-	defer closer()
-
-	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
-	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
-	c.View.DiagsWithNewline()
-
-	// Instantiate the view, even if there are flag errors, so that we render
-	// diagnostics according to the desired view
-	view := views.NewInit(args.View, c.View)
-
-	if diags.HasErrors() {
-		view.Diagnostics(diags)
-		if args.View.ViewType == arguments.ViewJSON {
-			return 1
-		}
-		return cli.RunResultHelp
-	}
-
-	// FIXME: the -input flag value is needed to initialize the backend and the
-	// operation, but there is no clear path to pass this value down, so we
-	// continue to mutate the Meta object state for now.
-	c.Meta.input = args.View.InputEnabled
+	var diags tfdiags.Diagnostics
 
 	if len(args.FlagPluginPath) > 0 {
 		c.pluginPath = args.FlagPluginPath

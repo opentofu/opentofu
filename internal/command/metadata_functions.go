@@ -6,10 +6,28 @@
 package command
 
 import (
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
 )
+
+func MetadataFunctionsCommander() Command {
+	cmd := Command{
+		Name:  "functions",
+		Short: "Show signatures and descriptions for the available functions",
+		Long:  `Prints out a json representation of the available function signatures.`,
+	}
+
+	args := arguments.BindMetadataFunctions(&cmd.CommandLine)
+	cmd.Run = func(meta Meta) int {
+		view := views.NewMetadataFunctions(args.View, meta.View)
+		if !view.PrintFunctions() {
+			return 1
+		}
+		return 0
+	}
+
+	return cmd
+}
 
 // MetadataFunctionsCommand is a Command implementation that prints out information
 // about the available functions in OpenTofu.
@@ -26,22 +44,7 @@ func (c *MetadataFunctionsCommand) Synopsis() string {
 }
 
 func (c *MetadataFunctionsCommand) Run(rawArgs []string) int {
-	// Parse and validate flags
-	args, closer, diags := arguments.ParseMetadataFunctions(rawArgs)
-	defer closer()
-
-	// Instantiate the view, even if there are flag errors, so that we render
-	// diagnostics according to the desired view
-	view := views.NewMetadataFunctions(args.View, c.View)
-	if diags.HasErrors() {
-		view.Diagnostics(diags)
-		return cli.RunResultHelp
-	}
-
-	if !view.PrintFunctions() {
-		return 1
-	}
-	return 0
+	return RunCommand(MetadataFunctionsCommander(), c.Meta, rawArgs)
 }
 
 const metadataFunctionsCommandHelp = `

@@ -19,6 +19,45 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
+func ApplyCommander() Command {
+	cmd := Command{
+		Name:  "apply",
+		Short: "Create or update infrastructure",
+		Long: `Creates or updates infrastructure according to OpenTofu configuration files in the current directory.
+
+By default, OpenTofu will generate a new plan and present it for your approval before taking any action. You can optionally provide a plan file created by a previous call to "tofu plan", in which case OpenTofu will take the actions described in that plan without any confirmation prompt.`,
+
+		GroupID: MainCommandGroup.ID,
+	}
+
+	args := arguments.BindApply(&cmd.CommandLine)
+	cmd.Run = func(meta Meta) int {
+		return ApplyCommand{meta, false}.Execute(args, views.NewApply(args.View, false, meta.View))
+	}
+
+	return cmd
+}
+
+func DestroyCommander() Command {
+	cmd := Command{
+		Name:  "destroy",
+		Short: "Destroy previously-created infrastructure",
+		Long: `Destroy OpenTofu-managed infrastructure.
+
+This command is a convenience alias for:
+    tofu apply -destroy`,
+
+		GroupID: MainCommandGroup.ID,
+	}
+
+	args := arguments.BindApplyDestroy(&cmd.CommandLine)
+	cmd.Run = func(meta Meta) int {
+		return ApplyCommand{meta, true}.Execute(args, views.NewApply(args.View, true, meta.View))
+	}
+
+	return cmd
+}
+
 // ApplyCommand is a Command implementation that applies a OpenTofu
 // configuration and actually builds or changes infrastructure.
 type ApplyCommand struct {
@@ -30,29 +69,15 @@ type ApplyCommand struct {
 }
 
 func (c *ApplyCommand) Run(rawArgs []string) int {
+	if c.Destroy {
+		return RunCommand(DestroyCommander(), c.Meta, rawArgs)
+	}
+	return RunCommand(ApplyCommander(), c.Meta, rawArgs)
+}
+
+func (c ApplyCommand) Execute(args *arguments.Apply, view views.Apply) int {
 	var diags tfdiags.Diagnostics
 	ctx := c.CommandContext()
-
-	// Parse and validate flags
-	var args *arguments.Apply
-	var closer func()
-	switch {
-	case c.Destroy:
-		args, closer, diags = arguments.ParseApplyDestroy(rawArgs)
-	default:
-		args, closer, diags = arguments.ParseApply(rawArgs)
-	}
-	defer closer()
-
-	// Instantiate the view, even if there are flag errors, so that we render
-	// diagnostics according to the desired view
-	view := views.NewApply(args.View, c.Destroy, c.View)
-
-	if diags.HasErrors() {
-		view.Diagnostics(diags)
-		view.HelpPrompt()
-		return 1
-	}
 
 	// Check for user-supplied plugin path
 	var err error
@@ -79,11 +104,6 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 		view.Diagnostics(diags)
 		return 1
 	}
-
-	// FIXME: the -input flag value is needed to initialize the backend and the
-	// operation, but there is no clear path to pass this value down, so we
-	// continue to mutate the Meta object state for now.
-	c.Meta.input = args.View.InputEnabled
 
 	// FIXME: the -parallelism flag is used to control the concurrency of
 	// OpenTofu operations. At the moment, this value is used both to

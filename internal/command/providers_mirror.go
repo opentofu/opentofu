@@ -16,7 +16,6 @@ import (
 
 	"github.com/apparentlymart/go-versions/versions"
 	"github.com/hashicorp/go-getter"
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
@@ -25,6 +24,25 @@ import (
 	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
+
+func ProvidersMirrorCommander() Command {
+	cmd := Command{
+		Name:  "mirror",
+		Short: "Save local copies of all required provider plugins",
+		Long: `Populates a local directory with copies of the provider plugins needed for the current configuration, so that the directory can be used either directly as a filesystem mirror or as the basis for a network mirror and thus obtain  those providers without access to their origin registries in future.
+
+The mirror directory will contain JSON index files that can be published along with the mirrored packages on a static HTTP file server to produce a network mirror. Those index files will be ignored if the directory is used instead as a local filesystem mirror.`,
+
+		DiagsWithNewline: true,
+	}
+
+	args := arguments.BindProvidersMirror(&cmd.CommandLine)
+	cmd.Run = func(meta Meta) int {
+		return ProvidersMirrorCommand{meta}.Execute(args, views.NewProvidersMirror(args.View, meta.View))
+	}
+
+	return cmd
+}
 
 // ProvidersMirrorCommand is a Command implementation that implements the
 // "tofu providers mirror" command, which populates a directory with
@@ -39,24 +57,11 @@ func (c *ProvidersMirrorCommand) Synopsis() string {
 }
 
 func (c *ProvidersMirrorCommand) Run(rawArgs []string) int {
-	// Parse and validate flags
-	args, closer, diags := arguments.ParseProvidersMirror(rawArgs)
-	defer closer()
+	return RunCommand(ProvidersMirrorCommander(), c.Meta, rawArgs)
+}
+func (c ProvidersMirrorCommand) Execute(args *arguments.ProvidersMirror, view views.ProvidersMirror) int {
+	var diags tfdiags.Diagnostics
 
-	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
-	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
-	c.View.DiagsWithNewline()
-
-	// Instantiate the view, even if there are flag errors, so that we render
-	// diagnostics according to the desired view
-	view := views.NewProvidersMirror(args.View, c.View)
-	if diags.HasErrors() {
-		view.Diagnostics(diags)
-		if args.View.ViewType == arguments.ViewJSON {
-			return 1 // in case it's json, do not print the help of the command
-		}
-		return cli.RunResultHelp
-	}
 	c.Meta.variableArgs = args.Vars.All()
 
 	outputDir := args.Directory

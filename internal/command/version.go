@@ -9,11 +9,32 @@ import (
 	"crypto/fips140"
 	"strings"
 
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/getproviders"
 )
+
+func VersionCommander(version string, versionPrerelease string, platform getproviders.Platform) Command {
+	cmd := Command{
+		Name:  "version",
+		Short: "Show the current OpenTofu version",
+		Long:  `Displays the version of OpenTofu and all installed plugins`,
+
+		DiagsWithNewline: true,
+	}
+
+	args := arguments.BindVersion(&cmd.CommandLine)
+	cmd.Run = func(meta Meta) int {
+		return VersionCommand{
+			Meta:              meta,
+			Version:           version,
+			VersionPrerelease: versionPrerelease,
+			Platform:          platform,
+		}.Execute(views.NewVersion(args.View, meta.View))
+	}
+
+	return cmd
+}
 
 // VersionCommand is a Command implementation prints the version.
 type VersionCommand struct {
@@ -38,26 +59,9 @@ Options:
 }
 
 func (c *VersionCommand) Run(rawArgs []string) int {
-	// Parse and validate flags
-	args, closer, diags := arguments.ParseVersion(rawArgs)
-	defer closer()
-
-	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
-	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
-	c.View.DiagsWithNewline()
-
-	// Instantiate the view, even if there are flag errors, so that we render
-	// diagnostics according to the desired view
-	view := views.NewVersion(args.View, c.View)
-
-	if diags.HasErrors() {
-		view.Diagnostics(diags)
-		if args.View.ViewType == arguments.ViewJSON {
-			return 1
-		}
-		return cli.RunResultHelp
-	}
-
+	return RunCommand(VersionCommander(c.Version, c.VersionPrerelease, c.Platform), c.Meta, rawArgs)
+}
+func (c VersionCommand) Execute(view views.Version) int {
 	// We'll also attempt to print out the selected plugin versions. We do
 	// this based on the dependency lock file, and so the result might be
 	// empty or incomplete if the user hasn't successfully run "tofu init"

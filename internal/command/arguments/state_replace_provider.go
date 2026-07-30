@@ -48,8 +48,8 @@ func BindStateReplaceProvider(cli *CommandLine) *StateReplaceProvider {
 
 	cli.BoolVar(&ret.AutoApprove, "auto-approve", false, "Skip interactive approval.")
 
-	cli.PositionalArg(&ret.RawSrcAddr, "src addr", false)
-	cli.PositionalArg(&ret.RawDestAddr, "dest addr", false)
+	cli.PositionalArg(&ret.RawSrcAddr, "FROM_PROVIDER_FQN", false)
+	cli.PositionalArg(&ret.RawDestAddr, "TO_PROVIDER_FQN", false)
 
 	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
 		// In OpenTofu, there is no way to run a command with `-json` flag and allow asking for user input in the same time.
@@ -63,6 +63,12 @@ func BindStateReplaceProvider(cli *CommandLine) *StateReplaceProvider {
 		}
 		return nil
 	}})
+
+	cli.FlagGroups = []FlagGroup{{
+		ID:     "",
+		Title:  "Options:",
+		Suffix: `-state, state-out, and -backup are legacy options supported for the local backend only. For more information, see the local backend's documentation.`,
+	}}
 
 	return &ret
 }

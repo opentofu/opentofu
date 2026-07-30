@@ -70,6 +70,57 @@ func BindApply(cli *CommandLine) *Apply {
 	return &apply
 }
 
+// BindApplyDestroy registers CLI arguments, returning a Apply value and it's corresponding hooks.
+func BindApplyDestroy(cli *CommandLine) *Apply {
+	apply := BindApply(cli)
+
+	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
+		// So far ParseApply was using the command line options like -destroy
+		// and -refresh-only to determine the plan mode. For "tofu destroy"
+		// we expect neither of those arguments to be set, and so the plan mode
+		// should currently be set to NormalMode, which we'll replace with
+		// DestroyMode here. If it's already set to something else then that
+		// suggests incorrect usage.
+		switch apply.Operation.PlanMode {
+		case plans.NormalMode:
+			// This indicates that the user didn't specify any mode options at
+			// all, which is correct, although we know from the command that
+			// they actually intended to use DestroyMode here.
+			apply.Operation.PlanMode = plans.DestroyMode
+		case plans.DestroyMode:
+			return tfdiags.New(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Invalid mode option",
+				"The -destroy option is not valid for \"tofu destroy\", because this command always runs in destroy mode.",
+			))
+		case plans.RefreshOnlyMode:
+			return tfdiags.New(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Invalid mode option",
+				"The -refresh-only option is not valid for \"tofu destroy\".",
+			))
+		default:
+			// This is a non-ideal error message for if we forget to handle a
+			// newly-handled plan mode in Operation.Parse. Ideally they should all
+			// have cases above so we can produce better error messages.
+			return tfdiags.New(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Invalid mode option",
+				fmt.Sprintf("The \"tofu destroy\" command doesn't support %s.", apply.Operation.PlanMode),
+			))
+		}
+
+		// NOTE: It's also invalid to have apply.PlanPath set in this codepath,
+		// but we don't check that in here because we'll return a different error
+		// message depending on whether the given path seems to refer to a saved
+		// plan file or to a configuration directory. The apply command
+		// implementation itself therefore handles this situation.
+		return nil
+	}})
+
+	return apply
+}
+
 // ParseApply processes CLI arguments, returning an Apply value, a closer function, and errors.
 // If errors are encountered, an Apply value is still returned representing
 // the best effort interpretation of the arguments.
@@ -84,48 +135,8 @@ func ParseApply(args []string) (*Apply, func(), tfdiags.Diagnostics) {
 // "tofu destroy" command, which is effectively an alias for
 // "tofu apply -destroy".
 func ParseApplyDestroy(args []string) (*Apply, func(), tfdiags.Diagnostics) {
-	apply, closer, diags := ParseApply(args)
-
-	// So far ParseApply was using the command line options like -destroy
-	// and -refresh-only to determine the plan mode. For "tofu destroy"
-	// we expect neither of those arguments to be set, and so the plan mode
-	// should currently be set to NormalMode, which we'll replace with
-	// DestroyMode here. If it's already set to something else then that
-	// suggests incorrect usage.
-	switch apply.Operation.PlanMode {
-	case plans.NormalMode:
-		// This indicates that the user didn't specify any mode options at
-		// all, which is correct, although we know from the command that
-		// they actually intended to use DestroyMode here.
-		apply.Operation.PlanMode = plans.DestroyMode
-	case plans.DestroyMode:
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Invalid mode option",
-			"The -destroy option is not valid for \"tofu destroy\", because this command always runs in destroy mode.",
-		))
-	case plans.RefreshOnlyMode:
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Invalid mode option",
-			"The -refresh-only option is not valid for \"tofu destroy\".",
-		))
-	default:
-		// This is a non-ideal error message for if we forget to handle a
-		// newly-handled plan mode in Operation.Parse. Ideally they should all
-		// have cases above so we can produce better error messages.
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Invalid mode option",
-			fmt.Sprintf("The \"tofu destroy\" command doesn't support %s.", apply.Operation.PlanMode),
-		))
-	}
-
-	// NOTE: It's also invalid to have apply.PlanPath set in this codepath,
-	// but we don't check that in here because we'll return a different error
-	// message depending on whether the given path seems to refer to a saved
-	// plan file or to a configuration directory. The apply command
-	// implementation itself therefore handles this situation.
-
+	cli := new(CommandLine)
+	apply := BindApplyDestroy(cli)
+	closer, diags := cli.Stdlib("destroy", args)
 	return apply, closer, diags
 }

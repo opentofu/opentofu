@@ -12,7 +12,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 
 	"github.com/opentofu/opentofu/internal/command/arguments"
@@ -24,33 +23,43 @@ import (
 	"github.com/opentofu/opentofu/internal/tofu"
 )
 
+func StatePushCommander() Command {
+	cmd := Command{
+		Name:  "push",
+		Short: "Update remote state from a local state file",
+		Long: `Update remote state from a local state file at PATH.
+
+This command "pushes" a local state and overwrites remote state with a local state file. The command will protect you against writing an older serial or a different state file lineage unless you specify the "-force" flag.
+
+This command works with local state (it will overwrite the local state), but is less useful for this use case.
+
+If PATH is "-", then this command will read the state to push from stdin.
+Data from stdin is not streamed to the backend: it is loaded completely (until pipe close), verified, and then pushed.`,
+
+		DiagsWithNewline: true,
+	}
+
+	args := arguments.BindStatePush(&cmd.CommandLine)
+	cmd.Run = func(meta Meta) int {
+		return StatePushCommand{StateMeta{meta}}.Execute(args, views.NewState(args.View, meta.View))
+	}
+
+	return cmd
+}
+
 // StatePushCommand is a Command implementation that shows a single resource.
 type StatePushCommand struct {
-	Meta
 	StateMeta
 }
 
 func (c *StatePushCommand) Run(rawArgs []string) int {
+	return RunCommand(StatePushCommander(), c.Meta, rawArgs)
+}
+func (c StatePushCommand) Execute(args *arguments.StatePush, view views.State) int {
+	var diags tfdiags.Diagnostics
+
 	ctx := c.CommandContext()
 
-	// Parse and validate flags
-	args, closer, diags := arguments.ParseStatePush(rawArgs)
-	defer closer()
-
-	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
-	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
-	c.View.DiagsWithNewline()
-
-	// Instantiate the view, even if there are flag errors, so that we render
-	// diagnostics according to the desired view
-	view := views.NewState(args.View, c.View)
-	if diags.HasErrors() {
-		view.Diagnostics(diags)
-		if args.View.ViewType == arguments.ViewJSON {
-			return 1 // in case it's json, do not print the help of the command
-		}
-		return cli.RunResultHelp
-	}
 	c.Meta.variableArgs = args.Vars.All()
 	c.Meta.stateArgs = *args.State
 	c.Meta.backendArgs = *args.Backend

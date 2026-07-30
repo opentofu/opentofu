@@ -11,7 +11,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/arguments"
@@ -22,6 +21,27 @@ import (
 	"github.com/opentofu/opentofu/internal/tofu"
 )
 
+func ConsoleCommander() Command {
+	cmd := Command{
+		Name:  "console",
+		Short: "Try OpenTofu expressions at an interactive command prompt",
+		Long: `Starts an interactive console for experimenting with OpenTofu interpolations.
+
+This will open an interactive console that you can use to type interpolations into and inspect their values. This command loads the current state. This lets you explore and test interpolations before using them in future configurations.
+
+This command will never modify your state.`,
+
+		DiagsWithNewline: true,
+	}
+
+	args := arguments.BindConsole(&cmd.CommandLine)
+	cmd.Run = func(meta Meta) int {
+		return ConsoleCommand{meta}.Execute(args, views.NewConsole(args.View, meta.View))
+	}
+
+	return cmd
+}
+
 // ConsoleCommand is a Command implementation that starts an interactive
 // console that can be used to try expressions with the current config.
 type ConsoleCommand struct {
@@ -29,33 +49,14 @@ type ConsoleCommand struct {
 }
 
 func (c *ConsoleCommand) Run(rawArgs []string) int {
+	return RunCommand(ConsoleCommander(), c.Meta, rawArgs)
+}
+func (c ConsoleCommand) Execute(args *arguments.Console, view views.Console) int {
+	var diags tfdiags.Diagnostics
+
 	ctx := c.CommandContext()
 
-	// Parse and validate flags
-	args, closer, diags := arguments.ParseConsole(rawArgs)
-	defer closer()
-
-	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
-	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
-	c.View.DiagsWithNewline()
-
-	// Instantiate the view, even if there are flag errors, so that we render
-	// diagnostics according to the desired view
-	view := views.NewConsole(args.View, c.View)
-	if diags.HasErrors() {
-		view.Diagnostics(diags)
-		if args.View.ViewType == arguments.ViewJSON {
-			return 1
-		}
-		return cli.RunResultHelp
-	}
 	c.Meta.stateArgs = *args.State
-
-	// FIXME: the -input flag value is needed to initialize the backend and the
-	// operation, but there is no clear path to pass this value down, so we
-	// continue to mutate the Meta object state for now.
-	c.Meta.input = args.View.InputEnabled
-
 	c.Meta.variableArgs = args.Vars.All()
 
 	configPath := c.WorkingDir.NormalizePath(c.WorkingDir.RootModuleDir())

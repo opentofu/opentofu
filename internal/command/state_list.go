@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -19,30 +18,47 @@ import (
 	"github.com/opentofu/opentofu/internal/states"
 )
 
+func StateListCommander() Command {
+	cmd := Command{
+		Name:  "list",
+		Short: "List resources in the state",
+		Long: `List resources in the OpenTofu state.
+
+This command lists resource instances in the OpenTofu state. The address argument can be used to filter the instances by resource or module. If no pattern is given, all resource instances are listed.
+
+The addresses must either be module addresses or absolute resource addresses, such as:
+    aws_instance.example
+    module.example
+    module.example.module.child
+    module.example.aws_instance.example
+
+An error will be returned if any of the resources or modules given as filter addresses do not exist in the state.`,
+
+		DiagsWithNewline: true,
+	}
+
+	args := arguments.BindStateList(&cmd.CommandLine)
+	cmd.Run = func(meta Meta) int {
+		return StateListCommand{StateMeta{meta}}.Execute(args, views.NewState(args.View, meta.View))
+	}
+
+	return cmd
+}
+
 // StateListCommand is a Command implementation that lists the resources
 // within a state file.
 type StateListCommand struct {
-	Meta
 	StateMeta
 }
 
 func (c *StateListCommand) Run(rawArgs []string) int {
+	return RunCommand(StateListCommander(), c.Meta, rawArgs)
+}
+func (c StateListCommand) Execute(args *arguments.StateList, view views.State) int {
+	var diags tfdiags.Diagnostics
+
 	ctx := c.CommandContext()
 
-	// Parse and validate flags
-	args, closer, diags := arguments.ParseStateList(rawArgs)
-	defer closer()
-
-	// Instantiate the view, even if there are flag errors, so that we render
-	// diagnostics according to the desired view
-	view := views.NewState(args.View, c.View)
-	if diags.HasErrors() {
-		view.Diagnostics(diags)
-		if args.View.ViewType == arguments.ViewJSON {
-			return 1 // in case it's json, do not print the help of the command
-		}
-		return cli.RunResultHelp
-	}
 	c.Meta.variableArgs = args.Vars.All()
 
 	if args.State.StatePath != "" {

@@ -75,10 +75,22 @@ func BindShow(cli *CommandLine) *Show {
 	var moduleTarget string
 	var args []string
 
-	cli.BoolVar(&stateTarget, "state", false, "show the latest state snapshot")
-	cli.StringVar(&planTarget, "plan", "", "show the plan from a saved plan file")
-	cli.BoolVar(&configTarget, "config", false, "show the current configuration")
-	cli.StringVar(&moduleTarget, "module", "", "show metadata about one module")
+	targetFlagGroup := FlagGroup{
+		ID:          "target",
+		Title:       "Target selection options:",
+		Description: `Use one of the following options to specify what to show.`,
+		Suffix:      `If no target selection options are provided, -state is the default.`,
+	}
+	defaultFlagGroup := FlagGroup{
+		ID:    "",
+		Title: "Other options:",
+	}
+	cli.FlagGroups = []FlagGroup{targetFlagGroup, defaultFlagGroup}
+
+	cli.BoolVar(&stateTarget, "state", false, "The latest state snapshot, if any.").SetGroup(targetFlagGroup.ID)
+	cli.StringVar(&planTarget, "plan", "", "The plan from a saved plan file.").SetDisplay("=FILENAME").SetGroup(targetFlagGroup.ID)
+	cli.BoolVar(&configTarget, "config", false, "Show the current configuration (requires -json).").SetGroup(targetFlagGroup.ID)
+	cli.StringVar(&moduleTarget, "module", "", "Show the specified module configuration (requires -json)").SetDisplay("=DIR").SetGroup(targetFlagGroup.ID)
 
 	cli.VariadicArg(&args, "arguments")
 	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {

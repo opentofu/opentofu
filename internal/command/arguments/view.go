@@ -98,6 +98,9 @@ const (
 func BindView(cli *CommandLine, mask viewFlag) *View {
 	var v View
 
+	// This is a bit of a hack so we can correctly report diagnostics before actually executing the command
+	cli.View = &v
+
 	// SetGlobal here allows us to specify that the flag can be interspersed with positional arguments, something that the stdlib does *not* support. TODO this goes away with pflag and POSIX compliant arg handling
 	cli.BoolVar(&v.NoColor, "no-color", false, "Disable virtual terminal escape sequences.").SetGlobal(true)
 	cli.BoolVar(&v.CompactWarnings, "compact-warnings", false, "If OpenTofu produces any warnings that are not accompanied by errors, shows them in a more compact form that includes only the summary messages.").SetGlobal(true)

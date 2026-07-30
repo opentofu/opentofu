@@ -13,7 +13,6 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/tracing"
 
@@ -26,6 +25,27 @@ import (
 	"github.com/opentofu/opentofu/internal/tofu"
 )
 
+func ImportCommander() Command {
+	cmd := Command{
+		Name:  "import",
+		Short: "Associate existing infrastructure with a OpenTofu resource",
+		Long: `Import existing infrastructure into your OpenTofu state.
+
+This will find and import the specified resource into your OpenTofu state, allowing existing infrastructure to come under OpenTofu management without having to be initially created by OpenTofu. The ADDR specified is the address to import the resource to. Please see the documentation online for resource addresses. The ID is a resource-specific ID to identify that resource being imported. Please reference the documentation for the resource type you're importing to determine the ID syntax to use. It typically matches directly to the ID that the provider uses.
+
+This command will not modify your infrastructure, but it will make network requests to inspect parts of your infrastructure relevant to the resource being imported.`,
+
+		DiagsWithNewline: true,
+	}
+
+	args := arguments.BindImport(&cmd.CommandLine)
+	cmd.Run = func(meta Meta) int {
+		return ImportCommand{meta}.Execute(args, views.NewImport(args.View, meta.View))
+	}
+
+	return cmd
+}
+
 // ImportCommand is a cli.Command implementation that imports resources
 // into the OpenTofu state.
 type ImportCommand struct {
@@ -33,28 +53,15 @@ type ImportCommand struct {
 }
 
 func (c *ImportCommand) Run(rawArgs []string) int {
+	return RunCommand(ImportCommander(), c.Meta, rawArgs)
+}
+func (c ImportCommand) Execute(args *arguments.Import, view views.Import) int {
+	var diags tfdiags.Diagnostics
+
 	ctx := c.CommandContext()
 	ctx, span := tracing.Tracer().Start(ctx, "Import")
 	defer span.End()
 
-	// Parse and validate flags
-	args, closer, diags := arguments.ParseImport(rawArgs, c.WorkingDir)
-	defer closer()
-
-	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
-	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
-	c.View.DiagsWithNewline()
-
-	// Instantiate the view, even if there are flag errors, so that we render
-	// diagnostics according to the desired view
-	view := views.NewImport(args.View, c.View)
-	if diags.HasErrors() {
-		view.Diagnostics(diags)
-		if args.View.ViewType == arguments.ViewJSON {
-			return 1 // in case it's json, do not print the help of the command
-		}
-		return cli.RunResultHelp
-	}
 	c.Meta.variableArgs = args.Vars.All()
 	c.stateArgs = *args.State
 	c.backendArgs = *args.Backend
@@ -62,11 +69,6 @@ func (c *ImportCommand) Run(rawArgs []string) int {
 	// TODO meta-refactor: remove this only when there is clear path of passing these from the "arguments" package to
 	// the place where these needs to be used
 	c.Meta.parallelism = args.Parallelism
-
-	// FIXME: the -input flag value is needed to initialize the backend and the
-	// operation, but there is no clear path to pass this value down, so we
-	// continue to mutate the Meta object state for now.
-	c.Meta.input = args.View.InputEnabled
 
 	// Parse the provided resource address.
 	traversalSrc := []byte(args.ResourceAddress)

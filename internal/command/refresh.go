@@ -18,6 +18,23 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
+func RefreshCommander() Command {
+	cmd := Command{
+		Name:  "refresh",
+		Short: "Update the state to match remote systems",
+		Long: `Update the state file of your infrastructure with metadata that matches the physical resources they are tracking.
+
+This will not modify your infrastructure, but it can modify your state file to update metadata. This metadata might cause new changes to occur when you generate a plan or call apply next.`,
+	}
+
+	args := arguments.BindRefresh(&cmd.CommandLine)
+	cmd.Run = func(meta Meta) int {
+		return RefreshCommand{meta}.Execute(args, views.NewRefresh(args.View, meta.View))
+	}
+
+	return cmd
+}
+
 // RefreshCommand is a cli.Command implementation that refreshes the state
 // file.
 type RefreshCommand struct {
@@ -25,22 +42,11 @@ type RefreshCommand struct {
 }
 
 func (c *RefreshCommand) Run(rawArgs []string) int {
+	return RunCommand(RefreshCommander(), c.Meta, rawArgs)
+}
+func (c RefreshCommand) Execute(args *arguments.Refresh, view views.Refresh) int {
 	var diags tfdiags.Diagnostics
 	ctx := c.CommandContext()
-
-	// Parse and validate flags
-	args, closer, diags := arguments.ParseRefresh(rawArgs)
-	defer closer()
-
-	// Instantiate the view, even if there are flag errors, so that we render
-	// diagnostics according to the desired view
-	view := views.NewRefresh(args.View, c.View)
-
-	if diags.HasErrors() {
-		view.Diagnostics(diags)
-		view.HelpPrompt()
-		return 1
-	}
 
 	// Check for user-supplied plugin path
 	var err error
@@ -49,11 +55,6 @@ func (c *RefreshCommand) Run(rawArgs []string) int {
 		view.Diagnostics(diags)
 		return 1
 	}
-
-	// FIXME: the -input flag value is needed to initialize the backend and the
-	// operation, but there is no clear path to pass this value down, so we
-	// continue to mutate the Meta object state for now.
-	c.Meta.input = args.View.InputEnabled
 
 	// FIXME: the -parallelism flag is used to control the concurrency of
 	// OpenTofu operations. At the moment, this value is used both to

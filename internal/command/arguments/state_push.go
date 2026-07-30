@@ -42,7 +42,7 @@ func BindStatePush(cli *CommandLine) *StatePush {
 
 	cli.BoolVar(&ret.Force, "force", false, "Write the state even if lineages don't match or the remote serial is higher.")
 
-	cli.PositionalArg(&ret.StateSrc, "state", false)
+	cli.PositionalArg(&ret.StateSrc, "PATH", false)
 
 	return &ret
 }

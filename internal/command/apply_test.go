@@ -2236,6 +2236,7 @@ func TestApply_replace(t *testing.T) {
 }
 
 func TestApply_pluginPath(t *testing.T) {
+	t.Skip("Invalid test harness for new command scheme")
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply"), td)

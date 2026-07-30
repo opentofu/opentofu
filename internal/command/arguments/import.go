@@ -32,7 +32,7 @@ type Import struct {
 }
 
 // BindImport registers CLI arguments, returning a Import value and it's corresponding hooks.
-func BindImport(cli *CommandLine, wd *workdir.Dir) *Import {
+func BindImport(cli *CommandLine) *Import {
 	var ret Import
 
 	ret.View = BindView(cli, viewFlagAll)
@@ -46,11 +46,8 @@ func BindImport(cli *CommandLine, wd *workdir.Dir) *Import {
 	ret.State = &State{}
 	ret.State.bind(cli, stateFlagAll)
 
-	// Get the pwd since its our default -config flag value
-	pwd := wd.NormalizePath(wd.RootModuleDir())
-
 	cli.IntVar(&ret.Parallelism, "parallelism", DefaultParallelism, "parallelism")
-	cli.StringVar(&ret.ConfigPath, "config", pwd, "path")
+	cli.StringVar(&ret.ConfigPath, "config", ".", "path")
 
 	cli.ArgHelp = "The import command expects two arguments"
 	cli.PositionalArg(&ret.ResourceAddress, "ADDR", false)
@@ -64,7 +61,7 @@ func BindImport(cli *CommandLine, wd *workdir.Dir) *Import {
 // the best effort interpretation of the arguments.
 func ParseImport(args []string, wd *workdir.Dir) (*Import, func(), tfdiags.Diagnostics) {
 	cli := new(CommandLine)
-	ret := BindImport(cli, wd)
+	ret := BindImport(cli)
 	closer, diags := cli.Stdlib("import", args)
 	return ret, closer, diags
 }

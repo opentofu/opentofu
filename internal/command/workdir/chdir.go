@@ -26,13 +26,18 @@ func runChdir(args []string) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Invalid -chdir option: %s", err)
 	}
+	err = runChdirDirect(overrideWd)
+	return args, err
+}
+
+func runChdirDirect(overrideWd string) error {
 	if overrideWd != "" {
 		err := os.Chdir(overrideWd)
 		if err != nil {
-			return nil, fmt.Errorf("Error handling -chdir option: %s", err)
+			return fmt.Errorf("Error handling -chdir option: %s", err)
 		}
 	}
-	return args, nil
+	return nil
 }
 
 // extractChdirOption extracts the -chdir flag together with the associated flag value, from the given args,

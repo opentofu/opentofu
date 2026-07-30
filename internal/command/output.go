@@ -17,6 +17,21 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
+func OutputCommander() Command {
+	cmd := Command{
+		Name:  "output",
+		Short: "Show output values from your root module",
+		Long:  `Reads an output variable from a OpenTofu state file and prints the value. With no additional arguments, output will display all the outputs for the root module.  If NAME is not specified, all outputs are printed.`,
+	}
+
+	args := arguments.BindOutput(&cmd.CommandLine)
+	cmd.Run = func(meta Meta) int {
+		return OutputCommand{meta}.Execute(args, views.NewOutput(args.View, meta.View))
+	}
+
+	return cmd
+}
+
 // OutputCommand is a Command implementation that reads an output
 // from a OpenTofu state and prints it.
 type OutputCommand struct {
@@ -24,26 +39,17 @@ type OutputCommand struct {
 }
 
 func (c *OutputCommand) Run(rawArgs []string) int {
+	return RunCommand(OutputCommander(), c.Meta, rawArgs)
+}
+func (c OutputCommand) Execute(args *arguments.Output, view views.Output) int {
 	ctx := c.CommandContext()
-
-	// Parse and validate flags
-	args, closer, diags := arguments.ParseOutput(rawArgs)
-	defer closer()
-	if diags.HasErrors() {
-		c.View.Diagnostics(diags)
-		c.View.HelpPrompt("output")
-		return 1
-	}
-
-	view := views.NewOutput(args.View, c.View)
 
 	// Inject variables from args into meta for static evaluation
 	c.Meta.variableArgs = args.Vars.All()
 
 	// Load the encryption configuration
-	enc, encDiags := c.Encryption(ctx)
-	diags = diags.Append(encDiags)
-	if encDiags.HasErrors() {
+	enc, diags := c.Encryption(ctx)
+	if diags.HasErrors() {
 		c.View.Diagnostics(diags)
 		return 1
 	}

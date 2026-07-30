@@ -41,6 +41,26 @@ const (
 	MainStateIdentifier = ""
 )
 
+func TestCommander() Command {
+	cmd := Command{
+		Name:  "test",
+		Short: "Execute integration tests for OpenTofu modules",
+		Long: `Executes automated integration tests against the current OpenTofu configuration.
+
+OpenTofu will search for .tftest.hcl files within the current configuration and testing directories. OpenTofu will then execute the testing run blocks 
+within any testing files in order, and verify conditional checks and assertions against the created infrastructure. 
+
+This command creates real infrastructure and will attempt to clean up the testing infrastructure on completion. Monitor the output carefully to ensure this cleanup process is successful.`,
+	}
+
+	args := arguments.BindTest(&cmd.CommandLine)
+	cmd.Run = func(meta Meta) int {
+		return TestCommand{meta}.Execute(args, views.NewTest(args.View, meta.View))
+	}
+
+	return cmd
+}
+
 type TestCommand struct {
 	Meta
 }
@@ -124,18 +144,11 @@ func (c *TestCommand) Synopsis() string {
 }
 
 func (c *TestCommand) Run(rawArgs []string) int {
+	return RunCommand(TestCommander(), c.Meta, rawArgs)
+}
+func (c TestCommand) Execute(args *arguments.Test, view views.Test) int {
 	var diags tfdiags.Diagnostics
 	ctx := c.CommandContext()
-
-	args, closer, diags := arguments.ParseTest(rawArgs)
-	defer closer()
-	if diags.HasErrors() {
-		c.View.Diagnostics(diags)
-		c.View.HelpPrompt("test")
-		return 1
-	}
-
-	view := views.NewTest(args.View, c.View)
 
 	// Users can also specify variables via the command line, so we'll parse
 	// all that here.
@@ -267,7 +280,7 @@ func (c *TestCommand) Run(rawArgs []string) int {
 	cancelCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 
 	runner := &TestSuiteRunner{
-		command: c,
+		command: &c,
 
 		Suite:  &suite,
 		Config: config,

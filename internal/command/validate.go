@@ -19,24 +19,44 @@ import (
 	"github.com/opentofu/opentofu/internal/tofu"
 )
 
+func ValidateCommander() Command {
+	cmd := Command{
+		Name:  "validate",
+		Short: "Check whether the configuration is valid",
+		Long: `Validate the configuration files in a directory, referring only to the configuration and not accessing any remote services such as remote state, provider APIs, etc.
+
+Validate runs checks that verify whether a configuration is syntactically valid and internally consistent, regardless of any provided variables or existing state. It is thus primarily useful for general verification of reusable modules, including correctness of attribute names and value types.
+
+It is safe to run this command automatically, for example as a post-save check in a text editor or as a test step for a re-usable module in a CI
+system.
+
+Validation requires an initialized working directory with any referenced plugins and modules installed. To initialize a working directory for validation without accessing any configured remote backend, use:
+    tofu init -backend=false
+
+To verify configuration in the context of a particular run (a particular target workspace, input variable values, etc), use the 'tofu plan' command instead, which includes an implied validation check.`,
+
+		GroupID: MainCommandGroup.ID,
+	}
+
+	args := arguments.BindValidate(&cmd.CommandLine)
+	cmd.Run = func(meta Meta) int {
+		return ValidateCommand{meta}.Execute(args, views.NewValidate(args.View, meta.View))
+	}
+
+	return cmd
+}
+
 // ValidateCommand is a Command implementation that validates the tofu files
 type ValidateCommand struct {
 	Meta
 }
 
 func (c *ValidateCommand) Run(rawArgs []string) int {
+	return RunCommand(ValidateCommander(), c.Meta, rawArgs)
+}
+func (c ValidateCommand) Execute(args *arguments.Validate, view views.Validate) int {
+	var diags tfdiags.Diagnostics
 	ctx := c.CommandContext()
-
-	// Parse and validate flags
-	args, closer, diags := arguments.ParseValidate(rawArgs)
-	defer closer()
-	if diags.HasErrors() {
-		c.View.Diagnostics(diags)
-		c.View.HelpPrompt("validate")
-		return 1
-	}
-
-	view := views.NewValidate(args.View, c.View)
 
 	// After this point, we must only produce JSON output if JSON mode is
 	// enabled, so all errors should be accumulated into diags and we'll

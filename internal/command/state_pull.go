@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/encryption"
@@ -20,30 +19,39 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
+func StatePullCommander() Command {
+	cmd := Command{
+		Name:  "pull",
+		Short: "Pull current state and output to stdout",
+		Long: `Pull the state from its location, upgrade the local copy, and output it to stdout.
+
+This command "pulls" the current state and outputs it to stdout.
+As part of this process, OpenTofu will upgrade the state format of the local copy to the current version.
+
+The primary use of this is for state stored remotely. This command will still work with local state but is less useful for this.`,
+
+		DiagsWithNewline: true,
+	}
+
+	args := arguments.BindStatePull(&cmd.CommandLine)
+	cmd.Run = func(meta Meta) int {
+		return StatePullCommand{StateMeta{meta}}.Execute(args, views.NewState(args.View, meta.View))
+	}
+
+	return cmd
+}
+
 // StatePullCommand is a Command implementation that shows a single resource.
 type StatePullCommand struct {
-	Meta
 	StateMeta
 }
 
 func (c *StatePullCommand) Run(rawArgs []string) int {
+	return RunCommand(StatePullCommander(), c.Meta, rawArgs)
+}
+func (c StatePullCommand) Execute(args *arguments.StatePull, view views.State) int {
+	var diags tfdiags.Diagnostics
 	ctx := c.CommandContext()
-
-	// Parse and validate flags
-	args, closer, diags := arguments.ParseStatePull(rawArgs)
-	defer closer()
-
-	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
-	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
-	c.View.DiagsWithNewline()
-
-	// Instantiate the view, even if there are flag errors, so that we render
-	// diagnostics according to the desired view
-	view := views.NewState(args.View, c.View)
-	if diags.HasErrors() {
-		view.Diagnostics(diags)
-		return cli.RunResultHelp
-	}
 
 	c.Meta.variableArgs = args.Vars.All()
 

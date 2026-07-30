@@ -33,7 +33,7 @@ type Plan struct {
 }
 
 // BindPlan registers CLI arguments, returning a Plan value and it's corresponding hooks.
-func BindPlan(cli *CommandLine) (*Plan, []FlagGroup) {
+func BindPlan(cli *CommandLine) *Plan {
 	var plan Plan
 
 	plan.View = BindView(cli, viewFlagAll)
@@ -64,7 +64,7 @@ OpenTofu may still attempt to write configuration if planning fails with an erro
 	for _, name := range []string{"destroy", "refresh-only", "refresh", "replace", "target", "target-file", "exclude", "exclude-file", "var", "var-file"} {
 		cli.Flags[name].SetGroup("plan")
 	}
-	groups := []FlagGroup{{
+	cli.FlagGroups = []FlagGroup{{
 		ID:          "plan",
 		Title:       "Plan Customization Options:",
 		Description: `The following options customize how OpenTofu will produce its plan. You can also use these options when you run "tofu apply" without passing it a saved plan, in order to plan and apply in a single command.`,
@@ -72,7 +72,7 @@ OpenTofu may still attempt to write configuration if planning fails with an erro
 		Title: "Other Options:",
 	}}
 
-	return &plan, groups
+	return &plan
 
 }
 
@@ -81,7 +81,7 @@ OpenTofu may still attempt to write configuration if planning fails with an erro
 // the best effort interpretation of the arguments.
 func ParsePlan(args []string) (*Plan, func(), tfdiags.Diagnostics) {
 	cli := new(CommandLine)
-	plan, _ := BindPlan(cli)
+	plan := BindPlan(cli)
 	closer, diags := cli.Stdlib("plan", args)
 	return plan, closer, diags
 }
