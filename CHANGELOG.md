@@ -10,6 +10,10 @@ UPGRADE NOTES:
 
     [Modern Windows versions now support OpenSSH](https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse), and so we suggest that anyone currently relying on WinRM plan to migrate to using SSH instead.
 
+- There are various minor changes to the robustness of file format and wire format parsers in the SSH client implementation used for remote provisioners.
+
+    This may cause certain invalid input that was previously accepted to now be rejected, in an attempt to better match the expectations of other implementations of these protocols and formats.
+
 ENHANCEMENTS:
 
 - The `gcp_kms` key provider now supports an optional `additional_authenticated_data` as part of the encryption and decryption operations. ([#4287](https://github.com/opentofu/opentofu/pull/4287))
