@@ -13,7 +13,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
@@ -31,7 +30,7 @@ func TestProvidersSchema_error(t *testing.T) {
 		},
 	}
 
-	if code := c.Run(nil); code != cli.RunResultHelp {
+	if code := c.Run(nil); code != 1 {
 		output := done(t)
 		t.Fatalf("unexpected exit code %d \n%s", code, output.Stdout())
 	}

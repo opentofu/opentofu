@@ -20,11 +20,11 @@ func TestStateList(t *testing.T) {
 	p := testProvider()
 	view, done := testView(t)
 	c := &StateListCommand{
-		Meta: Meta{
+		StateMeta{Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
-		},
+		}},
 	}
 
 	args := []string{
@@ -51,11 +51,11 @@ func TestStateListWithID(t *testing.T) {
 	p := testProvider()
 	view, done := testView(t)
 	c := &StateListCommand{
-		Meta: Meta{
+		StateMeta{Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
-		},
+		}},
 	}
 
 	args := []string{
@@ -83,11 +83,11 @@ func TestStateListWithNonExistentID(t *testing.T) {
 	p := testProvider()
 	view, done := testView(t)
 	c := &StateListCommand{
-		Meta: Meta{
+		StateMeta{Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
-		},
+		}},
 	}
 
 	args := []string{
@@ -116,11 +116,11 @@ func TestStateList_backendDefaultState(t *testing.T) {
 	p := testProvider()
 	view, done := testView(t)
 	c := &StateListCommand{
-		Meta: Meta{
+		StateMeta{Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
-		},
+		}},
 	}
 
 	args := []string{}
@@ -147,11 +147,11 @@ func TestStateList_backendCustomState(t *testing.T) {
 	p := testProvider()
 	view, done := testView(t)
 	c := &StateListCommand{
-		Meta: Meta{
+		StateMeta{Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
-		},
+		}},
 	}
 
 	args := []string{}
@@ -178,11 +178,11 @@ func TestStateList_backendOverrideState(t *testing.T) {
 	p := testProvider()
 	view, done := testView(t)
 	c := &StateListCommand{
-		Meta: Meta{
+		StateMeta{Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
-		},
+		}},
 	}
 
 	// This test is configured to use a local backend that has
@@ -207,11 +207,11 @@ func TestStateList_noState(t *testing.T) {
 	p := testProvider()
 	view, done := testView(t)
 	c := &StateListCommand{
-		Meta: Meta{
+		StateMeta{Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
-		},
+		}},
 	}
 
 	code := c.Run(nil)
@@ -232,11 +232,11 @@ func TestStateList_modules(t *testing.T) {
 	t.Run("list resources in module and submodules", func(t *testing.T) {
 		view, done := testView(t)
 		c := &StateListCommand{
-			Meta: Meta{
+			StateMeta{Meta{
 				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
 				View:             view,
-			},
+			}},
 		}
 		args := []string{"module.nest"}
 		code := c.Run(args)
@@ -257,11 +257,11 @@ func TestStateList_modules(t *testing.T) {
 		// now get the state for a module that has no resources, only another nested module
 		view, done := testView(t)
 		c := &StateListCommand{
-			Meta: Meta{
+			StateMeta{Meta{
 				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
 				View:             view,
-			},
+			}},
 		}
 		args := []string{"module.nonexist"}
 		code := c.Run(args)
@@ -280,11 +280,11 @@ func TestStateList_modules(t *testing.T) {
 		// finally get the state for a module with an index
 		view, done := testView(t)
 		c := &StateListCommand{
-			Meta: Meta{
+			StateMeta{Meta{
 				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
 				View:             view,
-			},
+			}},
 		}
 		args := []string{"module.count"}
 		code := c.Run(args)
@@ -303,11 +303,11 @@ func TestStateList_modules(t *testing.T) {
 		// finally get the state for a module with an index
 		view, done := testView(t)
 		c := &StateListCommand{
-			Meta: Meta{
+			StateMeta{Meta{
 				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
 				View:             view,
-			},
+			}},
 		}
 		args := []string{"module.notevenalittlebit"}
 		code := c.Run(args)

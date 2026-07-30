@@ -56,11 +56,11 @@ func TestStateShow(t *testing.T) {
 
 	view, done := testView(t)
 	c := &StateShowCommand{
-		Meta: Meta{
+		StateMeta{Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
-		},
+		}},
 	}
 
 	args := []string{
@@ -136,11 +136,11 @@ func TestStateShow_multi(t *testing.T) {
 
 	view, done := testView(t)
 	c := &StateShowCommand{
-		Meta: Meta{
+		StateMeta{Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
-		},
+		}},
 	}
 
 	args := []string{
@@ -167,11 +167,11 @@ func TestStateShow_noState(t *testing.T) {
 	p := testProvider()
 	view, done := testView(t)
 	c := &StateShowCommand{
-		Meta: Meta{
+		StateMeta{Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
-		},
+		}},
 	}
 
 	args := []string{
@@ -193,11 +193,11 @@ func TestStateShow_emptyState(t *testing.T) {
 	p := testProvider()
 	view, done := testView(t)
 	c := &StateShowCommand{
-		Meta: Meta{
+		StateMeta{Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
-		},
+		}},
 	}
 
 	args := []string{
@@ -251,7 +251,7 @@ func TestStateShow_configured_provider(t *testing.T) {
 
 	view, done := testView(t)
 	c := &StateShowCommand{
-		Meta: Meta{
+		StateMeta{Meta{
 			WorkingDir: workdir.NewDir("."),
 			testingOverrides: &testingOverrides{
 				Providers: map[addrs.Provider]providers.Factory{
@@ -259,7 +259,7 @@ func TestStateShow_configured_provider(t *testing.T) {
 				},
 			},
 			View: view,
-		},
+		}},
 	}
 
 	args := []string{
@@ -289,11 +289,11 @@ func TestStateShow_withoutShowSensitiveArg(t *testing.T) {
 
 	view, done := testView(t)
 	c := &StateShowCommand{
-		Meta: Meta{
+		StateMeta{Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
-		},
+		}},
 	}
 
 	args := []string{
@@ -327,11 +327,11 @@ func TestStateShow_showSensitiveArg(t *testing.T) {
 
 	view, done := testView(t)
 	c := &StateShowCommand{
-		Meta: Meta{
+		StateMeta{Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
-		},
+		}},
 	}
 
 	args := []string{

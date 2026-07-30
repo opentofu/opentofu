@@ -136,7 +136,7 @@ func TestPlan_plan(t *testing.T) {
 	args := []string{planPath}
 	code := c.Run(args)
 	output := done(t)
-	if code != 1 {
+	if code != RunResultHelp {
 		t.Fatalf("wrong exit status %d; want 1\nstderr: %s", code, output.Stderr())
 	}
 }
