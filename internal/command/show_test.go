@@ -1768,7 +1768,7 @@ func TestShow_config_conflictingOptions(t *testing.T) {
 		t.Fatalf("unexpected exit status %d; want 1\ngot: %s", code, output.Stdout())
 	}
 
-	got := output.Stderr()
+	got := output.Stdout()
 	want := "Conflicting object types to show"
 	if !strings.Contains(got, want) {
 		t.Errorf("unexpected output\ngot: %s\nwant:\n%s", got, want)

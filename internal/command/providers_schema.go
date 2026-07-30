@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/jsonprovider"
@@ -17,6 +16,21 @@ import (
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
+
+func ProvidersSchemaCommander() Command {
+	cmd := Command{
+		Name:  "schema",
+		Short: "Show schemas for the providers used in the configuration",
+		Long:  `Prints out a json representation of the schemas for all providers used in the current configuration.`,
+	}
+
+	args := arguments.BindProvidersSchema(&cmd.CommandLine)
+	cmd.Run = func(meta Meta) int {
+		return ProvidersSchemaCommand{meta}.Execute(args, views.NewProvidersSchema(meta.View))
+	}
+
+	return cmd
+}
 
 // ProvidersSchemaCommand is a Command implementation that prints out information
 // about the providers used in the current configuration/state.
@@ -33,18 +47,11 @@ func (c *ProvidersSchemaCommand) Synopsis() string {
 }
 
 func (c *ProvidersSchemaCommand) Run(rawArgs []string) int {
+	return RunCommand(ProvidersSchemaCommander(), c.Meta, rawArgs)
+}
+func (c ProvidersSchemaCommand) Execute(args *arguments.ProvidersSchema, view views.ProvidersSchema) int {
+	var diags tfdiags.Diagnostics
 	ctx := c.CommandContext()
-
-	args, closer, diags := arguments.ParseProvidersSchema(rawArgs)
-	defer closer()
-
-	c.View.Configure(args.View)
-
-	view := views.NewProvidersSchema(c.View)
-	if diags.HasErrors() {
-		view.Diagnostics(diags)
-		return cli.RunResultHelp
-	}
 
 	c.Meta.variableArgs = args.Vars.All()
 

@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
@@ -21,6 +20,25 @@ import (
 	"github.com/opentofu/opentofu/internal/tofu"
 )
 
+func GraphCommander() Command {
+	cmd := Command{
+		Name:  "graph",
+		Short: "Generate a Graphviz graph of the steps in an operation",
+		Long: `Produces a representation of the dependency graph between different objects in the current configuration and state.
+
+The graph is presented in the DOT language. The typical program that can read this format is GraphViz, but many web services are also available to read this format.`,
+
+		DiagsWithNewline: true,
+	}
+
+	args := arguments.BindGraph(&cmd.CommandLine)
+	cmd.Run = func(meta Meta) int {
+		return GraphCommand{meta}.Execute(args, views.NewGraph(meta.View))
+	}
+
+	return cmd
+}
+
 // GraphCommand is a Command implementation that takes a OpenTofu
 // configuration and outputs the dependency tree in graphical form.
 type GraphCommand struct {
@@ -28,25 +46,12 @@ type GraphCommand struct {
 }
 
 func (c *GraphCommand) Run(rawArgs []string) int {
+	return RunCommand(GraphCommander(), c.Meta, rawArgs)
+}
+func (c GraphCommand) Execute(args *arguments.Graph, view views.Graph) int {
+	var diags tfdiags.Diagnostics
+
 	ctx := c.CommandContext()
-
-	// Parse and validate flags
-	args, closer, diags := arguments.ParseGraph(rawArgs)
-	defer closer()
-
-	c.View.Configure(args.View)
-	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
-	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
-	c.View.DiagsWithNewline()
-
-	// Instantiate the view, even if there are flag errors, so that we render
-	// diagnostics according to the desired view
-	view := views.NewGraph(c.View)
-	if diags.HasErrors() {
-		view.Diagnostics(diags)
-		return cli.RunResultHelp
-	}
-	c.Meta.variableArgs = args.Vars.All()
 
 	// This gets the current directory as full path.
 	configPath := c.WorkingDir.NormalizePath(c.WorkingDir.RootModuleDir())

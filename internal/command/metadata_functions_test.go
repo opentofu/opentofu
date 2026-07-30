@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 )
 
@@ -25,7 +24,7 @@ func TestMetadataFunctions_error(t *testing.T) {
 	// This test will always error because it's missing the -json flag
 	code := c.Run(nil)
 	output := done(t)
-	if code != cli.RunResultHelp {
+	if code != 1 {
 		t.Fatalf("expected error, got:\n%s", output.All())
 	}
 }
