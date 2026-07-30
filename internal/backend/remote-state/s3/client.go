@@ -276,6 +276,12 @@ func (c *RemoteClient) Lock(ctx context.Context, info *statemgr.LockInfo) (strin
 	return info.ID, nil
 }
 
+// was the lock in the backing store written by the current acquisition?
+// statemgr.LockInfo#ID is a UUID, minted per Lock() call, so a match here is ours.
+func lockWrittenByThisCall(stored, info *statemgr.LockInfo) bool {
+	return stored != nil && info != nil && info.ID != "" && stored.ID == info.ID
+}
+
 // dynamoDBLock expects the statemgr.LockInfo#ID to be filled already
 func (c *RemoteClient) dynamoDBLock(ctx context.Context, info *statemgr.LockInfo) error {
 	if c.ddbTable == "" {
@@ -297,6 +303,11 @@ func (c *RemoteClient) dynamoDBLock(ctx context.Context, info *statemgr.LockInfo
 		lockInfo, infoErr := c.getLockInfoFromDynamoDB(ctx)
 		if infoErr != nil {
 			err = multierror.Append(err, infoErr)
+		}
+
+		if lockWrittenByThisCall(lockInfo, info) {
+			log.Printf("[WARN] dynamodb lock %q written but not detected; PutItem outcome was not observed %v.  Lock is held.", info.ID, err)
+			return nil
 		}
 
 		lockErr := &statemgr.LockError{
@@ -337,6 +348,11 @@ func (c *RemoteClient) s3Lock(ctx context.Context, info *statemgr.LockInfo) erro
 		lockInfo, infoErr := c.getLockInfoFromS3(ctx)
 		if infoErr != nil {
 			err = multierror.Append(err, infoErr)
+		}
+
+		if lockWrittenByThisCall(lockInfo, info) {
+			log.Printf("[WARN] dynamodb lock %q written but not detected; PutItem outcome was not observed %v.  Lock is held.", info.ID, err)
+			return nil
 		}
 
 		lockErr := &statemgr.LockError{
