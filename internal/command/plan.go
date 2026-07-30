@@ -18,6 +18,25 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
+func PlanCommander() Command {
+	cmd := Command{
+		Name:  "plan",
+		Short: "Show changes required by the current configuration",
+		Long: `Generates a speculative execution plan, showing what actions OpenTofu would take to apply the current configuration. This command will not actually perform the planned actions.
+
+You can optionally save the plan to a file, which you can then pass to the "apply" command to perform exactly the actions described in the plan.`,
+
+		GroupID: MainCommandGroup.ID,
+	}
+
+	args := arguments.BindPlan(&cmd.CommandLine)
+	cmd.Run = func(meta Meta) int {
+		return PlanCommand{meta}.Execute(args, views.NewPlan(args.View, meta.View))
+	}
+
+	return cmd
+}
+
 // PlanCommand is a Command implementation that compares a OpenTofu
 // configuration to an actual infrastructure and shows the differences.
 type PlanCommand struct {
@@ -25,24 +44,11 @@ type PlanCommand struct {
 }
 
 func (c *PlanCommand) Run(rawArgs []string) int {
+	return RunCommand(PlanCommander(), c.Meta, rawArgs)
+}
+func (c PlanCommand) Execute(args *arguments.Plan, view views.Plan) int {
+	var diags tfdiags.Diagnostics
 	ctx := c.CommandContext()
-
-	// Parse and validate flags
-	args, closer, diags := arguments.ParsePlan(rawArgs)
-	defer closer()
-
-	// Parse and apply global view arguments
-	c.View.Configure(args.View)
-
-	// Instantiate the view, even if there are flag errors, so that we render
-	// diagnostics according to the desired view
-	view := views.NewPlan(args.View, c.View)
-
-	if diags.HasErrors() {
-		view.Diagnostics(diags)
-		view.HelpPrompt()
-		return 1
-	}
 
 	// Check for user-supplied plugin path
 	var err error
@@ -51,11 +57,6 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 		view.Diagnostics(diags)
 		return 1
 	}
-
-	// FIXME: the -input flag value is needed to initialize the backend and the
-	// operation, but there is no clear path to pass this value down, so we
-	// continue to mutate the Meta object state for now.
-	c.Meta.input = args.View.InputEnabled
 
 	// FIXME: the -parallelism flag is used to control the concurrency of
 	// OpenTofu operations. At the moment, this value is used both to

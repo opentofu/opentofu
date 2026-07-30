@@ -9,10 +9,41 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
 )
+
+func WorkspaceCommander(legacyName bool) Command {
+	cmd := Command{
+		Name:  "workspace",
+		Short: "Workspace management",
+		Long:  `new, list, show, select and delete OpenTofu workspaces.`,
+
+		Commands: []Command{
+			WorkspaceListCommander(legacyName),
+			WorkspaceSelectCommander(legacyName),
+			WorkspaceNewCommander(legacyName),
+			WorkspaceDeleteCommander(legacyName),
+		},
+
+		DiagsWithNewline: true,
+	}
+	if legacyName {
+		cmd.Name = "env"
+		cmd.Hidden = true
+	} else {
+		cmd.Commands = append(cmd.Commands, WorkspaceShowCommander())
+	}
+
+	args := arguments.BindWorkspace(&cmd.CommandLine)
+	cmd.Run = func(meta Meta) int {
+		view := views.NewWorkspace(args.View, meta.View)
+		view.WarnWhenUsedAsEnvCmd(legacyName)
+		return RunResultHelp
+	}
+
+	return cmd
+}
 
 // WorkspaceCommand is a Command Implementation that manipulates workspaces,
 // which allow multiple distinct states and variables from a single config.
@@ -22,26 +53,7 @@ type WorkspaceCommand struct {
 }
 
 func (c *WorkspaceCommand) Run(rawArgs []string) int {
-	// Parse and validate flags
-	args, closer, diags := arguments.ParseWorkspace(rawArgs)
-	defer closer()
-
-	c.View.Configure(args.View)
-	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
-	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
-	c.View.DiagsWithNewline()
-
-	// Instantiate the view, even if there are flag errors, so that we render
-	// diagnostics according to the desired view
-	view := views.NewWorkspace(args.View, c.View)
-	if diags.HasErrors() {
-		view.Diagnostics(diags)
-		return cli.RunResultHelp
-	}
-
-	view.WarnWhenUsedAsEnvCmd(c.LegacyName)
-
-	return cli.RunResultHelp
+	return RunCommand(WorkspaceCommander(c.LegacyName), c.Meta, rawArgs)
 }
 
 func (c *WorkspaceCommand) Help() string {

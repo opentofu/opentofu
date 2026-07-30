@@ -11,6 +11,18 @@ import (
 	"github.com/mitchellh/cli"
 )
 
+func MetadataCommander() Command {
+	cmd := Command{
+		Name:  "metadata",
+		Short: "Metadata related commands",
+		Long:  "This command has subcommands for metadata related purposes.",
+
+		Commands: []Command{MetadataFunctionsCommander()},
+	}
+
+	return cmd
+}
+
 // MetadataCommand is a Command implementation that just shows help for
 // the subcommands nested below it.
 type MetadataCommand struct {

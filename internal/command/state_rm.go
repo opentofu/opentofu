@@ -9,7 +9,6 @@ import (
 	"context"
 	"strings"
 
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/clistate"
@@ -18,33 +17,42 @@ import (
 	"github.com/opentofu/opentofu/internal/tofu"
 )
 
+func StateRmCommander() Command {
+	cmd := Command{
+		Name:  "rm",
+		Short: "Remove instances from the state",
+		Long: `Remove one or more items from the OpenTofu state, causing OpenTofu to "forget" those items without first destroying them in the remote system.
+
+This command removes one or more resource instances from the OpenTofu state based on the addresses given. You can view and list the available instances with "tofu state list".
+
+If you give the address of an entire module then all of the instances in that module and any of its child modules will be removed from the state.
+
+If you give the address of a resource that has "count" or "for_each" set, all of the instances of that resource will be removed from the state.`,
+
+		DiagsWithNewline: true,
+	}
+
+	args := arguments.BindStateRm(&cmd.CommandLine)
+	cmd.Run = func(meta Meta) int {
+		return StateRmCommand{StateMeta{meta}}.Execute(args, views.NewState(args.View, meta.View))
+	}
+
+	return cmd
+}
+
 // StateRmCommand is a Command implementation that shows a single resource.
 type StateRmCommand struct {
 	StateMeta
 }
 
 func (c *StateRmCommand) Run(rawArgs []string) int {
+	return RunCommand(StateRmCommander(), c.Meta, rawArgs)
+}
+func (c StateRmCommand) Execute(args *arguments.StateRm, view views.State) int {
+	var diags tfdiags.Diagnostics
+
 	ctx := c.CommandContext()
 
-	// Parse and validate flags
-	args, closer, diags := arguments.ParseStateRm(rawArgs)
-	defer closer()
-
-	c.View.Configure(args.View)
-	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
-	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
-	c.View.DiagsWithNewline()
-
-	// Instantiate the view, even if there are flag errors, so that we render
-	// diagnostics according to the desired view
-	view := views.NewState(args.View, c.View)
-	if diags.HasErrors() {
-		view.Diagnostics(diags)
-		if args.View.ViewType == arguments.ViewJSON {
-			return 1 // We don't want to print the help of the command in JSON view
-		}
-		return cli.RunResultHelp
-	}
 	c.Meta.variableArgs = args.Vars.All()
 	c.Meta.stateArgs = *args.State
 	c.Meta.backendArgs = *args.Backend
