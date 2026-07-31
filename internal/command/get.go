@@ -50,8 +50,6 @@ func (c GetCommand) Execute(args *arguments.Get, view views.Get) int {
 	ctx, span := tracing.Tracer().Start(ctx, "Get")
 	defer span.End()
 
-	c.Meta.variableArgs = args.Vars.All()
-
 	// Initialization can be aborted by interruption signals
 	ctx, done := c.InterruptibleContext(ctx)
 	defer done()

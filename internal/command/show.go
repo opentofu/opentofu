@@ -99,9 +99,6 @@ func (c ShowCommand) Execute(args *arguments.Show, view views.Show) int {
 		return 1
 	}
 
-	// Inject variables from args into meta for static evaluation
-	c.Meta.variableArgs = args.Vars.All()
-
 	// Load the encryption configuration
 	enc, encDiags := c.Encryption(ctx)
 	diags = diags.Append(encDiags)

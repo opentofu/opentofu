@@ -59,12 +59,6 @@ func (c StateListCommand) Execute(args *arguments.StateList, view views.State) i
 
 	ctx := c.CommandContext()
 
-	c.Meta.variableArgs = args.Vars.All()
-
-	if args.State.StatePath != "" {
-		c.Meta.stateArgs.StatePath = args.State.StatePath
-	}
-
 	// Load the encryption configuration
 	enc, encDiags := c.Encryption(ctx)
 	if encDiags.HasErrors() {

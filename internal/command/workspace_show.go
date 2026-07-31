@@ -42,8 +42,6 @@ func (c *WorkspaceShowCommand) Run(rawArgs []string) int {
 func (c WorkspaceShowCommand) Execute(args *arguments.WorkspaceShow, view views.Workspace) int {
 	ctx := c.CommandContext()
 
-	c.Meta.variableArgs = args.Vars.All()
-
 	workspace, err := c.Workspace(ctx)
 	if err != nil {
 		view.Diagnostics(tfdiags.Diagnostics{tfdiags.Sourceless(

@@ -54,9 +54,6 @@ func (c UntaintCommand) Execute(args *arguments.Taint, view views.Taint) int {
 
 	ctx := c.CommandContext()
 
-	c.Meta.variableArgs = args.Vars.All()
-	c.Meta.stateArgs = *args.State
-
 	addr := args.TargetAddress
 
 	// Load the encryption configuration
