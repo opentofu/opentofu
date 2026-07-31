@@ -76,9 +76,6 @@ func (c ValidateCommand) Execute(args *arguments.Validate, view views.Validate) 
 		return view.Results(diags)
 	}
 
-	// Inject variables from args into meta for static evaluation
-	c.Meta.variableArgs = args.Vars.All()
-
 	validateDiags := c.validate(ctx, dir, args.TestDirectory, args.NoTests)
 	diags = diags.Append(validateDiags)
 

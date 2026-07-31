@@ -27,6 +27,12 @@ type CommandLine struct {
 
 	// This is a bit of a hack so we can correctly report diagnostics before actually executing the command
 	View *View
+
+	// These are hacks for the meta struct that should be removed as the meta struct is broken up and removed
+	Backend   *Backend
+	Operation *Operation
+	State     *State
+	Vars      *Vars
 }
 
 func (c CommandLine) PositionalError(remaining []string, argsErrored bool) tfdiags.Diagnostics {

@@ -44,9 +44,6 @@ func (c *OutputCommand) Run(rawArgs []string) int {
 func (c OutputCommand) Execute(args *arguments.Output, view views.Output) int {
 	ctx := c.CommandContext()
 
-	// Inject variables from args into meta for static evaluation
-	c.Meta.variableArgs = args.Vars.All()
-
 	// Load the encryption configuration
 	enc, diags := c.Encryption(ctx)
 	if diags.HasErrors() {
@@ -76,11 +73,6 @@ func (c OutputCommand) Execute(args *arguments.Output, view views.Output) int {
 
 func (c *OutputCommand) Outputs(ctx context.Context, statePath string, enc encryption.Encryption) (map[string]*states.OutputValue, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-
-	// Allow state path override
-	if statePath != "" {
-		c.Meta.stateArgs.StatePath = statePath
-	}
 
 	// Load the backend
 	b, backendDiags := c.Backend(ctx, nil, enc.State())

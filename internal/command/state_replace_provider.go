@@ -52,10 +52,6 @@ func (c StateReplaceProviderCommand) Execute(args *arguments.StateReplaceProvide
 
 	ctx := c.CommandContext()
 
-	c.Meta.stateArgs = *args.State
-	c.Meta.variableArgs = args.Vars.All()
-	c.Meta.backendArgs = *args.Backend
-
 	if diags := c.Meta.checkRequiredVersion(ctx); diags != nil {
 		view.Diagnostics(diags)
 		return 1

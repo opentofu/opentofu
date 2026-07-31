@@ -56,9 +56,6 @@ func (c ConsoleCommand) Execute(args *arguments.Console, view views.Console) int
 
 	ctx := c.CommandContext()
 
-	c.Meta.stateArgs = *args.State
-	c.Meta.variableArgs = args.Vars.All()
-
 	configPath := c.WorkingDir.NormalizePath(c.WorkingDir.RootModuleDir())
 
 	// Check for user-supplied plugin path

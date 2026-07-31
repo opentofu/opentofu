@@ -67,14 +67,6 @@ func (c ImportCommand) Execute(args *arguments.Import, view views.Import) int {
 		args.ConfigPath = c.WorkingDir.NormalizePath(c.WorkingDir.RootModuleDir())
 	}
 
-	c.Meta.variableArgs = args.Vars.All()
-	c.stateArgs = *args.State
-	c.backendArgs = *args.Backend
-
-	// TODO meta-refactor: remove this only when there is clear path of passing these from the "arguments" package to
-	// the place where these needs to be used
-	c.Meta.parallelism = args.Parallelism
-
 	// Parse the provided resource address.
 	traversalSrc := []byte(args.ResourceAddress)
 	traversal, travDiags := hclsyntax.ParseTraversalAbs(traversalSrc, "<import-address>", hcl.Pos{Line: 1, Column: 1})

@@ -56,7 +56,6 @@ func (c ProvidersCommand) Execute(args *arguments.Providers, view views.Provider
 
 	ctx := c.CommandContext()
 
-	c.Meta.variableArgs = args.Vars.All()
 	// This gets the current directory as full path.
 	configPath := c.WorkingDir.NormalizePath(c.WorkingDir.RootModuleDir())
 
