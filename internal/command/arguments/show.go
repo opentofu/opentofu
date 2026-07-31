@@ -69,8 +69,7 @@ func BindShow(cli *CommandLine) *Show {
 
 	show.ViewOptions.bind(cli, false)
 
-	show.Vars = &Vars{}
-	show.Vars.bind(cli)
+	show.Vars = BindVars(cli)
 
 	targetFlagGroup := FlagGroup{
 		ID:          "target",

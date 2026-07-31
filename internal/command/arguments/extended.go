@@ -348,7 +348,8 @@ func (v *Vars) Empty() bool {
 }
 
 // bind registers all Operation flags
-func (operation *Operation) bind(cli *CommandLine) {
+func BindOperation(cli *CommandLine) *Operation {
+	var operation Operation
 	cli.IntVar(&operation.Parallelism, "parallelism", DefaultParallelism,
 		`Limit the number of parallel resource operations. Defaults to 10.`,
 	).SetDisplay("=n")
@@ -376,10 +377,13 @@ func (operation *Operation) bind(cli *CommandLine) {
 	).SetDisplay("=resource")
 
 	cli.Hook(Hook{Pre: operation.Parse})
+
+	return &operation
 }
 
 // bind registers all Vars flags
-func (vars *Vars) bind(cli *CommandLine) {
+func BindVars(cli *CommandLine) *Vars {
+	var vars Vars
 	varsFlags := flags.NewRawFlags("-var")
 	varFilesFlags := varsFlags.Alias("-var-file")
 	vars.vars = &varsFlags
@@ -390,4 +394,5 @@ func (vars *Vars) bind(cli *CommandLine) {
 	cli.RawFlags(varFilesFlags, "var-file",
 		`Load variable values from the given file, in addition to the default files terraform.tfvars and *.auto.tfvars. Use this option more than once to include more than one variables file.`,
 	).SetDisplay("=filename")
+	return &vars
 }

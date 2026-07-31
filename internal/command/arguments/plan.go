@@ -41,12 +41,8 @@ func BindPlan(cli *CommandLine) *Plan {
 
 	plan.ViewOptions.bind(cli, true)
 
-	plan.Operation = &Operation{}
-	plan.Operation.bind(cli)
-
-	plan.Vars = &Vars{}
-	plan.Vars.bind(cli)
-
+	plan.Operation = BindOperation(cli)
+	plan.Vars = BindVars(cli)
 	plan.State = BindState(cli, stateFlagAll)
 
 	cli.BoolVar(&plan.DetailedExitCode, "detailed-exitcode", false,

@@ -36,8 +36,7 @@ func BindImport(cli *CommandLine) *Import {
 
 	ret.ViewOptions.bind(cli, true)
 
-	ret.Vars = &Vars{}
-	ret.Vars.bind(cli)
+	ret.Vars = BindVars(cli)
 
 	ret.Backend = &Backend{}
 	ret.Backend.bindIgnoreRemoteVersionFlag(cli)

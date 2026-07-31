@@ -23,9 +23,7 @@ type Console struct {
 func BindConsole(cli *CommandLine) *Console {
 	var console Console
 
-	console.Vars = &Vars{}
-	console.Vars.bind(cli)
-
+	console.Vars = BindVars(cli)
 	console.State = BindState(cli, stateFlagLock|stateFlagStateIn)
 
 	console.ViewOptions.bind(cli, true)

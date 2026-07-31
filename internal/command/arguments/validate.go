@@ -36,8 +36,7 @@ func BindValidate(cli *CommandLine) *Validate {
 
 	validate.ViewOptions.bind(cli, false)
 
-	validate.Vars = &Vars{}
-	validate.Vars.bind(cli)
+	validate.Vars = BindVars(cli)
 
 	cli.StringVar(&validate.TestDirectory, "test-directory", "tests", `Set the OpenTofu test directory, defaults to "tests". When set, the test command will search for test files in the current directory and in the one specified by the flag.`).SetDisplay("=path")
 	cli.BoolVar(&validate.NoTests, "no-tests", false, "If specified, OpenTofu will not validate test files.")

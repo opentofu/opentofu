@@ -30,8 +30,7 @@ func BindOutput(cli *CommandLine) *Output {
 
 	output.ViewOptions.bind(cli, false)
 
-	output.Vars = &Vars{}
-	output.Vars.bind(cli)
+	output.Vars = BindVars(cli)
 
 	output.State = BindState(cli, stateFlagStateIn)
 

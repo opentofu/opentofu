@@ -42,12 +42,8 @@ func BindApply(cli *CommandLine) *Apply {
 
 	apply.ViewOptions.bind(cli, true)
 
-	apply.Operation = &Operation{}
-	apply.Operation.bind(cli)
-
-	apply.Vars = &Vars{}
-	apply.Vars.bind(cli)
-
+	apply.Operation = BindOperation(cli)
+	apply.Vars = BindVars(cli)
 	apply.State = BindState(cli, stateFlagAll)
 
 	cli.BoolVar(&apply.AutoApprove, "auto-approve", false, "Skip interactive approval of plan before applying.")

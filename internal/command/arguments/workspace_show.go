@@ -25,8 +25,7 @@ func BindWorkspaceShow(cli *CommandLine) *WorkspaceShow {
 	// we only parse but do not register the views flags since this command does not need it
 	ret.ViewOptions.ParseHook(cli)
 
-	ret.Vars = &Vars{}
-	ret.Vars.bind(cli)
+	ret.Vars = BindVars(cli)
 
 	return &ret
 }

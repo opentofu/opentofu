@@ -38,8 +38,7 @@ func BindTaint(cli *CommandLine, isTaint bool) *Taint {
 
 	arguments.ViewOptions.bind(cli, false)
 
-	arguments.Vars = &Vars{}
-	arguments.Vars.bind(cli)
+	arguments.Vars = BindVars(cli)
 
 	arguments.Backend = &Backend{}
 	arguments.Backend.bindIgnoreRemoteVersionFlag(cli)

@@ -32,8 +32,7 @@ func BindStateRm(cli *CommandLine) *StateRm {
 
 	ret.ViewOptions.bind(cli, false)
 
-	ret.Vars = &Vars{}
-	ret.Vars.bind(cli)
+	ret.Vars = BindVars(cli)
 
 	ret.Backend = &Backend{}
 	ret.Backend.bindIgnoreRemoteVersionFlag(cli)

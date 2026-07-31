@@ -60,9 +60,7 @@ func BindInit(cli *CommandLine) *Init {
 
 	init.ViewOptions.bind(cli, true)
 
-	init.Vars = &Vars{}
-	init.Vars.bind(cli)
-
+	init.Vars = BindVars(cli)
 	init.State = BindState(cli, stateFlagLock)
 
 	init.Backend = &Backend{}

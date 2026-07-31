@@ -29,8 +29,7 @@ func BindProvidersMirror(cli *CommandLine) *ProvidersMirror {
 
 	arguments.ViewOptions.bind(cli, false)
 
-	arguments.Vars = &Vars{}
-	arguments.Vars.bind(cli)
+	arguments.Vars = BindVars(cli)
 
 	cli.StringArrayVar(&arguments.OptPlatforms, "platform", nil, `Choose which target platform to build a mirror for. By default OpenTofu will obtain plugin packages suitable for the platform where you run this command. Use this flag multiple times to include packages for multiple target systems.
 

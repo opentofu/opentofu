@@ -30,8 +30,7 @@ func BindWorkspaceSelect(cli *CommandLine) *WorkspaceSelect {
 
 	ret.ViewOptions.bind(cli, false)
 
-	ret.Vars = &Vars{}
-	ret.Vars.bind(cli)
+	ret.Vars = BindVars(cli)
 
 	cli.BoolVar(&ret.CreateIfMissing, "or-create", false, "Create the OpenTofu workspace if it doesn't exist.")
 

@@ -39,8 +39,7 @@ func BindTest(cli *CommandLine) *Test {
 
 	test.ViewOptions.bind(cli, false)
 
-	test.Vars = &Vars{}
-	test.Vars.bind(cli)
+	test.Vars = BindVars(cli)
 
 	cli.StringArrayVar(&test.Filter, "filter", nil, "If specified, OpenTofu will only execute the test files specified by this flag. You can use this option multiple times to execute more than one test file. The path should be relative to the current working directory, even if -test-directory is set.").SetDisplay("=testfile")
 	cli.StringVar(&test.TestDirectory, "test-directory", "tests", `Set the OpenTofu test directory, defaults to "tests". When set, the test command will search for test files in the current directory and in the one specified by the flag.`).SetDisplay("=path")
