@@ -26,8 +26,7 @@ func BindStatePull(cli *CommandLine) *StatePull {
 	// prints the state in json format
 	ret.ViewOptions.ParseHook(cli)
 
-	ret.Vars = &Vars{}
-	ret.Vars.bind(cli)
+	ret.Vars = BindVars(cli)
 
 	return &ret
 }

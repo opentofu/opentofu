@@ -28,8 +28,7 @@ func BindGet(cli *CommandLine) *Get {
 
 	arguments.ViewOptions.bind(cli, false)
 
-	arguments.Vars = &Vars{}
-	arguments.Vars.bind(cli)
+	arguments.Vars = BindVars(cli)
 
 	cli.BoolVar(&arguments.Update, "update", false, "Check already-downloaded modules for available updates and install the newest versions available.")
 	cli.StringVar(&arguments.TestsDirectory, "test-directory", "tests", `Set the OpenTofu test directory, defaults to "tests". When set, the test command will search for test files in the current directory and in the one specified by the flag.`).SetDisplay("=path")

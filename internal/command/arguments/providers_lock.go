@@ -42,8 +42,7 @@ func BindProvidersLock(cli *CommandLine) *ProvidersLock {
 
 	arguments.ViewOptions.bind(cli, false)
 
-	arguments.Vars = &Vars{}
-	arguments.Vars.bind(cli)
+	arguments.Vars = BindVars(cli)
 
 	cli.StringArrayVar(&arguments.OptPlatforms, "platform", nil, `Choose a target platform to request package checksums for.
 

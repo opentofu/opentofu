@@ -24,8 +24,7 @@ func BindProvidersSchema(cli *CommandLine) *ProvidersSchema {
 
 	schema.ViewOptions.bindGranularFlags(cli, false, false)
 
-	schema.Vars = &Vars{}
-	schema.Vars.bind(cli)
+	schema.Vars = BindVars(cli)
 
 	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
 		if schema.ViewOptions.ViewType != ViewJSON {

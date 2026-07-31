@@ -27,8 +27,7 @@ func BindProviders(cli *CommandLine) *Providers {
 	// we only parse but do not register the views flags since this command does not need it
 	arguments.ViewOptions.ParseHook(cli)
 
-	arguments.Vars = &Vars{}
-	arguments.Vars.bind(cli)
+	arguments.Vars = BindVars(cli)
 
 	cli.StringVar(&arguments.TestsDirectory, "test-directory", "tests", `Set the OpenTofu test directory, defaults to "tests". When set, the test command will search for test files in the current directory and in the one specified by the flag.`).SetDisplay("=path")
 

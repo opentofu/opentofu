@@ -28,8 +28,7 @@ func BindUnlock(cli *CommandLine) *Unlock {
 
 	arguments.ViewOptions.bind(cli, false)
 
-	arguments.Vars = &Vars{}
-	arguments.Vars.bind(cli)
+	arguments.Vars = BindVars(cli)
 
 	cli.BoolVar(&arguments.Force, "force", false, "Don't ask for input for unlock confirmation.")
 

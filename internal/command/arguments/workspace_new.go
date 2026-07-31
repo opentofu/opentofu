@@ -28,8 +28,7 @@ func BindWorkspaceNew(cli *CommandLine) *WorkspaceNew {
 
 	ret.ViewOptions.bind(cli, false)
 
-	ret.Vars = &Vars{}
-	ret.Vars.bind(cli)
+	ret.Vars = BindVars(cli)
 
 	ret.State = BindState(cli, stateFlagLock|stateFlagStateIn)
 

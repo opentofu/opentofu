@@ -29,8 +29,7 @@ func BindLogin(cli *CommandLine) *Login {
 
 	// Even though the command does not use the -var/-var-file content, we will keep this for the moment
 	// just to keep backwards compatibility for users (in case any of them are using these flags with this command)
-	arguments.Vars = &Vars{}
-	arguments.Vars.bind(cli)
+	arguments.Vars = BindVars(cli)
 
 	// State is only initialised and no flags are registered since the login command needs to lock the
 	// state by default, with no user input on that.

@@ -36,8 +36,7 @@ func BindGraph(cli *CommandLine) *Graph {
 	// we only parse but do not register the views flags since this command does not need it
 	graph.ViewOptions.ParseHook(cli)
 
-	graph.Vars = &Vars{}
-	graph.Vars.bind(cli)
+	graph.Vars = BindVars(cli)
 
 	cli.BoolVar(&graph.DrawCycles, "draw-cycles", false, "Highlight any cycles in the graph with colored edges. This helps when diagnosing cycle errors.")
 	cli.StringVar(&graph.GraphType, "type", "", `Type of graph to output. Can be: plan, plan-refresh-only, plan-destroy, or apply. By default OpenTofu chooses "plan", or "apply" if you also set the -plan=... option.`).SetDisplay("=plan")

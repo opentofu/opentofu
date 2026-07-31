@@ -26,11 +26,8 @@ func BindRefresh(cli *CommandLine) *Refresh {
 
 	refresh.ViewOptions.bind(cli, true)
 
-	refresh.Vars = &Vars{}
-	refresh.Vars.bind(cli)
-
-	refresh.Operation = &Operation{}
-	refresh.Operation.bind(cli)
+	refresh.Vars = BindVars(cli)
+	refresh.Operation = BindOperation(cli)
 
 	refresh.State = BindState(cli, stateFlagAll)
 
