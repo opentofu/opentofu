@@ -35,8 +35,7 @@ func BindStateShow(cli *CommandLine) *StateShow {
 	ret.Vars = &Vars{}
 	ret.Vars.bind(cli)
 
-	ret.State = &State{}
-	ret.State.bind(cli, stateFlagStateIn)
+	ret.State = BindState(cli, stateFlagStateIn)
 
 	cli.BoolVar(&ret.ShowSensitive, "show-sensitive", false, "If specified, sensitive values will be displayed.")
 

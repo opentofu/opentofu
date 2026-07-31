@@ -26,13 +26,14 @@ func BindConsole(cli *CommandLine) *Console {
 	console.Vars = &Vars{}
 	console.Vars.bind(cli)
 
-	console.State = &State{}
-	console.State.bind(cli, stateFlagLock)
-	console.State.bindStateInFlag(cli, DefaultStateFilename)
+	console.State = BindState(cli, stateFlagLock|stateFlagStateIn)
 
 	console.ViewOptions.bind(cli, true)
 
 	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
+		if console.State.StatePath == "" {
+			console.State.StatePath = DefaultStateFilename
+		}
 		// If the user provided the -json flag, we don't allow it since the UX is just poor in this case.
 		// We allow only the streaming of the evaluated values in a json file, by using the `-json-into` flag.
 		if console.ViewOptions.ViewType == ViewJSON {

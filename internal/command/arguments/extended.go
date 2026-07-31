@@ -65,7 +65,8 @@ type State struct {
 }
 
 // bind is the sole logic of registering the state related flags in OpenTofu.
-func (s *State) bind(cli *CommandLine, mask stateFlag) {
+func BindState(cli *CommandLine, mask stateFlag) *State {
+	var s State
 	if mask&stateFlagLock != 0 {
 		cli.BoolVar(&s.Lock, "lock", true,
 			`Don't hold a state lock during the operation. This is dangerous if others might concurrently run commands against the same workspace.`,
@@ -75,7 +76,9 @@ func (s *State) bind(cli *CommandLine, mask stateFlag) {
 		).SetDisplay("=duration")
 	}
 	if mask&stateFlagStateIn != 0 {
-		s.bindStateInFlag(cli, "")
+		cli.StringVar(&s.StatePath, "state", "",
+			`A legacy option used for the local backend only. Refer to the local backend's documentation for more information.`,
+		).SetDisplay("=statefile").SetHidden(true)
 	}
 	if mask&stateFlagStateOut != 0 {
 		cli.StringVar(&s.StateOutPath, "state-out", "",
@@ -83,22 +86,11 @@ func (s *State) bind(cli *CommandLine, mask stateFlag) {
 		).SetHidden(true)
 	}
 	if mask&stateFlagBackup != 0 {
-		s.bindBackupFlag(cli, "")
+		cli.StringVar(&s.BackupPath, "backup", "",
+			`Path to backup the existing state file before modifying. Defaults to the "-state-out" path with ".backup" extension. Set to "-" to disable backup.`,
+		).SetHidden(true)
 	}
-}
-
-// bindtateInFlag exists strictly because the default value can get a different value in some commands.
-func (s *State) bindStateInFlag(cli *CommandLine, defVal string) {
-	cli.StringVar(&s.StatePath, "state", defVal,
-		`A legacy option used for the local backend only. Refer to the local backend's documentation for more information.`,
-	).SetDisplay("=statefile").SetHidden(true)
-}
-
-// bindBackupFlag exists strictly because the default value can get a different value in some commands.
-func (s *State) bindBackupFlag(cli *CommandLine, defVal string) {
-	cli.StringVar(&s.BackupPath, "backup", defVal,
-		`Path to backup the existing state file before modifying. Defaults to the "-state-out" path with ".backup" extension. Set to "-" to disable backup.`,
-	).SetHidden(true)
+	return &s
 }
 
 // Operation describes arguments which are used to configure how a OpenTofu

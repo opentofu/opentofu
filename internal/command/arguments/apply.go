@@ -48,8 +48,7 @@ func BindApply(cli *CommandLine) *Apply {
 	apply.Vars = &Vars{}
 	apply.Vars.bind(cli)
 
-	apply.State = &State{}
-	apply.State.bind(cli, stateFlagAll)
+	apply.State = BindState(cli, stateFlagAll)
 
 	cli.BoolVar(&apply.AutoApprove, "auto-approve", false, "Skip interactive approval of plan before applying.")
 	cli.BoolVar(&apply.ShowSensitive, "show-sensitive", false, "If specified, sensitive values will be displayed.")

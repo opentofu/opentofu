@@ -32,8 +32,7 @@ func BindRefresh(cli *CommandLine) *Refresh {
 	refresh.Operation = &Operation{}
 	refresh.Operation.bind(cli)
 
-	refresh.State = &State{}
-	refresh.State.bind(cli, stateFlagAll)
+	refresh.State = BindState(cli, stateFlagAll)
 
 	return &refresh
 }

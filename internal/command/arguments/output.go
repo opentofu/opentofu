@@ -33,8 +33,7 @@ func BindOutput(cli *CommandLine) *Output {
 	output.Vars = &Vars{}
 	output.Vars.bind(cli)
 
-	output.State = &State{}
-	output.State.bind(cli, stateFlagStateIn)
+	output.State = BindState(cli, stateFlagStateIn)
 
 	rawOutput := false
 	cli.BoolVar(&rawOutput, "raw", false, `For value types that can be automatically converted to a string, will print the raw string directly, rather than a human-oriented representation of the value.

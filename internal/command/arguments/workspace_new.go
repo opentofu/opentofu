@@ -31,8 +31,7 @@ func BindWorkspaceNew(cli *CommandLine) *WorkspaceNew {
 	ret.Vars = &Vars{}
 	ret.Vars.bind(cli)
 
-	ret.State = &State{}
-	ret.State.bind(cli, stateFlagLock|stateFlagStateIn)
+	ret.State = BindState(cli, stateFlagLock|stateFlagStateIn)
 
 	cli.ArgHelp = "Expected a single argument: NAME."
 	cli.PositionalArg(&ret.WorkspaceName, "NAME", false)

@@ -47,8 +47,7 @@ func BindPlan(cli *CommandLine) *Plan {
 	plan.Vars = &Vars{}
 	plan.Vars.bind(cli)
 
-	plan.State = &State{}
-	plan.State.bind(cli, stateFlagAll)
+	plan.State = BindState(cli, stateFlagAll)
 
 	cli.BoolVar(&plan.DetailedExitCode, "detailed-exitcode", false,
 		`Return detailed exit codes when the command exits. The detailed exit codes are:

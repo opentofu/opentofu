@@ -42,8 +42,7 @@ func BindImport(cli *CommandLine) *Import {
 	ret.Backend = &Backend{}
 	ret.Backend.bindIgnoreRemoteVersionFlag(cli)
 
-	ret.State = &State{}
-	ret.State.bind(cli, stateFlagAll)
+	ret.State = BindState(cli, stateFlagAll)
 
 	cli.IntVar(&ret.Parallelism, "parallelism", DefaultParallelism, `Limit the number of parallel resource operations. Defaults to 10.`).SetDisplay("=n")
 	cli.StringVar(&ret.ConfigPath, "config", "", "Path to a directory of OpenTofu configuration files to use to configure the provider. Defaults to pwd. If no config files are present, they must be provided via the input prompts or env vars.").SetDisplay("=path")
