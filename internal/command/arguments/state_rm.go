@@ -38,16 +38,17 @@ func BindStateRm(cli *CommandLine) *StateRm {
 	ret.Backend = &Backend{}
 	ret.Backend.bindIgnoreRemoteVersionFlag(cli)
 
-	ret.State = &State{}
-	// StateFlagBackup omitted here to be added later with a different default value
-	ret.State.bind(cli, stateFlagLock|stateFlagStateIn)
-	ret.State.bindBackupFlag(cli, "-")
+	ret.State = BindState(cli, stateFlagLock|stateFlagStateIn|stateFlagBackup)
 
 	cli.BoolVar(&ret.DryRun, "dry-run", false, "If set, prints out what would've been removed but doesn't actually remove anything.")
 
 	cli.VariadicArg(&ret.TargetAddrs, "ADDRESS")
 
 	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
+		if ret.State.BackupPath == "" {
+			ret.State.BackupPath = "-"
+		}
+
 		if len(ret.TargetAddrs) == 0 {
 			return tfdiags.New(tfdiags.Sourceless(
 				tfdiags.Error,

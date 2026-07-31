@@ -43,16 +43,20 @@ func BindStateMv(cli *CommandLine) *StateMv {
 	ret.Backend = &Backend{}
 	ret.Backend.bindIgnoreRemoteVersionFlag(cli)
 
-	ret.State = &State{}
-	ret.State.bind(cli, stateFlagLock|stateFlagStateIn|stateFlagStateOut)
-	ret.State.bindBackupFlag(cli, "-")
-	// StateFlagBackup omitted here to be added later with a different default value
+	ret.State = BindState(cli, stateFlagAll)
 
 	cli.BoolVar(&ret.DryRun, "dry-run", false, "If set, prints out what would've been moved but doesn't actually move anything.")
 	cli.StringVar(&ret.BackupPathOut, "backup-out", "-", "Legacy state backup option").SetHidden(true)
 
 	cli.PositionalArg(&ret.RawSrcAddr, "SOURCE", false)
 	cli.PositionalArg(&ret.RawDestAddr, "DESTINATION", false)
+
+	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
+		if ret.State.BackupPath == "" {
+			ret.State.BackupPath = "-"
+		}
+		return nil
+	}})
 
 	return &ret
 }

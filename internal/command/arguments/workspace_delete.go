@@ -35,8 +35,7 @@ func BindWorkspaceDelete(cli *CommandLine) *WorkspaceDelete {
 	ret.Vars = &Vars{}
 	ret.Vars.bind(cli)
 
-	ret.State = &State{}
-	ret.State.bind(cli, stateFlagLock)
+	ret.State = BindState(cli, stateFlagLock)
 
 	cli.BoolVar(&ret.Force, "force", false, "Remove a workspace even if it is managing resources. OpenTofu can no longer track or manage the workspace's infrastructure.")
 

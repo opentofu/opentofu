@@ -63,8 +63,7 @@ func BindInit(cli *CommandLine) *Init {
 	init.Vars = &Vars{}
 	init.Vars.bind(cli)
 
-	init.State = &State{}
-	init.State.bind(cli, stateFlagLock)
+	init.State = BindState(cli, stateFlagLock)
 
 	init.Backend = &Backend{}
 	init.Backend.bindIgnoreRemoteVersionFlag(cli)

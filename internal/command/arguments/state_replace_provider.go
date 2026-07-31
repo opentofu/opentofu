@@ -41,10 +41,7 @@ func BindStateReplaceProvider(cli *CommandLine) *StateReplaceProvider {
 	ret.Backend = &Backend{}
 	ret.Backend.bindIgnoreRemoteVersionFlag(cli)
 
-	ret.State = &State{}
-	// StateFlagBackup omitted here to be added later with a different default value
-	ret.State.bind(cli, stateFlagLock|stateFlagStateIn)
-	ret.State.bindBackupFlag(cli, "-")
+	ret.State = BindState(cli, stateFlagLock|stateFlagStateIn|stateFlagBackup)
 
 	cli.BoolVar(&ret.AutoApprove, "auto-approve", false, "Skip interactive approval.")
 
@@ -52,6 +49,9 @@ func BindStateReplaceProvider(cli *CommandLine) *StateReplaceProvider {
 	cli.PositionalArg(&ret.RawDestAddr, "TO_PROVIDER_FQN", false)
 
 	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
+		if ret.State.BackupPath == "" {
+			ret.State.BackupPath = "-"
+		}
 		// In OpenTofu, there is no way to run a command with `-json` flag and allow asking for user input in the same time.
 		// Therefore, the JSON view can used only when the `-auto-approve` is provided too.
 		if ret.ViewOptions.ViewType == ViewJSON && !ret.AutoApprove {
