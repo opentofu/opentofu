@@ -213,7 +213,7 @@ func TestOutput_manyArgs(t *testing.T) {
 	}
 	code := c.Run(args)
 	output := done(t)
-	if code != 1 {
+	if code != RunResultHelp {
 		t.Fatalf("bad: \n%s", output.Stdout())
 	}
 }
