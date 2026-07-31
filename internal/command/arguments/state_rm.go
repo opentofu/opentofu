@@ -33,10 +33,7 @@ func BindStateRm(cli *CommandLine) *StateRm {
 	ret.ViewOptions.bind(cli, false)
 
 	ret.Vars = BindVars(cli)
-
-	ret.Backend = &Backend{}
-	ret.Backend.bindIgnoreRemoteVersionFlag(cli)
-
+	ret.Backend = BindBackend(cli)
 	ret.State = BindState(cli, stateFlagLock|stateFlagStateIn|stateFlagBackup)
 
 	cli.BoolVar(&ret.DryRun, "dry-run", false, "If set, prints out what would've been removed but doesn't actually remove anything.")

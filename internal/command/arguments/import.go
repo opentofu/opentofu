@@ -37,10 +37,7 @@ func BindImport(cli *CommandLine) *Import {
 	ret.ViewOptions.bind(cli, true)
 
 	ret.Vars = BindVars(cli)
-
-	ret.Backend = &Backend{}
-	ret.Backend.bindIgnoreRemoteVersionFlag(cli)
-
+	ret.Backend = BindBackend(cli)
 	ret.State = BindState(cli, stateFlagAll)
 
 	cli.IntVar(&ret.Parallelism, "parallelism", DefaultParallelism, `Limit the number of parallel resource operations. Defaults to 10.`).SetDisplay("=n")

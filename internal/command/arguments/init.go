@@ -62,10 +62,7 @@ func BindInit(cli *CommandLine) *Init {
 
 	init.Vars = BindVars(cli)
 	init.State = BindState(cli, stateFlagLock)
-
-	init.Backend = &Backend{}
-	init.Backend.bindIgnoreRemoteVersionFlag(cli)
-	init.Backend.bindMigrationFlags(cli)
+	init.Backend = BindBackendWithMigration(cli)
 
 	init.FlagConfigExtra = flagspkg.NewRawFlags("-backend-config")
 
@@ -95,7 +92,7 @@ func BindInit(cli *CommandLine) *Init {
 		case init.CloudFlagSet:
 			init.FlagBackend = init.FlagCloud
 		}
-		return init.Backend.migrationFlagsCheck()
+		return nil
 	}})
 
 	return &init

@@ -36,10 +36,7 @@ func BindStateReplaceProvider(cli *CommandLine) *StateReplaceProvider {
 	ret.ViewOptions.bind(cli, false)
 
 	ret.Vars = BindVars(cli)
-
-	ret.Backend = &Backend{}
-	ret.Backend.bindIgnoreRemoteVersionFlag(cli)
-
+	ret.Backend = BindBackend(cli)
 	ret.State = BindState(cli, stateFlagLock|stateFlagStateIn|stateFlagBackup)
 
 	cli.BoolVar(&ret.AutoApprove, "auto-approve", false, "Skip interactive approval.")
