@@ -11,6 +11,7 @@ import (
 	"log"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/dag"
@@ -189,10 +190,28 @@ func (n *NodePlanDeposedResourceInstanceObject) Execute(ctx context.Context, eva
 		if shouldDestroy {
 			change, planDiags = n.planDestroy(ctx, evalCtx, state, n.DeposedKey)
 		} else {
+			// Add id and name if present
+			var idStr string
+			if state != nil && !state.Value.IsNull() && state.Value.IsKnown() {
+				val := state.Value
+				if val.Type().IsObjectType() {
+					if atys := val.Type().AttributeTypes(); atys["id"].Equals(cty.String) {
+						idVal := val.GetAttr("id")
+						if idVal.IsKnown() && !idVal.IsNull() {
+							idStr = fmt.Sprintf(" (id=%q)", idVal.AsString())
+						}
+					} else if atys["name"].Equals(cty.String) {
+						nameVal := val.GetAttr("name")
+						if nameVal.IsKnown() && !nameVal.IsNull() {
+							idStr = fmt.Sprintf(" (id=%q)", nameVal.AsString())
+						}
+					}
+				}
+			}
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagWarning,
-				Summary:  "Resource will be removed from the state",
-				Detail:   fmt.Sprintf("After this plan is applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", n.Addr),
+				Summary:  "Objects will be removed from state",
+				Detail:   fmt.Sprintf("After this plan is applied, the objects associated with the following\nresource instances will no longer be managed by OpenTofu:\n - %s%s\n\nThese objects will continue to exist in the remote system until you delete\nthem outside of OpenTofu. If you wish to manage any of these objects with\nOpenTofu again in future then you will need to re-import them.", n.Addr, idStr),
 			})
 			log.Printf("[DEBUG] NodePlanDeposedResourceInstanceObject.Execute: %s (deposed %s) planning forget instead of destroy", n.Addr, n.DeposedKey)
 			change = n.planForget(ctx, evalCtx, state, n.DeposedKey)
