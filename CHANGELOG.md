@@ -2,6 +2,10 @@ The v1.11.x release series is supported until **August 1 2026**.
 
 ## 1.11.14 (Unreleased)
 
+SECURITY ADVISORIES:
+
+- When interacting with OCI Distribution registries for module or provider package installation, previous versions of OpenTofu could incorrectly resend credentials intended for the original origin to the target of an HTTP redirect. ([#4423](https://github.com/opentofu/opentofu/pull/4423))
+
 ## 1.11.13
 
 SECURITY ADVISORIES:
