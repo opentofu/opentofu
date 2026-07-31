@@ -161,6 +161,14 @@ type OutputChangeSrc struct {
 	// should elide the actual values while still indicating the action of the
 	// change.
 	Sensitive bool
+
+	// SensitiveBefore records whether the output was sensitive in the prior
+	// state. Combined with Sensitive (which represents whether either the old
+	// or new value is sensitive), this allows the human-readable plan renderer
+	// to distinguish between a sensitivity increase and a sensitivity decrease.
+	// This is not persisted in the plan file; it is only available for
+	// in-memory plans.
+	SensitiveBefore bool
 }
 
 // Decode unmarshals the raw representation of the output value being
@@ -171,9 +179,10 @@ func (ocs *OutputChangeSrc) Decode() (*OutputChange, error) {
 		return nil, err
 	}
 	return &OutputChange{
-		Addr:      ocs.Addr,
-		Change:    *change,
-		Sensitive: ocs.Sensitive,
+		Addr:            ocs.Addr,
+		Change:          *change,
+		Sensitive:       ocs.Sensitive,
+		SensitiveBefore: ocs.SensitiveBefore,
 	}, nil
 }
 

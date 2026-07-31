@@ -529,6 +529,11 @@ type OutputChange struct {
 	// should elide the actual values while still indicating the action of the
 	// change.
 	Sensitive bool
+
+	// SensitiveBefore records whether the output was sensitive in the prior
+	// state. This allows the human-readable renderer to distinguish between
+	// sensitivity increases and decreases.
+	SensitiveBefore bool
 }
 
 // Encode produces a variant of the receiver that has its change values
@@ -539,9 +544,10 @@ func (oc *OutputChange) Encode() (*OutputChangeSrc, error) {
 		return nil, err
 	}
 	return &OutputChangeSrc{
-		Addr:      oc.Addr,
-		ChangeSrc: *cs,
-		Sensitive: oc.Sensitive,
+		Addr:            oc.Addr,
+		ChangeSrc:       *cs,
+		Sensitive:       oc.Sensitive,
+		SensitiveBefore: oc.SensitiveBefore,
 	}, err
 }
 
