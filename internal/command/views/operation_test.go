@@ -93,7 +93,7 @@ func TestOperation_planNoChanges(t *testing.T) {
 					Changes: plans.NewChanges(),
 				}
 			},
-			"no differences, so no changes are needed.",
+			"No changes. Your infrastructure matches the configuration.",
 		},
 		"nothing at all in refresh-only mode": {
 			func(schemas *tofu.Schemas) *plans.Plan {

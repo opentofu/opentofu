@@ -147,7 +147,7 @@ func (plan Plan) renderHuman(renderer Renderer, mode plans.Mode, opts ...plans.Q
 					renderer.Streams.Println("")
 				}
 				renderer.Streams.Print(
-					renderer.Colorize.Color("\n[reset][bold][green]No changes.[reset][bold] Your infrastructure matches the configuration.[reset]\n\n"),
+					renderer.Colorize.Color("\n[reset][bold][green]No changes.[reset][bold] Your infrastructure matches the configuration.[reset]\n"),
 				)
 
 				if haveRefreshChanges {
@@ -157,7 +157,7 @@ func (plan Plan) renderHuman(renderer Renderer, mode plans.Mode, opts ...plans.Q
 						// we detected during refresh, so we'll reassure the user
 						// about that.
 						renderer.Streams.Println(format.WordWrap(
-							"Your configuration already matches the changes detected above, so applying this plan will only update the state to include the changes detected above and won't change any real infrastructure.",
+							"\nYour configuration already matches the changes detected above, so applying this plan will only update the state to include the changes detected above and won't change any real infrastructure.",
 							renderer.Streams.Stdout.Columns(),
 						))
 					} else {
@@ -171,7 +171,7 @@ func (plan Plan) renderHuman(renderer Renderer, mode plans.Mode, opts ...plans.Q
 							suggestion = ":\n  tofu apply -refresh-only"
 						}
 						renderer.Streams.Println(format.WordWrap(
-							"Your configuration already matches the changes detected above. If you'd like to update the OpenTofu state to match, create and apply a refresh-only plan"+suggestion,
+							"\nYour configuration already matches the changes detected above. If you'd like to update the OpenTofu state to match, create and apply a refresh-only plan"+suggestion,
 							renderer.Streams.Stdout.Columns(),
 						))
 					}
@@ -180,10 +180,6 @@ func (plan Plan) renderHuman(renderer Renderer, mode plans.Mode, opts ...plans.Q
 
 				// If we get down here then we're just in the simple situation where
 				// the plan isn't applyable at all.
-				renderer.Streams.Println(format.WordWrap(
-					"OpenTofu has compared your real infrastructure against your configuration and found no differences, so no changes are needed.",
-					renderer.Streams.Stdout.Columns(),
-				))
 				if checkOpts(plans.Targeted) {
 					renderer.Streams.Println(format.WordWrap(
 						"\nNote: You used the -target option, so OpenTofu only checked resources matching those targets and may have skipped others. If you expected changes to appear, verify that the addresses passed to -target are correct.",

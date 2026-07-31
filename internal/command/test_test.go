@@ -1243,9 +1243,6 @@ foo = "bar"
 
 No changes. Your infrastructure matches the configuration.
 
-OpenTofu has compared your real infrastructure against your configuration and
-found no differences, so no changes are needed.
-
 Success! 2 passed, 0 failed.
 `, filepath.FromSlash("tests/test.tftest.hcl")),
 			code: 0,
