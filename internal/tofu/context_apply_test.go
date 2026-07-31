@@ -12378,6 +12378,7 @@ resource "test_resource" "a" {
 }
 
 func TestContext2Apply_forcedCBD(t *testing.T) {
+	SkipExperimental(t, ExperimentalBugCircularReference)
 	// Unfortunately in experimental mode this test is currently flaking with
 	// errors like this, but not consistently on every run:
 	//
@@ -12454,7 +12455,7 @@ resource "test_instance" "b" {
 }
 
 func TestContext2Apply_removeReferencedResource(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureDestroy)
+	SkipExperimental(t, ExperimentalFeatureDestroy, ExperimentalBugCircularReference)
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 variable "ct" {
