@@ -115,7 +115,7 @@ require (
 	k8s.io/apimachinery v0.34.1
 	k8s.io/client-go v0.34.1
 	k8s.io/utils v0.0.0-20251002143259-bc988d571ff4
-	oras.land/oras-go/v2 v2.6.0
+	oras.land/oras-go/v2 v2.6.1
 )
 
 require (
