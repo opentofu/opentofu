@@ -40,7 +40,7 @@ func BindStateShow(cli *CommandLine) *StateShow {
 
 	cli.BoolVar(&ret.ShowSensitive, "show-sensitive", false, "If specified, sensitive values will be displayed.")
 
-	cli.PositionalArg(&ret.TargetRawAddr, "target address", false)
+	cli.PositionalArg(&ret.TargetRawAddr, "ADDRESS", false)
 
 	return &ret
 }

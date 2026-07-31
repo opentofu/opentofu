@@ -48,11 +48,11 @@ func BindStateMv(cli *CommandLine) *StateMv {
 	ret.State.bindBackupFlag(cli, "-")
 	// StateFlagBackup omitted here to be added later with a different default value
 
-	cli.BoolVar(&ret.DryRun, "dry-run", false, "dry run")
-	cli.StringVar(&ret.BackupPathOut, "backup-out", "-", "backup")
+	cli.BoolVar(&ret.DryRun, "dry-run", false, "If set, prints out what would've been moved but doesn't actually move anything.")
+	cli.StringVar(&ret.BackupPathOut, "backup-out", "-", "Legacy state backup option").SetHidden(true)
 
-	cli.PositionalArg(&ret.RawSrcAddr, "src addr", false)
-	cli.PositionalArg(&ret.RawDestAddr, "dest addr", false)
+	cli.PositionalArg(&ret.RawSrcAddr, "SOURCE", false)
+	cli.PositionalArg(&ret.RawDestAddr, "DESTINATION", false)
 
 	return &ret
 }

@@ -26,9 +26,9 @@ func (b *Backend) bindIgnoreRemoteVersionFlag(f *CommandLine) {
 }
 
 func (b *Backend) bindMigrationFlags(f *CommandLine) {
-	f.BoolVar(&b.ForceInitCopy, "force-copy", false, "suppress prompts about copying state data")
-	f.BoolVar(&b.Reconfigure, "reconfigure", false, "reconfigure")
-	f.BoolVar(&b.MigrateState, "migrate-state", false, "migrate state")
+	f.BoolVar(&b.ForceInitCopy, "force-copy", false, `Suppress prompts about copying state data when initializing a new state backend. This is equivalent to providing a "yes" to all confirmation prompts.`)
+	f.BoolVar(&b.Reconfigure, "reconfigure", false, `Reconfigure a backend, ignoring any saved configuration.`)
+	f.BoolVar(&b.MigrateState, "migrate-state", false, `Reconfigure a backend, and attempt to migrate any existing state.`)
 }
 
 func (b *Backend) migrationFlagsCheck() (diags tfdiags.Diagnostics) {

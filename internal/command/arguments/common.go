@@ -8,6 +8,7 @@ package arguments
 import (
 	"flag"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/opentofu/opentofu/internal/command/flags"
@@ -16,33 +17,18 @@ import (
 )
 
 type CommandLine struct {
-	Flags   map[string]*Flag
+	Flags      map[string]*Flag
+	FlagGroups []FlagGroup
+
 	Args    []Argument
 	ArgHelp string
-	Hooks   Hooks
+
+	Hooks Hooks
 }
 
-func (c CommandLine) Stdlib(name string, args []string) (func(), tfdiags.Diagnostics) {
+func (c CommandLine) PositionalArgs(remaining []string) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
-	cmdFlags := defaultFlagSet(name)
-	for _, flag := range c.Flags {
-		flag.Stdlib(cmdFlags)
-	}
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line options",
-			err.Error(),
-		))
-	}
-
-	// Record flag set state (init hack)
-	for _, flag := range c.Flags {
-		flag.IsSet = flags.FlagIsSet(cmdFlags, flag.Name)
-	}
-
-	remaining := cmdFlags.Args()
 	argsErrored := false
 	nRequired := 0
 	nOptional := 0
@@ -100,6 +86,66 @@ func (c CommandLine) Stdlib(name string, args []string) (func(), tfdiags.Diagnos
 		))
 	}
 
+	return diags
+}
+
+func (c CommandLine) Attach(flags *pflag.FlagSet) {
+	for _, flag := range c.Flags {
+		flag.Cobra(flags)
+	}
+}
+
+func (c CommandLine) StdlibArgs(args []string) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+
+	// Special re-ordering of arguments for "global" options
+	var globalFlags []string
+	var rest []string
+	for _, arg := range args {
+		isGlobal := false
+		for _, flag := range c.Flags {
+			if flag.Global {
+				if strings.HasPrefix(arg, "-"+flag.Name) || strings.HasPrefix(arg, "--"+flag.Name) {
+					isGlobal = true
+				}
+			}
+		}
+		if isGlobal {
+			globalFlags = append(globalFlags, arg)
+		} else {
+			rest = append(rest, arg)
+		}
+	}
+	if len(globalFlags) > 0 {
+		args = append(globalFlags, rest...)
+	}
+
+	cmdFlags := defaultFlagSet("")
+	for _, flag := range c.Flags {
+		flag.Stdlib(cmdFlags)
+	}
+	if err := cmdFlags.Parse(args); err != nil {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Failed to parse command-line options",
+			err.Error(),
+		))
+	}
+
+	// Record flag set state (init hack)
+	for _, flag := range c.Flags {
+		flag.IsSet = flags.FlagIsSet(cmdFlags, flag.Name)
+	}
+
+	remaining := cmdFlags.Args()
+
+	diags = diags.Append(c.PositionalArgs(remaining))
+
+	return diags
+}
+
+func (c CommandLine) Stdlib(name string, args []string) (func(), tfdiags.Diagnostics) {
+	diags := c.StdlibArgs(args)
 	// Process hooks
 	return func() { c.Hooks.Post() }, diags.Append(c.Hooks.Pre())
 }
@@ -198,6 +244,7 @@ type Flag struct {
 	GroupID string
 	Display string
 	Hidden  bool
+	Global  bool
 
 	Cobra  func(*pflag.FlagSet)
 	Stdlib func(*flag.FlagSet)
@@ -218,11 +265,16 @@ func (f *Flag) SetHidden(hidden bool) *Flag {
 	f.Hidden = hidden
 	return f
 }
+func (f *Flag) SetGlobal(mixed bool) *Flag {
+	f.Global = mixed
+	return f
+}
 
 type FlagGroup struct {
 	ID          string
 	Title       string
 	Description string
+	Suffix      string
 }
 
 type Hook struct {

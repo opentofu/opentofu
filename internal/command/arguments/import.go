@@ -6,7 +6,6 @@
 package arguments
 
 import (
-	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -32,7 +31,7 @@ type Import struct {
 }
 
 // BindImport registers CLI arguments, returning a Import value and it's corresponding hooks.
-func BindImport(cli *CommandLine, wd *workdir.Dir) *Import {
+func BindImport(cli *CommandLine) *Import {
 	var ret Import
 
 	ret.ViewOptions.bind(cli, true)
@@ -46,11 +45,8 @@ func BindImport(cli *CommandLine, wd *workdir.Dir) *Import {
 	ret.State = &State{}
 	ret.State.bind(cli, stateFlagAll)
 
-	// Get the pwd since its our default -config flag value
-	pwd := wd.NormalizePath(wd.RootModuleDir())
-
-	cli.IntVar(&ret.Parallelism, "parallelism", DefaultParallelism, "parallelism")
-	cli.StringVar(&ret.ConfigPath, "config", pwd, "path")
+	cli.IntVar(&ret.Parallelism, "parallelism", DefaultParallelism, `Limit the number of parallel resource operations. Defaults to 10.`).SetDisplay("=n")
+	cli.StringVar(&ret.ConfigPath, "config", "", "Path to a directory of OpenTofu configuration files to use to configure the provider. Defaults to pwd. If no config files are present, they must be provided via the input prompts or env vars.").SetDisplay("=path")
 
 	cli.ArgHelp = "The import command expects two arguments"
 	cli.PositionalArg(&ret.ResourceAddress, "ADDR", false)
@@ -62,9 +58,9 @@ func BindImport(cli *CommandLine, wd *workdir.Dir) *Import {
 // ParseImport processes CLI arguments, returning an Import value, a closer function, and errors.
 // If errors are encountered, an Import value is still returned representing
 // the best effort interpretation of the arguments.
-func ParseImport(args []string, wd *workdir.Dir) (*Import, func(), tfdiags.Diagnostics) {
+func ParseImport(args []string) (*Import, func(), tfdiags.Diagnostics) {
 	cli := new(CommandLine)
-	ret := BindImport(cli, wd)
+	ret := BindImport(cli)
 	closer, diags := cli.Stdlib("import", args)
 	return ret, closer, diags
 }

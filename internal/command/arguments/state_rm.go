@@ -45,7 +45,7 @@ func BindStateRm(cli *CommandLine) *StateRm {
 
 	cli.BoolVar(&ret.DryRun, "dry-run", false, "If set, prints out what would've been removed but doesn't actually remove anything.")
 
-	cli.VariadicArg(&ret.TargetAddrs, "target addresses")
+	cli.VariadicArg(&ret.TargetAddrs, "ADDRESS")
 
 	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
 		if len(ret.TargetAddrs) == 0 {
