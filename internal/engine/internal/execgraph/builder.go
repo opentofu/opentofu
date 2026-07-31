@@ -351,6 +351,13 @@ func (b *Builder) MutableWaiter() (AnyResultRef, func(AnyResultRef)) {
 	idx := appendIndex(&b.graph.waiters, []AnyResultRef{})
 	ref := waiterResultRef{idx}
 	registerFunc := func(ref AnyResultRef) {
+		if ref == nil {
+			// Letting a nil be registered here causes us to have a malformed
+			// graph that misbehaves when round-tripping through
+			// marshal/unmarshal, so we'll reject it early to avoid a confusing
+			// error later.
+			panic("attempt to register nil result ref in waiter")
+		}
 		b.graph.waiters[idx] = append(b.graph.waiters[idx], ref)
 	}
 	return ref, registerFunc

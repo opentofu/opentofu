@@ -329,5 +329,12 @@ func (s *resourceInstanceObjectSubgraph) DeleteDependsOn(r execgraph.AnyResultRe
 	if s.addOrphanDep == nil {
 		panic("attempt to add deletion dependency for object that has no deletion leg")
 	}
+	if r == nil {
+		// The stub subgraphs we create for resource instance objects whose results
+		// are needed even though they aren't being changed have a nil deletion
+		// ref because they aren't being deleted, and so we'll silently ignore
+		// that situation here just to centralize this special case in one place.
+		return
+	}
 	s.addOrphanDep(r)
 }
