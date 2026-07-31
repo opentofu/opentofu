@@ -54,8 +54,6 @@ func (c UnlockCommand) Execute(args *arguments.Unlock, view views.Unlock) int {
 	ctx, span := tracing.Tracer().Start(ctx, "Unlock")
 	defer span.End()
 
-	c.Meta.variableArgs = args.Vars.All()
-
 	lockID := args.LockID
 
 	// This gets the current directory as full path.

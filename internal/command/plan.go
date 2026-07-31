@@ -58,18 +58,7 @@ func (c PlanCommand) Execute(args *arguments.Plan, view views.Plan) int {
 		return 1
 	}
 
-	// FIXME: the -parallelism flag is used to control the concurrency of
-	// OpenTofu operations. At the moment, this value is used both to
-	// initialize the backend via the ContextOpts field inside CLIOpts, and to
-	// set a largely unused field on the Operation request. Again, there is no
-	// clear path to pass this value down, so we continue to mutate the Meta
-	// object state for now.
-	c.Meta.parallelism = args.Operation.Parallelism
-
 	diags = diags.Append(c.providerDevOverrideRuntimeWarnings())
-
-	// Inject variables from args into meta for static evaluation
-	c.Meta.variableArgs = args.Vars.All()
 
 	// Load the encryption configuration
 	enc, encDiags := c.Encryption(ctx)
@@ -119,8 +108,6 @@ func (c PlanCommand) Execute(args *arguments.Plan, view views.Plan) int {
 }
 
 func (c *PlanCommand) PrepareBackend(ctx context.Context, args *arguments.State, view views.Plan, enc encryption.Encryption) (backend.Enhanced, tfdiags.Diagnostics) {
-	c.Meta.stateArgs = *args
-
 	backendConfig, diags := c.loadBackendConfig(ctx, ".")
 	if diags.HasErrors() {
 		return nil, diags

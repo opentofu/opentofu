@@ -67,6 +67,7 @@ type State struct {
 // bind is the sole logic of registering the state related flags in OpenTofu.
 func BindState(cli *CommandLine, mask stateFlag) *State {
 	var s State
+	cli.State = &s
 	if mask&stateFlagLock != 0 {
 		cli.BoolVar(&s.Lock, "lock", true,
 			`Don't hold a state lock during the operation. This is dangerous if others might concurrently run commands against the same workspace.`,
@@ -350,6 +351,8 @@ func (v *Vars) Empty() bool {
 // bind registers all Operation flags
 func BindOperation(cli *CommandLine) *Operation {
 	var operation Operation
+	cli.Operation = &operation
+
 	cli.IntVar(&operation.Parallelism, "parallelism", DefaultParallelism,
 		`Limit the number of parallel resource operations. Defaults to 10.`,
 	).SetDisplay("=n")
@@ -384,6 +387,8 @@ func BindOperation(cli *CommandLine) *Operation {
 // bind registers all Vars flags
 func BindVars(cli *CommandLine) *Vars {
 	var vars Vars
+	cli.Vars = &vars
+
 	varsFlags := flags.NewRawFlags("-var")
 	varFilesFlags := varsFlags.Alias("-var-file")
 	vars.vars = &varsFlags

@@ -87,14 +87,6 @@ func (c ApplyCommand) Execute(args *arguments.Apply, view views.Apply) int {
 		return 1
 	}
 
-	// FIXME: the -input flag value is needed to initialize the backend and the
-	// operation, but there is no clear path to pass this value down, so we
-	// continue to mutate the Meta object state for now.
-	c.Meta.input = args.View.InputEnabled
-
-	// Inject variables from args into meta for static evaluation
-	c.Meta.variableArgs = args.Vars.All()
-
 	// Load the encryption configuration
 	enc, encDiags := c.Encryption(ctx)
 	diags = diags.Append(encDiags)
@@ -109,14 +101,6 @@ func (c ApplyCommand) Execute(args *arguments.Apply, view views.Apply) int {
 		view.Diagnostics(diags)
 		return 1
 	}
-
-	// FIXME: the -parallelism flag is used to control the concurrency of
-	// OpenTofu operations. At the moment, this value is used both to
-	// initialize the backend via the ContextOpts field inside CLIOpts, and to
-	// set a largely unused field on the Operation request. Again, there is no
-	// clear path to pass this value down, so we continue to mutate the Meta
-	// object state for now.
-	c.Meta.parallelism = args.Operation.Parallelism
 
 	// Prepare the backend, passing the plan file if present, and the
 	// backend-specific arguments
@@ -215,8 +199,6 @@ func (c *ApplyCommand) LoadPlanFile(path string, enc encryption.Encryption) (*pl
 
 func (c *ApplyCommand) PrepareBackend(ctx context.Context, planFile *planfile.WrappedPlanFile, args *arguments.State, backendView views.Backend, enc encryption.StateEncryption) (backend.Enhanced, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-
-	c.Meta.stateArgs = *args
 
 	// Load the backend
 	var be backend.Enhanced

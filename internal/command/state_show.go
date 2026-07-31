@@ -53,9 +53,6 @@ func (c StateShowCommand) Execute(args *arguments.StateShow, view views.State) i
 
 	ctx := c.CommandContext()
 
-	c.Meta.variableArgs = args.Vars.All()
-	c.Meta.stateArgs = *args.State
-
 	// Check for user-supplied plugin path
 	var err error
 	if c.pluginPath, err = c.loadPluginPath(); err != nil {

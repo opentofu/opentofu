@@ -45,8 +45,6 @@ func (c WorkspaceSelectCommand) Execute(args *arguments.WorkspaceSelect, view vi
 	var diags tfdiags.Diagnostics
 	ctx := c.CommandContext()
 
-	c.Meta.variableArgs = args.Vars.All()
-
 	view.WarnWhenUsedAsEnvCmd(c.LegacyName)
 
 	configPath := c.WorkingDir.NormalizePath(c.WorkingDir.RootModuleDir())

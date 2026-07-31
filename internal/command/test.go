@@ -150,10 +150,6 @@ func (c TestCommand) Execute(args *arguments.Test, view views.Test) int {
 	var diags tfdiags.Diagnostics
 	ctx := c.CommandContext()
 
-	// Users can also specify variables via the command line, so we'll parse
-	// all that here.
-	c.variableArgs = args.Vars.All()
-
 	variables, variableDiags := c.collectVariableValuesWithTests(args.TestDirectory)
 	diags = diags.Append(variableDiags)
 	if variableDiags.HasErrors() {

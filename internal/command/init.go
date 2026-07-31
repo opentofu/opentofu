@@ -83,9 +83,6 @@ func (c InitCommand) Execute(args *arguments.Init, view views.Init) int {
 	if len(args.FlagPluginPath) > 0 {
 		c.pluginPath = args.FlagPluginPath
 	}
-	c.Meta.variableArgs = args.Vars.All()
-	c.Meta.stateArgs = *args.State
-	c.Meta.backendArgs = *args.Backend
 
 	// This gets the current directory as full path.
 	path := c.WorkingDir.NormalizePath(c.WorkingDir.RootModuleDir())

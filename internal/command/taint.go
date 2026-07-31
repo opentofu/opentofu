@@ -62,9 +62,6 @@ func (c TaintCommand) Execute(args *arguments.Taint, view views.Taint) int {
 
 	ctx := c.CommandContext()
 
-	c.Meta.variableArgs = args.Vars.All()
-	c.Meta.stateArgs = *args.State
-
 	addr := args.TargetAddress
 
 	if diags := c.Meta.checkRequiredVersion(ctx); diags != nil {

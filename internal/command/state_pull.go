@@ -53,8 +53,6 @@ func (c StatePullCommand) Execute(args *arguments.StatePull, view views.State) i
 	var diags tfdiags.Diagnostics
 	ctx := c.CommandContext()
 
-	c.Meta.variableArgs = args.Vars.All()
-
 	if diags := c.Meta.checkRequiredVersion(ctx); diags != nil {
 		view.Diagnostics(diags)
 		return 1

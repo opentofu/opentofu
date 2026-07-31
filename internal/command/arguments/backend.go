@@ -23,6 +23,7 @@ type Backend struct {
 
 func BindBackend(cli *CommandLine) *Backend {
 	var b Backend
+	cli.Backend = &b
 	cli.BoolVar(&b.IgnoreRemoteVersion, "ignore-remote-version", false, "A rare option used for the remote backend only. See the remote backend documentation for more information.")
 	return &b
 }
