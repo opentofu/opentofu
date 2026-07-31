@@ -32,10 +32,7 @@ func BindStatePush(cli *CommandLine) *StatePush {
 	ret.ViewOptions.bind(cli, false)
 
 	ret.Vars = BindVars(cli)
-
-	ret.Backend = &Backend{}
-	ret.Backend.bindIgnoreRemoteVersionFlag(cli)
-
+	ret.Backend = BindBackend(cli)
 	ret.State = BindState(cli, stateFlagLock)
 
 	cli.BoolVar(&ret.Force, "force", false, "Write the state even if lineages don't match or the remote serial is higher.")

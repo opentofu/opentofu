@@ -39,10 +39,7 @@ func BindTaint(cli *CommandLine, isTaint bool) *Taint {
 	arguments.ViewOptions.bind(cli, false)
 
 	arguments.Vars = BindVars(cli)
-
-	arguments.Backend = &Backend{}
-	arguments.Backend.bindIgnoreRemoteVersionFlag(cli)
-
+	arguments.Backend = BindBackend(cli)
 	arguments.State = BindState(cli, stateFlagAll)
 
 	cli.BoolVar(&arguments.AllowMissing, "allow-missing", false, "If specified, the command will succeed (exit code 0) even if the resource is missing.")
