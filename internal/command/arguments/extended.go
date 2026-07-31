@@ -91,7 +91,7 @@ func (s *State) bind(cli *CommandLine, mask stateFlag) {
 func (s *State) bindStateInFlag(cli *CommandLine, defVal string) {
 	cli.StringVar(&s.StatePath, "state", defVal,
 		`A legacy option used for the local backend only. Refer to the local backend's documentation for more information.`,
-	).SetDisplay("=statefile")
+	).SetDisplay("=statefile").SetHidden(true)
 }
 
 // bindBackupFlag exists strictly because the default value can get a different value in some commands.

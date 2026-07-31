@@ -37,11 +37,13 @@ func BindOutput(cli *CommandLine) *Output {
 	output.State.bind(cli, stateFlagStateIn)
 
 	rawOutput := false
-	cli.BoolVar(&rawOutput, "raw", false, "For value types that can be automatically converted to a string, will print the raw string directly, rather than a human-oriented representation of the value.")
+	cli.BoolVar(&rawOutput, "raw", false, `For value types that can be automatically converted to a string, will print the raw string directly, rather than a human-oriented representation of the value.
+
+Use this with care when stdout is a terminal and when the output value might contain control characters.`)
 	cli.BoolVar(&output.ShowSensitive, "show-sensitive", false, "If specified, sensitive values will be displayed.")
 
 	cli.ArgHelp = "The output command expects exactly one argument with the name of an output variable or no arguments to show all outputs."
-	cli.PositionalArg(&output.Name, "output name", true)
+	cli.PositionalArg(&output.Name, "NAME", true)
 
 	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
 		var diags tfdiags.Diagnostics
