@@ -38,12 +38,7 @@ func TestRenderHuman_EmptyPlan(t *testing.T) {
 	renderer := Renderer{Colorize: color, Streams: streams}
 	plan.renderHuman(renderer, plans.NormalMode)
 
-	want := `
-No changes. Your infrastructure matches the configuration.
-
-OpenTofu has compared your real infrastructure against your configuration and
-found no differences, so no changes are needed.
-`
+	want := "\nNo changes. Your infrastructure matches the configuration.\n"
 
 	got := done(t).Stdout()
 	if diff := cmp.Diff(want, got); len(diff) > 0 {
@@ -69,12 +64,7 @@ func TestRenderHuman_EmptyOutputs(t *testing.T) {
 	renderer := Renderer{Colorize: color, Streams: streams}
 	plan.renderHuman(renderer, plans.NormalMode)
 
-	want := `
-No changes. Your infrastructure matches the configuration.
-
-OpenTofu has compared your real infrastructure against your configuration and
-found no differences, so no changes are needed.
-`
+	want := "\nNo changes. Your infrastructure matches the configuration.\n"
 
 	got := done(t).Stdout()
 	if diff := cmp.Diff(want, got); len(diff) > 0 {
@@ -94,6 +84,9 @@ func TestRenderHuman_NoChanges_Targeted(t *testing.T) {
 	got := done(t).Stdout()
 	if !strings.Contains(got, "You used the -target option") {
 		t.Errorf("expected output to contain a -target hint when Targeted quality is set, got:\n%s", got)
+	}
+	if want := "configuration.\n\nNote: You used the -target option"; !strings.Contains(got, want) {
+		t.Errorf("wrong spacing before the -target hint\ngot:\n%q\n\nwant substring: %q", got, want)
 	}
 }
 
