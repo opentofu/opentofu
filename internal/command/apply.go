@@ -54,6 +54,11 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	// diagnostics according to the desired view
 	view := views.NewApply(args.ViewOptions, c.Destroy, c.View)
 
+	// FIXME: the -input flag value is needed to initialize the backend and the
+	// operation, but there is no clear path to pass this value down, so we
+	// continue to mutate the Meta object state for now.
+	c.Meta.input = args.ViewOptions.InputEnabled
+
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
 		view.HelpPrompt()
@@ -85,11 +90,6 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 		view.Diagnostics(diags)
 		return 1
 	}
-
-	// FIXME: the -input flag value is needed to initialize the backend and the
-	// operation, but there is no clear path to pass this value down, so we
-	// continue to mutate the Meta object state for now.
-	c.Meta.input = args.ViewOptions.InputEnabled
 
 	// FIXME: the -parallelism flag is used to control the concurrency of
 	// OpenTofu operations. At the moment, this value is used both to
