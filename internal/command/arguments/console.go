@@ -35,13 +35,13 @@ func BindConsole(cli *CommandLine) *Console {
 		// If the user provided the -json flag, we don't allow it since the UX is just poor in this case.
 		// We allow only the streaming of the evaluated values in a json file, by using the `-json-into` flag.
 		if console.ViewOptions.ViewType == ViewJSON {
+			// Revert the view type to be able to print the diagnostic properly
+			console.ViewOptions.ViewType = ViewHuman
 			return tfdiags.New(tfdiags.Sourceless(
 				tfdiags.Error,
 				"Output only in json is not allowed",
 				"In case you want to stream the output of the console into json, use the \"-json-into\" instead.",
 			))
-			// Revert the view type to be able to print the diagnostic properly
-			console.ViewOptions.ViewType = ViewHuman
 		}
 		return nil
 	}})
