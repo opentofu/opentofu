@@ -11,8 +11,6 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/opentofu/opentofu/internal/command/flags"
 
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -20,21 +18,21 @@ import (
 func TestParseTest_Vars(t *testing.T) {
 	tcs := map[string]struct {
 		args []string
-		want []flags.RawFlag
+		want Vars
 	}{
 		"no var flags by default": {
 			args: nil,
-			want: nil,
+			want: Vars{},
 		},
 		"one var": {
 			args: []string{"-var", "foo=bar"},
-			want: []flags.RawFlag{
+			want: Vars{
 				{Name: "-var", Value: "foo=bar"},
 			},
 		},
 		"one var-file": {
 			args: []string{"-var-file", "cool.tfvars"},
-			want: []flags.RawFlag{
+			want: Vars{
 				{Name: "-var-file", Value: "cool.tfvars"},
 			},
 		},
@@ -44,7 +42,7 @@ func TestParseTest_Vars(t *testing.T) {
 				"-var-file", "cool.tfvars",
 				"-var", "boop=beep",
 			},
-			want: []flags.RawFlag{
+			want: Vars{
 				{Name: "-var", Value: "foo=bar"},
 				{Name: "-var-file", Value: "cool.tfvars"},
 				{Name: "-var", Value: "boop=beep"},
@@ -142,13 +140,11 @@ func TestParseTest(t *testing.T) {
 		},
 	}
 
-	cmpOpts := cmpopts.IgnoreUnexported(Operation{}, Vars{}, State{})
-
 	for name, tc := range tcs {
 		t.Run(name, func(t *testing.T) {
 			got, _, diags := ParseTest(tc.args)
 
-			if diff := cmp.Diff(tc.want, got, cmpOpts); len(diff) > 0 {
+			if diff := cmp.Diff(tc.want, got); len(diff) > 0 {
 				t.Errorf("diff:\n%s", diff)
 			}
 

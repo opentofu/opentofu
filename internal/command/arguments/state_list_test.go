@@ -63,7 +63,6 @@ func TestParseStateList_basicValidation(t *testing.T) {
 	}
 
 	cmpOpts := cmp.Options{
-		cmpopts.IgnoreUnexported(Vars{}),
 		cmpopts.IgnoreFields(View{}, "JSONInto"), // We ignore JSONInto because it contains a file which is not really diffable
 	}
 

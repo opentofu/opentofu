@@ -129,17 +129,6 @@ type Operation struct {
 	// a module all at once. We could potentially loosen this later if we
 	// learn a use-case for broader matching.
 	ForceReplace []addrs.AbsResourceInstance
-
-	// These private fields are used only temporarily during decoding. Use
-	// method Parse to populate the exported fields from these, validating
-	// the raw values in the process.
-	targetsRaw       []string
-	targetsFilesRaw  []string
-	excludesRaw      []string
-	excludesFilesRaw []string
-	forceReplaceRaw  []string
-	destroyRaw       bool
-	refreshOnlyRaw   bool
 }
 
 // parseDirectTargetables gets a list of strings passed from directly from the CLI
@@ -254,74 +243,118 @@ func parseRawTargetsAndExcludes(targetsDirect, excludesDirect []string, targetFi
 	return allParsedTargets, allParsedExcludes, diags
 }
 
-// Parse must be called on Operation after initial flag parse. This processes
-// the raw target flags into addrs.Targetable values, returning diagnostics if
-// invalid.
-func (o *Operation) Parse() tfdiags.Diagnostics {
-	var diags tfdiags.Diagnostics
+// bind registers all Operation flags
+func BindOperation(cli *CommandLine) *Operation {
+	var o Operation
+	cli.Operation = &o
 
-	var parseDiags tfdiags.Diagnostics
-	o.Targets, o.Excludes, parseDiags = parseRawTargetsAndExcludes(o.targetsRaw, o.excludesRaw, o.targetsFilesRaw, o.excludesFilesRaw)
-	diags = diags.Append(parseDiags)
+	// These private fields are used only temporarily during decoding. Use
+	// method Parse to populate the exported fields from these, validating
+	// the raw values in the process.
+	var targetsRaw []string
+	var targetsFilesRaw []string
+	var excludesRaw []string
+	var excludesFilesRaw []string
+	var forceReplaceRaw []string
+	var destroyRaw bool
+	var refreshOnlyRaw bool
 
-	for _, raw := range o.forceReplaceRaw {
-		traversal, syntaxDiags := hclsyntax.ParseTraversalAbs([]byte(raw), "", hcl.Pos{Line: 1, Column: 1})
-		if syntaxDiags.HasErrors() {
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
-				fmt.Sprintf("Invalid force-replace address %q", raw),
-				syntaxDiags[0].Detail,
-			))
-			continue
+	cli.IntVar(&o.Parallelism, "parallelism", DefaultParallelism,
+		`Limit the number of parallel resource operations. Defaults to 10.`,
+	).SetDisplay("=n")
+	cli.BoolVar(&o.Refresh, "refresh", true,
+		`Skip checking for external changes to remote objects while creating the plan. This can potentially make planning faster, but at the expense of possibly planning against a stale record of the remote system state.`,
+	).SetDisplay("=false")
+	cli.BoolVar(&destroyRaw, "destroy", false,
+		`Select the "destroy" planning mode, which creates a plan to destroy all objects currently managed by this OpenTofu configuration instead of the usual behavior.`)
+	cli.BoolVar(&refreshOnlyRaw, "refresh-only", false,
+		`Select the "refresh only" planning mode, which checks whether remote objects still match the outcome of the most recent OpenTofu apply but does not propose any actions to undo any changes made outside of OpenTofu.`)
+	cli.StringArrayVar(&targetsRaw, "target", nil,
+		`Limit the planning operation to only the given module, resource, or resource instance and all of its dependencies. You can use this option multiple times to include more than one object. This is for exceptional use only. Cannot be used alongside the -exclude option.`,
+	).SetDisplay("=resource")
+	cli.StringArrayVar(&targetsFilesRaw, "target-file", nil,
+		`Similar to -target, but specifies zero or more resource addresses from a file.`,
+	).SetDisplay("=filename")
+	cli.StringArrayVar(&excludesRaw, "exclude", nil,
+		`Limit the planning operation to not operate on the given module, resource, or resource instance and all of the resources and modules that depend on it. You can use this option multiple times to exclude more than one object. This is for exceptional use only. Cannot be used together with the -target option.`,
+	).SetDisplay("=resource")
+	cli.StringArrayVar(&excludesFilesRaw, "exclude-file", nil,
+		`Similar to -exclude, but specifies zero or more resource addresses from a file.`,
+	).SetDisplay("=filename")
+	cli.StringArrayVar(&forceReplaceRaw, "replace", nil,
+		`Force replacement of a particular resource instance using its resource address. If the plan would've otherwise produced an update or no-op action for this instance, OpenTofu will plan to replace it instead. You can use this option multiple times to replace more than one object.`,
+	).SetDisplay("=resource")
+
+	// This processes the raw target flags into addrs.Targetable values, returning diagnostics if invalid.
+	cli.PreHook(func() tfdiags.Diagnostics {
+		var diags tfdiags.Diagnostics
+
+		var parseDiags tfdiags.Diagnostics
+		o.Targets, o.Excludes, parseDiags = parseRawTargetsAndExcludes(targetsRaw, excludesRaw, targetsFilesRaw, excludesFilesRaw)
+		diags = diags.Append(parseDiags)
+
+		for _, raw := range forceReplaceRaw {
+			traversal, syntaxDiags := hclsyntax.ParseTraversalAbs([]byte(raw), "", hcl.Pos{Line: 1, Column: 1})
+			if syntaxDiags.HasErrors() {
+				diags = diags.Append(tfdiags.Sourceless(
+					tfdiags.Error,
+					fmt.Sprintf("Invalid force-replace address %q", raw),
+					syntaxDiags[0].Detail,
+				))
+				continue
+			}
+
+			addr, addrDiags := addrs.ParseAbsResourceInstance(traversal)
+			if addrDiags.HasErrors() {
+				diags = diags.Append(tfdiags.Sourceless(
+					tfdiags.Error,
+					fmt.Sprintf("Invalid force-replace address %q", raw),
+					addrDiags[0].Description().Detail,
+				))
+				continue
+			}
+
+			if addr.Resource.Resource.Mode != addrs.ManagedResourceMode {
+				diags = diags.Append(tfdiags.Sourceless(
+					tfdiags.Error,
+					fmt.Sprintf("Invalid force-replace address %q", raw),
+					"Only managed resources can be used with the -replace=... option.",
+				))
+				continue
+			}
+
+			o.ForceReplace = append(o.ForceReplace, addr)
 		}
 
-		addr, addrDiags := addrs.ParseAbsResourceInstance(traversal)
-		if addrDiags.HasErrors() {
+		// If you add a new possible value for o.PlanMode here, consider also
+		// adding a specialized error message for it in ParseApplyDestroy.
+		switch {
+		case destroyRaw && refreshOnlyRaw:
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
-				fmt.Sprintf("Invalid force-replace address %q", raw),
-				addrDiags[0].Description().Detail,
+				"Incompatible plan mode options",
+				"The -destroy and -refresh-only options are mutually-exclusive.",
 			))
-			continue
+		case destroyRaw:
+			o.PlanMode = plans.DestroyMode
+		case refreshOnlyRaw:
+			o.PlanMode = plans.RefreshOnlyMode
+			if !o.Refresh {
+				diags = diags.Append(tfdiags.Sourceless(
+					tfdiags.Error,
+					"Incompatible refresh options",
+					"It doesn't make sense to use -refresh-only at the same time as -refresh=false, because OpenTofu would have nothing to do.",
+				))
+			}
+		default:
+			o.PlanMode = plans.NormalMode
 		}
 
-		if addr.Resource.Resource.Mode != addrs.ManagedResourceMode {
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
-				fmt.Sprintf("Invalid force-replace address %q", raw),
-				"Only managed resources can be used with the -replace=... option.",
-			))
-			continue
-		}
+		return diags
 
-		o.ForceReplace = append(o.ForceReplace, addr)
-	}
+	})
 
-	// If you add a new possible value for o.PlanMode here, consider also
-	// adding a specialized error message for it in ParseApplyDestroy.
-	switch {
-	case o.destroyRaw && o.refreshOnlyRaw:
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Incompatible plan mode options",
-			"The -destroy and -refresh-only options are mutually-exclusive.",
-		))
-	case o.destroyRaw:
-		o.PlanMode = plans.DestroyMode
-	case o.refreshOnlyRaw:
-		o.PlanMode = plans.RefreshOnlyMode
-		if !o.Refresh {
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
-				"Incompatible refresh options",
-				"It doesn't make sense to use -refresh-only at the same time as -refresh=false, because OpenTofu would have nothing to do.",
-			))
-		}
-	default:
-		o.PlanMode = plans.NormalMode
-	}
-
-	return diags
+	return &o
 }
 
 // Vars describes arguments which specify non-default variable values. This
@@ -329,75 +362,35 @@ func (o *Operation) Parse() tfdiags.Diagnostics {
 // determines the final value of the gathered variables. In future it might be
 // desirable for the arguments package to handle the gathering of variables
 // directly, returning a map of variable values.
-type Vars struct {
-	vars     *flags.RawFlags
-	varFiles *flags.RawFlags
+type Vars []flags.RawFlag
+
+func (v Vars) All() Vars {
+	return v
 }
 
-func (v *Vars) All() []flags.RawFlag {
-	if v.vars == nil {
-		return nil
-	}
-	return v.vars.AllItems()
-}
-
-func (v *Vars) Empty() bool {
-	if v.vars == nil {
-		return true
-	}
-	return v.vars.Empty()
-}
-
-// bind registers all Operation flags
-func BindOperation(cli *CommandLine) *Operation {
-	var operation Operation
-	cli.Operation = &operation
-
-	cli.IntVar(&operation.Parallelism, "parallelism", DefaultParallelism,
-		`Limit the number of parallel resource operations. Defaults to 10.`,
-	).SetDisplay("=n")
-	cli.BoolVar(&operation.Refresh, "refresh", true,
-		`Skip checking for external changes to remote objects while creating the plan. This can potentially make planning faster, but at the expense of possibly planning against a stale record of the remote system state.`,
-	).SetDisplay("=false")
-	cli.BoolVar(&operation.destroyRaw, "destroy", false,
-		`Select the "destroy" planning mode, which creates a plan to destroy all objects currently managed by this OpenTofu configuration instead of the usual behavior.`)
-	cli.BoolVar(&operation.refreshOnlyRaw, "refresh-only", false,
-		`Select the "refresh only" planning mode, which checks whether remote objects still match the outcome of the most recent OpenTofu apply but does not propose any actions to undo any changes made outside of OpenTofu.`)
-	cli.StringArrayVar(&operation.targetsRaw, "target", nil,
-		`Limit the planning operation to only the given module, resource, or resource instance and all of its dependencies. You can use this option multiple times to include more than one object. This is for exceptional use only. Cannot be used alongside the -exclude option.`,
-	).SetDisplay("=resource")
-	cli.StringArrayVar(&operation.targetsFilesRaw, "target-file", nil,
-		`Similar to -target, but specifies zero or more resource addresses from a file.`,
-	).SetDisplay("=filename")
-	cli.StringArrayVar(&operation.excludesRaw, "exclude", nil,
-		`Limit the planning operation to not operate on the given module, resource, or resource instance and all of the resources and modules that depend on it. You can use this option multiple times to exclude more than one object. This is for exceptional use only. Cannot be used together with the -target option.`,
-	).SetDisplay("=resource")
-	cli.StringArrayVar(&operation.excludesFilesRaw, "exclude-file", nil,
-		`Similar to -exclude, but specifies zero or more resource addresses from a file.`,
-	).SetDisplay("=filename")
-	cli.StringArrayVar(&operation.forceReplaceRaw, "replace", nil,
-		`Force replacement of a particular resource instance using its resource address. If the plan would've otherwise produced an update or no-op action for this instance, OpenTofu will plan to replace it instead. You can use this option multiple times to replace more than one object.`,
-	).SetDisplay("=resource")
-
-	cli.PreHook(operation.Parse)
-
-	return &operation
+func (v Vars) Empty() bool {
+	return len(v) == 0
 }
 
 // bind registers all Vars flags
 func BindVars(cli *CommandLine) *Vars {
-	var vars Vars
-	cli.Vars = &vars
-
 	varsFlags := flags.NewRawFlags("-var")
 	varFilesFlags := varsFlags.Alias("-var-file")
-	vars.vars = &varsFlags
-	vars.varFiles = &varFilesFlags
 	cli.RawFlags(varsFlags, "var",
 		`Set a value for one of the input variables in the root module of the configuration. Use this option more than once to set more than one variable.`,
 	).SetDisplay(" 'foo=bar'")
 	cli.RawFlags(varFilesFlags, "var-file",
 		`Load variable values from the given file, in addition to the default files terraform.tfvars and *.auto.tfvars. Use this option more than once to include more than one variables file.`,
 	).SetDisplay("=filename")
-	return &vars
+
+	vars := &Vars{}
+	cli.Vars = vars
+	cli.PreHook(func() tfdiags.Diagnostics {
+		if !varsFlags.Empty() {
+			*vars = varsFlags.AllItems()
+		}
+		return nil
+	})
+
+	return vars
 }
