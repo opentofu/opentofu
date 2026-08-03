@@ -40,25 +40,25 @@ func TestParseConsole_basicValidation(t *testing.T) {
 		"single var": {
 			args: []string{"-var=key=value"},
 			want: consoleArgsWithDefaults(func(console *Console) {
-				// Vars would be updated, but we ignore it in cmp
+				console.Vars = &Vars{{"-var", "key=value"}}
 			}),
 		},
 		"multiple vars": {
 			args: []string{"-var=key1=value1", "-var=key2=value2"},
 			want: consoleArgsWithDefaults(func(console *Console) {
-				// Vars would be updated, but we ignore it in cmp
+				console.Vars = &Vars{{"-var", "key1=value1"}, {"-var", "key2=value2"}}
 			}),
 		},
 		"var-file": {
 			args: []string{"-var-file=test.tfvars"},
 			want: consoleArgsWithDefaults(func(console *Console) {
-				// Vars would be updated, but we ignore it in cmp
+				console.Vars = &Vars{{"-var-file", "test.tfvars"}}
 			}),
 		},
 		"mixed vars and var-files": {
 			args: []string{"-var=key=value", "-var-file=test.tfvars", "-var=another=val"},
 			want: consoleArgsWithDefaults(func(console *Console) {
-				// Vars would be updated, but we ignore it in cmp
+				console.Vars = &Vars{{"-var", "key=value"}, {"-var-file", "test.tfvars"}, {"-var", "another=val"}}
 			}),
 		},
 		"only lock-timeout": {
@@ -77,7 +77,6 @@ func TestParseConsole_basicValidation(t *testing.T) {
 	}
 
 	cmpOpts := cmp.Options{
-		cmpopts.IgnoreUnexported(Vars{}),
 		cmpopts.IgnoreFields(View{}, "JSONInto"), // We ignore JSONInto because it contains a file which is not really diffable
 	}
 

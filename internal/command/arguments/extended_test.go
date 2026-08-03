@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -195,8 +194,6 @@ func TestStateFlagsParsing(t *testing.T) {
 		},
 	}
 
-	cmpOpts := cmpopts.IgnoreUnexported()
-
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			var cli CommandLine
@@ -207,7 +204,7 @@ func TestStateFlagsParsing(t *testing.T) {
 			if want, got := fmt.Sprintf("%s", tc.wantErr), fmt.Sprintf("%s", diags.Err()); !strings.Contains(got, want) {
 				t.Errorf("wanted error: %q, got error %q", want, got)
 			}
-			if diff := cmp.Diff(tc.want, s, cmpOpts); diff != "" {
+			if diff := cmp.Diff(tc.want, s); diff != "" {
 				t.Errorf("unexpected result (-want,+got)\n%s", diff)
 			}
 		})
@@ -320,8 +317,6 @@ func TestStateFlagsRegistering(t *testing.T) {
 			}),
 		},
 	}
-	cmpOpts := cmpopts.IgnoreUnexported()
-
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			var cli CommandLine
@@ -330,7 +325,7 @@ func TestStateFlagsRegistering(t *testing.T) {
 			if want, got := fmt.Sprintf("%s", tc.wantErr), fmt.Sprintf("%s", diags.Err()); !strings.Contains(got, want) {
 				t.Errorf("wanted error: %q, got error %q", want, got)
 			}
-			if diff := cmp.Diff(tc.want, s, cmpOpts); diff != "" {
+			if diff := cmp.Diff(tc.want, s); diff != "" {
 				t.Errorf("unexpected result (-want,+got)\n%s", diff)
 			}
 		})
