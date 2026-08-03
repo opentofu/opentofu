@@ -10,11 +10,9 @@ import (
 	"testing"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/plans"
 )
@@ -102,15 +100,13 @@ func TestParseApply_basicValid(t *testing.T) {
 		},
 	}
 
-	cmpOpts := cmpopts.IgnoreUnexported(Operation{}, Vars{}, State{})
-
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			got, _, diags := ParseApply(tc.args)
 			if len(diags) > 0 {
 				t.Fatalf("unexpected diags: %v", diags)
 			}
-			if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
+			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("unexpected result\n%s", diff)
 			}
 		})
@@ -717,21 +713,21 @@ func TestParseApply_replace(t *testing.T) {
 func TestParseApply_vars(t *testing.T) {
 	testCases := map[string]struct {
 		args []string
-		want []flags.RawFlag
+		want Vars
 	}{
 		"no var flags by default": {
 			args: nil,
-			want: nil,
+			want: Vars{},
 		},
 		"one var": {
 			args: []string{"-var", "foo=bar"},
-			want: []flags.RawFlag{
+			want: Vars{
 				{Name: "-var", Value: "foo=bar"},
 			},
 		},
 		"one var-file": {
 			args: []string{"-var-file", "cool.tfvars"},
-			want: []flags.RawFlag{
+			want: Vars{
 				{Name: "-var-file", Value: "cool.tfvars"},
 			},
 		},
@@ -741,7 +737,7 @@ func TestParseApply_vars(t *testing.T) {
 				"-var-file", "cool.tfvars",
 				"-var", "boop=beep",
 			},
-			want: []flags.RawFlag{
+			want: Vars{
 				{Name: "-var", Value: "foo=bar"},
 				{Name: "-var-file", Value: "cool.tfvars"},
 				{Name: "-var", Value: "boop=beep"},
@@ -808,15 +804,13 @@ func TestParseApplyDestroy_basicValid(t *testing.T) {
 		},
 	}
 
-	cmpOpts := cmpopts.IgnoreUnexported(Operation{}, Vars{}, State{})
-
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			got, _, diags := ParseApplyDestroy(tc.args)
 			if len(diags) > 0 {
 				t.Fatalf("unexpected diags: %v", diags)
 			}
-			if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
+			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("unexpected result\n%s", diff)
 			}
 		})

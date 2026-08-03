@@ -11,8 +11,6 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/opentofu/opentofu/internal/command/flags"
 )
 
 func TestParseImport_basicValidation(t *testing.T) {
@@ -77,6 +75,7 @@ func TestParseImport_basicValidation(t *testing.T) {
 			want: importArgsWithDefaults(func(imp *Import) {
 				imp.ResourceAddress = "addr"
 				imp.ResourceID = "id"
+				imp.Vars = &Vars{{"-var", "foo=bar"}, {"-var-file", "vars.tfvars"}}
 			}),
 		},
 		"input flag": {
@@ -113,8 +112,6 @@ func TestParseImport_basicValidation(t *testing.T) {
 		},
 	}
 
-	cmpOpts := cmpopts.IgnoreUnexported(Vars{})
-
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			got, closer, diags := ParseImport(tc.args)
@@ -131,7 +128,7 @@ func TestParseImport_basicValidation(t *testing.T) {
 				}
 			}
 			if !diags.HasErrors() {
-				if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
+				if diff := cmp.Diff(tc.want, got); diff != "" {
 					t.Errorf("unexpected result\n%s", diff)
 				}
 			}
@@ -186,8 +183,6 @@ func TestParseImport_vars(t *testing.T) {
 }
 
 func importArgsWithDefaults(mutate func(imp *Import)) *Import {
-	v := flags.NewRawFlags("-var")
-	vf := flags.NewRawFlags("-var-file")
 	ret := &Import{
 		ResourceAddress: "",
 		ResourceID:      "",
@@ -198,10 +193,7 @@ func importArgsWithDefaults(mutate func(imp *Import)) *Import {
 			ViewType:            ViewHuman,
 			InputEnabled:        true,
 		},
-		Vars: &Vars{
-			vars:     &v,
-			varFiles: &vf,
-		},
+		Vars: &Vars{},
 		State: &State{
 			Lock:      true,
 			StatePath: "",

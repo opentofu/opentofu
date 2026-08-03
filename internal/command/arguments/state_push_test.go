@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 func TestParseStatePush_basicValidation(t *testing.T) {
@@ -87,8 +86,6 @@ func TestParseStatePush_basicValidation(t *testing.T) {
 		},
 	}
 
-	cmpOpts := cmpopts.IgnoreUnexported(Vars{}, Backend{})
-
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			got, closer, diags := ParseStatePush(tc.args)
@@ -105,7 +102,7 @@ func TestParseStatePush_basicValidation(t *testing.T) {
 				}
 			}
 			if !diags.HasErrors() {
-				if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
+				if diff := cmp.Diff(tc.want, got); diff != "" {
 					t.Errorf("unexpected result\n%s", diff)
 				}
 			}
