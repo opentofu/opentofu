@@ -93,6 +93,7 @@ func BindShow(cli *CommandLine) *Show {
 	cli.StringVar(&planTarget, "plan", "", "The plan from a saved plan file.").SetDisplay("=FILENAME").SetGroup(targetFlagGroup.ID)
 	cli.BoolVar(&configTarget, "config", false, "Show the current configuration (requires -json).").SetGroup(targetFlagGroup.ID)
 	cli.StringVar(&moduleTarget, "module", "", "Show the specified module configuration (requires -json)").SetDisplay("=DIR").SetGroup(targetFlagGroup.ID)
+	cli.BoolVar(&show.ShowSensitive, "show-sensitive", false, "If specified, sensitive values will be displayed.")
 
 	cli.VariadicArg(&args, "arguments")
 	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
