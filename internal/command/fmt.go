@@ -33,6 +33,7 @@ var (
 		".tfvars",
 		".tftest.hcl",
 		".tofutest.hcl",
+		".md",
 	}
 )
 
@@ -196,10 +197,12 @@ func (c *FmtCommand) processFile(path string, r io.Reader, w io.Writer, args arg
 	// File must be parseable as HCL native syntax before we'll try to format
 	// it. If not, the formatter is likely to make drastic changes that would
 	// be hard for the user to undo.
-	_, syntaxDiags := hclsyntax.ParseConfig(src, path, hcl.Pos{Line: 1, Column: 1})
-	if syntaxDiags.HasErrors() {
-		diags = diags.Append(syntaxDiags)
-		return diags
+	if !strings.HasSuffix(path, ".md") {
+		_, syntaxDiags := hclsyntax.ParseConfig(src, path, hcl.Pos{Line: 1, Column: 1})
+		if syntaxDiags.HasErrors() {
+			diags = diags.Append(syntaxDiags)
+			return diags
+		}
 	}
 
 	result := c.formatSourceCode(src, path)
@@ -328,6 +331,35 @@ func (c *FmtCommand) processDir(path string, stdout io.Writer, args arguments.Fm
 // formatSourceCode is the formatting logic itself, applied to each file that
 // is selected (directly or indirectly) on the command line.
 func (c *FmtCommand) formatSourceCode(src []byte, filename string) []byte {
+	if strings.HasSuffix(filename, ".md") {
+		var out []byte
+
+		inBlock := false
+		var buffer []byte
+		for line := range strings.Lines(string(src)) {
+			if inBlock {
+				if strings.Contains(line, "```") {
+					inBlock = false
+
+					out = append(out, c.formatSourceCode(buffer, filename+" (partial)")...)
+					buffer = nil
+
+					out = append(out, []byte(line)...)
+				} else {
+					buffer = append(buffer, []byte(line)...)
+				}
+			} else {
+				if strings.Contains(line, "```hcl") || strings.Contains(line, "```tf") || strings.Contains(line, "```terraform") || strings.Contains(line, "```tofu") {
+					inBlock = true
+				}
+				out = append(out, []byte(line)...)
+			}
+		}
+
+		out = append(out, []byte(buffer)...)
+		return out
+	}
+
 	f, diags := hclwrite.ParseConfig(src, filename, hcl.InitialPos)
 	if diags.HasErrors() || f == nil { // ensure that f is not nil to avoid possible nil pointer dereference later
 		// It would be weird to get here because the caller should already have
