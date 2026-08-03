@@ -184,7 +184,7 @@ values {
 
 How do I have "unexported" symbols?
 
-The easiest way to do this without introduing any new syntax is to take an approach similar to go's `internal` pattern.
+The easiest way to do this without introducing any new syntax is to take an approach similar to go's `internal` pattern.
 
 ```hcl
 # ./lib/contents.sym.hcl
@@ -214,6 +214,8 @@ typedef "other" {
   type = list(symbols::types(custom))
 }
 ```
+
+Note: "internal" here could be any name and is not a strict requirement as in the go language!
 
 #### Symbol file usage
 
@@ -335,28 +337,39 @@ The injection of the symbol library data into the OpenTofu engine/evaluator is a
   - We have integrated that command into the backend of the registry-ui.
   - Will we need to add a new `tofu init -symbols-only` mode to support this use case?
   - Does this have security implementations / prevent us from exposing `file/templatefile`?
+  - Answer:
+    - There is no evaluation present/required for `tofu show -config` and does not require any additional functionality directly
+    - We will want to extend `tofu show -config/-module` to list symbol libraries required by a module
+    - We will likely want to add a new option in the form of `tofu show -library`, performing a similar task as `-module`
 * Tooling Integration
-  - Tofu-ls?
-  - Linting?
-  - Dependabot?
+  - Tofu-ls? Yes
+  - Linting? Eventually
+  - Dependabot? Yes
 * JSON Syntax support
   - Do we want to support json syntax for the symbol files?
+    - Not initially, though it is something we could support further on
   - Are there any features that explicitly can't be supported via the json syntax?
+    - Not currently, though there may be some challenges and/or awkward syntax (expected)
 * Types are currently aliases and the actual names do not matter
   - Do users expect the same type definition under different names to be incompatible?
+  - Further study was documented in [rfc/20260424-symbol-libraries/type_research.md](20260424-symbol-libraries/type_research.md)
+    - tl;dr: Named types are a drastic diversion from OpenTofu's design principles and would imply a very different language and experience.
 * Does the `symbols::(namespace::)types(type_name) syntax make sense?
   - `symbols(namespace.type_name)`?
   - `symbols::types(namespace.type_name)`?
   - `types(symbols.namespace.type_name)`?
   - Unless we want to make more significant changes to HCL, function call expr syntax is the easiest option here.
 * How do we want to represent symbol language versioning?
+  - We may add a "language" block or equivalent at some point, anything prior to that would be considered a different version.
+  - We should probably do this pre-emptively to allow forwards compatability when this is enevitably introduced.
 * As we consider module locking, do we also want to consider symbol locking?
+  - Yes, though at a low priority
 
 ### Future Considerations
 
 * Functions outside of symbol libraries?
   - What use cases are there to support functions in .tofu files themselves?
-  - Is that complexity worth it?
+  - Is that complexity worth it? Not currently.
 * Integration with static eval
   - Would we ever want to support static eval or symbol values within the `source` field of symbol libraries?
 * Recursion support
@@ -364,3 +377,6 @@ The injection of the symbol library data into the OpenTofu engine/evaluator is a
 * Symbols distributed in provider release archives
   - This would allow provider authors to ship custom types and conversion functions
   - Some tradoffs and pittfalls are discussed in https://github.com/opentofu/opentofu/issues/2704
+* Testing support for symbol libraries
+  - Easy to implement compared to `tftest.hcl` as there are no side effects
+  - More information in @apparentlymart's [comment](https://github.com/opentofu/opentofu/pull/4052#issuecomment-4360727921)
