@@ -2642,7 +2642,7 @@ func TestContext2Plan_movedResourceErrors(t *testing.T) {
 		configFolder string
 		state        *states.State
 		planChanges  []testChange
-		wantDiag     map[string]string
+		wantDiag     map[string][]string
 	}
 
 	// state building functions
@@ -2660,9 +2660,11 @@ func TestContext2Plan_movedResourceErrors(t *testing.T) {
 				makeState(s, "test_object.a")
 				makeState(s, "test_object.b")
 			}),
-			wantDiag: map[string]string{
-				// TODO: there's a race condition where it sometimes swaps a and b
-				"Ambiguous move statements": "test_object.a moved to test_object.c, but this statement instead declares that test_object.b moved there.",
+			wantDiag: map[string][]string{
+				"Ambiguous move statements": {
+					"test_object.a moved to test_object.c, but this statement instead declares that test_object.b moved there.",
+					"test_object.b moved to test_object.c, but this statement instead declares that test_object.a moved there.",
+				},
 			},
 		},
 		"ambiguous move to two addresses": {
@@ -2670,9 +2672,11 @@ func TestContext2Plan_movedResourceErrors(t *testing.T) {
 			state: states.BuildState(func(s *states.SyncState) {
 				makeState(s, "test_object.a")
 			}),
-			wantDiag: map[string]string{
-				// TODO: there's a race condition where it sometimes swaps b and c
-				"Ambiguous move statements": "test_object.a moved to test_object.b, but this statement instead declares that it moved to test_object.c.",
+			wantDiag: map[string][]string{
+				"Ambiguous move statements": {
+					"test_object.a moved to test_object.b, but this statement instead declares that it moved to test_object.c.",
+					"test_object.a moved to test_object.c, but this statement instead declares that it moved to test_object.b.",
+				},
 			},
 		},
 		"redundant move statements": {
@@ -2691,8 +2695,8 @@ func TestContext2Plan_movedResourceErrors(t *testing.T) {
 		"cycle in several move statements": {
 			configFolder: "move-cycle",
 			state:        states.NewState(),
-			wantDiag: map[string]string{
-				"Cyclic dependency in move statements": "The following chained move statements form a cycle, and so there is no final location",
+			wantDiag: map[string][]string{
+				"Cyclic dependency in move statements": {"The following chained move statements form a cycle, and so there is no final location"},
 			},
 		},
 		"self-cycle in a move statements": {
@@ -2700,8 +2704,8 @@ func TestContext2Plan_movedResourceErrors(t *testing.T) {
 			state: states.BuildState(func(s *states.SyncState) {
 				makeState(s, "test_object.a")
 			}),
-			wantDiag: map[string]string{
-				"Redundant move statement": "",
+			wantDiag: map[string][]string{
+				"Redundant move statement": {""},
 			},
 		},
 		"move blocked by already-present state": {
@@ -2710,8 +2714,8 @@ func TestContext2Plan_movedResourceErrors(t *testing.T) {
 				makeState(s, "test_object.a")
 				makeState(s, "test_object.b")
 			}),
-			wantDiag: map[string]string{
-				"Unresolved resource instance address changes": "OpenTofu has planned to destroy these objects.",
+			wantDiag: map[string][]string{
+				"Unresolved resource instance address changes": {"OpenTofu has planned to destroy these objects."},
 			},
 		},
 		"object to move still in configuration": {
@@ -2719,8 +2723,8 @@ func TestContext2Plan_movedResourceErrors(t *testing.T) {
 			state: states.BuildState(func(s *states.SyncState) {
 				makeState(s, "test_object.a")
 			}),
-			wantDiag: map[string]string{
-				"Moved object still exists": "This statement declares a move from test_object.a, but that resource is still declared",
+			wantDiag: map[string][]string{
+				"Moved object still exists": {"This statement declares a move from test_object.a, but that resource is still declared"},
 			},
 		},
 	}
@@ -2742,13 +2746,20 @@ func TestContext2Plan_movedResourceErrors(t *testing.T) {
 				}
 				// check for expected errs
 				for _, diag := range diags {
-					wantedDetailSubstr, ok := tc.wantDiag[diag.Description().Summary]
+					wantedDetailSubstrs, ok := tc.wantDiag[diag.Description().Summary]
 					if !ok {
 						t.Errorf("diagnostic with summary \"%s\" occurred, but did not expect this one", diag.Description().Summary)
 						continue
 					}
-					if !strings.Contains(diag.Description().Detail, wantedDetailSubstr) {
-						t.Errorf("expected diagnostic to contain substring: \"%s\"\nActual diagnostic:\n%s", wantedDetailSubstr, diag.Description().Detail)
+					found := false
+					for _, possibleSubstr := range wantedDetailSubstrs {
+						if strings.Contains(diag.Description().Detail, possibleSubstr) {
+							found = true
+							break
+						}
+					}
+					if !found {
+						t.Errorf("expected diagnostic to contain substring: \"%s\"\nActual diagnostic:\n%s", wantedDetailSubstrs, diag.Description().Detail)
 					}
 				}
 				return
