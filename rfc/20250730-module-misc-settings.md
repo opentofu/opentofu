@@ -256,6 +256,12 @@ versions at all. Therefore this can continue using `provider_meta` blocks
 inside `terraform` blocks primarily for backward-compatibility, and will defer
 introducing any new syntax for it for now.
 
+> [!NOTE]
+> We later decided that OpenTofu would just silently ignore this setting, in
+> [Silently ignore `provider_meta` blocks](./20260808-ignore-provider-meta.md).
+>
+> Therefore we don't expect to introduce any new OpenTofu-specific syntax for it.
+
 ## Technical Approach
 
 The initial limited scope described above can be implemented entirely within
