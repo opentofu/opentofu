@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/posener/complete"
@@ -17,33 +16,35 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
+func WorkspaceSelectCommander(legacyName bool) Command {
+	cmd := Command{
+		Name:  "select",
+		Short: "Select a workspace",
+		Long:  `Select a different OpenTofu workspace.`,
+
+		DiagsWithNewline: true,
+	}
+
+	args := arguments.BindWorkspaceSelect(&cmd.CommandLine)
+	cmd.Run = func(meta Meta) int {
+		return WorkspaceSelectCommand{meta, legacyName}.Execute(args, views.NewWorkspace(args.View, meta.View))
+	}
+
+	return cmd
+}
+
 type WorkspaceSelectCommand struct {
 	Meta
 	LegacyName bool
 }
 
 func (c *WorkspaceSelectCommand) Run(rawArgs []string) int {
+	return RunCommand(WorkspaceSelectCommander(c.LegacyName), c.Meta, rawArgs)
+}
+func (c WorkspaceSelectCommand) Execute(args *arguments.WorkspaceSelect, view views.Workspace) int {
+	var diags tfdiags.Diagnostics
 	ctx := c.CommandContext()
 
-	// Parse and validate flags
-	args, closer, diags := arguments.ParseWorkspaceSelect(rawArgs)
-	defer closer()
-
-	c.View.Configure(args.View)
-	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
-	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
-	c.View.DiagsWithNewline()
-
-	// Instantiate the view, even if there are flag errors, so that we render
-	// diagnostics according to the desired view
-	view := views.NewWorkspace(args.View, c.View)
-	if diags.HasErrors() {
-		view.Diagnostics(diags)
-		if args.View.ViewType == arguments.ViewJSON {
-			return 1 // in case it's json, do not print the help of the command
-		}
-		return cli.RunResultHelp
-	}
 	c.Meta.variableArgs = args.Vars.All()
 
 	view.WarnWhenUsedAsEnvCmd(c.LegacyName)

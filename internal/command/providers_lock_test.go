@@ -13,7 +13,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -137,7 +136,7 @@ func TestProvidersLock_args(t *testing.T) {
 		}
 		code := c.Run(args)
 		cmdOutput := done(t)
-		if code != cli.RunResultHelp {
+		if code != 1 {
 			t.Fatalf("wrong exit code; got %d", code)
 		}
 		output := cmdOutput.Stderr()

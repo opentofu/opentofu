@@ -28,11 +28,11 @@ func TestStatePull(t *testing.T) {
 	p := testProvider()
 	view, done := testView(t)
 	c := &StatePullCommand{
-		Meta: Meta{
+		StateMeta{Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
-		},
+		}},
 	}
 
 	args := []string{}
@@ -54,11 +54,11 @@ func TestStatePull_noState(t *testing.T) {
 	p := testProvider()
 	view, done := testView(t)
 	c := &StatePullCommand{
-		Meta: Meta{
+		StateMeta{Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
-		},
+		}},
 	}
 
 	args := []string{}
@@ -83,11 +83,11 @@ func TestStatePull_checkRequiredVersion(t *testing.T) {
 	p := testProvider()
 	view, done := testView(t)
 	c := &StatePullCommand{
-		Meta: Meta{
+		StateMeta{Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
-		},
+		}},
 	}
 
 	args := []string{}

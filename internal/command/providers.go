@@ -10,13 +10,37 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
+
+func ProvidersCommander() Command {
+	cmd := Command{
+		Name:  "providers",
+		Short: "Show the providers required for this configuration",
+		Long: `Prints out a tree of modules in the referenced configuration annotated with their provider requirements.
+
+This provides an overview of all of the provider requirements across all referenced modules, as an aid to understanding why particular provider plugins are needed and why particular versions are selected.`,
+
+		Commands: []Command{
+			ProvidersLockCommander(),
+			ProvidersMirrorCommander(),
+			ProvidersSchemaCommander(),
+		},
+
+		DiagsWithNewline: true,
+	}
+
+	args := arguments.BindProviders(&cmd.CommandLine)
+	cmd.Run = func(meta Meta) int {
+		return ProvidersCommand{meta}.Execute(args, views.NewProviders(meta.View))
+	}
+
+	return cmd
+}
 
 // ProvidersCommand is a Command implementation that prints out information
 // about the providers used in the current configuration/state.
@@ -25,25 +49,13 @@ type ProvidersCommand struct {
 }
 
 func (c *ProvidersCommand) Run(rawArgs []string) int {
+	return RunCommand(ProvidersCommander(), c.Meta, rawArgs)
+}
+func (c ProvidersCommand) Execute(args *arguments.Providers, view views.Providers) int {
+	var diags tfdiags.Diagnostics
+
 	ctx := c.CommandContext()
 
-	// Parse and validate flags
-	args, closer, diags := arguments.ParseProviders(rawArgs)
-	defer closer()
-
-	// new view
-	c.View.Configure(args.View)
-	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
-	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
-	c.View.DiagsWithNewline()
-
-	// Instantiate the view, even if there are flag errors, so that we render
-	// diagnostics according to the desired view
-	view := views.NewProviders(c.View)
-	if diags.HasErrors() {
-		view.Diagnostics(diags)
-		return cli.RunResultHelp
-	}
 	c.Meta.variableArgs = args.Vars.All()
 	// This gets the current directory as full path.
 	configPath := c.WorkingDir.NormalizePath(c.WorkingDir.RootModuleDir())

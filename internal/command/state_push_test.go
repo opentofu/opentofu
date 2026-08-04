@@ -28,11 +28,11 @@ func TestStatePush_empty(t *testing.T) {
 	p := testProvider()
 	view, done := testView(t)
 	c := &StatePushCommand{
-		Meta: Meta{
+		StateMeta{Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
-		},
+		}},
 	}
 
 	args := []string{"replace.tfstate"}
@@ -57,11 +57,11 @@ func TestStatePush_lockedState(t *testing.T) {
 	p := testProvider()
 	view, done := testView(t)
 	c := &StatePushCommand{
-		Meta: Meta{
+		StateMeta{Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
-		},
+		}},
 	}
 
 	unlock, err := testLockState(t, testDataDir, "local-state.tfstate")
@@ -93,11 +93,11 @@ func TestStatePush_replaceMatch(t *testing.T) {
 	p := testProvider()
 	view, done := testView(t)
 	c := &StatePushCommand{
-		Meta: Meta{
+		StateMeta{Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
-		},
+		}},
 	}
 
 	args := []string{"replace.tfstate"}
@@ -131,11 +131,11 @@ func TestStatePush_replaceMatchStdin(t *testing.T) {
 	p := testProvider()
 	view, done := testView(t)
 	c := &StatePushCommand{
-		Meta: Meta{
+		StateMeta{Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
-		},
+		}},
 	}
 
 	args := []string{"-force", "-"}
@@ -162,11 +162,11 @@ func TestStatePush_lineageMismatch(t *testing.T) {
 	p := testProvider()
 	view, done := testView(t)
 	c := &StatePushCommand{
-		Meta: Meta{
+		StateMeta{Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
-		},
+		}},
 	}
 
 	args := []string{"replace.tfstate"}
@@ -193,11 +193,11 @@ func TestStatePush_serialNewer(t *testing.T) {
 	p := testProvider()
 	view, done := testView(t)
 	c := &StatePushCommand{
-		Meta: Meta{
+		StateMeta{Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
-		},
+		}},
 	}
 
 	args := []string{"replace.tfstate"}
@@ -224,11 +224,11 @@ func TestStatePush_serialOlder(t *testing.T) {
 	p := testProvider()
 	view, done := testView(t)
 	c := &StatePushCommand{
-		Meta: Meta{
+		StateMeta{Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
-		},
+		}},
 	}
 
 	args := []string{"replace.tfstate"}
@@ -297,10 +297,10 @@ func TestStatePush_forceRemoteState(t *testing.T) {
 	// push our local state to that new workspace
 	view, done := testView(t)
 	c := &StatePushCommand{
-		Meta: Meta{
+		StateMeta{Meta{
 			WorkingDir: workdir.NewDir("."),
 			View:       view,
-		},
+		}},
 	}
 
 	args := []string{"-force", statePath}
@@ -320,11 +320,11 @@ func TestStatePush_checkRequiredVersion(t *testing.T) {
 	p := testProvider()
 	view, done := testView(t)
 	c := &StatePushCommand{
-		Meta: Meta{
+		StateMeta{Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
-		},
+		}},
 	}
 
 	args := []string{"replace.tfstate"}
