@@ -62,8 +62,6 @@ func (c *ProvidersMirrorCommand) Run(rawArgs []string) int {
 func (c ProvidersMirrorCommand) Execute(args *arguments.ProvidersMirror, view views.ProvidersMirror) int {
 	var diags tfdiags.Diagnostics
 
-	c.Meta.variableArgs = args.Vars.All()
-
 	outputDir := args.Directory
 
 	var platforms []getproviders.Platform

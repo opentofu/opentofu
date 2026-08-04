@@ -81,8 +81,6 @@ func (c LoginCommand) Execute(args *arguments.Login, view views.Login) int {
 	ctx, span := tracing.Tracer().Start(ctx, "Login")
 	defer span.End()
 
-	c.Meta.stateArgs = *args.State
-
 	if !c.input {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,

@@ -53,8 +53,6 @@ func (c ProvidersSchemaCommand) Execute(args *arguments.ProvidersSchema, view vi
 	var diags tfdiags.Diagnostics
 	ctx := c.CommandContext()
 
-	c.Meta.variableArgs = args.Vars.All()
-
 	// Check for user-supplied plugin path
 	var err error
 	if c.pluginPath, err = c.loadPluginPath(); err != nil {

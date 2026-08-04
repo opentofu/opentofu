@@ -87,7 +87,7 @@ func TestParseReplaceProvider_basicValidation(t *testing.T) {
 				srp.State.Lock = true
 				srp.RawSrcAddr = "source"
 				srp.RawDestAddr = "dest"
-				// Vars would be updated, but we ignore it in cmp
+				srp.Vars = &Vars{{"-var", "key=value"}}
 			}),
 		},
 		"no arguments": {
@@ -126,7 +126,6 @@ func TestParseReplaceProvider_basicValidation(t *testing.T) {
 	}
 
 	cmpOpts := cmp.Options{
-		cmpopts.IgnoreUnexported(Vars{}),
 		cmpopts.IgnoreFields(View{}, "JSONInto"), // We ignore JSONInto because it contains a file which is not really diffable
 	}
 

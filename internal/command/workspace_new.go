@@ -52,9 +52,6 @@ func (c WorkspaceNewCommand) Execute(args *arguments.WorkspaceNew, view views.Wo
 
 	ctx := c.CommandContext()
 
-	c.Meta.variableArgs = args.Vars.All()
-	c.Meta.stateArgs = *args.State
-
 	view.WarnWhenUsedAsEnvCmd(c.LegacyName)
 
 	configPath := c.WorkingDir.NormalizePath(c.WorkingDir.RootModuleDir())

@@ -109,7 +109,7 @@ func TestParseStateMv_basicValidation(t *testing.T) {
 				stateMv.RawSrcAddr = "source"
 				stateMv.RawDestAddr = "dest"
 				stateMv.Backend.IgnoreRemoteVersion = true
-				// Vars would be updated, but we ignore it in cmp
+				stateMv.Vars = &Vars{{"-var", "key=value"}}
 			}),
 		},
 		"no arguments": {
@@ -130,7 +130,6 @@ func TestParseStateMv_basicValidation(t *testing.T) {
 	}
 
 	cmpOpts := cmp.Options{
-		cmpopts.IgnoreUnexported(Vars{}, State{}),
 		cmpopts.IgnoreFields(View{}, "JSONInto"), // We ignore JSONInto because it contains a file which is not really diffable
 	}
 

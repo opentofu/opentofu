@@ -79,8 +79,6 @@ func (c ProvidersLockCommand) Execute(args *arguments.ProvidersLock, view views.
 	ctx, span := tracing.Tracer().Start(ctx, "Providers lock")
 	defer span.End()
 
-	c.Meta.variableArgs = args.Vars.All()
-
 	span.SetAttributes(traceattrs.StringSlice("opentofu.provider.lock.targetplatforms", args.OptPlatforms))
 	if args.FsMirrorDir != "" {
 		span.SetAttributes(traceattrs.String("opentofu.provider.lock.fsmirror", args.FsMirrorDir))
