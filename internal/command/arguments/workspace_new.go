@@ -13,9 +13,8 @@ type WorkspaceNew struct {
 	// Workspace represents the name of the workspace that the user wants to be selected.
 	WorkspaceName string
 
-	// ViewOptions contains the options that allows the user to configure different types of outputs
-	// from the current command.
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 
 	// Vars and State are the common extended flags
 	Vars  *Vars
@@ -24,13 +23,11 @@ type WorkspaceNew struct {
 
 // BindWorkspaceNew registers CLI arguments, returning a WorkspaceNew value and it's corresponding hooks.
 func BindWorkspaceNew(cli *CommandLine) *WorkspaceNew {
-	var ret WorkspaceNew
-
-	ret.ViewOptions.bind(cli, false)
-
-	ret.Vars = BindVars(cli)
-
-	ret.State = BindState(cli, stateFlagLock|stateFlagStateIn)
+	ret := WorkspaceNew{
+		View:  BindView(cli, viewFlagNoInput),
+		Vars:  BindVars(cli),
+		State: BindState(cli, stateFlagLock|stateFlagStateIn),
+	}
 
 	cli.ArgHelp = "Expected a single argument: NAME."
 	cli.PositionalArg(&ret.WorkspaceName, "NAME", false)

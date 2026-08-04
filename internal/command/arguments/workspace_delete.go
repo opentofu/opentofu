@@ -17,9 +17,8 @@ type WorkspaceDelete struct {
 	// from the OpenTofu's management.
 	Force bool
 
-	// ViewOptions contains the options that allows the user to configure different types of outputs
-	// from the current command.
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 
 	// Vars and State are the common extended flags
 	Vars  *Vars
@@ -28,13 +27,11 @@ type WorkspaceDelete struct {
 
 // BindWorkspaceDelete registers CLI arguments, returning a WorkspaceDelete value and it's corresponding hooks.
 func BindWorkspaceDelete(cli *CommandLine) *WorkspaceDelete {
-	var ret WorkspaceDelete
-
-	ret.ViewOptions.bind(cli, false)
-
-	ret.Vars = BindVars(cli)
-
-	ret.State = BindState(cli, stateFlagLock)
+	ret := WorkspaceDelete{
+		View:  BindView(cli, viewFlagNoInput),
+		Vars:  BindVars(cli),
+		State: BindState(cli, stateFlagLock),
+	}
 
 	cli.BoolVar(&ret.Force, "force", false, "Remove a workspace even if it is managing resources. OpenTofu can no longer track or manage the workspace's infrastructure.")
 

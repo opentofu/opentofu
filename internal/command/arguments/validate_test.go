@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/google/go-cmp/cmp"
 
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -24,7 +25,7 @@ func TestParseValidate_valid(t *testing.T) {
 			&Validate{
 				Path:          ".",
 				TestDirectory: "tests",
-				ViewOptions:   ViewOptions{ViewType: ViewHuman},
+				View:          &View{ConsolidateWarnings: true, ViewType: ViewHuman},
 			},
 		},
 		"json": {
@@ -32,7 +33,7 @@ func TestParseValidate_valid(t *testing.T) {
 			&Validate{
 				Path:          ".",
 				TestDirectory: "tests",
-				ViewOptions:   ViewOptions{ViewType: ViewJSON},
+				View:          &View{ConsolidateWarnings: true, ViewType: ViewJSON},
 			},
 		},
 		"path": {
@@ -40,7 +41,7 @@ func TestParseValidate_valid(t *testing.T) {
 			&Validate{
 				Path:          "foo",
 				TestDirectory: "tests",
-				ViewOptions:   ViewOptions{ViewType: ViewJSON},
+				View:          &View{ConsolidateWarnings: true, ViewType: ViewJSON},
 			},
 		},
 		"test-directory": {
@@ -48,7 +49,7 @@ func TestParseValidate_valid(t *testing.T) {
 			&Validate{
 				Path:          ".",
 				TestDirectory: "other",
-				ViewOptions:   ViewOptions{ViewType: ViewHuman},
+				View:          &View{ConsolidateWarnings: true, ViewType: ViewHuman},
 			},
 		},
 		"no-tests": {
@@ -56,7 +57,7 @@ func TestParseValidate_valid(t *testing.T) {
 			&Validate{
 				Path:          ".",
 				TestDirectory: "tests",
-				ViewOptions:   ViewOptions{ViewType: ViewHuman},
+				View:          &View{ConsolidateWarnings: true, ViewType: ViewHuman},
 				NoTests:       true,
 			},
 		},
@@ -69,9 +70,8 @@ func TestParseValidate_valid(t *testing.T) {
 				t.Fatalf("unexpected diags: %v", diags)
 			}
 			got.Vars = nil
-			got.ViewOptions.jsonFlag = tc.want.ViewOptions.jsonFlag
-			if *got != *tc.want {
-				t.Fatalf("unexpected result\n got: %#v\nwant: %#v", got, tc.want)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("unexpected result\n%s", diff)
 			}
 		})
 	}
@@ -88,7 +88,7 @@ func TestParseValidate_invalid(t *testing.T) {
 			&Validate{
 				Path:          ".",
 				TestDirectory: "tests",
-				ViewOptions:   ViewOptions{ViewType: ViewHuman},
+				View:          &View{ConsolidateWarnings: true, ViewType: ViewHuman},
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
@@ -103,7 +103,7 @@ func TestParseValidate_invalid(t *testing.T) {
 			&Validate{
 				Path:          "bar",
 				TestDirectory: "tests",
-				ViewOptions:   ViewOptions{ViewType: ViewJSON},
+				View:          &View{ConsolidateWarnings: true, ViewType: ViewJSON},
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
@@ -119,9 +119,8 @@ func TestParseValidate_invalid(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			got, _, gotDiags := ParseValidate(tc.args)
 			got.Vars = nil
-			got.ViewOptions.jsonFlag = tc.want.ViewOptions.jsonFlag
-			if *got != *tc.want {
-				t.Fatalf("unexpected result\n got: %#v\nwant: %#v", got, tc.want)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("unexpected result\n%s", diff)
 			}
 			if !reflect.DeepEqual(gotDiags, tc.wantDiags) {
 				t.Errorf("wrong result\ngot: %s\nwant: %s", spew.Sdump(gotDiags), spew.Sdump(tc.wantDiags))

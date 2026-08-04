@@ -30,19 +30,18 @@ type ProvidersLock struct {
 	// to use for the providers.
 	OciMirrorTemplate string
 
-	// ViewOptions specifies which view options to use
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 	// Vars holds and provides information for the flags related to variables that a user can give into the process
 	Vars *Vars
 }
 
 // BindProvidersLock registers CLI arguments, returning a ProvidersLock value and it's corresponding hooks.
 func BindProvidersLock(cli *CommandLine) *ProvidersLock {
-	var arguments ProvidersLock
-
-	arguments.ViewOptions.bind(cli, false)
-
-	arguments.Vars = BindVars(cli)
+	arguments := ProvidersLock{
+		View: BindView(cli, viewFlagNoInput),
+		Vars: BindVars(cli),
+	}
 
 	cli.StringArrayVar(&arguments.OptPlatforms, "platform", nil, `Choose a target platform to request package checksums for.
 

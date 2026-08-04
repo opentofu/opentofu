@@ -141,7 +141,7 @@ operation.
 
 func testConsoleHuman(t *testing.T, call func(console Console), wantStdout, wantStderr string) {
 	view, done := testView(t)
-	consoleView := NewConsole(arguments.ViewOptions{ViewType: arguments.ViewHuman}, view)
+	consoleView := NewConsole(&arguments.View{ViewType: arguments.ViewHuman}, view)
 	call(consoleView)
 	output := done(t)
 	if diff := cmp.Diff(wantStderr, output.Stderr()); diff != "" {
@@ -154,7 +154,7 @@ func testConsoleHuman(t *testing.T, call func(console Console), wantStdout, want
 
 func testConsoleJson(t *testing.T, call func(console Console), want []map[string]interface{}) {
 	view, done := testView(t)
-	consoleView := NewConsole(arguments.ViewOptions{ViewType: arguments.ViewJSON}, view)
+	consoleView := NewConsole(&arguments.View{ViewType: arguments.ViewJSON}, view)
 	call(consoleView)
 	output := done(t)
 	if output.Stderr() != "" {
@@ -170,7 +170,7 @@ func testConsoleMulti(t *testing.T, call func(console Console), wantStdout strin
 		t.Fatalf("failed to create the file to write json content into: %s", err)
 	}
 	view, done := testView(t)
-	consoleView := NewConsole(arguments.ViewOptions{ViewType: arguments.ViewHuman, JSONInto: jsonInto}, view)
+	consoleView := NewConsole(&arguments.View{ViewType: arguments.ViewHuman, JSONInto: jsonInto}, view)
 	call(consoleView)
 	{
 		if err := jsonInto.Close(); err != nil {

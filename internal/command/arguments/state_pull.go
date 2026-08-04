@@ -11,8 +11,8 @@ import (
 
 // StatePull represents the command-line arguments for the 'state pull' command.
 type StatePull struct {
-	// ViewOptions specifies which view options to use
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 
 	// Vars are the common extended flags
 	Vars *Vars
@@ -20,15 +20,12 @@ type StatePull struct {
 
 // BindStatePull registers CLI arguments, returning a StatePull value and it's corresponding hooks.
 func BindStatePull(cli *CommandLine) *StatePull {
-	var ret StatePull
-
-	// we only parse but do not register the views flags since this command does not need it because it already
-	// prints the state in json format
-	ret.ViewOptions.ParseHook(cli)
-
-	ret.Vars = BindVars(cli)
-
-	return &ret
+	return &StatePull{
+		// we only parse but do not register the views flags since this command does not need it because it already
+		// prints the state in json format
+		View: BindView(cli, viewFlagNone),
+		Vars: BindVars(cli),
+	}
 }
 
 // ParseStatePull processes CLI arguments, returning a StatePull value, a closer function, and errors.

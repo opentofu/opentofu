@@ -60,7 +60,7 @@ func TestViewUiHuman_OutputStreams(t *testing.T) {
 			streams, done := terminal.StreamsForTesting(t)
 			view := NewView(streams)
 
-			ui := NewViewUI(arguments.ViewOptions{ViewType: arguments.ViewHuman}, view, nil) // testing output only, no need for Ui
+			ui := NewViewUI(&arguments.View{ViewType: arguments.ViewHuman}, view, nil) // testing output only, no need for Ui
 
 			tc.fn(ui)
 			output := done(t)
@@ -139,7 +139,7 @@ func TestViewUiJSON_OutputStreams(t *testing.T) {
 			streams, done := terminal.StreamsForTesting(t)
 			view := NewView(streams)
 
-			ui := NewViewUI(arguments.ViewOptions{ViewType: arguments.ViewJSON}, view, nil)
+			ui := NewViewUI(&arguments.View{ViewType: arguments.ViewJSON}, view, nil)
 
 			tc.fn(ui)
 			output := done(t)

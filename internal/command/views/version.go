@@ -26,8 +26,8 @@ type Version interface {
 // This view behaves differently from the general approach since the JSON format is not meant to follow
 // the general JSON format.
 // Instead, the view that is returned will always print diagnostics in human format while
-// [Version.PrintVersion] will return different results based on the [arguments.ViewOptions#ViewType].
-func NewVersion(args arguments.ViewOptions, view *View) Version {
+// [Version.PrintVersion] will return different results based on the [arguments.View#ViewType].
+func NewVersion(args *arguments.View, view *View) Version {
 	return &VersionMixed{view: view, json: args.ViewType == arguments.ViewJSON}
 }
 

@@ -52,7 +52,7 @@ type Show interface {
 	Diagnostics(diags tfdiags.Diagnostics)
 }
 
-func NewShow(args arguments.ViewOptions, view *View) Show {
+func NewShow(args *arguments.View, view *View) Show {
 	var show Show
 	switch args.ViewType {
 	case arguments.ViewJSON:

@@ -33,10 +33,6 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	var diags tfdiags.Diagnostics
 	ctx := c.CommandContext()
 
-	// Parse and apply global view arguments
-	common, rawArgs := arguments.ParseView(rawArgs)
-	c.View.Configure(common)
-
 	// Parse and validate flags
 	var args *arguments.Apply
 	var closer func()
@@ -48,16 +44,17 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	}
 	defer closer()
 
-	c.View.SetShowSensitive(args.ShowSensitive)
-
-	// Instantiate the view, even if there are flag errors, so that we render
-	// diagnostics according to the desired view
-	view := views.NewApply(args.ViewOptions, c.Destroy, c.View)
+	// Parse and apply global view arguments
+	c.View.Configure(args.View)
 
 	// FIXME: the -input flag value is needed to initialize the backend and the
 	// operation, but there is no clear path to pass this value down, so we
 	// continue to mutate the Meta object state for now.
-	c.Meta.input = args.ViewOptions.InputEnabled
+	c.Meta.input = args.View.InputEnabled
+
+	// Instantiate the view, even if there are flag errors, so that we render
+	// diagnostics according to the desired view
+	view := views.NewApply(args.View, c.Destroy, c.View)
 
 	if diags.HasErrors() {
 		view.Diagnostics(diags)

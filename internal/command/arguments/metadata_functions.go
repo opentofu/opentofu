@@ -11,15 +11,15 @@ import (
 
 // MetadataFunctions represents the command-line arguments for the "metadata functions" command.
 type MetadataFunctions struct {
-	// ViewOptions specifies which view options to use
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 }
 
 // BindMetadataFunctions registers CLI arguments, returning a MetadataFunctions value and it's corresponding hooks.
 func BindMetadataFunctions(cli *CommandLine) *MetadataFunctions {
-	var arguments MetadataFunctions
-
-	arguments.ViewOptions.bindGranularFlags(cli, false, false) // Add only the -json flag
+	arguments := MetadataFunctions{
+		View: BindView(cli, viewFlagJson),
+	}
 
 	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
 		var diags tfdiags.Diagnostics
@@ -28,14 +28,14 @@ func BindMetadataFunctions(cli *CommandLine) *MetadataFunctions {
 		// be printed as human format. This makes it clear that the success output of this command will be in json and
 		// that it needs to be processed accordingly.
 		// The print of the functions will be in JSON all the time.
-		if arguments.ViewOptions.ViewType != ViewJSON {
+		if arguments.View.ViewType != ViewJSON {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
 				"Invalid arguments",
 				"The `tofu metadata functions` command requires the `-json` flag.",
 			))
 		}
-		arguments.ViewOptions.ViewType = ViewHuman
+		arguments.View.ViewType = ViewHuman
 
 		return diags
 	}})

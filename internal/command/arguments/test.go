@@ -21,8 +21,8 @@ type Test struct {
 	// always be discovered.
 	TestDirectory string
 
-	// ViewOptions specifies which view options to use
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 
 	// You can specify common variables for all tests from the command line.
 	Vars *Vars
@@ -35,11 +35,10 @@ type Test struct {
 
 // BindTest registers CLI arguments, returning a Test value and it's corresponding hooks.
 func BindTest(cli *CommandLine) *Test {
-	var test Test
-
-	test.ViewOptions.bind(cli, false)
-
-	test.Vars = BindVars(cli)
+	test := Test{
+		View: BindView(cli, viewFlagNoInput),
+		Vars: BindVars(cli),
+	}
 
 	cli.StringArrayVar(&test.Filter, "filter", nil, "If specified, OpenTofu will only execute the test files specified by this flag. You can use this option multiple times to execute more than one test file. The path should be relative to the current working directory, even if -test-directory is set.").SetDisplay("=testfile")
 	cli.StringVar(&test.TestDirectory, "test-directory", "tests", `Set the OpenTofu test directory, defaults to "tests". When set, the test command will search for test files in the current directory and in the one specified by the flag.`).SetDisplay("=path")

@@ -44,7 +44,7 @@ func TestStateDefaultBackupExtension(t *testing.T) {
 			View:       view,
 		},
 	}
-	viewOptions := arguments.ViewOptions{ViewType: arguments.ViewHuman}
+	viewOptions := &arguments.View{ViewType: arguments.ViewHuman}
 	s, err := sm.State(t.Context(), encryption.Disabled(), views.NewState(viewOptions, view))
 	if err != nil {
 		t.Fatal(err)

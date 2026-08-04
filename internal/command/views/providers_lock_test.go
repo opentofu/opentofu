@@ -227,7 +227,7 @@ func TestProvidersLockView(t *testing.T) {
 
 func testProvidersLockHuman(t *testing.T, call func(v ProvidersLock), wantStdout, wantStderr string) {
 	view, done := testView(t)
-	v := NewProvidersLock(arguments.ViewOptions{ViewType: arguments.ViewHuman}, view)
+	v := NewProvidersLock(&arguments.View{ViewType: arguments.ViewHuman}, view)
 	call(v)
 	output := done(t)
 	if diff := cmp.Diff(wantStderr, output.Stderr()); diff != "" {
@@ -240,7 +240,7 @@ func testProvidersLockHuman(t *testing.T, call func(v ProvidersLock), wantStdout
 
 func testProvidersLockJson(t *testing.T, call func(v ProvidersLock), want []map[string]interface{}) {
 	view, done := testView(t)
-	v := NewProvidersLock(arguments.ViewOptions{ViewType: arguments.ViewJSON}, view)
+	v := NewProvidersLock(&arguments.View{ViewType: arguments.ViewJSON}, view)
 	call(v)
 	output := done(t)
 	if output.Stderr() != "" {
@@ -256,7 +256,7 @@ func testProvidersLockMulti(t *testing.T, call func(v ProvidersLock), wantStdout
 		t.Fatalf("failed to create the file to write json content into: %s", err)
 	}
 	view, done := testView(t)
-	v := NewProvidersLock(arguments.ViewOptions{ViewType: arguments.ViewHuman, JSONInto: jsonInto}, view)
+	v := NewProvidersLock(&arguments.View{ViewType: arguments.ViewHuman, JSONInto: jsonInto}, view)
 	call(v)
 	{
 		if err := jsonInto.Close(); err != nil {

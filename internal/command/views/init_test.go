@@ -495,7 +495,7 @@ func TestInitViews(t *testing.T) {
 func TestInitViews_Hooks(t *testing.T) {
 	t.Run("hooks_human_withLocalPath", func(t *testing.T) {
 		view, _ := testView(t)
-		initView := NewInit(arguments.ViewOptions{ViewType: arguments.ViewHuman}, view)
+		initView := NewInit(&arguments.View{ViewType: arguments.ViewHuman}, view)
 		hooks := initView.Hooks(true)
 
 		if hooks == nil {
@@ -511,7 +511,7 @@ func TestInitViews_Hooks(t *testing.T) {
 
 	t.Run("hooks_human_withoutLocalPath", func(t *testing.T) {
 		view, _ := testView(t)
-		initView := NewInit(arguments.ViewOptions{ViewType: arguments.ViewHuman}, view)
+		initView := NewInit(&arguments.View{ViewType: arguments.ViewHuman}, view)
 		hooks := initView.Hooks(false)
 
 		if hooks == nil {
@@ -526,7 +526,7 @@ func TestInitViews_Hooks(t *testing.T) {
 
 	t.Run("hooks_json", func(t *testing.T) {
 		view, _ := testView(t)
-		initView := NewInit(arguments.ViewOptions{ViewType: arguments.ViewJSON}, view)
+		initView := NewInit(&arguments.View{ViewType: arguments.ViewJSON}, view)
 		hooks := initView.Hooks(true)
 
 		if hooks == nil {
@@ -547,7 +547,7 @@ func TestInitViews_Hooks(t *testing.T) {
 		defer jsonInto.Close()
 
 		view, _ := testView(t)
-		initView := NewInit(arguments.ViewOptions{ViewType: arguments.ViewHuman, JSONInto: jsonInto}, view)
+		initView := NewInit(&arguments.View{ViewType: arguments.ViewHuman, JSONInto: jsonInto}, view)
 		hooks := initView.Hooks(true)
 
 		if hooks == nil {
@@ -564,7 +564,7 @@ func TestInitViews_Hooks(t *testing.T) {
 
 func testInitHuman(t *testing.T, call func(init Init), wantStdout, wantStderr string) {
 	view, done := testView(t)
-	initView := NewInit(arguments.ViewOptions{ViewType: arguments.ViewHuman}, view)
+	initView := NewInit(&arguments.View{ViewType: arguments.ViewHuman}, view)
 	call(initView)
 	output := done(t)
 	if diff := cmp.Diff(wantStderr, output.Stderr()); diff != "" {
@@ -578,7 +578,7 @@ func testInitHuman(t *testing.T, call func(init Init), wantStdout, wantStderr st
 func testInitJson(t *testing.T, call func(init Init), want []map[string]any) {
 	// New type just to assert the fields that we are interested in
 	view, done := testView(t)
-	initView := NewInit(arguments.ViewOptions{ViewType: arguments.ViewJSON}, view)
+	initView := NewInit(&arguments.View{ViewType: arguments.ViewJSON}, view)
 	call(initView)
 	output := done(t)
 	if output.Stderr() != "" {
@@ -594,7 +594,7 @@ func testInitMulti(t *testing.T, call func(init Init), wantStdout string, wantSt
 		t.Fatalf("failed to create the file to write json content into: %s", err)
 	}
 	view, done := testView(t)
-	initView := NewInit(arguments.ViewOptions{ViewType: arguments.ViewHuman, JSONInto: jsonInto}, view)
+	initView := NewInit(&arguments.View{ViewType: arguments.ViewHuman, JSONInto: jsonInto}, view)
 	call(initView)
 	{
 		if err := jsonInto.Close(); err != nil {

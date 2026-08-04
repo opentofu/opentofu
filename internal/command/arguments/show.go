@@ -19,13 +19,10 @@ type Show struct {
 	TargetType ShowTargetType
 	TargetArg  string
 
-	// ViewOptions specifies which view options to use
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 
 	Vars *Vars
-
-	// ShowSensitive is used to display the value of variables marked as sensitive.
-	ShowSensitive bool
 }
 
 // ShowTargetType represents the type of object that is requested to be
@@ -65,11 +62,10 @@ const (
 
 // BindShow registers CLI arguments, returning a Show value and it's corresponding hooks.
 func BindShow(cli *CommandLine) *Show {
-	var show Show
-
-	show.ViewOptions.bind(cli, false)
-
-	show.Vars = BindVars(cli)
+	show := Show{
+		View: BindView(cli, viewFlagNoInput|viewFlagSensitive),
+		Vars: BindVars(cli),
+	}
 
 	targetFlagGroup := FlagGroup{
 		ID:          "target",
@@ -93,19 +89,18 @@ func BindShow(cli *CommandLine) *Show {
 	cli.StringVar(&planTarget, "plan", "", "The plan from a saved plan file.").SetDisplay("=FILENAME").SetGroup(targetFlagGroup.ID)
 	cli.BoolVar(&configTarget, "config", false, "Show the current configuration (requires -json).").SetGroup(targetFlagGroup.ID)
 	cli.StringVar(&moduleTarget, "module", "", "Show the specified module configuration (requires -json)").SetDisplay("=DIR").SetGroup(targetFlagGroup.ID)
-	cli.BoolVar(&show.ShowSensitive, "show-sensitive", false, "If specified, sensitive values will be displayed.")
 
 	cli.VariadicArg(&args, "arguments")
 	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
 		// If -config or -module=... is selected, -json is required
-		if configTarget && !show.ViewOptions.jsonFlag {
+		if configTarget && show.View.ViewType != ViewJSON {
 			return tfdiags.New(tfdiags.Sourceless(
 				tfdiags.Error,
 				"JSON output required for configuration",
 				"The -config option requires -json to be specified.",
 			))
 		}
-		if moduleTarget != "" && !show.ViewOptions.jsonFlag {
+		if moduleTarget != "" && show.View.ViewType != ViewJSON {
 			return tfdiags.New(tfdiags.Sourceless(
 				tfdiags.Error,
 				"JSON output required for module",

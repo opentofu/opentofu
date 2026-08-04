@@ -22,8 +22,8 @@ type Import struct {
 	// Parallelism is the limit of concurrent operation as OpenTofu walks the graph
 	Parallelism int
 
-	// ViewOptions specifies which view options to use
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 	// State, Backend and Vars are the common extended flags
 	State   *State
 	Backend *Backend
@@ -32,13 +32,12 @@ type Import struct {
 
 // BindImport registers CLI arguments, returning a Import value and it's corresponding hooks.
 func BindImport(cli *CommandLine) *Import {
-	var ret Import
-
-	ret.ViewOptions.bind(cli, true)
-
-	ret.Vars = BindVars(cli)
-	ret.Backend = BindBackend(cli)
-	ret.State = BindState(cli, stateFlagAll)
+	ret := Import{
+		View:    BindView(cli, viewFlagAll),
+		Vars:    BindVars(cli),
+		Backend: BindBackend(cli),
+		State:   BindState(cli, stateFlagAll),
+	}
 
 	cli.IntVar(&ret.Parallelism, "parallelism", DefaultParallelism, `Limit the number of parallel resource operations. Defaults to 10.`).SetDisplay("=n")
 	cli.StringVar(&ret.ConfigPath, "config", "", "Path to a directory of OpenTofu configuration files to use to configure the provider. Defaults to pwd. If no config files are present, they must be provided via the input prompts or env vars.").SetDisplay("=path")

@@ -17,8 +17,7 @@ type PushCommand struct {
 }
 
 func (c *PushCommand) Run(rawArgs []string) int {
-	common, _ := arguments.ParseView(rawArgs)
-	c.View.Configure(common)
+	c.View.Configure(&arguments.View{ViewType: arguments.ViewHuman})
 	// This command is no longer supported, but we'll retain it just to
 	// give the user some next-steps after upgrading.
 	c.View.Diagnostics(tfdiags.Diagnostics{tfdiags.Sourceless(

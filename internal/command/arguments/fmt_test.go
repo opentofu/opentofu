@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 func TestParseFmt_basicValidation(t *testing.T) {
@@ -79,8 +78,6 @@ func TestParseFmt_basicValidation(t *testing.T) {
 		},
 	}
 
-	cmpOpts := cmpopts.IgnoreUnexported(ViewOptions{})
-
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			got, closer, diags := ParseFmt(tc.args)
@@ -89,7 +86,7 @@ func TestParseFmt_basicValidation(t *testing.T) {
 			if len(diags) > 0 {
 				t.Fatalf("unexpected diags: %v", diags)
 			}
-			if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
+			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("unexpected result\n%s", diff)
 			}
 		})
@@ -104,12 +101,11 @@ func fmtArgsWithDefaults(mutate func(v *Fmt)) *Fmt {
 		Diff:      false,
 		Check:     false,
 		Recursive: false,
-		ViewOptions: ViewOptions{
-			jsonFlag:     false,
-			jsonIntoFlag: "",
-			ViewType:     ViewHuman,
-			InputEnabled: false,
-			JSONInto:     nil,
+		View: &View{
+			ConsolidateWarnings: true,
+			ViewType:            ViewHuman,
+			InputEnabled:        false,
+			JSONInto:            nil,
 		},
 	}
 	if mutate != nil {
