@@ -91,8 +91,12 @@ func TestS3Lock_412AgainstOwnLockIsAcquired(t *testing.T) {
 		},
 	}}
 
-	if _, err := newLockingClient(t, httpCl).Lock(t.Context(), info); err != nil {
+	lockID, err := newLockingClient(t, httpCl).Lock(t.Context(), info)
+	if err != nil {
 		t.Fatalf("expected the acquisition to succeed against its own lock, got: %s", err)
+	}
+	if lockID != info.ID {
+		t.Fatalf("expected lock ID %q, got %q", info.ID, lockID)
 	}
 	if !strings.Contains(strings.Join(httpCl.seen, ","), "GET") {
 		t.Errorf("expected the lock to be read back after the failed PUT, saw %v", httpCl.seen)
@@ -127,8 +131,12 @@ func TestDynamoDBLock_ConditionalFailureAgainstOwnLockIsAcquired(t *testing.T) {
 		},
 	}}
 
-	if _, err := newDynamoLockingClient(t, httpCl).Lock(t.Context(), info); err != nil {
+	lockID, err := newDynamoLockingClient(t, httpCl).Lock(t.Context(), info)
+	if err != nil {
 		t.Fatalf("expected the acquisition to succeed against its own lock, got: %s", err)
+	}
+	if lockID != info.ID {
+		t.Fatalf("expected lock ID %q, got %q", info.ID, lockID)
 	}
 	if !strings.Contains(strings.Join(httpCl.seen, ","), "DynamoDB_20120810.GetItem") {
 		t.Errorf("expected the lock to be read back after the failed PutItem, saw %v", httpCl.seen)
