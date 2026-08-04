@@ -22,38 +22,25 @@ type WorkspaceNew struct {
 	State *State
 }
 
+// BindWorkspaceNew registers CLI arguments, returning a WorkspaceNew value and it's corresponding hooks.
+func BindWorkspaceNew(cli *CommandLine) *WorkspaceNew {
+	var ret WorkspaceNew
+
+	ret.ViewOptions.bind(cli, false)
+
+	ret.Vars = BindVars(cli)
+
+	ret.State = BindState(cli, stateFlagLock|stateFlagStateIn)
+
+	cli.ArgHelp = "Expected a single argument: NAME."
+	cli.PositionalArg(&ret.WorkspaceName, "NAME", false)
+
+	return &ret
+}
+
 func ParseWorkspaceNew(args []string) (*WorkspaceNew, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	ret := &WorkspaceNew{
-		Vars:  &Vars{},
-		State: &State{},
-	}
-
-	cmdFlags := extendedFlagSet("workspace new", nil, ret.Vars)
-	ret.State.addFlags(cmdFlags, stateFlagLock|stateFlagStateIn)
-	ret.ViewOptions.AddFlags(cmdFlags, false)
-
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error(),
-		))
-	}
-
-	args = cmdFlags.Args()
-	if len(args) != 1 {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Invalid arguments list",
-			"Expected a single argument: NAME.",
-		))
-	} else {
-		ret.WorkspaceName = args[0]
-	}
-
-	closer, moreDiags := ret.ViewOptions.Parse()
-	diags = diags.Append(moreDiags)
+	cli := new(CommandLine)
+	ret := BindWorkspaceNew(cli)
+	closer, diags := cli.Stdlib("workspace new", args)
 	return ret, closer, diags
 }

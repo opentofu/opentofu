@@ -90,22 +90,8 @@ func TestMetaInputMode_disable(t *testing.T) {
 	m := &Meta{
 		WorkingDir: workdir.NewDir("."),
 		stateArgs:  arguments.State{Lock: true},
+		input:      false,
 	}
-	// TODO meta-refactor: these assignments are needed because the extendedFlagSet was used here before,
-	//   which had these with defaults as "true". In a future iteration, once these are not needed, we need to remove them.
-	m.input = true
-	args := []string{"-input=false"}
-
-	fs := flag.NewFlagSet("foo", flag.ContinueOnError)
-	var viewOpts arguments.ViewOptions
-	viewOpts.AddFlags(fs, true)
-	if err := fs.Parse(args); err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if _, diags := viewOpts.Parse(); len(diags) > 0 {
-		t.Fatalf("unexpected diagnostics: %s", diags)
-	}
-	m.input = viewOpts.InputEnabled
 
 	if m.InputMode() > 0 {
 		t.Fatalf("bad: %#v", m.InputMode())

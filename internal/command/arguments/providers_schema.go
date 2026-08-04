@@ -18,52 +18,40 @@ type ProvidersSchema struct {
 	Vars *Vars
 }
 
+// BindProvidersSchema registers CLI arguments, returning a ProvidersSchema value and it's corresponding hooks.
+func BindProvidersSchema(cli *CommandLine) *ProvidersSchema {
+	var schema ProvidersSchema
+
+	schema.ViewOptions.bindGranularFlags(cli, false, false)
+
+	schema.Vars = BindVars(cli)
+
+	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
+		if schema.ViewOptions.ViewType != ViewJSON {
+			return tfdiags.New(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Output only in json is allowed",
+				"The `tofu providers schema` command requires the `-json` flag.",
+			))
+		}
+
+		// The 'providers schema' command just forces the user to use the `-json` flag but any of the diagnostics should
+		// be printed as human format.
+		// The print of the schema will be in JSON all the time.
+		schema.ViewOptions.ViewType = ViewHuman
+
+		return nil
+	}})
+
+	return &schema
+}
+
 // ParseProvidersSchema processes CLI arguments, returning a ProvidersSchema value, a closer function, and errors.
 // If errors are encountered, a ProvidersSchema value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseProvidersSchema(args []string) (*ProvidersSchema, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	schema := &ProvidersSchema{
-		Vars: &Vars{},
-	}
-
-	cmdFlags := extendedFlagSet("providers schema", nil, schema.Vars)
-
-	schema.ViewOptions.AddGranularFlags(cmdFlags, false, false)
-
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error(),
-		))
-	}
-
-	args = cmdFlags.Args()
-	if len(args) > 0 {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Too many command line arguments",
-			"Expected at most zero positional arguments.",
-		))
-	}
-
-	closer, moreDiags := schema.ViewOptions.Parse()
-	diags = diags.Append(moreDiags)
-
-	if schema.ViewOptions.ViewType != ViewJSON {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Output only in json is allowed",
-			"The `tofu providers schema` command requires the `-json` flag.",
-		))
-	}
-
-	// The 'providers schema' command just forces the user to use the `-json` flag but any of the diagnostics should
-	// be printed as human format.
-	// The print of the schema will be in JSON all the time.
-	schema.ViewOptions.ViewType = ViewHuman
-
+	cli := new(CommandLine)
+	schema := BindProvidersSchema(cli)
+	closer, diags := cli.Stdlib("providers schema", args)
 	return schema, closer, diags
 }

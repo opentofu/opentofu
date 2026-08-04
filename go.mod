@@ -83,6 +83,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/posener/complete v1.2.3
 	github.com/spf13/afero v1.15.0
+	github.com/spf13/pflag v1.0.9
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.1.41
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/sts v1.1.11
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/tag v1.1.0
@@ -224,7 +225,6 @@ require (
 	github.com/ryanuber/go-glob v1.0.0 // indirect
 	github.com/shopspring/decimal v1.3.1 // indirect
 	github.com/spf13/cast v1.5.0 // indirect
-	github.com/spf13/pflag v1.0.9 // indirect
 	github.com/spiffe/go-spiffe/v2 v2.6.0 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.3.5 // indirect

@@ -39,42 +39,40 @@ type Fmt struct {
 	ViewOptions ViewOptions
 }
 
+// BindFmt registers CLI arguments, returning a Fmt value and it's corresponding hooks.
+func BindFmt(cli *CommandLine) *Fmt {
+	var ret Fmt
+
+	// we only parse but do not register the views flags since this command does not need it
+	ret.ViewOptions.ParseHook(cli)
+
+	cli.BoolVar(&ret.List, "list", true, "Don't list files whose formatting differs (always disabled if using STDIN)").SetDisplay("=false")
+	cli.BoolVar(&ret.Write, "write", true, "Don't write to source files (always disabled if using STDIN or -check)").SetDisplay("=false")
+	cli.BoolVar(&ret.Diff, "diff", false, "Display diffs of formatting changes")
+	cli.BoolVar(&ret.Check, "check", false, "Check if the input is formatted. Exit status will be 0 if all input is properly formatted and non-zero otherwise.")
+	cli.BoolVar(&ret.Recursive, "recursive", false, "Also process files in subdirectories. By default, only the given directory (or current directory) is processed.")
+
+	cli.VariadicArg(&ret.Paths, "paths")
+	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
+		if len(ret.Paths) == 0 {
+			ret.Paths = []string{"."}
+		} else if ret.Paths[0] == stdinArg {
+			ret.Paths = nil
+			ret.List = false
+			ret.Write = false
+		}
+		return nil
+	}})
+
+	return &ret
+}
+
 // ParseFmt processes CLI arguments, returning a Fmt value, a closer function, and errors.
 // If errors are encountered, a Fmt value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseFmt(args []string) (*Fmt, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	ret := &Fmt{}
-
-	cmdFlags := defaultFlagSet("fmt")
-	cmdFlags.BoolVar(&ret.List, "list", true, "list")
-	cmdFlags.BoolVar(&ret.Write, "write", true, "write")
-	cmdFlags.BoolVar(&ret.Diff, "diff", false, "diff")
-	cmdFlags.BoolVar(&ret.Check, "check", false, "check")
-	cmdFlags.BoolVar(&ret.Recursive, "recursive", false, "recursive")
-
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error(),
-		))
-	}
-
-	args = cmdFlags.Args()
-	if len(args) == 0 {
-		ret.Paths = []string{"."}
-	} else if args[0] == stdinArg {
-		ret.List = false
-		ret.Write = false
-	} else {
-		ret.Paths = args
-	}
-
-	// we only parse but do not register the views flags since this command does not need it
-	closer, moreDiags := ret.ViewOptions.Parse()
-	diags = diags.Append(moreDiags)
-
+	cli := new(CommandLine)
+	ret := BindFmt(cli)
+	closer, diags := cli.Stdlib("fmt", args)
 	return ret, closer, diags
 }

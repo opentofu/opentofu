@@ -6,7 +6,6 @@
 package arguments
 
 import (
-	"flag"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -42,12 +41,10 @@ func TestBackend_AddIgnoreRemoteVersionFlag(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			backend := &Backend{}
-			fs := flag.NewFlagSet("test", flag.ContinueOnError)
-			backend.AddIgnoreRemoteVersionFlag(fs)
-
-			if err := fs.Parse(tc.args); err != nil {
-				t.Fatalf("unexpected error parsing flags: %v", err)
+			var cli CommandLine
+			backend := BindBackend(&cli)
+			if _, diags := cli.Stdlib("test", tc.args); diags.HasErrors() {
+				t.Fatalf("unexpected error parsing flags: %v", diags.Err().Error())
 			}
 
 			if got := backend.IgnoreRemoteVersion; got != tc.want {
@@ -63,6 +60,8 @@ func TestBackend_AddMigrationFlags(t *testing.T) {
 		wantForceInitCopy bool
 		wantReconfigure   bool
 		wantMigrateState  bool
+		wantDiags         bool
+		diagsSummary      string
 	}{
 		"default values": {
 			args:              nil,
@@ -74,13 +73,13 @@ func TestBackend_AddMigrationFlags(t *testing.T) {
 			args:              []string{"-force-copy"},
 			wantForceInitCopy: true,
 			wantReconfigure:   false,
-			wantMigrateState:  false,
+			wantMigrateState:  true,
 		},
 		"force-copy explicitly true": {
 			args:              []string{"-force-copy=true"},
 			wantForceInitCopy: true,
 			wantReconfigure:   false,
-			wantMigrateState:  false,
+			wantMigrateState:  true,
 		},
 		"force-copy explicitly false": {
 			args:              []string{"-force-copy=false"},
@@ -135,121 +134,16 @@ func TestBackend_AddMigrationFlags(t *testing.T) {
 			wantForceInitCopy: true,
 			wantReconfigure:   true,
 			wantMigrateState:  true,
+			wantDiags:         true,
+			diagsSummary:      "Wrong combination of options",
 		},
 	}
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			backend := &Backend{}
-			fs := flag.NewFlagSet("test", flag.ContinueOnError)
-			backend.AddMigrationFlags(fs)
-
-			if err := fs.Parse(tc.args); err != nil {
-				t.Fatalf("unexpected error parsing flags: %v", err)
-			}
-
-			if got := backend.ForceInitCopy; got != tc.wantForceInitCopy {
-				t.Errorf("ForceInitCopy = %v, want %v", got, tc.wantForceInitCopy)
-			}
-
-			if got := backend.Reconfigure; got != tc.wantReconfigure {
-				t.Errorf("Reconfigure = %v, want %v", got, tc.wantReconfigure)
-			}
-
-			if got := backend.MigrateState; got != tc.wantMigrateState {
-				t.Errorf("MigrateState = %v, want %v", got, tc.wantMigrateState)
-			}
-		})
-	}
-}
-
-func TestBackend_migrationFlagsCheck(t *testing.T) {
-	testCases := map[string]struct {
-		backend          Backend
-		wantDiags        bool
-		wantMigrateState bool
-		diagsSummary     string
-	}{
-		"no flags set": {
-			backend: Backend{
-				ForceInitCopy: false,
-				Reconfigure:   false,
-				MigrateState:  false,
-			},
-			wantDiags:        false,
-			wantMigrateState: false,
-		},
-		"only migrate-state set": {
-			backend: Backend{
-				ForceInitCopy: false,
-				Reconfigure:   false,
-				MigrateState:  true,
-			},
-			wantDiags:        false,
-			wantMigrateState: true,
-		},
-		"only reconfigure set": {
-			backend: Backend{
-				ForceInitCopy: false,
-				Reconfigure:   true,
-				MigrateState:  false,
-			},
-			wantDiags:        false,
-			wantMigrateState: false,
-		},
-		"only force-copy set": {
-			backend: Backend{
-				ForceInitCopy: true,
-				Reconfigure:   false,
-				MigrateState:  false,
-			},
-			wantDiags:        false,
-			wantMigrateState: true, // force-copy implies migrate-state
-		},
-		"force-copy and migrate-state set": {
-			backend: Backend{
-				ForceInitCopy: true,
-				Reconfigure:   false,
-				MigrateState:  true,
-			},
-			wantDiags:        false,
-			wantMigrateState: true,
-		},
-		"migrate-state and reconfigure set (mutually exclusive)": {
-			backend: Backend{
-				ForceInitCopy: false,
-				Reconfigure:   true,
-				MigrateState:  true,
-			},
-			wantDiags:        true,
-			wantMigrateState: true,
-			diagsSummary:     "Wrong combination of options",
-		},
-		"all flags set (error due to reconfigure + migrate-state)": {
-			backend: Backend{
-				ForceInitCopy: true,
-				Reconfigure:   true,
-				MigrateState:  true,
-			},
-			wantDiags:        true,
-			wantMigrateState: true,
-			diagsSummary:     "Wrong combination of options",
-		},
-		"force-copy and reconfigure set (no error - check happens before force-copy sets migrate-state)": {
-			backend: Backend{
-				ForceInitCopy: true,
-				Reconfigure:   true,
-				MigrateState:  false,
-			},
-			wantDiags:        false, // No error because MigrateState is false when check happens
-			wantMigrateState: true,  // force-copy sets this to true after the check
-		},
-	}
-
-	for name, tc := range testCases {
-		t.Run(name, func(t *testing.T) {
-			backend := tc.backend
-			diags := backend.migrationFlagsCheck()
+			var cli CommandLine
+			backend := BindBackendWithMigration(&cli)
+			_, diags := cli.Stdlib("test", tc.args)
 
 			if tc.wantDiags && len(diags) == 0 {
 				t.Fatal("expected diagnostics but got none")
@@ -273,9 +167,16 @@ func TestBackend_migrationFlagsCheck(t *testing.T) {
 				}
 			}
 
-			// Verify that MigrateState is set correctly
+			if got := backend.ForceInitCopy; got != tc.wantForceInitCopy {
+				t.Errorf("ForceInitCopy = %v, want %v", got, tc.wantForceInitCopy)
+			}
+
+			if got := backend.Reconfigure; got != tc.wantReconfigure {
+				t.Errorf("Reconfigure = %v, want %v", got, tc.wantReconfigure)
+			}
+
 			if got := backend.MigrateState; got != tc.wantMigrateState {
-				t.Errorf("MigrateState after check = %v, want %v", got, tc.wantMigrateState)
+				t.Errorf("MigrateState = %v, want %v", got, tc.wantMigrateState)
 			}
 		})
 	}
@@ -283,8 +184,9 @@ func TestBackend_migrationFlagsCheck(t *testing.T) {
 
 func TestBackend_AllFlags(t *testing.T) {
 	testCases := map[string]struct {
-		args []string
-		want Backend
+		args      []string
+		want      Backend
+		wantDiags bool
 	}{
 		"all defaults": {
 			args: nil,
@@ -308,6 +210,7 @@ func TestBackend_AllFlags(t *testing.T) {
 				Reconfigure:         true,
 				MigrateState:        true,
 			},
+			wantDiags: true,
 		},
 		"mixed flags": {
 			args: []string{
@@ -325,13 +228,11 @@ func TestBackend_AllFlags(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			backend := &Backend{}
-			fs := flag.NewFlagSet("test", flag.ContinueOnError)
-			backend.AddIgnoreRemoteVersionFlag(fs)
-			backend.AddMigrationFlags(fs)
+			var cli CommandLine
+			backend := BindBackendWithMigration(&cli)
 
-			if err := fs.Parse(tc.args); err != nil {
-				t.Fatalf("unexpected error parsing flags: %v", err)
+			if _, diags := cli.Stdlib("test", tc.args); diags.HasErrors() != tc.wantDiags {
+				t.Fatalf("unexpected error parsing flags: %v", diags.Err().Error())
 			}
 
 			if diff := cmp.Diff(tc.want, *backend); diff != "" {

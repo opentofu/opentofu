@@ -25,44 +25,29 @@ type StatePush struct {
 	State   *State
 }
 
+// BindStatePush registers CLI arguments, returning a StatePush value and it's corresponding hooks.
+func BindStatePush(cli *CommandLine) *StatePush {
+	var ret StatePush
+
+	ret.ViewOptions.bind(cli, false)
+
+	ret.Vars = BindVars(cli)
+	ret.Backend = BindBackend(cli)
+	ret.State = BindState(cli, stateFlagLock)
+
+	cli.BoolVar(&ret.Force, "force", false, "Write the state even if lineages don't match or the remote serial is higher.")
+
+	cli.PositionalArg(&ret.StateSrc, "PATH", false)
+
+	return &ret
+}
+
 // ParseStatePush processes CLI arguments, returning a StatePush value, a closer function, and errors.
 // If errors are encountered, a StatePush value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseStatePush(args []string) (*StatePush, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	ret := &StatePush{
-		Vars:    &Vars{},
-		Backend: &Backend{},
-		State:   &State{},
-	}
-	cmdFlags := extendedFlagSet("state push", nil, ret.Vars)
-	ret.Backend.AddIgnoreRemoteVersionFlag(cmdFlags)
-	ret.State.addFlags(cmdFlags, stateFlagLock)
-	cmdFlags.BoolVar(&ret.Force, "force", false, "")
-	ret.ViewOptions.AddFlags(cmdFlags, false)
-
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error(),
-		))
-	}
-
-	args = cmdFlags.Args()
-	if len(args) != 1 {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Invalid number of arguments",
-			"Exactly one argument expected",
-		))
-	} else {
-		ret.StateSrc = args[0]
-	}
-
-	closer, moreDiags := ret.ViewOptions.Parse()
-	diags = diags.Append(moreDiags)
-
+	cli := new(CommandLine)
+	ret := BindStatePush(cli)
+	closer, diags := cli.Stdlib("state push", args)
 	return ret, closer, diags
 }

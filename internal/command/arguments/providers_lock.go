@@ -8,7 +8,6 @@ package arguments
 import (
 	"fmt"
 
-	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/svchost/uritemplates"
 )
@@ -20,7 +19,7 @@ type ProvidersLock struct {
 	// OptPlatforms contains the platforms that the user requested for the locks to be updated for.
 	// Having this empty, only the checksum for the host platform will be updated, but the user
 	// can use this to update the hashes for other platforms too.
-	OptPlatforms flags.FlagStringSlice
+	OptPlatforms []string
 	// FsMirrorDir represents a path from where OpenTofu should check for providers instead to reach
 	// out for the registry.
 	FsMirrorDir string
@@ -37,58 +36,72 @@ type ProvidersLock struct {
 	Vars *Vars
 }
 
+// BindProvidersLock registers CLI arguments, returning a ProvidersLock value and it's corresponding hooks.
+func BindProvidersLock(cli *CommandLine) *ProvidersLock {
+	var arguments ProvidersLock
+
+	arguments.ViewOptions.bind(cli, false)
+
+	arguments.Vars = BindVars(cli)
+
+	cli.StringArrayVar(&arguments.OptPlatforms, "platform", nil, `Choose a target platform to request package checksums for.
+
+By default OpenTofu will request package checksums suitable only for the platform where you run this command. Use this option multiple times to include checksums for multiple target systems.
+
+Target names consist of an operating system and a CPU architecture. For example, "linux_amd64" selects the Linux operating system running on an AMD64 or x86_64 CPU. Each provider is available only for a limited set of target platforms.`).SetDisplay("=os_arch")
+	cli.StringVar(&arguments.FsMirrorDir, "fs-mirror", "", `Consult the given filesystem mirror directory instead of the origin registry for each of the given providers.
+
+This would be necessary to generate lock file entries for a provider that is available only via a mirror, and not published in an upstream registry. In this case, the set of valid checksums will be limited only to what OpenTofu can learn from the data in the mirror directory.`).SetDisplay("=dir")
+	cli.StringVar(&arguments.NetMirrorURL, "net-mirror", "", `Consult the given network mirror (given as a base URL) instead of the origin registry for each of the given providers.
+
+This would be necessary to generate lock file entries for a provider that is available only via a mirror, and not published in an upstream registry. In this case, the set of valid checksums will be limited only to what OpenTofu can learn from the data in the mirror indices.`).SetDisplay("=url")
+	cli.StringVar(&arguments.OciMirrorTemplate, "oci-mirror", "", `Consult the given OCI registry mirror (given as a template) instead of the origin registry for each of the given providers.
+
+This would be necessary to generate lock file entries for a provider that is available only via an OCI mirror, and not published in an upstream registry.
+
+The argument is a Level 1 URI template as defined by RFC 6570, used to map provider source addresses to OCI repository addresses. The template can contain {hostname} {namespace} and {type}.`).SetDisplay("=tmpl")
+
+	cli.VariadicArg(&arguments.Providers, "providers")
+
+	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
+		var diags tfdiags.Diagnostics
+
+		mirrorSet := false
+		for _, mirror := range []string{arguments.FsMirrorDir, arguments.NetMirrorURL, arguments.OciMirrorTemplate} {
+			if mirror == "" {
+				continue
+			}
+			if mirrorSet {
+				diags = diags.Append(tfdiags.Sourceless(
+					tfdiags.Error,
+					"Invalid installation method options",
+					"The mirror command line options are mutually-exclusive.",
+				))
+				break
+			}
+			mirrorSet = true
+		}
+
+		if err := uritemplates.ValidateLevel1(arguments.OciMirrorTemplate); err != nil {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Invalid OCI mirror URI template",
+				fmt.Sprintf("The -oci-mirror argument is not a valid URI template: %s.", tfdiags.FormatError(err)),
+			))
+		}
+
+		return diags
+	}})
+
+	return &arguments
+}
+
 // ParseProvidersLock processes CLI arguments, returning a ProvidersLock value, a closer function, and errors.
 // If errors are encountered, a ProvidersLock value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseProvidersLock(args []string) (*ProvidersLock, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-	arguments := &ProvidersLock{
-		Vars: &Vars{},
-	}
-
-	cmdFlags := extendedFlagSet("providers lock", nil, arguments.Vars)
-	cmdFlags.Var(&arguments.OptPlatforms, "platform", "target platform")
-	cmdFlags.StringVar(&arguments.FsMirrorDir, "fs-mirror", "", "filesystem mirror directory")
-	cmdFlags.StringVar(&arguments.NetMirrorURL, "net-mirror", "", "network mirror base URL")
-	cmdFlags.StringVar(&arguments.OciMirrorTemplate, "oci-mirror", "", "oci mirror URI template")
-	arguments.ViewOptions.AddFlags(cmdFlags, false)
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error(),
-		))
-	}
-	mirrorSet := false
-	for _, mirror := range []string{arguments.FsMirrorDir, arguments.NetMirrorURL, arguments.OciMirrorTemplate} {
-		if mirror == "" {
-			continue
-		}
-		if mirrorSet {
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
-				"Invalid installation method options",
-				"The mirror command line options are mutually-exclusive.",
-			))
-			break
-		}
-		mirrorSet = true
-	}
-
-	if err := uritemplates.ValidateLevel1(arguments.OciMirrorTemplate); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Invalid OCI mirror URI template",
-			fmt.Sprintf("The -oci-mirror argument is not a valid URI template: %s.", tfdiags.FormatError(err)),
-		))
-	}
-
-	closer, moreDiags := arguments.ViewOptions.Parse()
-	diags = diags.Append(moreDiags)
-	if diags.HasErrors() {
-		return arguments, closer, diags
-	}
-	arguments.Providers = cmdFlags.Args()
-
+	cli := new(CommandLine)
+	arguments := BindProvidersLock(cli)
+	closer, diags := cli.Stdlib("providers lock", args)
 	return arguments, closer, diags
 }

@@ -6,7 +6,6 @@
 package arguments
 
 import (
-	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -31,50 +30,32 @@ type Import struct {
 	Vars    *Vars
 }
 
+// BindImport registers CLI arguments, returning a Import value and it's corresponding hooks.
+func BindImport(cli *CommandLine) *Import {
+	var ret Import
+
+	ret.ViewOptions.bind(cli, true)
+
+	ret.Vars = BindVars(cli)
+	ret.Backend = BindBackend(cli)
+	ret.State = BindState(cli, stateFlagAll)
+
+	cli.IntVar(&ret.Parallelism, "parallelism", DefaultParallelism, `Limit the number of parallel resource operations. Defaults to 10.`).SetDisplay("=n")
+	cli.StringVar(&ret.ConfigPath, "config", "", "Path to a directory of OpenTofu configuration files to use to configure the provider. Defaults to pwd. If no config files are present, they must be provided via the input prompts or env vars.").SetDisplay("=path")
+
+	cli.ArgHelp = "The import command expects two arguments"
+	cli.PositionalArg(&ret.ResourceAddress, "ADDR", false)
+	cli.PositionalArg(&ret.ResourceID, "ID", false)
+
+	return &ret
+}
+
 // ParseImport processes CLI arguments, returning an Import value, a closer function, and errors.
 // If errors are encountered, an Import value is still returned representing
 // the best effort interpretation of the arguments.
-func ParseImport(args []string, wd *workdir.Dir) (*Import, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-	ret := &Import{
-		Vars:    &Vars{},
-		State:   &State{},
-		Backend: &Backend{},
-	}
-	// Get the pwd since its our default -config flag value
-	pwd := wd.NormalizePath(wd.RootModuleDir())
-
-	cmdFlags := extendedFlagSet("import", nil, ret.Vars)
-	cmdFlags.IntVar(&ret.Parallelism, "parallelism", DefaultParallelism, "parallelism")
-	cmdFlags.StringVar(&ret.ConfigPath, "config", pwd, "path")
-	ret.Backend.AddIgnoreRemoteVersionFlag(cmdFlags)
-	ret.State.addFlags(cmdFlags, stateFlagAll)
-	ret.ViewOptions.AddFlags(cmdFlags, true)
-
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error(),
-		))
-	}
-
-	closer, moreDiags := ret.ViewOptions.Parse()
-	diags = diags.Append(moreDiags)
-	if diags.HasErrors() {
-		return ret, closer, diags
-	}
-
-	args = cmdFlags.Args()
-	if len(args) != 2 {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Invalid number of arguments",
-			"The import command expects two arguments",
-		))
-		return ret, closer, diags
-	}
-	ret.ResourceAddress = args[0]
-	ret.ResourceID = args[1]
+func ParseImport(args []string) (*Import, func(), tfdiags.Diagnostics) {
+	cli := new(CommandLine)
+	ret := BindImport(cli)
+	closer, diags := cli.Stdlib("import", args)
 	return ret, closer, diags
 }

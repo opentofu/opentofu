@@ -24,69 +24,61 @@ type Output struct {
 	State *State
 }
 
+// BindOutput registers CLI arguments, returning a Output value and it's corresponding hooks.
+func BindOutput(cli *CommandLine) *Output {
+	var output Output
+
+	output.ViewOptions.bind(cli, false)
+
+	output.Vars = BindVars(cli)
+
+	output.State = BindState(cli, stateFlagStateIn)
+
+	rawOutput := false
+	cli.BoolVar(&rawOutput, "raw", false, `For value types that can be automatically converted to a string, will print the raw string directly, rather than a human-oriented representation of the value.
+
+Use this with care when stdout is a terminal and when the output value might contain control characters.`)
+	cli.BoolVar(&output.ShowSensitive, "show-sensitive", false, "If specified, sensitive values will be displayed.")
+
+	cli.ArgHelp = "The output command expects exactly one argument with the name of an output variable or no arguments to show all outputs."
+	cli.PositionalArg(&output.Name, "NAME", true)
+
+	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
+		var diags tfdiags.Diagnostics
+		if rawOutput {
+			output.ViewOptions.ViewType = ViewRaw
+			if output.ViewOptions.jsonFlag {
+				diags = diags.Append(tfdiags.Sourceless(
+					tfdiags.Error,
+					"Invalid output format",
+					"The -raw and -json options are mutually-exclusive.",
+				))
+
+				// Since the desired output format is unknowable, fall back to default
+				output.ViewOptions.ViewType = ViewHuman
+				rawOutput = false
+			}
+		}
+
+		if rawOutput && output.Name == "" {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Output name required",
+				"You must give the name of a single output value when using the -raw option.",
+			))
+		}
+		return diags
+	}})
+
+	return &output
+}
+
 // ParseOutput processes CLI arguments, returning an Output value, a closer function, and errors.
 // If errors are encountered, an Output value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseOutput(args []string) (*Output, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-	output := &Output{
-		Vars:  &Vars{},
-		State: &State{},
-	}
-
-	var rawOutput bool
-	cmdFlags := extendedFlagSet("output", nil, output.Vars)
-	cmdFlags.BoolVar(&rawOutput, "raw", false, "raw")
-	output.State.addFlags(cmdFlags, stateFlagStateIn)
-	cmdFlags.BoolVar(&output.ShowSensitive, "show-sensitive", false, "displays sensitive values")
-
-	output.ViewOptions.AddFlags(cmdFlags, false)
-
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error(),
-		))
-	}
-
-	args = cmdFlags.Args()
-	if len(args) > 1 {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Unexpected argument",
-			"The output command expects exactly one argument with the name of an output variable or no arguments to show all outputs.",
-		))
-	}
-
-	closer, moreDiags := output.ViewOptions.Parse()
-	diags = diags.Append(moreDiags)
-	if rawOutput {
-		output.ViewOptions.ViewType = ViewRaw
-		if output.ViewOptions.jsonFlag {
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
-				"Invalid output format",
-				"The -raw and -json options are mutually-exclusive.",
-			))
-
-			// Since the desired output format is unknowable, fall back to default
-			output.ViewOptions.ViewType = ViewHuman
-			rawOutput = false
-		}
-	}
-
-	if len(args) > 0 {
-		output.Name = args[0]
-	}
-
-	if rawOutput && output.Name == "" {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Output name required",
-			"You must give the name of a single output value when using the -raw option.",
-		))
-	}
-
+	cli := new(CommandLine)
+	output := BindOutput(cli)
+	closer, diags := cli.Stdlib("output", args)
 	return output, closer, diags
 }

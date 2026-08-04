@@ -6,8 +6,6 @@
 package arguments
 
 import (
-	"github.com/opentofu/opentofu/internal/command/flags"
-	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -35,29 +33,24 @@ type Test struct {
 	Verbose bool
 }
 
+// BindTest registers CLI arguments, returning a Test value and it's corresponding hooks.
+func BindTest(cli *CommandLine) *Test {
+	var test Test
+
+	test.ViewOptions.bind(cli, false)
+
+	test.Vars = BindVars(cli)
+
+	cli.StringArrayVar(&test.Filter, "filter", nil, "If specified, OpenTofu will only execute the test files specified by this flag. You can use this option multiple times to execute more than one test file. The path should be relative to the current working directory, even if -test-directory is set.").SetDisplay("=testfile")
+	cli.StringVar(&test.TestDirectory, "test-directory", "tests", `Set the OpenTofu test directory, defaults to "tests". When set, the test command will search for test files in the current directory and in the one specified by the flag.`).SetDisplay("=path")
+	cli.BoolVar(&test.Verbose, "verbose", false, "Print the plan or state for each test run block as it executes.")
+
+	return &test
+}
+
 func ParseTest(args []string) (*Test, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	test := Test{
-		Vars: new(Vars),
-	}
-
-	cmdFlags := extendedFlagSet("test", nil, test.Vars)
-	cmdFlags.Var((*flags.FlagStringSlice)(&test.Filter), "filter", "filter")
-	cmdFlags.StringVar(&test.TestDirectory, "test-directory", configs.DefaultTestDirectory, "test-directory")
-	cmdFlags.BoolVar(&test.Verbose, "verbose", false, "verbose")
-
-	test.ViewOptions.AddFlags(cmdFlags, false)
-
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error()))
-	}
-
-	closer, moreDiags := test.ViewOptions.Parse()
-	diags = diags.Append(moreDiags)
-
-	return &test, closer, diags
+	cli := new(CommandLine)
+	test := BindTest(cli)
+	closer, diags := cli.Stdlib("test", args)
+	return test, closer, diags
 }

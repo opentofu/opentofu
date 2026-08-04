@@ -44,8 +44,13 @@ func (c *ImportCommand) Run(rawArgs []string) int {
 	c.View.DiagsWithNewline()
 
 	// Parse and validate flags
-	args, closer, diags := arguments.ParseImport(rawArgs, c.WorkingDir)
+	args, closer, diags := arguments.ParseImport(rawArgs)
 	defer closer()
+
+	if args.ConfigPath == "" {
+		// pwd is our default -config flag value
+		args.ConfigPath = c.WorkingDir.NormalizePath(c.WorkingDir.RootModuleDir())
+	}
 
 	// Instantiate the view, even if there are flag errors, so that we render
 	// diagnostics according to the desired view
