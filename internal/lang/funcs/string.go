@@ -211,6 +211,7 @@ func MakeTemplateStringFunc(content string, funcsCb func() map[string]function.F
 			// A template consisting only of a single interpolation can potentially
 			// return any type.
 			dataArg, dataMarks := args[0].Unmark()
+			varsArg, _ := args[1].Unmark()
 			expr, err := loadTmpl(dataArg.AsString(), dataMarks)
 			if err != nil {
 				return cty.DynamicPseudoType, err
@@ -218,17 +219,18 @@ func MakeTemplateStringFunc(content string, funcsCb func() map[string]function.F
 
 			// This is safe even if args[1] contains unknowns because the HCL
 			// template renderer itself knows how to short-circuit those.
-			val, err := renderTemplate(expr, args[1], funcsCb())
+			val, err := renderTemplate(expr, varsArg, funcsCb())
 			return val.Type(), err
 		},
 		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
 			dataArg, dataMarks := args[0].Unmark()
+			varsArg, varsMarks := args[1].Unmark()
 			expr, err := loadTmpl(dataArg.AsString(), dataMarks)
 			if err != nil {
 				return cty.DynamicVal, err
 			}
-			result, err := renderTemplate(expr, args[1], funcsCb())
-			return result.WithMarks(dataMarks), err
+			result, err := renderTemplate(expr, varsArg, funcsCb())
+			return result.WithMarks(dataMarks, varsMarks), err
 		},
 	})
 }
