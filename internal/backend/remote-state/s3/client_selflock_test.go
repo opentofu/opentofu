@@ -91,7 +91,7 @@ func TestS3Lock_412AgainstOwnLockIsAcquired(t *testing.T) {
 		},
 	}}
 
-	if err := newLockingClient(t, httpCl).Lock(t.Context(), info); err != nil {
+	if _, err := newLockingClient(t, httpCl).Lock(t.Context(), info); err != nil {
 		t.Fatalf("expected the acquisition to succeed against its own lock, got: %s", err)
 	}
 	if !strings.Contains(strings.Join(httpCl.seen, ","), "GET") {
@@ -127,7 +127,7 @@ func TestDynamoDBLock_ConditionalFailureAgainstOwnLockIsAcquired(t *testing.T) {
 		},
 	}}
 
-	if err := newDynamoLockingClient(t, httpCl).Lock(t.Context(), info); err != nil {
+	if _, err := newDynamoLockingClient(t, httpCl).Lock(t.Context(), info); err != nil {
 		t.Fatalf("expected the acquisition to succeed against its own lock, got: %s", err)
 	}
 	if !strings.Contains(strings.Join(httpCl.seen, ","), "DynamoDB_20120810.GetItem") {
@@ -152,7 +152,7 @@ func TestS3Lock_412AgainstForeignLockStillFails(t *testing.T) {
 		},
 	}}
 
-	err := newLockingClient(t, httpCl).Lock(t.Context(), mine)
+	_, err := newLockingClient(t, httpCl).Lock(t.Context(), mine)
 	if err == nil {
 		t.Fatal("expected a foreign lock to block acquisition")
 	}
