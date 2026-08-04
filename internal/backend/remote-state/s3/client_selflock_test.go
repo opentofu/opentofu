@@ -182,7 +182,7 @@ func TestS3Lock_412WithUnreadableLockStillFails(t *testing.T) {
 		},
 	}}
 
-	if err := newLockingClient(t, httpCl).Lock(t.Context(), mine); err == nil {
+	if _, err := newLockingClient(t, httpCl).Lock(t.Context(), mine); err == nil {
 		t.Fatal("expected an unreadable lock object to fail the acquisition")
 	}
 }
