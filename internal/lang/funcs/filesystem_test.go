@@ -200,6 +200,14 @@ func TestTemplateFile(t *testing.T) {
 			cty.True.Mark(marks.Sensitive),
 			``,
 		},
+		{
+			cty.StringVal("testdata/bare.tmpl"),
+			cty.ObjectVal(map[string]cty.Value{
+				"val": cty.True,
+			}).Mark(marks.Sensitive),
+			cty.True.Mark(marks.Sensitive),
+			``,
+		},
 	}
 
 	templateFileFn := MakeTemplateFileFunc(".", func() map[string]function.Function {
