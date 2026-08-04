@@ -339,6 +339,14 @@ func TestTemplateString(t *testing.T) {
 			cty.StringVal("My password is secret").Mark(marks.Sensitive),
 			``,
 		},
+		"Sensitive template variables object": {
+			cty.StringVal("My password is ${pass}"),
+			cty.ObjectVal(map[string]cty.Value{
+				"pass": cty.StringVal("secret"),
+			}).Mark(marks.Sensitive),
+			cty.StringVal("My password is secret").Mark(marks.Sensitive),
+			``,
+		},
 	}
 
 	templateStringFn := MakeTemplateStringFunc(".", func() map[string]function.Function {
