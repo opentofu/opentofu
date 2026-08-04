@@ -28,6 +28,7 @@ ENHANCEMENTS:
 
 BUG FIXES:
 
+- The `s3` backend no longer leaves an orphaned lock behind when a lock acquisition collides with the lock it just wrote. A conditional write is not idempotent under retry, so a lost or late response to the lock write could make the retry fail its precondition against the caller's own lock, which was then reported as another process's and never released. ([#4405](https://github.com/opentofu/opentofu/issues/4405))
 - `tofu apply -json` now emits periodic `apply_progress` heartbeat messages for the full duration of a resource operation, instead of stopping after the first one. ([#4107](https://github.com/opentofu/opentofu/pull/4318))
 - The built-in function `contains` now accepts `null` as its second argument, to test whether a collection contains any null values. ([#4043](https://github.com/opentofu/opentofu/issues/4043))
 - The built-in function `merge` no longer fails when its only argument is a null value of an object type. ([#4043](https://github.com/opentofu/opentofu/issues/4043))

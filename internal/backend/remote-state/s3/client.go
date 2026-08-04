@@ -276,6 +276,23 @@ func (c *RemoteClient) Lock(ctx context.Context, info *statemgr.LockInfo) (strin
 	return info.ID, nil
 }
 
+// lockWrittenByThisCall reports whether the lock recorded in the backing store is
+// the one the current acquisition just wrote.
+//
+// A conditional write is not idempotent under retry. If the first attempt reaches
+// the store but its response does not reach us, the retry fails its precondition
+// against the object that attempt created, and the lock we then read back to
+// explain the failure is our own. statemgr.LockInfo#ID is a UUID minted per
+// Lock() call, so a stored lock carrying it cannot belong to another process.
+//
+// Reporting that as a foreign holder is what turns a transient fault into a
+// persistent one: Lock() returns no ID, so nothing is registered for release and
+// the object blocks every later operation on the state until someone with write
+// access to the backing store removes it by hand.
+func lockWrittenByThisCall(stored, info *statemgr.LockInfo) bool {
+	return stored != nil && info != nil && info.ID != "" && stored.ID == info.ID
+}
+
 // dynamoDBLock expects the statemgr.LockInfo#ID to be filled already
 func (c *RemoteClient) dynamoDBLock(ctx context.Context, info *statemgr.LockInfo) error {
 	if c.ddbTable == "" {
@@ -297,6 +314,11 @@ func (c *RemoteClient) dynamoDBLock(ctx context.Context, info *statemgr.LockInfo
 		lockInfo, infoErr := c.getLockInfoFromDynamoDB(ctx)
 		if infoErr != nil {
 			err = multierror.Append(err, infoErr)
+		}
+
+		if lockWrittenByThisCall(lockInfo, info) {
+			log.Printf("[WARN] dynamodb lock %q was written by this acquisition, but the outcome of its PutItem was not observed (%v). Treating the lock as held.", info.ID, err)
+			return nil
 		}
 
 		lockErr := &statemgr.LockError{
@@ -337,6 +359,11 @@ func (c *RemoteClient) s3Lock(ctx context.Context, info *statemgr.LockInfo) erro
 		lockInfo, infoErr := c.getLockInfoFromS3(ctx)
 		if infoErr != nil {
 			err = multierror.Append(err, infoErr)
+		}
+
+		if lockWrittenByThisCall(lockInfo, info) {
+			log.Printf("[WARN] s3 lock %q was written by this acquisition, but the outcome of its PutObject was not observed (%v). Treating the lock as held.", info.ID, err)
+			return nil
 		}
 
 		lockErr := &statemgr.LockError{
