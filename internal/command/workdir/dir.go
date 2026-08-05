@@ -101,7 +101,7 @@ func NewWorkdir(args []string) (*Dir, []string, error) {
 }
 
 // TODO replace the above function with this once the cobra refactor is complete
-func NewWorkdirCobra(chdir string) (*Dir, error) {
+func NewWorkdirExplicit(chdir string) (*Dir, error) {
 	originalWd, err := os.Getwd()
 	if err != nil {
 		return nil, fmt.Errorf("Failed to determine current working directory: %s", err)

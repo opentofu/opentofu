@@ -61,6 +61,10 @@ func (f RawFlags) Set(str string) error {
 	return nil
 }
 
+func (f RawFlags) Get() any {
+	return f
+}
+
 type RawFlag struct {
 	Name  string
 	Value string

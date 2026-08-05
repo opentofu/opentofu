@@ -39,8 +39,8 @@ const (
 	// The parent process will create a file to collect crash logs
 	envTmpLogPath = "TF_TEMP_LOG_PATH"
 
-	EnvCPUProfile   = "TOFU_CPU_PROFILE"
-	EnvCobraEnabled = "TOFU_COBRA_ENABLED"
+	EnvCPUProfile = "TOFU_CPU_PROFILE"
+	EnvCliEnabled = "TOFU_EXPERIMENTAL_CLI_ENABLED"
 )
 
 func main() {
@@ -200,8 +200,8 @@ func realMain() int {
 	defer plugin.CleanupClients()
 
 	var exitCode int
-	if cobraEnabled := os.Getenv(EnvCobraEnabled); cobraEnabled != "" && experimentsAreAllowed() {
-		exitCode = cobraMain(
+	if cliEnabled := os.Getenv(EnvCliEnabled); cliEnabled != "" && experimentsAreAllowed() {
+		exitCode = experimentalMain(
 			ctx,
 			view,
 			rv,

@@ -105,6 +105,7 @@ type Command struct {
 	Groups   []Group
 
 	UsageOptions UsageOptions
+	ShowHelpFlag bool
 
 	CommandLine arguments.CommandLine
 	Run         func(Meta) int
@@ -262,8 +263,8 @@ func CommandUsage(namespace string, cmd Command, w io.Writer) {
 
 var RunResultHelp = cli.RunResultHelp
 
-func RunCobra(namespace string, cmd Command, meta Meta, posArgs []string) int {
-	return runCommand(namespace, cmd, meta, cmd.CommandLine.PositionalArgs(posArgs))
+func RunCli(namespace string, cmd Command, meta Meta, diags tfdiags.Diagnostics) int {
+	return runCommand(namespace, cmd, meta, diags)
 }
 
 func RunCommand(cmd Command, meta Meta, args []string) int {
@@ -275,6 +276,10 @@ func runCommand(namespace string, cmd Command, meta Meta, diags tfdiags.Diagnost
 
 	diags = diags.Append(cmd.CommandLine.Hooks.Pre())
 	defer cmd.CommandLine.Hooks.Post()
+
+	if cmd.CommandLine.View == nil {
+		cmd.CommandLine.View = &arguments.View{}
+	}
 
 	meta.View.Configure(cmd.CommandLine.View)
 
@@ -352,13 +357,16 @@ func RootCommander(chdir *string) Command {
 			Usage:       "tofu [global options] <subcommand> [args]",
 			SingleSpace: true,
 		},
+
+		ShowHelpFlag: true,
 	}
 
 	root.CommandLine.FlagGroups = []arguments.FlagGroup{{
 		Title: "Global options (use these before the subcommand, if any)",
 	}}
 
-	var help bool // Unused
+	var help bool
+
 	root.CommandLine.StringVar(chdir, "chdir", "", "Switch to a different working directory before executing the given subcommand.").SetDisplay("=DIR")
 	root.CommandLine.BoolVar(&help, "help", false, "Show this help output, or the help for a specified subcommand.")
 
