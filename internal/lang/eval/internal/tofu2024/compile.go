@@ -14,6 +14,7 @@ import (
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
+	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -162,6 +163,10 @@ func CompileModuleInstance(
 		call.EvaluationGlue.ResourceInstanceValue,
 		call.DependencyMarks,
 	)
+	ret.moveStatements = compileMoveStatements(
+		module,
+		call.CalleeAddr,
+	)
 
 	// Now that we've assembled all of the innards of the module instance,
 	// we'll wire the output values up to the top-level module instance
@@ -173,6 +178,17 @@ func CompileModuleInstance(
 	}
 
 	return ret
+}
+
+func compileMoveStatements(module *configs.Module, moduleInstanceAddr addrs.ModuleInstance) []refactoring.MoveStatement {
+	// TODO add implicit move statements
+	// implicitMoveStmts := refactoring.ImpliedMoveStatements(config, prevRunState, explicitMoveStmts)
+	// Hmmm, do we do that here or do we do that "implicitly" at move-time during the plan phase?
+
+	// Note: this will have the same move statements for each instance of a given module.
+	// When collecting all move statements from the root module, be sure to
+	// only collect from one instance per module call made.
+	return refactoring.FindMoveStatementsShallow(module, moduleInstanceAddr.Module())
 }
 
 func compileCheckRules(configs []*configs.CheckRule, evalScope exprs.Scope) iter.Seq[*configgraph.CheckRule] {

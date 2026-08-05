@@ -9784,6 +9784,8 @@ func TestContext2Apply_scaleInMultivarRef(t *testing.T) {
 		if got, want := change.Action, plans.Delete; got != want {
 			t.Errorf("wrong action for %s %s; want %s", addr, got, want)
 		}
+		// Note: by skipping here, we still check for the errors and failures above!
+		SkipExperimental(t, ExperimentalFeatureActionReason)
 		if got, want := change.ActionReason, plans.ResourceInstanceDeleteBecauseCountIndex; got != want {
 			t.Errorf("wrong action reason for %s %s; want %s", addr, got, want)
 		}
@@ -12376,6 +12378,7 @@ resource "test_resource" "a" {
 }
 
 func TestContext2Apply_forcedCBD(t *testing.T) {
+	SkipExperimental(t, ExperimentalBugCircularReference)
 	// Unfortunately in experimental mode this test is currently flaking with
 	// errors like this, but not consistently on every run:
 	//
@@ -12452,7 +12455,7 @@ resource "test_instance" "b" {
 }
 
 func TestContext2Apply_removeReferencedResource(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureDestroy)
+	SkipExperimental(t, ExperimentalFeatureDestroy, ExperimentalBugCircularReference)
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 variable "ct" {
