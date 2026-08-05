@@ -285,18 +285,10 @@ func (h *UiHook) ProvisionOutput(addr addrs.AbsResourceInstance, typeName string
 }
 
 func (h *UiHook) PreRefresh(addr addrs.AbsResourceInstance, gen states.Generation, priorState cty.Value) (tofu.HookAction, error) {
-	var stateIdSuffix string
-	if k, v := format.ObjectValueID(priorState); k != "" && v != "" {
-		stateIdSuffix = fmt.Sprintf(" [%s=%s]", k, v)
-	}
-
 	addrStr := addr.String()
 	if depKey, ok := gen.(states.DeposedKey); ok {
 		addrStr = fmt.Sprintf("%s (deposed object %s)", addrStr, depKey)
 	}
-	h.println(fmt.Sprintf(
-		h.view.colorize.Color("[reset][bold]%s: Refreshing state...%s"),
-		addrStr, stateIdSuffix))
 	return tofu.HookActionContinue, nil
 }
 

@@ -113,6 +113,7 @@ func (b *Local) opPlan(
 	var planDiags tfdiags.Diagnostics
 	doneCh := make(chan struct{})
 	panicHandler := logging.PanicHandlerWithTraceFn()
+	op.View.Refreshing()
 	go func() {
 		defer panicHandler()
 		defer close(doneCh)
@@ -127,6 +128,7 @@ func (b *Local) opPlan(
 		runningOp.Result = backend.OperationFailure
 		return
 	}
+	op.View.StopRefreshing()
 	log.Printf("[INFO] backend/local: plan operation completed")
 
 	// NOTE: We intentionally don't stop here on errors because we always want
