@@ -368,7 +368,18 @@ func (n *NodeAbstractResourceInstance) StateDependencies() []addrs.ConfigResourc
 	// conflicts in ordering when refactoring configuration.
 	if s := n.instanceState; s != nil {
 		if s.Current != nil {
-			return s.Current.Dependencies
+			deps := s.Current.Dependencies
+			// Provider-level parent addresses also participate in graph
+			// ordering so that parent deletions are planned before child
+			// orphan planning, giving hasDependencyRemovalPlanned a chance
+			// to observe the parent's planned action.
+			if len(s.Current.ProviderParents) > 0 {
+				merged := make([]addrs.ConfigResource, 0, len(deps)+len(s.Current.ProviderParents))
+				merged = append(merged, deps...)
+				merged = append(merged, s.Current.ProviderParents...)
+				return merged
+			}
+			return deps
 		}
 	}
 
@@ -2457,6 +2468,79 @@ func (n *NodeAbstractResourceInstance) dependenciesHavePendingChanges(evalCtx Ev
 		}
 	}
 	return false
+}
+
+func (n *NodeAbstractResourceInstance) hasDependencyRemovalPlanned(evalCtx EvalContext, state *states.ResourceInstanceObject) bool {
+	if state == nil {
+		return false
+	}
+
+	deps := state.Dependencies
+	if len(deps) == 0 {
+		deps = n.Dependencies
+	}
+
+	nModInst := n.Addr.Module
+	nMod := nModInst.Module()
+	changes := evalCtx.Changes()
+
+	for _, dep := range deps {
+		hasRemovalChange := false
+		for _, change := range changes.GetChangesForConfigResource(dep) {
+			if change == nil || change.Addr.Equal(n.Addr) {
+				continue
+			}
+
+			changeModInst := change.Addr.Module
+			if changeModInst.IsForModule(nMod) && !changeModInst.Equal(nModInst) {
+				continue
+			}
+
+			if change.Action == plans.Delete || change.Action == plans.Forget {
+				hasRemovalChange = true
+				break
+			}
+		}
+		if hasRemovalChange {
+			return true
+		}
+	}
+
+	// Also check provider-level parent resources declared via all_objects_part_of.
+	for _, parent := range state.ProviderParents {
+		for _, change := range changes.GetChangesForConfigResource(parent) {
+			if change == nil {
+				continue
+			}
+			if change.Action == plans.Delete || change.Action == plans.Forget {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+func (n *NodeAbstractResourceInstance) shouldForgetOnDependencyRemoval(state *states.ResourceInstanceObject) (bool, tfdiags.Diagnostics) {
+	// Provider-level containment: resources managed by a provider that
+	// declares all_objects_part_of are always forgotten (not destroyed) when
+	// any listed parent is removed from the plan.
+	if state != nil && len(state.ProviderParents) > 0 {
+		return true, nil
+	}
+
+	// Prefer current config, if still available for this instance.
+	if n.Config != nil && n.Config.Managed != nil {
+		return n.NodeAbstractResource.shouldForgetOnDependencyRemoval()
+	}
+
+	var diags tfdiags.Diagnostics
+	// Fall back to previously-applied lifecycle setting carried in state.
+	if state == nil || state.DestroyOnDependencyRemoval == nil {
+		return false, diags
+	}
+
+	return !*state.DestroyOnDependencyRemoval, diags
 }
 
 // apply deals with the main part of the data resource lifecycle: either

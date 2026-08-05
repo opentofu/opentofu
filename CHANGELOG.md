@@ -16,6 +16,7 @@ UPGRADE NOTES:
 
 ENHANCEMENTS:
 
+- Provider blocks now support `lifecycle { all_objects_part_of = [...] }`, which declares that all resources managed through that provider are logically contained within the listed parent resources. When a parent is deleted or forgotten, contained resources are forgotten rather than destroyed — enabling clean removal of provider-managed objects (for example, Kubernetes workloads when an EKS cluster is torn down). ([#3148](https://github.com/opentofu/opentofu/issues/3148))
 - The `gcp_kms` key provider now supports an optional `additional_authenticated_data` as part of the encryption and decryption operations. ([#4287](https://github.com/opentofu/opentofu/pull/4287))
 - The AWS KMS key provider for state encryption now supports an `encryption_context` field, allowing key-value string pairs to be passed to AWS KMS with every `GenerateDataKey` and `Decrypt` call. ([#4298](https://github.com/opentofu/opentofu/pull/4298))
 - The `cidrsubnets` function now supports prefix extensions greater than 32 bits when the base CIDR block uses an IPv6 address. ([#4042](https://github.com/opentofu/opentofu/pull/4042))

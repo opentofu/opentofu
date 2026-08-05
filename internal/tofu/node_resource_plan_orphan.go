@@ -50,7 +50,16 @@ var (
 	_ GraphNodeAttachResourceState  = (*NodePlannableResourceInstanceOrphan)(nil)
 	_ GraphNodeExecutable           = (*NodePlannableResourceInstanceOrphan)(nil)
 	_ GraphNodeProviderConsumer     = (*NodePlannableResourceInstanceOrphan)(nil)
+	_ GraphNodeDestroyer            = (*NodePlannableResourceInstanceOrphan)(nil)
 )
+
+// DestroyAddr implements GraphNodeDestroyer so that DestroyEdgeTransformer
+// can create ordering edges between orphan nodes whose state declares
+// dependencies on other orphan nodes (via Dependencies or ProviderParents).
+func (n *NodePlannableResourceInstanceOrphan) DestroyAddr() *addrs.AbsResourceInstance {
+	addr := n.ResourceInstanceAddr()
+	return &addr
+}
 
 func (n *NodePlannableResourceInstanceOrphan) Name() string {
 	return n.ResourceInstanceAddr().String() + " (orphan)"
@@ -194,13 +203,24 @@ func (n *NodePlannableResourceInstanceOrphan) managedResourceExecute(ctx context
 		return diags
 	}
 
-	// We skip destroy for an orphaned resource instance in 2 cases:
+	// We skip destroy for an orphaned resource instance in 3 cases:
 	// 1) Resource had lifecycle attribute destroy explicitly set to false (either in config or in state)
 	//    Config case in case of orphans only applies for multi-instance resources (count/for_each)
-	// 2) Removed block is declared to remove the resource from the state without it's destroy set to true
+	// 2) Resource has lifecycle.destroy_on_dependency_removal=false and at least one dependency is being removed
+	// 3) Removed block is declared to remove the resource from the state without it's destroy set to true
 	// For every other case, we should destroy the resource
 	// If the orphan instance has skip_destroy set in state, we skip destroying
 	shouldDestroy := !skipDestroy && !oldState.SkipDestroy
+
+	forgetOnDependencyRemoval, forgetOnDependencyRemovalDiags := n.shouldForgetOnDependencyRemoval(oldState)
+	diags = diags.Append(forgetOnDependencyRemovalDiags)
+	if diags.HasErrors() {
+		return diags
+	}
+	if shouldDestroy && forgetOnDependencyRemoval && n.hasDependencyRemovalPlanned(evalCtx, oldState) {
+		shouldDestroy = false
+		log.Printf("[DEBUG] NodePlannableResourceInstanceOrphan.managedResourceExecute: %s (orphan) planning forget instead of destroy due to dependency removal and lifecycle.destroy_on_dependency_removal=false", addr)
+	}
 
 	log.Printf("[TRACE] NodePlannableResourceInstanceOrphan.managedResourceExecute: %s (orphan): shouldDestroy=%t (based on config)", n.Addr, shouldDestroy)
 	// Note that removed statements take precedence, since it is the latest intent the user declared

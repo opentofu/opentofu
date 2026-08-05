@@ -169,12 +169,23 @@ func (n *NodePlanDeposedResourceInstanceObject) Execute(ctx context.Context, eva
 			return diags
 		}
 
-		// We skip destroy for a depose instance in 2 cases:
+		// We skip destroy for a deposed instance in 3 cases:
 		// 1) Resource had lifecycle attribute destroy explicitly set to false
-		// 2) Removed block is declared to remove the resource from the state without it's destroy set to true
+		// 2) Resource has lifecycle.destroy_on_dependency_removal=false and at least one dependency is being removed
+		// 3) Removed block is declared to remove the resource from the state without it's destroy set to true
 		// For every other case, we should destroy the resource
 		// If the deposed instance has skip_destroy set in state, we skip destroying
 		shouldDestroy := !skipDestroy && !state.SkipDestroy
+
+		forgetOnDependencyRemoval, forgetOnDependencyRemovalDiags := n.shouldForgetOnDependencyRemoval(state)
+		diags = diags.Append(forgetOnDependencyRemovalDiags)
+		if diags.HasErrors() {
+			return diags
+		}
+		if shouldDestroy && forgetOnDependencyRemoval && n.hasDependencyRemovalPlanned(evalCtx, state) {
+			shouldDestroy = false
+			log.Printf("[DEBUG] NodePlanDeposedResourceInstanceObject.Execute: %s (deposed %s) planning forget instead of destroy due to dependency removal and lifecycle.destroy_on_dependency_removal=false", n.Addr, n.DeposedKey)
+		}
 
 		log.Printf("[TRACE] NodePlanDeposedResourceInstanceObject.Execute: %s (deposed %s): skipDestroy based on config=%t; based on state.SkipDestroy=%t; shouldDestroy=%t", n.Addr, n.DeposedKey, skipDestroy, state.SkipDestroy, shouldDestroy)
 		// Note that removed statements take precedence, since it is the latest intent the user declared

@@ -324,6 +324,7 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx context.Conte
 		if instanceRefreshState != nil {
 			prevCreateBeforeDestroy := instanceRefreshState.CreateBeforeDestroy
 			prevSkipDestroy := instanceRefreshState.SkipDestroy
+			prevDestroyOnDependencyRemoval := instanceRefreshState.DestroyOnDependencyRemoval
 
 			// This change is usually written to the refreshState and then
 			// updated value used for further graph execution. However, with
@@ -338,9 +339,33 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx context.Conte
 				return diags
 			}
 			instanceRefreshState.SkipDestroy = skipDestroy
+			if n.Config.Managed.DestroyOnDependencyRemoval != nil {
+				destroyOnDependencyRemoval, destroyOnDependencyRemovalDiags := destroyOnDependencyRemovalValueFromConstantExpression(n.Config.Managed.DestroyOnDependencyRemoval)
+				diags = diags.Append(destroyOnDependencyRemovalDiags)
+				if diags.HasErrors() {
+					return diags
+				}
+				instanceRefreshState.DestroyOnDependencyRemoval = &destroyOnDependencyRemoval
+			} else {
+				instanceRefreshState.DestroyOnDependencyRemoval = nil
+			}
+
+			// Persist provider-level containment: record the parent resource
+			// addresses declared via all_objects_part_of so they survive config
+			// removal and are still available at orphan-planning time.
+			if len(n.ProviderParentAddrs) > 0 {
+				instanceRefreshState.ProviderParents = make([]addrs.ConfigResource, len(n.ProviderParentAddrs))
+				copy(instanceRefreshState.ProviderParents, n.ProviderParentAddrs)
+			} else {
+				instanceRefreshState.ProviderParents = nil
+			}
 
 			if n.skipRefresh {
-				if prevCreateBeforeDestroy != instanceRefreshState.CreateBeforeDestroy || prevSkipDestroy != instanceRefreshState.SkipDestroy {
+				destroyOnDependencyRemovalChanged := (prevDestroyOnDependencyRemoval == nil) != (instanceRefreshState.DestroyOnDependencyRemoval == nil)
+				if !destroyOnDependencyRemovalChanged && prevDestroyOnDependencyRemoval != nil && instanceRefreshState.DestroyOnDependencyRemoval != nil {
+					destroyOnDependencyRemovalChanged = *prevDestroyOnDependencyRemoval != *instanceRefreshState.DestroyOnDependencyRemoval
+				}
+				if prevCreateBeforeDestroy != instanceRefreshState.CreateBeforeDestroy || prevSkipDestroy != instanceRefreshState.SkipDestroy || destroyOnDependencyRemovalChanged {
 					diags = diags.Append(n.writeResourceInstanceState(ctx, evalCtx, instanceRefreshState, refreshState))
 					if diags.HasErrors() {
 						return diags
