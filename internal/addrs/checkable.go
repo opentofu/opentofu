@@ -159,7 +159,7 @@ func ParseCheckableStr(kind CheckableKind, src string) (Checkable, tfdiags.Diagn
 	// might be a resource whose type is literally "output".
 	switch kind {
 	case CheckableResource:
-		riAddr, moreDiags := parseResourceInstanceUnderModule(path, remain)
+		riAddr, moreDiags := parseResourceInstanceUnderModule(path, remain, false)
 		diags = diags.Append(moreDiags)
 		if diags.HasErrors() {
 			return nil, diags
