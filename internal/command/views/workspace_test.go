@@ -28,14 +28,15 @@ func TestWorkspaceViews(t *testing.T) {
 			wantJson: []map[string]any{
 				{
 					"@level":   "error",
-					"@message": `Workspace "test-workspace" already exists`,
+					"@message": `Workspace "test-workspace" already exists. Use "tofu workspace select test-workspace" to switch to it`,
 					"@module":  "tofu.ui",
 				},
 			},
 			wantStderr: `
 Error: Workspace "test-workspace" already exists
 
-A workspace having the given name already exists
+A workspace having the given name already exists.
+Use "tofu workspace select test-workspace" to switch to it.
 `,
 		},
 		"workspace_does_not_exist": {
