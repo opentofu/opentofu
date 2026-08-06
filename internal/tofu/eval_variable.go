@@ -119,15 +119,13 @@ func prepareFinalInputVariableValue(addr addrs.AbsInputVariableInstance, raw *In
 		given = defaultVal // must be set, because we checked above that the variable isn't required
 	}
 
-	// Apply defaults from the variable's type constraint to the converted value,
-	// unless the converted value is null. We do not apply defaults to top-level
-	// null values, as doing so could prevent assigning null to a nullable
-	// variable.
-	if cfg.TypeDefaults != nil && !given.IsNull() {
-		given = cfg.TypeDefaults.Apply(given)
-	}
-
-	val, err := convert.Convert(given, convertTy)
+	// We currently reconstruct a [lang.TypeConversionConstraint] here just
+	// temporarily to call ConvertValue on it, because the representation in
+	// [configs.Variable] long predates this wrapper type.
+	// TODO: Consider changing configs.Variable to use TypeConversionConstraint
+	// directly in its own representation.
+	convertTarget := lang.NewTypeConversionConstraint(convertTy, cfg.TypeDefaults)
+	val, err := convertTarget.ConvertValue(given)
 	if err != nil {
 		log.Printf("[ERROR] prepareFinalInputVariableValue: %s has unsuitable type\n  got:  %s\n  want: %s", addr, given.Type(), convertTy)
 		var detail string
