@@ -392,6 +392,20 @@ func (s *Scope) evalContext(ctx context.Context, parent *hcl.EvalContext, refs [
 			continue
 		}
 
+		if _, ok := ref.Subject.(addrs.TypeKeyword); ok {
+			// References to type keywords are just ignored completely, because
+			// we're building a scope for _value_ expressions here, while type
+			// keywords are exclusively for type expressions.
+			continue
+			// (Note that this means that if an author incorrectly uses a type
+			// keyword outside of a type expression then we won't catch that
+			// until HCL tries to evaluate it, at which point HCL will return
+			// its built-in error about the symbol being unrecognized. We can't
+			// customize the error message in this case because at this stage
+			// we can't yet tell which of the references are being used in
+			// value vs. type expressions.)
+		}
+
 		diags = diags.Append(varBuilder.putValueBySubject(ctx, ref))
 	}
 
