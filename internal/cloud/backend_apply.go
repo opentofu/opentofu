@@ -217,9 +217,12 @@ func (b *Cloud) opApply(ctx, stopCtx, cancelCtx context.Context, op *backend.Ope
 		return r, err
 	}
 
-	err = b.renderApplyLogs(stopCtx, r)
-	if err != nil {
-		return r, err
+	// Only render logs if streaming is requested (default is true for backward compatibility)
+	if op.Stream {
+		err = b.renderApplyLogs(stopCtx, r)
+		if err != nil {
+			return r, err
+		}
 	}
 
 	return r, nil

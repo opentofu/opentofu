@@ -270,6 +270,7 @@ func (c *ApplyCommand) OperationRequest(
 	}
 	opReq.PlanFile = planFile
 	opReq.PlanRefresh = applyArgs.Operation.Refresh
+	opReq.Stream = applyArgs.Operation.Stream
 	opReq.Targets = applyArgs.Operation.Targets
 	opReq.Excludes = applyArgs.Operation.Excludes
 	opReq.ForceReplace = applyArgs.Operation.ForceReplace
@@ -353,6 +354,12 @@ Options:
 
   -parallelism=n               Limit the number of parallel resource operations.
                                Defaults to 10.
+
+  -stream=true                 Stream logs from remote operations to the
+                               console in real-time. Only applicable when
+                               using a remote or cloud backend. Set to false
+                               to skip log streaming and only wait for the
+                               operation to complete.
 
   -state=path                  Path to read and save state (unless state-out
                                is specified). Defaults to "terraform.tfstate".

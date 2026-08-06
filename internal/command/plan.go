@@ -159,6 +159,7 @@ func (c *PlanCommand) OperationRequest(
 	opReq.PlanMode = args.PlanMode
 	opReq.Hooks = view.Hooks()
 	opReq.PlanRefresh = args.Refresh
+	opReq.Stream = args.Stream
 	opReq.PlanOutPath = planOutPath
 	opReq.GenerateConfigOut = generateConfigOut
 	opReq.Targets = args.Targets
@@ -292,6 +293,12 @@ Other Options:
 
   -parallelism=n               Limit the number of concurrent operations.
                                Defaults to 10.
+
+  -stream=true                 Stream logs from remote operations to the
+                               console in real-time. Only applicable when
+                               using a remote or cloud backend. Set to false
+                               to skip log streaming and only wait for the
+                               operation to complete.
 
   -state=statefile             A legacy option used for the local backend only.
                                Refer to the local backend's documentation for

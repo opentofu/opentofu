@@ -297,6 +297,7 @@ type Operation struct {
 	// behavior of the operation.
 	PlanMode     plans.Mode
 	AutoApprove  bool
+	Stream       bool // Stream controls whether remote operation logs are streamed to CLI
 	Targets      []addrs.Targetable
 	Excludes     []addrs.Targetable
 	ForceReplace []addrs.AbsResourceInstance

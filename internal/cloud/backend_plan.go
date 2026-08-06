@@ -347,9 +347,12 @@ func (b *Cloud) plan(ctx, stopCtx, cancelCtx context.Context, op *backend.Operat
 		return r, err
 	}
 
-	err = b.renderPlanLogs(stopCtx, op, r)
-	if err != nil {
-		return r, err
+	// Only render logs if streaming is requested (default is true for backward compatibility)
+	if op.Stream {
+		err = b.renderPlanLogs(stopCtx, op, r)
+		if err != nil {
+			return r, err
+		}
 	}
 
 	// Retrieve the run to get its current status.

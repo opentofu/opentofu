@@ -269,36 +269,39 @@ func (b *Remote) opApply(ctx context.Context, stopCtx, cancelCtx context.Context
 		return r, err
 	}
 
-	logs, err := b.client.Applies.Logs(stopCtx, r.Apply.ID)
-	if err != nil {
-		return r, generalError("Failed to retrieve logs", err)
-	}
-	reader := bufio.NewReaderSize(logs, 64*1024)
+	// Only stream logs if requested (default is true for backward compatibility)
+	if op.Stream {
+		logs, err := b.client.Applies.Logs(stopCtx, r.Apply.ID)
+		if err != nil {
+			return r, generalError("Failed to retrieve logs", err)
+		}
+		reader := bufio.NewReaderSize(logs, 64*1024)
 
-	if b.View != nil {
-		skip := 0
-		for next := true; next; {
-			var l, line []byte
+		if b.View != nil {
+			skip := 0
+			for next := true; next; {
+				var l, line []byte
 
-			for isPrefix := true; isPrefix; {
-				l, isPrefix, err = reader.ReadLine()
-				if err != nil {
-					if err != io.EOF {
-						return r, generalError("Failed to read logs", err)
+				for isPrefix := true; isPrefix; {
+					l, isPrefix, err = reader.ReadLine()
+					if err != nil {
+						if err != io.EOF {
+							return r, generalError("Failed to read logs", err)
+						}
+						next = false
 					}
-					next = false
+					line = append(line, l...)
 				}
-				line = append(line, l...)
-			}
 
-			// Skip the first 3 lines to prevent duplicate output.
-			if skip < 3 {
-				skip++
-				continue
-			}
+				// Skip the first 3 lines to prevent duplicate output.
+				if skip < 3 {
+					skip++
+					continue
+				}
 
-			if next || len(line) > 0 {
-				b.View.Output(string(line), true)
+				if next || len(line) > 0 {
+					b.View.Output(string(line), true)
+				}
 			}
 		}
 	}
