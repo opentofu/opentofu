@@ -854,6 +854,144 @@ func TestParseRef(t *testing.T) {
 			``,
 		},
 
+		// We have a little special treatment for keywords that are expected
+		// to appear in type expressions, to carefully allow static analysis
+		// to succeed even though we don't yet know whether a specific traversal
+		// is appearing as part of a type expression or a value expression.
+		//
+		// Since it's technically possible for there to be a provider with a
+		// resource type with a name like "string", we treat these as special
+		// only when they appear in isolation while letting them act as resource
+		// type names if anything appears after them.
+		{
+			`string`,
+			&Reference{
+				Subject: TypeKeyword("string"),
+				SourceRange: tfdiags.SourceRange{
+					Start: tfdiags.SourcePos{Line: 1, Column: 1, Byte: 0},
+					End:   tfdiags.SourcePos{Line: 1, Column: 7, Byte: 6},
+				},
+			},
+			``,
+		},
+		{
+			`number`,
+			&Reference{
+				Subject: TypeKeyword("number"),
+				SourceRange: tfdiags.SourceRange{
+					Start: tfdiags.SourcePos{Line: 1, Column: 1, Byte: 0},
+					End:   tfdiags.SourcePos{Line: 1, Column: 7, Byte: 6},
+				},
+			},
+			``,
+		},
+		{
+			`bool`,
+			&Reference{
+				Subject: TypeKeyword("bool"),
+				SourceRange: tfdiags.SourceRange{
+					Start: tfdiags.SourcePos{Line: 1, Column: 1, Byte: 0},
+					End:   tfdiags.SourcePos{Line: 1, Column: 5, Byte: 4},
+				},
+			},
+			``,
+		},
+		{
+			`any`,
+			&Reference{
+				Subject: TypeKeyword("any"),
+				SourceRange: tfdiags.SourceRange{
+					Start: tfdiags.SourcePos{Line: 1, Column: 1, Byte: 0},
+					End:   tfdiags.SourcePos{Line: 1, Column: 4, Byte: 3},
+				},
+			},
+			``,
+		},
+		{
+			`string.foo`,
+			&Reference{
+				Subject: Resource{
+					Mode: ManagedResourceMode,
+					Type: "string",
+					Name: "foo",
+				},
+				SourceRange: tfdiags.SourceRange{
+					Start: tfdiags.SourcePos{Line: 1, Column: 1, Byte: 0},
+					End:   tfdiags.SourcePos{Line: 1, Column: 11, Byte: 10},
+				},
+			},
+			``,
+		},
+		{
+			`number.foo`,
+			&Reference{
+				Subject: Resource{
+					Mode: ManagedResourceMode,
+					Type: "number",
+					Name: "foo",
+				},
+				SourceRange: tfdiags.SourceRange{
+					Start: tfdiags.SourcePos{Line: 1, Column: 1, Byte: 0},
+					End:   tfdiags.SourcePos{Line: 1, Column: 11, Byte: 10},
+				},
+			},
+			``,
+		},
+		{
+			`bool.foo`,
+			&Reference{
+				Subject: Resource{
+					Mode: ManagedResourceMode,
+					Type: "bool",
+					Name: "foo",
+				},
+				SourceRange: tfdiags.SourceRange{
+					Start: tfdiags.SourcePos{Line: 1, Column: 1, Byte: 0},
+					End:   tfdiags.SourcePos{Line: 1, Column: 9, Byte: 8},
+				},
+			},
+			``,
+		},
+		{
+			`any.foo`,
+			&Reference{
+				Subject: Resource{
+					Mode: ManagedResourceMode,
+					Type: "any",
+					Name: "foo",
+				},
+				SourceRange: tfdiags.SourceRange{
+					Start: tfdiags.SourcePos{Line: 1, Column: 1, Byte: 0},
+					End:   tfdiags.SourcePos{Line: 1, Column: 8, Byte: 7},
+				},
+			},
+			``,
+		},
+		{
+			`string[0]`,
+			nil,
+			// This is the typical error for "string" being interpreted as a resource type, rather than as a type keyword.
+			`A reference to a resource type must be followed by at least one attribute access, specifying the resource name.`,
+		},
+		{
+			`number[0]`,
+			nil,
+			// This is the typical error for "number" being interpreted as a resource type, rather than as a type keyword.
+			`A reference to a resource type must be followed by at least one attribute access, specifying the resource name.`,
+		},
+		{
+			`bool[0]`,
+			nil,
+			// This is the typical error for "bool" being interpreted as a resource type, rather than as a type keyword.
+			`A reference to a resource type must be followed by at least one attribute access, specifying the resource name.`,
+		},
+		{
+			`any[0]`,
+			nil,
+			// This is the typical error for "any" being interpreted as a resource type, rather than as a type keyword.
+			`A reference to a resource type must be followed by at least one attribute access, specifying the resource name.`,
+		},
+
 		// We have some names reserved which might be used by a
 		// still-under-discussion proposal for template values or lazy
 		// expressions.
