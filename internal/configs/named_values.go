@@ -16,10 +16,10 @@ import (
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
-	"github.com/zclconf/go-cty/cty/convert"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/didyoumean"
+	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/lang/lint"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -183,16 +183,14 @@ func decodeVariableBlock(block *hcl.Block, override bool) (*Variable, hcl.Diagno
 		// However, we can't do this if we're in an override file where
 		// the type might not be set; we'll catch that during merge.
 		if v.ConstraintType != cty.NilType {
+			// We currently reconstruct a [lang.TypeConversionConstraint] here just
+			// temporarily to call ConvertValue on it, because the representation in
+			// [Variable] long predates this wrapper type.
+			// TODO: Consider changing Variable to use TypeConversionConstraint
+			// directly in its own representation.
 			var err error
-			// If the type constraint has defaults, we must apply those
-			// defaults to the variable default value before type conversion,
-			// unless the default value is null. Null is excluded from the
-			// type default application process as a special case, to allow
-			// nullable variables to have a null default value.
-			if v.TypeDefaults != nil && !val.IsNull() {
-				val = v.TypeDefaults.Apply(val)
-			}
-			val, err = convert.Convert(val, v.ConstraintType)
+			convertTarget := lang.NewTypeConversionConstraint(v.ConstraintType, v.TypeDefaults)
+			val, err = convertTarget.ConvertValue(val)
 			if err != nil {
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagError,
@@ -344,18 +342,29 @@ func decodeVariableType(expr hcl.Expression) (cty.Type, *typeexpr.Defaults, Vari
 		return cty.Map(cty.DynamicPseudoType), nil, VariableParseHCL, nil
 	}
 
-	ty, typeDefaults, diags := typeexpr.TypeConstraintWithDefaults(expr)
-	if diags.HasErrors() {
-		return cty.DynamicPseudoType, nil, VariableParseHCL, diags
+	convertTarget, diags := lang.ParseTypeConversionConstraint(expr)
+	hclDiags := diags.ToHCL() // Unfortunately package configs conventionally uses hcl.Diagnostics directly, instead of tfdiags.Diagnostics like our other packages
+	if hclDiags.HasErrors() {
+		return cty.DynamicPseudoType, nil, VariableParseHCL, hclDiags
 	}
+
+	// The representation and implementation of [Variable] long predates
+	// the introduction of [lang.TypeConversionConstraint] and so for now
+	// we immediately unpack the result into its component parts to return
+	// and reassemble the conversion target each time we need it, just to
+	// minimize the risk of changes.
+	// TODO: Consider reworking Variable to use TypeConversionConstraint as
+	// part of its representation, instead of storing these parts separately.
+	ty := convertTarget.ConvertTarget
+	typeDefaults := convertTarget.DefaultAttrVals
 
 	switch {
 	case ty.IsPrimitiveType():
 		// Primitive types use literal parsing.
-		return ty, typeDefaults, VariableParseLiteral, diags
+		return ty, typeDefaults, VariableParseLiteral, hclDiags
 	default:
 		// Everything else uses HCL parsing
-		return ty, typeDefaults, VariableParseHCL, diags
+		return ty, typeDefaults, VariableParseHCL, hclDiags
 	}
 }
 
