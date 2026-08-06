@@ -1315,6 +1315,7 @@ func TestFunctions(t *testing.T) {
 					data := &dataForTests{} // no variables available; we only need literals here
 					scope := &Scope{
 						Data:          data,
+						ParseRef:      addrs.ParseRef,
 						BaseDir:       "./testdata/functions-test", // for the functions that read from the filesystem
 						PlanTimestamp: time.Date(2004, 04, 25, 15, 00, 00, 000, time.UTC),
 					}
