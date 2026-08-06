@@ -392,6 +392,38 @@ func TestScopeEvalContext(t *testing.T) {
 				}),
 			},
 		},
+		{
+			`string`,
+			map[string]cty.Value{
+				// Nothing appears here, because "string" is only for type
+				// expressions and so does not appear in the scope used for
+				// value expressions.
+			},
+		},
+		{
+			`number`,
+			map[string]cty.Value{
+				// Nothing appears here, because "number" is only for type
+				// expressions and so does not appear in the scope used for
+				// value expressions.
+			},
+		},
+		{
+			`bool`,
+			map[string]cty.Value{
+				// Nothing appears here, because "bool" is only for type
+				// expressions and so does not appear in the scope used for
+				// value expressions.
+			},
+		},
+		{
+			`any`,
+			map[string]cty.Value{
+				// Nothing appears here, because "any" is only for type
+				// expressions and so does not appear in the scope used for
+				// value expressions.
+			},
+		},
 	}
 
 	for _, test := range tests {
