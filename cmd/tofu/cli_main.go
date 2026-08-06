@@ -150,6 +150,10 @@ func cliMain(
 	autoComplete := os.Getenv("COMP_LINE") != ""
 
 	if cmd := cliRunner.Subcommand(); cmd != "" && !autoComplete {
+		if cmd == "completion" {
+			// Conflict between legacy and new CLI, ignore
+			return 0
+		}
 		// Due to the design of cli.CLI, this special error message only works
 		// for typos of top-level commands. For a subcommand typo, like
 		// "tofu state push", cmd would be "state" here and thus would

@@ -50,6 +50,40 @@ func experimentalMain(
 	var chdirArg string
 	root := command.RootCommander(&chdirArg)
 
+	var installComplete bool
+	var uninstallComplete bool
+	root.CommandLine.BoolVar(&installComplete, "install-autocomplete", false, "Install Autocomplete scripts")
+	root.CommandLine.BoolVar(&uninstallComplete, "uninstall-autocomplete", false, "Install Autocomplete scripts")
+	root.Run = func(meta command.Meta) int {
+		if installComplete && uninstallComplete {
+			println("Invalid combination of flags, only one of (install-autocomplete, uninstall-autocomplete) may be specified")
+			return 1
+		}
+		if installComplete {
+			err := installAutocomplete()
+			if err != nil {
+				println(err.Error())
+				return 1
+			}
+			return 0
+		}
+		if uninstallComplete {
+			err := uninstallAutocomplete()
+			if err != nil {
+				println(err.Error())
+				return 1
+			}
+			return 0
+		}
+
+		return command.RunResultHelp
+	}
+
+	if os.Getenv("COMP_LINE") != "" {
+		legacyAutocomplete(root)
+		return 0
+	}
+
 	// Prefix the args with any args from the EnvCLI
 	subcommand := detectSubcommand(root)
 	args, err := mergeEnvArgs(EnvCLI, subcommand, os.Args)
@@ -142,7 +176,6 @@ func commandToCli(namespace string, cmd command.Command, meta func() (command.Me
 		return map[string]string{"USAGE": usage.String()}
 	}
 	cc.CustomHelpTemplate = `{{ index ExtraInfo "USAGE" }}`
-
 	if namespace == "" {
 		cc.CustomRootCommandHelpTemplate = cc.CustomHelpTemplate
 		cc.CommandNotFound = func(_ context.Context, c *cli.Command, given string) {
