@@ -14,6 +14,9 @@ functions only to normalize types returned in module outputs.
 Only boolean values, `null`, and the exact strings `"true"` and `"false"` can be
 converted to boolean. All other values will produce an error.
 
+This function is equivalent to calling [`convert`](./convert.mdx) with a
+type constraint of `bool`.
+
 ## Examples
 
 ```

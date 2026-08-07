@@ -31,6 +31,9 @@ func References(parseRef ParseRef, traversals []hcl.Traversal) ([]*addrs.Referen
 	if len(traversals) == 0 {
 		return nil, nil
 	}
+	if parseRef == nil {
+		panic("parseRef is nil")
+	}
 
 	var diags tfdiags.Diagnostics
 	refs := make([]*addrs.Reference, 0, len(traversals))

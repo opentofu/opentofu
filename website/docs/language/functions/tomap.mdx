@@ -11,6 +11,10 @@ Explicit type conversions are rarely necessary in OpenTofu because it will
 convert types automatically where required. Use the explicit type conversion
 functions only to normalize types returned in module outputs.
 
+This function is equivalent to calling [`convert`](./convert.mdx) with a
+type constraint of `map(any)`.  Use `convert` if you need to specify the element
+type instead of letting it be inferred automatically.
+
 ## Examples
 
 ```

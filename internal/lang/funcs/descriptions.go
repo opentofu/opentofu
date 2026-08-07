@@ -153,6 +153,13 @@ var DescriptionList = map[string]descriptionEntry{
 		Description:      "`contains` determines whether a given list or set contains a given single value as one of its elements.",
 		ParamDescription: []string{"", ""},
 	},
+	"convert": {
+		Description: "`convert` attempts to convert the given value to match the given target type constraint.",
+		ParamDescription: []string{
+			"The value to convert.",
+			"The type constraint to convert to.",
+		},
+	},
 	"csvdecode": {
 		Description:      "`csvdecode` decodes a string containing CSV-formatted data and produces a list of maps representing that data.",
 		ParamDescription: []string{""},
