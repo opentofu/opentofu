@@ -43,6 +43,50 @@ var DescriptionList = map[string]descriptionEntry{
 		Description:      "`anytrue` returns `true` if any element in a given collection is `true` or `\"true\"`. It also returns `false` if the collection is empty.",
 		ParamDescription: []string{""},
 	},
+	"assumelistlength": {
+		Description:      "`assumelistlength` returns the given list only if its length is in the given bounds, and then tells OpenTofu to assume the result has such a length for subsequent analysis.",
+		ParamDescription: []string{"list", "min", "max"},
+	},
+	"assumelistlengthmax": {
+		Description:      "`assumelistlengthmax` returns the given list only if it is at most as long as specified, and then tells OpenTofu to assume the result has such a length for subsequent analysis.",
+		ParamDescription: []string{"list", "max"},
+	},
+	"assumelistlengthmin": {
+		Description:      "`assumelistlengthmin` returns the given list only if it is at least as long as specified, and then tells OpenTofu to assume the result has such a length for subsequent analysis.",
+		ParamDescription: []string{"list", "min"},
+	},
+	"assumemaplength": {
+		Description:      "`assumemaplength` returns the given map only if its length is in the given bounds, and then tells OpenTofu to assume the result has such a length for subsequent analysis.",
+		ParamDescription: []string{"map", "min", "max"},
+	},
+	"assumemaplengthmax": {
+		Description:      "`assumelistlengthmax` returns the given map only if it is at most as long as specified, and then tells OpenTofu to assume the result has such a length for subsequent analysis.",
+		ParamDescription: []string{"map", "max"},
+	},
+	"assumemaplengthmin": {
+		Description:      "`assummaplengthmin` returns the given map only if it is at least as long as specified, and then tells OpenTofu to assume the result has such a length for subsequent analysis.",
+		ParamDescription: []string{"map", "min"},
+	},
+	"assumenotnull": {
+		Description:      "`assumenotnull` returns the given value only if it isn't null, and then tells OpenTofu to assume the result isn't null for subsequent analysis.",
+		ParamDescription: []string{"value"},
+	},
+	"assumesetlength": {
+		Description:      "`assumesetlength` returns the given set only if its length is in the given bounds, and then tells OpenTofu to assume the result has such a length for subsequent analysis.",
+		ParamDescription: []string{"set", "min", "max"},
+	},
+	"assumesetlengthmax": {
+		Description:      "`assumesetlength` returns the given set only if it is at most as long as specified, and then tells OpenTofu to assume the result has such a length for subsequent analysis.",
+		ParamDescription: []string{"set", "max"},
+	},
+	"assumesetlengthmin": {
+		Description:      "`assumesetlength` returns the given set only if it is at least as long as specified, and then tells OpenTofu to assume the result has such a length for subsequent analysis.",
+		ParamDescription: []string{"set", "min"},
+	},
+	"assumestringprefix": {
+		Description:      "`assumestringprefix` returns the given string only if it has the given prefix, and then tells OpenTofu to assume the result has that prefix for subsequent analysis.",
+		ParamDescription: []string{"string", "prefix"},
+	},
 	"base64decode": {
 		Description:      "`base64decode` takes a string containing a Base64 character sequence and returns the original string.",
 		ParamDescription: []string{""},

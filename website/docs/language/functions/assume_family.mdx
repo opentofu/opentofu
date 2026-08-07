@@ -1,0 +1,269 @@
+---
+sidebar_label: assume...
+description: The "assume..." family of functions give OpenTofu more information about unknown values
+---
+
+# `assume...` Functions
+
+The family of functions whose names begin with "assume" together allow module
+authors to give OpenTofu optional additional information about values that won't
+be finalized until the apply phase, which might then allow OpenTofu to perform
+more checks during the plan phase instead of failing during the apply phase.
+
+The following sections describe the individual functions in more detail, but
+as an overview consider a shared module that is responsible for declaring
+Amazon Web Services virtual networking objects. The `hashicorp/aws` provider
+cannot always predict the final `id` value for these objects during the planning
+phase because the identifiers are decided by the remote API at creation time,
+but the module author could still provide some additional information about
+these identifiers when exporting them for use elsewhere:
+
+```hcl
+output "vpc_id" {
+  value = assumenotnull(
+    assumestringprefix(
+      aws_vpc.example.id,
+      "vpc-",
+    ),
+  )
+}
+```
+
+The calling module could then evaluate expressions like
+`module.networking.vpc_id != null` or
+`startswith(module.networking.vpc_id, "vpc-")` and get known boolean results
+instead of unknown values, even when the final id hasn't been decided yet.
+
+Whenever possible OpenTofu infers assumptions like these automatically, but
+module authors can optionally use these functions to explicitly declare them
+in cases where automatic inference is impossible, such as in the above case
+where a provider plugin doesn't report its expectations about an unknown value
+automatically during planning or when decoding dynamic data using functions
+like [`jsondecode`](./jsondecode.mdx).
+
+{/*
+
+TODO: Remove the comment markers and this TODO line once this function has
+actually been implemented.
+
+## `assumeequal` function
+
+The `assumeequal` function takes two values and checks whether they are equal.
+If so it returns the second value. If not then it raises an error.
+
+```hcl
+assumeequal(actual_value, expected_value)
+```
+
+The first argument is first converted to match the type of the second argument,
+because two values can be equal only if they are of the same type. If that type
+conversion fails then the call raises an error. The second argument should
+typically contain only known values for this function to be effective, but
+it is not an error to use unknown values.
+
+Because the result of this function is always the value of its second argument,
+the sensitivity and ephemerality of values in the first argument is effectively
+ignored, and it's those characteristics of the second argument that "win" in
+the result. If the first argument contains sensitive values that must still
+be treated as sensitive in the result, you must ensure that the corresponding
+values in the second argument are also sensitive, such as by calling
+[`sensitive`](./sensitive.mdx).
+
+This particular function is only useful in the unusual case where a module
+can fully predict a value even though the provider that produces it cannot.
+For example, many AWS services have a documented predictable structure for their
+"Amazon Resource Names" (ARNs) that makes them predictable, but nonetheless the
+provider still waits until the apply phase to report the final ARN. A module
+author might choose to make the final ARN available during the plan phase
+by using `assumeequal` with
+[`provider::aws_arn_build`](https://search.opentofu.org/provider/hashicorp/aws/latest/docs/functions/arn_build)
+to build the expected ARN from information already known from the module's
+input variables.
+
+```hcl
+output "role_arn" {
+  value = assumeequal(
+    aws_iam_role.example.arn,
+    provider::aws::arn_build(
+      data.aws_partition.current.id,
+      "iam",
+      "", # Roles are global objects, so no region specified
+      aws_caller_identity.current.account_id,
+      "role/${aws_iam_role.example.name}",
+    ),
+  )
+}
+```
+
+A caller of the module could then include `module.example.role_arn` as part of
+an AWS IAM policy document and have the policy be wholly known during the
+plan phase so that human reviewers or policy tools can check it before applying.
+
+*/}
+
+## `assumenotnull` function
+
+The `assumenotnull` function takes a single value and checks whether it is null.
+If it is not null then it's returned as-is, but if it is null then the function
+raises an error.
+
+```hcl
+assumenotnull(value)
+```
+
+Using this function means that comparing the result to `null` can return a known
+boolean result even if the input value is not known yet. This can be useful
+in various providers where a returned value is never null in practice but yet
+the provider doesn't report that automatically itself.
+
+```hcl
+output "instance_id" {
+  value = assumenotnull(aws_instance.example.id)
+}
+```
+
+The caller of a module containing this output value could then test
+`module.example.instance_id != null` and have the result be `true` instead of
+unknown, even when the EC2 instance has not yet been created. This is most
+useful when the id is just passed into another module that uses the "null-ness"
+of the value to decide whether another object should be enabled, since otherwise
+OpenTofu would not know during the plan phase whether the object should be
+enabled.
+
+The `assumenotnull` function only works for values that have a known type.
+If the type of the given value is also unknown during the plan phase,
+combine `assumenotnull` with
+[`convert`](./convert.mdx) to specify the expected type:
+
+```hcl
+output "name" {
+  value = assumenotnull(
+    convert(
+      local.dynamic_example,
+      string,
+    ),
+  )
+}
+```
+
+## `assumestringprefix` function
+
+The `assumestringprefix` function takes two strings and checks whether the
+second string is a prefix of the first, raising an error if not.
+
+```hcl
+assumestringprefix(string, expected_prefix)
+```
+
+Using this function means that comparing the result to an empty string or
+using [`startswith`](./startswith.mdx) can return a known boolean result even if
+the input value is not known yet. This can be useful, for example, if the value
+is passed to another module through an input variable that has a validation
+rule which checks the prefix so that the value can be validated during the
+plan phase instead of only during the apply phase.
+
+Where possible use this function together with `assumenotnull` for full
+effectiveness, because validation rules often begin by checking whether the
+value is null to avoid passing null values to functions like `startswith`.
+
+```hcl
+output "vpc_id" {
+  value = assumenotnull(
+    assumestringprefix(
+      aws_vpc.example.id,
+      "vpc-",
+    ),
+  )
+}
+```
+
+## `assumelistlength...` functions
+
+The `assumelistlength...` family of functions take a list and check whether
+its length is within the specified bounds, raising an error if not.
+
+```hcl
+assumelistlength(list, min_length, max_length)
+assumelistlengthmin(list, min_length)
+assumelistlengthmax(list, max_length)
+```
+
+The minimum and maximum length are treated as inclusive. Using this function
+means that testing the length of the result can return a known result even if
+the final list length is not known yet, such as declaring that a list will
+definitely have at least one value:
+
+```hcl
+locals {
+  example_result = assumelistlengthmin(local.example_input, 1)
+}
+```
+
+With the above declaration, `length(local.example_result) != 0` can return
+`true` even if `local.example_input`'s length isn't known yet.
+
+Where possible use this function together with `assumenotnull` for full
+effectiveness, because validation rules often begin by checking whether the
+value is null to avoid passing null values to functions like `length`.
+
+If the explicitly-declared and inferred assumptions together tell OpenTofu
+that the value is definitely not null and that its minimum and maximum length
+are equal (i.e. the length is actually known) then OpenTofu automatically
+promotes the result to a known list whose elements are all individually unknown
+so that the `length` function can return a known value.
+
+## `assumesetlength...` functions
+
+The `assumesetlength...` family of functions take a set and check whether
+its length is within the specified bounds, raising an error if not.
+
+```hcl
+assumesetlength(set, min_length, max_length)
+assumesetlengthmin(set, min_length)
+assumesetlengthmax(set, max_length)
+```
+
+The usage patterns for these functions are the same as for
+the `assumelistlength...` functions described above.
+
+Where possible use this function together with `assumenotnull` for full
+effectiveness, because validation rules often begin by checking whether the
+value is null to avoid passing null values to functions like `length`.
+
+## `assumemaplength...` functions
+
+The `assumemaplength...` family of functions take a map and check whether
+its length is within the specified bounds, raising an error if not.
+
+```hcl
+assumemaplength(map, min_length, max_length)
+assumemaplengthmin(map, min_length)
+assumemaplengthmax(map, max_length)
+```
+
+The usage patterns for these functions are the same as for
+the `assumelistlength...` functions described above.
+
+Where possible use this function together with `assumenotnull` for full
+effectiveness, because validation rules often begin by checking whether the
+value is null to avoid passing null values to functions like `length`.
+
+## Forward and Backward Compatibility
+
+The documented behavior of these functions is protected by OpenTofu
+compatibility promises, but note that the ways in which other features of the
+OpenTofu language react to the hints added to unknown values by these functions
+varies between OpenTofu versions.
+
+Once something is considered valid it will generally remain valid in future
+versions, but different OpenTofu versions may detect invalid situations at
+different times, such as starting to detect a problem during the plan phase
+where previously it had been detected only during the apply phase or vice-versa.
+
+OpenTofu makes its best effort to detect and report errors as early as possible
+in the validate/plan/apply sequence, but also prefers where possible to assume
+that an unknown value will become valid once it is known instead of
+conservatively blocking progress when there isn't enough information to decide
+validity. Use these hint functions for a greater chance of detecting problems
+during the plan phase, but keep in mind that earlier detection is still not
+guaranteed.
