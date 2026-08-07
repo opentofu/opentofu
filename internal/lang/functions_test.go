@@ -91,6 +91,114 @@ func TestFunctions(t *testing.T) {
 			},
 		},
 
+		"assumelistlength": {
+			{
+				`assumelistlength([1, 2], 1, 2)`,
+				cty.ListVal([]cty.Value{ // tuple automatically converted to list
+					cty.NumberIntVal(1),
+					cty.NumberIntVal(2),
+				}),
+			},
+		},
+
+		"assumelistlengthmax": {
+			{
+				`assumelistlengthmax([1, 2], 3)`,
+				cty.ListVal([]cty.Value{ // tuple automatically converted to list
+					cty.NumberIntVal(1),
+					cty.NumberIntVal(2),
+				}),
+			},
+		},
+
+		"assumelistlengthmin": {
+			{
+				`assumelistlengthmin([1, 2], 1)`,
+				cty.ListVal([]cty.Value{ // tuple automatically converted to list
+					cty.NumberIntVal(1),
+					cty.NumberIntVal(2),
+				}),
+			},
+		},
+
+		"assumemaplength": {
+			{
+				`assumemaplength({a = 1, b = 2}, 1, 2)`,
+				cty.MapVal(map[string]cty.Value{ // object automatically converted to map
+					"a": cty.NumberIntVal(1),
+					"b": cty.NumberIntVal(2),
+				}),
+			},
+		},
+
+		"assumemaplengthmax": {
+			{
+				`assumemaplengthmax({a = 1, b = 2}, 3)`,
+				cty.MapVal(map[string]cty.Value{ // object automatically converted to map
+					"a": cty.NumberIntVal(1),
+					"b": cty.NumberIntVal(2),
+				}),
+			},
+		},
+
+		"assumemaplengthmin": {
+			{
+				`assumemaplengthmin({a = 1, b = 2}, 1)`,
+				cty.MapVal(map[string]cty.Value{ // object automatically converted to map
+					"a": cty.NumberIntVal(1),
+					"b": cty.NumberIntVal(2),
+				}),
+			},
+		},
+
+		"assumenotnull": {
+			{
+				`assumenotnull("hello")`,
+				cty.StringVal("hello"),
+			},
+		},
+
+		"assumesetlength": {
+			{
+				`assumesetlength([1, 2], 1, 2)`,
+				cty.SetVal([]cty.Value{ // tuple automatically converted to set
+					cty.NumberIntVal(1),
+					cty.NumberIntVal(2),
+				}),
+			},
+		},
+
+		"assumesetlengthmax": {
+			{
+				`assumesetlengthmax([1, 2], 3)`,
+				cty.SetVal([]cty.Value{ // tuple automatically converted to set
+					cty.NumberIntVal(1),
+					cty.NumberIntVal(2),
+				}),
+			},
+		},
+
+		"assumesetlengthmin": {
+			{
+				`assumesetlengthmin([1, 2], 1)`,
+				cty.SetVal([]cty.Value{ // tuple automatically converted to set
+					cty.NumberIntVal(1),
+					cty.NumberIntVal(2),
+				}),
+			},
+		},
+
+		"assumestringprefix": {
+			{
+				`assumestringprefix("foo-bar", "foo-")`,
+				cty.StringVal("foo-bar"),
+			},
+			{
+				`assumestringprefix(true, "tru")`,
+				cty.StringVal("true"), // bool automatically converted to string
+			},
+		},
+
 		"base64decode": {
 			{
 				`base64decode("YWJjMTIzIT8kKiYoKSctPUB+")`,
