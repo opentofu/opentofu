@@ -1,5 +1,8 @@
 # Exploring [cobra](https://github.com/spf13/cobra) replacement
 
+> [!IMPORTANT]
+This RFC has been superseded by [20260807-use-urfave-instead-of-cobra.md](20260807-use-urfave-instead-of-cobra.md)
+
 Tickets that are targeted to be resolved by this:
 * https://github.com/opentofu/opentofu/issues/748
 * https://github.com/opentofu/opentofu/issues/3500
