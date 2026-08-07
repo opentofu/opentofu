@@ -14,6 +14,10 @@ functions only to normalize types returned in module outputs.
 Pass a _list_ value to `toset` to convert it to a set, which will remove any
 duplicate elements and discard the ordering of the elements.
 
+This function is equivalent to calling [`convert`](./convert.mdx) with a
+type constraint of `set(any)`.  Use `convert` if you need to specify the element
+type instead of letting it be inferred automatically.
+
 ## Examples
 
 ```

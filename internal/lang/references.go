@@ -28,6 +28,12 @@ import (
 // given traversal, though it is not guaranteed that the references will
 // appear in the same order as the given traversals.
 func References(parseRef ParseRef, traversals []hcl.Traversal) ([]*addrs.Reference, tfdiags.Diagnostics) {
+	if parseRef == nil {
+		// We default to the main ParseRef implementation. This is mainly for
+		// the benefit of various tests that don't bother to populate
+		// [Scope.ParseRef] before evaluating.
+		parseRef = addrs.ParseRef
+	}
 	if len(traversals) == 0 {
 		return nil, nil
 	}

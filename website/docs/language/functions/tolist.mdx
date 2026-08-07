@@ -15,6 +15,10 @@ Pass a _set_ value to `tolist` to convert it to a list. Since set elements are
 not ordered, the resulting list will have an undefined order that will be
 consistent within a particular run of OpenTofu.
 
+This function is equivalent to calling [`convert`](./convert.mdx) with a
+type constraint of `list(any)`. Use `convert` if you need to specify the element
+type instead of letting it be inferred automatically.
+
 ## Examples
 
 ```

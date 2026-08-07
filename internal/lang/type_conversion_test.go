@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/function"
 )
 
 func TestTypeConversionConstraint(t *testing.T) {
@@ -105,6 +106,93 @@ func TestTypeConversionConstraint(t *testing.T) {
 
 			if gotErr != nil {
 				t.Fatalf("unexpected error\ngot error: %s\nwant result: %#v", gotErr.Error(), test.WantValue)
+			}
+			if wantVal := test.WantValue; !wantVal.RawEquals(gotVal) {
+				t.Fatalf("wrong result\ngot:  %#v\nwant: %#v", gotVal, wantVal)
+			}
+		})
+	}
+}
+
+func TestConvertFunc(t *testing.T) {
+	tests := []struct {
+		CallExpr  string
+		WantValue cty.Value
+		WantError string
+	}{
+		{
+			CallExpr:  `convert("hello", string)`,
+			WantValue: cty.StringVal("hello"),
+		},
+		{
+			CallExpr:  `convert("true", bool)`,
+			WantValue: cty.True,
+		},
+		{
+			CallExpr:  `convert("hello", bool)`,
+			WantError: `:1,10-15: Invalid function argument; Invalid value for "value" parameter: a bool is required.`,
+		},
+		{
+			CallExpr:  `convert(marked, string)`,
+			WantValue: cty.StringVal("marked").Mark("mark"),
+		},
+		{
+			CallExpr: `convert({}, object({name = optional(string)}))`,
+			WantValue: cty.ObjectVal(map[string]cty.Value{
+				"name": cty.NullVal(cty.String),
+			}),
+		},
+		{
+			CallExpr: `convert({}, object({name = optional(string, "Jackson")}))`,
+			WantValue: cty.ObjectVal(map[string]cty.Value{
+				"name": cty.StringVal("Jackson"),
+			}),
+		},
+		{
+			CallExpr:  `convert(null, object({name = optional(string, "Jackson")}))`,
+			WantValue: cty.NullVal(cty.Object(map[string]cty.Type{"name": cty.String})),
+		},
+		{
+			CallExpr:  `convert(unknown, object({name = optional(string, "Jackson")}))`,
+			WantValue: cty.UnknownVal(cty.Object(map[string]cty.Type{"name": cty.String})),
+		},
+		{
+			CallExpr:  `convert({name = marked}, object({name = string}))`,
+			WantValue: cty.ObjectVal(map[string]cty.Value{"name": cty.StringVal("marked").Mark("mark")}),
+		},
+	}
+
+	hclCtx := &hcl.EvalContext{
+		Variables: map[string]cty.Value{
+			"unknown": cty.DynamicVal,
+			"marked":  cty.StringVal("marked").Mark("mark"),
+		},
+		Functions: map[string]function.Function{
+			"convert": convertFunc,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.CallExpr, func(t *testing.T) {
+			expr, hclDiags := hclsyntax.ParseExpression([]byte(test.CallExpr), "", hcl.InitialPos)
+			if hclDiags.HasErrors() {
+				t.Fatal(hclDiags.Error())
+			}
+
+			gotVal, gotDiags := expr.Value(hclCtx)
+
+			if test.WantError != "" {
+				if !gotDiags.HasErrors() {
+					t.Fatalf("unexpected success\nwant error: %s", test.WantError)
+				}
+				if gotErr, wantErr := gotDiags.Error(), test.WantError; gotErr != wantErr {
+					t.Fatalf("wrong error\ngot:  %s\nwant: %s", gotErr, wantErr)
+				}
+				return
+			}
+
+			if gotDiags.HasErrors() {
+				t.Fatalf("unexpected error\ngot error: %s\nwant value: %#v", gotDiags.Error(), test.WantValue)
 			}
 			if wantVal := test.WantValue; !wantVal.RawEquals(gotVal) {
 				t.Fatalf("wrong result\ngot:  %#v\nwant: %#v", gotVal, wantVal)
