@@ -51,7 +51,7 @@ func TestCoreRule_RedundantDependsOn(t *testing.T) {
 					"Redundant 'depends_on' usage",
 					fmt.Sprintf("Resource %q configures %q as 'depends_on'. The configured dependency is already automatically inferred which makes this particular 'depends_on' reference redundant.", targetRes.String(), unkeyedAddressReferenceKey(ref)),
 					new(tfdiags.SourceRangeFromHCL(ref.SourceRange.ToHCL())),
-					new(tfdiags.SourceRangeFromHCL(targetResRange)),
+					nil,
 				))
 				return newCtx, targetRes, targetResRange, directRefCb, dependsOnCb, true, true, wantDiags
 			},
@@ -89,7 +89,7 @@ func TestCoreRule_RedundantDependsOn(t *testing.T) {
 					"Redundant 'depends_on' usage",
 					fmt.Sprintf("Resource %q configures %q as 'depends_on'. The configured dependency is already automatically inferred which makes this particular 'depends_on' reference redundant.", targetRes.String(), unkeyedAddressReferenceKey(ref)),
 					new(tfdiags.SourceRangeFromHCL(ref.SourceRange.ToHCL())),
-					new(tfdiags.SourceRangeFromHCL(targetResRange)),
+					nil,
 				))
 				return newCtx, targetRes, targetResRange, directRefCb, dependsOnCb, true, true, wantDiags
 			},
@@ -122,7 +122,7 @@ func TestCoreRule_RedundantDependsOn(t *testing.T) {
 					"Redundant 'depends_on' usage",
 					fmt.Sprintf("Resource %q configures %q as 'depends_on'. The configured dependency is already automatically inferred which makes this particular 'depends_on' reference redundant.", targetRes.String(), unkeyedAddressReferenceKey(ref)),
 					new(tfdiags.SourceRangeFromHCL(ref.SourceRange.ToHCL())),
-					new(tfdiags.SourceRangeFromHCL(targetResRange)),
+					nil,
 				))
 				return newCtx, targetRes, targetResRange, directRefCb, dependsOnCb, true, true, wantDiags
 			},
@@ -158,7 +158,7 @@ func TestCoreRule_RedundantDependsOn(t *testing.T) {
 					"Redundant 'depends_on' usage",
 					fmt.Sprintf("Resource %q configures %q as 'depends_on'. The configured dependency is already automatically inferred which makes this particular 'depends_on' reference redundant.", targetRes.String(), unkeyedAddressReferenceKey(ref)),
 					new(tfdiags.SourceRangeFromHCL(ref.SourceRange.ToHCL())),
-					new(tfdiags.SourceRangeFromHCL(targetResRange)),
+					nil,
 				))
 				return newCtx, targetRes, targetResRange, directRefCb, dependsOnCb, true, true, wantDiags
 			},
@@ -276,7 +276,7 @@ func TestCoreRule_RedundantDependsOn(t *testing.T) {
 						"Redundant 'depends_on' usage",
 						fmt.Sprintf("Resource %q configures %q as 'depends_on'. The configured dependency is already automatically inferred which makes this particular 'depends_on' reference redundant.", targetRes.String(), unkeyedAddressReferenceKey(resRef)),
 						new(tfdiags.SourceRangeFromHCL(resRef.SourceRange.ToHCL())),
-						new(tfdiags.SourceRangeFromHCL(targetResRange)),
+						nil,
 					),
 					tfdiags.LintMessage(
 						ruleIDRedundantDependsOn,
@@ -284,7 +284,7 @@ func TestCoreRule_RedundantDependsOn(t *testing.T) {
 						"Redundant 'depends_on' usage",
 						fmt.Sprintf("Resource %q configures %q as 'depends_on'. The configured dependency is already automatically inferred which makes this particular 'depends_on' reference redundant.", targetRes.String(), unkeyedAddressReferenceKey(modRef)),
 						new(tfdiags.SourceRangeFromHCL(modRef.SourceRange.ToHCL())),
-						new(tfdiags.SourceRangeFromHCL(targetResRange)),
+						nil,
 					),
 				)
 				return newCtx, targetRes, targetResRange, directRefCb, dependsOnCb, true, true, wantDiags
