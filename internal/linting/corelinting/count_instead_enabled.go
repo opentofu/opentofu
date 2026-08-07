@@ -50,7 +50,7 @@ func CountInsteadEnabled(
 //   - the expression is a literal value and its value is a number equals with 1
 //   - the expression is a literal value and its value is a number equals with 0
 //   - the expression is a ternary operation and one of the expressions is a literal number equals with 1 and the other one
-//     is a literal number equals wwith 0
+//     is a literal number equals with 0
 func canLifecycleEnabledReplaceCountExpr(expr hcl.Expression, wantedVal cty.Value) bool {
 	switch e := expr.(type) {
 	case *hclsyntax.ConditionalExpr:
