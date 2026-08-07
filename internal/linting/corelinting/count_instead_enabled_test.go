@@ -19,18 +19,22 @@ import (
 )
 
 func TestCoreRule_CountInsteadEnabled(t *testing.T) {
+	resSetup := func(t *testing.T, rawExpr string) (addrs.ConfigResource, hcl.Range, hcl.Expression) {
+		targetRes := addrs.MustParseResourceAddr("test.resource_name")
+		targetResRange := hcl.Range{Filename: "test.tf", Start: hcl.Pos{Line: 1, Byte: 4, Column: 4}, End: hcl.Pos{Line: 1, Byte: 10, Column: 10}}
+		expr, exprDiags := hclsyntax.ParseExpression([]byte(rawExpr), "test.tf", hcl.Pos{Line: 1, Byte: 4, Column: 4})
+		if exprDiags.HasErrors() {
+			t.Fatalf("test setup failed: %s", exprDiags)
+		}
+		return targetRes, targetResRange, expr
+	}
 	cases := map[string]struct {
 		setup func(t *testing.T) (context.Context, addrs.ConfigResource, hcl.Range, hcl.Expression, tfdiags.Diagnostics)
 	}{
 		"expression is a literal number 1": {
 			setup: func(t *testing.T) (context.Context, addrs.ConfigResource, hcl.Range, hcl.Expression, tfdiags.Diagnostics) {
 				newCtx := tfdiags.ContextWithLintFilterHints(t.Context(), collections.NewSet(ruleIDcountInsteadOfEnabled), nil)
-				targetRes := addrs.MustParseResourceAddr("test.resource_name")
-				targetResRange := hcl.Range{Filename: "test.tf", Start: hcl.Pos{Line: 1, Byte: 4, Column: 4}, End: hcl.Pos{Line: 1, Byte: 10, Column: 10}}
-				expr, exprDiags := hclsyntax.ParseExpression([]byte("1"), "test.tf", hcl.Pos{Line: 1, Byte: 4, Column: 4})
-				if exprDiags.HasErrors() {
-					t.Fatalf("test setup failed: %s", exprDiags)
-				}
+				targetRes, targetResRange, expr := resSetup(t, "1")
 
 				wantDiags := tfdiags.New(tfdiags.LintMessage(
 					ruleIDcountInsteadOfEnabled,
@@ -46,12 +50,7 @@ func TestCoreRule_CountInsteadEnabled(t *testing.T) {
 		"expression is a literal number 0": {
 			setup: func(t *testing.T) (context.Context, addrs.ConfigResource, hcl.Range, hcl.Expression, tfdiags.Diagnostics) {
 				newCtx := tfdiags.ContextWithLintFilterHints(t.Context(), collections.NewSet(ruleIDcountInsteadOfEnabled), nil)
-				targetRes := addrs.MustParseResourceAddr("test.resource_name")
-				targetResRange := hcl.Range{Filename: "test.tf", Start: hcl.Pos{Line: 1, Byte: 4, Column: 4}, End: hcl.Pos{Line: 1, Byte: 10, Column: 10}}
-				expr, exprDiags := hclsyntax.ParseExpression([]byte("0"), "test.tf", hcl.Pos{Line: 1, Byte: 4, Column: 4})
-				if exprDiags.HasErrors() {
-					t.Fatalf("test setup failed: %s", exprDiags)
-				}
+				targetRes, targetResRange, expr := resSetup(t, "0")
 
 				wantDiags := tfdiags.New(tfdiags.LintMessage(
 					ruleIDcountInsteadOfEnabled,
@@ -67,12 +66,7 @@ func TestCoreRule_CountInsteadEnabled(t *testing.T) {
 		"expression is a ternary condition with the truthy expression as a literal number 1 and the falsy expression is a literal number 0": {
 			setup: func(t *testing.T) (context.Context, addrs.ConfigResource, hcl.Range, hcl.Expression, tfdiags.Diagnostics) {
 				newCtx := tfdiags.ContextWithLintFilterHints(t.Context(), collections.NewSet(ruleIDcountInsteadOfEnabled), nil)
-				targetRes := addrs.MustParseResourceAddr("test.resource_name")
-				targetResRange := hcl.Range{Filename: "test.tf", Start: hcl.Pos{Line: 1, Byte: 4, Column: 4}, End: hcl.Pos{Line: 1, Byte: 10, Column: 10}}
-				expr, exprDiags := hclsyntax.ParseExpression([]byte("var.input ? 1 : 0"), "test.tf", hcl.Pos{Line: 1, Byte: 4, Column: 4})
-				if exprDiags.HasErrors() {
-					t.Fatalf("test setup failed: %s", exprDiags)
-				}
+				targetRes, targetResRange, expr := resSetup(t, "var.input ? 1 : 0")
 
 				wantDiags := tfdiags.New(tfdiags.LintMessage(
 					ruleIDcountInsteadOfEnabled,
@@ -88,12 +82,7 @@ func TestCoreRule_CountInsteadEnabled(t *testing.T) {
 		"expression is a ternary condition with the truthy expression as a literal number 0 and the falsy expression is a literal number 1": {
 			setup: func(t *testing.T) (context.Context, addrs.ConfigResource, hcl.Range, hcl.Expression, tfdiags.Diagnostics) {
 				newCtx := tfdiags.ContextWithLintFilterHints(t.Context(), collections.NewSet(ruleIDcountInsteadOfEnabled), nil)
-				targetRes := addrs.MustParseResourceAddr("test.resource_name")
-				targetResRange := hcl.Range{Filename: "test.tf", Start: hcl.Pos{Line: 1, Byte: 4, Column: 4}, End: hcl.Pos{Line: 1, Byte: 10, Column: 10}}
-				expr, exprDiags := hclsyntax.ParseExpression([]byte("var.input ? 0 : 1"), "test.tf", hcl.Pos{Line: 1, Byte: 4, Column: 4})
-				if exprDiags.HasErrors() {
-					t.Fatalf("test setup failed: %s", exprDiags)
-				}
+				targetRes, targetResRange, expr := resSetup(t, "var.input ? 0 : 1")
 
 				wantDiags := tfdiags.New(tfdiags.LintMessage(
 					ruleIDcountInsteadOfEnabled,
@@ -109,12 +98,7 @@ func TestCoreRule_CountInsteadEnabled(t *testing.T) {
 		"expression is a ternary condition with the truthy expression as a literal number 1 and the falsy expression is a literal number 2": {
 			setup: func(t *testing.T) (context.Context, addrs.ConfigResource, hcl.Range, hcl.Expression, tfdiags.Diagnostics) {
 				newCtx := tfdiags.ContextWithLintFilterHints(t.Context(), collections.NewSet(ruleIDcountInsteadOfEnabled), nil)
-				targetRes := addrs.MustParseResourceAddr("test.resource_name")
-				targetResRange := hcl.Range{Filename: "test.tf", Start: hcl.Pos{Line: 1, Byte: 4, Column: 4}, End: hcl.Pos{Line: 1, Byte: 10, Column: 10}}
-				expr, exprDiags := hclsyntax.ParseExpression([]byte("var.input ? 1 : 2"), "test.tf", hcl.Pos{Line: 1, Byte: 4, Column: 4})
-				if exprDiags.HasErrors() {
-					t.Fatalf("test setup failed: %s", exprDiags)
-				}
+				targetRes, targetResRange, expr := resSetup(t, "var.input ? 1 : 2")
 
 				var wantDiags tfdiags.Diagnostics
 				return newCtx, targetRes, targetResRange, expr, wantDiags
@@ -123,12 +107,7 @@ func TestCoreRule_CountInsteadEnabled(t *testing.T) {
 		"expression is a ternary condition with the truthy expression as a literal number 2 and the falsy expression is a literal number 1": {
 			setup: func(t *testing.T) (context.Context, addrs.ConfigResource, hcl.Range, hcl.Expression, tfdiags.Diagnostics) {
 				newCtx := tfdiags.ContextWithLintFilterHints(t.Context(), collections.NewSet(ruleIDcountInsteadOfEnabled), nil)
-				targetRes := addrs.MustParseResourceAddr("test.resource_name")
-				targetResRange := hcl.Range{Filename: "test.tf", Start: hcl.Pos{Line: 1, Byte: 4, Column: 4}, End: hcl.Pos{Line: 1, Byte: 10, Column: 10}}
-				expr, exprDiags := hclsyntax.ParseExpression([]byte("var.input ? 2 : 1"), "test.tf", hcl.Pos{Line: 1, Byte: 4, Column: 4})
-				if exprDiags.HasErrors() {
-					t.Fatalf("test setup failed: %s", exprDiags)
-				}
+				targetRes, targetResRange, expr := resSetup(t, "var.input ? 2 : 1")
 
 				var wantDiags tfdiags.Diagnostics
 				return newCtx, targetRes, targetResRange, expr, wantDiags
@@ -137,12 +116,7 @@ func TestCoreRule_CountInsteadEnabled(t *testing.T) {
 		"expression is a multi-layered ternary condition with the truthy expression as a ternary condition whose truthy is a literal number 1 and the falsy expression is a literal number 0": {
 			setup: func(t *testing.T) (context.Context, addrs.ConfigResource, hcl.Range, hcl.Expression, tfdiags.Diagnostics) {
 				newCtx := tfdiags.ContextWithLintFilterHints(t.Context(), collections.NewSet(ruleIDcountInsteadOfEnabled), nil)
-				targetRes := addrs.MustParseResourceAddr("test.resource_name")
-				targetResRange := hcl.Range{Filename: "test.tf", Start: hcl.Pos{Line: 1, Byte: 4, Column: 4}, End: hcl.Pos{Line: 1, Byte: 10, Column: 10}}
-				expr, exprDiags := hclsyntax.ParseExpression([]byte("var.input ? (var.input2 ? 1 : 0) : 0"), "test.tf", hcl.Pos{Line: 1, Byte: 4, Column: 4})
-				if exprDiags.HasErrors() {
-					t.Fatalf("test setup failed: %s", exprDiags)
-				}
+				targetRes, targetResRange, expr := resSetup(t, "var.input ? (var.input2 ? 1 : 0) : 0")
 
 				wantDiags := tfdiags.New(tfdiags.LintMessage(
 					ruleIDcountInsteadOfEnabled,
@@ -158,12 +132,7 @@ func TestCoreRule_CountInsteadEnabled(t *testing.T) {
 		"expression is a multi-layered ternary condition with the falsy expression as a ternary condition whose truthy is a literal number 1 and the falsy expression is a literal number 0": {
 			setup: func(t *testing.T) (context.Context, addrs.ConfigResource, hcl.Range, hcl.Expression, tfdiags.Diagnostics) {
 				newCtx := tfdiags.ContextWithLintFilterHints(t.Context(), collections.NewSet(ruleIDcountInsteadOfEnabled), nil)
-				targetRes := addrs.MustParseResourceAddr("test.resource_name")
-				targetResRange := hcl.Range{Filename: "test.tf", Start: hcl.Pos{Line: 1, Byte: 4, Column: 4}, End: hcl.Pos{Line: 1, Byte: 10, Column: 10}}
-				expr, exprDiags := hclsyntax.ParseExpression([]byte("(var.input ? 0 : (var.input2 ? 1 : 0))"), "test.tf", hcl.Pos{Line: 1, Byte: 4, Column: 4})
-				if exprDiags.HasErrors() {
-					t.Fatalf("test setup failed: %s", exprDiags)
-				}
+				targetRes, targetResRange, expr := resSetup(t, "(var.input ? 0 : (var.input2 ? 1 : 0))")
 
 				wantDiags := tfdiags.New(tfdiags.LintMessage(
 					ruleIDcountInsteadOfEnabled,
@@ -181,12 +150,7 @@ func TestCoreRule_CountInsteadEnabled(t *testing.T) {
 			// of the linting rule implementation and the way it handles invalid expressions
 			setup: func(t *testing.T) (context.Context, addrs.ConfigResource, hcl.Range, hcl.Expression, tfdiags.Diagnostics) {
 				newCtx := tfdiags.ContextWithLintFilterHints(t.Context(), collections.NewSet(ruleIDcountInsteadOfEnabled), nil)
-				targetRes := addrs.MustParseResourceAddr("test.resource_name")
-				targetResRange := hcl.Range{Filename: "test.tf", Start: hcl.Pos{Line: 1, Byte: 4, Column: 4}, End: hcl.Pos{Line: 1, Byte: 10, Column: 10}}
-				expr, exprDiags := hclsyntax.ParseExpression([]byte("\"my_value\""), "test.tf", hcl.Pos{Line: 1, Byte: 4, Column: 4})
-				if exprDiags.HasErrors() {
-					t.Fatalf("test setup failed: %s", exprDiags)
-				}
+				targetRes, targetResRange, expr := resSetup(t, "\"my_value\"")
 
 				var wantDiags tfdiags.Diagnostics
 				return newCtx, targetRes, targetResRange, expr, wantDiags
@@ -197,12 +161,7 @@ func TestCoreRule_CountInsteadEnabled(t *testing.T) {
 			// of the linting rule implementation and the way it handles invalid expressions
 			setup: func(t *testing.T) (context.Context, addrs.ConfigResource, hcl.Range, hcl.Expression, tfdiags.Diagnostics) {
 				newCtx := tfdiags.ContextWithLintFilterHints(t.Context(), collections.NewSet(ruleIDcountInsteadOfEnabled), nil)
-				targetRes := addrs.MustParseResourceAddr("test.resource_name")
-				targetResRange := hcl.Range{Filename: "test.tf", Start: hcl.Pos{Line: 1, Byte: 4, Column: 4}, End: hcl.Pos{Line: 1, Byte: 10, Column: 10}}
-				expr, exprDiags := hclsyntax.ParseExpression([]byte("true"), "test.tf", hcl.Pos{Line: 1, Byte: 4, Column: 4})
-				if exprDiags.HasErrors() {
-					t.Fatalf("test setup failed: %s", exprDiags)
-				}
+				targetRes, targetResRange, expr := resSetup(t, "true")
 
 				var wantDiags tfdiags.Diagnostics
 				return newCtx, targetRes, targetResRange, expr, wantDiags
