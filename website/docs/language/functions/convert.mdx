@@ -1,0 +1,48 @@
+---
+sidebar_label: convert
+description: The convert function performs an explicit type conversion of a given value.
+---
+
+# `convert` Function
+
+`convert` performs an explicit type conversion to make the given value conform
+to the given target type constraint.
+
+```hcl
+convert(value, type)
+```
+
+A value of any type can be provided as long as it can be converted to match the
+given type constraint.
+
+Explicit type conversions are rarely necessary in OpenTofu because it converts
+types automatically where required. This function can be useful in situations
+where the type of a result is ambiguous, such as when parsing an arbitrary JSON
+string using [`jsonencode`](./jsonencode.mdx) and then ensuring the resulting
+data structure conforms to the expected type.
+
+The type argument expects a type constraint using the same syntax as for
+input variables, as described in [Type Constraints](../values/variables.mdx#type-constraints).
+The type constraint may include object types with optional attributes, but the
+default values for any optional attributes must be constant values and cannot
+use functions or references to other symbols in the module.
+
+## Examples
+
+```
+> convert("true", bool)
+true
+> convert({}, object({ name = optional(string, "OpenTofu") }))
+{
+  name = "OpenTofu"
+}
+```
+
+## Related Functions
+
+* [`tobool`](./tobool.mdx) is a shorthand for `convert` with a type constraint of `bool`.
+* [`tolist`](./tolist.mdx) is a shorthand for `convert` with a type constraint of `list(any)`.
+* [`tomap`](./tomap.mdx) is a shorthand for `convert` with a type constraint of `map(any)`.
+* [`tonumber`](./tonumber.mdx) is a shorthand for `convert` with a type constraint of `number`.
+* [`toset`](./toset.mdx) is a shorthand for `convert` with a type constraint of `set(any)`.
+* [`tostring`](./tostring.mdx) is a shorthand for `convert` with a type constraint of `string`.

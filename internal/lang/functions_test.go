@@ -295,6 +295,13 @@ func TestFunctions(t *testing.T) {
 			},
 		},
 
+		"convert": {
+			{
+				`convert("hello", string)`,
+				cty.StringVal("hello"),
+			},
+		},
+
 		"csvdecode": {
 			{
 				`csvdecode("a,b,c\n1,2,3\n4,5,6")`,
