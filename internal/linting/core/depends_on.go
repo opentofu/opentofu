@@ -62,10 +62,7 @@ func RedundantDependsOn(
 				"Redundant 'depends_on' usage",
 				fmt.Sprintf("Resource %q configures %q as 'depends_on'. The configured dependency is already automatically inferred which makes this particular 'depends_on' reference redundant.", targetRes.String(), refKey),
 				new(tfdiags.SourceRangeFromHCL(dependsOnRef.SourceRange.ToHCL())),
-				// TODO linting - do we really want to include this context here? Depends on where the `depends_on` argument is located inside the `resource` block,
-				//  it could show only 2-3 lines of context in the diagnostic, but if it configured at the bottom of the block, it will print the whole `resource` block.
-				//  Without this context, it will show only the line and the reference in question. Personally I consider that to be enough. Takes?
-				new(tfdiags.SourceRangeFromHCL(targetDeclRange)),
+				nil,
 			))
 		}
 		return diags
