@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
+	corelinting "github.com/opentofu/opentofu/internal/linting/core"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/convert"
 
@@ -62,6 +63,8 @@ func (n *NodeValidatableResource) Execute(ctx context.Context, evalCtx EvalConte
 	if n.Config == nil {
 		return diags
 	}
+
+	diags = diags.Append(corelinting.RedundantDependsOn(ctx, n.ResourceAddr(), n.Config.DeclRange, n.directReferences, n.DependsOn))
 
 	diags = diags.Append(n.validateResource(ctx, evalCtx))
 
