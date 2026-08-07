@@ -11,6 +11,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 
@@ -192,12 +193,12 @@ func lintHintsFromContext(ctx context.Context) *lintingRulesCtxValue {
 // which can silently control when a phase has enough information and when not to determine if the rule can be
 // executed reliably.
 func ExecuteLintRule(ctx context.Context, f func() Diagnostics, src SourceRange, ruleID linting.RuleAddr, groupIDs ...linting.RuleAddr) Diagnostics {
-	val := lintHintsFromContext(ctx)
-	if val == nil {
+	lintCtx := lintHintsFromContext(ctx)
+	if lintCtx == nil {
 		return nil
 	}
 	// first, determine that the user actually asked for this
-	if !lintRuleAllowed(val.include, val.exclude, ruleID, groupIDs...) {
+	if !lintRuleAllowed(lintCtx.include, lintCtx.exclude, ruleID, groupIDs...) {
 		return nil
 	}
 
@@ -209,32 +210,40 @@ func ExecuteLintRule(ctx context.Context, f func() Diagnostics, src SourceRange,
 		m       sync.Mutex
 		success bool
 	}
-	// create a new lint rule executin and lock it to store it into the status container
-	exec := &lintExecution{
-		m:       sync.Mutex{},
-		success: false,
+	loadExec := func(execId string) *lintExecution {
+		// create a new lint rule executin and lock it to store it into the status container
+		exec := &lintExecution{
+			m:       sync.Mutex{},
+			success: false,
+		}
+		exec.m.Lock()
+		loadedExec, loaded := lintCtx.lintOnSourceExecution.LoadOrStore(k, exec)
+		currentExec := exec
+		// another lint execution for this linting rule and source was created before so we need to work with it instead of
+		// the above created one.
+		if loaded {
+			// we unlock the previous created execution just to be sure that we don't leave that mutex locked,
+			// even if it will e discarded upon return from this function
+			exec.m.Unlock()
+			// get the existing execution, acquire lock, and use this instead of the previously created execution
+			cLoadedExec := loadedExec.(*lintExecution)
+			cLoadedExec.m.Lock()
+			currentExec = cLoadedExec
+		}
+
+		return currentExec
 	}
-	exec.m.Lock()
+
+	exec := loadExec(k)
 	defer exec.m.Unlock()
-	loadedExec, loaded := val.lintOnSourceExecution.LoadOrStore(k, exec)
-	currentExec := exec
-	// another lint execution for this linting rule and source was created before so we need to work with it instead of
-	// the above created one.
-	if loaded {
-		// get the existing execution, acquire lock, and use this instead of the previously created execution
-		cLoadedExec := loadedExec.(*lintExecution)
-		cLoadedExec.m.Lock()
-		defer cLoadedExec.m.Unlock()
-		currentExec = cLoadedExec
-	}
-	if currentExec.success {
+	if exec.success {
 		return nil
 	}
 	diags := f()
 	if !diags.HasErrors() {
 		// safe to set this here since the lock was acquired when this was created, before being stored into the
 		// status container
-		currentExec.success = true
+		exec.success = true
 	}
 	return diags
 }
@@ -261,16 +270,12 @@ func lintRuleAllowed(include, exclude collections.Set[linting.RuleAddr], ruleID 
 		return false
 	}
 	// If at least one group is included, then include the rule
-	for _, d := range groupIDs {
-		if include.Has(d) {
-			return true
-		}
+	if slices.ContainsFunc(groupIDs, include.Has) {
+		return true
 	}
 	// If at least one group is exclude, then exclude the rule
-	for _, d := range groupIDs {
-		if exclude.Has(d) {
-			return false
-		}
+	if slices.ContainsFunc(groupIDs, exclude.Has) {
+		return false
 	}
 	// In the end, enable the rule only when the "all" configuration is provided
 	return include.Has(linting.AllRulesGroupID)
