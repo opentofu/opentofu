@@ -11,8 +11,10 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/mitchellh/colorstring"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/collections"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/format"
+	"github.com/opentofu/opentofu/internal/linting"
 	"github.com/opentofu/opentofu/internal/terminal"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -27,6 +29,11 @@ type View struct {
 	compactWarnings     bool
 	consolidateWarnings bool
 	consolidateErrors   bool
+
+	// lintInclude and lintExclude contains the linting rules that are used later
+	// to determine if a specific diagnostic should be shown or not based on the
+	// linting rule IDs (or/and groupIDs) that diagnostic is configured with.
+	lintInclude, lintExclude collections.Set[linting.RuleAddr]
 
 	// When this is true it's a hint that OpenTofu is being run indirectly
 	// via a wrapper script or other automation and so we may wish to replace
@@ -112,6 +119,9 @@ func (v *View) Configure(view *arguments.View) {
 	v.consolidateErrors = view.ConsolidateErrors
 	v.concise = view.Concise
 	v.ModuleDeprecationWarnLvl = view.ModuleDeprecationWarnLvl
+
+	v.lintInclude = view.LintInclude
+	v.lintExclude = view.LintExclude
 }
 
 func (v *View) DiagsWithNewline() {
@@ -158,6 +168,17 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 	}
 	diags = newDiags
 
+	var lintDiags tfdiags.Diagnostics
+	// Since linting related diagnostics use the Warning severity, we want to extract those out of the
+	// main diagnostics slice before consolidating warning diagnostics.
+	// That's because linting related diagnostics have a different logic for consolidation. For more details see
+	// ConsolidateLint.
+	diags, lintDiags = diags.SplitLint()
+	// Because of the in-context linting hints, this should not be necessary but it's just a guard in case
+	// there is any linting rule included without using the in-context linting hints.
+	lintDiags = lintDiags.FilterLint(v.lintInclude, v.lintExclude)
+	lintDiags = lintDiags.ConsolidateLint()
+
 	if v.consolidateWarnings {
 		diags = diags.Consolidate(1, tfdiags.Warning, func(diag tfdiags.Diagnostic) string {
 			// Check to see if we have a DeprecationCause
@@ -166,10 +187,10 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 				return depExtra
 			}
 			return tfdiags.DefaultDiagnosticsConsolidation(diag)
-		})
+		}, tfdiags.ConsolidationOptDefault)
 	}
 	if v.consolidateErrors {
-		diags = diags.Consolidate(1, tfdiags.Error, tfdiags.DefaultDiagnosticsConsolidation)
+		diags = diags.Consolidate(1, tfdiags.Error, tfdiags.DefaultDiagnosticsConsolidation, tfdiags.ConsolidationOptDefault)
 	}
 
 	// Since warning messages are generally competing
@@ -194,7 +215,10 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 		}
 	}
 
-	for _, diag := range diags {
+	// This slice is built with lint diagnostics in front of everything, to keep the order applied at the begining
+	// of this method. This is to follow the reasoning described on diags.Sort().
+	allDiags := append(lintDiags, diags...)
+	for _, diag := range allDiags {
 		var msg string
 		if v.colorize.Disable {
 			msg = format.DiagnosticPlain(diag, v.configSources(), v.streams.Stderr.Columns())

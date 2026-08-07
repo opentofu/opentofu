@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/opentofu/opentofu/internal/collections"
+	"github.com/opentofu/opentofu/internal/linting"
 )
 
 func TestParseView(t *testing.T) {
@@ -97,12 +99,27 @@ func TestParseView(t *testing.T) {
 			&View{ModuleDeprecationWarnLvl: DeprecationWarningLevelNone, ConsolidateWarnings: true},
 			[]string{"-deprecation=othernamespace:arg", "-deprecation=backend:arg"},
 		},
+		"lint includes 'all' rule": {
+			[]string{"-lint=all"},
+			&View{LintInclude: collections.NewSet(linting.AllRulesGroupID), LintExclude: collections.NewSet[linting.RuleAddr](), ConsolidateWarnings: true},
+			[]string{},
+		},
+		"lint excludes 'all' and allows 'foo'": {
+			[]string{"-lint=!all,foo"},
+			&View{LintInclude: collections.NewSet(linting.MustParseRuleAddr("foo")), LintExclude: collections.NewSet[linting.RuleAddr](linting.AllRulesGroupID), ConsolidateWarnings: true},
+			[]string{},
+		},
+		"lint with invalid rule name": {
+			[]string{"-lint=#foo"},
+			&View{LintInclude: collections.NewSet[linting.RuleAddr](), LintExclude: collections.NewSet[linting.RuleAddr](), ConsolidateWarnings: true},
+			[]string{},
+		},
 	}
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			got, gotArgs := ParseView(tc.args)
-			if *got != *tc.want {
-				t.Errorf("unexpected result\n got: %#v\nwant: %#v", got, tc.want)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("unexpected result (+got,-want): %s", diff)
 			}
 			if !cmp.Equal(gotArgs, tc.wantArgs) {
 				t.Errorf("unexpected args\n got: %#v\nwant: %#v", gotArgs, tc.wantArgs)
