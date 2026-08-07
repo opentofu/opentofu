@@ -104,22 +104,22 @@ typedef "bar" {
 
 typedef "union" {
     object({
-        foo = symbols::type(foo)
-        bar = symbols::type(bar)
+        foo = symbols::foo()
+        bar = symbols::bar()
     })
 }
 
 
 function union_foo {
     parameter "foo" {
-        type = symbols::type(foo)
+        type = symbols::foo()
     }
     return = { foo = param.foo }
 }
 
 function ensure_union {
     parameter "union" {
-        type = symbols::type(union)
+        type = symbols::union()
         validation {
             condition     = length([for o in param.union: o if o != null]) == 1 # borrowed from @apparentlymart
             error_message = "Invalid union, expected one attribute set"
@@ -130,13 +130,13 @@ function ensure_union {
 
 function union_type {
     parameter "union" {
-        type = symbols::type(union)
+        type = symbols::union()
     }
     return = one([select k, o in symbols::ensure_union(param.union): k if o != null]) # borrowed from @apparentlymart
 }
 function union_attr {
     parameter "union" {
-        type = symbols::type(union)
+        type = symbols::union()
     }
     return = param.union[symbols::union_type(param.union)]
 }
@@ -151,7 +151,7 @@ module "example" {
 // inside module
 
 variable "union" {
-    type = symbols::mylib::types(union)
+    type = symbols::mylib::union()
 }
 
 resource "example_resource" "foo" {
@@ -177,7 +177,7 @@ typedef "foo" {
 // Usage
 
 variable "foo" {
-  type = symbols::mylib::type(foo.attrs)
+  type = symbols::mylib::foo.attrs()
 }
 ```
 
@@ -191,14 +191,14 @@ typedef "foo_attrs" {
 typedef "foo" {
   type = object({
     id = string
-    attrs = symbols::type(foo_attrs)
+    attrs = symbols::foo_attrs()
   })
 }
 
 // Usage
 
 variable "foo" {
-  type = symbols::mylib::type(foo_attrs)
+  type = symbols::mylib::foo_attrs()
 }
 ```
 which feels like a more idiomatic tf/tofu pattern.

@@ -59,14 +59,14 @@ typedef "complex_type" {
   type = object({
     ncpus = number
     # Types may reference other types within the same symbol library (or other imported libraries)
-    memory_size = symbols::types(simple_type)
+    memory_size = symbols::simple_type()
   })
 }
 
 typedef "defaults_type" {
   type = object({
     # Defaults (via optional()) will be stored alongside the type
-    complex = optional(symbols::types(complex_type), { ncpus = 1, memory_size = 1024 })
+    complex = optional(symbols::complex_type(), { ncpus = 1, memory_size = 1024 })
   })
 }
 
@@ -136,7 +136,7 @@ typedef "vec3" {
 }
 function "vec3_length" {
   parameter "vec" {
-    type = symbols::types(vec3)
+    type = symbols::vec3()
   }
   locals {
     xx = param.x * param.x
@@ -161,11 +161,11 @@ symbols "namespace" {
 
 # Usage in types
 typedef "exported" {
-  type = symbols::namespace::types(type_name)
+  type = symbols::namespace::type_name()
 }
 
 typedef "embedded" {
-  type = list(symbols::namespace::types(type_name))
+  type = list(symbols::namespace::type_name())
 }
 
 # Usage in functions
@@ -198,7 +198,7 @@ symbols "internal" {
 
 # Re-export the custom type defined in the internal library
 typedef "custom" {
-  type = symbols::internal::types(custom)
+  type = symbols::internal::custom()
 }
 
 ```
@@ -211,7 +211,7 @@ typedef "custom" {
 }
 
 typedef "other" {
-  type = list(symbols::types(custom))
+  type = list(symbols::custom())
 }
 ```
 
@@ -228,14 +228,14 @@ typedef "items" {
 
 function "non_empty" {
   parameter "in" {
-    type = symbols::types(items) 
+    type = symbols::items() 
   }
   return = alltrue([for x in param.in: length(x) != 0])
 }
 
 function "assert_non_empty" {
   parameter "in" {
-    type = symbols::types(items)
+    type = symbols::items()
     validation {
       condition = symbols::non_empty(param.in)
       error_message = "One or more of the elements in ${jsonencode(param.in)} is empty"
@@ -260,7 +260,7 @@ symbols "lib" {
 
 # This variable pre-emptively 
 variable "my_items" {
-  type = symbols::lib::types(items)
+  type = symbols::lib::items()
   #type = list(string) would also work here
   validation {
     condition = symbols::lib::non_empty(var.my_items)
@@ -270,7 +270,7 @@ variable "my_items" {
 }
 
 variable "my_items_unchecked" {
-  type = symbols::lib::types(items)
+  type = symbols::lib::items()
 }
 
 locals {
@@ -359,6 +359,10 @@ The injection of the symbol library data into the OpenTofu engine/evaluator is a
   - `symbols::types(namespace.type_name)`?
   - `types(symbols.namespace.type_name)`?
   - Unless we want to make more significant changes to HCL, function call expr syntax is the easiest option here.
+  - Partial Resolution: We need to use function only syntax given the [convert function RFC proposal](https://github.com/opentofu/opentofu/pull/4440)
+    - `symbols::type()` / `symbols::namespace::type()` is what is currently proposed.
+    - Alternate: `types::symbols::namespace::type()`, but that seems a bit wordy IMO.
+    - Tailored error messages when the paren are forgotten may be helpful for end users.
 * How do we want to represent symbol language versioning?
   - We may add a "language" block or equivalent at some point, anything prior to that would be considered a different version.
   - We should probably do this pre-emptively to allow forwards compatability when this is enevitably introduced.

@@ -3,7 +3,7 @@ symbols "tfcoremock"{
 }
 
 variable "entity" {
-  type = symbols::tfcoremock::types(simple_resource)
+  type = symbols::tfcoremock::simple_resource()
 }
 
 resource "tfcoremock_simple_resource" "bar" {

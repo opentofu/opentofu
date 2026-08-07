@@ -3,7 +3,7 @@ symbols "lib" {
 }
 
 variable "produced" {
-  type = symbols::lib::types(producer)
+  type = symbols::lib::producer()
 }
 
 resource "tfcoremock_simple_resource" "consumed" {

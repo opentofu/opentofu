@@ -3,7 +3,7 @@ symbols "common" {
 }
 
 variable "info" {
-  type = symbols::common::types(info)
+  type = symbols::common::info()
 }
 
 variable "subject" {

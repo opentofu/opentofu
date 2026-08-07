@@ -3,10 +3,10 @@ symbols "common" {
 }
 
 variable "policy_primary" {
-  type = symbols::common::types(policy_document)
+  type = symbols::common::policy_document()
 }
 variable "policy_secondary" {
-  type = symbols::common::types(policy_document)
+  type = symbols::common::policy_document()
 }
 
 # tfcoremock is standing in for a real cloud

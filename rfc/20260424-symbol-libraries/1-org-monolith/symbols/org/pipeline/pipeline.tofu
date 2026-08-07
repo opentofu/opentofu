@@ -3,7 +3,7 @@ symbols "common" {
 }
 
 variable "info" {
-  type = symbols::common::types(info)
+  type = symbols::common::info()
 }
 
 variable "input" {
@@ -14,7 +14,7 @@ variable "output" {
 }
 
 variable "transformer" {
-  type = symbols::common::types(transformer)
+  type = symbols::common::transformer()
 }
 
 # tfcoremock stands in for a cloud resource
