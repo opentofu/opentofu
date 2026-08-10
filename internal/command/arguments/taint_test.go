@@ -29,8 +29,14 @@ func TestParseTaint_basicValidation(t *testing.T) {
 			forTaintCmd: true,
 		},
 		"too many arguments": {
-			args:        []string{"test_instance.foo", "test_instance.bar"},
-			want:        taintArgsWithDefaults(nil),
+			args: []string{"test_instance.foo", "test_instance.bar"},
+			want: taintArgsWithDefaults(func(v *Taint) {
+				v.TargetAddress = addrs.Resource{
+					Mode: addrs.ManagedResourceMode,
+					Type: "test_instance",
+					Name: "foo",
+				}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance)
+			}),
 			wantErrText: "Expected exactly one positional argument",
 			forTaintCmd: true,
 		},
@@ -97,8 +103,14 @@ func TestParseTaint_basicValidation(t *testing.T) {
 			}),
 		},
 		"unknown flag": {
-			args:        []string{"-unknown-flag", "test_instance.foo"},
-			want:        taintArgsWithDefaults(func(v *Taint) {}),
+			args: []string{"-unknown-flag", "test_instance.foo"},
+			want: taintArgsWithDefaults(func(v *Taint) {
+				v.TargetAddress = addrs.Resource{
+					Mode: addrs.ManagedResourceMode,
+					Type: "test_instance",
+					Name: "foo",
+				}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance)
+			}),
 			wantErrText: "flag provided but not defined: -unknown-flag",
 		},
 	}
@@ -120,10 +132,8 @@ func TestParseTaint_basicValidation(t *testing.T) {
 					t.Errorf("the returned diagnostics does not contain the expected error message.\ndiags:\n%s\nwanted: %s\n", errStr, tc.wantErrText)
 				}
 			}
-			if !diags.HasErrors() {
-				if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
-					t.Errorf("unexpected result\n%s", diff)
-				}
+			if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
+				t.Errorf("unexpected result\n%s", diff)
 			}
 		})
 	}

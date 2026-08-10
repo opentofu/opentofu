@@ -25,8 +25,10 @@ func TestParseProvidersMirror_basicValidation(t *testing.T) {
 			wantErrText: "The providers mirror command requires an output directory as a command-line argument.",
 		},
 		"too many arguments": {
-			args:        []string{"/path/to/mirror", "/another/path"},
-			want:        providersMirrorArgsWithDefaults(func(v *ProvidersMirror) {}),
+			args: []string{"/path/to/mirror", "/another/path"},
+			want: providersMirrorArgsWithDefaults(func(v *ProvidersMirror) {
+				v.Directory = "/path/to/mirror"
+			}),
 			wantErrText: "The providers mirror command requires an output directory as a command-line argument.",
 		},
 		"single directory": {
@@ -75,10 +77,8 @@ func TestParseProvidersMirror_basicValidation(t *testing.T) {
 					t.Errorf("the returned diagnostics does not contain the expected error message.\ndiags:\n\t%s\nwanted:\n\t%s\n", errStr, tc.wantErrText)
 				}
 			}
-			if !diags.HasErrors() {
-				if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
-					t.Errorf("unexpected result\n%s", diff)
-				}
+			if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
+				t.Errorf("unexpected result\n%s", diff)
 			}
 		})
 	}

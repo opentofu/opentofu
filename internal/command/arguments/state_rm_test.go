@@ -115,10 +115,8 @@ func TestParseStateRm_basicValidation(t *testing.T) {
 					t.Errorf("the returned diagnostics does not contain the expected error message.\ndiags:\n%s\nwanted: %s\n", errStr, tc.wantErrText)
 				}
 			}
-			if !diags.HasErrors() {
-				if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
-					t.Errorf("unexpected result\n%s", diff)
-				}
+			if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
+				t.Errorf("unexpected result\n%s", diff)
 			}
 		})
 	}
@@ -126,7 +124,8 @@ func TestParseStateRm_basicValidation(t *testing.T) {
 
 func stateRmArgsWithDefaults(mutate func(stateRm *StateRm)) *StateRm {
 	ret := &StateRm{
-		DryRun: false,
+		TargetAddrs: []string{},
+		DryRun:      false,
 		ViewOptions: ViewOptions{
 			ViewType:     ViewHuman,
 			InputEnabled: false,

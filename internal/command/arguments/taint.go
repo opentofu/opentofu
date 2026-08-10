@@ -49,14 +49,12 @@ func BindTaint(cli *CommandLine, isTaint bool) *Taint {
 	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
 		addr, diags := addrs.ParseAbsResourceInstanceStr(rawAddr)
 		arguments.TargetAddress = addr
-		if !diags.HasErrors() {
-			if addr.Resource.Resource.Mode != addrs.ManagedResourceMode && isTaint {
-				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
-					"Invalid resource address",
-					fmt.Sprintf("Resource instance %s cannot be tainted", addr),
-				))
-			}
+		if addr.Resource.Resource.Mode != addrs.ManagedResourceMode && isTaint {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Invalid resource address",
+				fmt.Sprintf("Resource instance %s cannot be tainted", addr),
+			))
 		}
 		return diags
 	}})

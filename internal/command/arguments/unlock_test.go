@@ -27,6 +27,7 @@ func TestParseUnlock_basicValidation(t *testing.T) {
 		"too many arguments": {
 			args: []string{"lockid1", "lockid2"},
 			want: unlockArgsWithDefaults(func(a *Unlock) {
+				a.LockID = "lockid1"
 			}),
 			wantErrText: "Expected a single argument: LOCK_ID",
 		},
@@ -38,8 +39,10 @@ func TestParseUnlock_basicValidation(t *testing.T) {
 			}),
 		},
 		"invalid flag": {
-			args:        []string{"-invalid", "lockid"},
-			want:        unlockArgsWithDefaults(func(a *Unlock) {}),
+			args: []string{"-invalid", "lockid"},
+			want: unlockArgsWithDefaults(func(a *Unlock) {
+				a.LockID = "lockid"
+			}),
 			wantErrText: "flag provided but not defined: -invalid",
 		},
 	}
@@ -61,10 +64,8 @@ func TestParseUnlock_basicValidation(t *testing.T) {
 					t.Errorf("the returned diagnostics does not contain the expected error message.\ndiags:\n%s\nwanted: %s\n", errStr, tc.wantErrText)
 				}
 			}
-			if !diags.HasErrors() {
-				if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
-					t.Errorf("unexpected result\n%s", diff)
-				}
+			if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
+				t.Errorf("unexpected result\n%s", diff)
 			}
 		})
 	}

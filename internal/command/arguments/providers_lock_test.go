@@ -73,6 +73,7 @@ func TestParseProvidersLock_basicValidation(t *testing.T) {
 		"invalid oci-mirror flag": {
 			args: []string{"-oci-mirror=invalid{template"},
 			want: providersLockArgsWithDefaults(func(v *ProvidersLock) {
+				v.Providers = []string{}
 				v.OciMirrorTemplate = "invalid{template"
 			}),
 			wantErrText: "The -oci-mirror argument is not a valid URI template",
@@ -80,6 +81,7 @@ func TestParseProvidersLock_basicValidation(t *testing.T) {
 		"all mirrors error": {
 			args: []string{"-fs-mirror=/path", "-net-mirror=https://example.com", "-oci-mirror=https://example.com/mirror"},
 			want: providersLockArgsWithDefaults(func(v *ProvidersLock) {
+				v.Providers = []string{}
 				v.FsMirrorDir = "/path"
 				v.NetMirrorURL = "https://example.com"
 				v.OciMirrorTemplate = "https://example.com/mirror"
@@ -89,13 +91,16 @@ func TestParseProvidersLock_basicValidation(t *testing.T) {
 		"mixed flags and providers": {
 			args: []string{"-platform=linux_amd64", "-platform=darwin_arm64", "test_ns/test_provider", "test_ns2/test_provider2"},
 			want: providersLockArgsWithDefaults(func(v *ProvidersLock) {
+				v.Providers = []string{}
 				v.OptPlatforms = []string{"linux_amd64", "darwin_arm64"}
 				v.Providers = []string{"test_ns/test_provider", "test_ns2/test_provider2"}
 			}),
 		},
 		"unknown flag": {
-			args:        []string{"-unknown-flag"},
-			want:        providersLockArgsWithDefaults(func(v *ProvidersLock) {}),
+			args: []string{"-unknown-flag"},
+			want: providersLockArgsWithDefaults(func(v *ProvidersLock) {
+				v.Providers = []string{}
+			}),
 			wantErrText: "flag provided but not defined: -unknown-flag",
 		},
 	}
@@ -117,10 +122,8 @@ func TestParseProvidersLock_basicValidation(t *testing.T) {
 					t.Errorf("the returned diagnostics does not contain the expected error message.\ndiags:\n%s\nwanted: %s\n", errStr, tc.wantErrText)
 				}
 			}
-			if !diags.HasErrors() {
-				if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
-					t.Errorf("unexpected result\n%s", diff)
-				}
+			if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
+				t.Errorf("unexpected result\n%s", diff)
 			}
 		})
 	}

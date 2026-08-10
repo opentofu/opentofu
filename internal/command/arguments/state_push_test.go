@@ -25,8 +25,10 @@ func TestParseStatePush_basicValidation(t *testing.T) {
 			wantErrText: "Expected exactly one positional argument",
 		},
 		"too many arguments": {
-			args:        []string{"state1.tfstate", "state2.tfstate"},
-			want:        statePushArgsWithDefaults(nil),
+			args: []string{"state1.tfstate", "state2.tfstate"},
+			want: statePushArgsWithDefaults(func(v *StatePush) {
+				v.StateSrc = "state1.tfstate"
+			}),
 			wantErrText: "Expected exactly one positional argument",
 		},
 		"valid state file path": {
@@ -104,10 +106,8 @@ func TestParseStatePush_basicValidation(t *testing.T) {
 					t.Errorf("the returned diagnostics does not contain the expected error message.\ndiags:\n%s\nwanted: %s\n", errStr, tc.wantErrText)
 				}
 			}
-			if !diags.HasErrors() {
-				if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
-					t.Errorf("unexpected result\n%s", diff)
-				}
+			if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
+				t.Errorf("unexpected result\n%s", diff)
 			}
 		})
 	}
