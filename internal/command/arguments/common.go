@@ -16,16 +16,33 @@ import (
 	"github.com/spf13/pflag"
 )
 
+// CommandLine represents the information need to represent the cli options
+// available to a given OpenTofu command. It is used for both argument
+// handling and help text construction.
 type CommandLine struct {
-	Flags      map[string]*Flag
+	// Flags represents all flags available to the command line.
+	Flags map[string]*Flag
+	// FlagGroups defines the group headers for the Flags. These are
+	// only used in a few specific commands for now and are typically
+	// left empty.
 	FlagGroups []FlagGroup
 
-	Args    []Argument
+	// Args contains the positional arguments defined for a given command.
+	// These are only allowed after all of the flag parsing is complete.
+	Args []Argument
+	// ArgsHelp is a field used to customize the argument error help text.
+	// This is a legacy option and should not be used for any new commands.
 	ArgHelp string
 
+	// Hooks defines the pre/post command logic. Hooks.Pre should be run
+	// between os.Arg handling and the actual command logic. Hooks.Post
+	// should be run after the command has completed and before os.Exit is
+	// called.
 	Hooks Hooks
 }
 
+// PositionalArgs processes the input as a set of positional arguments. This
+// should be the entries remaining after Flag parsing.
 func (c CommandLine) PositionalArgs(remaining []string) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
@@ -89,12 +106,17 @@ func (c CommandLine) PositionalArgs(remaining []string) tfdiags.Diagnostics {
 	return diags
 }
 
+// Attach iterates through all of the flags and adds them
+// to the given flagset.
 func (c CommandLine) Attach(flags *pflag.FlagSet) {
 	for _, flag := range c.Flags {
 		flag.Cobra(flags)
 	}
 }
 
+// StdlibArgs uses the old command line stdargs processing method. This currently exists
+// as a fallback and is primarily used for testing. Once we have completely switched to a
+// new CLI library, the tests can be updated and this function removed.
 func (c CommandLine) StdlibArgs(args []string) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
@@ -144,23 +166,31 @@ func (c CommandLine) StdlibArgs(args []string) tfdiags.Diagnostics {
 	return diags
 }
 
+// Stdlib is a wrapper around StdlibArgs that handles hooks. This is used by the
+// legacy Parse methods and should be removed when they are retired.
 func (c CommandLine) Stdlib(name string, args []string) (func(), tfdiags.Diagnostics) {
 	diags := c.StdlibArgs(args)
+
 	// Process hooks
 	return func() { c.Hooks.Post() }, diags.Append(c.Hooks.Pre())
 }
 
+// Hook is a helper function to add a hook to the command line processing.
 func (c *CommandLine) Hook(h Hook) {
 	c.Hooks = append(c.Hooks, h)
 }
 
+// Argument represents a positional argument.
 type Argument struct {
 	Name     string
 	Optional bool
 	Variadic bool
-	Process  func([]string) ([]string, error)
+	// Process takes the current remaining os.Args entries and returns
+	// the remainder after the given argument has been processed.
+	Process func([]string) ([]string, error)
 }
 
+// PositionalArg registers a positional argument.
 func (c *CommandLine) PositionalArg(p *string, name string, optional bool) {
 	for _, arg := range c.Args {
 		if arg.Variadic {
@@ -179,6 +209,8 @@ func (c *CommandLine) PositionalArg(p *string, name string, optional bool) {
 		return args[1:], nil
 	}})
 }
+
+// VariadicArg registers a variadic argument.
 func (c *CommandLine) VariadicArg(p *[]string, name string) {
 	for _, arg := range c.Args {
 		if arg.Variadic {
@@ -192,6 +224,7 @@ func (c *CommandLine) VariadicArg(p *[]string, name string) {
 	}})
 }
 
+// Flag registers the given flag to the CommandLine.
 func (c *CommandLine) Flag(flag *Flag) *Flag {
 	if c.Flags == nil {
 		c.Flags = map[string]*Flag{}
@@ -200,6 +233,7 @@ func (c *CommandLine) Flag(flag *Flag) *Flag {
 	return flag
 }
 
+// BoolVar attaches a bool flag to the CommandLine.
 func (c *CommandLine) BoolVar(p *bool, name string, value bool, usage string) *Flag {
 	return c.Flag(&Flag{
 		Name:   name,
@@ -208,6 +242,8 @@ func (c *CommandLine) BoolVar(p *bool, name string, value bool, usage string) *F
 		Stdlib: func(f *flag.FlagSet) { f.BoolVar(p, name, value, usage) },
 	})
 }
+
+// IntVar attaches a int flag to the CommandLine.
 func (c *CommandLine) IntVar(p *int, name string, value int, usage string) *Flag {
 	return c.Flag(&Flag{
 		Name:   name,
@@ -216,6 +252,8 @@ func (c *CommandLine) IntVar(p *int, name string, value int, usage string) *Flag
 		Stdlib: func(f *flag.FlagSet) { f.IntVar(p, name, value, usage) },
 	})
 }
+
+// StringVar attaches a string flag to the CommandLine.
 func (c *CommandLine) StringVar(p *string, name string, value string, usage string) *Flag {
 	return c.Flag(&Flag{
 		Name:   name,
@@ -224,6 +262,8 @@ func (c *CommandLine) StringVar(p *string, name string, value string, usage stri
 		Stdlib: func(f *flag.FlagSet) { f.StringVar(p, name, value, usage) },
 	})
 }
+
+// DurationVar attaches a time.Duration flag to the CommandLine.
 func (c *CommandLine) DurationVar(p *time.Duration, name string, value time.Duration, usage string) *Flag {
 	return c.Flag(&Flag{
 		Name:   name,
@@ -233,6 +273,8 @@ func (c *CommandLine) DurationVar(p *time.Duration, name string, value time.Dura
 	})
 }
 
+// StringArrayVar attaches a StringArray flag to the CommandLine.
+// This treats every instance of -name is a new entry and does not perform any ',' splitting.
 func (c *CommandLine) StringArrayVar(p *[]string, name string, value []string, usage string) *Flag {
 	return c.Flag(&Flag{
 		Name:   name,
@@ -242,6 +284,9 @@ func (c *CommandLine) StringArrayVar(p *[]string, name string, value []string, u
 	})
 }
 
+// RawFlags attaches a flags.RawFlags to the CommandLine.
+// This is a deprecated function and should be removed once var and var-file
+// processing is improved. This will correspond with the removal of the flags package.
 func (c *CommandLine) RawFlags(p flags.RawFlags, name string, usage string) *Flag {
 	return c.Flag(&Flag{
 		Name:   name,
@@ -251,18 +296,36 @@ func (c *CommandLine) RawFlags(p flags.RawFlags, name string, usage string) *Fla
 	})
 }
 
+// Flag is our representation of a command line flag and the implementation
+// details of interfacing it with a given command line library.
 type Flag struct {
-	Name    string
-	Usage   string
+	// Name is the name of the flag.
+	Name string
+	// Usage is the usage text that will be formatted.  It may include
+	// newlines, but it is discouraged.
+	Usage string
+	// GroupID is the group that this flag is nested under. This is
+	// for formatting in the help/usage text.
 	GroupID string
+	// Display is a suffix for the Name during help text formatting. For example:
+	// Display: "=value", would render as
+	//   --flag-name=value
 	Display string
-	Hidden  bool
-	Global  bool
+	// Hidden determines if this flag be visible in help text.
+	Hidden bool
+	// Global determines if this flag is allowed to intermix with positional
+	// arguments. This is a view holdover and should be considered for removal
+	// at some future date.
+	Global bool
 
-	Cobra  func(*pflag.FlagSet)
+	// Cobra implementation of this flag
+	Cobra func(*pflag.FlagSet)
+	// Stdlib implementation of this flag. Will be removed once the new
+	// CLI adoption is complete.
 	Stdlib func(*flag.FlagSet)
 
-	// Hack for -backend and -cloud
+	// IsSet is a workaround for -backend and -cloud. TODO consider
+	// proper argument aliases as supported by the cli implementation.
 	IsSet bool
 }
 
@@ -283,11 +346,18 @@ func (f *Flag) SetGlobal(mixed bool) *Flag {
 	return f
 }
 
+// FlagGroup is the information needed to define a flag
+// grouping for help text display.
 type FlagGroup struct {
-	ID          string
-	Title       string
+	// ID corresponds to flag's GroupID
+	ID string
+	// Title of the group
+	Title string
+	// Description present below the title
 	Description string
-	Suffix      string
+	// Suffix text for after the group flags have
+	// been rendered
+	Suffix string
 }
 
 type Hook struct {
