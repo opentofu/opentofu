@@ -157,10 +157,17 @@ func (c *CommandLine) Hook(h Hook) {
 type Argument struct {
 	Name     string
 	Optional bool
+	Variadic bool
 	Process  func([]string) ([]string, error)
 }
 
 func (c *CommandLine) PositionalArg(p *string, name string, optional bool) {
+	for _, arg := range c.Args {
+		if arg.Variadic {
+			// In practice, this will be caught in testing as it's run before we even get to executing any commands
+			panic("BUG: Can not register a positional argument after a variadic argument!")
+		}
+	}
 	c.Args = append(c.Args, Argument{Name: name, Optional: optional, Process: func(args []string) ([]string, error) {
 		if len(args) == 0 {
 			if !optional {
@@ -173,7 +180,13 @@ func (c *CommandLine) PositionalArg(p *string, name string, optional bool) {
 	}})
 }
 func (c *CommandLine) VariadicArg(p *[]string, name string) {
-	c.Args = append(c.Args, Argument{Name: name, Process: func(args []string) ([]string, error) {
+	for _, arg := range c.Args {
+		if arg.Variadic {
+			// In practice, this will be caught in testing as it's run before we even get to executing any commands
+			panic("BUG: Can not register multiple variadic arguments!")
+		}
+	}
+	c.Args = append(c.Args, Argument{Name: name, Variadic: true, Process: func(args []string) ([]string, error) {
 		*p = args
 		return nil, nil
 	}})
