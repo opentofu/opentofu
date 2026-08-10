@@ -28,7 +28,7 @@ func BindConsole(cli *CommandLine) *Console {
 
 	console.ViewOptions.bind(cli, true)
 
-	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
+	cli.PreHook(func() tfdiags.Diagnostics {
 		if console.State.StatePath == "" {
 			console.State.StatePath = DefaultStateFilename
 		}
@@ -44,7 +44,7 @@ func BindConsole(cli *CommandLine) *Console {
 			))
 		}
 		return nil
-	}})
+	})
 
 	return &console
 }

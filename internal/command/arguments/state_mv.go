@@ -47,12 +47,12 @@ func BindStateMv(cli *CommandLine) *StateMv {
 	cli.PositionalArg(&ret.RawSrcAddr, "SOURCE", false)
 	cli.PositionalArg(&ret.RawDestAddr, "DESTINATION", false)
 
-	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
+	cli.PreHook(func() tfdiags.Diagnostics {
 		if ret.State.BackupPath == "" {
 			ret.State.BackupPath = "-"
 		}
 		return nil
-	}})
+	})
 
 	return &ret
 }

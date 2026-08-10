@@ -52,7 +52,7 @@ func BindApply(cli *CommandLine) *Apply {
 
 	cli.PositionalArg(&apply.PlanPath, "PLAN", true)
 
-	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
+	cli.PreHook(func() tfdiags.Diagnostics {
 		// JSON view cannot confirm apply, so we require either a plan file or
 		// auto-approve to be specified. We intentionally fail here rather than
 		// override auto-approve, which would be dangerous.
@@ -64,7 +64,7 @@ func BindApply(cli *CommandLine) *Apply {
 			))
 		}
 		return nil
-	}})
+	})
 
 	return &apply
 }
@@ -73,7 +73,7 @@ func BindApply(cli *CommandLine) *Apply {
 func BindApplyDestroy(cli *CommandLine) *Apply {
 	apply := BindApply(cli)
 
-	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
+	cli.PreHook(func() tfdiags.Diagnostics {
 		// So far ParseApply was using the command line options like -destroy
 		// and -refresh-only to determine the plan mode. For "tofu destroy"
 		// we expect neither of those arguments to be set, and so the plan mode
@@ -115,7 +115,7 @@ func BindApplyDestroy(cli *CommandLine) *Apply {
 		// plan file or to a configuration directory. The apply command
 		// implementation itself therefore handles this situation.
 		return nil
-	}})
+	})
 
 	return apply
 }

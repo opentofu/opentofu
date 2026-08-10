@@ -40,7 +40,7 @@ func BindStateRm(cli *CommandLine) *StateRm {
 
 	cli.VariadicArg(&ret.TargetAddrs, "ADDRESS")
 
-	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
+	cli.PreHook(func() tfdiags.Diagnostics {
 		if ret.State.BackupPath == "" {
 			ret.State.BackupPath = "-"
 		}
@@ -53,7 +53,7 @@ func BindStateRm(cli *CommandLine) *StateRm {
 			))
 		}
 		return nil
-	}})
+	})
 
 	return &ret
 }

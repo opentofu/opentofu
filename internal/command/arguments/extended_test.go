@@ -19,22 +19,22 @@ import (
 // Legacy helpers
 func BindStateBackupFlag(cli *CommandLine, def string) *State {
 	s := BindState(cli, stateFlagBackup)
-	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
+	cli.PreHook(func() tfdiags.Diagnostics {
 		if s.BackupPath == "" {
 			s.BackupPath = def
 		}
 		return nil
-	}})
+	})
 	return s
 }
 func BindStateInFlag(cli *CommandLine, def string) *State {
 	s := BindState(cli, stateFlagStateIn)
-	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
+	cli.PreHook(func() tfdiags.Diagnostics {
 		if s.StatePath == "" {
 			s.StatePath = def
 		}
 		return nil
-	}})
+	})
 	return s
 }
 
@@ -296,12 +296,12 @@ func TestStateFlagsRegistering(t *testing.T) {
 		"lock, state in, state out and backup with a different default": {
 			register: func(cli *CommandLine) *State {
 				s := BindState(cli, stateFlagLock|stateFlagStateIn|stateFlagStateOut|stateFlagBackup)
-				cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
+				cli.PreHook(func() tfdiags.Diagnostics {
 					if s.BackupPath == "" {
 						s.BackupPath = "-"
 					}
 					return nil
-				}})
+				})
 				return s
 			},
 			args: []string{

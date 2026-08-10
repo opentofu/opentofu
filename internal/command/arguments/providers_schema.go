@@ -26,7 +26,7 @@ func BindProvidersSchema(cli *CommandLine) *ProvidersSchema {
 
 	schema.Vars = BindVars(cli)
 
-	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
+	cli.PreHook(func() tfdiags.Diagnostics {
 		if schema.ViewOptions.ViewType != ViewJSON {
 			return tfdiags.New(tfdiags.Sourceless(
 				tfdiags.Error,
@@ -41,7 +41,7 @@ func BindProvidersSchema(cli *CommandLine) *ProvidersSchema {
 		schema.ViewOptions.ViewType = ViewHuman
 
 		return nil
-	}})
+	})
 
 	return &schema
 }

@@ -376,7 +376,7 @@ func BindOperation(cli *CommandLine) *Operation {
 		`Force replacement of a particular resource instance using its resource address. If the plan would've otherwise produced an update or no-op action for this instance, OpenTofu will plan to replace it instead. You can use this option multiple times to replace more than one object.`,
 	).SetDisplay("=resource")
 
-	cli.Hook(Hook{Pre: operation.Parse})
+	cli.PreHook(operation.Parse)
 
 	return &operation
 }

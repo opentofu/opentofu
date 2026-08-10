@@ -63,7 +63,7 @@ The argument is a Level 1 URI template as defined by RFC 6570, used to map provi
 
 	cli.VariadicArg(&arguments.Providers, "providers")
 
-	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
+	cli.PreHook(func() tfdiags.Diagnostics {
 		var diags tfdiags.Diagnostics
 
 		mirrorSet := false
@@ -91,7 +91,7 @@ The argument is a Level 1 URI template as defined by RFC 6570, used to map provi
 		}
 
 		return diags
-	}})
+	})
 
 	return &arguments
 }

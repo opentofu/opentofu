@@ -96,7 +96,7 @@ func BindShow(cli *CommandLine) *Show {
 	cli.BoolVar(&show.ShowSensitive, "show-sensitive", false, "If specified, sensitive values will be displayed.")
 
 	cli.VariadicArg(&args, "arguments")
-	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
+	cli.PreHook(func() tfdiags.Diagnostics {
 		// If -config or -module=... is selected, -json is required
 		if configTarget && !show.ViewOptions.jsonFlag {
 			return tfdiags.New(tfdiags.Sourceless(
@@ -176,7 +176,7 @@ func BindShow(cli *CommandLine) *Show {
 			))
 		}
 		return nil
-	}})
+	})
 
 	return &show
 }

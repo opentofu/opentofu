@@ -34,7 +34,7 @@ func BindBackendWithMigration(cli *CommandLine) *Backend {
 	cli.BoolVar(&b.Reconfigure, "reconfigure", false, `Reconfigure a backend, ignoring any saved configuration.`)
 	cli.BoolVar(&b.MigrateState, "migrate-state", false, `Reconfigure a backend, and attempt to migrate any existing state.`)
 
-	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
+	cli.PreHook(func() tfdiags.Diagnostics {
 		if b.MigrateState && b.Reconfigure {
 			return tfdiags.New(tfdiags.Sourceless(
 				tfdiags.Error,
@@ -49,7 +49,7 @@ func BindBackendWithMigration(cli *CommandLine) *Backend {
 			b.MigrateState = true
 		}
 		return nil
-	}})
+	})
 
 	return b
 }

@@ -87,7 +87,7 @@ func (v *ViewOptions) bindGranularFlags(cli *CommandLine, input bool, jsonInto b
 
 func (v *ViewOptions) ParseHook(cli *CommandLine) {
 	closer := func() {}
-	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
+	cli.PreHook(func() tfdiags.Diagnostics {
 		var diags tfdiags.Diagnostics
 
 		if v.jsonIntoFlag != "" {
@@ -115,10 +115,11 @@ func (v *ViewOptions) ParseHook(cli *CommandLine) {
 			}
 		}
 		return diags
-	}, Post: func() tfdiags.Diagnostics {
+	})
+	cli.PostHook(func() tfdiags.Diagnostics {
 		closer()
 		return nil
-	}})
+	})
 }
 
 func OpenJSONIntoFile(jsonIntoFlag string) (*os.File, func(), tfdiags.Diagnostics) {

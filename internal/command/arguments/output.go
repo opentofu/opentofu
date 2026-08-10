@@ -43,7 +43,7 @@ Use this with care when stdout is a terminal and when the output value might con
 	cli.ArgHelp = "The output command expects exactly one argument with the name of an output variable or no arguments to show all outputs."
 	cli.PositionalArg(&output.Name, "NAME", true)
 
-	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
+	cli.PreHook(func() tfdiags.Diagnostics {
 		var diags tfdiags.Diagnostics
 		if rawOutput {
 			output.ViewOptions.ViewType = ViewRaw
@@ -68,7 +68,7 @@ Use this with care when stdout is a terminal and when the output value might con
 			))
 		}
 		return diags
-	}})
+	})
 
 	return &output
 }

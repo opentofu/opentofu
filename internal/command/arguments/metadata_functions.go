@@ -21,7 +21,7 @@ func BindMetadataFunctions(cli *CommandLine) *MetadataFunctions {
 
 	arguments.ViewOptions.bindGranularFlags(cli, false, false) // Add only the -json flag
 
-	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
+	cli.PreHook(func() tfdiags.Diagnostics {
 		var diags tfdiags.Diagnostics
 
 		// The 'metadata functions' command just forces the user to use the `-json` flag but any of the diagnostics should
@@ -38,7 +38,7 @@ func BindMetadataFunctions(cli *CommandLine) *MetadataFunctions {
 		arguments.ViewOptions.ViewType = ViewHuman
 
 		return diags
-	}})
+	})
 
 	return &arguments
 }

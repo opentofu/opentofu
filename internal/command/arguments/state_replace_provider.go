@@ -44,7 +44,7 @@ func BindStateReplaceProvider(cli *CommandLine) *StateReplaceProvider {
 	cli.PositionalArg(&ret.RawSrcAddr, "FROM_PROVIDER_FQN", false)
 	cli.PositionalArg(&ret.RawDestAddr, "TO_PROVIDER_FQN", false)
 
-	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
+	cli.PreHook(func() tfdiags.Diagnostics {
 		if ret.State.BackupPath == "" {
 			ret.State.BackupPath = "-"
 		}
@@ -58,7 +58,7 @@ func BindStateReplaceProvider(cli *CommandLine) *StateReplaceProvider {
 			))
 		}
 		return nil
-	}})
+	})
 
 	return &ret
 }

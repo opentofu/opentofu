@@ -46,7 +46,7 @@ func BindTaint(cli *CommandLine, isTaint bool) *Taint {
 
 	var rawAddr string
 	cli.PositionalArg(&rawAddr, "resource address", false)
-	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
+	cli.PreHook(func() tfdiags.Diagnostics {
 		addr, diags := addrs.ParseAbsResourceInstanceStr(rawAddr)
 		arguments.TargetAddress = addr
 		if addr.Resource.Resource.Mode != addrs.ManagedResourceMode && isTaint {
@@ -57,7 +57,7 @@ func BindTaint(cli *CommandLine, isTaint bool) *Taint {
 			))
 		}
 		return diags
-	}})
+	})
 
 	return &arguments
 }

@@ -34,11 +34,13 @@ type CommandLine struct {
 	// This is a legacy option and should not be used for any new commands.
 	ArgHelp string
 
-	// Hooks defines the pre/post command logic. Hooks.Pre should be run
-	// between os.Arg handling and the actual command logic. Hooks.Post
-	// should be run after the command has completed and before os.Exit is
-	// called.
-	Hooks Hooks
+	// PreHooks contain the logic that should be run between os.Args
+	// handling and the actual command logic.
+	PreHooks Hooks
+	// PostHooks contain the logic that should be run after the command
+	// has completed and before os.Exit is called.
+	// This is typically only used for the --json-into special case.
+	PostHooks Hooks
 }
 
 // PositionalArgs processes the input as a set of positional arguments. This
@@ -172,12 +174,17 @@ func (c CommandLine) Stdlib(name string, args []string) (func(), tfdiags.Diagnos
 	diags := c.StdlibArgs(args)
 
 	// Process hooks
-	return func() { c.Hooks.Post() }, diags.Append(c.Hooks.Pre())
+	return func() { c.PostHooks.Run() }, diags.Append(c.PreHooks.Run())
 }
 
-// Hook is a helper function to add a hook to the command line processing.
-func (c *CommandLine) Hook(h Hook) {
-	c.Hooks = append(c.Hooks, h)
+// PreHook is a helper function to add a hook to the command line processing.
+func (c *CommandLine) PreHook(h func() tfdiags.Diagnostics) {
+	c.PreHooks = append(c.PreHooks, h)
+}
+
+// PostHook is a helper function to add a hook to the command line processing.
+func (c *CommandLine) PostHook(h func() tfdiags.Diagnostics) {
+	c.PostHooks = append(c.PostHooks, h)
 }
 
 // Argument represents a positional argument.
@@ -360,27 +367,19 @@ type FlagGroup struct {
 	Suffix string
 }
 
-type Hook struct {
-	Pre, Post func() tfdiags.Diagnostics
-}
+// Hook is a function that will be executed
+// pre or post command execution
+type Hook func() tfdiags.Diagnostics
+
+// Hooks is a list of hooks with a helper method
 type Hooks []Hook
 
-func (h Hooks) Pre() tfdiags.Diagnostics {
+// Run executes all hooks sequentially and
+// returns any diagnostics encountered.
+func (h Hooks) Run() tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 	for _, hook := range h {
-		if hook.Pre != nil {
-			diags = diags.Append(hook.Pre())
-		}
-	}
-	return diags
-}
-
-func (h Hooks) Post() tfdiags.Diagnostics {
-	var diags tfdiags.Diagnostics
-	for _, hook := range h {
-		if hook.Post != nil {
-			diags = diags.Append(hook.Post())
-		}
+		diags = diags.Append(hook())
 	}
 	return diags
 }

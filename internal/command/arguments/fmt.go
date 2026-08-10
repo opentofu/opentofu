@@ -53,7 +53,7 @@ func BindFmt(cli *CommandLine) *Fmt {
 	cli.BoolVar(&ret.Recursive, "recursive", false, "Also process files in subdirectories. By default, only the given directory (or current directory) is processed.")
 
 	cli.VariadicArg(&ret.Paths, "paths")
-	cli.Hook(Hook{Pre: func() tfdiags.Diagnostics {
+	cli.PreHook(func() tfdiags.Diagnostics {
 		if len(ret.Paths) == 0 {
 			ret.Paths = []string{"."}
 		} else if ret.Paths[0] == stdinArg {
@@ -62,7 +62,7 @@ func BindFmt(cli *CommandLine) *Fmt {
 			ret.Write = false
 		}
 		return nil
-	}})
+	})
 
 	return &ret
 }
