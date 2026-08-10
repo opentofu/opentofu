@@ -158,7 +158,7 @@ func BindView(cli *CommandLine, mask viewFlag) *View {
 			// in the codebase is within the view constructor. Unfortunately
 			// that is not an option due to command code paths opening
 			// multiple concurrent views.
-			v.JSONInto, closer, diags = OpenJSONIntoFile(jsonIntoFlag)
+			v.JSONInto, closer, diags = openJsonIntoFile(jsonIntoFlag)
 		}
 
 		// Default to Human
@@ -185,7 +185,7 @@ func BindView(cli *CommandLine, mask viewFlag) *View {
 	return &v
 }
 
-func OpenJSONIntoFile(jsonIntoFlag string) (*os.File, func(), tfdiags.Diagnostics) {
+func openJsonIntoFile(jsonIntoFlag string) (*os.File, func(), tfdiags.Diagnostics) {
 	closer := func() {}
 	var diags tfdiags.Diagnostics
 
