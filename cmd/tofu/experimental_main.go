@@ -25,6 +25,8 @@ import (
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/svchost/disco"
+	"github.com/posener/complete"
+	"github.com/posener/complete/cmd/install"
 
 	cli "github.com/urfave/cli/v3"
 )
@@ -50,39 +52,7 @@ func experimentalMain(
 	var chdirArg string
 	root := command.RootCommander(&chdirArg)
 
-	var installComplete bool
-	var uninstallComplete bool
-	root.CommandLine.BoolVar(&installComplete, "install-autocomplete", false, "Install Autocomplete scripts")
-	root.CommandLine.BoolVar(&uninstallComplete, "uninstall-autocomplete", false, "Install Autocomplete scripts")
-	root.Run = func(meta command.Meta) int {
-		if installComplete && uninstallComplete {
-			println("Invalid combination of flags, only one of (install-autocomplete, uninstall-autocomplete) may be specified")
-			return 1
-		}
-		if installComplete {
-			err := installAutocomplete()
-			if err != nil {
-				println(err.Error())
-				return 1
-			}
-			return 0
-		}
-		if uninstallComplete {
-			err := uninstallAutocomplete()
-			if err != nil {
-				println(err.Error())
-				return 1
-			}
-			return 0
-		}
-
-		return command.RunResultHelp
-	}
-
-	if os.Getenv("COMP_LINE") != "" {
-		legacyAutocomplete(root)
-		return 0
-	}
+	setupCompletion(root)
 
 	// Prefix the args with any args from the EnvCLI
 	subcommand := detectSubcommand(root)
@@ -271,4 +241,65 @@ func detectSubcommand(cmd command.Command) string {
 	cc.Run(context.Background(), os.Args)
 
 	return subcommand
+}
+
+// setupCompletion uses the same auto-completion that mitchellh/cli does (posener/complete)
+// This keeps parity with the "status-quo" for tofu, though in practice it's a very
+// outdated library that is missing a lot of more modern features and shell support.
+//
+// The original goal was to use the builtin completion from the urfave/cli library, but
+// making sure the switchover was done correctly was beyond the scope of work that originally
+// performed the switch.
+//
+// Additionally, moving away from the `command -C` approach used by posener/complete is complicated
+// by the bash-complete project shipping a fallback for "tofu" that uses `command -C`. Moving away from
+// that and not breaking userspace is going to be quite tricky in the long term.
+func setupCompletion(root command.Command) {
+	var builder func(command.Command) complete.Command
+	builder = func(cmd command.Command) complete.Command {
+		comp := complete.Command{
+			Flags: complete.Flags{},
+			Sub:   complete.Commands{},
+		}
+		for name := range cmd.CommandLine.Flags {
+			comp.Flags["-"+name] = complete.PredictNothing
+			comp.Flags["--"+name] = complete.PredictNothing
+		}
+		for _, sub := range cmd.Commands {
+			comp.Sub[sub.Name] = builder(sub)
+		}
+
+		return comp
+	}
+	completer := complete.New("tofu", builder(root))
+
+	var installComplete bool
+	var uninstallComplete bool
+	root.CommandLine.BoolVar(&installComplete, "install-autocomplete", false, "Install Autocomplete scripts")
+	root.CommandLine.BoolVar(&uninstallComplete, "uninstall-autocomplete", false, "Uninstall Autocomplete scripts")
+	root.Run = func(meta command.Meta) int {
+		if installComplete && uninstallComplete {
+			println("Invalid combination of flags, only one of (install-autocomplete, uninstall-autocomplete) may be specified")
+			return 1
+		}
+		if installComplete {
+			err := install.Install("tofu")
+			if err != nil {
+				println(err.Error())
+			}
+			return 0
+		}
+		if uninstallComplete {
+			err := install.Uninstall("tofu")
+			if err != nil {
+				println(err.Error())
+			}
+			return 0
+		}
+		return command.RunResultHelp
+	}
+	if os.Getenv("COMP_LINE") != "" {
+		completer.Complete()
+		os.Exit(0)
+	}
 }
