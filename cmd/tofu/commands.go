@@ -381,14 +381,14 @@ func initCommands(meta command.Meta) {
 
 		"state list": func() (cli.Command, error) {
 			return &command.StateListCommand{
-				StateMeta: command.StateMeta{meta},
+				StateMeta: command.StateMeta{Meta: meta},
 			}, nil
 		},
 
 		"state ls": func() (cli.Command, error) {
 			return &command.AliasCommand{
 				Command: &command.StateListCommand{
-					StateMeta: command.StateMeta{meta},
+					StateMeta: command.StateMeta{Meta: meta},
 				},
 			}, nil
 		},
@@ -431,19 +431,19 @@ func initCommands(meta command.Meta) {
 
 		"state pull": func() (cli.Command, error) {
 			return &command.StatePullCommand{
-				StateMeta: command.StateMeta{meta},
+				StateMeta: command.StateMeta{Meta: meta},
 			}, nil
 		},
 
 		"state push": func() (cli.Command, error) {
 			return &command.StatePushCommand{
-				StateMeta: command.StateMeta{meta},
+				StateMeta: command.StateMeta{Meta: meta},
 			}, nil
 		},
 
 		"state show": func() (cli.Command, error) {
 			return &command.StateShowCommand{
-				StateMeta: command.StateMeta{meta},
+				StateMeta: command.StateMeta{Meta: meta},
 			}, nil
 		},
 

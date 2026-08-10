@@ -9,7 +9,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"strings"
@@ -225,7 +224,7 @@ func detectSubcommand(cmd command.Command) string {
 	var subcommand string
 
 	cc := commandToCli("", cmd, nil)
-	cc.Walk(func(c *cli.Command) error {
+	_ = cc.Walk(func(c *cli.Command) error {
 		c.Action = func(context.Context, *cli.Command) error {
 			subcommand = strings.Join(c.Path()[1:], " ")
 			return nil
@@ -234,11 +233,11 @@ func detectSubcommand(cmd command.Command) string {
 	})
 
 	// Kill any potential output (especially if we are running shell complete)
-	cc.Writer = ioutil.Discard
-	cc.ErrWriter = ioutil.Discard
+	cc.Writer = io.Discard
+	cc.ErrWriter = io.Discard
 
 	// Ignore error code
-	cc.Run(context.Background(), os.Args)
+	_ = cc.Run(context.Background(), os.Args)
 
 	return subcommand
 }
