@@ -8,10 +8,92 @@ package funcs
 import (
 	"math"
 	"math/big"
+	"slices"
 
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/convert"
 	"github.com/zclconf/go-cty/cty/function"
 )
+
+var AssumeEqualFunc = function.New(&function.Spec{
+	Params: []function.Parameter{
+		{
+			Name:             "actual_value",
+			Type:             cty.DynamicPseudoType,
+			Description:      "The value to make the assumption about.",
+			AllowNull:        true,
+			AllowUnknown:     true,
+			AllowDynamicType: true,
+			AllowMarked:      true,
+		},
+		{
+			Name:             "expected_value",
+			Type:             cty.DynamicPseudoType,
+			Description:      "The value that the first argument is assumed to match.",
+			AllowNull:        true,
+			AllowUnknown:     true,
+			AllowDynamicType: true,
+			AllowMarked:      true,
+		},
+	},
+	Type: func(args []cty.Value) (cty.Type, error) {
+		// This function either returns a value equal to the second argument
+		// or fails with an error, so we can safely report the second
+		// argument's type here.
+		return args[1].Type(), nil
+	},
+	Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+		// To make this function a little easier to use we'll allow the
+		// two arguments to be of different types as long as the first
+		// argument's type can convert to the second. It's normal in HCL
+		// to rely on type conversion to get values of certain types like
+		// the collection types, since there's no dedicated syntax for them.
+		actualVal, err := convert.Convert(args[0], args[1].Type())
+		if err != nil {
+			return cty.DynamicVal, function.NewArgErrorf(0, "actual value type %s does not match assumed value type %s", args[0].Type().FriendlyName(), args[1].Type().FriendlyName())
+		}
+		eq := actualVal.Equals(args[1])
+		if eqUnmarked, _ := eq.Unmark(); eqUnmarked.IsKnown() && eqUnmarked.False() {
+			// If we get here then both values are known enough for full
+			// comparison and we can see that they definitely don't match, and
+			// so this is our main failure case.
+			// We intentionally don't include either value in the error message
+			// text here because if we did then we'd need to reimplement the
+			// logic for deciding whether or not to show a value based on its
+			// marks, and the diagnostic renderer already knows how to show
+			// information about what's in scope for a failed function call.
+			return cty.DynamicVal, function.NewArgErrorf(0, "the actual value does not match the assumed value")
+		}
+		// If we get here then either the values are both known to be equal
+		// or the values are not yet known enough to compare. Either way we're
+		// going to return the "assumed value" (including any unknowns it might
+		// contain) aside from copying over most of the marks from the
+		// "actual value" unless they are specific marks that we know do not
+		// attempt to directly track provenance of a value.
+		// Currently that means we skip "sensitive" and "ephemeral" because
+		// they both track broad characteristics of a value rather than exactly
+		// where it came from, and so if the assumed value is equal but neither
+		// sensitive nor ephemeral then it doesn't really matter whether the
+		// actual value had those marks.
+		_, actualValMarks := actualVal.UnmarkDeepWithPaths()
+		actualValMarks = slices.DeleteFunc(actualValMarks, func(pathMarks cty.PathValueMarks) bool {
+			// Regardless of whether we keep this element of actualValMarks
+			// we'll make sure its marks map does not contain sensitive or
+			// ephemeral marks.
+			delete(pathMarks.Marks, marks.Sensitive)
+			delete(pathMarks.Marks, marks.Ephemeral)
+			// If the deletions above left us with no marks at all then we'll
+			// just discard this entry completely, but we'll keep it if there
+			// are any other marks we're not paying attention to here.
+			// (If we manage to reduce actualValueMarks to length zero then
+			// the MarkWithPaths call below can just return args[1] directly,
+			// without rebuilding it to incorporate extra marks.)
+			return len(pathMarks.Marks) == 0
+		})
+		return args[1].MarkWithPaths(actualValMarks), nil
+	},
+})
 
 var AssumeNotNullFunc = function.New(makeRefineFunc(
 	cty.DynamicPseudoType,
@@ -198,6 +280,10 @@ func tryApplyRefinement(v cty.Value, refine func(b *cty.RefinementBuilder) *cty.
 	// the given value. Our defer function above will then recover and
 	// arrange for this function to return false as its second result.
 	return v.RefineWith(refine), true
+}
+
+func AssumeEqual(actual, assumed cty.Value) (cty.Value, error) {
+	return AssumeEqualFunc.Call([]cty.Value{actual, assumed})
 }
 
 func AssumeNotNull(v cty.Value) (cty.Value, error) {

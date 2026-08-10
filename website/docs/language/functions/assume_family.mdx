@@ -41,11 +41,6 @@ where a provider plugin doesn't report its expectations about an unknown value
 automatically during planning or when decoding dynamic data using functions
 like [`jsondecode`](./jsondecode.mdx).
 
-{/*
-
-TODO: Remove the comment markers and this TODO line once this function has
-actually been implemented.
-
 ## `assumeequal` function
 
 The `assumeequal` function takes two values and checks whether they are equal.
@@ -71,14 +66,14 @@ values in the second argument are also sensitive, such as by calling
 
 This particular function is only useful in the unusual case where a module
 can fully predict a value even though the provider that produces it cannot.
-For example, many AWS services have a documented predictable structure for their
-"Amazon Resource Names" (ARNs) that makes them predictable, but nonetheless the
-provider still waits until the apply phase to report the final ARN. A module
-author might choose to make the final ARN available during the plan phase
-by using `assumeequal` with
+For example, many AWS services have a documented structure for their "Amazon
+Resource Names" (ARNs) that makes them predictable during planning, but
+nonetheless the provider still waits until the apply phase to report the final
+ARN. A module author might choose to make the final ARN available during the
+plan phase by using `assumeequal` with
 [`provider::aws_arn_build`](https://search.opentofu.org/provider/hashicorp/aws/latest/docs/functions/arn_build)
 to build the expected ARN from information already known from the module's
-input variables.
+input variables and other available information.
 
 ```hcl
 output "role_arn" {
@@ -98,8 +93,6 @@ output "role_arn" {
 A caller of the module could then include `module.example.role_arn` as part of
 an AWS IAM policy document and have the policy be wholly known during the
 plan phase so that human reviewers or policy tools can check it before applying.
-
-*/}
 
 ## `assumenotnull` function
 

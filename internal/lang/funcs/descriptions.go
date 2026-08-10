@@ -43,6 +43,10 @@ var DescriptionList = map[string]descriptionEntry{
 		Description:      "`anytrue` returns `true` if any element in a given collection is `true` or `\"true\"`. It also returns `false` if the collection is empty.",
 		ParamDescription: []string{""},
 	},
+	"assumeequal": {
+		Description:      "`assumeequal` returns the second argument if it is equal to the first argument, or raises an error otherwise.",
+		ParamDescription: []string{"actual_value", "expected_value"},
+	},
 	"assumelistlength": {
 		Description:      "`assumelistlength` returns the given list only if its length is in the given bounds, and then tells OpenTofu to assume the result has such a length for subsequent analysis.",
 		ParamDescription: []string{"list", "min", "max"},

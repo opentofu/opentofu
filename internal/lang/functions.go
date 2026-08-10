@@ -117,6 +117,7 @@ func makeBaseFunctionTable(baseDir string) map[string]function.Function {
 		"abspath":             funcs.AbsPathFunc,
 		"alltrue":             funcs.AllTrueFunc,
 		"anytrue":             funcs.AnyTrueFunc,
+		"assumeequal":         funcs.AssumeEqualFunc,
 		"assumelistlength":    funcs.AssumeListLengthFunc,
 		"assumelistlengthmax": funcs.AssumeListLengthMaxFunc,
 		"assumelistlengthmin": funcs.AssumeListLengthMinFunc,
