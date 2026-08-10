@@ -150,15 +150,7 @@ func (c *Context) Input(ctx context.Context, config *configs.Config, mode InputM
 				}
 
 				log.Printf("[TRACE] Context.Input: Prompting for %s argument %s", pa, key)
-				// NOTE: Historically we were just passing a context.Background into
-				// this, because we didn't have any other context.Context to use.
-				// We're now passing in our given context but intentionally ignoring
-				// its cancellation because the main UIInput implementation (in
-				// package command) already/ had direct SIGINT handling and we want to
-				// preserve that behavior.
-				// FIXME: Remove the UIInput's own SIGINT handling and rely on the
-				// cancellation of ctx instead.
-				rawVal, err := input.Input(context.WithoutCancel(ctx), &InputOpts{
+				rawVal, err := input.Input(ctx, &InputOpts{
 					Id:          key,
 					Query:       key,
 					Description: attrS.Description,
