@@ -229,7 +229,19 @@ func CommandUsage(namespace string, cmd Command, w io.Writer) {
 	if cmd.UsageOptions.Usage != "" {
 		printHeader(fmt.Sprintf("Usage: %s\n", cmd.UsageOptions.Usage))
 	} else {
-		printHeader(fmt.Sprintf("Usage: tofu [global options] %s [options]\n", namespace+cmd.Name))
+		positionalArgs := ""
+		for _, arg := range cmd.CommandLine.Args {
+			name := arg.Name
+			if arg.Variadic {
+				name = name + "..."
+			}
+			if arg.Optional {
+				positionalArgs += fmt.Sprintf(" [%s]", name)
+			} else {
+				positionalArgs += fmt.Sprintf(" <%s>", name)
+			}
+		}
+		printHeader(fmt.Sprintf("Usage: tofu [global options] %s [options]%s\n", namespace+cmd.Name, positionalArgs))
 	}
 
 	if cmd.Long != "" {
