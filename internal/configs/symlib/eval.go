@@ -136,36 +136,52 @@ func (s *scope) clone() *scope {
 }
 
 func (s *scope) typeContext(w *workgraph.Worker) typeexpr.TypeContext {
-	sep := "::"
-	suffix := "types"
-	selfNs := TypeSymbols + sep + suffix
-
 	return typeexpr.TypeContext{
 		TypeFunc: func(call *hcl.StaticCall) (*cty.Type, *typeexpr.Defaults, hcl.Diagnostics) {
-			kw := hcl.ExprAsKeyword(call.Arguments[0])
-			ns := call.Name
-
-			var types map[string]result[typeWithDefault]
-
-			if ns == selfNs {
-				types = s.types
-			} else {
-				for lname, lib := range s.symbols {
-					lNs := TypeSymbols + sep + lname + sep + suffix
-					if ns == lNs {
-						types = lib.types
-						break
-					}
-				}
-			}
-
-			fn, ok := types[kw]
-			if !ok {
+			split := strings.Split(call.Name, "::")
+			if split[0] != TypeSymbols {
 				return &cty.DynamicPseudoType, nil, hcl.Diagnostics{{
-					Summary: "Missing type",
-					Detail:  fmt.Sprintf("%s not in %s: %v", kw, ns, types),
+					Summary: "Unknown type",
+					Detail:  fmt.Sprintf("%s is not a valid type, expected %s", split[0], TypeSymbols),
 					Subject: call.NameRange.Ptr(),
 				}}
+			}
+
+			var fn result[typeWithDefault]
+
+			switch len(split) {
+			case 2:
+				// symbols::<type>()
+				typeName := split[1]
+				fn = s.types[typeName]
+				if fn == nil {
+					return &cty.DynamicPseudoType, nil, hcl.Diagnostics{{
+						Summary: "Missing type",
+						Detail:  fmt.Sprintf("Type %s not defined in symbol library", typeName),
+						Subject: call.NameRange.Ptr(),
+					}}
+				}
+			case 3:
+				// symbols::<namespace>::<type>()
+				libName := split[1]
+				typeName := split[2]
+				lib, ok := s.symbols[libName]
+				if !ok {
+					return &cty.DynamicPseudoType, nil, hcl.Diagnostics{{
+						Summary: "Missing library",
+						Detail:  fmt.Sprintf("Library %s not found, referenced by %s", libName, call.Name),
+						Subject: call.NameRange.Ptr(),
+					}}
+				}
+
+				fn = lib.types[typeName]
+				if fn == nil {
+					return &cty.DynamicPseudoType, nil, hcl.Diagnostics{{
+						Summary: "Missing type",
+						Detail:  fmt.Sprintf("Type %s not defined in symbol library %s", typeName, libName),
+						Subject: call.NameRange.Ptr(),
+					}}
+				}
 			}
 
 			val, diags := fn(w)
