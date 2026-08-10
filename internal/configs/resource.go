@@ -75,9 +75,10 @@ type ManagedResource struct {
 	// The default behavior is to destroy the resource when it is planned for destruction, so the value of false will skip destroying the resource.
 	// Note that the resource will still be removed from the state file even if Destroy is set to false but won't call the underlying provider for destruction.
 	// This field will accept only constant boolean expressions. This is of type hcl.Expression to make future extensions of dynamic evaluation easier.
-	Destroy          hcl.Expression
-	IgnoreChanges    []hcl.Traversal
-	IgnoreAllChanges bool
+	Destroy                    hcl.Expression
+	DestroyOnDependencyRemoval hcl.Expression
+	IgnoreChanges              []hcl.Traversal
+	IgnoreAllChanges           bool
 
 	CreateBeforeDestroySet bool
 }
@@ -218,6 +219,9 @@ func decodeResourceBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagno
 
 			if attr, exists := lcContent.Attributes["destroy"]; exists {
 				r.Managed.Destroy = attr.Expr
+			}
+			if attr, exists := lcContent.Attributes["destroy_on_dependency_removal"]; exists {
+				r.Managed.DestroyOnDependencyRemoval = attr.Expr
 			}
 
 			if attr, exists := lcContent.Attributes["replace_triggered_by"]; exists {
@@ -695,6 +699,9 @@ func decodeEphemeralBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagn
 			if _, exists := lcContent.Attributes["destroy"]; exists {
 				diags = append(diags, invalidEphemeralLifecycleAttributeDiag("destroy", block.DefRange))
 			}
+			if _, exists := lcContent.Attributes["destroy_on_dependency_removal"]; exists {
+				diags = append(diags, invalidEphemeralLifecycleAttributeDiag("destroy_on_dependency_removal", block.DefRange))
+			}
 			if _, exists := lcContent.Attributes["prevent_destroy"]; exists {
 				diags = append(diags, invalidEphemeralLifecycleAttributeDiag("prevent_destroy", block.DefRange))
 			}
@@ -1141,6 +1148,9 @@ var resourceLifecycleBlockSchema = &hcl.BodySchema{
 		},
 		{
 			Name: "destroy",
+		},
+		{
+			Name: "destroy_on_dependency_removal",
 		},
 		{
 			Name: "ignore_changes",

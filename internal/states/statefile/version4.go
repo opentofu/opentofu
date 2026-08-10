@@ -180,9 +180,10 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 			instAddr := rAddr.Instance(key)
 
 			obj := &states.ResourceInstanceObjectSrc{
-				SchemaVersion:       isV4.SchemaVersion,
-				CreateBeforeDestroy: isV4.CreateBeforeDestroy,
-				SkipDestroy:         isV4.SkipDestroy,
+				SchemaVersion:              isV4.SchemaVersion,
+				CreateBeforeDestroy:        isV4.CreateBeforeDestroy,
+				SkipDestroy:                isV4.SkipDestroy,
+				DestroyOnDependencyRemoval: isV4.DestroyOnDependencyRemoval,
 			}
 
 			{
@@ -282,6 +283,19 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 					deps = append(deps, addr)
 				}
 				obj.DependsOn = deps
+			}
+
+			if ppRaw := isV4.ProviderParents; len(ppRaw) > 0 {
+				parents := make([]addrs.ConfigResource, 0, len(ppRaw))
+				for _, raw := range ppRaw {
+					addr, addrDiags := addrs.ParseAbsResourceStr(raw)
+					diags = diags.Append(addrDiags)
+					if addrDiags.HasErrors() {
+						continue
+					}
+					parents = append(parents, addr.Config())
+				}
+				obj.ProviderParents = parents
 			}
 
 			switch {
@@ -586,6 +600,14 @@ func appendInstanceObjectStateV4(rs *states.Resource, is *states.ResourceInstanc
 		depsOn[i] = depAddr.String()
 	}
 
+	providerParents := make([]string, len(obj.ProviderParents))
+	for i, ppAddr := range obj.ProviderParents {
+		providerParents[i] = ppAddr.String()
+	}
+	if len(providerParents) == 0 {
+		providerParents = nil
+	}
+
 	var rawKey interface{}
 	switch tk := key.(type) {
 	case addrs.IntKey:
@@ -642,21 +664,23 @@ func appendInstanceObjectStateV4(rs *states.Resource, is *states.ResourceInstanc
 	}
 
 	return append(isV4s, instanceObjectStateV4{
-		IndexKey:                rawKey,
-		Deposed:                 string(deposed),
-		Status:                  status,
-		ProviderInstance:        providerInstance,
-		SchemaVersion:           obj.SchemaVersion,
-		AttributesFlat:          obj.AttrsFlat,
-		AttributesRaw:           obj.AttrsJSON,
-		AttributeSensitivePaths: attributeSensitivePaths,
-		PrivateRaw:              privateRaw,
-		Dependencies:            deps,
-		DependsOn:               depsOn,
-		CreateBeforeDestroy:     obj.CreateBeforeDestroy,
-		SkipDestroy:             obj.SkipDestroy,
-		Identity:                identity,
-		IdentitySchemaVersion:   obj.IdentitySchemaVersion,
+		IndexKey:                   rawKey,
+		Deposed:                    string(deposed),
+		Status:                     status,
+		ProviderInstance:           providerInstance,
+		SchemaVersion:              obj.SchemaVersion,
+		AttributesFlat:             obj.AttrsFlat,
+		AttributesRaw:              obj.AttrsJSON,
+		AttributeSensitivePaths:    attributeSensitivePaths,
+		PrivateRaw:                 privateRaw,
+		Dependencies:               deps,
+		DependsOn:                  depsOn,
+		CreateBeforeDestroy:        obj.CreateBeforeDestroy,
+		SkipDestroy:                obj.SkipDestroy,
+		DestroyOnDependencyRemoval: obj.DestroyOnDependencyRemoval,
+		ProviderParents:            providerParents,
+		Identity:                   identity,
+		IdentitySchemaVersion:      obj.IdentitySchemaVersion,
 	}), diags
 }
 
@@ -874,8 +898,10 @@ type instanceObjectStateV4 struct {
 	Dependencies []string `json:"dependencies,omitempty"`
 	DependsOn    []string `json:"depends_on,omitempty"`
 
-	CreateBeforeDestroy bool `json:"create_before_destroy,omitempty"`
-	SkipDestroy         bool `json:"skip_destroy,omitempty"`
+	CreateBeforeDestroy        bool     `json:"create_before_destroy,omitempty"`
+	SkipDestroy                bool     `json:"skip_destroy,omitempty"`
+	DestroyOnDependencyRemoval *bool    `json:"destroy_on_dependency_removal,omitempty"`
+	ProviderParents            []string `json:"provider_parents,omitempty"`
 
 	Identity              json.RawMessage `json:"identity,omitempty"`
 	IdentitySchemaVersion *uint64         `json:"identity_schema_version,omitempty"`

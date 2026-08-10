@@ -116,6 +116,12 @@ type NodeAbstractResource struct {
 	// removed.provisioner configuration. If the field "Config.Managed.Provisioners" is having no provisioners, then
 	// these provisioners should be used instead.
 	removedBlockProvisioners []*configs.Provisioner
+
+	// ProviderParentAddrs holds the set of resource addresses declared via
+	// all_objects_part_of in the provider lifecycle block. Populated during
+	// graph construction. Resources managed through a provider with this field
+	// set are forgotten (not destroyed) when any listed parent is removed.
+	ProviderParentAddrs []addrs.ConfigResource
 }
 
 var (
@@ -533,6 +539,12 @@ func (n *NodeAbstractResource) AttachProviderMetaConfigs(c map[addrs.Provider]*c
 	n.ProviderMetas = c
 }
 
+// AttachProviderAllObjectsPartOf stores the resolved parent resource addresses
+// declared via all_objects_part_of in this provider's lifecycle block.
+func (n *NodeAbstractResource) AttachProviderAllObjectsPartOf(parents []addrs.ConfigResource) {
+	n.ProviderParentAddrs = parents
+}
+
 // GraphNodeDotter impl.
 func (n *NodeAbstractResource) DotNode(name string, opts *dag.DotOpts) *dag.DotNode {
 	return &dag.DotNode{
@@ -768,6 +780,25 @@ func (n *NodeAbstractResource) shouldSkipDestroy() (bool, tfdiags.Diagnostics) {
 	return skipDestroy, diags
 }
 
+// shouldForgetOnDependencyRemoval checks if the resource should be forgotten
+// when it is being removed due to one of its dependencies also being removed.
+func (n *NodeAbstractResource) shouldForgetOnDependencyRemoval() (bool, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+	if n.Config == nil || n.Config.Managed == nil {
+		return false, diags
+	}
+
+	destroyOnDependencyRemoval, exprDiags := destroyOnDependencyRemovalValueFromConstantExpression(n.Config.Managed.DestroyOnDependencyRemoval)
+	diags = diags.Append(exprDiags)
+	if diags.HasErrors() {
+		return false, diags
+	}
+
+	// destroy_on_dependency_removal=false means "forget instead of destroy"
+	// when the destroy is dependency-driven.
+	return !destroyOnDependencyRemoval, diags
+}
+
 // skipDestroyValueFromConstantExpression evaluates (lifecycle.)destroy expression coming from the config and returns !destroy (Corresponding to SkipDestroy)
 // As of now, this can only be a constant expression of a boolean type. We will likely extend this in the future to make dynamic values possible
 func skipDestroyValueFromConstantExpression(destroyExpr hcl.Expression) (bool, hcl.Diagnostics) {
@@ -793,6 +824,31 @@ func skipDestroyValueFromConstantExpression(destroyExpr hcl.Expression) (bool, h
 	}
 
 	return destroyVal.False(), diags
+}
+
+func destroyOnDependencyRemovalValueFromConstantExpression(destroyOnDependencyRemovalExpr hcl.Expression) (bool, hcl.Diagnostics) {
+	var diags hcl.Diagnostics
+	// Nil means "not set", which defaults to true (destroy dependent resources normally).
+	if destroyOnDependencyRemovalExpr == nil {
+		return true, diags
+	}
+
+	destroyOnDependencyRemovalVal, valDiags := destroyOnDependencyRemovalExpr.Value(nil)
+	if valDiags.HasErrors() {
+		return false, valDiags
+	}
+
+	if destroyOnDependencyRemovalVal.Type() != cty.Bool {
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid lifecycle destroy_on_dependency_removal expression",
+			Detail:   "The lifecycle destroy_on_dependency_removal expression must be a boolean constant.",
+			Subject:  destroyOnDependencyRemovalExpr.Range().Ptr(),
+		})
+		return false, diags
+	}
+
+	return destroyOnDependencyRemovalVal.True(), diags
 }
 
 // graphNodesAreResourceInstancesInDifferentInstancesOfSameModule is an
