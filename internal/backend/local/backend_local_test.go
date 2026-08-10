@@ -372,7 +372,6 @@ func (m *mockInput) Input(ctx context.Context, _ *tofu.InputOpts) (string, error
 	case <-time.After(m.after):
 		return "", fmt.Errorf("ui input was not closed after 10s")
 	}
-	return "", fmt.Errorf("mock input invalid case")
 }
 
 func testInputWithCancel(t *testing.T, after time.Duration) *mockInput {
