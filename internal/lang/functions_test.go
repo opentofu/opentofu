@@ -91,6 +91,13 @@ func TestFunctions(t *testing.T) {
 			},
 		},
 
+		"assumeequal": {
+			{
+				`assumeequal("a", "a")`,
+				cty.StringVal("a"),
+			},
+		},
+
 		"assumelistlength": {
 			{
 				`assumelistlength([1, 2], 1, 2)`,
