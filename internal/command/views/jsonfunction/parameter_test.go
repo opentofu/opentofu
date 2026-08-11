@@ -36,7 +36,7 @@ func TestMarshalParameter(t *testing.T) {
 			&parameter{
 				Name:        "timestamp",
 				Description: "`timestamp` returns a UTC timestamp string in [RFC 3339]",
-				Type:        cty.String,
+				Type:        marshalType(cty.String),
 			},
 		},
 		{
@@ -51,7 +51,7 @@ func TestMarshalParameter(t *testing.T) {
 			},
 			&parameter{
 				Name:       "value",
-				Type:       cty.DynamicPseudoType,
+				Type:       marshalType(cty.DynamicPseudoType),
 				IsNullable: true,
 			},
 		},
