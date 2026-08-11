@@ -47,7 +47,7 @@ type CommandLine struct {
 }
 
 // PositionalError is the common error handling of remaining positional arguments
-func (c CommandLine) PositionalError(remaining []string, argsErrored bool) tfdiags.Diagnostics {
+func (c *CommandLine) PositionalError(remaining []string, argsErrored bool) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	if len(remaining) == 0 && !argsErrored {
@@ -107,7 +107,7 @@ func (c CommandLine) PositionalError(remaining []string, argsErrored bool) tfdia
 
 // PositionalArgs processes the input as a set of positional arguments. This
 // should be the entries remaining after Flag parsing.
-func (c CommandLine) PositionalArgs(remaining []string) tfdiags.Diagnostics {
+func (c *CommandLine) PositionalArgs(remaining []string) tfdiags.Diagnostics {
 	argsErrored := false
 	for _, arg := range c.Args {
 		var err error
@@ -122,7 +122,7 @@ func (c CommandLine) PositionalArgs(remaining []string) tfdiags.Diagnostics {
 
 // RemainCheck handles positional arguments and produces a corresponding
 // error if nessesary.
-func (c CommandLine) RemainCheck(remaining []string) tfdiags.Diagnostics {
+func (c *CommandLine) RemainCheck(remaining []string) tfdiags.Diagnostics {
 	argsErrored := false
 	for _, arg := range c.Args {
 		if arg.Optional {
@@ -138,7 +138,7 @@ func (c CommandLine) RemainCheck(remaining []string) tfdiags.Diagnostics {
 
 // CliFlags builds the set of flags to be attached
 // to a command
-func (c CommandLine) CliFlags() []cli.Flag {
+func (c *CommandLine) CliFlags() []cli.Flag {
 	var ret []cli.Flag
 
 	for _, flag := range c.Flags {
@@ -150,7 +150,7 @@ func (c CommandLine) CliFlags() []cli.Flag {
 
 // CliArguments builds the set of positional arguments to
 // be attached to a command
-func (c CommandLine) CliArguments() []cli.Argument {
+func (c *CommandLine) CliArguments() []cli.Argument {
 	var ret []cli.Argument
 
 	for _, arg := range c.Args {
@@ -163,7 +163,7 @@ func (c CommandLine) CliArguments() []cli.Argument {
 // StdlibArgs uses the old command line stdargs processing method. This currently exists
 // as a fallback and is primarily used for testing. Once we have completely switched to a
 // new CLI library, the tests can be updated and this function removed.
-func (c CommandLine) StdlibArgs(args []string) tfdiags.Diagnostics {
+func (c *CommandLine) StdlibArgs(args []string) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	// Special re-ordering of arguments for "global" options
@@ -214,7 +214,7 @@ func (c CommandLine) StdlibArgs(args []string) tfdiags.Diagnostics {
 
 // Stdlib is a wrapper around StdlibArgs that handles hooks. This is used by the
 // legacy Parse methods and should be removed when they are retired.
-func (c CommandLine) Stdlib(name string, args []string) (func(), tfdiags.Diagnostics) {
+func (c *CommandLine) Stdlib(name string, args []string) (func(), tfdiags.Diagnostics) {
 	diags := c.StdlibArgs(args)
 
 	// Process hooks
