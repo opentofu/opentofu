@@ -49,6 +49,7 @@ func TestValidateHuman(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			streams, done := terminal.StreamsForTesting(t)
 			view := NewView(streams)
+			view.Configure(&arguments.View{NoColor: true})
 			v := NewValidate(&arguments.View{ViewType: arguments.ViewHuman}, view)
 
 			var diags tfdiags.Diagnostics
