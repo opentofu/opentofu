@@ -65,6 +65,7 @@ jobs:
           - { runson: ubuntu-latest, goos: linux, goarch: "arm" }
           - { runson: macos-latest, goos: darwin, goarch: "arm64" }
           - { runson: windows-latest, goos: windows, goarch: "amd64" }
+          - { runson: windows-11-arm, goos: windows, goarch: "arm64" }
       fail-fast: false
     steps:
       # 👇🏾 GH actions supports only "AMD64 arch", so we are using this action

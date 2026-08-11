@@ -29,6 +29,7 @@ jobs:
           - {goos: "solaris", goarch: "amd64", runson: "ubuntu-latest", cgo-enabled: "0"}
           - {goos: "windows", goarch: "386", runson: "ubuntu-latest", cgo-enabled: "0"}
           - {goos: "windows", goarch: "amd64", runson: "ubuntu-latest", cgo-enabled: "0"}
+          - {goos: "windows", goarch: "arm64", runson: "ubuntu-latest", cgo-enabled: "0"}
           - {goos: "darwin", goarch: "amd64", runson: "macos-latest", cgo-enabled: "1"}
           - {goos: "darwin", goarch: "arm64", runson: "macos-latest", cgo-enabled: "1"}
       fail-fast: false
@@ -62,6 +63,7 @@ jobs:
           # - { runson: ubuntu-24.04-arm, goos: linux, goarch: "arm64" } Disabled due to missing `template` provider, should switch it in the tests
           - { runson: macos-latest, goos: darwin, goarch: "amd64" }
           - { runson: windows-latest, goos: windows, goarch: "amd64" }
+          - { runson: windows-11-arm, goos: windows, goarch: "arm64" }
           - { runson: windows-latest, goos: windows, goarch: "386" }
       fail-fast: false
 
