@@ -9,10 +9,12 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
+
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/lang"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // FormatVersion represents the version of the json format and will be
@@ -35,7 +37,8 @@ type FunctionSignature struct {
 	// ReturnTypes is the ctyjson representation of the function's
 	// return types based on supplying all parameters using
 	// dynamic types. Functions can have dynamic return types.
-	ReturnType cty.Type `json:"return_type"`
+	// Use [marshalType] to populate this field.
+	ReturnType json.RawMessage `json:"return_type"`
 
 	// Parameters describes the function's fixed positional parameters.
 	Parameters []*parameter `json:"parameters,omitempty"`
@@ -67,6 +70,8 @@ func Marshal(f map[string]function.Function) ([]byte, tfdiags.Diagnostics) {
 			signatures.Signatures[name] = marshalCan(v)
 		case addrs.ParseFunction("try").FullyQualified().String():
 			signatures.Signatures[name] = marshalTry(v)
+		case addrs.ParseFunction("convert").FullyQualified().String():
+			signatures.Signatures[name] = marshalConvert(v)
 		default:
 			signature, err := marshalFunction(v)
 			if err != nil {
@@ -115,10 +120,31 @@ func marshalFunction(f function.Function) (*FunctionSignature, error) {
 
 	return &FunctionSignature{
 		Description:       f.Description(),
-		ReturnType:        r,
+		ReturnType:        marshalType(r),
 		Parameters:        p,
 		VariadicParameter: vp,
 	}, nil
+}
+
+// marshalType returns the JSON representation of the given type.
+//
+// This only supports the subset of [cty.Type] values that we use in the
+// parameters and return values of built-in functions, and will panic if
+// given something unexpected.
+func marshalType(ty cty.Type) json.RawMessage {
+	// The capsule type we use to represent a type conversion constraint needs
+	// special handling because it has no built-in JSON serialization.
+	// This is currently handled only as a top-level type because that's the
+	// only way we use it in practice. This capsule type may not appear as
+	// a nested part of a complex type.
+	if ty == lang.TypeConversionType {
+		return []byte(`"type"`)
+	}
+	ret, err := ty.MarshalJSON()
+	if err != nil {
+		panic(err.Error())
+	}
+	return ret
 }
 
 // marshalTry returns a static function signature for the try function.
@@ -127,12 +153,12 @@ func marshalFunction(f function.Function) (*FunctionSignature, error) {
 func marshalTry(try function.Function) *FunctionSignature {
 	return &FunctionSignature{
 		Description: try.Description(),
-		ReturnType:  cty.DynamicPseudoType,
+		ReturnType:  marshalType(cty.DynamicPseudoType),
 		VariadicParameter: &parameter{
 			Name:        try.VarParam().Name,
 			Description: try.VarParam().Description,
 			IsNullable:  try.VarParam().AllowNull,
-			Type:        cty.DynamicPseudoType,
+			Type:        marshalType(cty.DynamicPseudoType),
 		},
 	}
 }
@@ -143,13 +169,38 @@ func marshalTry(try function.Function) *FunctionSignature {
 func marshalCan(can function.Function) *FunctionSignature {
 	return &FunctionSignature{
 		Description: can.Description(),
-		ReturnType:  cty.Bool,
+		ReturnType:  marshalType(cty.Bool),
 		Parameters: []*parameter{
 			{
 				Name:        can.Params()[0].Name,
 				Description: can.Params()[0].Description,
 				IsNullable:  can.Params()[0].AllowNull,
-				Type:        cty.DynamicPseudoType,
+				Type:        marshalType(cty.DynamicPseudoType),
+			},
+		},
+	}
+}
+
+// marshalConvert returns a static function signature for the "convert" function.
+// We need this exception because the function implementation wants a type
+// constraint as its second argument and our usual strategy for sniffing for
+// the return type doesn't know how to provide that argument correctly.
+func marshalConvert(convert function.Function) *FunctionSignature {
+	return &FunctionSignature{
+		Description: convert.Description(),
+		ReturnType:  marshalType(cty.DynamicPseudoType),
+		Parameters: []*parameter{
+			{
+				Name:        convert.Params()[0].Name,
+				Description: convert.Params()[0].Description,
+				IsNullable:  convert.Params()[0].AllowNull,
+				Type:        marshalType(cty.DynamicPseudoType),
+			},
+			{
+				Name:        convert.Params()[1].Name,
+				Description: convert.Params()[1].Description,
+				IsNullable:  convert.Params()[1].AllowNull,
+				Type:        marshalType(lang.TypeConversionType),
 			},
 		},
 	}

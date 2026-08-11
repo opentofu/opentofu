@@ -14,6 +14,8 @@ import (
 	"github.com/zclconf/go-cty-debug/ctydebug"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
+
+	"github.com/opentofu/opentofu/internal/lang"
 )
 
 func TestMarshal(t *testing.T) {
@@ -99,6 +101,22 @@ func TestMarshal(t *testing.T) {
 				}),
 			},
 			`{"format_version":"1.0","function_signatures":{"fun":{"return_type":["list","string"],"parameters":[{"name":"list","type":["list","string"]}]}}}`,
+			"",
+		},
+		{
+			"function with type expression parameter",
+			map[string]function.Function{
+				"fun": function.New(&function.Spec{
+					Params: []function.Parameter{
+						{
+							Name: "target_type",
+							Type: lang.TypeConversionType,
+						},
+					},
+					Type: function.StaticReturnType(lang.TypeConversionType),
+				}),
+			},
+			`{"format_version":"1.0","function_signatures":{"fun":{"return_type":"type","parameters":[{"name":"target_type","type":"type"}]}}}`,
 			"",
 		},
 		{
