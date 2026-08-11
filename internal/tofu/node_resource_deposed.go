@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/hcl/v2"
+	// "github.com/hashicorp/hcl/v2"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/dag"
@@ -189,11 +189,11 @@ func (n *NodePlanDeposedResourceInstanceObject) Execute(ctx context.Context, eva
 		if shouldDestroy {
 			change, planDiags = n.planDestroy(ctx, evalCtx, state, n.DeposedKey)
 		} else {
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagWarning,
-				Summary:  "Resource will be removed from the state",
-				Detail:   fmt.Sprintf("After this plan is applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", n.Addr),
-			})
+			// diags = diags.Append(&hcl.Diagnostic{
+			// 	Severity: hcl.DiagWarning,
+			// 	Summary:  "Resource will be removed from the state",
+			// 	Detail:   fmt.Sprintf("After this plan is applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", n.Addr),
+			// })
 			log.Printf("[DEBUG] NodePlanDeposedResourceInstanceObject.Execute: %s (deposed %s) planning forget instead of destroy", n.Addr, n.DeposedKey)
 			change = n.planForget(ctx, evalCtx, state, n.DeposedKey)
 			if skipDestroy {

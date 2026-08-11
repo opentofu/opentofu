@@ -7,7 +7,7 @@ package views
 
 import (
 	"maps"
-
+	// "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/mitchellh/colorstring"
 	"github.com/opentofu/opentofu/internal/addrs"
