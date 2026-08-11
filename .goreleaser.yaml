@@ -54,8 +54,6 @@ builds:
         goarch: arm64
       - goos: windows
         goarch: arm
-      - goos: windows
-        goarch: arm64
       - goos: darwin
         goarch: "386"
       - goos: darwin
