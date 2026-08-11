@@ -71,7 +71,7 @@ Potentially Future Solutions:
 
 ## Implementation Approach
 
-There are several interacting components that need to be migrated and are detailed below
+There are several interacting components that need to be migrated and are detailed below.
 
 ### Command Arguments
 
@@ -145,9 +145,10 @@ Eventually the `mitchellh/cli` will be removed, and the alternative code path al
 
 ## Open Questions
 * Should we switch directly over to the new implementation and not keep the legacy implementation?
-  - This would simplify logic around autocompletion and remove some of the maintenance burden.
   - The likelihood that the new CLI would block users is relatively low, especially given the implementation approach.
-* Should we try to implement backwards or forwards compatibility for autocomplete?
+  - Approach that allows users to unblock themselves in case of a critical bug: [accepted by maintainers]
+    - In v1.13, TOFU_EXPERIMENTAL_CLI_ENABLED=false to opt-out of the new CLI
+    - In v1.14 remove the old CLI and the env var.
 
 ## Future Considerations
 
