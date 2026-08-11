@@ -22,6 +22,7 @@ UPGRADE NOTES:
 
 ENHANCEMENTS:
 
+- Windows on ARM64 is now an officially-supported platform for OpenTofu itself, though this new platform may not be supported by all available provider plugins. ([#4450](https://github.com/opentofu/opentofu/pull/4450))
 - The `gcp_kms` key provider now supports an optional `additional_authenticated_data` as part of the encryption and decryption operations. ([#4287](https://github.com/opentofu/opentofu/pull/4287))
 - The AWS KMS key provider for state encryption now supports an `encryption_context` field, allowing key-value string pairs to be passed to AWS KMS with every `GenerateDataKey` and `Decrypt` call. ([#4298](https://github.com/opentofu/opentofu/pull/4298))
 - The `cidrsubnets` function now supports prefix extensions greater than 32 bits when the base CIDR block uses an IPv6 address. ([#4042](https://github.com/opentofu/opentofu/pull/4042))
