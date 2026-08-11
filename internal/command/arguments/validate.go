@@ -52,6 +52,6 @@ func BindValidate(cli *CommandLine) *Validate {
 func ParseValidate(args []string) (*Validate, func(), tfdiags.Diagnostics) {
 	cli := new(CommandLine)
 	validate := BindValidate(cli)
-	closer, diags := cli.Stdlib("validate", args)
+	closer, diags := cli.parseWithHooks("validate", args)
 	return validate, closer, diags
 }

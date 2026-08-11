@@ -55,19 +55,18 @@ func TestStateShow(t *testing.T) {
 	}
 
 	view, done := testView(t)
-	c := &StateShowCommand{
-		StateMeta{Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		}},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-state", statePath,
 		"test_instance.foo",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, StateShowCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -135,19 +134,18 @@ func TestStateShow_multi(t *testing.T) {
 	}
 
 	view, done := testView(t)
-	c := &StateShowCommand{
-		StateMeta{Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		}},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-state", statePath,
 		"test_instance.foo",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, StateShowCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -166,18 +164,17 @@ func TestStateShow_noState(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &StateShowCommand{
-		StateMeta{Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		}},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"test_instance.foo",
 	}
-	if code := c.Run(args); code != 1 {
+	if code := RunCommander(t, StateShowCommander(), meta, args); code != 1 {
 		t.Fatalf("bad: %d", code)
 	}
 	output := done(t)
@@ -192,19 +189,18 @@ func TestStateShow_emptyState(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &StateShowCommand{
-		StateMeta{Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		}},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-state", statePath,
 		"test_instance.foo",
 	}
-	if code := c.Run(args); code != 1 {
+	if code := RunCommander(t, StateShowCommander(), meta, args); code != 1 {
 		t.Fatalf("bad: %d", code)
 	}
 	output := done(t)
@@ -250,23 +246,22 @@ func TestStateShow_configured_provider(t *testing.T) {
 	}
 
 	view, done := testView(t)
-	c := &StateShowCommand{
-		StateMeta{Meta{
-			WorkingDir: workdir.NewDir("."),
-			testingOverrides: &testingOverrides{
-				Providers: map[addrs.Provider]providers.Factory{
-					addrs.NewDefaultProvider("test-beta"): providers.FactoryFixed(p),
-				},
+
+	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
+		testingOverrides: &testingOverrides{
+			Providers: map[addrs.Provider]providers.Factory{
+				addrs.NewDefaultProvider("test-beta"): providers.FactoryFixed(p),
 			},
-			View: view,
-		}},
+		},
+		View: view,
 	}
 
 	args := []string{
 		"-state", statePath,
 		"test_instance.foo",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, StateShowCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -288,19 +283,18 @@ func TestStateShow_withoutShowSensitiveArg(t *testing.T) {
 	p.GetProviderSchemaResponse = providerWithSensitiveValueForStateShow()
 
 	view, done := testView(t)
-	c := &StateShowCommand{
-		StateMeta{Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		}},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-state", statePath,
 		"test_instance.foo",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, StateShowCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
@@ -326,12 +320,11 @@ func TestStateShow_showSensitiveArg(t *testing.T) {
 	p.GetProviderSchemaResponse = providerWithSensitiveValueForStateShow()
 
 	view, done := testView(t)
-	c := &StateShowCommand{
-		StateMeta{Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		}},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
@@ -339,7 +332,7 @@ func TestStateShow_showSensitiveArg(t *testing.T) {
 		"-state", statePath,
 		"test_instance.foo",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, StateShowCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())

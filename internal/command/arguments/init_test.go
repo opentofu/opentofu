@@ -420,7 +420,7 @@ func initArgsWithDefaults(mutate func(init *Init)) *Init {
 		TestsDirectory:  "tests",
 		FlagGet:         true,
 		FlagUpgrade:     false,
-		FlagPluginPath:  nil,
+		FlagPluginPath:  []string{},
 		FlagConfigExtra: flags.NewRawFlags("-backend-config"),
 		FlagBackend:     true,
 		FlagCloud:       true,

@@ -121,7 +121,7 @@ func BindApplyDestroy(cli *CommandLine) *Apply {
 func ParseApply(args []string) (*Apply, func(), tfdiags.Diagnostics) {
 	cli := new(CommandLine)
 	apply := BindApply(cli)
-	closer, diags := cli.Stdlib("apply", args)
+	closer, diags := cli.parseWithHooks("apply", args)
 	return apply, closer, diags
 }
 
@@ -131,6 +131,6 @@ func ParseApply(args []string) (*Apply, func(), tfdiags.Diagnostics) {
 func ParseApplyDestroy(args []string) (*Apply, func(), tfdiags.Diagnostics) {
 	cli := new(CommandLine)
 	apply := BindApplyDestroy(cli)
-	closer, diags := cli.Stdlib("destroy", args)
+	closer, diags := cli.parseWithHooks("destroy", args)
 	return apply, closer, diags
 }

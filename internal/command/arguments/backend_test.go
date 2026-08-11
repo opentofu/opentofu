@@ -43,7 +43,7 @@ func TestBackend_AddIgnoreRemoteVersionFlag(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			var cli CommandLine
 			backend := BindBackend(&cli)
-			if _, diags := cli.Stdlib("test", tc.args); diags.HasErrors() {
+			if _, diags := cli.parseWithHooks("test", tc.args); diags.HasErrors() {
 				t.Fatalf("unexpected error parsing flags: %v", diags.Err().Error())
 			}
 
@@ -143,7 +143,7 @@ func TestBackend_AddMigrationFlags(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			var cli CommandLine
 			backend := BindBackendWithMigration(&cli)
-			_, diags := cli.Stdlib("test", tc.args)
+			_, diags := cli.parseWithHooks("test", tc.args)
 
 			if tc.wantDiags && len(diags) == 0 {
 				t.Fatal("expected diagnostics but got none")
@@ -231,7 +231,7 @@ func TestBackend_AllFlags(t *testing.T) {
 			var cli CommandLine
 			backend := BindBackendWithMigration(&cli)
 
-			if _, diags := cli.Stdlib("test", tc.args); diags.HasErrors() != tc.wantDiags {
+			if _, diags := cli.parseWithHooks("test", tc.args); diags.HasErrors() != tc.wantDiags {
 				t.Fatalf("unexpected error parsing flags: %v", diags.Err().Error())
 			}
 

@@ -46,6 +46,6 @@ func BindLogin(cli *CommandLine) *Login {
 func ParseLogin(args []string) (*Login, func(), tfdiags.Diagnostics) {
 	cli := new(CommandLine)
 	arguments := BindLogin(cli)
-	closer, diags := cli.Stdlib("login", args)
+	closer, diags := cli.parseWithHooks("login", args)
 	return arguments, closer, diags
 }

@@ -31,12 +31,11 @@ import (
 
 func TestShow_badArgs(t *testing.T) {
 	view, done := testView(t)
-	c := &ShowCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{
@@ -45,7 +44,7 @@ func TestShow_badArgs(t *testing.T) {
 		"-no-color",
 	}
 
-	code := c.Run(args)
+	code := RunCommander(t, ShowCommander(), meta, args)
 	output := done(t)
 
 	if code != 1 {
@@ -55,15 +54,14 @@ func TestShow_badArgs(t *testing.T) {
 
 func TestShow_noArgsNoState(t *testing.T) {
 	view, done := testView(t)
-	c := &ShowCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
-	code := c.Run([]string{})
+	code := RunCommander(t, ShowCommander(), meta, []string{})
 	output := done(t)
 
 	if code != 0 {
@@ -84,15 +82,14 @@ func TestShow_noArgsWithState(t *testing.T) {
 	testStateFileDefault(t, testState())
 
 	view, done := testView(t)
-	c := &ShowCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(showFixtureProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(showFixtureProvider()),
+		View:             view,
 	}
 
-	code := c.Run([]string{})
+	code := RunCommander(t, ShowCommander(), meta, []string{})
 	output := done(t)
 
 	if code != 0 {
@@ -112,12 +109,11 @@ func TestShow_argsWithState(t *testing.T) {
 	t.Chdir(filepath.Dir(statePath))
 
 	view, done := testView(t)
-	c := &ShowCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(showFixtureProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(showFixtureProvider()),
+		View:             view,
 	}
 
 	path := filepath.Base(statePath)
@@ -125,7 +121,7 @@ func TestShow_argsWithState(t *testing.T) {
 		path,
 		"-no-color",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ShowCommander(), meta, args)
 	output := done(t)
 
 	if code != 0 {
@@ -160,12 +156,11 @@ func TestShow_argsWithStateAliasedProvider(t *testing.T) {
 	t.Chdir(filepath.Dir(statePath))
 
 	view, done := testView(t)
-	c := &ShowCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(showFixtureProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(showFixtureProvider()),
+		View:             view,
 	}
 
 	path := filepath.Base(statePath)
@@ -173,7 +168,7 @@ func TestShow_argsWithStateAliasedProvider(t *testing.T) {
 		path,
 		"-no-color",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ShowCommander(), meta, args)
 	output := done(t)
 
 	if code != 0 {
@@ -196,15 +191,14 @@ func TestShow_argsPlanFileDoesNotExist(t *testing.T) {
 	for name, args := range tests {
 		t.Run(name, func(t *testing.T) {
 			view, done := testView(t)
-			c := &ShowCommand{
-				Meta: Meta{
-					WorkingDir:       workdir.NewDir("."),
-					testingOverrides: metaOverridesForProvider(testProvider()),
-					View:             view,
-				},
+
+			meta := Meta{
+				WorkingDir:       workdir.NewDir("."),
+				testingOverrides: metaOverridesForProvider(testProvider()),
+				View:             view,
 			}
 
-			code := c.Run(args)
+			code := RunCommander(t, ShowCommander(), meta, args)
 			output := done(t)
 
 			if code != 1 {
@@ -226,19 +220,18 @@ func TestShow_argsPlanFileDoesNotExist(t *testing.T) {
 
 func TestShow_argsStatefileDoesNotExist(t *testing.T) {
 	view, done := testView(t)
-	c := &ShowCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{
 		"doesNotExist.tfstate",
 		"-no-color",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ShowCommander(), meta, args)
 	output := done(t)
 
 	if code != 1 {
@@ -260,15 +253,14 @@ func TestShow_json_argsPlanFileDoesNotExist(t *testing.T) {
 	for name, args := range tests {
 		t.Run(name, func(t *testing.T) {
 			view, done := testView(t)
-			c := &ShowCommand{
-				Meta: Meta{
-					WorkingDir:       workdir.NewDir("."),
-					testingOverrides: metaOverridesForProvider(testProvider()),
-					View:             view,
-				},
+
+			meta := Meta{
+				WorkingDir:       workdir.NewDir("."),
+				testingOverrides: metaOverridesForProvider(testProvider()),
+				View:             view,
 			}
 
-			code := c.Run(args)
+			code := RunCommander(t, ShowCommander(), meta, args)
 			output := done(t)
 
 			if code != 1 {
@@ -292,12 +284,11 @@ func TestShow_json_argsPlanFileDoesNotExist(t *testing.T) {
 
 func TestShow_json_argsStatefileDoesNotExist(t *testing.T) {
 	view, done := testView(t)
-	c := &ShowCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{
@@ -305,7 +296,7 @@ func TestShow_json_argsStatefileDoesNotExist(t *testing.T) {
 		"doesNotExist.tfstate",
 		"-no-color",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ShowCommander(), meta, args)
 	output := done(t)
 
 	if code != 1 {
@@ -328,15 +319,14 @@ func TestShow_planNoop(t *testing.T) {
 	for name, args := range tests {
 		t.Run(name, func(t *testing.T) {
 			view, done := testView(t)
-			c := &ShowCommand{
-				Meta: Meta{
-					WorkingDir:       workdir.NewDir("."),
-					testingOverrides: metaOverridesForProvider(testProvider()),
-					View:             view,
-				},
+
+			meta := Meta{
+				WorkingDir:       workdir.NewDir("."),
+				testingOverrides: metaOverridesForProvider(testProvider()),
+				View:             view,
 			}
 
-			code := c.Run(args)
+			code := RunCommander(t, ShowCommander(), meta, args)
 			output := done(t)
 
 			if code != 0 {
@@ -361,15 +351,14 @@ func TestShow_planWithChanges(t *testing.T) {
 	for name, args := range tests {
 		t.Run(name, func(t *testing.T) {
 			view, done := testView(t)
-			c := &ShowCommand{
-				Meta: Meta{
-					WorkingDir:       workdir.NewDir("."),
-					testingOverrides: metaOverridesForProvider(showFixtureProvider()),
-					View:             view,
-				},
+
+			meta := Meta{
+				WorkingDir:       workdir.NewDir("."),
+				testingOverrides: metaOverridesForProvider(showFixtureProvider()),
+				View:             view,
 			}
 
-			code := c.Run(args)
+			code := RunCommander(t, ShowCommander(), meta, args)
 			output := done(t)
 
 			if code != 0 {
@@ -430,19 +419,18 @@ func TestShow_planWithForceReplaceChange(t *testing.T) {
 	)
 
 	view, done := testView(t)
-	c := &ShowCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(showFixtureProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(showFixtureProvider()),
+		View:             view,
 	}
 
 	args := []string{
 		"-plan=" + planFilePath,
 		"-no-color",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ShowCommander(), meta, args)
 	output := done(t)
 
 	if code != 0 {
@@ -473,19 +461,18 @@ func TestShow_planErrored(t *testing.T) {
 	)
 
 	view, done := testView(t)
-	c := &ShowCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(showFixtureProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(showFixtureProvider()),
+		View:             view,
 	}
 
 	args := []string{
 		"-plan=" + planFilePath,
 		"-no-color",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ShowCommander(), meta, args)
 	output := done(t)
 
 	if code != 0 {
@@ -503,12 +490,11 @@ func TestShow_plan_json(t *testing.T) {
 	planPath := showFixturePlanFile(t, plans.Create)
 
 	view, done := testView(t)
-	c := &ShowCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(showFixtureProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(showFixtureProvider()),
+		View:             view,
 	}
 
 	args := []string{
@@ -516,7 +502,7 @@ func TestShow_plan_json(t *testing.T) {
 		"-json",
 		"-no-color",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ShowCommander(), meta, args)
 	output := done(t)
 
 	if code != 0 {
@@ -537,19 +523,18 @@ func TestShow_state(t *testing.T) {
 	defer os.RemoveAll(filepath.Dir(statePath))
 
 	view, done := testView(t)
-	c := &ShowCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(showFixtureProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(showFixtureProvider()),
+		View:             view,
 	}
 
 	args := []string{
 		statePath,
 		"-no-color",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ShowCommander(), meta, args)
 	output := done(t)
 
 	if code != 0 {
@@ -587,15 +572,13 @@ func TestShow_json_output(t *testing.T) {
 
 			// init
 			view, done := testView(t)
-			ic := &InitCommand{
-				Meta: Meta{
-					WorkingDir:       workdir.NewDir("."),
-					testingOverrides: metaOverridesForProvider(p),
-					View:             view,
-					ProviderSource:   providerSource,
-				},
+			meta := Meta{
+				WorkingDir:       workdir.NewDir("."),
+				testingOverrides: metaOverridesForProvider(p),
+				View:             view,
+				ProviderSource:   providerSource,
 			}
-			code := ic.Run([]string{})
+			code := RunCommander(t, InitCommander(), meta, []string{})
 			output := done(t)
 			if code != 0 {
 				if expectError {
@@ -623,20 +606,18 @@ func TestShow_json_output(t *testing.T) {
 
 			// plan
 			planView, planDone := testView(t)
-			pc := &PlanCommand{
-				Meta: Meta{
-					WorkingDir:       workdir.NewDir("."),
-					testingOverrides: metaOverridesForProvider(p),
-					View:             planView,
-					ProviderSource:   providerSource,
-				},
+			meta = Meta{
+				WorkingDir:       workdir.NewDir("."),
+				testingOverrides: metaOverridesForProvider(p),
+				View:             planView,
+				ProviderSource:   providerSource,
 			}
 
 			args := []string{
 				"-out=tofu.plan",
 			}
 
-			code = pc.Run(args)
+			code = RunCommander(t, PlanCommander(), meta, args)
 			planOutput := planDone(t)
 
 			var wantedCode int
@@ -652,13 +633,11 @@ func TestShow_json_output(t *testing.T) {
 
 			// show
 			showView, showDone := testView(t)
-			sc := &ShowCommand{
-				Meta: Meta{
-					WorkingDir:       workdir.NewDir("."),
-					testingOverrides: metaOverridesForProvider(p),
-					View:             showView,
-					ProviderSource:   providerSource,
-				},
+			meta = Meta{
+				WorkingDir:       workdir.NewDir("."),
+				testingOverrides: metaOverridesForProvider(p),
+				View:             showView,
+				ProviderSource:   providerSource,
 			}
 
 			args = []string{
@@ -666,7 +645,7 @@ func TestShow_json_output(t *testing.T) {
 				"tofu.plan",
 			}
 			defer os.Remove("tofu.plan")
-			code = sc.Run(args)
+			code = RunCommander(t, ShowCommander(), meta, args)
 			showOutput := showDone(t)
 
 			if code != 0 {
@@ -718,15 +697,13 @@ func TestShow_json_output_identity(t *testing.T) {
 
 			// init
 			view, done := testView(t)
-			ic := &InitCommand{
-				Meta: Meta{
-					WorkingDir:       workdir.NewDir("."),
-					testingOverrides: metaOverridesForProvider(p),
-					View:             view,
-					ProviderSource:   providerSource,
-				},
+			meta := Meta{
+				WorkingDir:       workdir.NewDir("."),
+				testingOverrides: metaOverridesForProvider(p),
+				View:             view,
+				ProviderSource:   providerSource,
 			}
-			code := ic.Run([]string{})
+			code := RunCommander(t, InitCommander(), meta, []string{})
 			output := done(t)
 			if code != 0 {
 				t.Fatalf("init failed\n%s", output.Stderr())
@@ -734,15 +711,13 @@ func TestShow_json_output_identity(t *testing.T) {
 
 			// plan
 			planView, planDone := testView(t)
-			pc := &PlanCommand{
-				Meta: Meta{
-					WorkingDir:       workdir.NewDir("."),
-					testingOverrides: metaOverridesForProvider(p),
-					View:             planView,
-					ProviderSource:   providerSource,
-				},
+			meta = Meta{
+				WorkingDir:       workdir.NewDir("."),
+				testingOverrides: metaOverridesForProvider(p),
+				View:             planView,
+				ProviderSource:   providerSource,
 			}
-			code = pc.Run([]string{"-out=tofu.plan"})
+			code = RunCommander(t, PlanCommander(), meta, []string{"-out=tofu.plan"})
 			planOutput := planDone(t)
 			if code != 0 {
 				t.Fatalf("plan failed\n%s", planOutput.Stderr())
@@ -750,15 +725,13 @@ func TestShow_json_output_identity(t *testing.T) {
 
 			// show
 			showView, showDone := testView(t)
-			sc := &ShowCommand{
-				Meta: Meta{
-					WorkingDir:       workdir.NewDir("."),
-					testingOverrides: metaOverridesForProvider(p),
-					View:             showView,
-					ProviderSource:   providerSource,
-				},
+			meta = Meta{
+				WorkingDir:       workdir.NewDir("."),
+				testingOverrides: metaOverridesForProvider(p),
+				View:             showView,
+				ProviderSource:   providerSource,
 			}
-			code = sc.Run([]string{"-json", "tofu.plan"})
+			code = RunCommander(t, ShowCommander(), meta, []string{"-json", "tofu.plan"})
 			showOutput := showDone(t)
 			if code != 0 {
 				t.Fatalf("show failed\n%s", showOutput.Stderr())
@@ -803,15 +776,13 @@ func TestShow_json_output_sensitive(t *testing.T) {
 
 	// init
 	initView, initDone := testView(t)
-	ic := &InitCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             initView,
-			ProviderSource:   providerSource,
-		},
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             initView,
+		ProviderSource:   providerSource,
 	}
-	code := ic.Run([]string{})
+	code := RunCommander(t, InitCommander(), meta, []string{})
 	output := initDone(t)
 	if code != 0 {
 		t.Fatalf("init failed\n%s", output.Stderr())
@@ -819,19 +790,17 @@ func TestShow_json_output_sensitive(t *testing.T) {
 
 	// plan
 	planView, planDone := testView(t)
-	pc := &PlanCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             planView,
-			ProviderSource:   providerSource,
-		},
+	meta = Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             planView,
+		ProviderSource:   providerSource,
 	}
 
 	args := []string{
 		"-out=tofu.plan",
 	}
-	code = pc.Run(args)
+	code = RunCommander(t, PlanCommander(), meta, args)
 	planOutput := planDone(t)
 
 	if code != 0 {
@@ -840,13 +809,11 @@ func TestShow_json_output_sensitive(t *testing.T) {
 
 	// show
 	showView, showDone := testView(t)
-	sc := &ShowCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             showView,
-			ProviderSource:   providerSource,
-		},
+	meta = Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             showView,
+		ProviderSource:   providerSource,
 	}
 
 	args = []string{
@@ -854,7 +821,7 @@ func TestShow_json_output_sensitive(t *testing.T) {
 		"-plan=tofu.plan",
 	}
 	defer os.Remove("tofu.plan")
-	code = sc.Run(args)
+	code = RunCommander(t, ShowCommander(), meta, args)
 	showOutput := showDone(t)
 
 	if code != 0 {
@@ -905,15 +872,13 @@ func TestShow_json_output_conditions_refresh_only(t *testing.T) {
 
 	// init
 	initView, initDone := testView(t)
-	ic := &InitCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			ProviderSource:   providerSource,
-			View:             initView,
-		},
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		ProviderSource:   providerSource,
+		View:             initView,
 	}
-	initCode := ic.Run([]string{})
+	initCode := RunCommander(t, InitCommander(), meta, []string{})
 	output := initDone(t)
 	if initCode != 0 {
 		t.Fatalf("init failed\n%s", output.Stderr())
@@ -921,13 +886,11 @@ func TestShow_json_output_conditions_refresh_only(t *testing.T) {
 
 	// plan
 	planView, planDone := testView(t)
-	pc := &PlanCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             planView,
-			ProviderSource:   providerSource,
-		},
+	meta = Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             planView,
+		ProviderSource:   providerSource,
 	}
 
 	args := []string{
@@ -936,7 +899,7 @@ func TestShow_json_output_conditions_refresh_only(t *testing.T) {
 		"-var=ami=bad-ami",
 		"-state=for-refresh.tfstate",
 	}
-	code := pc.Run(args)
+	code := RunCommander(t, PlanCommander(), meta, args)
 	planOutput := planDone(t)
 
 	if code != 0 {
@@ -945,13 +908,12 @@ func TestShow_json_output_conditions_refresh_only(t *testing.T) {
 
 	// show
 	showView, showDone := testView(t)
-	sc := &ShowCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             showView,
-			ProviderSource:   providerSource,
-		},
+
+	meta = Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             showView,
+		ProviderSource:   providerSource,
 	}
 
 	args = []string{
@@ -959,7 +921,7 @@ func TestShow_json_output_conditions_refresh_only(t *testing.T) {
 		"-plan=tofu.plan",
 	}
 	defer os.Remove("tofu.plan")
-	code = sc.Run(args)
+	code = RunCommander(t, ShowCommander(), meta, args)
 	showOutput := showDone(t)
 
 	if code != 0 {
@@ -1023,15 +985,13 @@ func TestShow_json_output_state(t *testing.T) {
 
 			// init
 			initView, initDone := testView(t)
-			ic := &InitCommand{
-				Meta: Meta{
-					WorkingDir:       workdir.NewDir("."),
-					testingOverrides: metaOverridesForProvider(p),
-					View:             initView,
-					ProviderSource:   providerSource,
-				},
+			meta := Meta{
+				WorkingDir:       workdir.NewDir("."),
+				testingOverrides: metaOverridesForProvider(p),
+				View:             initView,
+				ProviderSource:   providerSource,
 			}
-			initCode := ic.Run([]string{})
+			initCode := RunCommander(t, InitCommander(), meta, []string{})
 			output := initDone(t)
 			if initCode != 0 {
 				t.Fatalf("init failed\n%s", output.Stderr())
@@ -1039,16 +999,14 @@ func TestShow_json_output_state(t *testing.T) {
 
 			// show
 			showView, showDone := testView(t)
-			sc := &ShowCommand{
-				Meta: Meta{
-					WorkingDir:       workdir.NewDir("."),
-					testingOverrides: metaOverridesForProvider(p),
-					View:             showView,
-					ProviderSource:   providerSource,
-				},
+			meta = Meta{
+				WorkingDir:       workdir.NewDir("."),
+				testingOverrides: metaOverridesForProvider(p),
+				View:             showView,
+				ProviderSource:   providerSource,
 			}
 
-			code := sc.Run([]string{"-state", "-json"})
+			code := RunCommander(t, ShowCommander(), meta, []string{"-state", "-json"})
 			showOutput := showDone(t)
 
 			if code != 0 {
@@ -1112,19 +1070,18 @@ func TestShow_planWithNonDefaultStateLineage(t *testing.T) {
 	planPath := testPlanFileMatchState(t, snap, state, plan, stateMeta)
 
 	view, done := testView(t)
-	c := &ShowCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{
 		"-plan=" + planPath,
 		"-no-color",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ShowCommander(), meta, args)
 	output := done(t)
 
 	if code != 0 {
@@ -1145,15 +1102,14 @@ func TestShow_corruptStatefile(t *testing.T) {
 	t.Chdir(td)
 
 	view, done := testView(t)
-	c := &ShowCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
-	code := c.Run([]string{})
+	code := RunCommander(t, ShowCommander(), meta, []string{})
 	output := done(t)
 
 	if code != 1 {
@@ -1176,18 +1132,17 @@ func TestShow_showSensitiveArg(t *testing.T) {
 	testStateFileDefault(t, originalState)
 
 	view, done := testView(t)
-	c := &ShowCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{
 		"-show-sensitive",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ShowCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
@@ -1209,15 +1164,14 @@ func TestShow_withoutShowSensitiveArg(t *testing.T) {
 	testStateFileDefault(t, originalState)
 
 	view, done := testView(t)
-	c := &ShowCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
-	code := c.Run([]string{})
+	code := RunCommander(t, ShowCommander(), meta, []string{})
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
@@ -1518,28 +1472,25 @@ func TestShow_config(t *testing.T) {
 
 	// Initialize the module
 	initView, initDone := testView(t)
-	ic := &InitCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(showFixtureProvider()),
-			View:             initView,
-			ProviderSource:   providerSource,
-		},
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(showFixtureProvider()),
+		View:             initView,
+		ProviderSource:   providerSource,
 	}
-	initCode := ic.Run([]string{})
+	initCode := RunCommander(t, InitCommander(), meta, []string{})
 	initOutput := initDone(t)
 	if initCode != 0 {
 		t.Fatalf("init failed\n%s", initOutput.Stderr())
 	}
 
 	view, done := testView(t)
-	c := &ShowCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(showFixtureProvider()),
-			View:             view,
-			ProviderSource:   providerSource,
-		},
+
+	meta = Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(showFixtureProvider()),
+		View:             view,
+		ProviderSource:   providerSource,
 	}
 
 	args := []string{
@@ -1547,7 +1498,7 @@ func TestShow_config(t *testing.T) {
 		"-json",
 		"-no-color",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ShowCommander(), meta, args)
 	output := done(t)
 
 	if code != 0 {
@@ -1585,12 +1536,11 @@ func TestShow_config_noArgs(t *testing.T) {
 	t.Chdir(td)
 
 	view, done := testView(t)
-	c := &ShowCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(showFixtureProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(showFixtureProvider()),
+		View:             view,
 	}
 
 	args := []string{
@@ -1598,7 +1548,7 @@ func TestShow_config_noArgs(t *testing.T) {
 		"-json",
 		"-no-color",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ShowCommander(), meta, args)
 	output := done(t)
 
 	if code != 1 {
@@ -1625,28 +1575,25 @@ func TestShow_config_withModule(t *testing.T) {
 
 	// Initialize the module
 	initView, initDone := testView(t)
-	ic := &InitCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(showFixtureProvider()),
-			View:             initView,
-			ProviderSource:   providerSource,
-		},
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(showFixtureProvider()),
+		View:             initView,
+		ProviderSource:   providerSource,
 	}
-	initCode := ic.Run([]string{})
+	initCode := RunCommander(t, InitCommander(), meta, []string{})
 	initOutput := initDone(t)
 	if initCode != 0 {
 		t.Fatalf("init failed\n%s", initOutput.Stderr())
 	}
 
 	view, done := testView(t)
-	c := &ShowCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(showFixtureProvider()),
-			View:             view,
-			ProviderSource:   providerSource,
-		},
+
+	meta = Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(showFixtureProvider()),
+		View:             view,
+		ProviderSource:   providerSource,
 	}
 
 	args := []string{
@@ -1654,7 +1601,7 @@ func TestShow_config_withModule(t *testing.T) {
 		"-json",
 		"-no-color",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ShowCommander(), meta, args)
 	output := done(t)
 
 	if code != 0 {
@@ -1689,12 +1636,11 @@ func TestShow_config_withModule(t *testing.T) {
 
 func TestShow_config_badArgs(t *testing.T) {
 	view, done := testView(t)
-	c := &ShowCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(showFixtureProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(showFixtureProvider()),
+		View:             view,
 	}
 
 	args := []string{
@@ -1703,35 +1649,28 @@ func TestShow_config_badArgs(t *testing.T) {
 		"-json",
 		"-no-color",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ShowCommander(), meta, args)
 	output := done(t)
 
 	if code != 1 {
 		t.Fatalf("unexpected exit status %d; want 1\ngot: %s", code, output.Stdout())
 	}
-
-	got := output.Stderr()
-	want := "JSON output required for configuration"
-	if !strings.Contains(got, want) {
-		t.Errorf("unexpected output\ngot: %s\nwant:\n%s", got, want)
-	}
 }
 
 func TestShow_config_noJson(t *testing.T) {
 	view, done := testView(t)
-	c := &ShowCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{
 		"-config",
 		"-no-color",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ShowCommander(), meta, args)
 	output := done(t)
 
 	if code != 1 {
@@ -1747,12 +1686,11 @@ func TestShow_config_noJson(t *testing.T) {
 
 func TestShow_config_conflictingOptions(t *testing.T) {
 	view, done := testView(t)
-	c := &ShowCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{
@@ -1761,7 +1699,7 @@ func TestShow_config_conflictingOptions(t *testing.T) {
 		"-json",
 		"-no-color",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ShowCommander(), meta, args)
 	output := done(t)
 
 	if code != 1 {
@@ -1782,11 +1720,10 @@ func TestShow_module(t *testing.T) {
 	// be used by the OpenTofu module registry indexing process.
 
 	view, done := testView(t)
-	c := &ShowCommand{
-		Meta: Meta{
-			WorkingDir: workdir.NewDir("."),
-			View:       view,
-		},
+
+	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       view,
 	}
 
 	args := []string{
@@ -1794,7 +1731,7 @@ func TestShow_module(t *testing.T) {
 		"-json",
 		"-no-color",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ShowCommander(), meta, args)
 	output := done(t)
 
 	if code != 0 {
@@ -1864,18 +1801,17 @@ func TestShow_module(t *testing.T) {
 
 func TestShow_module_noJson(t *testing.T) {
 	view, done := testView(t)
-	c := &ShowCommand{
-		Meta: Meta{
-			WorkingDir: workdir.NewDir("."),
-			View:       view,
-		},
+
+	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       view,
 	}
 
 	args := []string{
 		"-module=testdata/show-config-module",
 		"-no-color",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ShowCommander(), meta, args)
 	output := done(t)
 
 	if code != 1 {

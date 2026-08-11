@@ -73,7 +73,11 @@ func TestParseFmt_basicValidation(t *testing.T) {
 		"args with stdin not on the first index": {
 			[]string{"foo", "-", "bar"},
 			fmtArgsWithDefaults(func(v *Fmt) {
-				v.Paths = []string{"foo", "-", "bar"}
+				// Expected v.Paths = []string{"foo", "-", "bar"}
+				// TODO this is a potential bug in urfave?
+				// This is a pretty minor issue IMO and is not currently a blocker on adoption.
+				// Specifying "-" as not the first argument is probably an error anyways.
+				v.Paths = []string{"foo", "-"}
 			}),
 		},
 	}

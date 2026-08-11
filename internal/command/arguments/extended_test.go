@@ -199,7 +199,7 @@ func TestStateFlagsParsing(t *testing.T) {
 			var cli CommandLine
 			s := tc.register(&cli)
 
-			_, diags := cli.Stdlib("test", tc.args)
+			_, diags := cli.parseWithHooks("test", tc.args)
 
 			if want, got := fmt.Sprintf("%s", tc.wantErr), fmt.Sprintf("%s", diags.Err()); !strings.Contains(got, want) {
 				t.Errorf("wanted error: %q, got error %q", want, got)
@@ -321,7 +321,7 @@ func TestStateFlagsRegistering(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			var cli CommandLine
 			s := tc.register(&cli)
-			_, diags := cli.Stdlib("test", tc.args)
+			_, diags := cli.parseWithHooks("test", tc.args)
 			if want, got := fmt.Sprintf("%s", tc.wantErr), fmt.Sprintf("%s", diags.Err()); !strings.Contains(got, want) {
 				t.Errorf("wanted error: %q, got error %q", want, got)
 			}

@@ -97,14 +97,12 @@ func TestConsole_multiline_interactive(t *testing.T) {
 
 			streams, done := terminal.StreamsForTesting(t)
 			view := views.NewView(streams)
-			c := &ConsoleCommand{
-				Meta: Meta{
-					WorkingDir:       workdir.NewDir("."),
-					testingOverrides: metaOverridesForProvider(p),
-					View:             view,
-				},
+			meta := Meta{
+				WorkingDir:       workdir.NewDir("."),
+				testingOverrides: metaOverridesForProvider(p),
+				View:             view,
 			}
-			code := c.Run(nil)
+			code := RunCommander(t, ConsoleCommander(), meta, nil)
 			streamsOut := done(t)
 			if code != 0 {
 				t.Fatalf("bad: %d\n\n%s", code, streamsOut.Stderr())

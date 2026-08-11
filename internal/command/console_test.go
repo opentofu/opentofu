@@ -32,16 +32,15 @@ func TestConsole_basic(t *testing.T) {
 	p := testProvider()
 	streams, done := terminal.StreamsForTesting(t)
 	view := views.NewView(streams)
-	c := &ConsoleCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 	defer testStdinPipe(t, strings.NewReader("1+5\n"))()
 
-	code := c.Run(nil)
+	code := RunCommander(t, ConsoleCommander(), meta, nil)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -78,17 +77,16 @@ func TestConsole_tfvars(t *testing.T) {
 	}
 	streams, done := terminal.StreamsForTesting(t)
 	view := views.NewView(streams)
-	c := &ConsoleCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	defer testStdinPipe(t, strings.NewReader("var.foo\n"))()
 
-	code := c.Run(nil)
+	code := RunCommander(t, ConsoleCommander(), meta, nil)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -127,17 +125,16 @@ func TestConsole_unsetRequiredVars(t *testing.T) {
 	}
 	streams, done := terminal.StreamsForTesting(t)
 	view := views.NewView(streams)
-	c := &ConsoleCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	defer testStdinPipe(t, strings.NewReader("var.foo\n"))()
 
-	code := c.Run(nil)
+	code := RunCommander(t, ConsoleCommander(), meta, nil)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -169,15 +166,14 @@ func TestConsole_variables(t *testing.T) {
 			defer testStdinPipe(t, strings.NewReader(cmd))()
 			streams, done := terminal.StreamsForTesting(t)
 			view := views.NewView(streams)
-			c := &ConsoleCommand{
-				Meta: Meta{
-					WorkingDir:       workdir.NewDir("."),
-					testingOverrides: metaOverridesForProvider(p),
-					View:             view,
-				},
+
+			meta := Meta{
+				WorkingDir:       workdir.NewDir("."),
+				testingOverrides: metaOverridesForProvider(p),
+				View:             view,
 			}
 
-			code := c.Run(args)
+			code := RunCommander(t, ConsoleCommander(), meta, args)
 			output := done(t)
 			if code != 0 {
 				t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -209,14 +205,13 @@ func TestConsole_modules(t *testing.T) {
 			defer testStdinPipe(t, strings.NewReader(cmd))()
 			streams, done := terminal.StreamsForTesting(t)
 			view := views.NewView(streams)
-			c := &ConsoleCommand{
-				Meta: Meta{
-					WorkingDir:       workdir.NewDir("."),
-					testingOverrides: metaOverridesForProvider(p),
-					View:             view,
-				},
+
+			meta := Meta{
+				WorkingDir:       workdir.NewDir("."),
+				testingOverrides: metaOverridesForProvider(p),
+				View:             view,
 			}
-			code := c.Run(nil)
+			code := RunCommander(t, ConsoleCommander(), meta, nil)
 			output := done(t)
 			if code != 0 {
 				t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -308,17 +303,16 @@ func TestConsole_multiline_pipe(t *testing.T) {
 		t.Run(testName, func(t *testing.T) {
 			streams, done := terminal.StreamsForTesting(t)
 			view := views.NewView(streams)
-			c := &ConsoleCommand{
-				Meta: Meta{
-					WorkingDir:       workdir.NewDir("."),
-					testingOverrides: metaOverridesForProvider(p),
-					View:             view,
-				},
+
+			meta := Meta{
+				WorkingDir:       workdir.NewDir("."),
+				testingOverrides: metaOverridesForProvider(p),
+				View:             view,
 			}
 
 			defer testStdinPipe(t, strings.NewReader(tc.input))()
 
-			code := c.Run(nil)
+			code := RunCommander(t, ConsoleCommander(), meta, nil)
 			output := done(t)
 			if code != 0 {
 				t.Fatalf("bad: %d\n\n%s", code, output.Stderr())

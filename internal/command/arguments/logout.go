@@ -36,6 +36,6 @@ func BindLogout(cli *CommandLine) *Logout {
 func ParseLogout(args []string) (*Logout, func(), tfdiags.Diagnostics) {
 	cli := new(CommandLine)
 	arguments := BindLogout(cli)
-	closer, diags := cli.Stdlib("logout", args)
+	closer, diags := cli.parseWithHooks("logout", args)
 	return arguments, closer, diags
 }

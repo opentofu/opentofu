@@ -50,6 +50,6 @@ func BindTest(cli *CommandLine) *Test {
 func ParseTest(args []string) (*Test, func(), tfdiags.Diagnostics) {
 	cli := new(CommandLine)
 	test := BindTest(cli)
-	closer, diags := cli.Stdlib("test", args)
+	closer, diags := cli.parseWithHooks("test", args)
 	return test, closer, diags
 }

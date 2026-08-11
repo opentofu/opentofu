@@ -51,10 +51,8 @@ func TestParseProvidersMirror_basicValidation(t *testing.T) {
 			}),
 		},
 		"unknown flag": {
-			args: []string{"-unknown-flag", "/path/to/mirror"},
-			want: providersMirrorArgsWithDefaults(func(v *ProvidersMirror) {
-				v.Directory = "/path/to/mirror"
-			}),
+			args:        []string{"-unknown-flag", "/path/to/mirror"},
+			want:        providersMirrorArgsWithDefaults(nil),
 			wantErrText: "flag provided but not defined: -unknown-flag",
 		},
 	}
@@ -135,7 +133,7 @@ func TestParseProvidersMirror_vars(t *testing.T) {
 func providersMirrorArgsWithDefaults(mutate func(v *ProvidersMirror)) *ProvidersMirror {
 	ret := &ProvidersMirror{
 		Directory:    "",
-		OptPlatforms: nil,
+		OptPlatforms: []string{},
 		View: &View{
 			ConsolidateWarnings: true,
 			ViewType:            ViewHuman,

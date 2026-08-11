@@ -29,12 +29,11 @@ func TestImport(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &ImportCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	p.ImportResourceStateFn = nil
@@ -65,7 +64,7 @@ func TestImport(t *testing.T) {
 		"test_instance.foo",
 		"bar",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ImportCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -85,12 +84,11 @@ func TestImport_providerConfig(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &ImportCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	p.ImportResourceStateFn = nil
@@ -147,7 +145,7 @@ func TestImport_providerConfig(t *testing.T) {
 		"test_instance.foo",
 		"bar",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ImportCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -187,13 +185,9 @@ func TestImport_remoteState(t *testing.T) {
 		ProviderSource:   providerSource,
 	}
 
-	ic := &InitCommand{
-		Meta: m,
-	}
-
 	// (Using log here rather than t.Log so that these messages interleave with other trace logs)
 	log.Print("[TRACE] TestImport_remoteState running: tofu init")
-	code := ic.Run([]string{})
+	code := RunCommander(t, InitCommander(), m, []string{})
 	initOutput := initDone(t)
 	if code != 0 {
 		t.Fatalf("init failed\n%s", initOutput.Stderr())
@@ -201,12 +195,11 @@ func TestImport_remoteState(t *testing.T) {
 
 	p := testProvider()
 	importView, importDone := testView(t)
-	c := &ImportCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             importView,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             importView,
 	}
 
 	p.ImportResourceStateFn = nil
@@ -256,7 +249,7 @@ func TestImport_remoteState(t *testing.T) {
 		"bar",
 	}
 	log.Printf("[TRACE] TestImport_remoteState running: tofu import %s %s", args[0], args[1])
-	code = c.Run(args)
+	code = RunCommander(t, ImportCommander(), meta, args)
 	importOutput := importDone(t)
 	if code != 0 {
 		fmt.Println(importOutput.Stdout())
@@ -302,13 +295,9 @@ func TestImport_initializationErrorShouldUnlock(t *testing.T) {
 		ProviderSource:   providerSource,
 	}
 
-	ic := &InitCommand{
-		Meta: m,
-	}
-
 	// (Using log here rather than t.Log so that these messages interleave with other trace logs)
 	log.Print("[TRACE] TestImport_initializationErrorShouldUnlock running: tofu init")
-	code := ic.Run([]string{})
+	code := RunCommander(t, InitCommander(), m, []string{})
 	initOutput := initDone(t)
 	if code != 0 {
 		t.Fatalf("init failed\n%s", initOutput.Stderr())
@@ -321,12 +310,11 @@ func TestImport_initializationErrorShouldUnlock(t *testing.T) {
 
 	p := testProvider()
 	importView, importDone := testView(t)
-	c := &ImportCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             importView,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             importView,
 	}
 
 	args := []string{
@@ -336,7 +324,7 @@ func TestImport_initializationErrorShouldUnlock(t *testing.T) {
 	log.Printf("[TRACE] TestImport_initializationErrorShouldUnlock running: tofu import %s %s", args[0], args[1])
 
 	// this should fail
-	code = c.Run(args)
+	code = RunCommander(t, ImportCommander(), meta, args)
 	importOutput := importDone(t)
 	if code != 1 {
 		fmt.Println(importOutput.Stdout())
@@ -362,12 +350,11 @@ func TestImport_providerConfigWithVar(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &ImportCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	p.ImportResourceStateFn = nil
@@ -418,7 +405,7 @@ func TestImport_providerConfigWithVar(t *testing.T) {
 		"test_instance.foo",
 		"bar",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ImportCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -443,12 +430,11 @@ func TestImport_providerConfigWithDataSource(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &ImportCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	p.ImportResourceStateFn = nil
@@ -495,7 +481,7 @@ func TestImport_providerConfigWithDataSource(t *testing.T) {
 		"test_instance.foo",
 		"bar",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ImportCommander(), meta, args)
 	output := done(t)
 	if code != 1 {
 		t.Fatalf("bad, wanted error: %d\n\n%s", code, output.Stderr())
@@ -509,12 +495,11 @@ func TestImport_providerConfigWithVarDefault(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &ImportCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	p.ImportResourceStateFn = nil
@@ -564,7 +549,7 @@ func TestImport_providerConfigWithVarDefault(t *testing.T) {
 		"test_instance.foo",
 		"bar",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ImportCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -589,12 +574,11 @@ func TestImport_providerConfigWithVarFile(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &ImportCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	p.ImportResourceStateFn = nil
@@ -645,7 +629,7 @@ func TestImport_providerConfigWithVarFile(t *testing.T) {
 		"test_instance.foo",
 		"bar",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ImportCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -670,12 +654,11 @@ func TestImport_emptyConfig(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &ImportCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
@@ -683,7 +666,7 @@ func TestImport_emptyConfig(t *testing.T) {
 		"test_instance.foo",
 		"bar",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ImportCommander(), meta, args)
 	output := done(t)
 	if code != 1 {
 		t.Fatalf("import succeeded; expected failure")
@@ -702,12 +685,11 @@ func TestImport_missingResourceConfig(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &ImportCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
@@ -715,7 +697,7 @@ func TestImport_missingResourceConfig(t *testing.T) {
 		"test_instance.foo",
 		"bar",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ImportCommander(), meta, args)
 	output := done(t)
 	if code != 1 {
 		t.Fatalf("import succeeded; expected failure")
@@ -734,12 +716,11 @@ func TestImport_missingModuleConfig(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &ImportCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
@@ -747,7 +728,7 @@ func TestImport_missingModuleConfig(t *testing.T) {
 		"module.baz.test_instance.foo",
 		"bar",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ImportCommander(), meta, args)
 	output := done(t)
 	if code != 1 {
 		t.Fatalf("import succeeded; expected failure")
@@ -793,10 +774,7 @@ func TestImportModuleVarFile(t *testing.T) {
 		ProviderSource:   providerSource,
 	}
 
-	ic := &InitCommand{
-		Meta: m,
-	}
-	code := ic.Run([]string{})
+	code := RunCommander(t, InitCommander(), m, []string{})
 	initOutput := initDone(t)
 	if code != 0 {
 		t.Fatalf("init failed\n%s", initOutput.Stderr())
@@ -804,19 +782,18 @@ func TestImportModuleVarFile(t *testing.T) {
 
 	// import
 	importView, importDone := testView(t)
-	c := &ImportCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             importView,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             importView,
 	}
 	args := []string{
 		"-state", statePath,
 		"module.child.test_instance.foo",
 		"bar",
 	}
-	code = c.Run(args)
+	code = RunCommander(t, ImportCommander(), meta, args)
 	importOutput := importDone(t)
 	if code != 0 {
 		t.Fatalf("import failed; expected success. %s", importOutput.All())
@@ -869,10 +846,7 @@ func TestImportModuleInputVariableEvaluation(t *testing.T) {
 		ProviderSource:   providerSource,
 	}
 
-	ic := &InitCommand{
-		Meta: m,
-	}
-	code := ic.Run([]string{})
+	code := RunCommander(t, InitCommander(), m, []string{})
 	initOutput := initDone(t)
 	if code != 0 {
 		t.Fatalf("init failed\n%s", initOutput.Stderr())
@@ -880,19 +854,18 @@ func TestImportModuleInputVariableEvaluation(t *testing.T) {
 
 	// import
 	importView, importDone := testView(t)
-	c := &ImportCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             importView,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             importView,
 	}
 	args := []string{
 		"-state", statePath,
 		"module.child.test_instance.foo",
 		"bar",
 	}
-	code = c.Run(args)
+	code = RunCommander(t, ImportCommander(), meta, args)
 	importOutput := importDone(t)
 	if code != 0 {
 		t.Fatalf("import failed; expected success: %s", importOutput.All())
@@ -922,12 +895,11 @@ func TestImport_nonManagedResource(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.resAddr, func(t *testing.T) {
 			view, done := testView(t)
-			c := &ImportCommand{
-				Meta: Meta{
-					WorkingDir:       workdir.NewDir("."),
-					testingOverrides: metaOverridesForProvider(p),
-					View:             view,
-				},
+
+			meta := Meta{
+				WorkingDir:       workdir.NewDir("."),
+				testingOverrides: metaOverridesForProvider(p),
+				View:             view,
 			}
 
 			args := []string{
@@ -936,7 +908,7 @@ func TestImport_nonManagedResource(t *testing.T) {
 				tt.resAddr,
 				"bar",
 			}
-			code := c.Run(args)
+			code := RunCommander(t, ImportCommander(), meta, args)
 			output := done(t)
 			if code != 1 {
 				t.Fatalf("import succeeded; expected failure: %s", output.All())
@@ -957,12 +929,11 @@ func TestImport_invalidResourceAddr(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &ImportCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
@@ -971,7 +942,7 @@ func TestImport_invalidResourceAddr(t *testing.T) {
 		"bananas",
 		"bar",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ImportCommander(), meta, args)
 	output := done(t)
 	if code != 1 {
 		t.Fatalf("import succeeded; expected failure")
@@ -990,12 +961,11 @@ func TestImport_targetIsModule(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &ImportCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
@@ -1004,7 +974,7 @@ func TestImport_targetIsModule(t *testing.T) {
 		"module.foo",
 		"bar",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ImportCommander(), meta, args)
 	output := done(t)
 	if code != 1 {
 		t.Fatalf("import succeeded; expected failure")
@@ -1022,12 +992,11 @@ func TestImport_ForEachKeyInTargetResourceAddr(t *testing.T) {
 	statePath := testTempFile(t)
 	p := testProvider()
 	view, done := testView(t)
-	c := &ImportCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		ResourceTypes: map[string]providers.Schema{
@@ -1046,7 +1015,7 @@ func TestImport_ForEachKeyInTargetResourceAddr(t *testing.T) {
 		"test_instance.this[\"a\"]",
 		"aa",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ImportCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("import failed; expected success for existing resource: %s", output.Stderr())
@@ -1058,8 +1027,8 @@ func TestImport_ForEachKeyInTargetResourceAddr(t *testing.T) {
 		"ff",
 	}
 	view, done = testView(t)
-	c.Meta.View = view
-	code = c.Run(args)
+	meta.View = view
+	code = RunCommander(t, ImportCommander(), meta, args)
 	output = done(t)
 	if code == 0 {
 		t.Fatalf("import succeeded; expected failure when the resource instance doesn't exist with the given key: %s", output.All())
@@ -1101,10 +1070,7 @@ func TestImport_ForEachKeyInModuleAddr(t *testing.T) {
 		ProviderSource:   providerSource,
 	}
 
-	ic := &InitCommand{
-		Meta: m,
-	}
-	code := ic.Run([]string{})
+	code := RunCommander(t, InitCommander(), m, []string{})
 	initOutput := initDone(t)
 	if code != 0 {
 		t.Fatalf("init failed\n%s", initOutput.Stderr())
@@ -1112,12 +1078,11 @@ func TestImport_ForEachKeyInModuleAddr(t *testing.T) {
 
 	// Import
 	importView, importDone := testView(t)
-	c := &ImportCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             importView,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             importView,
 	}
 	// Importing into an existing module should succeed
 	args := []string{
@@ -1125,7 +1090,7 @@ func TestImport_ForEachKeyInModuleAddr(t *testing.T) {
 		"module.child[\"a\"].test_instance.this",
 		"aa",
 	}
-	code = c.Run(args)
+	code = RunCommander(t, ImportCommander(), meta, args)
 	importOutput := importDone(t)
 	if code != 0 {
 		t.Fatalf("import failed for a valid scenario\n%s", importOutput.Stderr())
@@ -1138,8 +1103,8 @@ func TestImport_ForEachKeyInModuleAddr(t *testing.T) {
 		"ff",
 	}
 	importView, importDone = testView(t)
-	c.Meta.View = importView
-	code = c.Run(args)
+	meta.View = importView
+	code = RunCommander(t, ImportCommander(), meta, args)
 	importOutput = importDone(t)
 	if code == 0 {
 		t.Fatalf("import succeeded; expected failure for non-existant module\n%s", importOutput.Stdout())
@@ -1182,10 +1147,7 @@ func TestImport_ForEachKeyInModuleAndResourceAddr(t *testing.T) {
 		ProviderSource:   providerSource,
 	}
 
-	ic := &InitCommand{
-		Meta: m,
-	}
-	code := ic.Run([]string{})
+	code := RunCommander(t, InitCommander(), m, []string{})
 	initOutput := initDone(t)
 	if code != 0 {
 		t.Fatalf("init failed\n%s", initOutput.Stderr())
@@ -1193,12 +1155,11 @@ func TestImport_ForEachKeyInModuleAndResourceAddr(t *testing.T) {
 
 	// Import
 	importView, importDone := testView(t)
-	c := &ImportCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             importView,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             importView,
 	}
 
 	// Valid Module + Valid Resource success
@@ -1207,7 +1168,7 @@ func TestImport_ForEachKeyInModuleAndResourceAddr(t *testing.T) {
 		"module.child[\"a\"].test_instance.this[\"a\"]",
 		"aa",
 	}
-	code = c.Run(args)
+	code = RunCommander(t, ImportCommander(), meta, args)
 	importOutput := importDone(t)
 	if code != 0 {
 		t.Fatalf("import failed for a valid scenario\n%s", importOutput.Stderr())
@@ -1221,8 +1182,8 @@ func TestImport_ForEachKeyInModuleAndResourceAddr(t *testing.T) {
 		"af",
 	}
 	importView, importDone = testView(t)
-	c.Meta.View = importView
-	code = c.Run(args)
+	meta.View = importView
+	code = RunCommander(t, ImportCommander(), meta, args)
 	importOutput = importDone(t)
 	if code == 0 {
 		t.Fatalf("import succeeded; expected failure for non-existent resource instance\n%s", importOutput.Stdout())
@@ -1235,8 +1196,8 @@ func TestImport_ForEachKeyInModuleAndResourceAddr(t *testing.T) {
 		"fa",
 	}
 	importView, importDone = testView(t)
-	c.Meta.View = importView
-	code = c.Run(args)
+	meta.View = importView
+	code = RunCommander(t, ImportCommander(), meta, args)
 	importOutput = importDone(t)
 	if code == 0 {
 		t.Fatalf("import succeeded; expected failure for non-existent module\n%s", importOutput.Stdout())
@@ -1249,8 +1210,8 @@ func TestImport_ForEachKeyInModuleAndResourceAddr(t *testing.T) {
 		"ff",
 	}
 	importView, importDone = testView(t)
-	c.Meta.View = importView
-	code = c.Run(args)
+	meta.View = importView
+	code = RunCommander(t, ImportCommander(), meta, args)
 	importOutput = importDone(t)
 	if code == 0 {
 		t.Fatalf("import succeeded; expected failure for non-existent module and resource instance\n%s", importOutput.Stdout())

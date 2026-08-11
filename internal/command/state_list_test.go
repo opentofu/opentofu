@@ -19,18 +19,17 @@ func TestStateList(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &StateListCommand{
-		StateMeta{Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		}},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-state", statePath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, StateListCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -50,19 +49,18 @@ func TestStateListWithID(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &StateListCommand{
-		StateMeta{Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		}},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-state", statePath,
 		"-id", "bar",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, StateListCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -82,19 +80,18 @@ func TestStateListWithNonExistentID(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &StateListCommand{
-		StateMeta{Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		}},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-state", statePath,
 		"-id", "baz",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, StateListCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -115,16 +112,15 @@ func TestStateList_backendDefaultState(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &StateListCommand{
-		StateMeta{Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		}},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{}
-	code := c.Run(args)
+	code := RunCommander(t, StateListCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -146,16 +142,15 @@ func TestStateList_backendCustomState(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &StateListCommand{
-		StateMeta{Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		}},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{}
-	code := c.Run(args)
+	code := RunCommander(t, StateListCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -177,12 +172,11 @@ func TestStateList_backendOverrideState(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &StateListCommand{
-		StateMeta{Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		}},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	// This test is configured to use a local backend that has
@@ -191,7 +185,7 @@ func TestStateList_backendOverrideState(t *testing.T) {
 	// one configured in the backend. As this file does not exist
 	// it should exit with a no state found error.
 	args := []string{"-state=" + arguments.DefaultStateFilename}
-	code := c.Run(args)
+	code := RunCommander(t, StateListCommander(), meta, args)
 	output := done(t)
 	if code != 1 {
 		t.Fatalf("bad: %d", code)
@@ -206,15 +200,14 @@ func TestStateList_noState(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &StateListCommand{
-		StateMeta{Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		}},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
-	code := c.Run(nil)
+	code := RunCommander(t, StateListCommander(), meta, nil)
 	output := done(t)
 	if code != 1 {
 		t.Fatalf("bad exit code: %d. output: %s", code, output.All())
@@ -231,15 +224,14 @@ func TestStateList_modules(t *testing.T) {
 
 	t.Run("list resources in module and submodules", func(t *testing.T) {
 		view, done := testView(t)
-		c := &StateListCommand{
-			StateMeta{Meta{
-				WorkingDir:       workdir.NewDir("."),
-				testingOverrides: metaOverridesForProvider(p),
-				View:             view,
-			}},
+
+		meta := Meta{
+			WorkingDir:       workdir.NewDir("."),
+			testingOverrides: metaOverridesForProvider(p),
+			View:             view,
 		}
 		args := []string{"module.nest"}
-		code := c.Run(args)
+		code := RunCommander(t, StateListCommander(), meta, args)
 		output := done(t)
 		if code != 0 {
 			t.Fatalf("bad: %d", code)
@@ -256,15 +248,14 @@ func TestStateList_modules(t *testing.T) {
 	t.Run("submodule has resources only", func(t *testing.T) {
 		// now get the state for a module that has no resources, only another nested module
 		view, done := testView(t)
-		c := &StateListCommand{
-			StateMeta{Meta{
-				WorkingDir:       workdir.NewDir("."),
-				testingOverrides: metaOverridesForProvider(p),
-				View:             view,
-			}},
+
+		meta := Meta{
+			WorkingDir:       workdir.NewDir("."),
+			testingOverrides: metaOverridesForProvider(p),
+			View:             view,
 		}
 		args := []string{"module.nonexist"}
-		code := c.Run(args)
+		code := RunCommander(t, StateListCommander(), meta, args)
 		output := done(t)
 		if code != 0 {
 			t.Fatalf("bad: %d", code)
@@ -279,15 +270,14 @@ func TestStateList_modules(t *testing.T) {
 	t.Run("expanded module", func(t *testing.T) {
 		// finally get the state for a module with an index
 		view, done := testView(t)
-		c := &StateListCommand{
-			StateMeta{Meta{
-				WorkingDir:       workdir.NewDir("."),
-				testingOverrides: metaOverridesForProvider(p),
-				View:             view,
-			}},
+
+		meta := Meta{
+			WorkingDir:       workdir.NewDir("."),
+			testingOverrides: metaOverridesForProvider(p),
+			View:             view,
 		}
 		args := []string{"module.count"}
-		code := c.Run(args)
+		code := RunCommander(t, StateListCommander(), meta, args)
 		output := done(t)
 		if code != 0 {
 			t.Fatalf("bad: %d", code)
@@ -302,15 +292,14 @@ func TestStateList_modules(t *testing.T) {
 	t.Run("completely nonexistent module", func(t *testing.T) {
 		// finally get the state for a module with an index
 		view, done := testView(t)
-		c := &StateListCommand{
-			StateMeta{Meta{
-				WorkingDir:       workdir.NewDir("."),
-				testingOverrides: metaOverridesForProvider(p),
-				View:             view,
-			}},
+
+		meta := Meta{
+			WorkingDir:       workdir.NewDir("."),
+			testingOverrides: metaOverridesForProvider(p),
+			View:             view,
 		}
 		args := []string{"module.notevenalittlebit"}
-		code := c.Run(args)
+		code := RunCommander(t, StateListCommander(), meta, args)
 		output := done(t)
 		if code != 1 {
 			t.Fatalf("bad exit code: %d. output: %s", code, output.All())

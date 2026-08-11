@@ -41,6 +41,6 @@ func BindStateShow(cli *CommandLine) *StateShow {
 func ParseStateShow(args []string) (*StateShow, func(), tfdiags.Diagnostics) {
 	cli := new(CommandLine)
 	ret := BindStateShow(cli)
-	closer, diags := cli.Stdlib("state show", args)
+	closer, diags := cli.parseWithHooks("state show", args)
 	return ret, closer, diags
 }

@@ -38,6 +38,6 @@ func BindVersion(cli *CommandLine) *Version {
 func ParseVersion(args []string) (*Version, func(), tfdiags.Diagnostics) {
 	cli := new(CommandLine)
 	ret := BindVersion(cli)
-	closer, diags := cli.Stdlib("version", args)
+	closer, diags := cli.parseWithHooks("version", args)
 	return ret, closer, diags
 }

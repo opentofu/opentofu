@@ -47,6 +47,6 @@ func BindStatePush(cli *CommandLine) *StatePush {
 func ParseStatePush(args []string) (*StatePush, func(), tfdiags.Diagnostics) {
 	cli := new(CommandLine)
 	ret := BindStatePush(cli)
-	closer, diags := cli.Stdlib("state push", args)
+	closer, diags := cli.parseWithHooks("state push", args)
 	return ret, closer, diags
 }

@@ -92,6 +92,14 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+// RunCommander handles simulating the arg handling that is typically available
+// through the cli package
+func RunCommander(t *testing.T, cmd Command, meta Meta, args []string) int {
+	diags := cmd.CommandLine.ParseDirect(t.Context(), args)
+	return RunCli("testing", cmd, meta, diags)
+
+}
+
 // tempWorkingDir constructs a workdir.Dir object referring to a newly-created
 // temporary directory. The temporary directory is automatically removed when
 // the test and all its subtests complete.

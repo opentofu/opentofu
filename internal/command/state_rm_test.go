@@ -56,21 +56,18 @@ func TestStateRm(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &StateRmCommand{
-		StateMeta{
-			Meta: Meta{
-				WorkingDir:       workdir.NewDir("."),
-				testingOverrides: metaOverridesForProvider(p),
-				View:             view,
-			},
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-state", statePath,
 		"test_instance.foo",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, StateRmCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -129,21 +126,18 @@ func TestStateRmNotChildModule(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &StateRmCommand{
-		StateMeta{
-			Meta: Meta{
-				WorkingDir:       workdir.NewDir("."),
-				testingOverrides: metaOverridesForProvider(p),
-				View:             view,
-			},
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-state", statePath,
 		"test_instance.foo",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, StateRmCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -220,20 +214,17 @@ func TestStateRmNoArgs(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &StateRmCommand{
-		StateMeta{
-			Meta: Meta{
-				WorkingDir:       workdir.NewDir("."),
-				testingOverrides: metaOverridesForProvider(p),
-				View:             view,
-			},
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-state", statePath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, StateRmCommander(), meta, args)
 	output := done(t)
 	if code == 0 {
 		t.Errorf("expected non-zero exit code, got: %d", code)
@@ -284,21 +275,18 @@ func TestStateRmNonExist(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &StateRmCommand{
-		StateMeta{
-			Meta: Meta{
-				WorkingDir:       workdir.NewDir("."),
-				testingOverrides: metaOverridesForProvider(p),
-				View:             view,
-			},
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-state", statePath,
 		"test_instance.baz", // doesn't exist in the state constructed above
 	}
-	code := c.Run(args)
+	code := RunCommander(t, StateRmCommander(), meta, args)
 	output := done(t)
 	if code != 1 {
 		t.Fatalf("expected exit status %d, got: %d\noutput:\n%s", 1, code, output.All())
@@ -345,14 +333,11 @@ func TestStateRm_backupExplicit(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &StateRmCommand{
-		StateMeta{
-			Meta: Meta{
-				WorkingDir:       workdir.NewDir("."),
-				testingOverrides: metaOverridesForProvider(p),
-				View:             view,
-			},
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
@@ -360,7 +345,7 @@ func TestStateRm_backupExplicit(t *testing.T) {
 		"-state", statePath,
 		"test_instance.foo",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, StateRmCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -378,18 +363,15 @@ func TestStateRm_noState(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &StateRmCommand{
-		StateMeta{
-			Meta: Meta{
-				WorkingDir:       workdir.NewDir("."),
-				testingOverrides: metaOverridesForProvider(p),
-				View:             view,
-			},
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{"foo"}
-	code := c.Run(args)
+	code := RunCommander(t, StateRmCommander(), meta, args)
 	output := done(t)
 	if code != 1 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -403,18 +385,15 @@ func TestStateRm_needsInit(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &StateRmCommand{
-		StateMeta{
-			Meta: Meta{
-				WorkingDir:       workdir.NewDir("."),
-				testingOverrides: metaOverridesForProvider(p),
-				View:             view,
-			},
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{"foo"}
-	code := c.Run(args)
+	code := RunCommander(t, StateRmCommander(), meta, args)
 	output := done(t)
 	if code == 0 {
 		t.Fatalf("expected error output, got:\n%s", output.Stdout())
@@ -481,21 +460,18 @@ func TestStateRm_backendState(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &StateRmCommand{
-		StateMeta{
-			Meta: Meta{
-				WorkingDir:       workdir.NewDir("."),
-				testingOverrides: metaOverridesForProvider(p),
-				View:             view,
-			},
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-backup", backupPath,
 		"test_instance.foo",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, StateRmCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -552,21 +528,18 @@ func TestStateRm_checkRequiredVersion(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &StateRmCommand{
-		StateMeta{
-			Meta: Meta{
-				WorkingDir:       workdir.NewDir("."),
-				testingOverrides: metaOverridesForProvider(p),
-				View:             view,
-			},
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-state", statePath,
 		"test_instance.foo",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, StateRmCommander(), meta, args)
 	output := done(t)
 	if code != 1 {
 		t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, output.Stderr(), output.Stdout())

@@ -74,6 +74,6 @@ func BindStateReplaceProvider(cli *CommandLine) *StateReplaceProvider {
 func ParseReplaceProvider(args []string) (*StateReplaceProvider, func(), tfdiags.Diagnostics) {
 	cli := new(CommandLine)
 	ret := BindStateReplaceProvider(cli)
-	closer, diags := cli.Stdlib("state replace-provider", args)
+	closer, diags := cli.parseWithHooks("state replace-provider", args)
 	return ret, closer, diags
 }

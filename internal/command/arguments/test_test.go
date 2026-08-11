@@ -75,7 +75,7 @@ func TestParseTest(t *testing.T) {
 		"defaults": {
 			args: nil,
 			want: &Test{
-				Filter:        nil,
+				Filter:        []string{},
 				TestDirectory: "tests",
 				View:          &View{ConsolidateWarnings: true, ViewType: ViewHuman},
 				Vars:          &Vars{},
@@ -95,7 +95,7 @@ func TestParseTest(t *testing.T) {
 		"json": {
 			args: []string{"-json"},
 			want: &Test{
-				Filter:        nil,
+				Filter:        []string{},
 				TestDirectory: "tests",
 				View:          &View{ConsolidateWarnings: true, ViewType: ViewJSON},
 				Vars:          &Vars{},
@@ -105,7 +105,7 @@ func TestParseTest(t *testing.T) {
 		"test-directory": {
 			args: []string{"-test-directory=other"},
 			want: &Test{
-				Filter:        nil,
+				Filter:        []string{},
 				TestDirectory: "other",
 				View:          &View{ConsolidateWarnings: true, ViewType: ViewHuman},
 				Vars:          &Vars{},
@@ -115,7 +115,7 @@ func TestParseTest(t *testing.T) {
 		"verbose": {
 			args: []string{"-verbose"},
 			want: &Test{
-				Filter:        nil,
+				Filter:        []string{},
 				TestDirectory: "tests",
 				View:          &View{ConsolidateWarnings: true, ViewType: ViewHuman},
 				Verbose:       true,
@@ -125,7 +125,7 @@ func TestParseTest(t *testing.T) {
 		"unknown flag": {
 			args: []string{"-boop"},
 			want: &Test{
-				Filter:        nil,
+				Filter:        []string{},
 				TestDirectory: "tests",
 				View:          &View{ConsolidateWarnings: true, ViewType: ViewHuman},
 				Vars:          &Vars{},

@@ -41,6 +41,6 @@ func BindGet(cli *CommandLine) *Get {
 func ParseGet(args []string) (*Get, func(), tfdiags.Diagnostics) {
 	cli := new(CommandLine)
 	arguments := BindGet(cli)
-	closer, diags := cli.Stdlib("get", args)
+	closer, diags := cli.parseWithHooks("get", args)
 	return arguments, closer, diags
 }

@@ -72,6 +72,6 @@ func BindFmt(cli *CommandLine) *Fmt {
 func ParseFmt(args []string) (*Fmt, func(), tfdiags.Diagnostics) {
 	cli := new(CommandLine)
 	ret := BindFmt(cli)
-	closer, diags := cli.Stdlib("fmt", args)
+	closer, diags := cli.parseWithHooks("fmt", args)
 	return ret, closer, diags
 }

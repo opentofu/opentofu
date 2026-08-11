@@ -55,6 +55,6 @@ func BindImport(cli *CommandLine) *Import {
 func ParseImport(args []string) (*Import, func(), tfdiags.Diagnostics) {
 	cli := new(CommandLine)
 	ret := BindImport(cli)
-	closer, diags := cli.Stdlib("import", args)
+	closer, diags := cli.parseWithHooks("import", args)
 	return ret, closer, diags
 }

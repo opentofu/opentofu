@@ -76,6 +76,6 @@ OpenTofu may still attempt to write configuration if planning fails with an erro
 func ParsePlan(args []string) (*Plan, func(), tfdiags.Diagnostics) {
 	cli := new(CommandLine)
 	plan := BindPlan(cli)
-	closer, diags := cli.Stdlib("plan", args)
+	closer, diags := cli.parseWithHooks("plan", args)
 	return plan, closer, diags
 }

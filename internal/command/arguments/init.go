@@ -76,8 +76,8 @@ func BindInit(cli *CommandLine) *Init {
 	cli.StringVar(&init.TestsDirectory, "test-directory", "tests", `Set the OpenTofu test directory, defaults to "tests". When set, the test command will search for test files in the current directory and in the one specified by the flag.`).SetDisplay("=path")
 
 	cli.PreHook(func() tfdiags.Diagnostics {
-		init.BackendFlagSet = backend.IsSet
-		init.CloudFlagSet = cloud.IsSet
+		init.BackendFlagSet = backend.IsSet()
+		init.CloudFlagSet = cloud.IsSet()
 
 		switch {
 		case init.BackendFlagSet && init.CloudFlagSet:
@@ -103,6 +103,6 @@ func BindInit(cli *CommandLine) *Init {
 func ParseInit(args []string) (*Init, func(), tfdiags.Diagnostics) {
 	cli := new(CommandLine)
 	init := BindInit(cli)
-	closer, diags := cli.Stdlib("init", args)
+	closer, diags := cli.parseWithHooks("init", args)
 	return init, closer, diags
 }

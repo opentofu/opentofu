@@ -27,16 +27,15 @@ func TestStatePush_empty(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &StatePushCommand{
-		StateMeta{Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		}},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{"replace.tfstate"}
-	code := c.Run(args)
+	code := RunCommander(t, StatePushCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -56,12 +55,11 @@ func TestStatePush_lockedState(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &StatePushCommand{
-		StateMeta{Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		}},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	unlock, err := testLockState(t, testDataDir, "local-state.tfstate")
@@ -71,7 +69,7 @@ func TestStatePush_lockedState(t *testing.T) {
 	defer unlock()
 
 	args := []string{"replace.tfstate"}
-	code := c.Run(args)
+	code := RunCommander(t, StatePushCommander(), meta, args)
 	output := done(t)
 	if code != 1 {
 		t.Fatalf("bad code: %d, expected 1\n:%s", code, output.Stdout())
@@ -92,16 +90,15 @@ func TestStatePush_replaceMatch(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &StatePushCommand{
-		StateMeta{Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		}},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{"replace.tfstate"}
-	code := c.Run(args)
+	code := RunCommander(t, StatePushCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -130,16 +127,15 @@ func TestStatePush_replaceMatchStdin(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &StatePushCommand{
-		StateMeta{Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		}},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{"-force", "-"}
-	code := c.Run(args)
+	code := RunCommander(t, StatePushCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -161,16 +157,15 @@ func TestStatePush_lineageMismatch(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &StatePushCommand{
-		StateMeta{Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		}},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{"replace.tfstate"}
-	code := c.Run(args)
+	code := RunCommander(t, StatePushCommander(), meta, args)
 	output := done(t)
 	if code != 1 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -192,16 +187,15 @@ func TestStatePush_serialNewer(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &StatePushCommand{
-		StateMeta{Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		}},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{"replace.tfstate"}
-	code := c.Run(args)
+	code := RunCommander(t, StatePushCommander(), meta, args)
 	_ = done(t)
 	if code != 1 {
 		t.Fatalf("bad: %d", code)
@@ -223,16 +217,15 @@ func TestStatePush_serialOlder(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &StatePushCommand{
-		StateMeta{Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		}},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{"replace.tfstate"}
-	code := c.Run(args)
+	code := RunCommander(t, StatePushCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -296,15 +289,14 @@ func TestStatePush_forceRemoteState(t *testing.T) {
 
 	// push our local state to that new workspace
 	view, done := testView(t)
-	c := &StatePushCommand{
-		StateMeta{Meta{
-			WorkingDir: workdir.NewDir("."),
-			View:       view,
-		}},
+
+	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       view,
 	}
 
 	args := []string{"-force", statePath}
-	pushCode := c.Run(args)
+	pushCode := RunCommander(t, StatePushCommander(), meta, args)
 	output := done(t)
 	if pushCode != 0 {
 		t.Fatalf("bad code: %d\noutput:\n%s", pushCode, output.All())
@@ -319,16 +311,15 @@ func TestStatePush_checkRequiredVersion(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &StatePushCommand{
-		StateMeta{Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		}},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{"replace.tfstate"}
-	code := c.Run(args)
+	code := RunCommander(t, StatePushCommander(), meta, args)
 	output := done(t)
 	if code != 1 {
 		t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, output.Stderr(), output.Stdout())

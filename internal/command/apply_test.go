@@ -46,19 +46,18 @@ func TestApply(t *testing.T) {
 	p := applyFixtureProvider()
 
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-state", statePath,
 		"-auto-approve",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -82,18 +81,17 @@ func TestApply_conditionalSensitive(t *testing.T) {
 	p := applyFixtureProvider()
 
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-auto-approve",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t).Stderr()
 	if code != 1 {
 		t.Fatalf("bad status code: %d\n\n%s", code, output)
@@ -113,19 +111,18 @@ func TestApply_path(t *testing.T) {
 	p := applyFixtureProvider()
 
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-auto-approve",
 		testFixturePath("apply"),
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if code != 1 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -149,18 +146,17 @@ func TestApply_approveNo(t *testing.T) {
 
 	p := applyFixtureProvider()
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-state", statePath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if code != 1 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -189,18 +185,17 @@ func TestApply_approveYes(t *testing.T) {
 	})()
 
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-state", statePath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -233,19 +228,18 @@ func TestApply_lockedState(t *testing.T) {
 
 	p := applyFixtureProvider()
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-state", statePath,
 		"-auto-approve",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if code == 0 {
 		t.Fatal("expected error")
@@ -278,12 +272,11 @@ func TestApply_lockedStateWait(t *testing.T) {
 
 	p := applyFixtureProvider()
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	// wait 4s just in case the lock process doesn't release in under a second,
@@ -293,7 +286,7 @@ func TestApply_lockedStateWait(t *testing.T) {
 		"-lock-timeout", "4s",
 		"-auto-approve",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("lock should have succeeded in less than 3s: %s", output.Stderr())
@@ -378,12 +371,11 @@ func TestApply_parallelism(t *testing.T) {
 	}
 
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: testingOverrides,
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: testingOverrides,
+		View:             view,
 	}
 
 	args := []string{
@@ -392,7 +384,7 @@ func TestApply_parallelism(t *testing.T) {
 		fmt.Sprintf("-parallelism=%d", par),
 	}
 
-	res := c.Run(args)
+	res := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if res != 0 {
 		t.Fatal(output.Stdout())
@@ -407,19 +399,18 @@ func TestApply_configInvalid(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-state", testTempFile(t),
 		"-auto-approve",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if code != 1 {
 		t.Fatalf("bad: \n%s", output.Stdout())
@@ -436,12 +427,11 @@ func TestApply_defaultState(t *testing.T) {
 
 	p := applyFixtureProvider()
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	// create an existing state file
@@ -452,7 +442,7 @@ func TestApply_defaultState(t *testing.T) {
 	args := []string{
 		"-auto-approve",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -478,12 +468,11 @@ func TestApply_error(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	var lock sync.Mutex
@@ -527,7 +516,7 @@ func TestApply_error(t *testing.T) {
 		"-state", statePath,
 		"-auto-approve",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if code != 1 {
 		t.Fatalf("wrong exit code %d; want 1\n%s", code, output.Stdout())
@@ -568,19 +557,18 @@ func TestApply_input(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-state", statePath,
 		"-auto-approve",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -615,12 +603,11 @@ func TestApply_inputPartial(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
@@ -628,7 +615,7 @@ func TestApply_inputPartial(t *testing.T) {
 		"-auto-approve",
 		"-var", "foo=foovalue",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -654,19 +641,18 @@ func TestApply_noArgs(t *testing.T) {
 
 	p := applyFixtureProvider()
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-state", statePath,
 		"-auto-approve",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -696,19 +682,18 @@ func TestApply_plan(t *testing.T) {
 
 	p := applyFixtureProvider()
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-state-out", statePath,
 		planPath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -730,12 +715,11 @@ func TestApply_plan_backup(t *testing.T) {
 
 	p := applyFixtureProvider()
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	// create a state file that needs to be backed up
@@ -754,7 +738,7 @@ func TestApply_plan_backup(t *testing.T) {
 		"-backup", backupPath,
 		planPath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -774,12 +758,11 @@ func TestApply_plan_noBackup(t *testing.T) {
 
 	p := applyFixtureProvider()
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
@@ -787,7 +770,7 @@ func TestApply_plan_noBackup(t *testing.T) {
 		"-backup", "-",
 		planPath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -858,18 +841,17 @@ func TestApply_plan_remoteState(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		planPath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -900,19 +882,18 @@ func TestApply_planWithVarFile(t *testing.T) {
 
 	p := applyFixtureProvider()
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-state-out", statePath,
 		planPath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -934,12 +915,11 @@ func TestApply_planVars(t *testing.T) {
 
 	p := applyFixtureProvider()
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
@@ -947,7 +927,7 @@ func TestApply_planVars(t *testing.T) {
 		"-var", "foo=bar",
 		planPath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if code == 0 {
 		t.Fatal("should've failed: ", output.Stdout())
@@ -965,17 +945,15 @@ func TestApply_planNoModuleFiles(t *testing.T) {
 	p := applyFixtureProvider()
 	planPath := applyFixturePlanFile(t)
 	view, done := testView(t)
-	apply := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 	args := []string{
 		planPath,
 	}
-	apply.Run(args)
+	RunCommander(t, ApplyCommander(), meta, args)
 	done(t)
 }
 
@@ -1007,19 +985,18 @@ func TestApply_refresh(t *testing.T) {
 
 	p := applyFixtureProvider()
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-state", statePath,
 		"-auto-approve",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -1076,12 +1053,11 @@ func TestApply_refreshFalse(t *testing.T) {
 
 	p := applyFixtureProvider()
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
@@ -1089,7 +1065,7 @@ func TestApply_refreshFalse(t *testing.T) {
 		"-auto-approve",
 		"-refresh=false",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -1112,13 +1088,12 @@ func TestApply_shutdown(t *testing.T) {
 	p := testProvider()
 
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-			ShutdownCh:       shutdownCh,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
+		ShutdownCh:       shutdownCh,
 	}
 
 	// Provider is started multiple times, plus it's left running after the schema call
@@ -1170,7 +1145,7 @@ func TestApply_shutdown(t *testing.T) {
 		"-state", statePath,
 		"-auto-approve",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if code != 1 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -1231,12 +1206,11 @@ func TestApply_state(t *testing.T) {
 	}
 
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	// Run the apply command pointing to our existing state
@@ -1244,7 +1218,7 @@ func TestApply_state(t *testing.T) {
 		"-state", statePath,
 		"-auto-approve",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -1296,18 +1270,17 @@ func TestApply_stateNoExist(t *testing.T) {
 
 	p := applyFixtureProvider()
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"idontexist.tfstate",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if code != 1 {
 		t.Fatalf("bad: \n%s", output.Stdout())
@@ -1322,12 +1295,11 @@ func TestApply_sensitiveOutput(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	statePath := testTempFile(t)
@@ -1337,7 +1309,7 @@ func TestApply_sensitiveOutput(t *testing.T) {
 		"-auto-approve",
 	}
 
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stdout())
@@ -1362,12 +1334,11 @@ func TestApply_vars(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	actual := ""
@@ -1399,7 +1370,7 @@ func TestApply_vars(t *testing.T) {
 		"-var", "foo=bar",
 		"-state", statePath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -1425,12 +1396,11 @@ func TestApply_varFile(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	actual := ""
@@ -1462,7 +1432,7 @@ func TestApply_varFile(t *testing.T) {
 		"-var-file", varFilePath,
 		"-state", statePath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -1488,12 +1458,11 @@ func TestApply_varFileDefault(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	actual := ""
@@ -1524,7 +1493,7 @@ func TestApply_varFileDefault(t *testing.T) {
 		"-auto-approve",
 		"-state", statePath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -1550,12 +1519,11 @@ func TestApply_varFileDefaultJSON(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	actual := ""
@@ -1586,7 +1554,7 @@ func TestApply_varFileDefaultJSON(t *testing.T) {
 		"-auto-approve",
 		"-state", statePath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -1632,12 +1600,11 @@ func TestApply_backup(t *testing.T) {
 	}
 
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	// Run the apply command pointing to our existing state
@@ -1646,7 +1613,7 @@ func TestApply_backup(t *testing.T) {
 		"-state", statePath,
 		"-backup", backupPath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -1693,12 +1660,11 @@ func TestApply_disableBackup(t *testing.T) {
 	}
 
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	// Run the apply command pointing to our existing state
@@ -1707,7 +1673,7 @@ func TestApply_disableBackup(t *testing.T) {
 		"-state", statePath,
 		"-backup", "-",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -1765,19 +1731,18 @@ func TestApply_tfWorkspace(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-auto-approve",
 		"-state", statePath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -1803,19 +1768,18 @@ func TestApply_tofuWorkspace(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-auto-approve",
 		"-state", statePath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -1838,14 +1802,13 @@ func TestApply_tfWorkspaceNonDefault(t *testing.T) {
 
 	// Create new env
 	{
+		args := []string{"test"}
 		wsView, wsDone := testView(t)
-		newCmd := &WorkspaceNewCommand{
-			Meta: Meta{
-				WorkingDir: workdir.NewDir("."),
-				View:       wsView,
-			},
+		meta := Meta{
+			WorkingDir: workdir.NewDir("."),
+			View:       wsView,
 		}
-		code := newCmd.Run([]string{"test"})
+		code := RunCommander(t, WorkspaceNewCommander(false), meta, args)
 		output := wsDone(t)
 		if code != 0 {
 			t.Fatalf("error creating workspace: %s", output.All())
@@ -1856,13 +1819,11 @@ func TestApply_tfWorkspaceNonDefault(t *testing.T) {
 	{
 		args := []string{"test"}
 		wsView, wsDone := testView(t)
-		selCmd := &WorkspaceSelectCommand{
-			Meta: Meta{
-				WorkingDir: workdir.NewDir("."),
-				View:       wsView,
-			},
+		meta := Meta{
+			WorkingDir: workdir.NewDir("."),
+			View:       wsView,
 		}
-		code := selCmd.Run(args)
+		code := RunCommander(t, WorkspaceSelectCommander(false), meta, args)
 		output := wsDone(t)
 		if code != 0 {
 			t.Fatalf("error switching workspace: %s", output.All())
@@ -1871,18 +1832,17 @@ func TestApply_tfWorkspaceNonDefault(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-auto-approve",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -1907,14 +1867,13 @@ func TestApply_tofuWorkspaceNonDefault(t *testing.T) {
 
 	// Create new env
 	{
+		args := []string{"test"}
 		wsView, wsDone := testView(t)
-		newCmd := &WorkspaceNewCommand{
-			Meta: Meta{
-				WorkingDir: workdir.NewDir("."),
-				View:       wsView,
-			},
+		meta := Meta{
+			WorkingDir: workdir.NewDir("."),
+			View:       wsView,
 		}
-		code := newCmd.Run([]string{"test"})
+		code := RunCommander(t, WorkspaceNewCommander(false), meta, args)
 		output := wsDone(t)
 		if code != 0 {
 			t.Fatalf("error creating workspace: %s", output.All())
@@ -1923,14 +1882,13 @@ func TestApply_tofuWorkspaceNonDefault(t *testing.T) {
 
 	// Switch to it
 	{
+		args := []string{"test"}
 		wsView, wsDone := testView(t)
-		selCmd := &WorkspaceSelectCommand{
-			Meta: Meta{
-				WorkingDir: workdir.NewDir("."),
-				View:       wsView,
-			},
+		meta := Meta{
+			WorkingDir: workdir.NewDir("."),
+			View:       wsView,
 		}
-		code := selCmd.Run([]string{"test"})
+		code := RunCommander(t, WorkspaceSelectCommander(false), meta, args)
 		output := wsDone(t)
 		if code != 0 {
 			t.Fatalf("error switching workspace: %s", output.All())
@@ -1939,18 +1897,17 @@ func TestApply_tofuWorkspaceNonDefault(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-auto-approve",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -1991,12 +1948,11 @@ func TestApply_targeted(t *testing.T) {
 	}
 
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
@@ -2004,7 +1960,7 @@ func TestApply_targeted(t *testing.T) {
 		"-target", "test_instance.foo",
 		"-target", "test_instance.baz",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -2029,18 +1985,17 @@ func TestApply_targetFlagsDiags(t *testing.T) {
 			t.Chdir(td)
 
 			view, done := testView(t)
-			c := &ApplyCommand{
-				Meta: Meta{
-					WorkingDir: workdir.NewDir("."),
-					View:       view,
-				},
+
+			meta := Meta{
+				WorkingDir: workdir.NewDir("."),
+				View:       view,
 			}
 
 			args := []string{
 				"-auto-approve",
 				"-target", target,
 			}
-			code := c.Run(args)
+			code := RunCommander(t, ApplyCommander(), meta, args)
 			output := done(t)
 			if code != 1 {
 				t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -2082,19 +2037,18 @@ func TestApply_excluded(t *testing.T) {
 	}
 
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-auto-approve",
 		"-exclude", "test_instance.bar",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -2119,18 +2073,17 @@ func TestApply_excludeFlagsDiags(t *testing.T) {
 			t.Chdir(td)
 
 			view, done := testView(t)
-			c := &ApplyCommand{
-				Meta: Meta{
-					WorkingDir: workdir.NewDir("."),
-					View:       view,
-				},
+
+			meta := Meta{
+				WorkingDir: workdir.NewDir("."),
+				View:       view,
 			}
 
 			args := []string{
 				"-auto-approve",
 				"-exclude", exclude,
 			}
-			code := c.Run(args)
+			code := RunCommander(t, ApplyCommander(), meta, args)
 			output := done(t)
 			if code != 1 {
 				t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -2204,12 +2157,11 @@ func TestApply_replace(t *testing.T) {
 	}
 
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
@@ -2217,7 +2169,7 @@ func TestApply_replace(t *testing.T) {
 		"-state", statePath,
 		"-replace", "test_instance.a",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("wrong exit code %d\n\n%s", code, output.Stderr())
@@ -2247,33 +2199,32 @@ func TestApply_pluginPath(t *testing.T) {
 	p := applyFixtureProvider()
 
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	pluginPath := []string{"a", "b", "c"}
 
-	if err := c.Meta.storePluginPath(pluginPath); err != nil {
+	if err := meta.storePluginPath(pluginPath); err != nil {
 		t.Fatal(err)
 	}
-	c.Meta.pluginPath = nil
+	meta.pluginPath = nil
 
 	args := []string{
 		"-state", statePath,
 		"-auto-approve",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
 	}
 
-	if !reflect.DeepEqual(pluginPath, c.Meta.pluginPath) {
-		t.Fatalf("expected plugin path %#v, got %#v", pluginPath, c.Meta.pluginPath)
+	if !reflect.DeepEqual(pluginPath, meta.pluginPath) {
+		t.Fatalf("expected plugin path %#v, got %#v", pluginPath, meta.pluginPath)
 	}
 }
 
@@ -2288,12 +2239,11 @@ func TestApply_jsonGoldenReference(t *testing.T) {
 	p := applyFixtureProvider()
 
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
@@ -2301,7 +2251,7 @@ func TestApply_jsonGoldenReference(t *testing.T) {
 		"-state", statePath,
 		"-auto-approve",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -2344,16 +2294,15 @@ func TestApply_warnings(t *testing.T) {
 
 	t.Run("full warnings", func(t *testing.T) {
 		view, done := testView(t)
-		c := &ApplyCommand{
-			Meta: Meta{
-				WorkingDir:       workdir.NewDir("."),
-				testingOverrides: metaOverridesForProvider(p),
-				View:             view,
-			},
+
+		meta := Meta{
+			WorkingDir:       workdir.NewDir("."),
+			testingOverrides: metaOverridesForProvider(p),
+			View:             view,
 		}
 
 		args := []string{"-auto-approve"}
-		code := c.Run(args)
+		code := RunCommander(t, ApplyCommander(), meta, args)
 		output := done(t)
 		if code != 0 {
 			t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -2371,15 +2320,15 @@ func TestApply_warnings(t *testing.T) {
 
 	t.Run("compact warnings", func(t *testing.T) {
 		view, done := testView(t)
-		c := &ApplyCommand{
-			Meta: Meta{
-				WorkingDir:       workdir.NewDir("."),
-				testingOverrides: metaOverridesForProvider(p),
-				View:             view,
-			},
+
+		meta := Meta{
+			WorkingDir:       workdir.NewDir("."),
+			testingOverrides: metaOverridesForProvider(p),
+			View:             view,
 		}
 
-		code := c.Run([]string{"-auto-approve", "-compact-warnings"})
+		args := []string{"-auto-approve", "-compact-warnings"}
+		code := RunCommander(t, ApplyCommander(), meta, args)
 		output := done(t)
 		if code != 0 {
 			t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -2405,12 +2354,11 @@ func TestApply_showSensitiveArg(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	statePath := testTempFile(t)
@@ -2421,7 +2369,7 @@ func TestApply_showSensitiveArg(t *testing.T) {
 		"-show-sensitive",
 	}
 
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
@@ -2485,12 +2433,11 @@ func TestApply_CreateBeforeDestroyWithRefreshFalse(t *testing.T) {
 	}
 
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
@@ -2500,7 +2447,7 @@ func TestApply_CreateBeforeDestroyWithRefreshFalse(t *testing.T) {
 		"-refresh=false",
 	}
 
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("Failed to run: \n%s", output.Stderr())
@@ -2521,16 +2468,15 @@ func TestApply_concise(t *testing.T) {
 
 	p := planFixtureProvider()
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 	t.Cleanup(testInputMap(t, map[string]string{"approve": "yes"}))
 	args := []string{"-concise"}
-	code := c.Run(args)
+	code := RunCommander(t, ApplyCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad status code: \n%s", output.Stderr())

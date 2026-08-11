@@ -101,6 +101,6 @@ The argument is a Level 1 URI template as defined by RFC 6570, used to map provi
 func ParseProvidersLock(args []string) (*ProvidersLock, func(), tfdiags.Diagnostics) {
 	cli := new(CommandLine)
 	arguments := BindProvidersLock(cli)
-	closer, diags := cli.Stdlib("providers lock", args)
+	closer, diags := cli.parseWithHooks("providers lock", args)
 	return arguments, closer, diags
 }

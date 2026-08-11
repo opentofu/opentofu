@@ -22,15 +22,14 @@ import (
 
 func TestProvidersSchema_error(t *testing.T) {
 	view, done := testView(t)
-	c := &ProvidersSchemaCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
-	if code := c.Run(nil); code != 1 {
+	if code := RunCommander(t, ProvidersSchemaCommander(), meta, nil); code != 1 {
 		output := done(t)
 		t.Fatalf("unexpected exit code %d \n%s", code, output.Stdout())
 	}
@@ -68,10 +67,7 @@ func TestProvidersSchema_output(t *testing.T) {
 			}
 
 			// `terraform init`
-			ic := &InitCommand{
-				Meta: m,
-			}
-			code := ic.Run([]string{})
+			code := RunCommander(t, InitCommander(), m, []string{})
 			output := done(t)
 			if code != 0 {
 				t.Fatalf("init failed\n%s", output.Stderr())
@@ -81,10 +77,7 @@ func TestProvidersSchema_output(t *testing.T) {
 			m.View = view
 
 			// `tofu provider schemas` command
-			pc := &ProvidersSchemaCommand{
-				Meta: m,
-			}
-			code = pc.Run([]string{"-json"})
+			code = RunCommander(t, ProvidersSchemaCommander(), m, []string{"-json"})
 			output = done(t)
 			if code != 0 {
 				t.Fatalf("wrong exit status %d; want 0\nstderr: %s", code, output.Stderr())

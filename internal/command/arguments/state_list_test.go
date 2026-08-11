@@ -56,8 +56,10 @@ func TestParseStateList_basicValidation(t *testing.T) {
 			}),
 		},
 		"invalid flags": {
-			args:        []string{"-unknown"},
-			want:        stateListArgsWithDefaults(nil),
+			args: []string{"-unknown"},
+			want: stateListArgsWithDefaults(func(stateList *StateList) {
+				stateList.InstancesRawAddr = nil
+			}),
 			wantErrText: "flag provided but not defined: -unknown",
 		},
 	}

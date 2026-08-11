@@ -444,7 +444,7 @@ func TestViewColorize(t *testing.T) {
 		var newArgs []string
 		cli.VariadicArg(&newArgs, "args")
 		view := arguments.BindView(&cli, 0)
-		cli.Stdlib("", args)
+		cli.ParseDirect(t.Context(), args)
 		return view, newArgs
 	}
 

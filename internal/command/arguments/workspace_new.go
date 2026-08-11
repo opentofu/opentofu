@@ -38,6 +38,6 @@ func BindWorkspaceNew(cli *CommandLine) *WorkspaceNew {
 func ParseWorkspaceNew(args []string) (*WorkspaceNew, func(), tfdiags.Diagnostics) {
 	cli := new(CommandLine)
 	ret := BindWorkspaceNew(cli)
-	closer, diags := cli.Stdlib("workspace new", args)
+	closer, diags := cli.parseWithHooks("workspace new", args)
 	return ret, closer, diags
 }
