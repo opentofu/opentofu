@@ -11,6 +11,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/hashicorp/go-plugin"
@@ -254,6 +255,26 @@ func detectSubcommand(cmd command.Command) string {
 // by the bash-complete project shipping a fallback for "tofu" that uses `command -C`. Moving away from
 // that and not breaking userspace is going to be quite tricky in the long term.
 func setupCompletion(root command.Command) {
+	compLine := os.Getenv("COMP_LINE")
+	compPoint := os.Getenv("COMP_POINT")
+	completingSingleDash := true
+	completingDoubleDash := true
+	if compLine != "" && compPoint != "" {
+		point, err := strconv.Atoi(compPoint)
+		if err == nil {
+			compVal := compLine
+			if point >= 0 && point < len(compVal) {
+				compVal = compVal[:point]
+			}
+			if strings.HasSuffix(compVal, " --") {
+				completingSingleDash = false
+			}
+			if strings.HasSuffix(compVal, " -") {
+				completingDoubleDash = false
+			}
+		}
+	}
+
 	var builder func(command.Command) complete.Command
 	builder = func(cmd command.Command) complete.Command {
 		comp := complete.Command{
@@ -261,8 +282,12 @@ func setupCompletion(root command.Command) {
 			Sub:   complete.Commands{},
 		}
 		for name := range cmd.CommandLine.Flags {
-			comp.Flags["-"+name] = complete.PredictNothing
-			comp.Flags["--"+name] = complete.PredictNothing
+			if completingSingleDash {
+				comp.Flags["-"+name] = complete.PredictNothing
+			}
+			if completingDoubleDash {
+				comp.Flags["--"+name] = complete.PredictNothing
+			}
 		}
 		for _, sub := range cmd.Commands {
 			comp.Sub[sub.Name] = builder(sub)
@@ -297,7 +322,7 @@ func setupCompletion(root command.Command) {
 		}
 		return command.RunResultHelp
 	}
-	if os.Getenv("COMP_LINE") != "" {
+	if compLine != "" {
 		completer.Complete()
 		os.Exit(0)
 	}
