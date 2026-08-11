@@ -28,6 +28,7 @@ import (
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/terminal"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
 )
 
@@ -905,5 +906,127 @@ func TestLocal_invalidOptions(t *testing.T) {
 
 	if errOutput := done(t).Stderr(); errOutput == "" {
 		t.Fatal("expected error output")
+	}
+}
+
+func TestCheckForgetWarnings(t *testing.T) {
+	provAddr := addrs.AbsProviderConfig{
+		Provider: addrs.NewDefaultProvider("test"),
+		Module:   addrs.RootModule,
+	}
+
+	schema := providers.Schema{
+		Block: &configschema.Block{
+			Attributes: map[string]*configschema.Attribute{
+				"id":  {Type: cty.String, Optional: true},
+				"ami": {Type: cty.String, Optional: true},
+			},
+		},
+	}
+
+	// Create states to forget in non-sorted order to test natural sorting
+	addr10 := mustResourceInstanceAddr(`test_instance.foo["10"]`)
+	beforeVal10 := cty.ObjectVal(map[string]cty.Value{
+		"id":  cty.StringVal("id-10"),
+		"ami": cty.StringVal("ami-123"),
+	})
+	beforeDV10, err := plans.NewDynamicValue(beforeVal10, schema.Block.ImpliedType())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	addr2 := mustResourceInstanceAddr(`test_instance.foo["2"]`)
+	beforeVal2 := cty.ObjectVal(map[string]cty.Value{
+		"id":  cty.StringVal("id-2"),
+		"ami": cty.StringVal("ami-123"),
+	})
+	beforeDV2, err := plans.NewDynamicValue(beforeVal2, schema.Block.ImpliedType())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	addr1 := mustResourceInstanceAddr(`test_instance.foo["1"]`)
+	beforeVal1 := cty.ObjectVal(map[string]cty.Value{
+		"id":  cty.StringVal("id-1"),
+		"ami": cty.StringVal("ami-123"),
+	})
+	beforeDV1, err := plans.NewDynamicValue(beforeVal1, schema.Block.ImpliedType())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	plan := &plans.Plan{
+		Changes: &plans.Changes{
+			Resources: []*plans.ResourceInstanceChangeSrc{
+				{
+					Addr:         addr10,
+					ProviderAddr: provAddr,
+					ChangeSrc: plans.ChangeSrc{
+						Action: plans.Forget,
+						Before: beforeDV10,
+					},
+				},
+				{
+					Addr:         addr2,
+					ProviderAddr: provAddr,
+					ChangeSrc: plans.ChangeSrc{
+						Action: plans.Forget,
+						Before: beforeDV2,
+					},
+				},
+				{
+					Addr:         addr1,
+					ProviderAddr: provAddr,
+					ChangeSrc: plans.ChangeSrc{
+						Action: plans.Forget,
+						Before: beforeDV1,
+					},
+				},
+			},
+		},
+	}
+
+	schemas := &tofu.Schemas{
+		Providers: map[addrs.Provider]providers.ProviderSchema{
+			addrs.NewDefaultProvider("test"): {
+				Provider: providers.Schema{},
+				ResourceTypes: map[string]providers.Schema{
+					"test_instance": schema,
+				},
+			},
+		},
+	}
+
+	diags := checkForgetWarnings(plan, schemas)
+	hasWarnings := false
+	for _, d := range diags {
+		if d.Severity() == tfdiags.Warning {
+			hasWarnings = true
+			break
+		}
+	}
+	if !hasWarnings {
+		t.Fatal("expected warnings")
+	}
+
+	expectedDetail := `After this plan is applied, the objects associated with the following
+resource instances will no longer be managed by OpenTofu:
+ - test_instance.foo["1"] (id="id-1")
+ - test_instance.foo["2"] (id="id-2")
+ - test_instance.foo["10"] (id="id-10")
+
+These objects will continue to exist in the remote system until you delete
+them outside of OpenTofu. If you wish to manage any of these objects with
+OpenTofu again in future then you will need to re-import them.`
+
+	for _, d := range diags {
+		if d.Severity() == tfdiags.Warning {
+			if d.Description().Summary != "Objects will be removed from state" {
+				t.Errorf("wrong summary: %q", d.Description().Summary)
+			}
+			if d.Description().Detail != expectedDetail {
+				t.Errorf("wrong detail:\n%s\n\nwant:\n%s", d.Description().Detail, expectedDetail)
+			}
+		}
 	}
 }

@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"sort"
+	"strings"
 
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/genconfig"
@@ -20,6 +22,7 @@ import (
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
+	"github.com/zclconf/go-cty/cty"
 )
 
 func (b *Local) opPlan(
@@ -213,6 +216,10 @@ func (b *Local) opPlan(
 
 	op.View.Plan(plan, schemas)
 
+	if plan != nil {
+		diags = diags.Append(checkForgetWarnings(plan, schemas))
+	}
+
 	// If we've accumulated any diagnostics along the way then we'll show them
 	// here just before we show the summary and next steps. This can potentially
 	// include errors, because we intentionally try to show a partial plan
@@ -262,4 +269,136 @@ func maybeWriteGeneratedConfig(plan *plans.Plan, out string) (wroteConfig bool, 
 	}
 
 	return wroteConfig, diags
+}
+
+func checkForgetWarnings(plan *plans.Plan, schemas *tofu.Schemas) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+	if plan == nil || plan.Changes == nil {
+		return diags
+	}
+
+	type forgetItem struct {
+		addr string
+		id   string
+	}
+	var items []forgetItem
+
+	for _, rc := range plan.Changes.Resources {
+		if rc.Action == plans.Forget || rc.Action == plans.ForgetThenCreate {
+			schema, _ := schemas.ResourceTypeConfig(
+				rc.ProviderAddr.Provider,
+				rc.Addr.Resource.Resource.Mode,
+				rc.Addr.Resource.Resource.Type,
+			)
+			if schema == nil {
+				items = append(items, forgetItem{
+					addr: rc.Addr.String(),
+					id:   "",
+				})
+				continue
+			}
+
+			changeV, err := rc.Decode(schema)
+			if err != nil || changeV.Before == cty.NilVal {
+				items = append(items, forgetItem{
+					addr: rc.Addr.String(),
+					id:   "",
+				})
+				continue
+			}
+
+			idStr := ""
+			beforeVal := changeV.Before
+			if beforeVal.Type().IsObjectType() {
+				if _, ok := beforeVal.Type().AttributeTypes()["id"]; ok {
+					idVal := beforeVal.GetAttr("id")
+					if idVal != cty.NilVal && !idVal.IsNull() && idVal.Type() == cty.String {
+						idStr = idVal.AsString()
+					}
+				}
+			}
+
+			items = append(items, forgetItem{
+				addr: rc.Addr.String(),
+				id:   idStr,
+			})
+		}
+	}
+
+	if len(items) == 0 {
+		return diags
+	}
+
+	// Sort items by address for deterministic output in natural order
+	sort.Slice(items, func(i, j int) bool {
+		return sortingNaturally(items[i].addr, items[j].addr)
+	})
+
+	var sb strings.Builder
+	sb.WriteString("After this plan is applied, the objects associated with the following\n")
+	sb.WriteString("resource instances will no longer be managed by OpenTofu:\n")
+	for _, item := range items {
+		if item.id != "" {
+			fmt.Fprintf(&sb, " - %s (id=%q)\n", item.addr, item.id)
+		} else {
+			fmt.Fprintf(&sb, " - %s\n", item.addr)
+		}
+	}
+	sb.WriteString("\nThese objects will continue to exist in the remote system until you delete\n")
+	sb.WriteString("them outside of OpenTofu. If you wish to manage any of these objects with\n")
+	sb.WriteString("OpenTofu again in future then you will need to re-import them.")
+
+	diags = diags.Append(tfdiags.Sourceless(
+		tfdiags.Warning,
+		"Objects will be removed from state",
+		sb.String(),
+	))
+
+	return diags
+}
+
+func sortingNaturally(s1, s2 string) bool {
+	i, j := 0, 0
+	for i < len(s1) && j < len(s2) {
+		c1, c2 := s1[i], s2[j]
+		if isDigit(c1) && isDigit(c2) {
+			// Extract number from s1
+			num1Start := i
+			for i < len(s1) && isDigit(s1[i]) {
+				i++
+			}
+			num1Str := s1[num1Start:i]
+
+			// Extract number from s2
+			num2Start := j
+			for j < len(s2) && isDigit(s2[j]) {
+				j++
+			}
+			num2Str := s2[num2Start:j]
+
+			// Compare numerically
+			trimmed1 := strings.TrimLeft(num1Str, "0")
+			trimmed2 := strings.TrimLeft(num2Str, "0")
+			if len(trimmed1) != len(trimmed2) {
+				return len(trimmed1) < len(trimmed2)
+			}
+			if trimmed1 != trimmed2 {
+				return trimmed1 < trimmed2
+			}
+			if len(num1Str) != len(num2Str) {
+				return len(num1Str) > len(num2Str)
+			}
+		} else {
+			if c1 != c2 {
+				return c1 < c2
+			}
+			i++
+			j++
+		}
+	}
+	return len(s1) < len(s2)
+}
+
+func isDigit(c byte) bool {
+	return c >= '0' && c <= '9'
 }

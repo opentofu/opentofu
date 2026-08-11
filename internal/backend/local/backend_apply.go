@@ -142,6 +142,9 @@ func (b *Local) opApply(
 		log.Printf("[INFO] backend/local: apply calling Plan")
 		plan, moreDiags = lr.Core.Plan(ctx, lr.Config, lr.InputState, lr.PlanOpts)
 		diags = diags.Append(moreDiags)
+		if plan != nil {
+			diags = diags.Append(checkForgetWarnings(plan, schemas))
+		}
 		if moreDiags.HasErrors() {
 			// If OpenTofu Core generated a partial plan despite the errors
 			// then we'll make the best effort to render it. OpenTofu Core
