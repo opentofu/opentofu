@@ -205,8 +205,9 @@ func realMain() int {
 	defer plugin.CleanupClients()
 
 	var exitCode int
-	if cliEnabled := os.Getenv(EnvCliEnabled); cliEnabled != "" && experimentsAreAllowed() {
-		exitCode = experimentalMain(
+	if cliEnabled := os.Getenv(EnvCliEnabled); cliEnabled != "false" {
+		// Use the new CLI library unless explicitly disabled with "false"
+		exitCode = commandMain(
 			ctx,
 			view,
 			rv,
@@ -217,7 +218,8 @@ func realMain() int {
 			unmanagedProviders,
 		)
 	} else {
-		exitCode = cliMain(
+		// Legacy fallback, only available in v1.13.x, will be removed in v1.14.0
+		exitCode = legacyCommandMain(
 			ctx,
 			view,
 			rv,

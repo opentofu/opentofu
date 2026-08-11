@@ -83,6 +83,8 @@ func modulePath(args []string) (string, error) {
 	return path, nil
 }
 
+// Group defines a command group and it's metadata
+// In practice, this is only used for the special formatting in the root command
 type Group struct {
 	ID     string
 	Title  string
@@ -90,36 +92,52 @@ type Group struct {
 }
 
 var (
-	MainCommandGroup    = Group{ID: "main", Title: "Main commands:", NoSort: true}
-	DefaultCommandGroup = Group{ID: "", Title: "All other commands:"}
+	MainCommandGroup  = Group{ID: "main", Title: "Main commands:", NoSort: true}
+	OtherCommandGroup = Group{ID: "", Title: "All other commands:"}
 )
 
+// Command is the metadata and action associated with a command available to the CLI.
+// This is eventually translated into a parsable/runnable CLI in cmd/tofu.
 type Command struct {
-	Name    string
-	Short   string
-	Long    string
+	Name string
+	// Short is the text that accompanies it in the parent command's help text.
+	Short string
+	// Long is the full description that is printed as part of the command's help text.
+	Long string
+	// GroupID if set determines what group to show the command under in the parent command's help text.
 	GroupID string
-	Hidden  bool
+	// If this command should not be shown in the help text of the parent command.
+	Hidden bool
 
+	// Commands are the sub-commands of the current command.
 	Commands []Command
-	Groups   []Group
+	// Groups to split the sub Commands into
+	Groups []Group
 
-	UsageOptions UsageOptions
-	ShowHelpFlag bool
+	// UsageOverride are custom overrides for special cases.
+	// Ideally we can retire this eventually as we unify the help/usage text.
+	UsageOverride UsageOverride
 
+	// CommandLine defines what flags and arguments are available to this command.
 	CommandLine arguments.CommandLine
-	Run         func(Meta) int
+	// Run is the action that will be executed if this command is selected.
+	Run func(Meta) int
 
+	// A legacy option that will be removed at some point
+	// This was introduced during the migration to proper
+	// diagnostic error printing during the meta-refactor
 	DiagsWithNewline bool
 }
 
-type UsageOptions struct {
-	Usage  string
-	Suffix string
-
+type UsageOverride struct {
+	// Weird formatting for the root command
+	Usage string
+	// Weird formatting for the root command
 	SingleSpace bool
 }
 
+// CommandUsage writes usage/help text to the given writer.
+// This function standardizes how we format usage/help text.
 func CommandUsage(namespace string, cmd Command, w io.Writer) {
 	const TERM_WIDTH = 80
 
@@ -210,14 +228,14 @@ func CommandUsage(namespace string, cmd Command, w io.Writer) {
 		}
 
 		printHeader(title)
-		if !cmd.UsageOptions.SingleSpace {
+		if !cmd.UsageOverride.SingleSpace {
 			fmt.Fprint(w, "\n")
 		}
 		if group != nil && group.Description != "" {
 			printDescription(group.Description)
 		}
 
-		printTable(flagsToPrint, true, cmd.UsageOptions.SingleSpace)
+		printTable(flagsToPrint, true, cmd.UsageOverride.SingleSpace)
 
 		if group != nil && group.Suffix != "" {
 			printDescription(group.Suffix)
@@ -226,8 +244,8 @@ func CommandUsage(namespace string, cmd Command, w io.Writer) {
 
 	// Start building
 
-	if cmd.UsageOptions.Usage != "" {
-		printHeader(fmt.Sprintf("Usage: %s\n", cmd.UsageOptions.Usage))
+	if cmd.UsageOverride.Usage != "" {
+		printHeader(fmt.Sprintf("Usage: %s\n", cmd.UsageOverride.Usage))
 	} else {
 		positionalArgs := ""
 		for _, arg := range cmd.CommandLine.Args {
@@ -273,16 +291,20 @@ func CommandUsage(namespace string, cmd Command, w io.Writer) {
 	}
 }
 
+// RunResultHelp is a specific exit code that implies that help text should be shown.
+// This will be modified or removed when we rip out mitchellh/cli in 1.14.x
 var RunResultHelp = cli.RunResultHelp
 
-func RunCli(namespace string, cmd Command, meta Meta, diags tfdiags.Diagnostics) int {
-	return runCommand(namespace, cmd, meta, diags)
+// RunCommand is how the legacy command structure calls into the new command
+// structure. This will be removed in 1.14.x
+func RunCommand(cmd Command, meta Meta, args []string) int {
+	return RunCli("", cmd, meta, cmd.CommandLine.StdlibArgs(args))
 }
 
-func RunCommand(cmd Command, meta Meta, args []string) int {
-	return runCommand("", cmd, meta, cmd.CommandLine.StdlibArgs(args))
-}
-func runCommand(namespace string, cmd Command, meta Meta, diags tfdiags.Diagnostics) int {
+// RunCli is how the cli package executes a command after performing flag and argument
+// parsing. The oddity here is that certain arg handling diags need to be printed
+// from a properly configured meta and are therefore passed in here.
+func RunCli(namespace string, cmd Command, meta Meta, diags tfdiags.Diagnostics) int {
 	// Different exit code if args parse error vs hook error
 	isArgsErr := diags.HasErrors()
 
@@ -328,7 +350,8 @@ func runCommand(namespace string, cmd Command, meta Meta, diags tfdiags.Diagnost
 	return cmd.Run(meta)
 }
 
-func RootCommander(chdir *string) Command {
+// RootCommander builds the standard tofu root command.
+func RootCommander(help *bool, chdir *string) Command {
 	root := Command{
 		Name: "",
 		Long: `The available commands for execution are listed below. The primary workflow commands are given first, followed by less common or more advanced commands.`,
@@ -363,24 +386,20 @@ func RootCommander(chdir *string) Command {
 			UnlockCommander(),
 			StateCommander(),
 		},
-		Groups: []Group{MainCommandGroup, DefaultCommandGroup},
+		Groups: []Group{MainCommandGroup, OtherCommandGroup},
 
-		UsageOptions: UsageOptions{
+		UsageOverride: UsageOverride{
 			Usage:       "tofu [global options] <subcommand> [args]",
 			SingleSpace: true,
 		},
-
-		ShowHelpFlag: true,
 	}
 
 	root.CommandLine.FlagGroups = []arguments.FlagGroup{{
 		Title: "Global options (use these before the subcommand, if any)",
 	}}
 
-	var help bool
-
 	root.CommandLine.StringVar(chdir, "chdir", "", "Switch to a different working directory before executing the given subcommand.").SetDisplay("=DIR")
-	root.CommandLine.BoolVar(&help, "help", false, "Show this help output, or the help for a specified subcommand.")
+	root.CommandLine.BoolVar(help, "help", false, "Show this help output, or the help for a specified subcommand.")
 
 	return root
 }

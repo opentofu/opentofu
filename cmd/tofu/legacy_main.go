@@ -25,7 +25,7 @@ import (
 	"github.com/opentofu/svchost/disco"
 )
 
-func cliMain(
+func legacyCommandMain(
 	ctx context.Context,
 	view *views.View,
 	rv *views.Root,

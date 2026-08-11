@@ -270,7 +270,7 @@ func (c *CommandLine) VariadicArg(p *[]string, name string) {
 			panic("BUG: Can not register multiple variadic arguments!")
 		}
 	}
-	c.Args = append(c.Args, Argument{Name: name, Variadic: true, Optional: true, Cli: &cli.StringArgs{Name: name, Destination: p}, Process: func(args []string) ([]string, error) {
+	c.Args = append(c.Args, Argument{Name: name, Variadic: true, Optional: true, Cli: &cli.StringArgs{Name: name, Destination: p, Max: -1}, Process: func(args []string) ([]string, error) {
 		*p = args
 		return nil, nil
 	}})
@@ -362,7 +362,7 @@ func (c *CommandLine) RawFlags(p flags.RawFlags, name string, usage string) *Fla
 	})
 	f.Cli = func() cli.Flag {
 		dest := cli.Value(p)
-		return &cli.GenericFlag{Name: f.Name, Category: f.GroupID, DefaultText: f.Display, Local: true, Usage: f.Usage, Hidden: f.Hidden, Destination: &dest}
+		return &cli.GenericFlag{Name: f.Name, Category: f.GroupID, DefaultText: f.Display, Local: true, Usage: f.Usage, Hidden: f.Hidden, Destination: &dest, Value: dest}
 	}
 	return f
 }

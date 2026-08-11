@@ -31,7 +31,7 @@ import (
 	cli "github.com/urfave/cli/v3"
 )
 
-func experimentalMain(
+func commandMain(
 	ctx context.Context,
 	view *views.View,
 	rv *views.Root,
@@ -49,8 +49,9 @@ func experimentalMain(
 		})
 	}
 
+	var help bool // Unused, urfave/cli picks up on the help flag regardless
 	var chdirArg string
-	root := command.RootCommander(&chdirArg)
+	root := command.RootCommander(&help, &chdirArg)
 
 	setupCompletion(root)
 

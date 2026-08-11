@@ -100,7 +100,7 @@ func NewWorkdir(args []string) (*Dir, []string, error) {
 	return ret, args, nil
 }
 
-// TODO replace the above function with this once the cobra refactor is complete
+// TODO replace the above function with this once the meta-refactor is complete
 func NewWorkdirExplicit(chdir string) (*Dir, error) {
 	originalWd, err := os.Getwd()
 	if err != nil {
