@@ -47,7 +47,7 @@ func (b *execGraphBuilder) ManagedResourceInstanceSubgraph(
 	if (plannedChange.Action == plans.Delete || plannedChange.Action == plans.Forget) && !plannedChange.After.IsNull() {
 		panic(fmt.Sprintf("change for %s has action %s but non-null planned new value", plannedChange.PrevRunAddr, plannedChange.Action))
 	}
-	if plannedChange.Action != plans.Create && plannedChange.Action != plans.Delete && plannedChange.Action != plans.Forget && plannedChange.Action != plans.NoOp && (plannedChange.Before.IsNull() || plannedChange.After.IsNull()) {
+	if plannedChange.Action != plans.Create && plannedChange.Action != plans.Delete && plannedChange.Action != plans.Forget && (plannedChange.Before.IsNull() || plannedChange.After.IsNull()) {
 		panic(fmt.Sprintf("change for %s has action %s but does not have both a before and after value", plannedChange.PrevRunAddr, plannedChange.Action))
 	}
 
@@ -291,13 +291,11 @@ func (b *execGraphBuilder) managedResourceInstanceSubgraphNoOp(
 	plannedChange *plans.ResourceInstanceChange,
 ) resourceInstanceObjectSubgraph {
 	_, addCreateDep := b.lower.MutableWaiter()
-	_, addDeleteDep := b.lower.MutableWaiter()
 
 	_, _, priorStateRef, _ := b.managedResourceInstanceChangeInputs(plannedChange)
 	return resourceInstanceObjectSubgraph{
 		valueRef:      priorStateRef,
 		addDesiredDep: addCreateDep,
-		addOrphanDep:  addDeleteDep,
 	}
 }
 

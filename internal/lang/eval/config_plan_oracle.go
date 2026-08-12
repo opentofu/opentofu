@@ -26,7 +26,8 @@ type PlanningOracle struct {
 }
 
 // HasAddress queries the root module instance to determine if the address is
-// present in the configuration.
+// present in the configuration. Note: if instances for the address's underlying
+// resource cannot be resolved, this will return false.
 func (o *PlanningOracle) HasAddress(ctx context.Context, addr addrs.AbsResourceInstance) bool {
 	return evalglue.ResourceInstance(ctx, o.root, addr) != nil
 }

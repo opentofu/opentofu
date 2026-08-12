@@ -33,7 +33,7 @@ func (o *PlanningOracle) SetUpMoveStatements(ctx context.Context) tfdiags.Diagno
 		Changes: addrs.MakeSyncMap[addrs.AbsResourceInstance, refactoring.MoveSuccess](),
 		Blocked: addrs.MakeSyncMap[addrs.AbsMoveable, refactoring.MoveBlocked](),
 	}
-	o.moveStatements = o.root.GetMoveStatements(ctx)
+	o.moveStatements = slices.Collect(o.root.GetMoveStatements(ctx))
 	return refactoring.ValidateMoveStatementGraph(o.moveStatements)
 }
 
