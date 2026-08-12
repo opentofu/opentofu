@@ -152,6 +152,7 @@ func DirFromModule(ctx context.Context, loader configload.Loader, rootDir, modul
 				Name:       initFromModuleRootCallName,
 				SourceAddr: sourceAddr,
 				Source:     hcl.StaticExpr(cty.StringVal(sourceAddrStr), rng),
+				Config:     hcl.EmptyBody(),
 				DeclRange:  rng,
 				Variables: func(v *configs.Variable) (cty.Value, hcl.Diagnostics) {
 					if v.Default != cty.NilVal {
@@ -178,7 +179,8 @@ func DirFromModule(ctx context.Context, loader configload.Loader, rootDir, modul
 	}
 
 	walker := inst.moduleInstallWalker(ctx, instManifest, true, wrapHooks, remoteFetcher)
-	_, cDiags := inst.installDescendentModules(ctx, fakeRootModule, instManifest, walker, true)
+	fakeRootCall := configs.NewStaticModuleCall(addrs.RootModule, hcl.Range{}, nil, "", "")
+	_, cDiags := inst.installDescendentModules(ctx, fakeRootModule, fakeRootCall, instManifest, walker, true)
 	if cDiags.HasErrors() {
 		return diags.Append(cDiags)
 	}
@@ -223,13 +225,16 @@ func DirFromModule(ctx context.Context, loader configload.Loader, rootDir, modul
 			// and must thus be rewritten to be absolute addresses again.
 			// For now we can't do this rewriting automatically, but we'll
 			// generate an error to help the user do it manually.
-			mod, _ := loader.LoadConfigDir(rootDir, configs.NewStaticModuleCall(addrs.RootModule, hcl.Range{}, func(v *configs.Variable) (cty.Value, hcl.Diagnostics) { // ignore diagnostics since we're just doing value-add here anyway
-				if v.Default != cty.NilVal {
-					return v.Default, nil
-				}
-				return cty.DynamicVal, nil
-			}, rootDir, ""))
+			mod, _ := loader.LoadConfigDir(rootDir)
 			if mod != nil {
+				call := configs.NewStaticModuleCall(addrs.RootModule, hcl.Range{}, func(v *configs.Variable) (cty.Value, hcl.Diagnostics) { // ignore diagnostics since we're just doing value-add here anyway
+					if v.Default != cty.NilVal {
+						return v.Default, nil
+					}
+					return cty.DynamicVal, nil
+				}, rootDir, "")
+				_ = mod.WithStaticCall(call)
+
 				for _, mc := range mod.ModuleCalls {
 					if pathTraversesUp(mc.SourceAddrRaw) {
 						packageAddr, givenSubdir := getmodules.SplitPackageSubdir(sourceAddrStr)

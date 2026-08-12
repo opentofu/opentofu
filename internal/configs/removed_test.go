@@ -428,7 +428,7 @@ func TestRemovedBlock_decode(t *testing.T) {
 
 func TestRemovedBlock_inModule(t *testing.T) {
 	parser := NewParser(nil)
-	mod, diags := parser.LoadConfigDir("testdata/valid-modules/removed-blocks", RootModuleCallForTesting())
+	mod, diags := parser.LoadConfigDir("testdata/valid-modules/removed-blocks")
 	if diags.HasErrors() {
 		t.Errorf("unexpected error: %s", diags.Error())
 	}

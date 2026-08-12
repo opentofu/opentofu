@@ -40,11 +40,10 @@ type Loader interface {
 
 	// configs.Parser proxy methods
 
-	LoadConfigDirUneval(path string, load configs.SelectiveLoader) (*configs.Module, hcl.Diagnostics)
-	LoadConfigDir(path string, call configs.StaticModuleCall) (*configs.Module, hcl.Diagnostics)
+	LoadConfigDir(path string) (*configs.Module, hcl.Diagnostics)
 	LoadHCLFile(path string) (hcl.Body, hcl.Diagnostics)
-	LoadConfigDirSelective(path string, call configs.StaticModuleCall, load configs.SelectiveLoader) (*configs.Module, hcl.Diagnostics)
-	LoadConfigDirWithTests(path string, testDirectory string, call configs.StaticModuleCall) (*configs.Module, hcl.Diagnostics)
+	LoadConfigDirSelective(path string, load configs.SelectiveLoader) (*configs.Module, hcl.Diagnostics)
+	LoadConfigDirWithTests(path string, testDirectory string) (*configs.Module, hcl.Diagnostics)
 	ForceFileSource(filename string, src []byte)
 }
 

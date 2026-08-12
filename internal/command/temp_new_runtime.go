@@ -167,7 +167,7 @@ func (n *newRuntimeModules) ModuleConfig(ctx context.Context, source addrs.Modul
 	log.Printf("[TRACE] backend/local: Loading module from %q from local path %q", source, sourceDir)
 
 	n.mu.Lock()
-	mod, hclDiags := n.loader.LoadConfigDirUneval(sourceDir, configs.SelectiveLoadAll)
+	mod, hclDiags := n.loader.LoadConfigDir(sourceDir)
 	n.mu.Unlock()
 	diags = diags.Append(hclDiags)
 	if hclDiags.HasErrors() {

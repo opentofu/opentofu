@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime/debug"
 	"strings"
 	"testing"
 
@@ -26,12 +25,11 @@ type tofuResult struct {
 }
 
 func (r tofuResult) Success() tofuResult {
+	r.t.Helper()
 	if r.stderr != "" {
-		debug.PrintStack()
 		r.t.Fatalf("unexpected stderr output:\n%s", r.stderr)
 	}
 	if r.err != nil {
-		debug.PrintStack()
 		r.t.Fatalf("unexpected error: %s", r.err)
 	}
 
@@ -39,8 +37,8 @@ func (r tofuResult) Success() tofuResult {
 }
 
 func (r tofuResult) Failure() tofuResult {
+	r.t.Helper()
 	if r.err == nil {
-		debug.PrintStack()
 		r.t.Fatal("expected error")
 	}
 	return r
@@ -58,17 +56,26 @@ func SanitizeStderr(msg string) string {
 }
 
 func (r tofuResult) StderrContains(msg string) tofuResult {
+	r.t.Helper()
 	stdErrSanitized := SanitizeStderr(r.stderr)
 	if !strings.Contains(stdErrSanitized, msg) {
-		debug.PrintStack()
 		r.t.Fatalf("expected stderr output %q:\n%s", msg, stdErrSanitized)
 	}
 	return r
 }
 
+func (r tofuResult) StdoutContains(msg string) tofuResult {
+	r.t.Helper()
+	stdoutSanitized := SanitizeStderr(r.stdout)
+	if !strings.Contains(stdoutSanitized, msg) {
+		r.t.Fatalf("expected stdout output %q:\n%s", msg, stdoutSanitized)
+	}
+	return r
+}
+
 func (r tofuResult) Contains(msg string) tofuResult {
+	r.t.Helper()
 	if !strings.Contains(r.stdout, msg) {
-		debug.PrintStack()
 		r.t.Fatalf("expected output %q:\n%s", msg, r.stdout)
 	}
 	return r

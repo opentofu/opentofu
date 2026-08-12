@@ -95,7 +95,8 @@ resource "foo" "bar" {}
 	dummyIdentifier := StaticIdentifier{Subject: "local.test"}
 
 	t.Run("Empty Eval", func(t *testing.T) {
-		mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting(), "dir", SelectiveLoadAll)
+		mod, _ := NewModule([]*File{file}, nil, "dir", SelectiveLoadAll)
+		_ = mod.WithStaticCall(RootModuleCallForTesting())
 		emptyEval := StaticEvaluator{}
 
 		// Expr with no traversals shouldn't access any fields
@@ -118,7 +119,8 @@ resource "foo" "bar" {}
 	})
 
 	t.Run("Simple static cases", func(t *testing.T) {
-		mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting(), "dir", SelectiveLoadAll)
+		mod, _ := NewModule([]*File{file}, nil, "dir", SelectiveLoadAll)
+		_ = mod.WithStaticCall(RootModuleCallForTesting())
 		eval := NewStaticEvaluator(mod, RootModuleCallForTesting())
 
 		locals := []struct {
@@ -155,7 +157,8 @@ resource "foo" "bar" {}
 			}
 			return v.Default, nil
 		}, "<testing>", "")
-		mod, _ := NewModule([]*File{file}, nil, call, "dir", SelectiveLoadAll)
+		mod, _ := NewModule([]*File{file}, nil, "dir", SelectiveLoadAll)
+		_ = mod.WithStaticCall(call)
 		eval := NewStaticEvaluator(mod, call)
 
 		locals := []struct {
@@ -181,7 +184,8 @@ resource "foo" "bar" {}
 	})
 
 	t.Run("Bad References", func(t *testing.T) {
-		mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting(), "dir", SelectiveLoadAll)
+		mod, _ := NewModule([]*File{file}, nil, "dir", SelectiveLoadAll)
+		_ = mod.WithStaticCall(RootModuleCallForTesting())
 		eval := NewStaticEvaluator(mod, RootModuleCallForTesting())
 
 		locals := []struct {
@@ -201,7 +205,8 @@ resource "foo" "bar" {}
 	})
 
 	t.Run("Circular References", func(t *testing.T) {
-		mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting(), "dir", SelectiveLoadAll)
+		mod, _ := NewModule([]*File{file}, nil, "dir", SelectiveLoadAll)
+		_ = mod.WithStaticCall(RootModuleCallForTesting())
 		eval := NewStaticEvaluator(mod, RootModuleCallForTesting())
 
 		locals := []struct {
@@ -238,7 +243,8 @@ resource "foo" "bar" {}
 				Subject:  v.DeclRange.Ptr(),
 			}}
 		}, "<testing>", "")
-		mod, _ := NewModule([]*File{file}, nil, call, "dir", SelectiveLoadAll)
+		mod, _ := NewModule([]*File{file}, nil, "dir", SelectiveLoadAll)
+		_ = mod.WithStaticCall(call)
 		eval := NewStaticEvaluator(mod, call)
 
 		badref := mod.Locals["ref_c"]
@@ -252,7 +258,8 @@ resource "foo" "bar" {}
 	})
 
 	t.Run("Missing References", func(t *testing.T) {
-		mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting(), "dir", SelectiveLoadAll)
+		mod, _ := NewModule([]*File{file}, nil, "dir", SelectiveLoadAll)
+		_ = mod.WithStaticCall(RootModuleCallForTesting())
 		eval := NewStaticEvaluator(mod, RootModuleCallForTesting())
 
 		locals := []struct {
@@ -273,7 +280,8 @@ resource "foo" "bar" {}
 
 	t.Run("Workspace", func(t *testing.T) {
 		call := NewStaticModuleCall(nil, hcl.Range{}, nil, "<testing>", "my-workspace")
-		mod, _ := NewModule([]*File{file}, nil, call, "dir", SelectiveLoadAll)
+		mod, _ := NewModule([]*File{file}, nil, "dir", SelectiveLoadAll)
+		_ = mod.WithStaticCall(call)
 		eval := NewStaticEvaluator(mod, call)
 
 		value, diags := eval.Evaluate(t.Context(), mod.Locals["ws"].Expr, dummyIdentifier)
@@ -286,7 +294,8 @@ resource "foo" "bar" {}
 	})
 
 	t.Run("Functions", func(t *testing.T) {
-		mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting(), "dir", SelectiveLoadAll)
+		mod, _ := NewModule([]*File{file}, nil, "dir", SelectiveLoadAll)
+		_ = mod.WithStaticCall(RootModuleCallForTesting())
 		eval := NewStaticEvaluator(mod, RootModuleCallForTesting())
 
 		value, diags := eval.Evaluate(t.Context(), mod.Locals["func"].Expr, dummyIdentifier)
@@ -311,7 +320,8 @@ func TestStaticEvaluator_DecodeExpression(t *testing.T) {
 	if fileDiags.HasErrors() {
 		t.Fatal(fileDiags)
 	}
-	mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting(), "dir", SelectiveLoadAll)
+	mod, _ := NewModule([]*File{file}, nil, "dir", SelectiveLoadAll)
+	_ = mod.WithStaticCall(RootModuleCallForTesting())
 	mod.Locals["my_ephemeral_local"] = &Local{
 		Name:      "my_ephemeral_local",
 		Expr:      hcl.StaticExpr(cty.StringVal("ephemeral local value").Mark(marks.Ephemeral), hcl.Range{}),
@@ -443,7 +453,8 @@ terraform {
 					return v.Default, nil
 				},
 			}
-			mod, _ := NewModule([]*File{file}, nil, modCall, "dir", SelectiveLoadAll)
+			mod, _ := NewModule([]*File{file}, nil, "dir", SelectiveLoadAll)
+			_ = mod.WithStaticCall(modCall)
 
 			_, diags := mod.Backend.Hash(t.Context(), schema)
 			if diags.HasErrors() {

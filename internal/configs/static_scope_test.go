@@ -185,7 +185,8 @@ func TestStaticScope_GetInputVariable(t *testing.T) {
 			".",
 			"irrelevant",
 		)
-		mod, diags := p.LoadConfigDir(".", call)
+		mod, diags := p.LoadConfigDir(".")
+		diags = diags.Extend(mod.WithStaticCall(call))
 		assertNoDiagnostics(t, diags)
 
 		// We'll make sure the config and the test cases remain consistent
@@ -235,7 +236,8 @@ func TestStaticScope_GetInputVariable(t *testing.T) {
 			".",
 			"irrelevant",
 		)
-		mod, diags := p.LoadConfigDir(".", call)
+		mod, diags := p.LoadConfigDir(".")
+		diags = diags.Extend(mod.WithStaticCall(call))
 		assertNoDiagnostics(t, diags)
 
 		eval := NewStaticEvaluator(mod, call)
@@ -273,7 +275,8 @@ func TestStaticScope_GetInputVariable(t *testing.T) {
 			".",
 			"irrelevant",
 		)
-		mod, diags := p.LoadConfigDir(".", call)
+		mod, diags := p.LoadConfigDir(".")
+		diags = diags.Extend(mod.WithStaticCall(call))
 		assertNoDiagnostics(t, diags)
 
 		eval := NewStaticEvaluator(mod, call)
@@ -315,7 +318,8 @@ func TestStaticScope_GetLocalValue(t *testing.T) {
 			".",
 			"irrelevant",
 		)
-		mod, diags := p.LoadConfigDir(".", call)
+		mod, diags := p.LoadConfigDir(".")
+		diags = diags.Extend(mod.WithStaticCall(call))
 		assertNoDiagnostics(t, diags)
 
 		eval := NewStaticEvaluator(mod, call)
@@ -346,7 +350,8 @@ func TestStaticScope_GetLocalValue(t *testing.T) {
 			".",
 			"irrelevant",
 		)
-		mod, diags := p.LoadConfigDir(".", call)
+		mod, diags := p.LoadConfigDir(".")
+		diags = diags.Extend(mod.WithStaticCall(call))
 		assertNoDiagnostics(t, diags)
 
 		eval := NewStaticEvaluator(mod, call)

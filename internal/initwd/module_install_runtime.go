@@ -43,7 +43,7 @@ func (i *ModuleInstaller) installDescendentModulesNewRuntime(ctx context.Context
 		})
 	}
 
-	root, hclDiags := i.loader.LoadConfigDirUneval(rootDir, configs.SelectiveLoadAll)
+	root, hclDiags := i.loader.LoadConfigDir(rootDir)
 	diags = diags.Append(hclDiags)
 	if diags.HasErrors() {
 		return nil, diags
