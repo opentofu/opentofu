@@ -190,8 +190,7 @@ The easiest way to do this without introducing any new syntax is to take an appr
 
 # Import the internal library
 symbols "internal" {
-  source = "."
-  file  = "./internal/types.sym.hcl"
+  source = "./internal/"
 }
 
 
@@ -251,10 +250,9 @@ values {
 ```hcl
 # main.tofu
 
-# Import ./local-lib/exported.sym.hcl as "lib"
+# Import ./local-lib/ as "lib"
 symbols "lib" {
   source = "./local-lib" # Static evaluation not allowed in this source
-  file   = "exported.sym.hcl" 
 }
 
 # This variable pre-emptively 
