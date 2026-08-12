@@ -49,15 +49,24 @@ func commandMain(
 		})
 	}
 
-	var help bool // Unused, urfave/cli picks up on the help flag regardless
+	var help bool    // Unused, urfave/cli picks up on the help flag regardless
+	var version bool // Unused, urfave/cli picks up on the version flag regardless
 	var chdirArg string
-	root := command.RootCommander(&help, &chdirArg)
+	root := command.RootCommander(&help, &version, &chdirArg)
 
 	setupCompletion(root)
 
+	// Start processing the args without [0]
+	args := os.Args[1:]
 	// Prefix the args with any args from the EnvCLI
 	subcommand := detectSubcommand(root)
-	args, err := mergeEnvArgs(EnvCLI, subcommand, os.Args)
+	if version {
+		// Inject the version subcommand, this is a
+		// odd legacy hack to match the old cli.
+		subcommand = "version"
+		args = append([]string{subcommand}, args...)
+	}
+	args, err := mergeEnvArgs(EnvCLI, subcommand, args)
 	if err != nil {
 		rv.Error(err.Error())
 		return 1
@@ -72,6 +81,7 @@ func commandMain(
 		rv.Error(err.Error())
 		return 1
 	}
+	args = append([]string{os.Args[0]}, args...)
 
 	// In practice, this is only ever called once, though we could wrap it in a sync.Once if we want to be safer.
 	meta := func() (command.Meta, int) {
@@ -171,26 +181,31 @@ func commandToCli(namespace string, cmd command.Command, meta func() (command.Me
 		return cc
 	}
 
-	if cmd.Run != nil {
-		cc.Action = func(_ context.Context, _ *cli.Command) error {
-			m, ec := meta()
-			if ec != 0 {
-				return ExitCodeError(ec)
-			}
-
-			// Check positional arguments
-			diags := cmd.CommandLine.RemainCheck(cc.Args().Slice())
-
-			ec = command.RunCli(namespace, cmd, m, diags)
-			if ec != 0 {
-				if ec == command.RunResultHelp {
-					command.CommandUsage(namespace, cmd, os.Stdout)
-					ec = 1
-				}
-				return ExitCodeError(ec)
-			}
-			return nil
+	cc.Action = func(_ context.Context, _ *cli.Command) error {
+		m, ec := meta()
+		if ec != 0 {
+			return ExitCodeError(ec)
 		}
+
+		// Check positional arguments
+		diags := cmd.CommandLine.RemainCheck(cc.Args().Slice())
+
+		if cmd.Run == nil {
+			command.CommandUsage(namespace, cmd, os.Stdout)
+			// If no action is defined, this is the error code that
+			// mitchellh/cli would return
+			return ExitCodeError(127)
+		}
+
+		ec = command.RunCli(namespace, cmd, m, diags)
+		if ec != 0 {
+			if ec == command.RunResultHelp {
+				command.CommandUsage(namespace, cmd, os.Stdout)
+				ec = 1
+			}
+			return ExitCodeError(ec)
+		}
+		return nil
 	}
 
 	cc.OnUsageError = func(ctx context.Context, _ *cli.Command, err error, isSubcommand bool) error {
@@ -227,7 +242,16 @@ func detectSubcommand(cmd command.Command) string {
 
 	cc := commandToCli("", cmd, nil)
 	_ = cc.Walk(func(c *cli.Command) error {
+		// Help shortcuts the action, we need to hit the action
+		// or usage error to determine the subcommand
+		c.HideHelp = true
+
+		// Either Action or OnUsageError will be called on the correct subcommand
 		c.Action = func(context.Context, *cli.Command) error {
+			subcommand = strings.Join(c.Path()[1:], " ")
+			return nil
+		}
+		c.OnUsageError = func(context.Context, *cli.Command, error, bool) error {
 			subcommand = strings.Join(c.Path()[1:], " ")
 			return nil
 		}

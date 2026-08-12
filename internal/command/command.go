@@ -351,7 +351,7 @@ func RunCli(namespace string, cmd Command, meta Meta, diags tfdiags.Diagnostics)
 }
 
 // RootCommander builds the standard tofu root command.
-func RootCommander(help *bool, chdir *string) Command {
+func RootCommander(help *bool, ver *bool, chdir *string) Command {
 	root := Command{
 		Name: "",
 		Long: `The available commands for execution are listed below. The primary workflow commands are given first, followed by less common or more advanced commands.`,
@@ -360,8 +360,8 @@ func RootCommander(help *bool, chdir *string) Command {
 			// Main Commands
 			InitCommander(),
 			ValidateCommander(),
-			ApplyCommander(),
 			PlanCommander(),
+			ApplyCommander(),
 			DestroyCommander(),
 
 			// Other Commands
@@ -399,6 +399,7 @@ func RootCommander(help *bool, chdir *string) Command {
 	}}
 
 	root.CommandLine.StringVar(chdir, "chdir", "", "Switch to a different working directory before executing the given subcommand.").SetDisplay("=DIR")
+	root.CommandLine.BoolVar(ver, "version", false, `An alias for the "version" subcommand.`)
 	root.CommandLine.BoolVar(help, "help", false, "Show this help output, or the help for a specified subcommand.")
 
 	return root
