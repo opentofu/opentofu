@@ -84,8 +84,9 @@ func (m *Meta) loadSingleModule(ctx context.Context, dir string, load configs.Se
 		return nil, diags
 	}
 
-	module, hclDiags := m.configLoader().LoadConfigDirSelective(dir, call, load)
+	module, hclDiags := m.configLoader().LoadConfigDirSelective(dir, load)
 	diags = diags.Append(hclDiags)
+	diags = diags.Append(module.WithStaticCall(call))
 	return module, diags
 }
 
@@ -167,8 +168,9 @@ func (m *Meta) loadSingleModuleWithTests(ctx context.Context, dir string, testDi
 		return nil, diags
 	}
 
-	module, hclDiags := m.configLoader().LoadConfigDirWithTests(dir, testDir, call)
+	module, hclDiags := m.configLoader().LoadConfigDirWithTests(dir, testDir)
 	diags = diags.Append(hclDiags)
+	diags = diags.Append(module.WithStaticCall(call))
 	return module, diags
 }
 

@@ -411,44 +411,12 @@ func TestLoaderInitializationDuringMethodCalls(t *testing.T) {
 				}
 			},
 		},
-		"loader ok - LoadConfigDirUneval": {
-			setup: func(t *testing.T, wd string) {
-				writeConfigFile(t, filepath.Join(wd, "main.tf"), []byte(`variable "in" {}`))
-			},
-			act: func(t *testing.T, wd string, l Loader) {
-				c, diags := l.LoadConfigDirUneval(wd, configs.SelectiveLoadAll)
-				if diags.HasErrors() {
-					t.Errorf("expected to have no diagnostics but got: %s", diags)
-				}
-				if _, ok := c.Variables["in"]; !ok {
-					t.Errorf("expected to have a variable named 'in' but got nothing. variables: %v", c.Variables)
-				}
-			},
-		},
-		"loader uninitializable - LoadConfigDirUneval": {
-			setup: func(t *testing.T, wd string) {
-				writeManifestFile(t, wd, []byte("invalid content")) // to break the loader initialization
-			},
-			act: func(t *testing.T, wd string, l Loader) {
-				c, diags := l.LoadConfigDirUneval(wd, configs.SelectiveLoadAll)
-				if !diags.HasErrors() {
-					t.Errorf("expected to have no diagnostics but got: %s", diags)
-				}
-				expectedErrMsg := "Failed to initialise a config loader: failed to read module manifest: error unmarshalling snapshot: invalid character 'i' looking for beginning of value"
-				if !strings.Contains(diags.Error(), expectedErrMsg) {
-					t.Errorf("expected the diags to contain %q but it didn't: %s", expectedErrMsg, diags)
-				}
-				if c != nil {
-					t.Errorf("expected no config but got a non-nil one")
-				}
-			},
-		},
 		"loader ok - LoadConfigDir": {
 			setup: func(t *testing.T, wd string) {
 				writeConfigFile(t, filepath.Join(wd, "main.tf"), []byte(`variable "in" {}`))
 			},
 			act: func(t *testing.T, wd string, l Loader) {
-				c, diags := l.LoadConfigDir(wd, configs.StaticModuleCall{})
+				c, diags := l.LoadConfigDir(wd)
 				if diags.HasErrors() {
 					t.Errorf("expected to have no diagnostics but got: %s", diags)
 				}
@@ -462,7 +430,7 @@ func TestLoaderInitializationDuringMethodCalls(t *testing.T) {
 				writeManifestFile(t, wd, []byte("invalid content")) // to break the loader initialization
 			},
 			act: func(t *testing.T, wd string, l Loader) {
-				c, diags := l.LoadConfigDir(wd, configs.StaticModuleCall{})
+				c, diags := l.LoadConfigDir(wd)
 				if !diags.HasErrors() {
 					t.Errorf("expected to have no diagnostics but got: %s", diags)
 				}
@@ -512,7 +480,7 @@ func TestLoaderInitializationDuringMethodCalls(t *testing.T) {
 				writeConfigFile(t, filepath.Join(wd, "main.tf"), []byte(`variable "in" {}`))
 			},
 			act: func(t *testing.T, wd string, l Loader) {
-				m, diags := l.LoadConfigDirSelective(wd, configs.StaticModuleCall{}, configs.SelectiveLoadAll)
+				m, diags := l.LoadConfigDirSelective(wd, configs.SelectiveLoadAll)
 				if diags.HasErrors() {
 					t.Errorf("expected to have no diagnostics but got: %s", diags)
 				}
@@ -529,7 +497,7 @@ func TestLoaderInitializationDuringMethodCalls(t *testing.T) {
 				writeManifestFile(t, wd, []byte("invalid content")) // to break the loader initialization
 			},
 			act: func(t *testing.T, wd string, l Loader) {
-				m, diags := l.LoadConfigDirSelective(wd, configs.StaticModuleCall{}, configs.SelectiveLoadAll)
+				m, diags := l.LoadConfigDirSelective(wd, configs.SelectiveLoadAll)
 				if !diags.HasErrors() {
 					t.Errorf("expected to have no diagnostics but got: %s", diags)
 				}
@@ -547,7 +515,7 @@ func TestLoaderInitializationDuringMethodCalls(t *testing.T) {
 				writeConfigFile(t, filepath.Join(wd, "main.tf"), []byte(`variable "in" {}`))
 			},
 			act: func(t *testing.T, wd string, l Loader) {
-				m, diags := l.LoadConfigDirWithTests(wd, ".", configs.StaticModuleCall{})
+				m, diags := l.LoadConfigDirWithTests(wd, ".")
 				if diags.HasErrors() {
 					t.Errorf("expected to have no diagnostics but got: %s", diags)
 				}
@@ -564,7 +532,7 @@ func TestLoaderInitializationDuringMethodCalls(t *testing.T) {
 				writeManifestFile(t, wd, []byte("invalid content")) // to break the loader initialization
 			},
 			act: func(t *testing.T, wd string, l Loader) {
-				m, diags := l.LoadConfigDirWithTests(wd, ".", configs.StaticModuleCall{})
+				m, diags := l.LoadConfigDirWithTests(wd, ".")
 				if !diags.HasErrors() {
 					t.Errorf("expected to have no diagnostics but got: %s", diags)
 				}

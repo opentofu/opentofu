@@ -149,23 +149,23 @@ func (s SelectiveLoader) filter(input []*File) []*File {
 
 // NewModuleWithTests matches NewModule except it will also load in the provided
 // test files.
-func NewModuleWithTests(primaryFiles, overrideFiles []*File, testFiles map[string]*TestFile, call StaticModuleCall, sourceDir string) (*Module, hcl.Diagnostics) {
-	mod, diags := NewModule(primaryFiles, overrideFiles, call, sourceDir, SelectiveLoadAll)
+func NewModuleWithTests(primaryFiles, overrideFiles []*File, testFiles map[string]*TestFile, sourceDir string) (*Module, hcl.Diagnostics) {
+	mod, diags := NewModule(primaryFiles, overrideFiles, sourceDir, SelectiveLoadAll)
 	if mod != nil {
 		mod.Tests = testFiles
 	}
 	return mod, diags
 }
 
-// NewModuleUneval is a variation of [NewModule] which performs only the
-// static decoding steps and stops before performing any of the "early eval"
-// steps, instead just returning with the results of early eval unpopulated.
+// NewModule takes a list of primary files and a list of override files and
+// produces a *Module by combining the files together.
 //
-// This is currently here only in support of the experiment in
-// internal/lang/eval, which wants to handle the situations where we currently
-// rely on early eval in a different way. Outside of that experiment we should
-// keep using [NewModule] in its entirety for now.
-func NewModuleUneval(primaryFiles, overrideFiles []*File, sourceDir string, load SelectiveLoader) (*Module, hcl.Diagnostics) {
+// If there are any conflicting declarations in the given files -- for example,
+// if the same variable name is defined twice -- then the resulting module
+// will be incomplete and error diagnostics will be returned. Careful static
+// analysis of the returned Module is still possible in this case, but the
+// module will probably not be semantically valid.
+func NewModule(primaryFiles, overrideFiles []*File, sourceDir string, load SelectiveLoader) (*Module, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	mod := &Module{
 		ProviderConfigs:    map[string]*Provider{},
@@ -235,59 +235,55 @@ func NewModuleUneval(primaryFiles, overrideFiles []*File, sourceDir string, load
 	return mod, diags
 }
 
-// NewModule takes a list of primary files and a list of override files and
-// produces a *Module by combining the files together.
-//
-// If there are any conflicting declarations in the given files -- for example,
-// if the same variable name is defined twice -- then the resulting module
-// will be incomplete and error diagnostics will be returned. Careful static
-// analysis of the returned Module is still possible in this case, but the
-// module will probably not be semantically valid.
-func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall, sourceDir string, load SelectiveLoader) (*Module, hcl.Diagnostics) {
-	mod, diags := NewModuleUneval(primaryFiles, overrideFiles, sourceDir, load)
+func (m *Module) WithStaticCall(call StaticModuleCall) hcl.Diagnostics {
+	var diags hcl.Diagnostics
+
+	if m.StaticEvaluator != nil {
+		panic("applying Static Evaluation to a module twice, this is a critical bug in OpenTofu")
+	}
 
 	// Static evaluation to build a StaticContext now that module has all relevant Locals / Variables
-	mod.StaticEvaluator = NewStaticEvaluator(mod, call)
+	m.StaticEvaluator = NewStaticEvaluator(m, call)
 
 	// If we have a backend, it may have fields that require locals/vars
-	if mod.Backend != nil {
+	if m.Backend != nil {
 		// We don't know the backend type / loader at this point so we save the context for later use
-		mod.Backend.Eval = mod.StaticEvaluator
+		m.Backend.Eval = m.StaticEvaluator
 	}
-	if mod.CloudConfig != nil {
-		mod.CloudConfig.eval = mod.StaticEvaluator
+	if m.CloudConfig != nil {
+		m.CloudConfig.eval = m.StaticEvaluator
 	}
 
 	// Process all module calls now that we have the static context
-	for _, mc := range mod.ModuleCalls {
-		mDiags := mc.decodeStaticFields(context.TODO(), mod.StaticEvaluator)
+	for _, mc := range m.ModuleCalls {
+		mDiags := mc.decodeStaticFields(context.TODO(), m.StaticEvaluator)
 		diags = append(diags, mDiags...)
 	}
 
-	for _, pc := range mod.ProviderConfigs {
-		pDiags := pc.decodeStaticFields(context.TODO(), mod.StaticEvaluator)
+	for _, pc := range m.ProviderConfigs {
+		pDiags := pc.decodeStaticFields(context.TODO(), m.StaticEvaluator)
 		diags = append(diags, pDiags...)
 	}
 
 	// Generate the FQN -> LocalProviderName map
-	mod.gatherProviderLocalNames()
+	m.gatherProviderLocalNames()
 
 	// Ensure const variables are actually const
 	var constRefs []*addrs.Reference
-	for _, variable := range mod.Variables {
+	for _, variable := range m.Variables {
 		if variable.Const {
 			constRefs = append(constRefs, &addrs.Reference{
 				Subject: addrs.InputVariable{Name: variable.Name},
 			})
 		}
 	}
-	_, vDiags := mod.StaticEvaluator.EvalContext(context.TODO(), StaticIdentifier{
-		Module:    mod.StaticEvaluator.call.addr,
-		DeclRange: mod.StaticEvaluator.call.declRange,
+	_, vDiags := m.StaticEvaluator.EvalContext(context.TODO(), StaticIdentifier{
+		Module:    m.StaticEvaluator.call.addr,
+		DeclRange: m.StaticEvaluator.call.declRange,
 	}, constRefs)
 	diags = append(diags, vDiags...)
 
-	return mod, diags
+	return diags
 }
 
 // ResourceByAddr returns the configuration for the resource with the given

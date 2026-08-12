@@ -202,7 +202,7 @@ func TestMovedBlock_decode(t *testing.T) {
 
 func TestMovedBlock_inModule(t *testing.T) {
 	parser := NewParser(nil)
-	mod, diags := parser.LoadConfigDir("testdata/valid-modules/moved-blocks", RootModuleCallForTesting())
+	mod, diags := parser.LoadConfigDir("testdata/valid-modules/moved-blocks")
 	if diags.HasErrors() {
 		t.Errorf("unexpected error: %s", diags.Error())
 	}

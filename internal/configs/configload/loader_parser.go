@@ -14,14 +14,9 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 )
 
-// LoadConfigDirUneval implements Loader
-func (l *loader) LoadConfigDirUneval(path string, load configs.SelectiveLoader) (*configs.Module, hcl.Diagnostics) {
-	return l.parser.LoadConfigDirUneval(path, load)
-}
-
 // LoadConfigDir implements Loader
-func (l *loader) LoadConfigDir(path string, call configs.StaticModuleCall) (*configs.Module, hcl.Diagnostics) {
-	return l.parser.LoadConfigDir(path, call)
+func (l *loader) LoadConfigDir(path string) (*configs.Module, hcl.Diagnostics) {
+	return l.parser.LoadConfigDir(path)
 }
 
 // LoadHCLFile implements Loader
@@ -30,13 +25,13 @@ func (l *loader) LoadHCLFile(path string) (hcl.Body, hcl.Diagnostics) {
 }
 
 // LoadConfigDirSelective implements Loader
-func (l *loader) LoadConfigDirSelective(path string, call configs.StaticModuleCall, load configs.SelectiveLoader) (*configs.Module, hcl.Diagnostics) {
-	return l.parser.LoadConfigDirSelective(path, call, load)
+func (l *loader) LoadConfigDirSelective(path string, load configs.SelectiveLoader) (*configs.Module, hcl.Diagnostics) {
+	return l.parser.LoadConfigDirSelective(path, load)
 }
 
 // LoadConfigDirWithTests implements Loader
-func (l *loader) LoadConfigDirWithTests(path string, testDirectory string, call configs.StaticModuleCall) (*configs.Module, hcl.Diagnostics) {
-	return l.parser.LoadConfigDirWithTests(path, testDirectory, call)
+func (l *loader) LoadConfigDirWithTests(path string, testDirectory string) (*configs.Module, hcl.Diagnostics) {
+	return l.parser.LoadConfigDirWithTests(path, testDirectory)
 }
 
 // ForceFileSource implements Loader

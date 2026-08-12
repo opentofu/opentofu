@@ -171,22 +171,13 @@ func (c *lazyLoader) ModuleLocalPath(ctx context.Context, req *configs.ModuleReq
 
 // configs.Parser related methods
 
-// LoadConfigDirUneval implements Loader
-func (c *lazyLoader) LoadConfigDirUneval(path string, load configs.SelectiveLoader) (*configs.Module, hcl.Diagnostics) {
-	l, err := c.init()
-	if err != nil {
-		return nil, initErrorToDiagnostic(err)
-	}
-	return l.LoadConfigDirUneval(path, load)
-}
-
 // LoadConfigDir implements Loader
-func (c *lazyLoader) LoadConfigDir(path string, call configs.StaticModuleCall) (*configs.Module, hcl.Diagnostics) {
+func (c *lazyLoader) LoadConfigDir(path string) (*configs.Module, hcl.Diagnostics) {
 	l, err := c.init()
 	if err != nil {
 		return nil, initErrorToDiagnostic(err)
 	}
-	return l.LoadConfigDir(path, call)
+	return l.LoadConfigDir(path)
 }
 
 // LoadHCLFile implements Loader
@@ -199,21 +190,21 @@ func (c *lazyLoader) LoadHCLFile(path string) (hcl.Body, hcl.Diagnostics) {
 }
 
 // LoadConfigDirSelective implements Loader
-func (c *lazyLoader) LoadConfigDirSelective(path string, call configs.StaticModuleCall, load configs.SelectiveLoader) (*configs.Module, hcl.Diagnostics) {
+func (c *lazyLoader) LoadConfigDirSelective(path string, load configs.SelectiveLoader) (*configs.Module, hcl.Diagnostics) {
 	l, err := c.init()
 	if err != nil {
 		return nil, initErrorToDiagnostic(err)
 	}
-	return l.LoadConfigDirSelective(path, call, load)
+	return l.LoadConfigDirSelective(path, load)
 }
 
 // LoadConfigDirWithTests implements Loader
-func (c *lazyLoader) LoadConfigDirWithTests(path string, testDirectory string, call configs.StaticModuleCall) (*configs.Module, hcl.Diagnostics) {
+func (c *lazyLoader) LoadConfigDirWithTests(path string, testDirectory string) (*configs.Module, hcl.Diagnostics) {
 	l, err := c.init()
 	if err != nil {
 		return nil, initErrorToDiagnostic(err)
 	}
-	return l.LoadConfigDirWithTests(path, testDirectory, call)
+	return l.LoadConfigDirWithTests(path, testDirectory)
 }
 
 // ForceFileSource allows to add synthetic additional source

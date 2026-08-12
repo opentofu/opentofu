@@ -43,7 +43,7 @@ func TestStaticPlanVariables(t *testing.T) {
 			run("init", stateVar, modVar).Success()
 
 			// Get
-			run("get").Failure().StderrContains(modErr)
+			run("get").Success().StdoutContains(modErr) // config errors translated to warnings
 			run("get", stateVar, modVar).Success()
 
 			// Validate

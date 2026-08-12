@@ -247,7 +247,7 @@ func TestModuleCallWithVersion(t *testing.T) {
 	}
 
 	// Create a module from the loaded file
-	mod, diags := NewModule([]*File{file}, nil, RootModuleCallForTesting(), "testdata", SelectiveLoadAll)
+	mod, diags := NewModule([]*File{file}, nil, "testdata", SelectiveLoadAll)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected errors creating module: %s", diags.Error())
 	}
@@ -425,7 +425,10 @@ variable "path" {
 				}
 				tFiles = append(tFiles, f)
 			}
-			_, diags := NewModule(tFiles, nil, call, "testdata", SelectiveLoadAll)
+			mod, diags := NewModule(tFiles, nil, "testdata", SelectiveLoadAll)
+			if mod != nil {
+				diags = diags.Extend(mod.WithStaticCall(call))
+			}
 			if tc.err == "" {
 				if diags.HasErrors() {
 					t.Errorf("unexpected errors creating module: %s", diags.Error())

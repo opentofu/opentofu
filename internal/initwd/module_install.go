@@ -195,10 +195,10 @@ func (i *ModuleInstaller) InstallModules(ctx context.Context, rootDir, testsDir 
 
 		return cfg, diags
 	} else {
-		rootMod, mDiags := i.loader.LoadConfigDirWithTests(rootDir, testsDir, call)
+		rootMod, mDiags := i.loader.LoadConfigDirWithTests(rootDir, testsDir)
 		diags = diags.Append(mDiags)
 
-		cfg, instDiags := i.installDescendentModules(ctx, rootMod, manifest, walker, installErrsOnly)
+		cfg, instDiags := i.installDescendentModules(ctx, rootMod, call, manifest, walker, installErrsOnly)
 		diags = append(diags, instDiags...)
 
 		return cfg, diags
@@ -316,7 +316,7 @@ func (i *ModuleInstaller) moduleInstallWalker(_ context.Context, manifest modsdi
 				// keep our existing record.
 				info, err := os.Stat(record.Dir)
 				if err == nil && info.IsDir() {
-					mod, mDiags := i.loader.LoadConfigDir(record.Dir, req.Call)
+					mod, mDiags := i.loader.LoadConfigDir(record.Dir)
 					if mod == nil {
 						// nil indicates an unreadable module, which should never happen,
 						// so we return the full loader diagnostics here.
@@ -366,7 +366,7 @@ func (i *ModuleInstaller) moduleInstallWalker(_ context.Context, manifest modsdi
 	)
 }
 
-func (i *ModuleInstaller) installDescendentModules(ctx context.Context, rootMod *configs.Module, manifest modsdir.Manifest, installWalker configs.ModuleWalker, installErrsOnly bool) (*configs.Config, tfdiags.Diagnostics) {
+func (i *ModuleInstaller) installDescendentModules(ctx context.Context, rootMod *configs.Module, call configs.StaticModuleCall, manifest modsdir.Manifest, installWalker configs.ModuleWalker, installErrsOnly bool) (*configs.Config, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// When attempting to initialize the current directory with a module
@@ -386,7 +386,7 @@ func (i *ModuleInstaller) installDescendentModules(ctx context.Context, rootMod 
 		})
 	}
 
-	cfg, cDiags := configs.BuildConfig(ctx, rootMod, walker)
+	cfg, cDiags := configs.BuildConfig(ctx, rootMod, call, walker)
 	diags = diags.Append(cDiags)
 	if installErrsOnly {
 		// We can't continue if there was an error during installation, but
@@ -460,7 +460,7 @@ func (i *ModuleInstaller) installLocalModule(ctx context.Context, req *configs.M
 	}
 
 	// Finally we are ready to try actually loading the module.
-	mod, mDiags := i.loader.LoadConfigDir(newDir, req.Call)
+	mod, mDiags := i.loader.LoadConfigDir(newDir)
 	if mod == nil {
 		// nil indicates missing or unreadable directory, so we'll
 		// discard the returned diags and return a more specific
@@ -811,7 +811,7 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 	log.Printf("[TRACE] ModuleInstaller: %s %q was downloaded to %s", key, packageLocation.UILabel(), modDir)
 
 	// Finally we are ready to try actually loading the module.
-	mod, mDiags := i.loader.LoadConfigDir(modDir, req.Call)
+	mod, mDiags := i.loader.LoadConfigDir(modDir)
 	if mod == nil {
 
 		subDir := packageLocation.Subdir()
@@ -931,7 +931,7 @@ func (i *ModuleInstaller) installGoGetterModule(ctx context.Context, req *config
 	log.Printf("[TRACE] ModuleInstaller: %s %q was downloaded to %s", key, addr, modDir)
 
 	// Finally we are ready to try actually loading the module.
-	mod, mDiags := i.loader.LoadConfigDir(modDir, req.Call)
+	mod, mDiags := i.loader.LoadConfigDir(modDir)
 	if mod == nil {
 		// nil indicates missing or unreadable directory, so we'll
 		// discard the returned diags and return a more specific
