@@ -328,8 +328,6 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 				// due to a quirk in how moves are handled,
 				// if it's an implied move, we save state
 				// in the prevAddr instead of current.
-				// TODO: is this true?
-				// TODO: is this actually a "current object"?
 				stateSaveObj = prevRunAddr.CurrentObject()
 			}
 			p.planCtx.upgradedState.SetResourceInstanceObjectFull(stateSaveObj, upgradedPrevState)
@@ -677,12 +675,13 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 					// We also undo the address, but keep that we "found a move"
 					// so we correctly remove this blocked state
 					currentRunAddr = addr.InstanceAddr
-					break
+				} else {
+					currentRunAddr = nextAddr
 				}
-				currentRunAddr = nextAddr
-
-				// We continue the loop, although technically, we should not
-				// find any more addresses in configuration.
+				// If there is another address down the chain, it is an error;
+				// you cannot move from an address that exists in configuration.
+				// We'll leave the loop now.
+				break
 			}
 		}
 		if !foundAddr && !blockedMove {

@@ -381,16 +381,25 @@ func (c *CompiledModuleInstance) AnnounceAllGraphevalRequests(announce func(work
 }
 
 // GetMoveStatements implements evalglue.GetMoveStatements.
-func (c *CompiledModuleInstance) GetMoveStatements(ctx context.Context) []refactoring.MoveStatement {
-	myMoveStatements := c.moveStatements
-	for callAddr := range c.ChildModuleCalls(ctx) {
-		for _, compiled := range c.ChildModuleInstancesForCall(ctx, callAddr) {
-			// Note: move statement addresses are already "unified" with their module address relative to the root
-			subModuleMoveStatements := compiled.GetMoveStatements(ctx)
-			myMoveStatements = append(myMoveStatements, subModuleMoveStatements...)
-			// We only need move statements from one module instance, so we break immediately.
-			break
+func (c *CompiledModuleInstance) GetMoveStatements(ctx context.Context) iter.Seq[refactoring.MoveStatement] {
+	return func(yield func(refactoring.MoveStatement) bool) {
+		for _, moveStatement := range c.moveStatements {
+			if !yield(moveStatement) {
+				return
+			}
+		}
+		for callAddr := range c.ChildModuleCalls(ctx) {
+			for _, compiled := range c.ChildModuleInstancesForCall(ctx, callAddr) {
+				// Note: move statement addresses are already "unified" with their module address relative to the root
+				subModuleMoveStatements := compiled.GetMoveStatements(ctx)
+				for subModuleMoveStatement := range subModuleMoveStatements {
+					if !yield(subModuleMoveStatement) {
+						return
+					}
+				}
+				// We only need move statements from one module instance, so we break immediately.
+				break
+			}
 		}
 	}
-	return myMoveStatements
 }
