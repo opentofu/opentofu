@@ -151,12 +151,11 @@ function "vec3_length" {
 
 # Import syntax
 symbols "namespace" {
-  # The package in which the symbols live
-  source = "./lib" # Same conventions as registry modules, though without static evaluation
-
-  # One of the decisions we need to make in this RFC is if we allow importing all of the symbols in a given package, 
-  # or if a symbol block can only represent the contents of a single file
-  file = "contents.sym.hcl"
+  # The source package which contains symbol files
+  # Same conventions as modules source packages, though without static evaluation (initially)
+  # There are significant technical constraints which prevent using static eval here, which
+  # may be possible to work around when we have fully adopted the new engine
+  source = "./lib"
 }
 
 # Usage in types
@@ -327,7 +326,7 @@ The biggest challenge to integrating with OpenTofu at this juncture is that we a
 
 One of the critical touch-points is supporting symbol libraries in variable types. These need to be known prior to static evaluation, as that depends on the variable types. In practice, the current `configs/config_build.go` code can be juggled around to make the symbol library loading and static evaluation steps explicit and properly integrated. In theory, it will be easier to do this integration natively within the new engine.
 
-We also need to determine how and where we install symbol library packages. The hackathon prototype treats them as modules to be installed, but is that the right solution?
+Internally, we will be treating the installation of symbol source packages identical to module source packages. This allows us to re-use much of that existing machinery and conventions and follows a user-experience that is already well known and understood.
 
 The injection of the symbol library data into the OpenTofu engine/evaluator is a trivial concern, if the prototype is anything to go by.
 
