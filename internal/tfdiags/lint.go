@@ -161,7 +161,7 @@ func (lrcv *lintingRulesCtxValue) executeRule(execKey string, f func() Diagnosti
 		success bool
 	}
 	loadExec := func(execId string) *lintExecution {
-		// create a new lint rule executin and lock it to store it into the status container
+		// create a new lint rule execution and lock it to store it into the status container
 		exec := &lintExecution{
 			m:       sync.Mutex{},
 			success: false,
