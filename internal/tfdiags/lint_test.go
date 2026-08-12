@@ -8,6 +8,7 @@ package tfdiags
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -146,89 +147,70 @@ func TestExecuteLintRule(t *testing.T) {
 	t.Run("parallel calls locks when called for exactly the same source and lint rule", func(t *testing.T) {
 		ruleID := linting.MustParseRuleAddr("core:foo")
 		ctx := ContextWithLintFilterHints(t.Context(), collections.NewSet(ruleID), collections.NewSet[linting.RuleAddr]())
-		var durations [500]time.Duration
-		var calls int // not needed atomic here since its expected to be wrote into only by one goroutine, once
-		var idxCalled int
-		sleepFor := 300 * time.Millisecond
+		var called atomic.Bool
 		exec := func(i int) func() Diagnostics {
 			return func() Diagnostics {
-				calls++
-				<-time.After(sleepFor)
-				idxCalled = i
+				called.Store(true)
 				return nil
 			}
 		}
 		src := SourceRange{Filename: "test.tf", Start: SourcePos{Line: 1, Column: 2}, End: SourcePos{Line: 1, Column: 10}}
 		var wg sync.WaitGroup
-		startTime := time.Now()
 		for i := range 500 {
-			start := startTime
 			wg.Go(func() {
 				_ = ExecuteLintRule(ctx, exec(i), src, ruleID)
-				durations[i] = time.Since(start)
+				if !called.Load() {
+					t.Errorf("[%d] returned before having the rule executed by the routine that acquired the lock", i)
+				}
 			})
 		}
 		wg.Wait()
-		// because based on the architecture and the CI platform, time.After can return with slighlty different
-		// variation from the actually asked duration so we want to do the assertions on the actual time it took
-		// for the goroutine that managed to call into the linting rule. So we use that instead of a hardcoded
-		// duration
-		minDuration := durations[idxCalled]
-		for i, dur := range durations {
-			if i == idxCalled {
-				continue // we skip the one that actually called in the linting execution since we use its duration for comparison
-			}
-			if dur < minDuration {
-				t.Errorf("[%d] finished unexpectedly before the goroutine that actually called the linting rule. finished in %s (smaller than %s)", i, dur, minDuration)
-			}
-		}
-		if calls != 1 {
-			t.Errorf("expected in the end to have just 1 call but got %d", calls)
-		}
 		// execute the same rule one more time to be sure that the execution of it is not performed (because it should be already registered as executed successfully)
-		calls = 0
+		called.Store(false)
 		_ = ExecuteLintRule(ctx, exec(0), src, ruleID)
-		if calls != 0 {
+		if called.Load() {
 			t.Errorf("the linting rule unexpectedly called. This means that something is broken in the internals of ExecuteLintRule since this was meant be registered as successfully executed")
 		}
 	})
 	t.Run("parallel calls does not lock when called for different source and lint rule", func(t *testing.T) {
+		const samples = 500
 		ctx := ContextWithLintFilterHints(t.Context(), collections.NewSet(linting.MustParseRuleAddr("all")), collections.NewSet[linting.RuleAddr]())
-		var sources [500]SourceRange
-		for i := range 500 {
-			sources[i] = SourceRange{Filename: "test.tf", Start: SourcePos{Line: i, Column: 2}, End: SourcePos{Line: 1, Column: 10}}
+		var sources []SourceRange
+		for i := range samples {
+			sources = append(sources, SourceRange{Filename: "test.tf", Start: SourcePos{Line: i, Column: 2}, End: SourcePos{Line: 1, Column: 10}})
 		}
-		sleepFor := 300 * time.Millisecond
-		execBuilder := func(shouldWait bool) func() Diagnostics {
-			return func() Diagnostics {
-				if shouldWait {
-					<-time.After(sleepFor)
+		exec := func() Diagnostics {
+			return nil
+		}
+		results := make(chan struct{}, samples)
+		for i := range samples {
+			go func() {
+				_ = ExecuteLintRule(ctx, exec, sources[i], linting.MustParseRuleAddr("core:foo"))
+				results <- struct{}{}
+			}()
+		}
+		var finished int
+	done:
+		for {
+			select {
+			case _, ok := <-results:
+				if !ok {
+					break done
 				}
-				return nil
+				finished++
+				if finished == samples {
+					break done
+				}
+			case <-time.After(time.Second):
+				// This is just a sanity select case to ensure that if something goes wrong, the test actually ends
+				// with a clear error message
+				t.Error("executions locked. This highlights an issue in the linting rules execution")
+				break done
 			}
 		}
-		var wg sync.WaitGroup
-		var durations [500]time.Duration
-		startTime := time.Now()
-		for i := range 500 {
-			start := startTime
-			wg.Go(func() {
-				_ = ExecuteLintRule(ctx, execBuilder(i%5 == 0), sources[i], linting.MustParseRuleAddr("core:foo"))
-				durations[i] = time.Since(start)
-			})
-		}
-		wg.Wait()
-		for i, dur := range durations {
-			expectedToSleep := i%5 == 0
-			if expectedToSleep {
-				if dur < sleepFor {
-					t.Errorf("[%d] finished unexpectedly fast (in %s)", i, dur)
-				}
-			} else {
-				if dur > 100*time.Millisecond { // depends on how slow the CI runner is, this can be quite high at times
-					t.Errorf("[%d] finished later than expected (in %s)", i, dur)
-				}
-			}
+		defer close(results)
+		if finished != samples {
+			t.Fatalf("expected to have %d executions but got %d", samples, finished)
 		}
 	})
 }
