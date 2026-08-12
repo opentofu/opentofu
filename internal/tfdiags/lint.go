@@ -237,7 +237,7 @@ func lintHintsFromContext(ctx context.Context) *lintingRulesCtxValue {
 // NOTE: later, f can be enhanced to return another bool to have the run skipped and not marked as a success execution,
 // which can silently control when a phase has enough information and when not to determine if the rule can be
 // executed reliably.
-func ExecuteLintRule(ctx context.Context, f func() Diagnostics, src SourceRange, ruleID linting.RuleAddr, groupIDs ...linting.RuleAddr) Diagnostics {
+func ExecuteLintRule(ctx context.Context, f func(ruleID linting.RuleAddr, groupIDs ...linting.RuleAddr) Diagnostics, src SourceRange, ruleID linting.RuleAddr, groupIDs ...linting.RuleAddr) Diagnostics {
 	lintCtx := lintHintsFromContext(ctx)
 	if lintCtx == nil {
 		return nil
@@ -251,7 +251,9 @@ func ExecuteLintRule(ctx context.Context, f func() Diagnostics, src SourceRange,
 	// this is executed
 	k := keyForLintCall(src, ruleID, groupIDs...)
 
-	return lintCtx.executeRule(k, f)
+	return lintCtx.executeRule(k, func() Diagnostics {
+		return f(ruleID, groupIDs...)
+	})
 }
 
 // keyForLintCall creates a sha256 representation of the given arguments. This is used to be stored and avoid

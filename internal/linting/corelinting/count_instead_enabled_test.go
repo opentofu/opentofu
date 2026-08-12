@@ -33,11 +33,11 @@ func TestCoreRule_CountInsteadEnabled(t *testing.T) {
 	}{
 		"expression is a literal number 1": {
 			setup: func(t *testing.T) (context.Context, addrs.ConfigResource, hcl.Range, hcl.Expression, tfdiags.Diagnostics) {
-				newCtx := tfdiags.ContextWithLintFilterHints(t.Context(), collections.NewSet(ruleIDcountInsteadOfEnabled), nil)
+				newCtx := tfdiags.ContextWithLintFilterHints(t.Context(), collections.NewSet(ruleIDCountInsteadOfEnabled), nil)
 				targetRes, targetResRange, expr := resSetup(t, "1")
 
 				wantDiags := tfdiags.New(tfdiags.LintMessage(
-					ruleIDcountInsteadOfEnabled,
+					ruleIDCountInsteadOfEnabled,
 					[]linting.RuleAddr{GroupIDImprovement},
 					"Could use enabled instead of count",
 					fmt.Sprintf(`%q uses "count" to choose between zero or one instances using a boolean expression. Consider using "enabled" in a "lifecycle" block instead.`, targetRes.String()),
@@ -49,11 +49,11 @@ func TestCoreRule_CountInsteadEnabled(t *testing.T) {
 		},
 		"expression is a literal number 0": {
 			setup: func(t *testing.T) (context.Context, addrs.ConfigResource, hcl.Range, hcl.Expression, tfdiags.Diagnostics) {
-				newCtx := tfdiags.ContextWithLintFilterHints(t.Context(), collections.NewSet(ruleIDcountInsteadOfEnabled), nil)
+				newCtx := tfdiags.ContextWithLintFilterHints(t.Context(), collections.NewSet(ruleIDCountInsteadOfEnabled), nil)
 				targetRes, targetResRange, expr := resSetup(t, "0")
 
 				wantDiags := tfdiags.New(tfdiags.LintMessage(
-					ruleIDcountInsteadOfEnabled,
+					ruleIDCountInsteadOfEnabled,
 					[]linting.RuleAddr{GroupIDImprovement},
 					"Could use enabled instead of count",
 					fmt.Sprintf(`%q uses "count" to choose between zero or one instances using a boolean expression. Consider using "enabled" in a "lifecycle" block instead.`, targetRes.String()),
@@ -65,11 +65,11 @@ func TestCoreRule_CountInsteadEnabled(t *testing.T) {
 		},
 		"expression is a ternary condition with the truthy expression as a literal number 1 and the falsy expression is a literal number 0": {
 			setup: func(t *testing.T) (context.Context, addrs.ConfigResource, hcl.Range, hcl.Expression, tfdiags.Diagnostics) {
-				newCtx := tfdiags.ContextWithLintFilterHints(t.Context(), collections.NewSet(ruleIDcountInsteadOfEnabled), nil)
+				newCtx := tfdiags.ContextWithLintFilterHints(t.Context(), collections.NewSet(ruleIDCountInsteadOfEnabled), nil)
 				targetRes, targetResRange, expr := resSetup(t, "var.input ? 1 : 0")
 
 				wantDiags := tfdiags.New(tfdiags.LintMessage(
-					ruleIDcountInsteadOfEnabled,
+					ruleIDCountInsteadOfEnabled,
 					[]linting.RuleAddr{GroupIDImprovement},
 					"Could use enabled instead of count",
 					fmt.Sprintf(`%q uses "count" to choose between zero or one instances using a boolean expression. Consider using "enabled" in a "lifecycle" block instead.`, targetRes.String()),
@@ -81,11 +81,11 @@ func TestCoreRule_CountInsteadEnabled(t *testing.T) {
 		},
 		"expression is a ternary condition with the truthy expression as a literal number 0 and the falsy expression is a literal number 1": {
 			setup: func(t *testing.T) (context.Context, addrs.ConfigResource, hcl.Range, hcl.Expression, tfdiags.Diagnostics) {
-				newCtx := tfdiags.ContextWithLintFilterHints(t.Context(), collections.NewSet(ruleIDcountInsteadOfEnabled), nil)
+				newCtx := tfdiags.ContextWithLintFilterHints(t.Context(), collections.NewSet(ruleIDCountInsteadOfEnabled), nil)
 				targetRes, targetResRange, expr := resSetup(t, "var.input ? 0 : 1")
 
 				wantDiags := tfdiags.New(tfdiags.LintMessage(
-					ruleIDcountInsteadOfEnabled,
+					ruleIDCountInsteadOfEnabled,
 					[]linting.RuleAddr{GroupIDImprovement},
 					"Could use enabled instead of count",
 					fmt.Sprintf(`%q uses "count" to choose between zero or one instances using a boolean expression. Consider using "enabled" in a "lifecycle" block instead.`, targetRes.String()),
@@ -97,7 +97,7 @@ func TestCoreRule_CountInsteadEnabled(t *testing.T) {
 		},
 		"expression is a ternary condition with the truthy expression as a literal number 1 and the falsy expression is a literal number 2": {
 			setup: func(t *testing.T) (context.Context, addrs.ConfigResource, hcl.Range, hcl.Expression, tfdiags.Diagnostics) {
-				newCtx := tfdiags.ContextWithLintFilterHints(t.Context(), collections.NewSet(ruleIDcountInsteadOfEnabled), nil)
+				newCtx := tfdiags.ContextWithLintFilterHints(t.Context(), collections.NewSet(ruleIDCountInsteadOfEnabled), nil)
 				targetRes, targetResRange, expr := resSetup(t, "var.input ? 1 : 2")
 
 				var wantDiags tfdiags.Diagnostics
@@ -106,7 +106,7 @@ func TestCoreRule_CountInsteadEnabled(t *testing.T) {
 		},
 		"expression is a ternary condition with the truthy expression as a literal number 2 and the falsy expression is a literal number 1": {
 			setup: func(t *testing.T) (context.Context, addrs.ConfigResource, hcl.Range, hcl.Expression, tfdiags.Diagnostics) {
-				newCtx := tfdiags.ContextWithLintFilterHints(t.Context(), collections.NewSet(ruleIDcountInsteadOfEnabled), nil)
+				newCtx := tfdiags.ContextWithLintFilterHints(t.Context(), collections.NewSet(ruleIDCountInsteadOfEnabled), nil)
 				targetRes, targetResRange, expr := resSetup(t, "var.input ? 2 : 1")
 
 				var wantDiags tfdiags.Diagnostics
@@ -115,11 +115,11 @@ func TestCoreRule_CountInsteadEnabled(t *testing.T) {
 		},
 		"expression is a multi-layered ternary condition with the truthy expression as a ternary condition whose truthy is a literal number 1 and the falsy expression is a literal number 0": {
 			setup: func(t *testing.T) (context.Context, addrs.ConfigResource, hcl.Range, hcl.Expression, tfdiags.Diagnostics) {
-				newCtx := tfdiags.ContextWithLintFilterHints(t.Context(), collections.NewSet(ruleIDcountInsteadOfEnabled), nil)
+				newCtx := tfdiags.ContextWithLintFilterHints(t.Context(), collections.NewSet(ruleIDCountInsteadOfEnabled), nil)
 				targetRes, targetResRange, expr := resSetup(t, "var.input ? (var.input2 ? 1 : 0) : 0")
 
 				wantDiags := tfdiags.New(tfdiags.LintMessage(
-					ruleIDcountInsteadOfEnabled,
+					ruleIDCountInsteadOfEnabled,
 					[]linting.RuleAddr{GroupIDImprovement},
 					"Could use enabled instead of count",
 					fmt.Sprintf(`%q uses "count" to choose between zero or one instances using a boolean expression. Consider using "enabled" in a "lifecycle" block instead.`, targetRes.String()),
@@ -131,11 +131,11 @@ func TestCoreRule_CountInsteadEnabled(t *testing.T) {
 		},
 		"expression is a multi-layered ternary condition with the falsy expression as a ternary condition whose truthy is a literal number 1 and the falsy expression is a literal number 0": {
 			setup: func(t *testing.T) (context.Context, addrs.ConfigResource, hcl.Range, hcl.Expression, tfdiags.Diagnostics) {
-				newCtx := tfdiags.ContextWithLintFilterHints(t.Context(), collections.NewSet(ruleIDcountInsteadOfEnabled), nil)
+				newCtx := tfdiags.ContextWithLintFilterHints(t.Context(), collections.NewSet(ruleIDCountInsteadOfEnabled), nil)
 				targetRes, targetResRange, expr := resSetup(t, "(var.input ? 0 : (var.input2 ? 1 : 0))")
 
 				wantDiags := tfdiags.New(tfdiags.LintMessage(
-					ruleIDcountInsteadOfEnabled,
+					ruleIDCountInsteadOfEnabled,
 					[]linting.RuleAddr{GroupIDImprovement},
 					"Could use enabled instead of count",
 					fmt.Sprintf(`%q uses "count" to choose between zero or one instances using a boolean expression. Consider using "enabled" in a "lifecycle" block instead.`, targetRes.String()),
@@ -149,7 +149,7 @@ func TestCoreRule_CountInsteadEnabled(t *testing.T) {
 			// this is not possible since such an expression will fail nonetheless but we want to check the correctness
 			// of the linting rule implementation and the way it handles invalid expressions
 			setup: func(t *testing.T) (context.Context, addrs.ConfigResource, hcl.Range, hcl.Expression, tfdiags.Diagnostics) {
-				newCtx := tfdiags.ContextWithLintFilterHints(t.Context(), collections.NewSet(ruleIDcountInsteadOfEnabled), nil)
+				newCtx := tfdiags.ContextWithLintFilterHints(t.Context(), collections.NewSet(ruleIDCountInsteadOfEnabled), nil)
 				targetRes, targetResRange, expr := resSetup(t, "\"my_value\"")
 
 				var wantDiags tfdiags.Diagnostics
@@ -160,7 +160,7 @@ func TestCoreRule_CountInsteadEnabled(t *testing.T) {
 			// this is not possible since such an expression will fail nonetheless but we want to check the correctness
 			// of the linting rule implementation and the way it handles invalid expressions
 			setup: func(t *testing.T) (context.Context, addrs.ConfigResource, hcl.Range, hcl.Expression, tfdiags.Diagnostics) {
-				newCtx := tfdiags.ContextWithLintFilterHints(t.Context(), collections.NewSet(ruleIDcountInsteadOfEnabled), nil)
+				newCtx := tfdiags.ContextWithLintFilterHints(t.Context(), collections.NewSet(ruleIDCountInsteadOfEnabled), nil)
 				targetRes, targetResRange, expr := resSetup(t, "true")
 
 				var wantDiags tfdiags.Diagnostics

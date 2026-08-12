@@ -133,7 +133,7 @@ func TestExecuteLintRule(t *testing.T) {
 	t.Run("rule executed only once", func(t *testing.T) {
 		ctx := ContextWithLintFilterHints(t.Context(), collections.NewSet(linting.MustParseRuleAddr("core:foo")), collections.NewSet[linting.RuleAddr]())
 		var calls int
-		exec := func() Diagnostics {
+		exec := func(ruleID linting.RuleAddr, groupIDs ...linting.RuleAddr) Diagnostics {
 			calls++
 			return nil
 		}
@@ -148,8 +148,8 @@ func TestExecuteLintRule(t *testing.T) {
 		ruleID := linting.MustParseRuleAddr("core:foo")
 		ctx := ContextWithLintFilterHints(t.Context(), collections.NewSet(ruleID), collections.NewSet[linting.RuleAddr]())
 		var called atomic.Bool
-		exec := func(i int) func() Diagnostics {
-			return func() Diagnostics {
+		exec := func(i int) func(ruleID linting.RuleAddr, groupIDs ...linting.RuleAddr) Diagnostics {
+			return func(ruleID linting.RuleAddr, groupIDs ...linting.RuleAddr) Diagnostics {
 				called.Store(true)
 				return nil
 			}
@@ -179,7 +179,7 @@ func TestExecuteLintRule(t *testing.T) {
 		for i := range samples {
 			sources = append(sources, SourceRange{Filename: "test.tf", Start: SourcePos{Line: i, Column: 2}, End: SourcePos{Line: 1, Column: 10}})
 		}
-		exec := func() Diagnostics {
+		exec := func(ruleID linting.RuleAddr, groupIDs ...linting.RuleAddr) Diagnostics {
 			return nil
 		}
 		results := make(chan struct{}, samples)
