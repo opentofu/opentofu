@@ -153,6 +153,51 @@ type lintingRulesCtxValue struct {
 	lintOnSourceExecution sync.Map
 }
 
+// executeRule gets an execution key and the execution function of a linting rule and executes it
+// if it doesn't yet have a successful execution cached.
+func (lrcv *lintingRulesCtxValue) executeRule(execKey string, f func() Diagnostics) Diagnostics {
+	type lintExecution struct {
+		m       sync.Mutex
+		success bool
+	}
+	loadExec := func(execId string) *lintExecution {
+		// create a new lint rule executin and lock it to store it into the status container
+		exec := &lintExecution{
+			m:       sync.Mutex{},
+			success: false,
+		}
+		exec.m.Lock()
+		loadedExec, loaded := lrcv.lintOnSourceExecution.LoadOrStore(execId, exec)
+		currentExec := exec
+		// another lint execution for this linting rule and source was created before so we need to work with it instead of
+		// the above created one.
+		if loaded {
+			// we unlock the previous created execution just to be sure that we don't leave that mutex locked,
+			// even if it will e discarded upon return from this function
+			exec.m.Unlock()
+			// get the existing execution, acquire lock, and use this instead of the previously created execution
+			cLoadedExec := loadedExec.(*lintExecution)
+			cLoadedExec.m.Lock()
+			currentExec = cLoadedExec
+		}
+
+		return currentExec
+	}
+
+	exec := loadExec(execKey)
+	defer exec.m.Unlock()
+	if exec.success {
+		return nil
+	}
+	diags := f()
+	if !diags.HasErrors() {
+		// safe to set this here since the lock was acquired when this was created, before being stored into the
+		// status container
+		exec.success = true
+	}
+	return diags
+}
+
 // ContextWithLintFilterHints returns a new [context.Context] that's derived
 // from the given parent context but also tracks the sets of lint rule IDs that
 // will be used to filter any diagnostics returned from whatever function the
@@ -206,46 +251,7 @@ func ExecuteLintRule(ctx context.Context, f func() Diagnostics, src SourceRange,
 	// this is executed
 	k := keyForLintCall(src, ruleID, groupIDs...)
 
-	type lintExecution struct {
-		m       sync.Mutex
-		success bool
-	}
-	loadExec := func(execId string) *lintExecution {
-		// create a new lint rule executin and lock it to store it into the status container
-		exec := &lintExecution{
-			m:       sync.Mutex{},
-			success: false,
-		}
-		exec.m.Lock()
-		loadedExec, loaded := lintCtx.lintOnSourceExecution.LoadOrStore(k, exec)
-		currentExec := exec
-		// another lint execution for this linting rule and source was created before so we need to work with it instead of
-		// the above created one.
-		if loaded {
-			// we unlock the previous created execution just to be sure that we don't leave that mutex locked,
-			// even if it will e discarded upon return from this function
-			exec.m.Unlock()
-			// get the existing execution, acquire lock, and use this instead of the previously created execution
-			cLoadedExec := loadedExec.(*lintExecution)
-			cLoadedExec.m.Lock()
-			currentExec = cLoadedExec
-		}
-
-		return currentExec
-	}
-
-	exec := loadExec(k)
-	defer exec.m.Unlock()
-	if exec.success {
-		return nil
-	}
-	diags := f()
-	if !diags.HasErrors() {
-		// safe to set this here since the lock was acquired when this was created, before being stored into the
-		// status container
-		exec.success = true
-	}
-	return diags
+	return lintCtx.executeRule(k, f)
 }
 
 // keyForLintCall creates a sha256 representation of the given arguments. This is used to be stored and avoid
