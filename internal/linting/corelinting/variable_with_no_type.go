@@ -18,18 +18,18 @@ import (
 // RootVariableWithNoType is a linting rule that checks any root "variable" block for a defined
 // "type". If none is present, then it issues a new linting diagnostic.
 func RootVariableWithNoType(ctx context.Context, vc *configs.Variable) tfdiags.Diagnostics {
-	exec := func() tfdiags.Diagnostics {
+	exec := func(ruleID linting.RuleAddr, groupIDs ...linting.RuleAddr) tfdiags.Diagnostics {
 		if vc.Type != cty.DynamicPseudoType {
 			return nil
 		}
 		return tfdiags.New(tfdiags.LintMessage(
-			variableWithNoTypeRuleID,
-			[]linting.RuleAddr{GroupIDConfusing},
+			ruleID,
+			groupIDs,
 			"Variable with no type",
 			fmt.Sprintf("Variable %q has no type specified.", vc.Name),
 			new(tfdiags.SourceRangeFromHCL(vc.DeclRange)),
 			nil,
 		))
 	}
-	return tfdiags.ExecuteLintRule(ctx, exec, tfdiags.SourceRangeFromHCL(vc.DeclRange), variableWithNoTypeRuleID, GroupIDConfusing)
+	return tfdiags.ExecuteLintRule(ctx, exec, tfdiags.SourceRangeFromHCL(vc.DeclRange), ruleIDUntypedVariable, GroupIDConfusing)
 }
