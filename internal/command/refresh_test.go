@@ -802,7 +802,7 @@ func TestRefresh_targeted(t *testing.T) {
 	}
 
 	got := output.Stdout()
-	if want := "test_instance.foo: Refreshing"; !strings.Contains(got, want) {
+	if want := "Refreshing...\n"; !strings.Contains(got, want) {
 		t.Fatalf("expected output to contain %q, got:\n%s", want, got)
 	}
 	if doNotWant := "test_instance.bar: Refreshing"; strings.Contains(got, doNotWant) {
@@ -898,7 +898,7 @@ func TestRefresh_excluded(t *testing.T) {
 	}
 
 	got := output.Stdout()
-	if want := "test_instance.foo: Refreshing"; !strings.Contains(got, want) {
+	if want := "Refreshing...\n"; !strings.Contains(got, want) {
 		t.Fatalf("expected output to contain %q, got:\n%s", want, got)
 	}
 	if doNotWant := "test_instance.bar: Refreshing"; strings.Contains(got, doNotWant) {
