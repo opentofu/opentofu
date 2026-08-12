@@ -252,13 +252,13 @@ func ExecuteLintRule(ctx context.Context, f func() Diagnostics, src SourceRange,
 // having the same combination of (ruleID+groupIDs+src) executed more than once.
 func keyForLintCall(src SourceRange, ruleID linting.RuleAddr, groupIDs ...linting.RuleAddr) string {
 	var s bytes.Buffer
-	_, _ = s.WriteString(src.StartString())
-	_, _ = s.WriteString(ruleID.String())
+	s.WriteString(src.StartString())
+	s.WriteString(ruleID.String())
 	for _, d := range groupIDs {
-		_, _ = s.WriteString(d.String())
+		s.WriteString(d.String())
 	}
 	h := sha256.New()
-	_, _ = h.Write(s.Bytes())
+	h.Write(s.Bytes())
 	return hex.EncodeToString(h.Sum(nil))
 }
 
