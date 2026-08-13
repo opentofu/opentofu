@@ -413,7 +413,6 @@ func (s *Scope) evalContext(ctx context.Context, parent *hcl.EvalContext, refs [
 			// value vs. type expressions.)
 		}
 		if subj, ok := ref.Subject.(addrs.SymbolsFunction); ok {
-			// TODO this could either be a function call or a type, which sucks!
 			// Inject function directly into context
 			if _, ok := hclCtx.Functions[subj.String()]; !ok {
 				fn, fnDiags := s.SymbolTable.Function(symlib.FunctionRef{
@@ -421,6 +420,25 @@ func (s *Scope) evalContext(ctx context.Context, parent *hcl.EvalContext, refs [
 					Name:      subj.Function,
 					Range:     ref.SourceRange.ToHCL(),
 				})
+
+				// If we were unable to find the function, check to see if it
+				// is a type reference. This is an odd interaction with the convert
+				// function. Worst case if we guess wrong is a less clear error message
+				// presented to the user. TODO In practice we could prevent this
+				// entirely by preventing types and functions from having identical names
+				// within symbol libraries (probably a good idea)
+				_, _, typeDiags := s.SymbolTable.Type(symlib.TypeRef{
+					Namespace: subj.SymbolsName,
+					Name:      subj.Function,
+					Range:     ref.SourceRange.ToHCL(),
+				})
+				if !typeDiags.HasErrors() {
+					// This appears to be a type and does
+					// not need to be a function injected
+					// into the current context
+					continue
+				}
+
 				diags = diags.Append(fnDiags)
 
 				if !fnDiags.HasErrors() {
