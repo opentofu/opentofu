@@ -48,6 +48,9 @@ func commandMain(
 			"ExtraInfo": cmd.(*cli.Command).ExtraInfo,
 		})
 	}
+	cli.CommandHelpTemplate = `{{ index ExtraInfo "USAGE" }}`
+	cli.SubcommandHelpTemplate = cli.CommandHelpTemplate
+	cli.RootCommandHelpTemplate = cli.CommandHelpTemplate
 
 	var help bool    // Unused, urfave/cli picks up on the help flag regardless
 	var version bool // Unused, urfave/cli picks up on the version flag regardless
@@ -156,11 +159,6 @@ func commandToCli(namespace string, cmd command.Command, meta func() (command.Me
 		command.CommandUsage(namespace, cmd, &usage)
 		return map[string]string{"USAGE": usage.String()}
 	}
-	cc.CustomHelpTemplate = `{{ index ExtraInfo "USAGE" }}`
-	isRoot := namespace == ""
-	if isRoot {
-		cc.CustomRootCommandHelpTemplate = cc.CustomHelpTemplate
-	}
 
 	cc.Flags = cmd.CommandLine.CliFlags()
 	cc.Arguments = cmd.CommandLine.CliArguments()
@@ -177,7 +175,7 @@ func commandToCli(namespace string, cmd command.Command, meta func() (command.Me
 		}
 
 		remain := cc.Args().Slice()
-		if len(remain) > 0 {
+		if cmd.Name == "" && len(remain) > 0 {
 			// Command not found handler
 			given := remain[0]
 			suggestions := make([]string, 0, len(cmd.Commands))
@@ -188,7 +186,7 @@ func commandToCli(namespace string, cmd command.Command, meta func() (command.Me
 			if suggestion != "" {
 				suggestion = fmt.Sprintf(" Did you mean %q?", suggestion)
 			}
-			fmt.Fprintf(os.Stdout, "OpenTofu has no command named %q.%s\n\nTo see all of OpenTofu's top-level commands, run:\n  tofu -help\n\n", given, suggestion)
+			fmt.Fprintf(os.Stderr, "OpenTofu has no command named %q.%s\n\nTo see all of OpenTofu's top-level commands, run:\n  tofu -help\n\n", given, suggestion)
 			os.Exit(1)
 		}
 
