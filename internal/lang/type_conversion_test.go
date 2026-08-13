@@ -162,6 +162,7 @@ func TestConvertFunc(t *testing.T) {
 		},
 	}
 
+	convertFunc := makeConvertFunc()
 	hclCtx := &hcl.EvalContext{
 		Variables: map[string]cty.Value{
 			"unknown": cty.DynamicVal,

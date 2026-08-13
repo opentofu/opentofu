@@ -11,14 +11,18 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/hcl/v2/ext/tryfunc"
+	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/zclconf/go-cty-debug/ctydebug"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
-
-	"github.com/opentofu/opentofu/internal/lang"
 )
 
 func TestMarshal(t *testing.T) {
+	// We'll use a temporary scope just to get access to a few pesky functions
+	// that have special handling that we want to test.
+	tempScope := &lang.Scope{}
+	funcs := tempScope.Functions()
+
 	tests := []struct {
 		Name    string
 		Input   map[string]function.Function
@@ -104,22 +108,6 @@ func TestMarshal(t *testing.T) {
 			"",
 		},
 		{
-			"function with type expression parameter",
-			map[string]function.Function{
-				"fun": function.New(&function.Spec{
-					Params: []function.Parameter{
-						{
-							Name: "target_type",
-							Type: lang.TypeConversionType,
-						},
-					},
-					Type: function.StaticReturnType(lang.TypeConversionType),
-				}),
-			},
-			`{"format_version":"1.0","function_signatures":{"fun":{"return_type":"type","parameters":[{"name":"target_type","type":"type"}]}}}`,
-			"",
-		},
-		{
 			"returns diagnostics on failure",
 			map[string]function.Function{
 				"fun": function.New(&function.Spec{
@@ -196,6 +184,22 @@ func TestMarshal(t *testing.T) {
 				}),
 			},
 			`{"format_version":"1.0","function_signatures":{"provider::test::can":{"return_type":["list","string"],"parameters":[{"name":"list","type":["list","string"]}]}}}`,
+			"",
+		},
+		{
+			"convert function marshalled correctly",
+			map[string]function.Function{
+				"convert": funcs["convert"],
+			},
+			`{"format_version":"1.0","function_signatures":{"convert":{"description":"` + "`" + `convert` + "`" + ` attempts to convert the given value to match the given target type constraint.","return_type":"dynamic","parameters":[{"name":"value","description":"The value to convert.","is_nullable":true,"type":"dynamic"},{"name":"type","description":"The type constraint to convert to.","type":"type"}]}}}`,
+			"",
+		},
+		{
+			"core::convert function marshalled correctly",
+			map[string]function.Function{
+				"core::convert": funcs["convert"],
+			},
+			`{"format_version":"1.0","function_signatures":{"core::convert":{"description":"` + "`" + `convert` + "`" + ` attempts to convert the given value to match the given target type constraint.","return_type":"dynamic","parameters":[{"name":"value","description":"The value to convert.","is_nullable":true,"type":"dynamic"},{"name":"type","description":"The type constraint to convert to.","type":"type"}]}}}`,
 			"",
 		},
 	}
