@@ -35,7 +35,7 @@ func BindStateList(cli *CommandLine) *StateList {
 
 	ret.State = BindState(cli, stateFlagStateIn)
 
-	cli.StringVar(&ret.LookupId, "id", "", `Filters the results to include only instances whose resource types have an attribute named "id" whose value equals the given id string.`).SetDisplay("ID")
+	cli.StringVar(&ret.LookupId, "id", "", `Filters the results to include only instances whose resource types have an attribute named "id" whose value equals the given id string.`).SetDisplay("=ID")
 
 	cli.VariadicArg(&ret.InstancesRawAddr, "address")
 
