@@ -65,6 +65,7 @@ func (n *NodeValidatableResource) Execute(ctx context.Context, evalCtx EvalConte
 	}
 
 	diags = diags.Append(corelinting.CountInsteadEnabled(ctx, n.ResourceAddr(), n.Config.DeclRange, n.Config.Count))
+	diags = diags.Append(corelinting.RedundantDependsOn(ctx, n.ResourceAddr(), n.Config.DeclRange, n.directReferences, n.DependsOn))
 
 	diags = diags.Append(n.validateResource(ctx, evalCtx))
 
