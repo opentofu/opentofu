@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/linting/corelinting"
 	"github.com/opentofu/opentofu/internal/plans/objchange"
 	"github.com/zclconf/go-cty/cty"
 
@@ -112,6 +113,8 @@ type evaluationStateData struct {
 	// Operation records the type of walk the evaluationStateData is being used
 	// for.
 	Operation walkOperation
+
+	UsedVariableCollector corelinting.UsedVarsCollector
 }
 
 // evaluationStateData must implement lang.Data
@@ -254,6 +257,9 @@ func (d *evaluationStateData) GetInputVariable(_ context.Context, addr addrs.Inp
 	}
 	d.Evaluator.VariableValuesLock.Lock()
 	defer d.Evaluator.VariableValuesLock.Unlock()
+	if d.Operation == walkPlan || d.Operation == walkApply {
+		d.UsedVariableCollector.CollectVariable(config)
+	}
 
 	// During the validate walk, input variables are always unknown so
 	// that we are validating the configuration for all possible input values
@@ -353,7 +359,9 @@ func (d *evaluationStateData) GetLocalValue(_ context.Context, addr addrs.LocalV
 		})
 		return cty.DynamicVal, diags
 	}
-
+	if d.Operation == walkPlan || d.Operation == walkApply {
+		d.UsedVariableCollector.CollectLocal(config)
+	}
 	val := d.Evaluator.State.LocalValue(addr.Absolute(d.ModulePath))
 	if val == cty.NilVal {
 		// Not evaluated yet?
