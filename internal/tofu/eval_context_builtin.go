@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/linting/corelinting"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 
@@ -77,6 +78,8 @@ type BuiltinEvalContext struct {
 	ImportResolverValue     *ImportResolver
 	Encryption              encryption.Encryption
 	ProviderFunctionTracker ProviderFunctionMapping
+
+	UsedVars corelinting.UsedVarsCollector
 }
 
 // BuiltinEvalContext implements EvalContext
@@ -305,10 +308,11 @@ func (c *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source ad
 		panic("context path not set")
 	}
 	data := &evaluationStateData{
-		Evaluator:       c.Evaluator,
-		ModulePath:      c.PathValue,
-		InstanceKeyData: keyData,
-		Operation:       c.Evaluator.Operation,
+		Evaluator:             c.Evaluator,
+		ModulePath:            c.PathValue,
+		InstanceKeyData:       keyData,
+		Operation:             c.Evaluator.Operation,
+		UsedVariableCollector: c.UsedVars,
 	}
 
 	// ctx.PathValue is the path of the module that contains whatever

@@ -289,6 +289,14 @@ func lintRuleAllowed(include, exclude collections.Set[linting.RuleAddr], ruleID 
 	return include.Has(linting.AllRulesGroupID)
 }
 
+func LintRuleEnabled(ctx context.Context, ruleID linting.RuleAddr, groupIDs ...linting.RuleAddr) bool {
+	hints := lintHintsFromContext(ctx)
+	if hints == nil {
+		return false
+	}
+	return lintRuleAllowed(hints.include, hints.exclude, ruleID, groupIDs...)
+}
+
 // isLint returns true if the given diagnostic is of lintMessage type.
 func isLint(diag Diagnostic) bool {
 	_, ok := diag.(lintMessage)

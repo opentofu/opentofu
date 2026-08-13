@@ -11,6 +11,7 @@ import (
 	"log"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/linting/corelinting"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -142,6 +143,7 @@ func (c *Context) Apply(ctx context.Context, plan *plans.Plan, config *configs.C
 	}
 
 	workingState := plan.PriorState.DeepCopy()
+	usedVarsCollector := corelinting.NewUsedVarsCollector(ctx, config)
 	walker, walkDiags := c.walk(ctx, graph, operation, &graphWalkOpts{
 		Config:     config,
 		InputState: workingState,
@@ -157,7 +159,8 @@ func (c *Context) Apply(ctx context.Context, plan *plans.Plan, config *configs.C
 		ProviderFunctionTracker: providerFunctionTracker,
 
 		// Include state backup handler in case of panic
-		BackupStateForPanic: backupStateFunc,
+		BackupStateForPanic:    backupStateFunc,
+		UsedVariablesCollector: usedVarsCollector,
 	})
 	diags = diags.Append(walker.NonFatalDiagnostics)
 	diags = diags.Append(walkDiags)
@@ -218,6 +221,7 @@ Note that the -target and -exclude options are not suitable for routine use, and
 		newState.CheckResults = plan.Checks.DeepCopy()
 	}
 
+	diags = diags.Append(usedVarsCollector.Validate(ctx))
 	return newState, diags
 }
 

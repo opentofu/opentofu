@@ -13,6 +13,7 @@ import (
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/instances"
+	"github.com/opentofu/opentofu/internal/linting/corelinting"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
@@ -49,6 +50,8 @@ type graphWalkOpts struct {
 	ProviderFunctionTracker ProviderFunctionMapping
 
 	BackupStateForPanic func(*states.State)
+
+	UsedVariablesCollector corelinting.UsedVarsCollector
 }
 
 func (c *Context) walk(ctx context.Context, graph *Graph, operation walkOperation, opts *graphWalkOpts) (*ContextGraphWalker, tfdiags.Diagnostics) {
@@ -160,5 +163,6 @@ func (c *Context) graphWalker(operation walkOperation, opts *graphWalkOpts) *Con
 		PlanTimestamp:           opts.PlanTimeTimestamp,
 		Encryption:              c.encryption,
 		ProviderFunctionTracker: opts.ProviderFunctionTracker,
+		UsedVars:                opts.UsedVariablesCollector,
 	}
 }

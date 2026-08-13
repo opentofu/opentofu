@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/linting/corelinting"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -811,6 +812,7 @@ func (c *Context) planWalk(ctx context.Context, config *configs.Config, prevRunS
 	// If we get here then we should definitely have a non-nil "graph", which
 	// we can now walk.
 	changes := plans.NewChanges()
+	usedVarsCollector := corelinting.NewUsedVarsCollector(ctx, config)
 	walker, walkDiags := c.walk(ctx, graph, walkOp, &graphWalkOpts{
 		Config:                  config,
 		InputState:              prevRunState,
@@ -818,6 +820,7 @@ func (c *Context) planWalk(ctx context.Context, config *configs.Config, prevRunS
 		MoveResults:             moveResults,
 		PlanTimeTimestamp:       timestamp,
 		ProviderFunctionTracker: providerFunctionTracker,
+		UsedVariablesCollector:  usedVarsCollector,
 	})
 	diags = diags.Append(walker.NonFatalDiagnostics)
 	diags = diags.Append(walkDiags)
@@ -878,6 +881,7 @@ func (c *Context) planWalk(ctx context.Context, config *configs.Config, prevRunS
 
 		// Other fields get populated by Context.Plan after we return
 	}
+	diags = diags.Append(usedVarsCollector.Validate(ctx))
 	return plan, diags
 }
 
