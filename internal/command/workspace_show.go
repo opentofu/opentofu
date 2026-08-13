@@ -17,7 +17,7 @@ import (
 
 func WorkspaceShowCommander() Command {
 	cmd := Command{
-		Name:  "workspace show",
+		Name:  "show",
 		Short: "Show the name of the current workspace.",
 		Long:  `Show the name of the current workspace.`,
 

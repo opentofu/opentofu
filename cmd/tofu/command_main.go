@@ -52,14 +52,11 @@ func commandMain(
 	var help bool    // Unused, urfave/cli picks up on the help flag regardless
 	var version bool // Unused, urfave/cli picks up on the version flag regardless
 	var chdirArg string
-	root := command.RootCommander(&help, &version, &chdirArg)
-
-	setupCompletion(root)
 
 	// Start processing the args without [0]
 	args := os.Args[1:]
 	// Prefix the args with any args from the EnvCLI
-	subcommand := detectSubcommand(root)
+	subcommand := detectSubcommand(command.RootCommander(&help, &version, &chdirArg))
 	if version {
 		// Inject the version subcommand, this is a
 		// odd legacy hack to match the old cli.
@@ -120,6 +117,9 @@ func commandMain(
 		return makeMeta(ctx, wd, view, config, services, modulePkgFetcher, providerSrc, providerDevOverrides, unmanagedProviders), 0
 	}
 
+	root := command.RootCommander(&help, &version, &chdirArg)
+	setupCompletion(&root)
+
 	rootCmd := commandToCli("", root, meta)
 
 	rootCmd.EnableShellCompletion = true
@@ -157,20 +157,9 @@ func commandToCli(namespace string, cmd command.Command, meta func() (command.Me
 		return map[string]string{"USAGE": usage.String()}
 	}
 	cc.CustomHelpTemplate = `{{ index ExtraInfo "USAGE" }}`
-	if namespace == "" {
+	isRoot := namespace == ""
+	if isRoot {
 		cc.CustomRootCommandHelpTemplate = cc.CustomHelpTemplate
-		cc.CommandNotFound = func(_ context.Context, c *cli.Command, given string) {
-			suggestions := make([]string, 0, len(cmd.Commands))
-			for _, sub := range cmd.Commands {
-				suggestions = append(suggestions, sub.Name)
-			}
-			suggestion := didyoumean.NameSuggestion(given, suggestions)
-			if suggestion != "" {
-				suggestion = fmt.Sprintf(" Did you mean %q?", suggestion)
-			}
-			fmt.Fprintf(c.Writer, "OpenTofu has no command named %q.%s\n\nTo see all of OpenTofu's top-level commands, run:\n  tofu -help\n\n", given, suggestion)
-			os.Exit(1)
-		}
 	}
 
 	cc.Flags = cmd.CommandLine.CliFlags()
@@ -187,8 +176,24 @@ func commandToCli(namespace string, cmd command.Command, meta func() (command.Me
 			return ExitCodeError(ec)
 		}
 
+		remain := cc.Args().Slice()
+		if len(remain) > 0 {
+			// Command not found handler
+			given := remain[0]
+			suggestions := make([]string, 0, len(cmd.Commands))
+			for _, sub := range cmd.Commands {
+				suggestions = append(suggestions, sub.Name)
+			}
+			suggestion := didyoumean.NameSuggestion(given, suggestions)
+			if suggestion != "" {
+				suggestion = fmt.Sprintf(" Did you mean %q?", suggestion)
+			}
+			fmt.Fprintf(os.Stdout, "OpenTofu has no command named %q.%s\n\nTo see all of OpenTofu's top-level commands, run:\n  tofu -help\n\n", given, suggestion)
+			os.Exit(1)
+		}
+
 		// Check positional arguments
-		diags := cmd.CommandLine.RemainCheck(cc.Args().Slice())
+		diags := cmd.CommandLine.RemainCheck(remain)
 
 		if cmd.Run == nil {
 			command.CommandUsage(namespace, cmd, os.Stdout)
@@ -208,7 +213,7 @@ func commandToCli(namespace string, cmd command.Command, meta func() (command.Me
 		return nil
 	}
 
-	cc.OnUsageError = func(ctx context.Context, _ *cli.Command, err error, isSubcommand bool) error {
+	cc.OnUsageError = func(ctx context.Context, cc *cli.Command, err error, isSubcommand bool) error {
 		m, ec := meta()
 		if ec != 0 {
 			return ExitCodeError(ec)
@@ -279,7 +284,7 @@ func detectSubcommand(cmd command.Command) string {
 // Additionally, moving away from the `command -C` approach used by posener/complete is complicated
 // by the bash-complete project shipping a fallback for "tofu" that uses `command -C`. Moving away from
 // that and not breaking userspace is going to be quite tricky in the long term.
-func setupCompletion(root command.Command) {
+func setupCompletion(root *command.Command) {
 	compLine := os.Getenv("COMP_LINE")
 	compPoint := os.Getenv("COMP_POINT")
 	completingSingleDash := true
@@ -320,7 +325,7 @@ func setupCompletion(root command.Command) {
 
 		return comp
 	}
-	completer := complete.New("tofu", builder(root))
+	completer := complete.New("tofu", builder(*root))
 
 	var installComplete bool
 	var uninstallComplete bool
