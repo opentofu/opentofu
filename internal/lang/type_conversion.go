@@ -99,39 +99,28 @@ func (c TypeConversionConstraint) ConvertValue(val cty.Value) (cty.Value, error)
 	return convert.Convert(val, c.ConvertTarget)
 }
 
-// TypeConversionType is a capsule type used to represent the target constraint
-// of a type conversion ([TypeConversionConstraint]) as a cty.Value.
-//
-// This is used to represent the second parameter of the built-in function
-// "convert", to represent the target type constraint for type conversion,
-// which expects its argument to be a type expression instead of a value
-// expression.
-var TypeConversionType cty.Type
-
-// convertFunc is the implementation of the built-in function "convert".
+// makeConvertFunc returns an implementation of the built-in function "convert".
 //
 // It lives in here rather than in package funcs mainly to avoid import cycles,
 // but it also means this function implementation lives close to the Go types
 // and functions that it's thinly wrapping so it should be easier to maintain
 // this along with everything else if our handling of type conversion targets
-// changes in future, and that we can use the init function below to force
-// the correct initialization order between TypeConversionType and convertFunc.
-var convertFunc function.Function
+// changes in future.
+func makeConvertFunc() function.Function {
+	// (This is a function rather than just a package-level variable because
+	// we're expecting that future work will cause it to take an argument
+	// representing which user-defined type aliases are in scope. For now
+	// we just always return the same result, though.)
 
-func init() {
-	// We delay initializing this primarily because the type's custom decode
-	// function needs to refer back to the type and this strategy avoids that
-	// being an initialization cycle, but also for the cosmetic purpose of not
-	// rendering this big ugly expression in the godoc output for
-	// TypeConversionType.
-	TypeConversionType = cty.CapsuleWithOps("type", reflect.TypeFor[TypeConversionConstraint](), &cty.CapsuleOps{
+	var typeConversionType cty.Type
+	typeConversionType = cty.CapsuleWithOps("type", reflect.TypeFor[TypeConversionConstraint](), &cty.CapsuleOps{
 		ExtensionData: func(key any) any {
 			switch key {
 			case customdecode.CustomExpressionDecoder:
 				return customdecode.CustomExpressionDecoderFunc(
 					func(expr hcl.Expression, _ *hcl.EvalContext) (cty.Value, hcl.Diagnostics) {
 						convertTarget, diags := ParseTypeConversionConstraint(expr)
-						ret := cty.CapsuleVal(TypeConversionType, &convertTarget)
+						ret := cty.CapsuleVal(typeConversionType, &convertTarget)
 						return ret, diags.ToHCL()
 					},
 				)
@@ -140,7 +129,10 @@ func init() {
 			}
 		},
 		TypeGoString: func(_ reflect.Type) string {
-			return "lang.TypeConversionType"
+			// This type doesn't actually have a real GoString, because it
+			// can't be used independently from just being a special parameter
+			// type for the convert function.
+			return "typeConversionType"
 		},
 		GoString: func(raw any) string {
 			convertTargetPtr := raw.(*TypeConversionConstraint)
@@ -152,8 +144,6 @@ func init() {
 		},
 	})
 
-	// convertFunc must be initialized here to make sure that TypeConversionType
-	// is definitely initialized by the time we refer to it below.
 	convertMain := func(args []cty.Value) (cty.Value, error) {
 		// The Type and Impl for convert are essentially the same except that
 		// Type just throws the resulting value away and returns its type,
@@ -165,7 +155,7 @@ func init() {
 		}
 		return got, nil
 	}
-	convertFunc = function.New(&function.Spec{
+	return function.New(&function.Spec{
 		Params: []function.Parameter{
 			{
 				Name:             "value",
@@ -177,7 +167,7 @@ func init() {
 			},
 			{
 				Name: "type",
-				Type: TypeConversionType,
+				Type: typeConversionType,
 			},
 		},
 		Type: func(args []cty.Value) (cty.Type, error) {

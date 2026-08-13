@@ -150,7 +150,7 @@ func makeBaseFunctionTable(baseDir string) map[string]function.Function {
 		"compact":             stdlib.CompactFunc,
 		"concat":              stdlib.ConcatFunc,
 		"contains":            stdlib.ContainsFunc,
-		"convert":             convertFunc,
+		"convert":             makeConvertFunc(),
 		"csvdecode":           stdlib.CSVDecodeFunc,
 		"dirname":             funcs.DirnameFunc,
 		"distinct":            stdlib.DistinctFunc,
