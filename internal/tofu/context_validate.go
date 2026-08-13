@@ -11,6 +11,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/linting/corelinting"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tracing"
@@ -92,12 +93,16 @@ func (c *Context) Validate(ctx context.Context, config *configs.Config) tfdiags.
 		return diags
 	}
 
+	// TODO andrei - initialise this as noOp since the validation below cannot be executed reliably
+	usedVarsCollector := corelinting.NewUsedVarsCollector(ctx, config)
 	walker, walkDiags := c.walk(ctx, graph, walkValidate, &graphWalkOpts{
 		Config:                  config,
 		ProviderFunctionTracker: providerFunctionTracker,
+		UsedVariablesCollector:  usedVarsCollector,
 	})
 	diags = diags.Append(walker.NonFatalDiagnostics)
 	diags = diags.Append(walkDiags)
+	//diags = diags.Append(usedVarsCollector.Validate(ctx))
 	if walkDiags.HasErrors() {
 		return diags
 	}
