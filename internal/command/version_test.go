@@ -7,6 +7,8 @@ package command
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -183,5 +185,86 @@ func TestVersion_json(t *testing.T) {
 `)
 	if diff := cmp.Diff(expected, actual); diff != "" {
 		t.Fatalf("wrong output\n%s", diff)
+	}
+}
+
+func TestVersion_modules(t *testing.T) {
+	td := t.TempDir()
+	t.Chdir(td)
+
+	// Create a module manifest snapshot file (.terraform/modules/modules.json)
+	modulesDir := workdir.NewDir(".").ModulesDir()
+	if err := os.MkdirAll(modulesDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	manifestJSON := `{
+  "Modules": [
+    {
+      "Key": "",
+      "Source": "",
+      "Dir": "."
+    },
+    {
+      "Key": "iam",
+      "Source": "myregistry.foo.com/namespace/iam/aws",
+      "Version": "1.4.2",
+      "Dir": ".terraform/modules/iam"
+    }
+  ]
+}`
+	if err := os.WriteFile(filepath.Join(modulesDir, "modules.json"), []byte(manifestJSON), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// 1. Human output test
+	view, done := testView(t)
+	c := &VersionCommand{
+		Meta: Meta{
+			WorkingDir: workdir.NewDir("."),
+			View:       view,
+		},
+		Version:  "1.10.6",
+		Platform: getproviders.Platform{OS: "linux", Arch: "amd64"},
+	}
+	code := c.Run([]string{})
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", output.Stderr())
+	}
+	actual := strings.TrimSpace(output.Stdout())
+	expected := "OpenTofu v1.10.6\non linux_amd64\n+ module myregistry.foo.com/namespace/iam/aws v1.4.2"
+	if actual != expected {
+		t.Fatalf("wrong human output\ngot:\n%s\nwant:\n%s", actual, expected)
+	}
+
+	// 2. JSON output test
+	viewJSON, doneJSON := testView(t)
+	cJSON := &VersionCommand{
+		Meta: Meta{
+			WorkingDir: workdir.NewDir("."),
+			View:       viewJSON,
+		},
+		Version:  "1.10.6",
+		Platform: getproviders.Platform{OS: "linux", Arch: "amd64"},
+	}
+	codeJSON := cJSON.Run([]string{"-json"})
+	outputJSON := doneJSON(t)
+	if codeJSON != 0 {
+		t.Fatalf("bad: \n%s", outputJSON.Stderr())
+	}
+	actualJSON := strings.TrimSpace(outputJSON.Stdout())
+	expectedJSON := strings.TrimSpace(`
+{
+  "terraform_version": "1.10.6",
+  "platform": "linux_amd64",
+  "provider_selections": {},
+  "module_selections": {
+    "myregistry.foo.com/namespace/iam/aws": "1.4.2"
+  }
+}
+`)
+	if diff := cmp.Diff(expectedJSON, actualJSON); diff != "" {
+		t.Fatalf("wrong JSON output\n%s", diff)
 	}
 }
