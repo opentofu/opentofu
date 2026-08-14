@@ -41,7 +41,7 @@ func compareDiagnostic(t *testing.T, i int, want, got tfdiags.Diagnostic) {
 		t.Errorf("%sinvalid address. want: %q but got %q", prefix, wv, gv)
 	}
 	if wv, gv := want.Source(), got.Source(); !wv.Equal(gv) {
-		t.Errorf("%sinvalid source. want: %+v but got %+v", prefix, wv, gv)
+		t.Errorf("%sinvalid source. want: %#v but got %#v", prefix, wv, gv)
 	}
 	wei, gei := want.ExtraInfo(), got.ExtraInfo()
 	if diff := cmp.Diff(wei, gei); diff != "" {
