@@ -25,7 +25,7 @@ import (
 // providerTamperingFixtureNullProviderVersion must contain a string
 // representation of the same version number used for "hashicorp/null" in the
 // "provider-tampering-base" fixture.
-const providerTamperingFixtureNullProviderVersion = "3.1.0"
+const providerTamperingFixtureNullProviderVersion = "3.3.1"
 
 // TestProviderTampering tests various ways that the provider plugins in the
 // local cache directory might be modified after an initial "tofu init",
@@ -86,7 +86,7 @@ func TestProviderTampering(t *testing.T) {
 		if err == nil {
 			t.Fatalf("unexpected plan success\nstdout:\n%s", stdout)
 		}
-		if want := `there is no package for registry.opentofu.org/hashicorp/null 3.1.0 cached in ` + providerCacheDir; !strings.Contains(SanitizeStderr(stderr), want) {
+		if want := `there is no package for registry.opentofu.org/hashicorp/null 3.3.1 cached in ` + providerCacheDir; !strings.Contains(SanitizeStderr(stderr), want) {
 			t.Errorf("missing expected error message\nwant substring: %s\ngot:\n%s", want, stderr)
 		}
 		if want := `tofu init`; !strings.Contains(stderr, want) {
@@ -151,7 +151,7 @@ func TestProviderTampering(t *testing.T) {
 		if err == nil {
 			t.Fatalf("unexpected plan success\nstdout:\n%s", stdout)
 		}
-		if want := `the cached package for registry.opentofu.org/hashicorp/null 3.1.0 (in ` + providerCacheDir + `) does not match any of the checksums recorded in the dependency lock file`; !strings.Contains(SanitizeStderr(stderr), want) {
+		if want := `the cached package for registry.opentofu.org/hashicorp/null 3.3.1 (in ` + providerCacheDir + `) does not match any of the checksums recorded in the dependency lock file`; !strings.Contains(SanitizeStderr(stderr), want) {
 			t.Errorf("missing expected error message\nwant substring: %s\ngot:\n%s", want, stderr)
 		}
 		if want := `tofu init`; !strings.Contains(stderr, want) {
@@ -180,7 +180,7 @@ func TestProviderTampering(t *testing.T) {
 		if err == nil {
 			t.Fatalf("unexpected plan success\nstdout:\n%s", stdout)
 		}
-		if want := `provider registry.opentofu.org/hashicorp/null: locked version selection 3.1.0 doesn't match the updated version constraints "1.0.0"`; !strings.Contains(stderr, want) {
+		if want := `provider registry.opentofu.org/hashicorp/null: locked version selection 3.3.1 doesn't match the updated version constraints "1.0.0"`; !strings.Contains(stderr, want) {
 			t.Errorf("missing expected error message\nwant substring: %s\ngot:\n%s", want, stderr)
 		}
 		if want := `tofu init -upgrade`; !strings.Contains(stderr, want) {
@@ -256,7 +256,7 @@ func TestProviderTampering(t *testing.T) {
 		if err == nil {
 			t.Fatalf("unexpected apply success\nstdout:\n%s", stdout)
 		}
-		if want := `there is no package for registry.opentofu.org/hashicorp/null 3.1.0 cached in ` + providerCacheDir; !strings.Contains(SanitizeStderr(stderr), want) {
+		if want := `there is no package for registry.opentofu.org/hashicorp/null 3.3.1 cached in ` + providerCacheDir; !strings.Contains(SanitizeStderr(stderr), want) {
 			t.Errorf("missing expected error message\nwant substring: %s\ngot:\n%s", want, stderr)
 		}
 	})
@@ -278,7 +278,7 @@ func TestProviderTampering(t *testing.T) {
 		if err == nil {
 			t.Fatalf("unexpected apply success\nstdout:\n%s", stdout)
 		}
-		if want := `the cached package for registry.opentofu.org/hashicorp/null 3.1.0 (in ` + providerCacheDir + `) does not match any of the checksums recorded in the dependency lock file`; !strings.Contains(SanitizeStderr(stderr), want) {
+		if want := `the cached package for registry.opentofu.org/hashicorp/null 3.3.1 (in ` + providerCacheDir + `) does not match any of the checksums recorded in the dependency lock file`; !strings.Contains(SanitizeStderr(stderr), want) {
 			t.Errorf("missing expected error message\nwant substring: %s\ngot:\n%s", want, stderr)
 		}
 	})

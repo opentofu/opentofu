@@ -6,7 +6,7 @@ terraform {
       # if e.g. Terraform stops supporting plugin protocol 5, or if
       # the null provider is yanked from the registry for some reason.
       source  = "hashicorp/null"
-      version = "3.1.0"
+      version = "3.3.1"
     }
   }
 }
