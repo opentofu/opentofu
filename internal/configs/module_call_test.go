@@ -157,7 +157,7 @@ func TestLoadModuleCall(t *testing.T) {
 	for _, m := range gotModules {
 		// This is a structural issue which existed before static evaluation, but has been made worse by it
 		// See https://github.com/opentofu/opentofu/issues/1467 for more details
-		eval := NewStaticEvaluator(nil, RootModuleCallForTesting())
+		eval := NewStaticEvaluator(nil, nil, RootModuleCallForTesting())
 		diags := m.decodeStaticFields(t.Context(), eval)
 		if diags.HasErrors() {
 			t.Fatal(diags.Error())
@@ -334,7 +334,7 @@ func TestModuleCallWithVersion(t *testing.T) {
 
 	for _, m := range gotModules {
 		// Create a static evaluator with the module context
-		eval := NewStaticEvaluator(mod, RootModuleCallForTesting())
+		eval := NewStaticEvaluator(mod, nil, RootModuleCallForTesting())
 		diags := m.decodeStaticFields(t.Context(), eval)
 		if diags.HasErrors() {
 			t.Fatal(diags.Error())
@@ -428,8 +428,7 @@ variable "path" {
 			}
 			mod, diags := NewModule(tFiles, nil, "testdata", SelectiveLoadAll)
 			if mod != nil {
-				diags = diags.Extend(mod.WithSymbolLibrary(symlib.EmptyLibrary))
-				diags = diags.Extend(mod.WithStaticCall(call))
+				diags = diags.Extend(mod.Finalize(symlib.EmptyLibrary, call))
 			}
 			if tc.err == "" {
 				if diags.HasErrors() {

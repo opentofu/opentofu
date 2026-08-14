@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hcldec"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs/symlib"
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/zclconf/go-cty/cty"
@@ -79,15 +80,17 @@ func RootModuleCallForTesting() StaticModuleCall {
 // which only understands "static" (non-state) data. Internally, it relies
 // on staticData
 type StaticEvaluator struct {
-	call StaticModuleCall
-	cfg  *Module
+	call  StaticModuleCall
+	table symlib.Table
+	cfg   *Module
 }
 
 // Creates a static evaluator based from the given module and module call
-func NewStaticEvaluator(mod *Module, call StaticModuleCall) *StaticEvaluator {
+func NewStaticEvaluator(mod *Module, l symlib.Table, call StaticModuleCall) *StaticEvaluator {
 	return &StaticEvaluator{
-		call: call,
-		cfg:  mod,
+		call:  call,
+		table: l,
+		cfg:   mod,
 	}
 }
 

@@ -56,7 +56,7 @@ func TestDualCustody(t *testing.T) {
 			t.Fatalf("%v", diags.Error())
 		}
 
-		staticEval := configs.NewStaticEvaluator(nil, configs.RootModuleCallForTesting())
+		staticEval := configs.NewStaticEvaluator(nil, nil, configs.RootModuleCallForTesting())
 
 		enc, diags := New(t.Context(), reg, parsedSourceConfig, staticEval)
 		if diags.HasErrors() {
@@ -129,7 +129,7 @@ func TestDualCustody(t *testing.T) {
 			t.Fatalf("%v", diags.Error())
 		}
 
-		staticEval := configs.NewStaticEvaluator(nil, configs.RootModuleCallForTesting())
+		staticEval := configs.NewStaticEvaluator(nil, nil, configs.RootModuleCallForTesting())
 
 		enc, diags := New(t.Context(), reg, parsedSourceConfig, staticEval)
 		if diags.HasErrors() {
@@ -203,7 +203,7 @@ func TestDualCustody(t *testing.T) {
 			t.Fatalf("%v", diags.Error())
 		}
 
-		staticEval := configs.NewStaticEvaluator(nil, configs.RootModuleCallForTesting())
+		staticEval := configs.NewStaticEvaluator(nil, nil, configs.RootModuleCallForTesting())
 
 		enc, diags := New(t.Context(), reg, parsedSourceConfig, staticEval)
 		if diags.HasErrors() {

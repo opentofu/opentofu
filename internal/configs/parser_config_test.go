@@ -341,7 +341,7 @@ func TestParserLoadConfigFileError(t *testing.T) {
 			for _, vc := range file.Variables {
 				diags = diags.Extend(vc.withLibrary(symlib.EmptyLibrary))
 			}
-			eval := NewStaticEvaluator(nil, RootModuleCallForTesting())
+			eval := NewStaticEvaluator(nil, nil, RootModuleCallForTesting())
 			for _, mc := range file.ModuleCalls {
 				mDiags := mc.decodeStaticFields(t.Context(), eval)
 				diags = append(diags, mDiags...)

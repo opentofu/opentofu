@@ -87,8 +87,7 @@ func (m *Meta) loadSingleModule(ctx context.Context, dir string, load configs.Se
 
 	module, hclDiags := m.configLoader().LoadConfigDirSelective(dir, load)
 	diags = diags.Append(hclDiags)
-	_ = module.WithSymbolLibrary(symlib.EmptyLibrary) // TODO we need to do a multi-phase installation.  Symbols may not be used in static eval (yet)
-	diags = diags.Append(module.WithStaticCall(call))
+	diags = diags.Append(module.Finalize(symlib.EmptyLibrary, call)) // TODO we need to do a multi-phase installation.  Symbols may not be used in static eval (yet)
 	return module, diags
 }
 
@@ -172,8 +171,7 @@ func (m *Meta) loadSingleModuleWithTests(ctx context.Context, dir string, testDi
 
 	module, hclDiags := m.configLoader().LoadConfigDirWithTests(dir, testDir)
 	diags = diags.Append(hclDiags)
-	_ = module.WithSymbolLibrary(symlib.EmptyLibrary) // TODO we need to do a multi-phase installation.  Symbols may not be used in static eval (yet)
-	diags = diags.Append(module.WithStaticCall(call))
+	diags = diags.Append(module.Finalize(symlib.EmptyLibrary, call))
 	return module, diags
 }
 

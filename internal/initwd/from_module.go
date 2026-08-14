@@ -234,8 +234,7 @@ func DirFromModule(ctx context.Context, loader configload.Loader, rootDir, modul
 					}
 					return cty.DynamicVal, nil
 				}, rootDir, "")
-				_ = mod.WithSymbolLibrary(symlib.EmptyLibrary) // TODO this does not allow for static evaluation combined with symbol libraries
-				_ = mod.WithStaticCall(call)
+				_ = mod.Finalize(symlib.EmptyLibrary, call) // TODO this does not allow for static evaluation combined with symbol libraries
 
 				for _, mc := range mod.ModuleCalls {
 					if pathTraversesUp(mc.SourceAddrRaw) {

@@ -244,7 +244,7 @@ func NewModule(primaryFiles, overrideFiles []*File, sourceDir string, load Selec
 	return mod, diags
 }
 
-func (m *Module) WithSymbolLibrary(l symlib.Table) hcl.Diagnostics {
+func (m *Module) Finalize(l symlib.Table, call StaticModuleCall) hcl.Diagnostics {
 	var diags hcl.Diagnostics
 
 	m.SymbolTable = l
@@ -253,18 +253,12 @@ func (m *Module) WithSymbolLibrary(l symlib.Table) hcl.Diagnostics {
 		diags = diags.Extend(v.withLibrary(l))
 	}
 
-	return diags
-}
-
-func (m *Module) WithStaticCall(call StaticModuleCall) hcl.Diagnostics {
-	var diags hcl.Diagnostics
-
 	if m.StaticEvaluator != nil {
 		panic("applying Static Evaluation to a module twice, this is a critical bug in OpenTofu")
 	}
 
 	// Static evaluation to build a StaticContext now that module has all relevant Locals / Variables
-	m.StaticEvaluator = NewStaticEvaluator(m, call)
+	m.StaticEvaluator = NewStaticEvaluator(m, l, call)
 
 	// If we have a backend, it may have fields that require locals/vars
 	if m.Backend != nil {

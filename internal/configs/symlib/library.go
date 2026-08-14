@@ -120,6 +120,14 @@ func (t Table) Value(ref ValueRef) (cty.Value, hcl.Diagnostics) {
 	return lib.value(), diags
 }
 
+func (t Table) Values() map[string]cty.Value {
+	values := map[string]cty.Value{}
+	for name, lib := range t {
+		values[name] = lib.value()
+	}
+	return values
+}
+
 func (t Table) Function(ref FunctionRef) (function.Function, hcl.Diagnostics) {
 	lib, diags := t.library(ref.Namespace, ref.Range)
 	if diags.HasErrors() {

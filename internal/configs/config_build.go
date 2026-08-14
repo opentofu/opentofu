@@ -45,8 +45,7 @@ func BuildConfig(ctx context.Context, root *Module, call StaticModuleCall, walke
 	l, lDiags := buildSymbolLibraries(ctx, cfg, walker)
 	diags = diags.Extend(lDiags)
 
-	diags = diags.Extend(cfg.Module.WithSymbolLibrary(l))
-	diags = diags.Extend(cfg.Module.WithStaticCall(call))
+	diags = diags.Extend(cfg.Module.Finalize(l, call))
 
 	// Load Children
 	var cDiags hcl.Diagnostics
@@ -77,7 +76,7 @@ func buildSymbolLibraries(ctx context.Context, parent *Config, walker ModuleWalk
 
 		// THIS IS A BAD HACK
 		fakeModCall := RootModuleCallForTesting()
-		fakeEval := NewStaticEvaluator(&Module{}, fakeModCall)
+		fakeEval := NewStaticEvaluator(&Module{}, symlib.EmptyLibrary, fakeModCall)
 
 		call := &ModuleCall{
 			Name:        symCall.Name,
@@ -300,8 +299,7 @@ func loadModule(ctx context.Context, root *Config, req *ModuleRequest, call Stat
 	l, lDiags := buildSymbolLibraries(ctx, cfg, walker)
 	diags = diags.Extend(lDiags)
 
-	diags = diags.Extend(cfg.Module.WithSymbolLibrary(l))
-	diags = diags.Extend(cfg.Module.WithStaticCall(call))
+	diags = diags.Extend(cfg.Module.Finalize(l, call))
 
 	cfg.Children, modDiags = buildChildModules(ctx, cfg, walker)
 	diags = append(diags, modDiags...)

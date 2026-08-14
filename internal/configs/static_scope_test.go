@@ -187,8 +187,7 @@ func TestStaticScope_GetInputVariable(t *testing.T) {
 			"irrelevant",
 		)
 		mod, diags := p.LoadConfigDir(".")
-		diags = diags.Extend(mod.WithSymbolLibrary(symlib.EmptyLibrary))
-		diags = diags.Extend(mod.WithStaticCall(call))
+		diags = diags.Extend(mod.Finalize(symlib.EmptyLibrary, call))
 		assertNoDiagnostics(t, diags)
 
 		// We'll make sure the config and the test cases remain consistent
@@ -205,7 +204,7 @@ func TestStaticScope_GetInputVariable(t *testing.T) {
 			}
 		}
 
-		eval := NewStaticEvaluator(mod, call)
+		eval := NewStaticEvaluator(mod, nil, call)
 		scope := newStaticScope(eval, test_ident)
 
 		for name, test := range tests {
@@ -239,11 +238,10 @@ func TestStaticScope_GetInputVariable(t *testing.T) {
 			"irrelevant",
 		)
 		mod, diags := p.LoadConfigDir(".")
-		diags = diags.Extend(mod.WithSymbolLibrary(symlib.EmptyLibrary))
-		diags = diags.Extend(mod.WithStaticCall(call))
+		diags = diags.Extend(mod.Finalize(symlib.EmptyLibrary, call))
 		assertNoDiagnostics(t, diags)
 
-		eval := NewStaticEvaluator(mod, call)
+		eval := NewStaticEvaluator(mod, nil, call)
 		scope := newStaticScope(eval, test_ident)
 
 		addr := addrs.InputVariable{Name: "bad_default"}
@@ -279,11 +277,10 @@ func TestStaticScope_GetInputVariable(t *testing.T) {
 			"irrelevant",
 		)
 		mod, diags := p.LoadConfigDir(".")
-		diags = diags.Extend(mod.WithSymbolLibrary(symlib.EmptyLibrary))
-		diags = diags.Extend(mod.WithStaticCall(call))
+		diags = diags.Extend(mod.Finalize(symlib.EmptyLibrary, call))
 		assertNoDiagnostics(t, diags)
 
-		eval := NewStaticEvaluator(mod, call)
+		eval := NewStaticEvaluator(mod, nil, call)
 		scope := newStaticScope(eval, test_ident)
 
 		addr := addrs.InputVariable{Name: "not_nullable"}
@@ -323,11 +320,10 @@ func TestStaticScope_GetLocalValue(t *testing.T) {
 			"irrelevant",
 		)
 		mod, diags := p.LoadConfigDir(".")
-		diags = diags.Extend(mod.WithSymbolLibrary(symlib.EmptyLibrary))
-		diags = diags.Extend(mod.WithStaticCall(call))
+		diags = diags.Extend(mod.Finalize(symlib.EmptyLibrary, call))
 		assertNoDiagnostics(t, diags)
 
-		eval := NewStaticEvaluator(mod, call)
+		eval := NewStaticEvaluator(mod, nil, call)
 		scope := newStaticScope(eval, test_ident)
 
 		addr := addrs.LocalValue{Name: "foo"}
@@ -356,11 +352,10 @@ func TestStaticScope_GetLocalValue(t *testing.T) {
 			"irrelevant",
 		)
 		mod, diags := p.LoadConfigDir(".")
-		diags = diags.Extend(mod.WithSymbolLibrary(symlib.EmptyLibrary))
-		diags = diags.Extend(mod.WithStaticCall(call))
+		diags = diags.Extend(mod.Finalize(symlib.EmptyLibrary, call))
 		assertNoDiagnostics(t, diags)
 
-		eval := NewStaticEvaluator(mod, call)
+		eval := NewStaticEvaluator(mod, nil, call)
 		scope := newStaticScope(eval, test_ident)
 
 		addr := addrs.LocalValue{Name: "nonexist"}

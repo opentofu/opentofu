@@ -60,7 +60,7 @@ func TestChangingKeyProviderAddr(t *testing.T) {
 		t.Fatalf("%v", diags.Error())
 	}
 
-	staticEval := configs.NewStaticEvaluator(nil, configs.RootModuleCallForTesting())
+	staticEval := configs.NewStaticEvaluator(nil, nil, configs.RootModuleCallForTesting())
 
 	enc1, diags := New(t.Context(), reg, parsedSourceConfig, staticEval)
 	if diags.HasErrors() {
@@ -131,7 +131,7 @@ func TestDuplicateKeyProvider(t *testing.T) {
 		t.Fatalf("%v", diags.Error())
 	}
 
-	staticEval := configs.NewStaticEvaluator(nil, configs.RootModuleCallForTesting())
+	staticEval := configs.NewStaticEvaluator(nil, nil, configs.RootModuleCallForTesting())
 
 	_, diags = New(t.Context(), reg, parsedSourceConfig, staticEval)
 	if diags.HasErrors() {

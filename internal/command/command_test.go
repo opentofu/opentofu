@@ -716,7 +716,7 @@ func testBackendState(t *testing.T, s *states.State, c int) (*clistate.CLIState,
 	backendConfig := &configs.Backend{
 		Type:   "http",
 		Config: configs.SynthBody("<testBackendState>", map[string]cty.Value{}),
-		Eval:   configs.NewStaticEvaluator(nil, configs.RootModuleCallForTesting()),
+		Eval:   configs.NewStaticEvaluator(nil, nil, configs.RootModuleCallForTesting()),
 	}
 	httpBackendInit, _ := backendInit.Backend("http")
 	b := httpBackendInit(encryption.StateEncryptionDisabled())

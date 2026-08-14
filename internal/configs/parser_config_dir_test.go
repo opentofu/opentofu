@@ -89,8 +89,7 @@ func TestParserLoadConfigDirSuccess(t *testing.T) {
 						}
 						panic("Variables not configured for this test!")
 					}, "<testing>", "")
-				diags = diags.Extend(mod.WithSymbolLibrary(symlib.EmptyLibrary))
-				diags = diags.Extend(mod.WithStaticCall(call))
+				diags = diags.Extend(mod.Finalize(symlib.EmptyLibrary, call))
 			}
 			if diags.HasErrors() {
 				t.Errorf("unexpected error diagnostics")
@@ -186,7 +185,7 @@ func TestParserLoadConfigDirFailure(t *testing.T) {
 			path := filepath.Join("testdata/invalid-modules", name)
 
 			mod, diags := parser.LoadConfigDir(path)
-			diags = diags.Extend(mod.WithSymbolLibrary(symlib.EmptyLibrary))
+			diags = diags.Extend(mod.Finalize(symlib.EmptyLibrary, RootModuleCallForTesting()))
 			if !diags.HasErrors() {
 				t.Errorf("no errors; want at least one")
 				for _, diag := range diags {
@@ -216,7 +215,7 @@ func TestParserLoadConfigDirFailure(t *testing.T) {
 			})
 
 			mod, diags := parser.LoadConfigDir("mod")
-			diags = diags.Extend(mod.WithSymbolLibrary(symlib.EmptyLibrary))
+			diags = diags.Extend(mod.Finalize(symlib.EmptyLibrary, RootModuleCallForTesting()))
 			if !diags.HasErrors() {
 				t.Errorf("no errors; want at least one")
 				for _, diag := range diags {
@@ -257,7 +256,7 @@ func TestParserLoadConfigDirWithTests_TofuFiles(t *testing.T) {
 			path := tt.path
 
 			mod, diags := parser.LoadConfigDirWithTests(path, "test")
-			diags = diags.Extend(mod.WithSymbolLibrary(symlib.EmptyLibrary))
+			diags = diags.Extend(mod.Finalize(symlib.EmptyLibrary, RootModuleCallForTesting()))
 			if len(diags) != 0 {
 				t.Errorf("unexpected diagnostics")
 				for _, diag := range diags {
