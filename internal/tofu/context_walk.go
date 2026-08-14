@@ -51,7 +51,7 @@ type graphWalkOpts struct {
 
 	BackupStateForPanic func(*states.State)
 
-	UsedVariablesCollector corelinting.UsedVarsCollector
+	UsedVarsAndLocals corelinting.VarsAndLocalsCollector
 }
 
 func (c *Context) walk(ctx context.Context, graph *Graph, operation walkOperation, opts *graphWalkOpts) (*ContextGraphWalker, tfdiags.Diagnostics) {
@@ -163,6 +163,6 @@ func (c *Context) graphWalker(operation walkOperation, opts *graphWalkOpts) *Con
 		PlanTimestamp:           opts.PlanTimeTimestamp,
 		Encryption:              c.encryption,
 		ProviderFunctionTracker: opts.ProviderFunctionTracker,
-		UsedVars:                opts.UsedVariablesCollector,
+		UsedVars:                opts.UsedVarsAndLocals,
 	}
 }

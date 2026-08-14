@@ -114,7 +114,7 @@ type evaluationStateData struct {
 	// for.
 	Operation walkOperation
 
-	UsedVariableCollector corelinting.UsedVarsCollector
+	UsedVariableCollector corelinting.VarsAndLocalsCollector
 }
 
 // evaluationStateData must implement lang.Data
