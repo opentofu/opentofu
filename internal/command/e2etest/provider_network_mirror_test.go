@@ -115,13 +115,13 @@ func TestProviderNetworkMirrorRetries(t *testing.T) {
 			}
 			cliConfigFile := filepath.Join(tempDir, "cliconfig.tfrc")
 			cliConfigSrc := fmt.Sprintf(`
-		provider_installation {
-			network_mirror {
-                url = "%s"
-				%s
-			}
-		}
-	`, registryAddr, tt.tofurcRetriesConfigEntry)
+				provider_installation {
+					network_mirror {
+						url = "%s"
+						%s
+					}
+				}
+			`, registryAddr, tt.tofurcRetriesConfigEntry)
 			if err := os.WriteFile(cliConfigFile, []byte(cliConfigSrc), os.ModePerm); err != nil {
 				t.Fatalf("failed to create temporary CLI configuration file: %s", err)
 			}
@@ -142,6 +142,8 @@ func TestProviderNetworkMirrorRetries(t *testing.T) {
 			cleanStderr := SanitizeStderr(stderr)
 			if contains := tt.expectedErrMsg; !strings.Contains(cleanStderr, contains) {
 				t.Fatalf("expected the error from the installation to contain %q but it doesn't", contains)
+			} else {
+				t.Log("(the above error message is the expected outcome of this test)")
 			}
 		})
 	}
