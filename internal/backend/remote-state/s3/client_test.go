@@ -102,6 +102,7 @@ func TestRemoteS3ClientLocks(t *testing.T) {
 	)
 	cases := map[string]struct {
 		backendCfg hcl.Body
+		enableSSEC bool
 	}{
 		"with sse customer key": {
 			backendCfg: backend.TestWrapConfig(map[string]interface{}{
@@ -111,6 +112,7 @@ func TestRemoteS3ClientLocks(t *testing.T) {
 				"use_lockfile":     true,
 				"sse_customer_key": ssmc,
 			}),
+			enableSSEC: true,
 		},
 		"without sse": {
 			backendCfg: backend.TestWrapConfig(map[string]interface{}{
@@ -118,6 +120,7 @@ func TestRemoteS3ClientLocks(t *testing.T) {
 				"key":          keyName,
 				"use_lockfile": true,
 			}),
+			enableSSEC: false,
 		},
 	}
 	for name, tt := range cases {
@@ -126,6 +129,9 @@ func TestRemoteS3ClientLocks(t *testing.T) {
 			b2, _ := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), tt.backendCfg).(*Backend)
 
 			createS3Bucket(t.Context(), t, b1.s3Client, bucketName, b1.awsConfig.Region)
+			if tt.enableSSEC {
+				enableSSECForS3Bucket(t.Context(), t, b1.s3Client, bucketName)
+			}
 			defer deleteS3Bucket(t.Context(), t, b1.s3Client, bucketName)
 
 			s1, err := b1.StateMgr(t.Context(), backend.DefaultStateName)
