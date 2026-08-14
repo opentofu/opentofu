@@ -3,17 +3,20 @@ variable "name" {
   default = "world"
 }
 
-data "template_file" "test" {
-  template = "Hello, $${name}"
-
-  vars = {
-    name = "${var.name}"
+# We're using cloudinit_config from the hashicorp/cloudinit provider here
+# just because this test originally used template_file from hashicorp/template,
+# but that provider is now deprecated and we want a replacement that's also
+# purely local-only while still testing our ability to use a data resource
+# type from an external provider plugin.
+data "cloudinit_config" "test" {
+  part {
+    content  = "Hello, ${var.name}"
   }
 }
 
 resource "null_resource" "test" {
   triggers = {
-    greeting = "${data.template_file.test.rendered}"
+    greeting = "${data.cloudinit_config.test.part[0].content}"
   }
 }
 

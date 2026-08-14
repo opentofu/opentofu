@@ -51,8 +51,8 @@ func TestPrimarySeparatePlan(t *testing.T) {
 
 	// Make sure we actually downloaded the plugins, rather than picking up
 	// copies that might be already installed globally on the system.
-	if !strings.Contains(stdout, "Installing hashicorp/template v") {
-		t.Errorf("template provider download message is missing from init output:\n%s", stdout)
+	if !strings.Contains(stdout, "Installing hashicorp/cloudinit v") {
+		t.Errorf("cloudinit provider download message is missing from init output:\n%s", stdout)
 		t.Logf("(this can happen if you have a copy of the plugin in one of the global plugin search dirs)")
 	}
 	if !strings.Contains(stdout, "Installing hashicorp/null v") {
@@ -124,7 +124,7 @@ func TestPrimarySeparatePlan(t *testing.T) {
 	sort.Strings(gotResources)
 
 	wantResources := []string{
-		"data.template_file.test",
+		"data.cloudinit_config.test",
 		"null_resource.test",
 	}
 
