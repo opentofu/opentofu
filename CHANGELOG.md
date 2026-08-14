@@ -5,6 +5,7 @@ The v1.12.x release series is supported until **February 1 2027**.
 SECURITY ADVISORIES:
 
 - When interacting with OCI Distribution registries for module or provider package installation, earlier versions of OpenTofu could incorrectly resend credentials intended for the original origin to the target of an HTTP redirect. ([#4422](https://github.com/opentofu/opentofu/pull/4422))
+- When interacting with an attacker-controlled remote state backend or provider/module registry, `tofu init` in earlier versions of OpenTofu could potentially cause high CPU usage and/or high memory usage resolving crafted relative URLs in the API responses. ([#4472](https://github.com/opentofu/opentofu/pull/4472))
 
 ## 1.12.5
 
