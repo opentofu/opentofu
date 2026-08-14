@@ -86,11 +86,12 @@ func (c *Context) Eval(ctx context.Context, config *configs.Config, state *state
 		return nil, diags
 	}
 
+	usedVarsAndLocals := corelinting.UsedVarsAndLocalsCollector(ctx, config)
 	walkOpts := &graphWalkOpts{
 		InputState:              state,
 		Config:                  config,
 		ProviderFunctionTracker: providerFunctionTracker,
-		UsedVariablesCollector:  corelinting.NewUsedVarsCollector(ctx, config),
+		UsedVarsAndLocals:       usedVarsAndLocals,
 	}
 
 	walker, moreDiags = c.walk(ctx, graph, walkEval, walkOpts)
@@ -110,6 +111,6 @@ func (c *Context) Eval(ctx context.Context, config *configs.Config, state *state
 	// caches its contexts, so we should get hold of the context that was
 	// previously used for evaluation here, unless we skipped walking.
 	evalCtx := walker.EnterPath(moduleAddr)
-	diags = diags.Append(walkOpts.UsedVariablesCollector.Validate(ctx))
+	diags = diags.Append(usedVarsAndLocals.Validate(ctx))
 	return evalCtx.EvaluationScope(nil, nil, EvalDataForNoInstanceKey), diags
 }

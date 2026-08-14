@@ -812,7 +812,7 @@ func (c *Context) planWalk(ctx context.Context, config *configs.Config, prevRunS
 	// If we get here then we should definitely have a non-nil "graph", which
 	// we can now walk.
 	changes := plans.NewChanges()
-	usedVarsCollector := corelinting.NewUsedVarsCollector(ctx, config)
+	usedVarsAndLocals := corelinting.UsedVarsAndLocalsCollector(ctx, config)
 	walker, walkDiags := c.walk(ctx, graph, walkOp, &graphWalkOpts{
 		Config:                  config,
 		InputState:              prevRunState,
@@ -820,7 +820,7 @@ func (c *Context) planWalk(ctx context.Context, config *configs.Config, prevRunS
 		MoveResults:             moveResults,
 		PlanTimeTimestamp:       timestamp,
 		ProviderFunctionTracker: providerFunctionTracker,
-		UsedVariablesCollector:  usedVarsCollector,
+		UsedVarsAndLocals:       usedVarsAndLocals,
 	})
 	diags = diags.Append(walker.NonFatalDiagnostics)
 	diags = diags.Append(walkDiags)
@@ -881,7 +881,7 @@ func (c *Context) planWalk(ctx context.Context, config *configs.Config, prevRunS
 
 		// Other fields get populated by Context.Plan after we return
 	}
-	diags = diags.Append(usedVarsCollector.Validate(ctx))
+	diags = diags.Append(usedVarsAndLocals.Validate(ctx))
 	return plan, diags
 }
 

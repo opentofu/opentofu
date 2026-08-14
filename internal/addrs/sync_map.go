@@ -94,6 +94,11 @@ func (m SyncMap[K, V]) Range(f func(key K, value V) bool) {
 	})
 }
 
+// Initialised returns true if the current SyncMap is created through MakeSyncMap.
+func (m SyncMap[K, V]) Initialised() bool {
+	return m.elems != nil
+}
+
 // keys returns a Set[K] containing a snapshot of the current keys of elements
 // of the map. Do not use this outside of tests...
 func (m SyncMap[K, V]) keys() Set[K] {

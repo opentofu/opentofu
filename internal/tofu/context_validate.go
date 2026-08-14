@@ -93,16 +93,14 @@ func (c *Context) Validate(ctx context.Context, config *configs.Config) tfdiags.
 		return diags
 	}
 
-	// TODO andrei - initialise this as noOp since the validation below cannot be executed reliably
-	usedVarsCollector := corelinting.NewUsedVarsCollector(ctx, config)
+	usedVarsAndLocals := corelinting.UsedVarsAndLocalsCollector(ctx, nil) // nil config to force noOp collector
 	walker, walkDiags := c.walk(ctx, graph, walkValidate, &graphWalkOpts{
 		Config:                  config,
 		ProviderFunctionTracker: providerFunctionTracker,
-		UsedVariablesCollector:  usedVarsCollector,
+		UsedVarsAndLocals:       usedVarsAndLocals,
 	})
 	diags = diags.Append(walker.NonFatalDiagnostics)
 	diags = diags.Append(walkDiags)
-	//diags = diags.Append(usedVarsCollector.Validate(ctx))
 	if walkDiags.HasErrors() {
 		return diags
 	}

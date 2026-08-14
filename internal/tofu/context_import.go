@@ -455,12 +455,12 @@ func (c *Context) Import(ctx context.Context, config *configs.Config, prevRunSta
 	}
 
 	// Walk it
-	usedVarsCollector := corelinting.NewUsedVarsCollector(ctx, config)
+	usedVarsAndLocals := corelinting.UsedVarsAndLocalsCollector(ctx, config)
 	walker, walkDiags := c.walk(ctx, graph, walkImport, &graphWalkOpts{
 		Config:                  config,
 		InputState:              state,
 		ProviderFunctionTracker: providerFunctionTracker,
-		UsedVariablesCollector:  usedVarsCollector,
+		UsedVarsAndLocals:       usedVarsAndLocals,
 	})
 	diags = diags.Append(walkDiags)
 	if walkDiags.HasErrors() {
@@ -481,6 +481,6 @@ func (c *Context) Import(ctx context.Context, config *configs.Config, prevRunSta
 	walker.State.RemovePlannedResourceInstanceObjects()
 
 	newState := walker.State.Close()
-	diags = diags.Append(usedVarsCollector.Validate(ctx))
+	diags = diags.Append(usedVarsAndLocals.Validate(ctx))
 	return newState, diags
 }

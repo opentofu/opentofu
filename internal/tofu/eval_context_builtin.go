@@ -79,7 +79,7 @@ type BuiltinEvalContext struct {
 	Encryption              encryption.Encryption
 	ProviderFunctionTracker ProviderFunctionMapping
 
-	UsedVars corelinting.UsedVarsCollector
+	UsedVars corelinting.VarsAndLocalsCollector
 }
 
 // BuiltinEvalContext implements EvalContext

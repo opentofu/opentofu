@@ -57,7 +57,7 @@ type ContextGraphWalker struct {
 
 	variableValuesLock sync.Mutex
 	variableValues     map[string]map[string]cty.Value
-	UsedVars           corelinting.UsedVarsCollector
+	UsedVars           corelinting.VarsAndLocalsCollector
 
 	providerInputConfigLock sync.Mutex
 }
