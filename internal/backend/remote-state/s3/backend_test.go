@@ -1176,6 +1176,7 @@ func TestBackendSSECustomerKeyConfig(t *testing.T) {
 				}
 
 				createS3Bucket(t.Context(), t, b.s3Client, bucketName, b.awsConfig.Region)
+				enableSSECForS3Bucket(t.Context(), t, b.s3Client, bucketName)
 				defer deleteS3Bucket(t.Context(), t, b.s3Client, bucketName)
 
 				backend.TestBackendStates(t, b)
@@ -1239,6 +1240,7 @@ func TestBackendSSECustomerKeyEnvVar(t *testing.T) {
 				}
 
 				createS3Bucket(t.Context(), t, b.s3Client, bucketName, b.awsConfig.Region)
+				enableSSECForS3Bucket(t.Context(), t, b.s3Client, bucketName)
 				defer deleteS3Bucket(t.Context(), t, b.s3Client, bucketName)
 
 				backend.TestBackendStates(t, b)
@@ -1619,6 +1621,43 @@ func createS3Bucket(ctx context.Context, t *testing.T, s3Client *s3.Client, buck
 	_, err := s3Client.CreateBucket(ctx, createBucketReq)
 	if err != nil {
 		t.Fatal("failed to create test S3 bucket:", err)
+	}
+}
+
+// enableSSECForS3Bucket updates the settings for the given bucket to permit
+// using "Server-side Encryption with Customer-provided Keys" (SSE-C), which
+// is disabled by default for new buckets since April 2026:
+// https://docs.aws.amazon.com/AmazonS3/latest/userguide/default-s3-c-encryption-setting-faq.html
+//
+// Use this function only in tests that are testing SSE-C support in particular.
+// For other tests, we should avoid calling this to help make sure that the
+// S3 backend can work with the default encryption policy for newly-created
+// buckets.
+func enableSSECForS3Bucket(ctx context.Context, t *testing.T, s3Client *s3.Client, bucketName string) {
+	t.Helper()
+
+	// The following matches the documented way to enable SSE-C on a bucket
+	// from the following page as of August 2026:
+	// https://docs.aws.amazon.com/AmazonS3/latest/userguide/blocking-unblocking-s3-c-encryption-gpb.html
+	putReq := &s3.PutBucketEncryptionInput{
+		Bucket: &bucketName,
+		ServerSideEncryptionConfiguration: &types.ServerSideEncryptionConfiguration{
+			Rules: []types.ServerSideEncryptionRule{
+				{
+					BlockedEncryptionTypes: &types.BlockedEncryptionTypes{
+						EncryptionType: []types.EncryptionType{
+							types.EncryptionTypeNone,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	t.Logf("enabling SSE-C for bucket %q", bucketName)
+	_, err := s3Client.PutBucketEncryption(ctx, putReq)
+	if err != nil {
+		t.Fatalf("failed to enable SSE-C for bucket %q: %s", bucketName, err)
 	}
 }
 
