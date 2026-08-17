@@ -48,7 +48,7 @@ func (l *loader) loadConfig(ctx context.Context, rootMod *configs.Module, call c
 		}
 		if rootMod != nil {
 			// This is a best effort hack for this error pass.
-			diags = diags.Extend(rootMod.Finalize(symlib.EmptyLibrary, call))
+			diags = diags.Extend(rootMod.Finalize(symlib.EmptyTable, call))
 		}
 
 		return cfg, diags

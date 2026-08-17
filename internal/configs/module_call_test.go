@@ -428,7 +428,7 @@ variable "path" {
 			}
 			mod, diags := NewModule(tFiles, nil, "testdata", SelectiveLoadAll)
 			if mod != nil {
-				diags = diags.Extend(mod.Finalize(symlib.EmptyLibrary, call))
+				diags = diags.Extend(mod.Finalize(symlib.EmptyTable, call))
 			}
 			if tc.err == "" {
 				if diags.HasErrors() {

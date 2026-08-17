@@ -76,7 +76,7 @@ func buildSymbolLibraries(ctx context.Context, parent *Config, walker ModuleWalk
 
 		// THIS IS A BAD HACK
 		fakeModCall := RootModuleCallForTesting()
-		fakeEval := NewStaticEvaluator(&Module{}, symlib.EmptyLibrary, fakeModCall)
+		fakeEval := NewStaticEvaluator(&Module{}, symlib.EmptyTable, fakeModCall)
 
 		call := &ModuleCall{
 			Name:        symCall.Name,

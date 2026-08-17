@@ -97,7 +97,7 @@ resource "foo" "bar" {}
 
 	t.Run("Empty Eval", func(t *testing.T) {
 		mod, _ := NewModule([]*File{file}, nil, "dir", SelectiveLoadAll)
-		_ = mod.Finalize(symlib.EmptyLibrary, RootModuleCallForTesting())
+		_ = mod.Finalize(symlib.EmptyTable, RootModuleCallForTesting())
 		emptyEval := StaticEvaluator{}
 
 		// Expr with no traversals shouldn't access any fields
@@ -121,7 +121,7 @@ resource "foo" "bar" {}
 
 	t.Run("Simple static cases", func(t *testing.T) {
 		mod, _ := NewModule([]*File{file}, nil, "dir", SelectiveLoadAll)
-		_ = mod.Finalize(symlib.EmptyLibrary, RootModuleCallForTesting())
+		_ = mod.Finalize(symlib.EmptyTable, RootModuleCallForTesting())
 		eval := NewStaticEvaluator(mod, nil, RootModuleCallForTesting())
 
 		locals := []struct {
@@ -159,7 +159,7 @@ resource "foo" "bar" {}
 			return v.Default, nil
 		}, "<testing>", "")
 		mod, _ := NewModule([]*File{file}, nil, "dir", SelectiveLoadAll)
-		_ = mod.Finalize(symlib.EmptyLibrary, call)
+		_ = mod.Finalize(symlib.EmptyTable, call)
 		eval := NewStaticEvaluator(mod, nil, call)
 
 		locals := []struct {
@@ -186,7 +186,7 @@ resource "foo" "bar" {}
 
 	t.Run("Bad References", func(t *testing.T) {
 		mod, _ := NewModule([]*File{file}, nil, "dir", SelectiveLoadAll)
-		_ = mod.Finalize(symlib.EmptyLibrary, RootModuleCallForTesting())
+		_ = mod.Finalize(symlib.EmptyTable, RootModuleCallForTesting())
 		eval := NewStaticEvaluator(mod, nil, RootModuleCallForTesting())
 
 		locals := []struct {
@@ -207,7 +207,7 @@ resource "foo" "bar" {}
 
 	t.Run("Circular References", func(t *testing.T) {
 		mod, _ := NewModule([]*File{file}, nil, "dir", SelectiveLoadAll)
-		_ = mod.Finalize(symlib.EmptyLibrary, RootModuleCallForTesting())
+		_ = mod.Finalize(symlib.EmptyTable, RootModuleCallForTesting())
 		eval := NewStaticEvaluator(mod, nil, RootModuleCallForTesting())
 
 		locals := []struct {
@@ -245,7 +245,7 @@ resource "foo" "bar" {}
 			}}
 		}, "<testing>", "")
 		mod, _ := NewModule([]*File{file}, nil, "dir", SelectiveLoadAll)
-		_ = mod.Finalize(symlib.EmptyLibrary, call)
+		_ = mod.Finalize(symlib.EmptyTable, call)
 		eval := NewStaticEvaluator(mod, nil, call)
 
 		badref := mod.Locals["ref_c"]
@@ -260,7 +260,7 @@ resource "foo" "bar" {}
 
 	t.Run("Missing References", func(t *testing.T) {
 		mod, _ := NewModule([]*File{file}, nil, "dir", SelectiveLoadAll)
-		_ = mod.Finalize(symlib.EmptyLibrary, RootModuleCallForTesting())
+		_ = mod.Finalize(symlib.EmptyTable, RootModuleCallForTesting())
 		eval := NewStaticEvaluator(mod, nil, RootModuleCallForTesting())
 
 		locals := []struct {
@@ -282,7 +282,7 @@ resource "foo" "bar" {}
 	t.Run("Workspace", func(t *testing.T) {
 		call := NewStaticModuleCall(nil, hcl.Range{}, nil, "<testing>", "my-workspace")
 		mod, _ := NewModule([]*File{file}, nil, "dir", SelectiveLoadAll)
-		_ = mod.Finalize(symlib.EmptyLibrary, call)
+		_ = mod.Finalize(symlib.EmptyTable, call)
 		eval := NewStaticEvaluator(mod, nil, call)
 
 		value, diags := eval.Evaluate(t.Context(), mod.Locals["ws"].Expr, dummyIdentifier)
@@ -296,7 +296,7 @@ resource "foo" "bar" {}
 
 	t.Run("Functions", func(t *testing.T) {
 		mod, _ := NewModule([]*File{file}, nil, "dir", SelectiveLoadAll)
-		_ = mod.Finalize(symlib.EmptyLibrary, RootModuleCallForTesting())
+		_ = mod.Finalize(symlib.EmptyTable, RootModuleCallForTesting())
 		eval := NewStaticEvaluator(mod, nil, RootModuleCallForTesting())
 
 		value, diags := eval.Evaluate(t.Context(), mod.Locals["func"].Expr, dummyIdentifier)
@@ -322,7 +322,7 @@ func TestStaticEvaluator_DecodeExpression(t *testing.T) {
 		t.Fatal(fileDiags)
 	}
 	mod, _ := NewModule([]*File{file}, nil, "dir", SelectiveLoadAll)
-	_ = mod.Finalize(symlib.EmptyLibrary, RootModuleCallForTesting())
+	_ = mod.Finalize(symlib.EmptyTable, RootModuleCallForTesting())
 	mod.Locals["my_ephemeral_local"] = &Local{
 		Name:      "my_ephemeral_local",
 		Expr:      hcl.StaticExpr(cty.StringVal("ephemeral local value").Mark(marks.Ephemeral), hcl.Range{}),
@@ -455,7 +455,7 @@ terraform {
 				},
 			}
 			mod, _ := NewModule([]*File{file}, nil, "dir", SelectiveLoadAll)
-			_ = mod.Finalize(symlib.EmptyLibrary, modCall)
+			_ = mod.Finalize(symlib.EmptyTable, modCall)
 
 			_, diags := mod.Backend.Hash(t.Context(), schema)
 			if diags.HasErrors() {

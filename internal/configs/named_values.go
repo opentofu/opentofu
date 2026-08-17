@@ -194,11 +194,11 @@ func decodeVariableBlock(block *hcl.Block, override bool) (*Variable, hcl.Diagno
 	return v, diags
 }
 
-func (v *Variable) withLibrary(l symlib.Table) hcl.Diagnostics {
+func (v *Variable) finalize(symbols symlib.Table) hcl.Diagnostics {
 	var diags hcl.Diagnostics
 
 	if v.TypeExpr != nil {
-		ty, tyDefaults, parseMode, tyDiags := decodeVariableType(v.TypeExpr, new(l.TypeContext()))
+		ty, tyDefaults, parseMode, tyDiags := decodeVariableType(v.TypeExpr, new(symbols.TypeContext()))
 		diags = append(diags, tyDiags...)
 		v.ConstraintType = ty
 		v.TypeDefaults = tyDefaults

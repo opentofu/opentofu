@@ -250,7 +250,7 @@ func (m *Module) Finalize(l symlib.Table, call StaticModuleCall) hcl.Diagnostics
 	m.SymbolTable = l
 
 	for _, v := range m.Variables {
-		diags = diags.Extend(v.withLibrary(l))
+		diags = diags.Extend(v.finalize(l))
 	}
 
 	if m.StaticEvaluator != nil {

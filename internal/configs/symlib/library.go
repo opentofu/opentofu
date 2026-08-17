@@ -152,7 +152,7 @@ func BuildTable(calls []*SymbolCall, loader Loader) (Table, hcl.Diagnostics) {
 	return table, diags
 }
 
-var EmptyLibrary = Table{}
+var EmptyTable = Table{}
 
 // A consistent detail message for all "not a valid identifier" diagnostics.
 // Duplicated from the configs package

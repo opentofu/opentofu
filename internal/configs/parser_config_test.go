@@ -85,7 +85,7 @@ func TestParserLoadConfigFileFailure(t *testing.T) {
 			// This is a structural issue which existed before static evaluation, but has been made worse by it
 			// See https://github.com/opentofu/opentofu/issues/1467 for more details
 			for _, vc := range file.Variables {
-				diags = diags.Extend(vc.withLibrary(symlib.EmptyLibrary))
+				diags = diags.Extend(vc.finalize(symlib.EmptyTable))
 			}
 			if !diags.HasErrors() {
 				t.Errorf("LoadConfigFile succeeded; want errors")
@@ -197,7 +197,7 @@ func TestParserLoadConfigFileFailureMessages(t *testing.T) {
 			// This is a structural issue which existed before static evaluation, but has been made worse by it
 			// See https://github.com/opentofu/opentofu/issues/1467 for more details
 			for _, vc := range file.Variables {
-				diags = diags.Extend(vc.withLibrary(symlib.EmptyLibrary))
+				diags = diags.Extend(vc.finalize(symlib.EmptyTable))
 			}
 
 			if len(diags) != 1 {
@@ -274,7 +274,7 @@ func TestParserLoadConfigFileWarning(t *testing.T) {
 			// This is a structural issue which existed before static evaluation, but has been made worse by it
 			// See https://github.com/opentofu/opentofu/issues/1467 for more details
 			for _, vc := range file.Variables {
-				diags = diags.Extend(vc.withLibrary(symlib.EmptyLibrary))
+				diags = diags.Extend(vc.finalize(symlib.EmptyTable))
 			}
 
 			gotWarnings := make(map[int]string)
@@ -339,7 +339,7 @@ func TestParserLoadConfigFileError(t *testing.T) {
 			// This is a structural issue which existed before static evaluation, but has been made worse by it
 			// See https://github.com/opentofu/opentofu/issues/1467 for more details
 			for _, vc := range file.Variables {
-				diags = diags.Extend(vc.withLibrary(symlib.EmptyLibrary))
+				diags = diags.Extend(vc.finalize(symlib.EmptyTable))
 			}
 			eval := NewStaticEvaluator(nil, nil, RootModuleCallForTesting())
 			for _, mc := range file.ModuleCalls {

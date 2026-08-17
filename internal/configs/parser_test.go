@@ -63,7 +63,7 @@ func testModuleConfigFromFile(ctx context.Context, filename string) (*Config, hc
 func testModuleFromDir(path string) (*Module, hcl.Diagnostics) {
 	parser := NewParser(nil)
 	mod, diags := parser.LoadConfigDir(path)
-	diags = diags.Extend(mod.Finalize(symlib.EmptyLibrary, RootModuleCallForTesting()))
+	diags = diags.Extend(mod.Finalize(symlib.EmptyTable, RootModuleCallForTesting()))
 	return mod, diags
 }
 
