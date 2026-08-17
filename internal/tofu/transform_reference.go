@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"maps"
 	"sort"
 
 	"github.com/hashicorp/hcl/v2"
@@ -286,10 +287,20 @@ func isDependableResource(v dag.Vertex) bool {
 	return false
 }
 
+type dependsOnCacheEntry struct {
+	set       dag.Set
+	dependsOn bool
+}
+
 // ReferenceMap is a structure that can be used to efficiently check
 // for references on a graph, mapping internal reference keys (as produced by
 // the mapKey method) to one or more vertices that are identified by each key.
-type ReferenceMap map[string][]dag.Vertex
+type ReferenceMap struct {
+	refMap map[string][]dag.Vertex
+
+	dependsOnCache       map[dag.Vertex]dependsOnCacheEntry
+	parentDependsOnCache map[dag.Vertex]dependsOnCacheEntry
+}
 
 // References returns the set of vertices that the given vertex refers to,
 // and any referenced addresses that do not have corresponding vertices.
@@ -332,7 +343,7 @@ func (m ReferenceMap) addReference(path addrs.Module, current dag.Vertex, ref *a
 	subject := ref.Subject
 
 	key := m.mapKey(path, subject)
-	if _, exists := m[key]; !exists {
+	if _, exists := m.refMap[key]; !exists {
 		// If what we were looking for was a ResourceInstance then we
 		// might be in a resource-oriented graph rather than an
 		// instance-oriented graph, and so we'll see if we have the
@@ -354,7 +365,7 @@ func (m ReferenceMap) addReference(path addrs.Module, current dag.Vertex, ref *a
 		}
 		key = m.mapKey(path, subject)
 	}
-	vertices := m[key]
+	vertices := m.refMap[key]
 	for _, rv := range vertices {
 		// don't include self-references
 		if rv == current {
@@ -368,8 +379,12 @@ func (m ReferenceMap) addReference(path addrs.Module, current dag.Vertex, ref *a
 // dependsOn returns the set of vertices that the given vertex refers to from
 // the configured depends_on. The bool return value indicates if depends_on was
 // found in a parent module configuration.
-func (m ReferenceMap) dependsOn(g *Graph, depender graphNodeDependsOn) ([]dag.Vertex, bool) {
-	var res []dag.Vertex
+func (m ReferenceMap) dependsOn(g *Graph, depender graphNodeDependsOn) (dag.Set, bool) {
+	if cached, ok := m.dependsOnCache[depender]; ok {
+		return cached.set, cached.dependsOn
+	}
+
+	res := dag.Set{}
 	fromModule := false
 
 	refs := depender.DependsOn()
@@ -386,7 +401,7 @@ func (m ReferenceMap) dependsOn(g *Graph, depender graphNodeDependsOn) ([]dag.Ve
 		subject := ref.Subject
 
 		key := m.referenceMapKey(depender, subject)
-		vertices, ok := m[key]
+		vertices, ok := m.refMap[key]
 		if !ok {
 			// the ReferenceMap generates all possible keys, so any warning
 			// here is probably not useful for this implementation.
@@ -397,7 +412,7 @@ func (m ReferenceMap) dependsOn(g *Graph, depender graphNodeDependsOn) ([]dag.Ve
 			if rv == depender {
 				continue
 			}
-			res = append(res, rv)
+			res.Add(rv)
 
 			// Check any ancestors for transitive dependencies when we're
 			// not pointed directly at a resource. We can't be much more
@@ -410,7 +425,7 @@ func (m ReferenceMap) dependsOn(g *Graph, depender graphNodeDependsOn) ([]dag.Ve
 				ans, _ := g.Ancestors(rv)
 				for _, v := range ans {
 					if isDependableResource(v) {
-						res = append(res, v)
+						res.Add(v)
 					}
 				}
 			}
@@ -418,9 +433,14 @@ func (m ReferenceMap) dependsOn(g *Graph, depender graphNodeDependsOn) ([]dag.Ve
 	}
 
 	parentDeps, fromParentModule := m.parentModuleDependsOn(g, depender)
-	res = append(res, parentDeps...)
+	maps.Copy(res, parentDeps)
 
-	return res, fromModule || fromParentModule
+	cached := dependsOnCacheEntry{
+		set:       res,
+		dependsOn: fromModule || fromParentModule,
+	}
+	m.dependsOnCache[depender] = cached
+	return cached.set, cached.dependsOn
 }
 
 // Return extra depends_on references if "depender" is a data source or an ephemeral resource.
@@ -467,8 +487,12 @@ func (m ReferenceMap) nodeDependencies(depender graphNodeDependsOn) []*addrs.Ref
 // parentModuleDependsOn returns the state of vertices that a data sources parent
 // module references through the module call's depends_on. The bool return
 // value indicates if depends_on was found in a parent module configuration.
-func (m ReferenceMap) parentModuleDependsOn(g *Graph, depender graphNodeDependsOn) ([]dag.Vertex, bool) {
-	var res []dag.Vertex
+func (m ReferenceMap) parentModuleDependsOn(g *Graph, depender graphNodeDependsOn) (dag.Set, bool) {
+	if cached, ok := m.parentDependsOnCache[depender]; ok {
+		return cached.set, cached.dependsOn
+	}
+
+	res := dag.Set{}
 	fromModule := false
 
 	// Look for containing modules with DependsOn.
@@ -484,20 +508,25 @@ func (m ReferenceMap) parentModuleDependsOn(g *Graph, depender graphNodeDependsO
 		deps, fromParentModule := m.dependsOn(g, mod)
 		for _, dep := range deps {
 			// add the dependency
-			res = append(res, dep)
+			res.Add(dep)
 
 			// and check any transitive resource dependencies for more resources
 			ans, _ := g.Ancestors(dep)
 			for _, v := range ans {
 				if isDependableResource(v) {
-					res = append(res, v)
+					res.Add(v)
 				}
 			}
 		}
 		fromModule = fromModule || fromParentModule
 	}
 
-	return res, fromModule
+	cached := dependsOnCacheEntry{
+		set:       res,
+		dependsOn: fromModule,
+	}
+	m.parentDependsOnCache[depender] = cached
+	return cached.set, cached.dependsOn
 }
 
 func (m *ReferenceMap) mapKey(path addrs.Module, addr addrs.Referenceable) string {
@@ -570,7 +599,12 @@ func (m *ReferenceMap) referenceMapKey(referrer dag.Vertex, addr addrs.Reference
 // given set of vertices.
 func NewReferenceMap(vs []dag.Vertex) ReferenceMap {
 	// Build the lookup table
-	m := make(ReferenceMap)
+	m := ReferenceMap{
+		refMap: map[string][]dag.Vertex{},
+
+		dependsOnCache:       map[dag.Vertex]dependsOnCacheEntry{},
+		parentDependsOnCache: map[dag.Vertex]dependsOnCacheEntry{},
+	}
 	for _, v := range vs {
 		// We're only looking for referenceable nodes
 		rn, ok := v.(GraphNodeReferenceable)
@@ -583,7 +617,7 @@ func NewReferenceMap(vs []dag.Vertex) ReferenceMap {
 		// Go through and cache them
 		for _, addr := range rn.ReferenceableAddrs() {
 			key := m.mapKey(path, addr)
-			m[key] = append(m[key], v)
+			m.refMap[key] = append(m.refMap[key], v)
 		}
 	}
 
