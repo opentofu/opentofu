@@ -87,7 +87,22 @@ func (m *Meta) loadSingleModule(ctx context.Context, dir string, load configs.Se
 
 	module, hclDiags := m.configLoader().LoadConfigDirSelective(dir, load)
 	diags = diags.Append(hclDiags)
-	diags = diags.Append(module.Finalize(symlib.EmptyTable, call)) // TODO we need to do a multi-phase installation.  Symbols may not be used in static eval (yet)
+
+	if diags.HasErrors() {
+		return module, diags
+	}
+
+	fDiags := module.Finalize(symlib.EmptyTable, call)
+	if fDiags.HasErrors() {
+		// Hack for symbol libraries
+		config, cDiags := m.loadConfig(ctx, dir)
+		if !cDiags.HasErrors() {
+			diags = diags.Append(cDiags)
+			return config.Module, diags
+		}
+	}
+	diags = diags.Append(fDiags)
+
 	return module, diags
 }
 
@@ -171,7 +186,18 @@ func (m *Meta) loadSingleModuleWithTests(ctx context.Context, dir string, testDi
 
 	module, hclDiags := m.configLoader().LoadConfigDirWithTests(dir, testDir)
 	diags = diags.Append(hclDiags)
-	diags = diags.Append(module.Finalize(symlib.EmptyTable, call))
+
+	fDiags := module.Finalize(symlib.EmptyTable, call)
+	if fDiags.HasErrors() {
+		// Hack for symbol libraries
+		config, cDiags := m.loadConfig(ctx, dir)
+		if !cDiags.HasErrors() {
+			diags = diags.Append(cDiags)
+			return config.Module, diags
+		}
+	}
+	diags = diags.Append(fDiags)
+
 	return module, diags
 }
 

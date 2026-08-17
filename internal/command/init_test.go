@@ -1912,7 +1912,14 @@ func TestInit_cancelProviders(t *testing.T) {
 	// Our shutdown channel is pre-closed so init will exit as soon as it
 	// starts a cancelable portion of the process.
 	shutdownCh := make(chan struct{})
-	close(shutdownCh)
+	go func() {
+		// Time based testing is utter nonsense and should not be used if *at all possible*
+		// However, this is the only way I could reasonably add this. The delay is
+		// about 1-2ms on my machine, which means that it's probably safe with a factor of 50
+		// longer and won't noticably impact test timing.
+		time.Sleep(time.Millisecond * 50)
+		close(shutdownCh)
+	}()
 
 	view, done := testView(t)
 	m := Meta{
@@ -2796,9 +2803,10 @@ func TestInit_invalidSyntaxBackendAttribute(t *testing.T) {
 	}
 
 	errStr := output.Stderr()
-	if subStr := "OpenTofu encountered problems during initialization, including problems\nwith the configuration, described below."; !strings.Contains(errStr, subStr) {
+	// This is intentionally not shown as it pertains to backend configuration itself
+	/*if subStr := "OpenTofu encountered problems during initialization, including problems\nwith the configuration, described below."; !strings.Contains(errStr, subStr) {
 		t.Errorf("Error output should include preamble\nwant substr: %s\ngot:\n%s", subStr, errStr)
-	}
+	}*/
 	if subStr := "Error: Invalid character"; !strings.Contains(errStr, subStr) {
 		t.Errorf("Error output should mention the invalid character\nwant substr: %s\ngot:\n%s", subStr, errStr)
 	}

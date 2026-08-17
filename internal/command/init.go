@@ -169,6 +169,19 @@ To initialize the configuration already in this working directory, omit the
 		return 0
 	}
 
+	if args.FlagGet {
+		modsOutput, modsAbort, modsDiags := c.getModules(ctx, path, args.TestsDirectory, args.FlagUpgrade, view)
+		diags = diags.Append(modsDiags)
+		if modsAbort {
+			tracing.SetSpanError(span, modsDiags)
+			view.Diagnostics(diags)
+			return 1
+		}
+		if modsOutput {
+			header = true
+		}
+	}
+
 	// Load just the root module to begin backend and module initialization
 	rootModEarly, earlyConfDiags := c.loadSingleModuleWithTests(ctx, path, args.TestsDirectory)
 	if earlyConfDiags.HasErrors() {
@@ -180,8 +193,7 @@ To initialize the configuration already in this working directory, omit the
 		// such an important use-case for OpenTofu as it presumably is for our
 		// predecessor and so we prefer simpler control flow here.
 		view.ConfigError()
-		diags = diags.Append(earlyConfDiags)
-		view.Diagnostics(diags)
+		view.Diagnostics(earlyConfDiags)
 		return 1
 	}
 
@@ -267,19 +279,6 @@ To initialize the configuration already in this working directory, omit the
 		state = sMgr.State()
 	}
 
-	if args.FlagGet {
-		modsOutput, modsAbort, modsDiags := c.getModules(ctx, path, args.TestsDirectory, rootModEarly, args.FlagUpgrade, view)
-		diags = diags.Append(modsDiags)
-		if modsAbort || modsDiags.HasErrors() {
-			tracing.SetSpanError(span, modsDiags)
-			view.Diagnostics(diags)
-			return 1
-		}
-		if modsOutput {
-			header = true
-		}
-	}
-
 	// With all of the modules (hopefully) installed, we can now try to load the
 	// whole configuration tree.
 	config, confDiags := c.loadConfigWithTests(ctx, path, args.TestsDirectory)
@@ -290,11 +289,6 @@ To initialize the configuration already in this working directory, omit the
 	// Now, we can check the diagnostics from the early configuration and the
 	// backend.
 	diags = diags.Append(earlyConfDiags.StrictDeduplicateMerge(backDiags))
-	if earlyConfDiags.HasErrors() {
-		view.ConfigError()
-		view.Diagnostics(diags)
-		return 1
-	}
 
 	// Now, we can show any errors from initializing the backend, but we won't
 	// show the errInitConfigError preamble as we didn't detect problems with
@@ -367,21 +361,7 @@ To initialize the configuration already in this working directory, omit the
 	return 0
 }
 
-func (c *InitCommand) getModules(ctx context.Context, path, testsDir string, earlyRoot *configs.Module, upgrade bool, view views.Init) (output bool, abort bool, diags tfdiags.Diagnostics) {
-	testModules := false // We can also have modules buried in test files.
-	for _, file := range earlyRoot.Tests {
-		for _, run := range file.Runs {
-			if run.Module != nil {
-				testModules = true
-			}
-		}
-	}
-
-	if len(earlyRoot.ModuleCalls) == 0 && len(earlyRoot.SymbolCalls) == 0 && !testModules {
-		// Nothing to do
-		return false, false, nil
-	}
-
+func (c *InitCommand) getModules(ctx context.Context, path, testsDir string, upgrade bool, view views.Init) (output bool, abort bool, diags tfdiags.Diagnostics) {
 	ctx, span := tracing.Tracer().Start(ctx, "Get Modules", tracing.SpanAttributes(
 		traceattrs.Bool("opentofu.modules.upgrade", upgrade),
 	))
