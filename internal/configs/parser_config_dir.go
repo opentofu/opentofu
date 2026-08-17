@@ -117,8 +117,8 @@ func (p Parser) ConfigDirFilesWithTests(dir string, testDirectory string) (prima
 // .tf.json extension.). Note, we explicitly exclude checking for tests here
 // as tests must live alongside actual .tf config files.
 func (p *Parser) IsConfigDir(path string) bool {
-	primaryPaths, overridePaths, _, symbols, _ := p.dirFiles(path, "")
-	return (len(primaryPaths) + len(overridePaths) + len(symbols)) > 0
+	primaryPaths, overridePaths, _, _, _ := p.dirFiles(path, "")
+	return (len(primaryPaths) + len(overridePaths)) > 0
 }
 
 func (p *Parser) loadFiles(paths []string, override bool) ([]*File, hcl.Diagnostics) {
@@ -405,10 +405,10 @@ func IsEmptyDir(path string) (bool, error) {
 	}
 
 	p := NewParser(nil)
-	fs, os, symbols, _, diags := p.dirFiles(path, "")
+	fs, os, _, _, diags := p.dirFiles(path, "")
 	if diags.HasErrors() {
 		return false, diags
 	}
 
-	return len(fs) == 0 && len(os) == 0 && len(symbols) == 0, nil
+	return len(fs) == 0 && len(os) == 0, nil
 }

@@ -65,10 +65,6 @@ func (p *Parser) loadSymbolFile(path string) (*symlib.SymbolFile, hcl.Diagnostic
 }
 
 func (p *Parser) loadConfigFile(path string, override bool) (*File, hcl.Diagnostics) {
-
-	if symbolFileExt(path) != "" {
-		panic("Symbol")
-	}
 	body, diags := p.LoadHCLFile(path)
 	if body == nil {
 		return nil, diags

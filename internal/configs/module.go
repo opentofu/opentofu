@@ -454,13 +454,11 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 	}
 
 	for _, mc := range file.SymbolCalls {
-		// This is a *HACK* to merge the symbol call into the library
-		// This is because we haven't decided on a real approach
 		if existing, exists := m.SymbolCalls[mc.Name]; exists {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Duplicate symbols",
-				Detail:   fmt.Sprintf("A symbols named %q was already defined at %s. Module calls must have unique names within a module.", existing.Name, existing.DeclRange),
+				Detail:   fmt.Sprintf("A symbols named %q was already defined at %s. Symbol calls must have unique names within a module.", existing.Name, existing.DeclRange),
 				Subject:  &mc.DeclRange,
 			})
 		}
