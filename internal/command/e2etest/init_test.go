@@ -379,17 +379,25 @@ func TestInit_fromModule(t *testing.T) {
 	t.Parallel()
 
 	// This test reaches out to registry.opentofu.org and github.com to lookup
-	// and fetch a module.
+	// and fetch the hashicorp/cloudinit provider.
 	skipIfCannotAccessNetwork(t)
 
 	fixturePath := filepath.Join("testdata", "empty")
 	tf := e2e.NewBinary(t, tofuBin, fixturePath)
 
-	cmd := tf.Cmd("init", "-from-module=hashicorp/vault/aws")
+	// Using an absolute path here forces the use of go-getter's "file getter",
+	// which means we can exercise many of the same codepaths from the module
+	// installer without actually needing to publish a remote module somewhere.
+	fromModuleFixturePath, err := filepath.Abs(filepath.Join("testdata", "init-from-module"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := tf.Cmd("init", "-from-module="+fromModuleFixturePath)
 	cmd.Stdin = nil
 	cmd.Stderr = &bytes.Buffer{}
 
-	err := cmd.Run()
+	err = cmd.Run()
 	if err != nil {
 		t.Errorf("unexpected error: %s", err)
 	}
@@ -399,12 +407,12 @@ func TestInit_fromModule(t *testing.T) {
 		t.Errorf("unexpected stderr output:\n%s", stderr)
 	}
 
-	content, err := tf.ReadFile("main.tf")
+	content, err := tf.ReadFile("init-from-module.tf")
 	if err != nil {
-		t.Fatalf("failed to read main.tf: %s", err)
+		t.Fatalf("failed to read init-from-module.tf: %s", err)
 	}
-	if !bytes.Contains(content, []byte("vault")) {
-		t.Fatalf("main.tf doesn't appear to be a vault configuration: \n%s", content)
+	if !bytes.Contains(content, []byte("cloudinit_config")) {
+		t.Fatalf("init-from-module.tf doesn't seem to include a cloudinit_config data resource: \n%s", content)
 	}
 }
 
