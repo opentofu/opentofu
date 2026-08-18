@@ -13,7 +13,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/spf13/pflag"
+	"github.com/urfave/cli/v3"
 )
 
 // CommandLine represents the information need to represent the cli options
@@ -46,12 +46,14 @@ type CommandLine struct {
 	View *View
 }
 
-// PositionalArgs processes the input as a set of positional arguments. This
-// should be the entries remaining after Flag parsing.
-func (c CommandLine) PositionalArgs(remaining []string) tfdiags.Diagnostics {
+// PositionalError is the common error handling of remaining positional arguments
+func (c *CommandLine) PositionalError(remaining []string, argsErrored bool) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
-	argsErrored := false
+	if len(remaining) == 0 && !argsErrored {
+		return nil
+	}
+
 	nRequired := 0
 	nOptional := 0
 	for _, arg := range c.Args {
@@ -60,7 +62,54 @@ func (c CommandLine) PositionalArgs(remaining []string) tfdiags.Diagnostics {
 		} else {
 			nRequired += 1
 		}
+	}
 
+	summary := "Unexpected argument"
+	if argsErrored {
+		summary = "Invalid arguments list"
+	}
+
+	detail := c.ArgHelp
+	if detail == "" {
+		numText := func(i int) string {
+			switch i {
+			case 0:
+				return "two positional arguments."
+			case 1:
+				return "one positional argument."
+			case 2:
+				return "two positional arguments."
+			case 3:
+				return "three positional arguments."
+			default:
+				return fmt.Sprintf("%v positional arguments.", len(c.Args))
+			}
+		}
+		if nRequired == 0 {
+			if nOptional == 0 {
+				detail = "Did you mean to use -chdir?"
+			} else {
+				detail = "Expected at most " + numText(nOptional)
+			}
+		} else {
+			detail = "Expected exactly " + numText(nRequired)
+		}
+		detail = "Too many command line arguments. " + detail
+	}
+	diags = diags.Append(tfdiags.Sourceless(
+		tfdiags.Error,
+		summary,
+		detail,
+	))
+
+	return diags
+}
+
+// PositionalArgs processes the input as a set of positional arguments. This
+// should be the entries remaining after Flag parsing.
+func (c *CommandLine) PositionalArgs(remaining []string) tfdiags.Diagnostics {
+	argsErrored := false
+	for _, arg := range c.Args {
 		var err error
 		remaining, err = arg.Process(remaining)
 		if err != nil {
@@ -68,61 +117,53 @@ func (c CommandLine) PositionalArgs(remaining []string) tfdiags.Diagnostics {
 			argsErrored = true
 		}
 	}
-	if len(remaining) > 0 || argsErrored {
-		summary := "Unexpected argument"
-		if argsErrored {
-			summary = "Invalid arguments list"
-		}
-
-		detail := c.ArgHelp
-		if detail == "" {
-			numText := func(i int) string {
-				switch i {
-				case 0:
-					return "two positional arguments."
-				case 1:
-					return "one positional argument."
-				case 2:
-					return "two positional arguments."
-				case 3:
-					return "three positional arguments."
-				default:
-					return fmt.Sprintf("%v positional arguments.", len(c.Args))
-				}
-			}
-			if nRequired == 0 {
-				if nOptional == 0 {
-					detail = "Did you mean to use -chdir?"
-				} else {
-					detail = "Expected at most " + numText(nOptional)
-				}
-			} else {
-				detail = "Expected exactly " + numText(nRequired)
-			}
-			detail = "Too many command line arguments. " + detail
-		}
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			summary,
-			detail,
-		))
-	}
-
-	return diags
+	return c.PositionalError(remaining, argsErrored)
 }
 
-// Attach iterates through all of the flags and adds them
-// to the given flagset.
-func (c CommandLine) Attach(flags *pflag.FlagSet) {
-	for _, flag := range c.Flags {
-		flag.Cobra(flags)
+// RemainCheck handles positional arguments and produces a corresponding
+// error if nessesary.
+func (c *CommandLine) RemainCheck(remaining []string) tfdiags.Diagnostics {
+	argsErrored := false
+	for _, arg := range c.Args {
+		if arg.Optional {
+			continue
+		}
+		if len(arg.Cli.Get().(string)) == 0 {
+			argsErrored = true
+			break
+		}
 	}
+	return c.PositionalError(remaining, argsErrored)
+}
+
+// CliFlags builds the set of flags to be attached
+// to a command
+func (c *CommandLine) CliFlags() []cli.Flag {
+	var ret []cli.Flag
+
+	for _, flag := range c.Flags {
+		ret = append(ret, flag.Cli())
+	}
+
+	return ret
+}
+
+// CliArguments builds the set of positional arguments to
+// be attached to a command
+func (c *CommandLine) CliArguments() []cli.Argument {
+	var ret []cli.Argument
+
+	for _, arg := range c.Args {
+		ret = append(ret, arg.Cli)
+	}
+
+	return ret
 }
 
 // StdlibArgs uses the old command line stdargs processing method. This currently exists
 // as a fallback and is primarily used for testing. Once we have completely switched to a
 // new CLI library, the tests can be updated and this function removed.
-func (c CommandLine) StdlibArgs(args []string) tfdiags.Diagnostics {
+func (c *CommandLine) StdlibArgs(args []string) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	// Special re-ordering of arguments for "global" options
@@ -173,7 +214,7 @@ func (c CommandLine) StdlibArgs(args []string) tfdiags.Diagnostics {
 
 // Stdlib is a wrapper around StdlibArgs that handles hooks. This is used by the
 // legacy Parse methods and should be removed when they are retired.
-func (c CommandLine) Stdlib(name string, args []string) (func(), tfdiags.Diagnostics) {
+func (c *CommandLine) Stdlib(name string, args []string) (func(), tfdiags.Diagnostics) {
 	diags := c.StdlibArgs(args)
 
 	// Process hooks
@@ -198,6 +239,7 @@ type Argument struct {
 	// Process takes the current remaining os.Args entries and returns
 	// the remainder after the given argument has been processed.
 	Process func([]string) ([]string, error)
+	Cli     cli.Argument
 }
 
 // PositionalArg registers a positional argument.
@@ -208,7 +250,7 @@ func (c *CommandLine) PositionalArg(p *string, name string, optional bool) {
 			panic("BUG: Can not register a positional argument after a variadic argument!")
 		}
 	}
-	c.Args = append(c.Args, Argument{Name: name, Optional: optional, Process: func(args []string) ([]string, error) {
+	c.Args = append(c.Args, Argument{Name: name, Optional: optional, Cli: &cli.StringArg{Name: name, Destination: p}, Process: func(args []string) ([]string, error) {
 		if len(args) == 0 {
 			if !optional {
 				return args, fmt.Errorf("Missing positional argument %s", name)
@@ -228,7 +270,7 @@ func (c *CommandLine) VariadicArg(p *[]string, name string) {
 			panic("BUG: Can not register multiple variadic arguments!")
 		}
 	}
-	c.Args = append(c.Args, Argument{Name: name, Variadic: true, Process: func(args []string) ([]string, error) {
+	c.Args = append(c.Args, Argument{Name: name, Variadic: true, Optional: true, Cli: &cli.StringArgs{Name: name, Destination: p, Max: -1}, Process: func(args []string) ([]string, error) {
 		*p = args
 		return nil, nil
 	}})
@@ -245,65 +287,84 @@ func (c *CommandLine) Flag(flag *Flag) *Flag {
 
 // BoolVar attaches a bool flag to the CommandLine.
 func (c *CommandLine) BoolVar(p *bool, name string, value bool, usage string) *Flag {
-	return c.Flag(&Flag{
+	f := c.Flag(&Flag{
 		Name:   name,
 		Usage:  usage,
-		Cobra:  func(f *pflag.FlagSet) { f.BoolVar(p, name, value, usage) },
 		Stdlib: func(f *flag.FlagSet) { f.BoolVar(p, name, value, usage) },
 	})
+	f.Cli = func() cli.Flag {
+		return &cli.BoolFlag{Name: f.Name, Category: f.GroupID, DefaultText: f.Display, Local: true, Usage: f.Usage, Hidden: f.Hidden, Value: value, Destination: p}
+	}
+	return f
 }
 
 // IntVar attaches a int flag to the CommandLine.
 func (c *CommandLine) IntVar(p *int, name string, value int, usage string) *Flag {
-	return c.Flag(&Flag{
+	f := c.Flag(&Flag{
 		Name:   name,
 		Usage:  usage,
-		Cobra:  func(f *pflag.FlagSet) { f.IntVar(p, name, value, usage) },
 		Stdlib: func(f *flag.FlagSet) { f.IntVar(p, name, value, usage) },
 	})
+	f.Cli = func() cli.Flag {
+		return &cli.IntFlag{Name: f.Name, Category: f.GroupID, DefaultText: f.Display, Local: true, Usage: f.Usage, Hidden: f.Hidden, Value: value, Destination: p}
+	}
+	return f
 }
 
 // StringVar attaches a string flag to the CommandLine.
 func (c *CommandLine) StringVar(p *string, name string, value string, usage string) *Flag {
-	return c.Flag(&Flag{
+	f := c.Flag(&Flag{
 		Name:   name,
 		Usage:  usage,
-		Cobra:  func(f *pflag.FlagSet) { f.StringVar(p, name, value, usage) },
 		Stdlib: func(f *flag.FlagSet) { f.StringVar(p, name, value, usage) },
 	})
+	f.Cli = func() cli.Flag {
+		return &cli.StringFlag{Name: f.Name, Category: f.GroupID, DefaultText: f.Display, Local: true, Usage: f.Usage, Hidden: f.Hidden, Value: value, Destination: p}
+	}
+	return f
 }
 
 // DurationVar attaches a time.Duration flag to the CommandLine.
 func (c *CommandLine) DurationVar(p *time.Duration, name string, value time.Duration, usage string) *Flag {
-	return c.Flag(&Flag{
+	f := c.Flag(&Flag{
 		Name:   name,
 		Usage:  usage,
-		Cobra:  func(f *pflag.FlagSet) { f.DurationVar(p, name, value, usage) },
 		Stdlib: func(f *flag.FlagSet) { f.DurationVar(p, name, value, usage) },
 	})
+	f.Cli = func() cli.Flag {
+		return &cli.DurationFlag{Name: f.Name, Category: f.GroupID, DefaultText: f.Display, Local: true, Usage: f.Usage, Hidden: f.Hidden, Value: value, Destination: p}
+	}
+	return f
 }
 
 // StringArrayVar attaches a StringArray flag to the CommandLine.
 // This treats every instance of -name is a new entry and does not perform any ',' splitting.
 func (c *CommandLine) StringArrayVar(p *[]string, name string, value []string, usage string) *Flag {
-	return c.Flag(&Flag{
+	f := c.Flag(&Flag{
 		Name:   name,
 		Usage:  usage,
-		Cobra:  func(f *pflag.FlagSet) { f.StringArrayVar(p, name, value, usage) },
 		Stdlib: func(f *flag.FlagSet) { f.Var((*flags.FlagStringSlice)(p), name, usage) },
 	})
+	f.Cli = func() cli.Flag {
+		return &cli.StringSliceFlag{Name: f.Name, Category: f.GroupID, DefaultText: f.Display, Local: true, Usage: f.Usage, Hidden: f.Hidden, Value: value, Destination: p}
+	}
+	return f
 }
 
 // RawFlags attaches a flags.RawFlags to the CommandLine.
 // This is a deprecated function and should be removed once var and var-file
 // processing is improved. This will correspond with the removal of the flags package.
 func (c *CommandLine) RawFlags(p flags.RawFlags, name string, usage string) *Flag {
-	return c.Flag(&Flag{
+	f := c.Flag(&Flag{
 		Name:   name,
 		Usage:  usage,
-		Cobra:  func(f *pflag.FlagSet) { f.Func(name, usage, func(s string) error { return p.Set(s) }) },
 		Stdlib: func(f *flag.FlagSet) { f.Var(p, name, usage) },
 	})
+	f.Cli = func() cli.Flag {
+		dest := cli.Value(p)
+		return &cli.GenericFlag{Name: f.Name, Category: f.GroupID, DefaultText: f.Display, Local: true, Usage: f.Usage, Hidden: f.Hidden, Destination: &dest, Value: dest}
+	}
+	return f
 }
 
 // Flag is our representation of a command line flag and the implementation
@@ -328,11 +389,11 @@ type Flag struct {
 	// at some future date.
 	Global bool
 
-	// Cobra implementation of this flag
-	Cobra func(*pflag.FlagSet)
 	// Stdlib implementation of this flag. Will be removed once the new
 	// CLI adoption is complete.
 	Stdlib func(*flag.FlagSet)
+	// Cli implementation of this flag (urfave/cli)
+	Cli func() cli.Flag
 
 	// IsSet is a workaround for -backend and -cloud. TODO consider
 	// proper argument aliases as supported by the cli implementation.

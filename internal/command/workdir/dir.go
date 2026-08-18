@@ -100,6 +100,26 @@ func NewWorkdir(args []string) (*Dir, []string, error) {
 	return ret, args, nil
 }
 
+// TODO replace the above function with this once the meta-refactor is complete
+func NewWorkdirExplicit(chdir string) (*Dir, error) {
+	originalWd, err := os.Getwd()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to determine current working directory: %s", err)
+	}
+
+	err = runChdirDirect(chdir)
+	if err != nil {
+		return nil, err
+	}
+
+	ret := NewDir(".") // caller should already have used os.Chdir in "-chdir=..." mode
+	ret.OverrideOriginalWorkingDir(originalWd)
+	if overrideWd := os.Getenv(workingDirEnvVarKey); overrideWd != "" {
+		ret.OverrideDataDir(overrideWd)
+	}
+	return ret, nil
+}
+
 // NewDir constructs a new working directory, anchored at the given path.
 //
 // In normal use, mainPath should be "." to reflect the current working

@@ -17,6 +17,8 @@ import (
 )
 
 func TestMain_cliArgsFromEnv(t *testing.T) {
+	t.Setenv(EnvCliEnabled, "false")
+
 	// Set up the state. This test really messes with the environment and
 	// global state so we set things up to be restored.
 
@@ -151,6 +153,8 @@ func TestMain_cliArgsFromEnv(t *testing.T) {
 // This test just has more options than the test above. Use this for
 // more control over behavior at the expense of more complex test structures.
 func TestMain_cliArgsFromEnvAdvanced(t *testing.T) {
+	t.Setenv(EnvCliEnabled, "false")
+
 	// Restore original CLI args
 	oldArgs := os.Args
 	defer func() { os.Args = oldArgs }()
@@ -252,6 +256,8 @@ func TestMain_cliArgsFromEnvAdvanced(t *testing.T) {
 
 // verify that we output valid autocomplete results
 func TestMain_autoComplete(t *testing.T) {
+	t.Setenv(EnvCliEnabled, "false")
+
 	// Restore original CLI args
 	oldArgs := os.Args
 	defer func() { os.Args = oldArgs }()

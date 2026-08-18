@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/tracing"
@@ -20,42 +19,40 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
+func LogoutCommander() Command {
+	cmd := Command{
+		Name:  "logout",
+		Short: "Remove locally-stored credentials for a remote host",
+		Long: `Removes locally-stored credentials for specified hostname.
+
+Note: the API token is only removed from local storage, not destroyed on the remote server, so it will remain valid until manually revoked.`,
+
+		DiagsWithNewline: true,
+	}
+
+	args := arguments.BindLogout(&cmd.CommandLine)
+	cmd.Run = func(meta Meta) int {
+		return LogoutCommand{meta}.Execute(args, views.NewLogout(args.View, meta.View))
+	}
+
+	return cmd
+}
+
 // LogoutCommand is a Command implementation which removes stored credentials
 // for a remote service host.
 type LogoutCommand struct {
 	Meta
 }
 
-// Run implements cli.Command.
 func (c *LogoutCommand) Run(rawArgs []string) int {
+	return RunCommand(LogoutCommander(), c.Meta, rawArgs)
+}
+func (c LogoutCommand) Execute(args *arguments.Logout, view views.Logout) int {
+	var diags tfdiags.Diagnostics
+
 	ctx := c.CommandContext()
 	ctx, span := tracing.Tracer().Start(ctx, "Logout")
 	defer span.End()
-
-	// Parse and validate flags
-	args, closer, diags := arguments.ParseLogout(rawArgs)
-	defer closer()
-
-	c.View.Configure(args.View)
-	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
-	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
-	c.View.DiagsWithNewline()
-
-	// Instantiate the view, even if there are flag errors, so that we render
-	// diagnostics according to the desired view
-	view := views.NewLogout(args.View, c.View)
-	if diags.HasErrors() {
-		view.Diagnostics(diags)
-		if args.View.ViewType == arguments.ViewJSON {
-			return 1
-		}
-		return cli.RunResultHelp
-	}
-
-	// FIXME: the -input flag value is needed to initialize the backend and the
-	// operation, but there is no clear path to pass this value down, so we
-	// continue to mutate the Meta object state for now.
-	c.Meta.input = args.View.InputEnabled
 
 	givenHostname := args.Host
 

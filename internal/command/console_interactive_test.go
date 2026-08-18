@@ -114,11 +114,6 @@ func TestConsole_multiline_interactive(t *testing.T) {
 			if diff := cmp.Diff(got, tc.expected); diff != "" {
 				t.Fatalf("unexpected output. For input: %s\n%s", tc.input, diff)
 			}
-
-			// TODO meta-refactor: remove this assertion once the stateArgs from Meta is removed
-			if !c.Meta.stateArgs.Lock {
-				t.Errorf("stateLock should always be false for this command")
-			}
 		})
 	}
 }
