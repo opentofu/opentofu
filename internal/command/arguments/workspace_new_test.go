@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/opentofu/opentofu/internal/collections"
+	"github.com/opentofu/opentofu/internal/linting"
 )
 
 func TestParseWorkspaceNew_viewOptions(t *testing.T) {
@@ -167,6 +169,8 @@ func workspaceNewArgsWithDefaults(mutate func(in *WorkspaceNew)) *WorkspaceNew {
 		View: &View{
 			ConsolidateWarnings: true,
 			ViewType:            ViewHuman,
+			LintInclude:         make(collections.Set[linting.RuleAddr]),
+			LintExclude:         make(collections.Set[linting.RuleAddr]),
 		},
 	}
 	if mutate != nil {
