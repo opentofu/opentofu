@@ -219,6 +219,14 @@ func (fn *Function) Compile(w *workgraph.Worker, libScope *symbolScope) (functio
 	spec.Impl = func(args []cty.Value, retType cty.Type) (cty.Value, error) {
 		var diags hcl.Diagnostics
 
+		// We "intentionally" use the worker assigned to the function here as it causes a panic.
+		// Recursive function calls will hang if new workers are assigned for each function call.
+		// There is not ideal an we should implement some sort of "stack depth" testing, but the panic
+		// covers it well enough for now(ish)
+		// Once we figure out proper recursive tracking of functions, we can move this back to it's own
+		// worker.
+		// w := workgraph.NewWorker()
+
 		paramEntries := map[string]cty.Value{}
 		for i, arg := range args[:len(spec.Params)] {
 			param := spec.Params[i]
