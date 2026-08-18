@@ -364,7 +364,7 @@ func (c *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source ad
 
 		return evalContextProviderFunction(ctx, provider, c.Evaluator.Operation, pf, rng)
 	}, mc.Module.SymbolTable)
-	scope.SetActiveExperiments(mc.Module.ActiveExperiments)
+	scope.SetActiveExperiments(mc.Module.LanguageExperiments)
 
 	return scope
 }

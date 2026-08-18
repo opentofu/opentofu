@@ -6,12 +6,15 @@
 package configs
 
 import (
+	"errors"
 	"fmt"
+	"maps"
 	"strings"
 
 	hcVersion "github.com/hashicorp/go-version"
 	"github.com/hashicorp/hcl/v2"
 
+	"github.com/opentofu/opentofu/internal/experiments"
 	"github.com/opentofu/opentofu/version"
 )
 
@@ -114,11 +117,6 @@ func validateLanguageBlock(block *hcl.Block, override bool) hcl.Diagnostics {
 		}
 	}
 
-	if attr, ok := content.Attributes["experiments"]; ok {
-		moreDiags := decodeReservedExperimentsAttr(attr)
-		diags = append(diags, moreDiags...)
-	}
-
 	var compatibleWithOpenTofu *VersionConstraint
 	for _, nestedBlock := range content.Blocks {
 		switch nestedBlock.Type {
@@ -218,16 +216,36 @@ func validateOpenTofuCoreVersionConstraint(constraint VersionConstraint) hcl.Dia
 	return diags
 }
 
+func sniffLanguageExperiments(body hcl.Body) (experiments.Set, hcl.Diagnostics) {
+	current := experiments.Set{}
+
+	rootContent, _, diags := body.PartialContent(configFileLanguageExperimentSniffRootSchema)
+
+	for _, block := range rootContent.Blocks {
+		content, _, cDiags := block.Body.PartialContent(languageBlockExperimentSniffSchema)
+		diags = diags.Extend(cDiags)
+
+		if attr, ok := content.Attributes["experiments"]; ok {
+			found, moreDiags := decodeReservedExperimentsAttr(attr)
+			diags = append(diags, moreDiags...)
+			maps.Copy(current, found)
+		}
+	}
+
+	return current, diags
+}
+
 // decodeReservedExperimentsAttr decodes the "experiments" attribute in a
 // "language" block just enough to return error messages if it's being used
 // in ways we expect we might use it in future versions of OpenTofu.
-func decodeReservedExperimentsAttr(attr *hcl.Attribute) hcl.Diagnostics {
+func decodeReservedExperimentsAttr(attr *hcl.Attribute) (experiments.Set, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
+	current := experiments.Set{}
 
 	exprs, moreDiags := hcl.ExprList(attr.Expr)
 	diags = append(diags, moreDiags...)
 	if moreDiags.HasErrors() {
-		return diags
+		return current, diags
 	}
 
 	for _, expr := range exprs {
@@ -241,17 +259,47 @@ func decodeReservedExperimentsAttr(attr *hcl.Attribute) hcl.Diagnostics {
 			})
 			continue
 		}
-		// The current version of OpenTofu does not support any language
-		// experiments, so we'll just reject anything we find in here.
-		diags = diags.Append(&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Unknown experiment keyword",
-			Detail:   fmt.Sprintf("There is no current experiment with the keyword %q.", kw),
-			Subject:  expr.Range().Ptr(),
-		})
+
+		exp, err := experiments.GetCurrent(kw)
+		if _, ok := errors.AsType[experiments.UnavailableError](err); ok {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Unknown experiment keyword",
+				Detail:   fmt.Sprintf("There is no current experiment with the keyword %q.", kw),
+				Subject:  expr.Range().Ptr(),
+			})
+		} else if _, ok := errors.AsType[experiments.ConcludedError](err); ok {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Experiment concluded",
+				Detail:   fmt.Sprintf("Experiment %q has concluded and is no longer available.", kw),
+				Subject:  expr.Range().Ptr(),
+			})
+		} else if err != nil {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid experiment keyword",
+				Detail:   err.Error(),
+				Subject:  expr.Range().Ptr(),
+			})
+		} else {
+			current.Add(exp)
+		}
 	}
 
-	return diags
+	return current, diags
+}
+
+var configFileLanguageExperimentSniffRootSchema = &hcl.BodySchema{
+	Blocks: []hcl.BlockHeaderSchema{
+		{Type: "language"},
+	},
+}
+
+var languageBlockExperimentSniffSchema = &hcl.BodySchema{
+	Attributes: []hcl.AttributeSchema{
+		{Name: "experiments"},
+	},
 }
 
 var languageBlockSchema = &hcl.BodySchema{

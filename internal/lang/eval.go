@@ -20,6 +20,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/configs/symlib"
+	"github.com/opentofu/opentofu/internal/experiments"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang/blocktoattr"
 	"github.com/opentofu/opentofu/internal/lang/marks"
@@ -413,6 +414,14 @@ func (s *Scope) evalContext(ctx context.Context, parent *hcl.EvalContext, refs [
 			// value vs. type expressions.)
 		}
 		if subj, ok := ref.Subject.(addrs.SymbolsFunction); ok {
+			if !s.activeExperiments.Has(experiments.SymbolLibraries) {
+				diags = diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Language Experiment not enabled",
+					Detail:   fmt.Sprintf("This module depends on features that are not yet stable and are only available with the %q experiment enabled", experiments.SymbolLibraries),
+					Subject:  ref.SourceRange.ToHCL().Ptr(),
+				})
+			}
 			// Inject function directly into context
 			if _, ok := hclCtx.Functions[subj.String()]; !ok {
 				fn, fnDiags := s.SymbolTable.Function(symlib.FunctionRef{
@@ -598,6 +607,14 @@ func (b *evalVarBuilder) putValueBySubject(ctx context.Context, ref *addrs.Refer
 		b.outputValues[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetCheckBlock(ctx, subj, rng))
 
 	case addrs.SymbolsAttr:
+		if !b.s.activeExperiments.Has(experiments.SymbolLibraries) {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Language Experiment not enabled",
+				Detail:   fmt.Sprintf("This module depends on features that are not yet stable and are only available with the %q experiment enabled", experiments.SymbolLibraries),
+				Subject:  rng.ToHCL().Ptr(),
+			})
+		}
 		val, vDiags := b.s.SymbolTable.Value(symlib.ValueRef{
 			Namespace: subj.Name,
 			Range:     rng.ToHCL(),

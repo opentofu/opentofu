@@ -86,6 +86,10 @@ func loadConfigFileBody(body hcl.Body, _ string, override bool) (*File, hcl.Diag
 	reqDiags := checkVersionRequirements(body, version.SemVer)
 	diags = append(diags, reqDiags...)
 
+	langExperiments, expDiags := sniffLanguageExperiments(body)
+	diags = append(diags, expDiags...)
+	file.LanguageExperiments = langExperiments
+
 	// We still continue here even if there was a version compatibility problem
 	// because we want to gather as complete as possible a map of the content
 	// of the valid parts of the module in case a caller wants to use that

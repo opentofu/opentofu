@@ -8,6 +8,7 @@ package configs
 import (
 	"context"
 	"fmt"
+	"maps"
 
 	"github.com/hashicorp/hcl/v2"
 
@@ -69,10 +70,8 @@ type Module struct {
 	// StaticEvaluator is used to evaluate static expressions in the scope of the Module.
 	StaticEvaluator *StaticEvaluator
 
-	// ActiveExperiments is not currently used and so is always nil, but is
-	// reserved to be a place to capture a module's active experiments if we
-	// begin using language experiments in a later release.
-	ActiveExperiments experiments.Set
+	// LanguageExperiments is where language experiments are stored.
+	LanguageExperiments experiments.Set
 }
 
 // GetProviderConfig uses name and alias to find the respective Provider configuration.
@@ -118,6 +117,8 @@ type File struct {
 	SymbolCalls []*symlib.SymbolCall
 
 	Checks []*Check
+
+	LanguageExperiments experiments.Set
 }
 
 // SelectiveLoader allows the consumer to only load and validate the portions of files needed for the given operations/contexts
@@ -142,6 +143,8 @@ func (s SelectiveLoader) filter(input []*File) []*File {
 			Variables:   inFile.Variables,
 			Locals:      inFile.Locals,
 			SymbolCalls: inFile.SymbolCalls,
+
+			LanguageExperiments: inFile.LanguageExperiments,
 		}
 
 		switch s {
@@ -178,20 +181,21 @@ func NewModule(primaryFiles, overrideFiles []*File, sourceDir string, load Selec
 	var diags hcl.Diagnostics
 
 	mod := &Module{
-		ProviderConfigs:    map[string]*Provider{},
-		ProviderLocalNames: map[addrs.Provider]string{},
-		Variables:          map[string]*Variable{},
-		Locals:             map[string]*Local{},
-		Outputs:            map[string]*Output{},
-		ModuleCalls:        map[string]*ModuleCall{},
-		SymbolCalls:        map[string]*symlib.SymbolCall{},
-		ManagedResources:   map[string]*Resource{},
-		DataResources:      map[string]*Resource{},
-		EphemeralResources: map[string]*Resource{},
-		Checks:             map[string]*Check{},
-		ProviderMetas:      map[addrs.Provider]*ProviderMeta{},
-		Tests:              map[string]*TestFile{},
-		SourceDir:          sourceDir,
+		ProviderConfigs:     map[string]*Provider{},
+		ProviderLocalNames:  map[addrs.Provider]string{},
+		Variables:           map[string]*Variable{},
+		Locals:              map[string]*Local{},
+		Outputs:             map[string]*Output{},
+		ModuleCalls:         map[string]*ModuleCall{},
+		SymbolCalls:         map[string]*symlib.SymbolCall{},
+		ManagedResources:    map[string]*Resource{},
+		DataResources:       map[string]*Resource{},
+		EphemeralResources:  map[string]*Resource{},
+		Checks:              map[string]*Check{},
+		ProviderMetas:       map[addrs.Provider]*ProviderMeta{},
+		Tests:               map[string]*TestFile{},
+		SourceDir:           sourceDir,
+		LanguageExperiments: experiments.Set{},
 	}
 
 	// Apply selective load rules
@@ -241,6 +245,18 @@ func NewModule(primaryFiles, overrideFiles []*File, sourceDir string, load Selec
 	for _, file := range overrideFiles {
 		fileDiags := mod.mergeFile(file)
 		diags = append(diags, fileDiags...)
+	}
+
+	if !mod.LanguageExperiments.Has(experiments.SymbolLibraries) {
+		for _, call := range mod.SymbolCalls {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Language Experiment not enabled",
+				Detail:   fmt.Sprintf("This module depends on features that are not yet stable and are only available with the %q experiment enabled", experiments.SymbolLibraries),
+				Subject:  call.DeclRange.Ptr(),
+			})
+		}
+		mod.SymbolCalls = nil
 	}
 
 	return mod, diags
@@ -623,6 +639,8 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 	}
 
 	m.Removed = append(m.Removed, file.Removed...)
+
+	maps.Copy(m.LanguageExperiments, file.LanguageExperiments)
 
 	return diags
 }
