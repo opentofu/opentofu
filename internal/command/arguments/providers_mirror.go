@@ -46,6 +46,6 @@ func BindProvidersMirror(cli *CommandLine) *ProvidersMirror {
 func ParseProvidersMirror(args []string) (*ProvidersMirror, func(), tfdiags.Diagnostics) {
 	cli := new(CommandLine)
 	arguments := BindProvidersMirror(cli)
-	closer, diags := cli.Stdlib("providers mirror", args)
+	closer, diags := cli.parseWithHooks("providers mirror", args)
 	return arguments, closer, diags
 }

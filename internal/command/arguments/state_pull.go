@@ -34,6 +34,6 @@ func BindStatePull(cli *CommandLine) *StatePull {
 func ParseStatePull(args []string) (*StatePull, func(), tfdiags.Diagnostics) {
 	cli := new(CommandLine)
 	ret := BindStatePull(cli)
-	closer, diags := cli.Stdlib("state pull", args)
+	closer, diags := cli.parseWithHooks("state pull", args)
 	return ret, closer, diags
 }

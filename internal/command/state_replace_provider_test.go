@@ -72,13 +72,10 @@ func TestStateReplaceProvider(t *testing.T) {
 		statePath := testStateFile(t, state)
 
 		view, done := testView(t)
-		c := &StateReplaceProviderCommand{
-			StateMeta{
-				Meta: Meta{
-					WorkingDir: workdir.NewDir("."),
-					View:       view,
-				},
-			},
+
+		meta := Meta{
+			WorkingDir: workdir.NewDir("."),
+			View:       view,
 		}
 
 		defer testInputMap(t, map[string]string{
@@ -90,7 +87,7 @@ func TestStateReplaceProvider(t *testing.T) {
 			"hashicorp/aws",
 			"acmecorp/aws",
 		}
-		code := c.Run(args)
+		code := RunCommander(t, StateReplaceProviderCommander(), meta, args)
 		output := done(t)
 		if code != 0 {
 			t.Fatalf("return code: %d\n\n%s", code, output.Stderr())
@@ -109,13 +106,10 @@ func TestStateReplaceProvider(t *testing.T) {
 		statePath := testStateFile(t, state)
 
 		view, done := testView(t)
-		c := &StateReplaceProviderCommand{
-			StateMeta{
-				Meta: Meta{
-					WorkingDir: workdir.NewDir("."),
-					View:       view,
-				},
-			},
+
+		meta := Meta{
+			WorkingDir: workdir.NewDir("."),
+			View:       view,
 		}
 		defer testInputMap(t, map[string]string{})()
 
@@ -125,7 +119,7 @@ func TestStateReplaceProvider(t *testing.T) {
 			"hashicorp/aws",
 			"acmecorp/aws",
 		}
-		code := c.Run(args)
+		code := RunCommander(t, StateReplaceProviderCommander(), meta, args)
 		output := done(t)
 		if code != 0 {
 			t.Fatalf("return code: %d\n\n%s", code, output.Stderr())
@@ -144,13 +138,10 @@ func TestStateReplaceProvider(t *testing.T) {
 		statePath := testStateFile(t, state)
 
 		view, done := testView(t)
-		c := &StateReplaceProviderCommand{
-			StateMeta{
-				Meta: Meta{
-					WorkingDir: workdir.NewDir("."),
-					View:       view,
-				},
-			},
+
+		meta := Meta{
+			WorkingDir: workdir.NewDir("."),
+			View:       view,
 		}
 		defer testInputMap(t, map[string]string{
 			"confirm": "no",
@@ -161,7 +152,7 @@ func TestStateReplaceProvider(t *testing.T) {
 			"hashicorp/aws",
 			"acmecorp/aws",
 		}
-		code := c.Run(args)
+		code := RunCommander(t, StateReplaceProviderCommander(), meta, args)
 		output := done(t)
 		if code != 0 {
 			t.Fatalf("return code: %d\n\n%s", code, output.Stderr())
@@ -179,13 +170,10 @@ func TestStateReplaceProvider(t *testing.T) {
 		statePath := testStateFile(t, state)
 
 		view, done := testView(t)
-		c := &StateReplaceProviderCommand{
-			StateMeta{
-				Meta: Meta{
-					WorkingDir: workdir.NewDir("."),
-					View:       view,
-				},
-			},
+
+		meta := Meta{
+			WorkingDir: workdir.NewDir("."),
+			View:       view,
 		}
 
 		args := []string{
@@ -193,7 +181,7 @@ func TestStateReplaceProvider(t *testing.T) {
 			"hashicorp/google",
 			"acmecorp/google",
 		}
-		code := c.Run(args)
+		code := RunCommander(t, StateReplaceProviderCommander(), meta, args)
 		output := done(t)
 		if code != 0 {
 			t.Fatalf("return code: %d\n\n%s", code, output.Stderr())
@@ -209,13 +197,10 @@ func TestStateReplaceProvider(t *testing.T) {
 
 	t.Run("invalid flags", func(t *testing.T) {
 		view, done := testView(t)
-		c := &StateReplaceProviderCommand{
-			StateMeta{
-				Meta: Meta{
-					WorkingDir: workdir.NewDir("."),
-					View:       view,
-				},
-			},
+
+		meta := Meta{
+			WorkingDir: workdir.NewDir("."),
+			View:       view,
 		}
 
 		args := []string{
@@ -224,7 +209,7 @@ func TestStateReplaceProvider(t *testing.T) {
 			"hashicorp/google",
 			"acmecorp/google",
 		}
-		code := c.Run(args)
+		code := RunCommander(t, StateReplaceProviderCommander(), meta, args)
 		output := done(t)
 		if code == 0 {
 			t.Fatalf("successful exit; want error")
@@ -237,17 +222,14 @@ func TestStateReplaceProvider(t *testing.T) {
 
 	t.Run("wrong number of arguments", func(t *testing.T) {
 		view, done := testView(t)
-		c := &StateReplaceProviderCommand{
-			StateMeta{
-				Meta: Meta{
-					WorkingDir: workdir.NewDir("."),
-					View:       view,
-				},
-			},
+
+		meta := Meta{
+			WorkingDir: workdir.NewDir("."),
+			View:       view,
 		}
 
 		args := []string{"a", "b", "c", "d"}
-		code := c.Run(args)
+		code := RunCommander(t, StateReplaceProviderCommander(), meta, args)
 		output := done(t)
 		if code == 0 {
 			t.Fatalf("successful exit; want error")
@@ -260,20 +242,17 @@ func TestStateReplaceProvider(t *testing.T) {
 
 	t.Run("invalid provider strings", func(t *testing.T) {
 		view, done := testView(t)
-		c := &StateReplaceProviderCommand{
-			StateMeta{
-				Meta: Meta{
-					WorkingDir: workdir.NewDir("."),
-					View:       view,
-				},
-			},
+
+		meta := Meta{
+			WorkingDir: workdir.NewDir("."),
+			View:       view,
 		}
 
 		args := []string{
 			"hashicorp/google_cloud",
 			"-/-/google",
 		}
-		code := c.Run(args)
+		code := RunCommander(t, StateReplaceProviderCommander(), meta, args)
 		output := done(t)
 		if code == 0 {
 			t.Fatalf("successful exit; want error")
@@ -292,18 +271,6 @@ func TestStateReplaceProvider(t *testing.T) {
 			}
 		}
 	})
-}
-
-func TestStateReplaceProvider_docs(t *testing.T) {
-	c := &StateReplaceProviderCommand{}
-
-	if got, want := c.Help(), "Usage: tofu [global options] state replace-provider"; !strings.Contains(got, want) {
-		t.Fatalf("unexpected help text\nwant: %s\nfull output:\n%s", want, got)
-	}
-
-	if got, want := c.Synopsis(), "Replace provider in the state"; got != want {
-		t.Fatalf("unexpected synopsis\nwant: %s\nfull output:\n%s", want, got)
-	}
 }
 
 func TestStateReplaceProvider_checkRequiredVersion(t *testing.T) {
@@ -366,13 +333,10 @@ func TestStateReplaceProvider_checkRequiredVersion(t *testing.T) {
 	statePath := testStateFile(t, state)
 
 	view, done := testView(t)
-	c := &StateReplaceProviderCommand{
-		StateMeta{
-			Meta: Meta{
-				WorkingDir: workdir.NewDir("."),
-				View:       view,
-			},
-		},
+
+	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       view,
 	}
 
 	defer testInputMap(t, map[string]string{})()
@@ -382,7 +346,7 @@ func TestStateReplaceProvider_checkRequiredVersion(t *testing.T) {
 		"hashicorp/aws",
 		"acmecorp/aws",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, StateReplaceProviderCommander(), meta, args)
 	output := done(t)
 	if code != 1 {
 		t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, output.Stderr(), output.Stdout())

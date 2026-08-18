@@ -36,6 +36,6 @@ func BindRefresh(cli *CommandLine) *Refresh {
 func ParseRefresh(args []string) (*Refresh, func(), tfdiags.Diagnostics) {
 	cli := new(CommandLine)
 	refresh := BindRefresh(cli)
-	closer, diags := cli.Stdlib("refresh", args)
+	closer, diags := cli.parseWithHooks("refresh", args)
 	return refresh, closer, diags
 }

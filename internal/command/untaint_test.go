@@ -39,18 +39,17 @@ func TestUntaint(t *testing.T) {
 	statePath := testStateFile(t, state)
 
 	view, done := testView(t)
-	c := &UntaintCommand{
-		Meta: Meta{
-			WorkingDir: workdir.NewDir("."),
-			View:       view,
-		},
+
+	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       view,
 	}
 
 	args := []string{
 		"-state", statePath,
 		"test_instance.foo",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, UntaintCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -91,18 +90,17 @@ func TestUntaint_lockedState(t *testing.T) {
 	defer unlock()
 
 	view, done := testView(t)
-	c := &UntaintCommand{
-		Meta: Meta{
-			WorkingDir: workdir.NewDir("."),
-			View:       view,
-		},
+
+	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       view,
 	}
 
 	args := []string{
 		"-state", statePath,
 		"test_instance.foo",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, UntaintCommander(), meta, args)
 	output := done(t)
 	if code == 0 {
 		t.Fatal("expected error")
@@ -140,17 +138,16 @@ func TestUntaint_backup(t *testing.T) {
 	testStateFileDefault(t, state)
 
 	view, done := testView(t)
-	c := &UntaintCommand{
-		Meta: Meta{
-			WorkingDir: workdir.NewDir("."),
-			View:       view,
-		},
+
+	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       view,
 	}
 
 	args := []string{
 		"test_instance.foo",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, UntaintCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -197,18 +194,17 @@ func TestUntaint_backupDisable(t *testing.T) {
 	testStateFileDefault(t, state)
 
 	view, done := testView(t)
-	c := &UntaintCommand{
-		Meta: Meta{
-			WorkingDir: workdir.NewDir("."),
-			View:       view,
-		},
+
+	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       view,
 	}
 
 	args := []string{
 		"-backup", "-",
 		"test_instance.foo",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, UntaintCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -227,18 +223,17 @@ test_instance.foo:
 
 func TestUntaint_badState(t *testing.T) {
 	view, done := testView(t)
-	c := &UntaintCommand{
-		Meta: Meta{
-			WorkingDir: workdir.NewDir("."),
-			View:       view,
-		},
+
+	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       view,
 	}
 
 	args := []string{
 		"-state", "i-should-not-exist-ever",
 		"foo.name",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, UntaintCommander(), meta, args)
 	output := done(t)
 	if code != 1 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -271,17 +266,16 @@ func TestUntaint_defaultState(t *testing.T) {
 	testStateFileDefault(t, state)
 
 	view, done := testView(t)
-	c := &UntaintCommand{
-		Meta: Meta{
-			WorkingDir: workdir.NewDir("."),
-			View:       view,
-		},
+
+	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       view,
 	}
 
 	args := []string{
 		"test_instance.foo",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, UntaintCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -328,14 +322,11 @@ func TestUntaint_defaultWorkspaceState(t *testing.T) {
 	if err := meta.SetWorkspace(testWorkspace); err != nil {
 		t.Fatal(err)
 	}
-	c := &UntaintCommand{
-		Meta: meta,
-	}
 
 	args := []string{
 		"test_instance.foo",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, UntaintCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -370,18 +361,17 @@ func TestUntaint_missing(t *testing.T) {
 	statePath := testStateFile(t, state)
 
 	view, done := testView(t)
-	c := &UntaintCommand{
-		Meta: Meta{
-			WorkingDir: workdir.NewDir("."),
-			View:       view,
-		},
+
+	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       view,
 	}
 
 	args := []string{
 		"-state", statePath,
 		"test_instance.bar",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, UntaintCommander(), meta, args)
 	output := done(t)
 	if code == 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.All())
@@ -410,11 +400,10 @@ func TestUntaint_missingAllow(t *testing.T) {
 	statePath := testStateFile(t, state)
 
 	view, done := testView(t)
-	c := &UntaintCommand{
-		Meta: Meta{
-			WorkingDir: workdir.NewDir("."),
-			View:       view,
-		},
+
+	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       view,
 	}
 
 	args := []string{
@@ -423,7 +412,7 @@ func TestUntaint_missingAllow(t *testing.T) {
 		"-state", statePath,
 		"test_instance.bar",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, UntaintCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -469,18 +458,17 @@ func TestUntaint_stateOut(t *testing.T) {
 	testStateFileDefault(t, state)
 
 	view, done := testView(t)
-	c := &UntaintCommand{
-		Meta: Meta{
-			WorkingDir: workdir.NewDir("."),
-			View:       view,
-		},
+
+	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       view,
 	}
 
 	args := []string{
 		"-state-out", "foo",
 		"test_instance.foo",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, UntaintCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -536,18 +524,17 @@ func TestUntaint_module(t *testing.T) {
 	statePath := testStateFile(t, state)
 
 	view, done := testView(t)
-	c := &UntaintCommand{
-		Meta: Meta{
-			WorkingDir: workdir.NewDir("."),
-			View:       view,
-		},
+
+	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       view,
 	}
 
 	args := []string{
 		"-state", statePath,
 		"module.child.test_instance.blah",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, UntaintCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("command exited with status code %d; want 0\n\n%s", code, output.Stderr())

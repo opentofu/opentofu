@@ -72,6 +72,6 @@ func ParseTaint(isTaint bool, args []string) (*Taint, func(), tfdiags.Diagnostic
 
 	cli := new(CommandLine)
 	arguments := BindTaint(cli, isTaint)
-	closer, diags := cli.Stdlib(cmd, args)
+	closer, diags := cli.parseWithHooks(cmd, args)
 	return arguments, closer, diags
 }

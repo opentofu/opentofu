@@ -75,6 +75,6 @@ Use this with care when stdout is a terminal and when the output value might con
 func ParseOutput(args []string) (*Output, func(), tfdiags.Diagnostics) {
 	cli := new(CommandLine)
 	output := BindOutput(cli)
-	closer, diags := cli.Stdlib("output", args)
+	closer, diags := cli.parseWithHooks("output", args)
 	return output, closer, diags
 }

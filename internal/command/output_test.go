@@ -32,19 +32,18 @@ func TestOutput(t *testing.T) {
 	statePath := testStateFile(t, originalState)
 
 	view, done := testView(t)
-	c := &OutputCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{
 		"-state", statePath,
 		"foo",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, OutputCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
@@ -69,19 +68,18 @@ func TestOutput_json(t *testing.T) {
 	statePath := testStateFile(t, originalState)
 
 	view, done := testView(t)
-	c := &OutputCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{
 		"-state", statePath,
 		"-json",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, OutputCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
@@ -100,19 +98,18 @@ func TestOutput_emptyOutputs(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &OutputCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-no-color",
 		"-state", statePath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, OutputCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
@@ -135,19 +132,18 @@ func TestOutput_badVar(t *testing.T) {
 	statePath := testStateFile(t, originalState)
 
 	view, done := testView(t)
-	c := &OutputCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{
 		"-state", statePath,
 		"bar",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, OutputCommander(), meta, args)
 	output := done(t)
 	if code != 1 {
 		t.Fatalf("bad: \n%s", output.Stderr())
@@ -172,12 +168,11 @@ func TestOutput_blank(t *testing.T) {
 	statePath := testStateFile(t, originalState)
 
 	view, done := testView(t)
-	c := &OutputCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{
@@ -185,7 +180,7 @@ func TestOutput_blank(t *testing.T) {
 		"",
 	}
 
-	code := c.Run(args)
+	code := RunCommander(t, OutputCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
@@ -199,19 +194,18 @@ func TestOutput_blank(t *testing.T) {
 
 func TestOutput_manyArgs(t *testing.T) {
 	view, done := testView(t)
-	c := &OutputCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{
 		"bad",
 		"bad",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, OutputCommander(), meta, args)
 	output := done(t)
 	if code != RunResultHelp {
 		t.Fatalf("bad: \n%s", output.Stdout())
@@ -220,16 +214,15 @@ func TestOutput_manyArgs(t *testing.T) {
 
 func TestOutput_noArgs(t *testing.T) {
 	view, done := testView(t)
-	c := &OutputCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{}
-	code := c.Run(args)
+	code := RunCommander(t, OutputCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stdout())
@@ -241,19 +234,18 @@ func TestOutput_noState(t *testing.T) {
 	statePath := testStateFile(t, originalState)
 
 	view, done := testView(t)
-	c := &OutputCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{
 		"-state", statePath,
 		"foo",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, OutputCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
@@ -266,19 +258,18 @@ func TestOutput_noVars(t *testing.T) {
 	statePath := testStateFile(t, originalState)
 
 	view, done := testView(t)
-	c := &OutputCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{
 		"-state", statePath,
 		"bar",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, OutputCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
@@ -314,18 +305,17 @@ func TestOutput_stateDefault(t *testing.T) {
 	t.Chdir(filepath.Dir(statePath))
 
 	view, done := testView(t)
-	c := &OutputCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{
 		"foo",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, OutputCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
@@ -343,19 +333,18 @@ func TestOutput_showSensitiveArg(t *testing.T) {
 	statePath := testStateFile(t, originalState)
 
 	view, done := testView(t)
-	c := &OutputCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{
 		"-state", statePath,
 		"-show-sensitive",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, OutputCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
@@ -373,18 +362,17 @@ func TestOutput_withoutShowSensitiveArg(t *testing.T) {
 	statePath := testStateFile(t, originalState)
 
 	view, done := testView(t)
-	c := &OutputCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{
 		"-state", statePath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, OutputCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())

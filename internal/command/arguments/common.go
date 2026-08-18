@@ -6,8 +6,10 @@
 package arguments
 
 import (
+	"context"
 	"flag"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
@@ -148,7 +150,9 @@ func (c *CommandLine) CliFlags() []cli.Flag {
 	var ret []cli.Flag
 
 	for _, flag := range c.Flags {
-		ret = append(ret, flag.Cli())
+		fc := flag.Cli()
+		flag.IsSet = fc.IsSet
+		ret = append(ret, fc)
 	}
 
 	return ret
@@ -166,10 +170,10 @@ func (c *CommandLine) CliArguments() []cli.Argument {
 	return ret
 }
 
-// StdlibArgs uses the old command line stdargs processing method. This currently exists
+// ParseLegacy uses the old command line stdargs processing method. This currently exists
 // as a fallback and is primarily used for testing. Once we have completely switched to a
 // new CLI library, the tests can be updated and this function removed.
-func (c *CommandLine) StdlibArgs(args []string) tfdiags.Diagnostics {
+func (c *CommandLine) ParseLegacy(args []string) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	// Special re-ordering of arguments for "global" options
@@ -208,7 +212,7 @@ func (c *CommandLine) StdlibArgs(args []string) tfdiags.Diagnostics {
 
 	// Record flag set state (init hack)
 	for _, flag := range c.Flags {
-		flag.IsSet = flags.FlagIsSet(cmdFlags, flag.Name)
+		flag.IsSet = func() bool { return flags.FlagIsSet(cmdFlags, flag.Name) }
 	}
 
 	remaining := cmdFlags.Args()
@@ -218,13 +222,48 @@ func (c *CommandLine) StdlibArgs(args []string) tfdiags.Diagnostics {
 	return diags
 }
 
-// Stdlib is a wrapper around StdlibArgs that handles hooks. This is used by the
-// legacy Parse methods and should be removed when they are retired.
-func (c *CommandLine) Stdlib(name string, args []string) (func(), tfdiags.Diagnostics) {
-	diags := c.StdlibArgs(args)
+// parseWithHooks is a wrapper around Urfave that handles hooks. This is used by the
+// legacy Parse methods and should be removed when they are retired (only used in test paths).
+func (c *CommandLine) parseWithHooks(name string, args []string) (func(), tfdiags.Diagnostics) {
+	//diags := c.StdlibArgs(args)
+	diags := c.ParseDirect(context.Background(), args)
 
 	// Process hooks
 	return func() { c.PostHooks.Run() }, diags.Append(c.PreHooks.Run())
+}
+
+// ParseDirect is only used for testing when we need to simuate processing the args.
+// This is primarilly used in the command package.
+func (c *CommandLine) ParseDirect(ctx context.Context, args []string) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+
+	cc := cli.Command{
+		Name:      "internal-testing",
+		Flags:     c.CliFlags(),
+		Arguments: c.CliArguments(),
+		Writer:    io.Discard,
+		ErrWriter: io.Discard,
+		CommandNotFound: func(context.Context, *cli.Command, string) {
+			//diags = diags.Append(c.PositionalError(nil, true))
+		},
+		OnUsageError: func(ctx context.Context, cmd *cli.Command, err error, isSubcommand bool) error {
+			return err
+		},
+	}
+
+	err := cc.Run(ctx, append([]string{cc.Name}, args...))
+
+	if err != nil {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Failed to parse command-line options",
+			err.Error(),
+		))
+	}
+
+	diags = diags.Append(c.RemainCheck(cc.Args().Slice()))
+
+	return diags
 }
 
 // PreHook is a helper function to add a hook to the command line processing.
@@ -256,7 +295,7 @@ func (c *CommandLine) PositionalArg(p *string, name string, optional bool) {
 			panic("BUG: Can not register a positional argument after a variadic argument!")
 		}
 	}
-	c.Args = append(c.Args, Argument{Name: name, Optional: optional, Cli: &cli.StringArg{Name: name, Destination: p}, Process: func(args []string) ([]string, error) {
+	c.Args = append(c.Args, Argument{Name: name, Optional: optional, Cli: &cli.StringArg{Name: name, Value: *p, Destination: p}, Process: func(args []string) ([]string, error) {
 		if len(args) == 0 {
 			if !optional {
 				return args, fmt.Errorf("Missing positional argument %s", name)
@@ -403,7 +442,7 @@ type Flag struct {
 
 	// IsSet is a workaround for -backend and -cloud. TODO consider
 	// proper argument aliases as supported by the cli implementation.
-	IsSet bool
+	IsSet func() bool
 }
 
 func (f *Flag) SetGroup(id string) *Flag {

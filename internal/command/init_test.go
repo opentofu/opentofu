@@ -47,16 +47,15 @@ func TestInit_empty(t *testing.T) {
 	t.Chdir(td)
 
 	view, done := testView(t)
-	c := &InitCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	var args []string
-	code := c.Run(args)
+	code := RunCommander(t, InitCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
@@ -69,19 +68,18 @@ func TestInit_multipleArgs(t *testing.T) {
 	t.Chdir(td)
 
 	view, done := testView(t)
-	c := &InitCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{
 		"bad",
 		"bad",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, InitCommander(), meta, args)
 	output := done(t)
 	if code != cli.RunResultHelp {
 		t.Fatalf("bad: \n%s", output.Stdout())
@@ -94,24 +92,23 @@ func TestInit_fromModule_cwdDest(t *testing.T) {
 	t.Chdir(td)
 
 	view, done := testView(t)
-	c := &InitCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
 
-			// This test relies on the module installer's legacy support for
-			// treating an absolute filesystem path as if it were a "remote"
-			// source address, and so we need a real package fetcher but the
-			// way we use it here does not cause it to make network requests.
-			ModulePackageFetcher: getmodules.NewPackageFetcher(t.Context(), nil),
-		},
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
+
+		// This test relies on the module installer's legacy support for
+		// treating an absolute filesystem path as if it were a "remote"
+		// source address, and so we need a real package fetcher but the
+		// way we use it here does not cause it to make network requests.
+		ModulePackageFetcher: getmodules.NewPackageFetcher(t.Context(), nil),
 	}
 
 	args := []string{
 		"-from-module=" + testFixturePath("init"),
 	}
-	code := c.Run(args)
+	code := RunCommander(t, InitCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("unexpected error\n%s", output.Stderr())
@@ -143,24 +140,23 @@ func TestInit_fromModule_dstInSrc(t *testing.T) {
 	t.Chdir("foo")
 
 	view, done := testView(t)
-	c := &InitCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
 
-			// This test relies on the module installer's legacy support for
-			// treating an absolute filesystem path as if it were a "remote"
-			// source address, and so we need a real package fetcher but the
-			// way we use it here does not cause it to make network requests.
-			ModulePackageFetcher: getmodules.NewPackageFetcher(t.Context(), nil),
-		},
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
+
+		// This test relies on the module installer's legacy support for
+		// treating an absolute filesystem path as if it were a "remote"
+		// source address, and so we need a real package fetcher but the
+		// way we use it here does not cause it to make network requests.
+		ModulePackageFetcher: getmodules.NewPackageFetcher(t.Context(), nil),
 	}
 
 	args := []string{
 		"-from-module=./..",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, InitCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
@@ -178,16 +174,15 @@ func TestInit_get(t *testing.T) {
 	t.Chdir(td)
 
 	view, done := testView(t)
-	c := &InitCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{}
-	code := c.Run(args)
+	code := RunCommander(t, InitCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
@@ -207,19 +202,18 @@ func TestInit_getUpgradeModules(t *testing.T) {
 	t.Chdir(td)
 
 	view, done := testView(t)
-	c := &InitCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{
 		"-get=true",
 		"-upgrade",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, InitCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("command did not complete successfully:\n%s", output.Stderr())
@@ -238,16 +232,15 @@ func TestInit_backend(t *testing.T) {
 	t.Chdir(td)
 
 	view, done := testView(t)
-	c := &InitCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{}
-	code := c.Run(args)
+	code := RunCommander(t, InitCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
@@ -268,17 +261,16 @@ func TestInit_backendUnset(t *testing.T) {
 		log.Printf("[TRACE] TestInit_backendUnset: beginning first init")
 
 		view, done := testView(t)
-		c := &InitCommand{
-			Meta: Meta{
-				WorkingDir:       workdir.NewDir("."),
-				testingOverrides: metaOverridesForProvider(testProvider()),
-				View:             view,
-			},
+
+		meta := Meta{
+			WorkingDir:       workdir.NewDir("."),
+			testingOverrides: metaOverridesForProvider(testProvider()),
+			View:             view,
 		}
 
 		// Init
 		args := []string{}
-		code := c.Run(args)
+		code := RunCommander(t, InitCommander(), meta, args)
 		output := done(t)
 		if code != 0 {
 			t.Fatalf("bad: \n%s", output.Stderr())
@@ -301,16 +293,15 @@ func TestInit_backendUnset(t *testing.T) {
 		}
 
 		view, done := testView(t)
-		c := &InitCommand{
-			Meta: Meta{
-				WorkingDir:       workdir.NewDir("."),
-				testingOverrides: metaOverridesForProvider(testProvider()),
-				View:             view,
-			},
+
+		meta := Meta{
+			WorkingDir:       workdir.NewDir("."),
+			testingOverrides: metaOverridesForProvider(testProvider()),
+			View:             view,
 		}
 
 		args := []string{"-force-copy"}
-		code := c.Run(args)
+		code := RunCommander(t, InitCommander(), meta, args)
 		output := done(t)
 		if code != 0 {
 			t.Fatalf("bad: \n%s", output.Stderr())
@@ -334,15 +325,14 @@ func TestInit_backendConfigFile(t *testing.T) {
 
 	t.Run("good-config-file", func(t *testing.T) {
 		view, done := testView(t)
-		c := &InitCommand{
-			Meta: Meta{
-				WorkingDir:       workdir.NewDir("."),
-				testingOverrides: metaOverridesForProvider(testProvider()),
-				View:             view,
-			},
+
+		meta := Meta{
+			WorkingDir:       workdir.NewDir("."),
+			testingOverrides: metaOverridesForProvider(testProvider()),
+			View:             view,
 		}
 		args := []string{"-backend-config", "input.config"}
-		code := c.Run(args)
+		code := RunCommander(t, InitCommander(), meta, args)
 		output := done(t)
 		if code != 0 {
 			t.Fatalf("bad: \n%s", output.All())
@@ -358,15 +348,14 @@ func TestInit_backendConfigFile(t *testing.T) {
 	// the backend config file must not be a full tofu block
 	t.Run("full-backend-config-file", func(t *testing.T) {
 		view, done := testView(t)
-		c := &InitCommand{
-			Meta: Meta{
-				WorkingDir:       workdir.NewDir("."),
-				testingOverrides: metaOverridesForProvider(testProvider()),
-				View:             view,
-			},
+
+		meta := Meta{
+			WorkingDir:       workdir.NewDir("."),
+			testingOverrides: metaOverridesForProvider(testProvider()),
+			View:             view,
 		}
 		args := []string{"-backend-config", "backend.config"}
-		if code := c.Run(args); code != 1 {
+		if code := RunCommander(t, InitCommander(), meta, args); code != 1 {
 			t.Fatalf("expected error, got success\n")
 		}
 		output := done(t)
@@ -378,15 +367,14 @@ func TestInit_backendConfigFile(t *testing.T) {
 	// the backend config file must match the schema for the backend
 	t.Run("invalid-config-file", func(t *testing.T) {
 		view, done := testView(t)
-		c := &InitCommand{
-			Meta: Meta{
-				WorkingDir:       workdir.NewDir("."),
-				testingOverrides: metaOverridesForProvider(testProvider()),
-				View:             view,
-			},
+
+		meta := Meta{
+			WorkingDir:       workdir.NewDir("."),
+			testingOverrides: metaOverridesForProvider(testProvider()),
+			View:             view,
 		}
 		args := []string{"-backend-config", "invalid.config"}
-		code := c.Run(args)
+		code := RunCommander(t, InitCommander(), meta, args)
 		output := done(t)
 		if code != 1 {
 			t.Fatalf("expected error, got success\n")
@@ -399,15 +387,14 @@ func TestInit_backendConfigFile(t *testing.T) {
 	// missing file is an error
 	t.Run("missing-config-file", func(t *testing.T) {
 		view, done := testView(t)
-		c := &InitCommand{
-			Meta: Meta{
-				WorkingDir:       workdir.NewDir("."),
-				testingOverrides: metaOverridesForProvider(testProvider()),
-				View:             view,
-			},
+
+		meta := Meta{
+			WorkingDir:       workdir.NewDir("."),
+			testingOverrides: metaOverridesForProvider(testProvider()),
+			View:             view,
 		}
 		args := []string{"-backend-config", "missing.config"}
-		code := c.Run(args)
+		code := RunCommander(t, InitCommander(), meta, args)
 		output := done(t)
 		if code != 1 {
 			t.Fatalf("expected error, got success\n")
@@ -420,15 +407,14 @@ func TestInit_backendConfigFile(t *testing.T) {
 	// blank filename clears the backend config
 	t.Run("blank-config-file", func(t *testing.T) {
 		view, done := testView(t)
-		c := &InitCommand{
-			Meta: Meta{
-				WorkingDir:       workdir.NewDir("."),
-				testingOverrides: metaOverridesForProvider(testProvider()),
-				View:             view,
-			},
+
+		meta := Meta{
+			WorkingDir:       workdir.NewDir("."),
+			testingOverrides: metaOverridesForProvider(testProvider()),
+			View:             view,
 		}
 		args := []string{"-backend-config=", "-migrate-state"}
-		code := c.Run(args)
+		code := RunCommander(t, InitCommander(), meta, args)
 		output := done(t)
 		if code != 0 {
 			t.Fatalf("bad: \n%s", output.Stderr())
@@ -444,11 +430,11 @@ func TestInit_backendConfigFile(t *testing.T) {
 	// simulate the local backend having a required field which is not
 	// specified in the override file
 	t.Run("required-argument", func(t *testing.T) {
-		c := &InitCommand{
-			Meta{
-				WorkingDir: workdir.NewDir("."),
-			},
+
+		meta := Meta{
+			WorkingDir: workdir.NewDir("."),
 		}
+		c := &InitCommand{Meta: meta}
 		schema := &configschema.Block{
 			Attributes: map[string]*configschema.Attribute{
 				"path": {
@@ -477,12 +463,11 @@ func TestInit_backendConfigFilePowershellConfusion(t *testing.T) {
 	t.Chdir(td)
 
 	view, done := testView(t)
-	c := &InitCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	// SUBTLE: when using -flag=value with Powershell, unquoted values are
@@ -494,7 +479,7 @@ func TestInit_backendConfigFilePowershellConfusion(t *testing.T) {
 	// result in an early exit with a diagnostic that the provided
 	// configuration file is not a directory.
 	args := []string{"-backend-config=", "./input.config"}
-	code := c.Run(args)
+	code := RunCommander(t, InitCommander(), meta, args)
 	output := done(t)
 	if code != cli.RunResultHelp {
 		t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, output.Stderr(), output.Stdout())
@@ -518,13 +503,12 @@ func TestInit_backendReconfigure(t *testing.T) {
 	defer close()
 
 	view, done := testView(t)
-	c := &InitCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			ProviderSource:   providerSource,
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		ProviderSource:   providerSource,
+		View:             view,
 	}
 
 	// create some state, so the backend has something to migrate.
@@ -538,7 +522,7 @@ func TestInit_backendReconfigure(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 
-	code := c.Run(nil)
+	code := RunCommander(t, InitCommander(), meta, nil)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
@@ -548,7 +532,7 @@ func TestInit_backendReconfigure(t *testing.T) {
 	// The -reconfigure flag prevents init from migrating
 	// Without -reconfigure, the test fails since the backend asks for input on migrating state
 	args := []string{"-reconfigure", "-backend-config", "path=changed"}
-	if code := c.Run(args); code != 0 {
+	if code := RunCommander(t, InitCommander(), meta, args); code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
 	}
 }
@@ -560,16 +544,15 @@ func TestInit_backendConfigFileChange(t *testing.T) {
 	t.Chdir(td)
 
 	view, done := testView(t)
-	c := &InitCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{"-backend-config", "input.config", "-migrate-state"}
-	code := c.Run(args)
+	code := RunCommander(t, InitCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
@@ -594,13 +577,12 @@ func TestInit_backendMigrateWhileLocked(t *testing.T) {
 	defer close()
 
 	view, done := testView(t)
-	c := &InitCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			ProviderSource:   providerSource,
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		ProviderSource:   providerSource,
+		View:             view,
 	}
 
 	// Create some state, so the backend has something to migrate from
@@ -621,7 +603,7 @@ func TestInit_backendMigrateWhileLocked(t *testing.T) {
 	}
 	// Attempt to migrate
 	args := []string{"-no-color", "-backend-config", "input.config", "-migrate-state", "-force-copy"}
-	code := c.Run(args)
+	code := RunCommander(t, InitCommander(), meta, args)
 	output := done(t)
 	if code == 0 {
 		t.Fatalf("expected nonzero exit code: %s", output.Stdout())
@@ -631,7 +613,7 @@ func TestInit_backendMigrateWhileLocked(t *testing.T) {
 	unlock()
 
 	args = []string{"-backend-config", "input.config", "-migrate-state", "-force-copy", "-lock=false"}
-	if code := c.Run(args); code != 0 {
+	if code := RunCommander(t, InitCommander(), meta, args); code != 0 {
 		t.Fatalf("expected zero exit code, got %d: %s", code, output.Stderr())
 	}
 }
@@ -643,19 +625,18 @@ func TestInit_backendConfigFileChangeWithExistingState(t *testing.T) {
 	t.Chdir(td)
 
 	view, done := testView(t)
-	c := &InitCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	oldState := testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, arguments.DefaultStateFilename))
 
 	// we deliberately do not provide the answer for backend-migrate-copy-to-empty to trigger error
 	args := []string{"-migrate-state", "-backend-config", "input.config", "-input=true"}
-	code := c.Run(args)
+	code := RunCommander(t, InitCommander(), meta, args)
 	output := done(t)
 	if code == 0 {
 		t.Fatal("expected error")
@@ -683,16 +664,15 @@ func TestInit_backendConfigKV(t *testing.T) {
 	t.Chdir(td)
 
 	view, done := testView(t)
-	c := &InitCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{"-backend-config", "path=hello"}
-	code := c.Run(args)
+	code := RunCommander(t, InitCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
@@ -712,32 +692,29 @@ func TestInit_backendConfigKVReInit(t *testing.T) {
 	t.Chdir(td)
 
 	view, done := testView(t)
-	c := &InitCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{"-backend-config", "path=test"}
-	code := c.Run(args)
+	code := RunCommander(t, InitCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
 	}
 
-	c = &InitCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+	meta = Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	// a second init should require no changes, nor should it change the backend.
 	args = []string{"-input=false"}
-	if code := c.Run(args); code != 0 {
+	if code := RunCommander(t, InitCommander(), meta, args); code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
 	}
 
@@ -753,7 +730,7 @@ func TestInit_backendConfigKVReInit(t *testing.T) {
 
 	// override the -backend-config options by settings
 	args = []string{"-input=false", "-backend-config", "", "-migrate-state"}
-	if code := c.Run(args); code != 0 {
+	if code := RunCommander(t, InitCommander(), meta, args); code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
 	}
 
@@ -775,34 +752,31 @@ func TestInit_backendConfigKVReInitWithConfigDiff(t *testing.T) {
 	t.Chdir(td)
 
 	view, done := testView(t)
-	c := &InitCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{"-input=false"}
-	code := c.Run(args)
+	code := RunCommander(t, InitCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
 	}
 
 	view, done = testView(t)
-	c = &InitCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+	meta = Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	// a second init with identical config should require no changes, nor
 	// should it change the backend.
 	args = []string{"-input=false", "-backend-config", "path=foo"}
-	code = c.Run(args)
+	code = RunCommander(t, InitCommander(), meta, args)
 	output = done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
@@ -826,16 +800,15 @@ func TestInit_backendCli_no_config_block(t *testing.T) {
 	t.Chdir(td)
 
 	view, done := testView(t)
-	c := &InitCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{"-no-color", "-backend-config", "path=test"}
-	code := c.Run(args)
+	code := RunCommander(t, InitCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("got exit status %d; want 0\nstderr:\n%s\n\nstdout:\n%s", code, output.Stderr(), output.Stdout())
@@ -872,16 +845,15 @@ func TestInit_backendReinitWithExtra(t *testing.T) {
 	}
 
 	view, done := testView(t)
-	c := &InitCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{"-backend-config", "path=hello"}
-	code := c.Run(args)
+	code := RunCommander(t, InitCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
@@ -898,7 +870,7 @@ func TestInit_backendReinitWithExtra(t *testing.T) {
 	}
 
 	// init again and make sure nothing changes
-	if code := c.Run(args); code != 0 {
+	if code := RunCommander(t, InitCommander(), meta, args); code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
 	}
 	state = testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, arguments.DefaultStateFilename))
@@ -917,15 +889,14 @@ func TestInit_backendReinitConfigToExtra(t *testing.T) {
 	t.Chdir(td)
 
 	view, done := testView(t)
-	c := &InitCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
-	code := c.Run([]string{"-input=false"})
+	code := RunCommander(t, InitCommander(), meta, []string{"-input=false"})
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
@@ -948,16 +919,14 @@ func TestInit_backendReinitConfigToExtra(t *testing.T) {
 	// We need a fresh InitCommand here because the old one now has our configuration
 	// file cached inside it, so it won't re-read the modification we just made.
 	view, done = testView(t)
-	c = &InitCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+	meta = Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{"-input=false", "-backend-config=path=foo"}
-	code = c.Run(args)
+	code = RunCommander(t, InitCommander(), meta, args)
 	output = done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
@@ -1030,14 +999,13 @@ func TestInit_backendCloudInvalidOptions(t *testing.T) {
 		// configuration is only about which workspaces we'll be working
 		// with.
 		view, done := testView(t)
-		c := &InitCommand{
-			Meta: Meta{
-				WorkingDir: workdir.NewDir("."),
-				View:       view,
-			},
+
+		meta := Meta{
+			WorkingDir: workdir.NewDir("."),
+			View:       view,
 		}
 		args := []string{"-no-color", "-backend-config=anything"}
-		code := c.Run(args)
+		code := RunCommander(t, InitCommander(), meta, args)
 		output := done(t)
 		if code == 0 {
 			t.Fatalf("unexpected success\n%s", output.Stdout())
@@ -1070,14 +1038,13 @@ Cloud configuration block in the root module.
 		// -reconfigure doesn't really make sense in that context, particularly
 		// with its design bug with the handling of the implicit local backend.
 		view, done := testView(t)
-		c := &InitCommand{
-			Meta: Meta{
-				WorkingDir: workdir.NewDir("."),
-				View:       view,
-			},
+
+		meta := Meta{
+			WorkingDir: workdir.NewDir("."),
+			View:       view,
 		}
 		args := []string{"-no-color", "-reconfigure"}
-		code := c.Run(args)
+		code := RunCommander(t, InitCommander(), meta, args)
 		output := done(t)
 		if code == 0 {
 			t.Fatalf("unexpected success\n%s", output.Stdout())
@@ -1110,14 +1077,13 @@ Cloud configuration settings.
 		}
 
 		view, done := testView(t)
-		c := &InitCommand{
-			Meta: Meta{
-				WorkingDir: workdir.NewDir("."),
-				View:       view,
-			},
+
+		meta := Meta{
+			WorkingDir: workdir.NewDir("."),
+			View:       view,
 		}
 		args := []string{"-no-color", "-reconfigure"}
-		code := c.Run(args)
+		code := RunCommander(t, InitCommander(), meta, args)
 		output := done(t)
 		if code == 0 {
 			t.Fatalf("unexpected success\n%s", output.Stdout())
@@ -1142,14 +1108,13 @@ because activating cloud backend involves some additional steps.
 		// and changing configuration while staying in cloud mode never migrates
 		// state, so this special option isn't relevant.
 		view, done := testView(t)
-		c := &InitCommand{
-			Meta: Meta{
-				WorkingDir: workdir.NewDir("."),
-				View:       view,
-			},
+
+		meta := Meta{
+			WorkingDir: workdir.NewDir("."),
+			View:       view,
 		}
 		args := []string{"-no-color", "-migrate-state"}
-		code := c.Run(args)
+		code := RunCommander(t, InitCommander(), meta, args)
 		output := done(t)
 		if code == 0 {
 			t.Fatalf("unexpected success\n%s", output.Stdout())
@@ -1182,14 +1147,13 @@ storage location is not configurable.
 		}
 
 		view, done := testView(t)
-		c := &InitCommand{
-			Meta: Meta{
-				WorkingDir: workdir.NewDir("."),
-				View:       view,
-			},
+
+		meta := Meta{
+			WorkingDir: workdir.NewDir("."),
+			View:       view,
 		}
 		args := []string{"-no-color", "-migrate-state"}
-		code := c.Run(args)
+		code := RunCommander(t, InitCommander(), meta, args)
 		output := done(t)
 		if code == 0 {
 			t.Fatalf("unexpected success\n%s", output.Stdout())
@@ -1217,14 +1181,13 @@ prompts.
 		// and changing configuration while staying in cloud mode never migrates
 		// state, so this special option isn't relevant.
 		view, done := testView(t)
-		c := &InitCommand{
-			Meta: Meta{
-				WorkingDir: workdir.NewDir("."),
-				View:       view,
-			},
+
+		meta := Meta{
+			WorkingDir: workdir.NewDir("."),
+			View:       view,
 		}
 		args := []string{"-no-color", "-force-copy"}
-		code := c.Run(args)
+		code := RunCommander(t, InitCommander(), meta, args)
 		output := done(t)
 		if code == 0 {
 			t.Fatalf("unexpected success\n%s", output.Stdout())
@@ -1257,14 +1220,13 @@ storage location is not configurable.
 		}
 
 		view, done := testView(t)
-		c := &InitCommand{
-			Meta: Meta{
-				WorkingDir: workdir.NewDir("."),
-				View:       view,
-			},
+
+		meta := Meta{
+			WorkingDir: workdir.NewDir("."),
+			View:       view,
 		}
 		args := []string{"-no-color", "-force-copy"}
-		code := c.Run(args)
+		code := RunCommander(t, InitCommander(), meta, args)
 		output := done(t)
 		if code == 0 {
 			t.Fatalf("unexpected success\n%s", output.Stdout())
@@ -1295,16 +1257,15 @@ func TestInit_inputFalse(t *testing.T) {
 	t.Chdir(td)
 
 	view, done := testView(t)
-	c := &InitCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{"-input=false", "-backend-config=path=foo"}
-	code := c.Run(args)
+	code := RunCommander(t, InitCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
@@ -1335,16 +1296,14 @@ func TestInit_inputFalse(t *testing.T) {
 	}
 
 	view, done = testView(t)
-	c = &InitCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+	meta = Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args = []string{"-input=false", "-backend-config=path=bar", "-migrate-state"}
-	code = c.Run(args)
+	code = RunCommander(t, InitCommander(), meta, args)
 	output = done(t)
 	if code == 0 {
 		t.Fatal("init should have failed", output.Stdout())
@@ -1356,17 +1315,16 @@ func TestInit_inputFalse(t *testing.T) {
 	}
 
 	view, done = testView(t)
-	c = &InitCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta = Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	// A missing input=false should abort rather than loop infinitely
 	args = []string{"-backend-config=path=baz"}
-	code = c.Run(args)
+	code = RunCommander(t, InitCommander(), meta, args)
 	output = done(t)
 	if code == 0 {
 		t.Fatal("init should have failed", output.Stdout())
@@ -1397,14 +1355,10 @@ func TestInit_getProvider(t *testing.T) {
 		ProviderSource:   providerSource,
 	}
 
-	c := &InitCommand{
-		Meta: m,
-	}
-
 	args := []string{
 		"-backend=false", // should be possible to install plugins without backend init
 	}
-	code := c.Run(args)
+	code := RunCommander(t, InitCommander(), m, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
@@ -1462,10 +1416,8 @@ func TestInit_getProvider(t *testing.T) {
 
 		view, done := testView(t)
 		m.View = view
-		c := &InitCommand{
-			Meta: m,
-		}
-		code := c.Run(nil)
+
+		code := RunCommander(t, InitCommander(), m, nil)
 		output := done(t)
 		if code == 0 {
 			t.Fatal("expected error, got:", output.Stdout())
@@ -1501,14 +1453,10 @@ func TestInit_getProviderSource(t *testing.T) {
 		ProviderSource:   providerSource,
 	}
 
-	c := &InitCommand{
-		Meta: m,
-	}
-
 	args := []string{
 		"-backend=false", // should be possible to install plugins without backend init
 	}
-	code := c.Run(args)
+	code := RunCommander(t, InitCommander(), m, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
@@ -1548,11 +1496,7 @@ func TestInit_getProviderLegacyFromState(t *testing.T) {
 		ProviderSource:   providerSource,
 	}
 
-	c := &InitCommand{
-		Meta: m,
-	}
-
-	code := c.Run(nil)
+	code := RunCommander(t, InitCommander(), m, nil)
 	output := done(t)
 	if code != 1 {
 		t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, output.Stderr(), output.Stdout())
@@ -1603,14 +1547,10 @@ func TestInit_getProviderInvalidPackage(t *testing.T) {
 		ProviderSource:   providerSource,
 	}
 
-	c := &InitCommand{
-		Meta: m,
-	}
-
 	args := []string{
 		"-backend=false", // should be possible to install plugins without backend init
 	}
-	code := c.Run(args)
+	code := RunCommander(t, InitCommander(), m, args)
 	output := done(t)
 	if code != 1 {
 		t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, output.Stderr(), output.Stdout())
@@ -1663,14 +1603,10 @@ func TestInit_getProviderDetectedLegacy(t *testing.T) {
 		ProviderSource: multiSource,
 	}
 
-	c := &InitCommand{
-		Meta: m,
-	}
-
 	args := []string{
 		"-backend=false", // should be possible to install plugins without backend init
 	}
-	code := c.Run(args)
+	code := RunCommander(t, InitCommander(), m, args)
 	output := done(t)
 	if code == 0 {
 		t.Fatalf("expected error, got output: \n%s", output.Stdout())
@@ -1732,15 +1668,11 @@ func TestInit_getProviderDetectedDuplicate(t *testing.T) {
 		ProviderSource: multiSource,
 	}
 
-	c := &InitCommand{
-		Meta: m,
-	}
-
 	args := []string{
 		"-no-color",
 		"-backend=false", // should be possible to install plugins without backend init
 	}
-	code := c.Run(args)
+	code := RunCommander(t, InitCommander(), m, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("expected error, got output: \n%s\n%s", output.Stdout(), output.Stderr())
@@ -1797,13 +1729,9 @@ func TestInit_providerSource(t *testing.T) {
 		ProviderSource:   providerSource,
 	}
 
-	c := &InitCommand{
-		Meta: m,
-	}
-
 	args := []string{"-no-color"}
 
-	code := c.Run(args)
+	code := RunCommander(t, InitCommander(), m, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
@@ -1951,14 +1879,11 @@ func TestInit_cancelModules(t *testing.T) {
 		// that can then fail with a cancellation error.
 		ModulePackageFetcher: getmodules.NewPackageFetcher(t.Context(), nil),
 	}
-	c := &InitCommand{
-		Meta: m,
-	}
 
 	fakeModuleSourceAddr := server.URL + "/example.zip"
 	t.Logf("attempting to install module package from %s", fakeModuleSourceAddr)
 	args := []string{"-var=module_source=" + fakeModuleSourceAddr}
-	code := c.Run(args)
+	code := RunCommander(t, InitCommander(), m, args)
 	output := done(t)
 	if err := ctx.Err(); err != nil {
 		t.Errorf("context error: %s", err) // probably reporting a timeout
@@ -1998,13 +1923,9 @@ func TestInit_cancelProviders(t *testing.T) {
 		ShutdownCh:       shutdownCh,
 	}
 
-	c := &InitCommand{
-		Meta: m,
-	}
-
 	args := []string{}
 
-	code := c.Run(args)
+	code := RunCommander(t, InitCommander(), m, args)
 	output := done(t)
 	if code == 0 {
 		t.Fatalf("succeeded; wanted error\n%s", output.Stdout())
@@ -2047,14 +1968,10 @@ func TestInit_getUpgradePlugins(t *testing.T) {
 		"greater-than": {"2.3.3"},
 	})
 
-	c := &InitCommand{
-		Meta: m,
-	}
-
 	args := []string{
 		"-upgrade=true",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, InitCommander(), m, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("command did not complete successfully:\n%s", output.Stderr())
@@ -2171,12 +2088,8 @@ func TestInit_getProviderMissing(t *testing.T) {
 		ProviderSource:   providerSource,
 	}
 
-	c := &InitCommand{
-		Meta: m,
-	}
-
 	args := []string{}
-	code := c.Run(args)
+	code := RunCommander(t, InitCommander(), m, args)
 	output := done(t)
 	if code == 0 {
 		t.Fatalf("expected error, got output: \n%s", output.Stdout())
@@ -2194,16 +2107,15 @@ func TestInit_checkRequiredVersion(t *testing.T) {
 	t.Chdir(td)
 
 	view, done := testView(t)
-	c := &InitCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{}
-	code := c.Run(args)
+	code := RunCommander(t, InitCommander(), meta, args)
 	output := done(t)
 	if code != 1 {
 		t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, output.Stderr(), output.Stdout())
@@ -2226,15 +2138,14 @@ func TestInit_checkRequiredVersionFirst(t *testing.T) {
 		t.Chdir(td)
 
 		view, done := testView(t)
-		c := &InitCommand{
-			Meta: Meta{
-				WorkingDir:       workdir.NewDir("."),
-				testingOverrides: metaOverridesForProvider(testProvider()),
-				View:             view,
-			},
+
+		meta := Meta{
+			WorkingDir:       workdir.NewDir("."),
+			testingOverrides: metaOverridesForProvider(testProvider()),
+			View:             view,
 		}
 
-		code := c.Run(nil)
+		code := RunCommander(t, InitCommander(), meta, nil)
 		output := done(t)
 		if code != 1 {
 			t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, output.Stderr(), output.Stdout())
@@ -2250,15 +2161,14 @@ func TestInit_checkRequiredVersionFirst(t *testing.T) {
 		t.Chdir(td)
 
 		view, done := testView(t)
-		c := &InitCommand{
-			Meta: Meta{
-				WorkingDir:       workdir.NewDir("."),
-				testingOverrides: metaOverridesForProvider(testProvider()),
-				View:             view,
-			},
+
+		meta := Meta{
+			WorkingDir:       workdir.NewDir("."),
+			testingOverrides: metaOverridesForProvider(testProvider()),
+			View:             view,
 		}
 
-		code := c.Run(nil)
+		code := RunCommander(t, InitCommander(), meta, nil)
 		output := done(t)
 		if code != 1 {
 			t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, output.Stderr(), output.Stdout())
@@ -2295,11 +2205,7 @@ func TestInit_providerLockFile(t *testing.T) {
 		ProviderSource:   providerSource,
 	}
 
-	c := &InitCommand{
-		Meta: m,
-	}
-
-	code := c.Run(nil)
+	code := RunCommander(t, InitCommander(), m, nil)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
@@ -2336,8 +2242,8 @@ provider "registry.opentofu.org/hashicorp/test" {
 		t.Fatal(err)
 	}
 	view, done = testView(t)
-	c.Meta.View = view
-	code = c.Run(nil)
+	m.View = view
+	code = RunCommander(t, InitCommander(), m, nil)
 	output = done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
@@ -2486,17 +2392,13 @@ provider "registry.opentofu.org/hashicorp/test" {
 				ProviderSource:   providerSource,
 			}
 
-			c := &InitCommand{
-				Meta: m,
-			}
-
 			// write input lockfile
 			lockFile := ".terraform.lock.hcl"
 			if err := os.WriteFile(lockFile, []byte(tc.input), 0644); err != nil {
 				t.Fatalf("failed to write input lockfile: %s", err)
 			}
 
-			code := c.Run(tc.args)
+			code := RunCommander(t, InitCommander(), m, tc.args)
 			output := done(t)
 			if tc.ok && code != 0 {
 				t.Fatalf("bad: \n%s", output.Stderr())
@@ -2527,13 +2429,12 @@ func TestInit_pluginDirReset(t *testing.T) {
 	defer close()
 
 	view, done := testView(t)
-	c := &InitCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-			ProviderSource:   providerSource,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
+		ProviderSource:   providerSource,
 	}
 
 	// make our vendor paths
@@ -2546,13 +2447,13 @@ func TestInit_pluginDirReset(t *testing.T) {
 
 	// run once and save the -plugin-dir
 	args := []string{"-plugin-dir", "a"}
-	code := c.Run(args)
+	code := RunCommander(t, InitCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
 	}
 
-	pluginDirs, err := c.loadPluginPath()
+	pluginDirs, err := meta.loadPluginPath()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2562,24 +2463,24 @@ func TestInit_pluginDirReset(t *testing.T) {
 	}
 
 	view, done = testView(t)
-	c = &InitCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-			ProviderSource:   providerSource, // still empty
-		},
+
+	meta = Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
+		ProviderSource:   providerSource, // still empty
+
 	}
 
 	// make sure we remove the plugin-dir record
 	args = []string{"-plugin-dir="}
-	code = c.Run(args)
+	code = RunCommander(t, InitCommander(), meta, args)
 	output = done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
 	}
 
-	pluginDirs, err = c.loadPluginPath()
+	pluginDirs, err = meta.loadPluginPath()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2605,10 +2506,6 @@ func TestInit_pluginDirProviders(t *testing.T) {
 		testingOverrides: metaOverridesForProvider(testProvider()),
 		View:             view,
 		ProviderSource:   providerSource,
-	}
-
-	c := &InitCommand{
-		Meta: m,
 	}
 
 	// make our vendor paths
@@ -2639,7 +2536,7 @@ func TestInit_pluginDirProviders(t *testing.T) {
 		"-plugin-dir", "b",
 		"-plugin-dir", "c",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, InitCommander(), m, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
@@ -2709,10 +2606,6 @@ func TestInit_pluginDirProvidersDoesNotGet(t *testing.T) {
 		ProviderSource:   providerSource,
 	}
 
-	c := &InitCommand{
-		Meta: m,
-	}
-
 	// make our vendor paths
 	pluginPath := []string{"a", "b"}
 	for _, p := range pluginPath {
@@ -2739,7 +2632,7 @@ func TestInit_pluginDirProvidersDoesNotGet(t *testing.T) {
 		"-plugin-dir", "a",
 		"-plugin-dir", "b",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, InitCommander(), m, args)
 	output := done(t)
 	if code == 0 {
 		// should have been an error
@@ -2783,12 +2676,8 @@ func TestInit_pluginDirWithBuiltIn(t *testing.T) {
 		ProviderSource:   providerSource,
 	}
 
-	c := &InitCommand{
-		Meta: m,
-	}
-
 	args := []string{"-plugin-dir", "./"}
-	code := c.Run(args)
+	code := RunCommander(t, InitCommander(), m, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("error: %s", output.Stderr())
@@ -2822,11 +2711,7 @@ func TestInit_invalidBuiltInProviders(t *testing.T) {
 		ProviderSource:   providerSource,
 	}
 
-	c := &InitCommand{
-		Meta: m,
-	}
-
-	code := c.Run(nil)
+	code := RunCommander(t, InitCommander(), m, nil)
 	output := done(t)
 	if code == 0 {
 		t.Fatalf("succeeded, but was expecting error\nstdout:\n%s\nstderr:\n%s", output.Stdout(), output.Stderr())
@@ -2852,11 +2737,7 @@ func TestInit_invalidSyntaxNoBackend(t *testing.T) {
 		View:       view,
 	}
 
-	c := &InitCommand{
-		Meta: m,
-	}
-
-	code := c.Run([]string{"-no-color"})
+	code := RunCommander(t, InitCommander(), m, []string{"-no-color"})
 	output := done(t)
 	if code == 0 {
 		t.Fatalf("succeeded, but was expecting error\nstdout:\n%s\nstderr:\n%s", output.Stdout(), output.Stderr())
@@ -2882,11 +2763,7 @@ func TestInit_invalidSyntaxWithBackend(t *testing.T) {
 		View:       view,
 	}
 
-	c := &InitCommand{
-		Meta: m,
-	}
-
-	code := c.Run([]string{"-no-color"})
+	code := RunCommander(t, InitCommander(), m, []string{"-no-color"})
 	output := done(t)
 	if code == 0 {
 		t.Fatalf("succeeded, but was expecting error\nstdout:\n%s\nstderr:\n%s", output.Stdout(), output.Stderr())
@@ -2912,11 +2789,7 @@ func TestInit_invalidSyntaxBackendAttribute(t *testing.T) {
 		View:       view,
 	}
 
-	c := &InitCommand{
-		Meta: m,
-	}
-
-	code := c.Run([]string{"-no-color"})
+	code := RunCommander(t, InitCommander(), m, []string{"-no-color"})
 	output := done(t)
 	if code == 0 {
 		t.Fatalf("succeeded, but was expecting error\nstdout:\n%s\nstderr:\n%s", output.Stdout(), output.Stderr())
@@ -2948,17 +2821,16 @@ func TestInit_tests(t *testing.T) {
 	defer close()
 
 	view, done := testView(t)
-	c := &InitCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(provider),
-			View:             view,
-			ProviderSource:   providerSource,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(provider),
+		View:             view,
+		ProviderSource:   providerSource,
 	}
 
 	args := []string{}
-	code := c.Run(args)
+	code := RunCommander(t, InitCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
@@ -2979,17 +2851,16 @@ func TestInit_testsWithProvider(t *testing.T) {
 	defer close()
 
 	view, done := testView(t)
-	c := &InitCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(provider),
-			View:             view,
-			ProviderSource:   providerSource,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(provider),
+		View:             view,
+		ProviderSource:   providerSource,
 	}
 
 	args := []string{"-no-color"}
-	code := c.Run(args)
+	code := RunCommander(t, InitCommander(), meta, args)
 	output := done(t)
 	if code == 0 {
 		t.Fatalf("expected failure but got: \n%s", output.Stdout())
@@ -3022,16 +2893,15 @@ func TestInit_testsWithModule(t *testing.T) {
 	defer close()
 
 	view, done := testView(t)
-	c := &InitCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(provider),
-			View:             view,
-			ProviderSource:   providerSource,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(provider),
+		View:             view,
+		ProviderSource:   providerSource,
 	}
 
-	code := c.Run(nil)
+	code := RunCommander(t, InitCommander(), meta, nil)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
@@ -3053,14 +2923,13 @@ func TestInit_moduleSource(t *testing.T) {
 		view, done := testView(t)
 		closeInput := testInteractiveInput(t, []string{"./mod"})
 		defer closeInput()
-		c := &InitCommand{
-			Meta: Meta{
-				WorkingDir: workdir.NewDir("."),
-				View:       view,
-			},
+
+		meta := Meta{
+			WorkingDir: workdir.NewDir("."),
+			View:       view,
 		}
 
-		code := c.Run(nil)
+		code := RunCommander(t, InitCommander(), meta, nil)
 		output := done(t)
 		if code != 0 {
 			t.Fatalf("got exit status %d; want 0\nstderr:\n%s\n\nstdout:\n%s", code, output.Stderr(), output.Stdout())
@@ -3075,14 +2944,13 @@ func TestInit_moduleSource(t *testing.T) {
 		view, done := testView(t)
 		closeInput := testInteractiveInput(t, []string{"./mod"})
 		defer closeInput()
-		c := &InitCommand{
-			Meta: Meta{
-				WorkingDir: workdir.NewDir("."),
-				View:       view,
-			},
+
+		meta := Meta{
+			WorkingDir: workdir.NewDir("."),
+			View:       view,
 		}
 
-		code := c.Run(nil)
+		code := RunCommander(t, InitCommander(), meta, nil)
 		output := done(t)
 		if code != 0 {
 			t.Fatalf("got exit status %d; want 0\nstderr:\n%s\n\nstdout:\n%s", code, output.Stderr(), output.Stdout())
@@ -3097,18 +2965,17 @@ func TestInit_moduleSource(t *testing.T) {
 		view, done := testView(t)
 		closeInput := testInteractiveInput(t, []string{})
 		defer closeInput()
-		c := &InitCommand{
-			Meta: Meta{
-				WorkingDir: workdir.NewDir("."),
-				View:       view,
-			},
+
+		meta := Meta{
+			WorkingDir: workdir.NewDir("."),
+			View:       view,
 		}
 
 		args := []string{
 			"-input=false",
 		}
 
-		code := c.Run(args)
+		code := RunCommander(t, InitCommander(), meta, args)
 		output := done(t)
 		if code != 1 {
 			t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, output.Stderr(), output.Stdout())
@@ -3121,15 +2988,14 @@ func TestInit_moduleSource(t *testing.T) {
 		t.Chdir(td)
 
 		view, done := testView(t)
-		c := &InitCommand{
-			Meta: Meta{
-				WorkingDir: workdir.NewDir("."),
-				View:       view,
-			},
+
+		meta := Meta{
+			WorkingDir: workdir.NewDir("."),
+			View:       view,
 		}
 
 		args := []string{"-var", "src=./mod"}
-		code := c.Run(args)
+		code := RunCommander(t, InitCommander(), meta, args)
 		output := done(t)
 		if code != 0 {
 			t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, output.Stderr(), output.Stdout())
@@ -3149,15 +3015,14 @@ func TestInit_moduleVersion(t *testing.T) {
 		t.Chdir(td)
 
 		view, done := testView(t)
-		c := &InitCommand{
-			Meta: Meta{
-				WorkingDir: workdir.NewDir("."),
-				View:       view,
-			},
+
+		meta := Meta{
+			WorkingDir: workdir.NewDir("."),
+			View:       view,
 		}
 
 		args := []string{"-var", "modver=0.0.1"}
-		code := c.Run(args)
+		code := RunCommander(t, InitCommander(), meta, args)
 		output := done(t)
 		if code != 1 {
 			t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, output.Stderr(), output.Stdout())
@@ -3176,11 +3041,7 @@ func TestInit_invalidExtraLabel(t *testing.T) {
 		View:       view,
 	}
 
-	c := &InitCommand{
-		Meta: m,
-	}
-
-	code := c.Run([]string{"-no-color"})
+	code := RunCommander(t, InitCommander(), m, []string{"-no-color"})
 	output := done(t)
 	if code == 0 {
 		t.Fatalf("succeeded, but was expecting error\nstdout:\n%s\nstderr:\n%s", output.Stdout(), output.Stderr())
@@ -3214,14 +3075,10 @@ func TestInit_skipEncryptionBackendFalse(t *testing.T) {
 			ProviderSource:   providerSource,
 		}
 
-		c := &InitCommand{
-			Meta: m,
-		}
-
 		args := []string{
 			"-backend=false", // should disable reading encryption key run init successfully
 		}
-		code := c.Run(args)
+		code := RunCommander(t, InitCommander(), m, args)
 		output := done(t)
 		if code != 0 {
 			t.Fatalf("init should run successfully with -backend=false: \ngot error : %s\n", output.Stderr())
@@ -3248,12 +3105,9 @@ func TestInit_skipEncryptionBackendFalse(t *testing.T) {
 			ProviderSource:   providerSource,
 		}
 
-		c := &InitCommand{
-			Meta: m,
-		}
 		var args []string
 		// Check error is generated from trying to read encryption key or fail test
-		code := c.Run(args)
+		code := RunCommander(t, InitCommander(), m, args)
 		output := done(t)
 		if code == 0 {
 			t.Fatalf("init should not run successfully\n")
@@ -3282,14 +3136,10 @@ func TestInit_backendFalse_skipsBackendFromStateOnPreviouslyInitializedDir(t *te
 			ProviderSource:   providerSource,
 		}
 
-		c := &InitCommand{
-			Meta: m,
-		}
-
 		args := []string{
 			"-backend=false",
 		}
-		code := c.Run(args)
+		code := RunCommander(t, InitCommander(), m, args)
 		output := done(t)
 		if code != 0 {
 			t.Fatalf("init should run successfully with -backend=false even with an encrypted state file present\nexit code: %d\nstderr:\n%s\nstdout:\n%s", code, output.Stderr(), output.Stdout())
@@ -3317,10 +3167,7 @@ func TestInit_platformSupportWarnings(t *testing.T) {
 			WorkingDir: workdir.NewDir("."),
 			View:       view,
 		}
-		c := &InitCommand{
-			Meta: m,
-		}
-		code := c.Run(nil)
+		code := RunCommander(t, InitCommander(), m, nil)
 		output := done(t)
 		t.Log("output from init command:\n" + output.All())
 		if code != 0 {

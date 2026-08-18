@@ -43,16 +43,15 @@ func TestPlan(t *testing.T) {
 
 	p := planFixtureProvider()
 	view, done := testView(t)
-	c := &PlanCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{}
-	code := c.Run(args)
+	code := RunCommander(t, PlanCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -65,16 +64,15 @@ func TestPlan_conditionalSensitive(t *testing.T) {
 
 	p := planFixtureProvider()
 	view, done := testView(t)
-	c := &PlanCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{}
-	code := c.Run(args)
+	code := RunCommander(t, PlanCommander(), meta, args)
 	output := done(t).Stderr()
 	if code != 1 {
 		t.Fatalf("bad status code: %d\n\n%s", code, output)
@@ -98,16 +96,15 @@ func TestPlan_lockedState(t *testing.T) {
 
 	p := planFixtureProvider()
 	view, done := testView(t)
-	c := &PlanCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{}
-	code := c.Run(args)
+	code := RunCommander(t, PlanCommander(), meta, args)
 	if code == 0 {
 		t.Fatal("expected error", done(t).Stdout())
 	}
@@ -125,16 +122,15 @@ func TestPlan_plan(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &PlanCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{planPath}
-	code := c.Run(args)
+	code := RunCommander(t, PlanCommander(), meta, args)
 	output := done(t)
 	if code != RunResultHelp {
 		t.Fatalf("wrong exit status %d; want 1\nstderr: %s", code, output.Stderr())
@@ -169,12 +165,11 @@ func TestPlan_destroy(t *testing.T) {
 
 	p := planFixtureProvider()
 	view, done := testView(t)
-	c := &PlanCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
@@ -182,7 +177,7 @@ func TestPlan_destroy(t *testing.T) {
 		"-out", outPath,
 		"-state", statePath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, PlanCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -203,16 +198,15 @@ func TestPlan_noState(t *testing.T) {
 
 	p := planFixtureProvider()
 	view, done := testView(t)
-	c := &PlanCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{}
-	code := c.Run(args)
+	code := RunCommander(t, PlanCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -238,15 +232,14 @@ func TestPlan_noTestVars(t *testing.T) {
 
 	p := planFixtureProvider()
 	view, done := testView(t)
-	c := &PlanCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
-	code := c.Run([]string{})
+	code := RunCommander(t, PlanCommander(), meta, []string{})
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -275,12 +268,10 @@ func TestPlan_generatedConfigPath(t *testing.T) {
 	p := planFixtureProvider()
 	view, done := testView(t)
 
-	c := &PlanCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	p.ImportResourceStateResponse = &providers.ImportResourceStateResponse{
@@ -298,7 +289,7 @@ func TestPlan_generatedConfigPath(t *testing.T) {
 	args := []string{
 		"-generate-config-out", genPath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, PlanCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -316,12 +307,11 @@ func TestPlan_outPath(t *testing.T) {
 
 	p := planFixtureProvider()
 	view, done := testView(t)
-	c := &PlanCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	p.PlanResourceChangeResponse = &providers.PlanResourceChangeResponse{
@@ -331,7 +321,7 @@ func TestPlan_outPath(t *testing.T) {
 	args := []string{
 		"-out", outPath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, PlanCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -372,19 +362,18 @@ func TestPlan_outPathNoChange(t *testing.T) {
 
 	p := planFixtureProvider()
 	view, done := testView(t)
-	c := &PlanCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-out", outPath,
 		"-state", statePath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, PlanCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -405,12 +394,11 @@ func TestPlan_outPathWithError(t *testing.T) {
 
 	p := planFixtureProvider()
 	view, done := testView(t)
-	c := &PlanCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	p.PlanResourceChangeResponse = &providers.PlanResourceChangeResponse{
@@ -420,7 +408,7 @@ func TestPlan_outPathWithError(t *testing.T) {
 	args := []string{
 		"-out", outPath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, PlanCommander(), meta, args)
 	output := done(t)
 	if code == 0 {
 		t.Fatal("expected non-zero exit status", output)
@@ -502,18 +490,17 @@ func TestPlan_outBackend(t *testing.T) {
 		}
 	}
 	view, done := testView(t)
-	c := &PlanCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-out", outPath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, PlanCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Logf("stdout: %s", output.Stdout())
@@ -557,18 +544,17 @@ func TestPlan_refreshFalse(t *testing.T) {
 
 	p := planFixtureProvider()
 	view, done := testView(t)
-	c := &PlanCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-refresh=false",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, PlanCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -587,18 +573,17 @@ func TestPlan_refreshTrue(t *testing.T) {
 
 	p := planFixtureProvider()
 	view, done := testView(t)
-	c := &PlanCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-refresh=true",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, PlanCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -623,19 +608,18 @@ func TestPlan_refreshFalseRefreshTrue(t *testing.T) {
 
 	p := planFixtureProvider()
 	view, done := testView(t)
-	c := &PlanCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-refresh=false",
 		"-refresh=true",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, PlanCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -657,18 +641,17 @@ func TestPlan_state(t *testing.T) {
 
 	p := planFixtureProvider()
 	view, done := testView(t)
-	c := &PlanCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-state", statePath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, PlanCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -704,16 +687,15 @@ func TestPlan_stateDefault(t *testing.T) {
 
 	p := planFixtureProvider()
 	view, done := testView(t)
-	c := &PlanCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{}
-	code := c.Run(args)
+	code := RunCommander(t, PlanCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -761,16 +743,15 @@ func TestPlan_validate(t *testing.T) {
 		}
 	}
 	view, done := testView(t)
-	c := &PlanCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{"-no-color"}
-	code := c.Run(args)
+	code := RunCommander(t, PlanCommander(), meta, args)
 	output := done(t)
 	if code != 1 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -793,12 +774,11 @@ func TestPlan_vars(t *testing.T) {
 
 	p := planVarsFixtureProvider()
 	view, done := testView(t)
-	c := &PlanCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	actual := ""
@@ -811,7 +791,7 @@ func TestPlan_vars(t *testing.T) {
 	args := []string{
 		"-var", "foo=bar",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, PlanCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -846,15 +826,14 @@ func TestPlan_varsInvalid(t *testing.T) {
 		t.Run(strings.Join(tc.args, " "), func(t *testing.T) {
 			p := planVarsFixtureProvider()
 			view, done := testView(t)
-			c := &PlanCommand{
-				Meta: Meta{
-					WorkingDir:       workdir.NewDir("."),
-					testingOverrides: metaOverridesForProvider(p),
-					View:             view,
-				},
+
+			meta := Meta{
+				WorkingDir:       workdir.NewDir("."),
+				testingOverrides: metaOverridesForProvider(p),
+				View:             view,
 			}
 
-			code := c.Run(tc.args)
+			code := RunCommander(t, PlanCommander(), meta, tc.args)
 			output := done(t)
 			if code != 1 {
 				t.Fatalf("bad: %d\n\n%s", code, output.Stdout())
@@ -886,16 +865,15 @@ func TestPlan_varsUnset(t *testing.T) {
 
 	p := planVarsFixtureProvider()
 	view, done := testView(t)
-	c := &PlanCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{}
-	code := c.Run(args)
+	code := RunCommander(t, PlanCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -967,16 +945,15 @@ func TestPlan_providerArgumentUnset(t *testing.T) {
 		},
 	}
 	view, done := testView(t)
-	c := &PlanCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{}
-	code := c.Run(args)
+	code := RunCommander(t, PlanCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -1003,16 +980,15 @@ func TestPlan_resource_variable_inputs(t *testing.T) {
 
 	p := planVarsFixtureProvider()
 	view, done := testView(t)
-	c := &PlanCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{}
-	code := c.Run(args)
+	code := RunCommander(t, PlanCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -1156,15 +1132,14 @@ func TestPlan_withInvalidReferencesInTry(t *testing.T) {
 	}
 
 	view, done := testView(t)
-	c := &PlanCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(provider),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(provider),
+		View:             view,
 	}
 
-	code := c.Run([]string{"-out=tfplan"})
+	code := RunCommander(t, PlanCommander(), meta, []string{"-out=tfplan"})
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("unexpected error: %d\n\n%s", code, output.Stderr())
@@ -1277,16 +1252,15 @@ func TestPlan_providerConfigMerge(t *testing.T) {
 	}
 
 	view, done := testView(t)
-	c := &PlanCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{}
-	code := c.Run(args)
+	code := RunCommander(t, PlanCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -1333,12 +1307,11 @@ func TestPlan_varFile(t *testing.T) {
 
 	p := planVarsFixtureProvider()
 	view, done := testView(t)
-	c := &PlanCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	actual := ""
@@ -1351,7 +1324,7 @@ func TestPlan_varFile(t *testing.T) {
 	args := []string{
 		"-var-file", varFilePath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, PlanCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -1375,12 +1348,11 @@ func TestPlan_varFileDefault(t *testing.T) {
 
 	p := planVarsFixtureProvider()
 	view, done := testView(t)
-	c := &PlanCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	actual := ""
@@ -1391,7 +1363,7 @@ func TestPlan_varFileDefault(t *testing.T) {
 	}
 
 	args := []string{}
-	code := c.Run(args)
+	code := RunCommander(t, PlanCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -1415,18 +1387,17 @@ func TestPlan_varFileWithDecls(t *testing.T) {
 
 	p := planVarsFixtureProvider()
 	view, done := testView(t)
-	c := &PlanCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-var-file", varFilePath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, PlanCommander(), meta, args)
 	output := done(t)
 	if code == 0 {
 		t.Fatalf("succeeded; want failure\n\n%s", output.Stdout())
@@ -1445,14 +1416,13 @@ func TestPlan_detailedExitcode(t *testing.T) {
 
 	t.Run("return 1", func(t *testing.T) {
 		view, done := testView(t)
-		c := &PlanCommand{
-			Meta: Meta{
-				WorkingDir: workdir.NewDir("."),
-				// Running plan without setting testingOverrides is similar to plan without init
-				View: view,
-			},
+
+		meta := Meta{
+			WorkingDir: workdir.NewDir("."),
+			// Running plan without setting testingOverrides is similar to plan without init
+			View: view,
 		}
-		code := c.Run([]string{"-detailed-exitcode"})
+		code := RunCommander(t, PlanCommander(), meta, []string{"-detailed-exitcode"})
 		output := done(t)
 		if code != 1 {
 			t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -1462,15 +1432,14 @@ func TestPlan_detailedExitcode(t *testing.T) {
 	t.Run("return 2", func(t *testing.T) {
 		p := planFixtureProvider()
 		view, done := testView(t)
-		c := &PlanCommand{
-			Meta: Meta{
-				WorkingDir:       workdir.NewDir("."),
-				testingOverrides: metaOverridesForProvider(p),
-				View:             view,
-			},
+
+		meta := Meta{
+			WorkingDir:       workdir.NewDir("."),
+			testingOverrides: metaOverridesForProvider(p),
+			View:             view,
 		}
 
-		code := c.Run([]string{"-detailed-exitcode"})
+		code := RunCommander(t, PlanCommander(), meta, []string{"-detailed-exitcode"})
 		output := done(t)
 		if code != 2 {
 			t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -1485,16 +1454,15 @@ func TestPlan_detailedExitcode_emptyDiff(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &PlanCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{"-detailed-exitcode"}
-	code := c.Run(args)
+	code := RunCommander(t, PlanCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -1512,13 +1480,12 @@ func TestPlan_shutdown(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &PlanCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-			ShutdownCh:       shutdownCh,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
+		ShutdownCh:       shutdownCh,
 	}
 
 	// Provider is started multiple times, plus it's left running after the schema call
@@ -1563,7 +1530,7 @@ func TestPlan_shutdown(t *testing.T) {
 		},
 	}
 
-	code := c.Run([]string{})
+	code := RunCommander(t, PlanCommander(), meta, []string{})
 	output := done(t)
 	if code != 1 {
 		t.Errorf("wrong exit code %d; want 1\noutput:\n%s", code, output.Stdout())
@@ -1582,16 +1549,15 @@ func TestPlan_init_required(t *testing.T) {
 	t.Chdir(td)
 
 	view, done := testView(t)
-	c := &PlanCommand{
-		Meta: Meta{
-			WorkingDir: workdir.NewDir("."),
-			// Running plan without setting testingOverrides is similar to plan without init
-			View: view,
-		},
+
+	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
+		// Running plan without setting testingOverrides is similar to plan without init
+		View: view,
 	}
 
 	args := []string{"-no-color"}
-	code := c.Run(args)
+	code := RunCommander(t, PlanCommander(), meta, args)
 	output := done(t)
 	if code != 1 {
 		t.Fatalf("expected error, got success")
@@ -1627,19 +1593,18 @@ func TestPlan_targeted(t *testing.T) {
 	}
 
 	view, done := testView(t)
-	c := &PlanCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-target", "test_instance.foo",
 		"-target", "test_instance.baz",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, PlanCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -1664,17 +1629,16 @@ func TestPlan_targetFlagsDiags(t *testing.T) {
 			t.Chdir(td)
 
 			view, done := testView(t)
-			c := &PlanCommand{
-				Meta: Meta{
-					WorkingDir: workdir.NewDir("."),
-					View:       view,
-				},
+
+			meta := Meta{
+				WorkingDir: workdir.NewDir("."),
+				View:       view,
 			}
 
 			args := []string{
 				"-target", target,
 			}
-			code := c.Run(args)
+			code := RunCommander(t, PlanCommander(), meta, args)
 			output := done(t)
 			if code != 1 {
 				t.Fatalf("bad: %d\n\n%s", code, output.Stdout())
@@ -1716,18 +1680,17 @@ func TestPlan_excluded(t *testing.T) {
 	}
 
 	view, done := testView(t)
-	c := &PlanCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-exclude", "test_instance.bar",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, PlanCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -1752,17 +1715,16 @@ func TestPlan_excludeFlagsDiags(t *testing.T) {
 			t.Chdir(td)
 
 			view, done := testView(t)
-			c := &PlanCommand{
-				Meta: Meta{
-					WorkingDir: workdir.NewDir("."),
-					View:       view,
-				},
+
+			meta := Meta{
+				WorkingDir: workdir.NewDir("."),
+				View:       view,
 			}
 
 			args := []string{
 				"-exclude", exclude,
 			}
-			code := c.Run(args)
+			code := RunCommander(t, PlanCommander(), meta, args)
 			output := done(t)
 			if code != 1 {
 				t.Fatalf("bad: %d\n\n%s", code, output.Stdout())
@@ -1823,12 +1785,11 @@ func TestPlan_replace(t *testing.T) {
 	}
 
 	view, done := testView(t)
-	c := &PlanCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
@@ -1836,7 +1797,7 @@ func TestPlan_replace(t *testing.T) {
 		"-no-color",
 		"-replace", "test_instance.a",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, PlanCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("wrong exit code %d\n\n%s", code, output.Stderr())
@@ -1920,19 +1881,18 @@ func TestPlan_parallelism(t *testing.T) {
 	}
 
 	view, done := testView(t)
-	c := &PlanCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: testingOverrides,
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: testingOverrides,
+		View:             view,
 	}
 
 	args := []string{
 		fmt.Sprintf("-parallelism=%d", par),
 	}
 
-	res := c.Run(args)
+	res := RunCommander(t, PlanCommander(), meta, args)
 	output := done(t)
 	if res != 0 {
 		t.Fatal(output.Stdout())
@@ -1947,14 +1907,13 @@ func TestPlan_warnings(t *testing.T) {
 	t.Run("full warnings", func(t *testing.T) {
 		p := planWarningsFixtureProvider()
 		view, done := testView(t)
-		c := &PlanCommand{
-			Meta: Meta{
-				WorkingDir:       workdir.NewDir("."),
-				testingOverrides: metaOverridesForProvider(p),
-				View:             view,
-			},
+
+		meta := Meta{
+			WorkingDir:       workdir.NewDir("."),
+			testingOverrides: metaOverridesForProvider(p),
+			View:             view,
 		}
-		code := c.Run([]string{})
+		code := RunCommander(t, PlanCommander(), meta, []string{})
 		output := done(t)
 		if code != 0 {
 			t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -1975,14 +1934,13 @@ func TestPlan_warnings(t *testing.T) {
 	t.Run("compact warnings", func(t *testing.T) {
 		p := planWarningsFixtureProvider()
 		view, done := testView(t)
-		c := &PlanCommand{
-			Meta: Meta{
-				WorkingDir:       workdir.NewDir("."),
-				testingOverrides: metaOverridesForProvider(p),
-				View:             view,
-			},
+
+		meta := Meta{
+			WorkingDir:       workdir.NewDir("."),
+			testingOverrides: metaOverridesForProvider(p),
+			View:             view,
 		}
-		code := c.Run([]string{"-compact-warnings"})
+		code := RunCommander(t, PlanCommander(), meta, []string{"-compact-warnings"})
 		output := done(t)
 		if code != 0 {
 			t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -2011,18 +1969,17 @@ func TestPlan_jsonGoldenReference(t *testing.T) {
 
 	p := planFixtureProvider()
 	view, done := testView(t)
-	c := &PlanCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-json",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, PlanCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -2083,18 +2040,17 @@ func TestPlan_showSensitiveArg(t *testing.T) {
 
 	p := planFixtureProvider()
 	view, done := testView(t)
-	c := &PlanCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-show-sensitive",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, PlanCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad status code: \n%s", output.Stderr())
@@ -2112,16 +2068,15 @@ func TestPlan_withoutShowSensitiveArg(t *testing.T) {
 
 	p := planFixtureProvider()
 	view, done := testView(t)
-	c := &PlanCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{}
-	code := c.Run(args)
+	code := RunCommander(t, PlanCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad status code: \n%s", output.Stderr())
@@ -2139,16 +2094,15 @@ func TestPlan_concise(t *testing.T) {
 
 	p := planFixtureProvider()
 	view, done := testView(t)
-	c := &PlanCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{"-concise"}
-	code := c.Run(args)
+	code := RunCommander(t, PlanCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad status code: \n%s", output.Stderr())

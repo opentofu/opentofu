@@ -59,15 +59,14 @@ func TestFmt_TestFiles(t *testing.T) {
 			}
 
 			view, done := testView(t)
-			c := &FmtCommand{
-				Meta: Meta{
-					WorkingDir:       workdir.NewDir("."),
-					testingOverrides: metaOverridesForProvider(testProvider()),
-					View:             view,
-				},
+
+			meta := Meta{
+				WorkingDir:       workdir.NewDir("."),
+				testingOverrides: metaOverridesForProvider(testProvider()),
+				View:             view,
 			}
 			args := []string{gotFile}
-			code := c.Run(args)
+			code := RunCommander(t, FmtCommander(nil), meta, args)
 			output := done(t)
 			if code != 0 {
 				t.Fatalf("fmt command was unsuccessful:\n%s", output.Stderr())
@@ -126,15 +125,14 @@ func TestFmt(t *testing.T) {
 			}
 
 			view, done := testView(t)
-			c := &FmtCommand{
-				Meta: Meta{
-					WorkingDir:       workdir.NewDir("."),
-					testingOverrides: metaOverridesForProvider(testProvider()),
-					View:             view,
-				},
+
+			meta := Meta{
+				WorkingDir:       workdir.NewDir("."),
+				testingOverrides: metaOverridesForProvider(testProvider()),
+				View:             view,
 			}
 			args := []string{gotFile}
-			code := c.Run(args)
+			code := RunCommander(t, FmtCommander(nil), meta, args)
 			output := done(t)
 			if code != 0 {
 				t.Fatalf("fmt command was unsuccessful:\n%s", output.Stderr())
@@ -156,17 +154,16 @@ func TestFmt_nonexist(t *testing.T) {
 	tempDir := fmtFixtureWriteDir(t)
 
 	view, done := testView(t)
-	c := &FmtCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	missingDir := filepath.Join(tempDir, "doesnotexist")
 	args := []string{missingDir}
-	code := c.Run(args)
+	code := RunCommander(t, FmtCommander(nil), meta, args)
 	output := done(t)
 	if code != 2 {
 		t.Fatalf("wrong exit code. got %d. errors: \n%s", code, output.Stderr())
@@ -191,16 +188,15 @@ a = 1 +
 	}
 
 	view, done := testView(t)
-	c := &FmtCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{tempDir}
-	code := c.Run(args)
+	code := RunCommander(t, FmtCommander(nil), meta, args)
 	output := done(t)
 	if code != 2 {
 		t.Fatalf("wrong exit code. got %d. errors: \n%s", code, output.Stderr())
@@ -223,16 +219,15 @@ func TestFmt_snippetInError(t *testing.T) {
 	}
 
 	view, done := testView(t)
-	c := &FmtCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{"-no-color", tempDir}
-	code := c.Run(args)
+	code := RunCommander(t, FmtCommander(nil), meta, args)
 	output := done(t)
 	if code != 2 {
 		t.Fatalf("wrong exit code. got %d. errors: \n%s", code, output.Stderr())
@@ -261,19 +256,18 @@ func TestFmt_manyArgs(t *testing.T) {
 	}
 
 	view, done := testView(t)
-	c := &FmtCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{
 		filepath.Join(tempDir, "main.tf"),
 		filepath.Join(tempDir, "second.tf"),
 	}
-	code := c.Run(args)
+	code := RunCommander(t, FmtCommander(nil), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("wrong exit code. got %d. errors: \n%s", code, output.Stderr())
@@ -295,16 +289,15 @@ func TestFmt_workingDirectory(t *testing.T) {
 	t.Chdir(tempDir)
 
 	view, done := testView(t)
-	c := &FmtCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{}
-	code := c.Run(args)
+	code := RunCommander(t, FmtCommander(nil), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("wrong exit code. got %d. errors: \n%s", code, output.Stderr())
@@ -327,16 +320,15 @@ func TestFmt_directoryArg(t *testing.T) {
 	tempDir := fmtFixtureWriteDir(t)
 
 	view, done := testView(t)
-	c := &FmtCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{tempDir}
-	code := c.Run(args)
+	code := RunCommander(t, FmtCommander(nil), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("wrong exit code. got %d. errors: \n%s", code, output.Stderr())
@@ -364,16 +356,15 @@ func TestFmt_fileArg(t *testing.T) {
 	tempDir := fmtFixtureWriteDir(t)
 
 	view, done := testView(t)
-	c := &FmtCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{filepath.Join(tempDir, fmtFixture.filename)}
-	code := c.Run(args)
+	code := RunCommander(t, FmtCommander(nil), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("wrong exit code. got %d. errors: \n%s", code, output.Stderr())
@@ -395,17 +386,15 @@ func TestFmt_stdinArg(t *testing.T) {
 	input.Write(fmtFixture.input)
 
 	view, done := testView(t)
-	c := &FmtCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
-		input: input,
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{"-"}
-	code := c.Run(args)
+	code := RunCommander(t, FmtCommander(input), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("wrong exit code. got %d. errors: \n%s", code, output.Stderr())
@@ -421,12 +410,11 @@ func TestFmt_nonDefaultOptions(t *testing.T) {
 	tempDir := fmtFixtureWriteDir(t)
 
 	view, done := testView(t)
-	c := &FmtCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{
@@ -435,7 +423,7 @@ func TestFmt_nonDefaultOptions(t *testing.T) {
 		"-diff",
 		tempDir,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, FmtCommander(nil), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("wrong exit code. got %d. errors: \n%s", code, output.Stderr())
@@ -451,19 +439,18 @@ func TestFmt_check(t *testing.T) {
 	tempDir := fmtFixtureWriteDir(t)
 
 	view, done := testView(t)
-	c := &FmtCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{
 		"-check",
 		tempDir,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, FmtCommander(nil), meta, args)
 	output := done(t)
 	if code != 3 {
 		t.Fatalf("wrong exit code. expected 3")
@@ -471,7 +458,7 @@ func TestFmt_check(t *testing.T) {
 
 	// Given that we give relative paths back to the user, normalize this temp
 	// dir so that we're comparing against a relative-ized (normalized) path
-	tempDir = c.Meta.WorkingDir.NormalizePath(tempDir)
+	tempDir = meta.WorkingDir.NormalizePath(tempDir)
 
 	if actual := output.Stdout(); !strings.Contains(actual, tempDir) {
 		t.Fatalf("expected:\n%s\n\nto include: %q", actual, tempDir)
@@ -483,20 +470,18 @@ func TestFmt_checkStdin(t *testing.T) {
 	input.Write(fmtFixture.input)
 
 	view, done := testView(t)
-	c := &FmtCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
-		input: input,
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{
 		"-check",
 		"-",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, FmtCommander(input), meta, args)
 	output := done(t)
 	if code != 3 {
 		t.Fatalf("wrong exit code. expected 3, got %d", code)

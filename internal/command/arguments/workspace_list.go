@@ -28,6 +28,6 @@ func BindWorkspaceList(cli *CommandLine) *WorkspaceList {
 func ParseWorkspaceList(args []string) (*WorkspaceList, func(), tfdiags.Diagnostics) {
 	cli := new(CommandLine)
 	ret := BindWorkspaceList(cli)
-	closer, diags := cli.Stdlib("workspace list", args)
+	closer, diags := cli.parseWithHooks("workspace list", args)
 	return ret, closer, diags
 }

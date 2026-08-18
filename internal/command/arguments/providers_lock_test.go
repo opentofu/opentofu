@@ -98,7 +98,7 @@ func TestParseProvidersLock_basicValidation(t *testing.T) {
 		"unknown flag": {
 			args: []string{"-unknown-flag"},
 			want: providersLockArgsWithDefaults(func(v *ProvidersLock) {
-				v.Providers = []string{}
+				v.Providers = nil
 			}),
 			wantErrText: "flag provided but not defined: -unknown-flag",
 		},
@@ -179,8 +179,8 @@ func TestParseProvidersLock_vars(t *testing.T) {
 
 func providersLockArgsWithDefaults(mutate func(v *ProvidersLock)) *ProvidersLock {
 	ret := &ProvidersLock{
-		Providers:    nil,
-		OptPlatforms: nil,
+		Providers:    []string{},
+		OptPlatforms: []string{},
 		FsMirrorDir:  "",
 		NetMirrorURL: "",
 		View: &View{

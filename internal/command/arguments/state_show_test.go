@@ -66,10 +66,8 @@ func TestParseStateShow_basicValidation(t *testing.T) {
 			wantErrText: "Expected exactly one positional argument",
 		},
 		"unknown flag": {
-			args: []string{"-unknown-flag", "resource_address"},
-			want: stateShowArgsWithDefaults(func(stateShow *StateShow) {
-				stateShow.TargetRawAddr = "resource_address"
-			}),
+			args:        []string{"-unknown-flag", "resource_address"},
+			want:        stateShowArgsWithDefaults(nil),
 			wantErrText: "flag provided but not defined: -unknown-flag",
 		},
 	}

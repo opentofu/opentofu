@@ -102,14 +102,8 @@ func TestParseTaint_basicValidation(t *testing.T) {
 			}),
 		},
 		"unknown flag": {
-			args: []string{"-unknown-flag", "test_instance.foo"},
-			want: taintArgsWithDefaults(func(v *Taint) {
-				v.TargetAddress = addrs.Resource{
-					Mode: addrs.ManagedResourceMode,
-					Type: "test_instance",
-					Name: "foo",
-				}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance)
-			}),
+			args:        []string{"-unknown-flag", "test_instance.foo"},
+			want:        taintArgsWithDefaults(nil),
 			wantErrText: "flag provided but not defined: -unknown-flag",
 		},
 	}

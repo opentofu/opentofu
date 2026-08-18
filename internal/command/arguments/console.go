@@ -54,6 +54,6 @@ func BindConsole(cli *CommandLine) *Console {
 func ParseConsole(args []string) (*Console, func(), tfdiags.Diagnostics) {
 	cli := new(CommandLine)
 	console := BindConsole(cli)
-	closer, diags := cli.Stdlib("console", args)
+	closer, diags := cli.parseWithHooks("console", args)
 	return console, closer, diags
 }

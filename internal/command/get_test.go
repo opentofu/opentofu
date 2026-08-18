@@ -20,15 +20,14 @@ func TestGet(t *testing.T) {
 	t.Chdir(wd.RootModuleDir())
 
 	getView, getDone := testView(t)
-	c := &GetCommand{
-		Meta: Meta{
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             getView,
-			WorkingDir:       wd,
-		},
+
+	meta := Meta{
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             getView,
+		WorkingDir:       wd,
 	}
 
-	code := c.Run(nil)
+	code := RunCommander(t, GetCommander(), meta, nil)
 	getOutput := getDone(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", getOutput.Stderr())
@@ -45,19 +44,18 @@ func TestGet_multipleArgs(t *testing.T) {
 	t.Chdir(wd.RootModuleDir())
 
 	getView, getDone := testView(t)
-	c := &GetCommand{
-		Meta: Meta{
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             getView,
-			WorkingDir:       wd,
-		},
+
+	meta := Meta{
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             getView,
+		WorkingDir:       wd,
 	}
 
 	args := []string{
 		"bad",
 		"bad",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, GetCommander(), meta, args)
 	getOutput := getDone(t)
 	if code != cli.RunResultHelp {
 		t.Fatalf("bad: \n%s", getOutput.Stdout())
@@ -69,18 +67,17 @@ func TestGet_update(t *testing.T) {
 	t.Chdir(wd.RootModuleDir())
 
 	getView, getDone := testView(t)
-	c := &GetCommand{
-		Meta: Meta{
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             getView,
-			WorkingDir:       wd,
-		},
+
+	meta := Meta{
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             getView,
+		WorkingDir:       wd,
 	}
 
 	args := []string{
 		"-update",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, GetCommander(), meta, args)
 	getOutput := getDone(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", getOutput.Stderr())
@@ -130,23 +127,22 @@ func TestGet_cancel(t *testing.T) {
 	}()
 
 	getView, getDone := testView(t)
-	c := &GetCommand{
-		Meta: Meta{
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             getView,
-			WorkingDir:       wd,
-			ShutdownCh:       shutdownCh,
 
-			// This test needs a real module package fetcher instance because
-			// we want to attempt installing a module package from our server.
-			ModulePackageFetcher: getmodules.NewPackageFetcher(t.Context(), nil),
-		},
+	meta := Meta{
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             getView,
+		WorkingDir:       wd,
+		ShutdownCh:       shutdownCh,
+
+		// This test needs a real module package fetcher instance because
+		// we want to attempt installing a module package from our server.
+		ModulePackageFetcher: getmodules.NewPackageFetcher(t.Context(), nil),
 	}
 
 	fakeModuleSourceAddr := server.URL + "/example.zip"
 	t.Logf("attempting to install module package from %s", fakeModuleSourceAddr)
 	args := []string{"-var=module_source=" + fakeModuleSourceAddr}
-	code := c.Run(args)
+	code := RunCommander(t, GetCommander(), meta, args)
 	getOutput := getDone(t)
 	if err := ctx.Err(); err != nil {
 		t.Errorf("context error: %s", err) // probably reporting a timeout
@@ -188,15 +184,14 @@ func TestGetCommand_InvalidArgs(t *testing.T) {
 			t.Chdir(wd.RootModuleDir())
 
 			getView, getDone := testView(t)
-			c := &GetCommand{
-				Meta: Meta{
-					testingOverrides: metaOverridesForProvider(testProvider()),
-					View:             getView,
-					WorkingDir:       wd,
-				},
+
+			meta := Meta{
+				testingOverrides: metaOverridesForProvider(testProvider()),
+				View:             getView,
+				WorkingDir:       wd,
 			}
 
-			code := c.Run(tc.args)
+			code := RunCommander(t, GetCommander(), meta, tc.args)
 			getOutput := getDone(t)
 			if code != cli.RunResultHelp {
 				t.Errorf("Expected error code 1 for invalid arguments, got %d", code)

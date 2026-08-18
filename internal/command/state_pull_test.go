@@ -27,16 +27,15 @@ func TestStatePull(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &StatePullCommand{
-		StateMeta{Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		}},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{}
-	code := c.Run(args)
+	code := RunCommander(t, StatePullCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.All())
@@ -53,16 +52,15 @@ func TestStatePull_noState(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &StatePullCommand{
-		StateMeta{Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		}},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{}
-	code := c.Run(args)
+	code := RunCommander(t, StatePullCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.All())
@@ -82,16 +80,15 @@ func TestStatePull_checkRequiredVersion(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &StatePullCommand{
-		StateMeta{Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		}},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{}
-	code := c.Run(args)
+	code := RunCommander(t, StatePullCommander(), meta, args)
 	output := done(t)
 	if code != 1 {
 		t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, output.Stderr(), output.Stdout())

@@ -14,15 +14,14 @@ import (
 
 func TestMetadataFunctions_error(t *testing.T) {
 	view, done := testView(t)
-	c := &MetadataFunctionsCommand{
-		Meta: Meta{
-			WorkingDir: workdir.NewDir("."),
-			View:       view,
-		},
+
+	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       view,
 	}
 
 	// This test will always error because it's missing the -json flag
-	code := c.Run(nil)
+	code := RunCommander(t, MetadataFunctionsCommander(), meta, nil)
 	output := done(t)
 	if code != 1 {
 		t.Fatalf("expected error, got:\n%s", output.All())
@@ -34,9 +33,8 @@ func TestMetadataFunctions_output(t *testing.T) {
 	m := Meta{
 		View: view,
 	}
-	c := &MetadataFunctionsCommand{Meta: m}
 
-	code := c.Run([]string{"-json"})
+	code := RunCommander(t, MetadataFunctionsCommander(), m, []string{"-json"})
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("wrong exit status %d; want 0\nstderr: %s", code, output.Stderr())

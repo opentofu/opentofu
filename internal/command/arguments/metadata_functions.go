@@ -49,6 +49,6 @@ func BindMetadataFunctions(cli *CommandLine) *MetadataFunctions {
 func ParseMetadataFunctions(args []string) (*MetadataFunctions, func(), tfdiags.Diagnostics) {
 	cli := new(CommandLine)
 	arguments := BindMetadataFunctions(cli)
-	closer, diags := cli.Stdlib("metadata functions", args)
+	closer, diags := cli.parseWithHooks("metadata functions", args)
 	return arguments, closer, diags
 }

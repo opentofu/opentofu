@@ -46,6 +46,6 @@ func BindStateList(cli *CommandLine) *StateList {
 func ParseStateList(args []string) (*StateList, func(), tfdiags.Diagnostics) {
 	cli := new(CommandLine)
 	ret := BindStateList(cli)
-	closer, diags := cli.Stdlib("state list", args)
+	closer, diags := cli.parseWithHooks("state list", args)
 	return ret, closer, diags
 }

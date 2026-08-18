@@ -9,7 +9,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/backend/remote-state/inmem"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/workdir"
@@ -39,12 +38,11 @@ func TestUnlock(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &UnlockCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
@@ -52,7 +50,7 @@ func TestUnlock(t *testing.T) {
 		"LOCK_ID",
 	}
 
-	code := c.Run(args)
+	code := RunCommander(t, UnlockCommander(), meta, args)
 	output := done(t)
 	if code != 1 {
 		t.Fatalf("bad: %d\n%s", code, output.All())
@@ -64,10 +62,10 @@ func TestUnlock(t *testing.T) {
 		"-force",
 	}
 	view, done = testView(t)
-	c.Meta.View = view
-	code = c.Run(args)
+	meta.View = view
+	code = RunCommander(t, UnlockCommander(), meta, args)
 	output = done(t)
-	if code != cli.RunResultHelp {
+	if code != 1 {
 		t.Fatalf("bad: %d\n%s", code, output.All())
 	}
 }
@@ -82,24 +80,21 @@ func TestUnlock_inmemBackend(t *testing.T) {
 
 	// init backend
 	initView, initDone := testView(t)
-	ci := &InitCommand{
-		Meta: Meta{
-			WorkingDir: workdir.NewDir("."),
-			View:       initView,
-		},
+	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       initView,
 	}
-	code := ci.Run(nil)
+	code := RunCommander(t, InitCommander(), meta, nil)
 	initOutput := initDone(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n%s", code, initOutput.Stderr())
 	}
 
 	unlockView, unlockDone := testView(t)
-	c := &UnlockCommand{
-		Meta: Meta{
-			WorkingDir: workdir.NewDir("."),
-			View:       unlockView,
-		},
+
+	meta = Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       unlockView,
 	}
 
 	// run with the incorrect lock ID
@@ -108,23 +103,22 @@ func TestUnlock_inmemBackend(t *testing.T) {
 		"LOCK_ID",
 	}
 
-	code = c.Run(args)
+	code = RunCommander(t, UnlockCommander(), meta, args)
 	unlockOutput := unlockDone(t)
 	if code == 0 {
 		t.Fatalf("bad: %d\n%s", code, unlockOutput.All())
 	}
 
 	unlockView, unlockDone = testView(t)
-	c = &UnlockCommand{
-		Meta: Meta{
-			WorkingDir: workdir.NewDir("."),
-			View:       unlockView,
-		},
+
+	meta = Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       unlockView,
 	}
 
 	// lockID set in the test fixture
 	args[1] = "2b6a6738-5dd5-50d6-c0ae-f6352977666b"
-	code = c.Run(args)
+	code = RunCommander(t, UnlockCommander(), meta, args)
 	unlockOutput = unlockDone(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n%s", code, unlockOutput.All())

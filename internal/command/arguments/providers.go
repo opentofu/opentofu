@@ -38,6 +38,6 @@ func BindProviders(cli *CommandLine) *Providers {
 func ParseProviders(args []string) (*Providers, func(), tfdiags.Diagnostics) {
 	cli := new(CommandLine)
 	arguments := BindProviders(cli)
-	closer, diags := cli.Stdlib("providers", args)
+	closer, diags := cli.parseWithHooks("providers", args)
 	return arguments, closer, diags
 }

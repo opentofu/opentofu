@@ -44,6 +44,6 @@ func BindWorkspaceDelete(cli *CommandLine) *WorkspaceDelete {
 func ParseWorkspaceDelete(args []string) (*WorkspaceDelete, func(), tfdiags.Diagnostics) {
 	cli := new(CommandLine)
 	ret := BindWorkspaceDelete(cli)
-	closer, diags := cli.Stdlib("workspace delete", args)
+	closer, diags := cli.parseWithHooks("workspace delete", args)
 	return ret, closer, diags
 }

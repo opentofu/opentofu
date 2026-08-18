@@ -80,10 +80,8 @@ func TestParseStatePush_basicValidation(t *testing.T) {
 			}),
 		},
 		"unknown flag": {
-			args: []string{"-unknown-flag", "terraform.tfstate"},
-			want: statePushArgsWithDefaults(func(v *StatePush) {
-				v.StateSrc = "terraform.tfstate"
-			}),
+			args:        []string{"-unknown-flag", "terraform.tfstate"},
+			want:        statePushArgsWithDefaults(nil),
 			wantErrText: "flag provided but not defined: -unknown-flag",
 		},
 	}

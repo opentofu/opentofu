@@ -51,6 +51,6 @@ func BindGraph(cli *CommandLine) *Graph {
 func ParseGraph(args []string) (*Graph, func(), tfdiags.Diagnostics) {
 	cli := new(CommandLine)
 	arguments := BindGraph(cli)
-	closer, diags := cli.Stdlib("graph", args)
+	closer, diags := cli.parseWithHooks("graph", args)
 	return arguments, closer, diags
 }

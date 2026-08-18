@@ -29,49 +29,69 @@ func TestWorkspace_createAndChange(t *testing.T) {
 	td := t.TempDir()
 	t.Chdir(td)
 
-	newCmd := &WorkspaceNewCommand{
-		Meta: Meta{
-			WorkingDir: workdir.NewDir("."),
-		},
+	showCmdView, showCmdDone := testView(t)
+	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       showCmdView,
 	}
-
-	current, _ := newCmd.Workspace(t.Context())
-	if current != backend.DefaultStateName {
+	code := RunCommander(t, WorkspaceShowCommander(), meta, nil)
+	showCmdOutput := showCmdDone(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n\n%s", code, showCmdOutput.Stderr())
+	}
+	if strings.TrimSpace(showCmdOutput.Stdout()) != backend.DefaultStateName {
 		t.Fatal("current workspace should be 'default'")
 	}
 
 	args := []string{"test"}
 	newCmdView, newCmdDone := testView(t)
-	newCmd.Meta = Meta{
+	meta = Meta{
 		WorkingDir: workdir.NewDir("."),
 		View:       newCmdView,
 	}
-	code := newCmd.Run(args)
+	code = RunCommander(t, WorkspaceNewCommander(false), meta, args)
 	newCmdOutput := newCmdDone(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, newCmdOutput.Stderr())
 	}
 
-	current, _ = newCmd.Workspace(t.Context())
-	if current != "test" {
-		t.Fatalf("current workspace should be 'test', got %q", current)
+	showCmdView, showCmdDone = testView(t)
+	meta = Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       showCmdView,
+	}
+	code = RunCommander(t, WorkspaceShowCommander(), meta, nil)
+	showCmdOutput = showCmdDone(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n\n%s", code, showCmdOutput.Stderr())
+	}
+	if strings.TrimSpace(showCmdOutput.Stdout()) != "test" {
+		t.Fatal("current workspace should be 'test'")
 	}
 
-	selCmd := &WorkspaceSelectCommand{}
 	args = []string{backend.DefaultStateName}
 	selectCmdView, selectCmdDone := testView(t)
-	selCmd.Meta = Meta{
+	meta = Meta{
 		WorkingDir: workdir.NewDir("."),
 		View:       selectCmdView,
 	}
-	code = selCmd.Run(args)
+	code = RunCommander(t, WorkspaceSelectCommander(false), meta, args)
 	selectCmdOutput := selectCmdDone(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, selectCmdOutput.Stderr())
 	}
 
-	current, _ = newCmd.Workspace(t.Context())
-	if current != backend.DefaultStateName {
+	showCmdView, showCmdDone = testView(t)
+	meta = Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       showCmdView,
+	}
+	code = RunCommander(t, WorkspaceShowCommander(), meta, nil)
+	showCmdOutput = showCmdDone(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n\n%s", code, showCmdOutput.Stderr())
+	}
+	if strings.TrimSpace(showCmdOutput.Stdout()) != backend.DefaultStateName {
 		t.Fatal("current workspace should be 'default'")
 	}
 }
@@ -98,27 +118,24 @@ func TestWorkspace_createAndList(t *testing.T) {
 	// create multiple workspaces
 	for _, env := range envs {
 		newCmdView, newCmdDone := testView(t)
-		newCmd := &WorkspaceNewCommand{
-			Meta: Meta{
-				WorkingDir: workdir.NewDir("."),
-				View:       newCmdView,
-			},
+		meta := Meta{
+			WorkingDir: workdir.NewDir("."),
+			View:       newCmdView,
 		}
-		code := newCmd.Run([]string{env})
+		code := RunCommander(t, WorkspaceNewCommander(false), meta, []string{env})
 		newCmdOutput := newCmdDone(t)
 		if code != 0 {
 			t.Fatalf("bad: %d\n\n%s", code, newCmdOutput.Stderr())
 		}
 	}
 
-	listCmd := &WorkspaceListCommand{}
 	listCmdView, listCmdDone := testView(t)
-	listCmd.Meta = Meta{
+	meta := Meta{
 		WorkingDir: workdir.NewDir("."),
 		View:       listCmdView,
 	}
 
-	code := listCmd.Run(nil)
+	code := RunCommander(t, WorkspaceListCommander(false), meta, nil)
 	listCmdOutput := listCmdDone(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, listCmdOutput.Stderr())
@@ -149,14 +166,13 @@ func TestWorkspace_createAndShow(t *testing.T) {
 	}
 
 	// make sure current workspace show outputs "default"
-	showCmd := &WorkspaceShowCommand{}
 	showCmdView, showCmdDone := testView(t)
-	showCmd.Meta = Meta{
+	meta := Meta{
 		WorkingDir: workdir.NewDir("."),
 		View:       showCmdView,
 	}
 
-	code := showCmd.Run(nil)
+	code := RunCommander(t, WorkspaceShowCommander(), meta, nil)
 	showCmdOutput := showCmdDone(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, showCmdOutput.Stderr())
@@ -169,17 +185,15 @@ func TestWorkspace_createAndShow(t *testing.T) {
 		t.Fatalf("\nexpected: %q\nactual:  %q", expected, actual)
 	}
 
-	newCmd := &WorkspaceNewCommand{}
-
 	env := []string{"test_a"}
 
 	// create test_a workspace
 	newCmdView, newCmdDone := testView(t)
-	newCmd.Meta = Meta{
+	meta = Meta{
 		WorkingDir: workdir.NewDir("."),
 		View:       newCmdView,
 	}
-	code = newCmd.Run(env)
+	code = RunCommander(t, WorkspaceNewCommander(false), meta, env)
 	newCmdOutput := newCmdDone(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, newCmdOutput.Stderr())
@@ -191,20 +205,19 @@ func TestWorkspace_createAndShow(t *testing.T) {
 		WorkingDir: workdir.NewDir("."),
 		View:       selCmdView,
 	}
-	code = selCmd.Run(env)
+	code = RunCommander(t, WorkspaceSelectCommander(false), meta, env)
 	selCmdOutput := selCmdDone(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, selCmdOutput.Stderr())
 	}
 
-	showCmd = &WorkspaceShowCommand{}
 	showCmdView, showCmdDone = testView(t)
-	showCmd.Meta = Meta{
+	meta = Meta{
 		WorkingDir: workdir.NewDir("."),
 		View:       showCmdView,
 	}
 
-	code = showCmd.Run(nil)
+	code = RunCommander(t, WorkspaceShowCommander(), meta, nil)
 	showCmdOutput = showCmdDone(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, showCmdOutput.Stderr())
@@ -229,13 +242,11 @@ func TestWorkspace_createInvalid(t *testing.T) {
 	// create multiple workspaces
 	for _, env := range envs {
 		view, done := testView(t)
-		newCmd := &WorkspaceNewCommand{
-			Meta: Meta{
-				WorkingDir: workdir.NewDir("."),
-				View:       view,
-			},
+		meta := Meta{
+			WorkingDir: workdir.NewDir("."),
+			View:       view,
 		}
-		code := newCmd.Run([]string{env})
+		code := RunCommander(t, WorkspaceNewCommander(false), meta, []string{env})
 		output := done(t)
 		if code == 0 {
 			t.Fatalf("expected failure: \n%s", output.All())
@@ -243,14 +254,13 @@ func TestWorkspace_createInvalid(t *testing.T) {
 	}
 
 	// list workspaces to make sure none were created
-	listCmd := &WorkspaceListCommand{}
 	listCmdView, listCmdDone := testView(t)
-	listCmd.Meta = Meta{
+	meta := Meta{
 		WorkingDir: workdir.NewDir("."),
 		View:       listCmdView,
 	}
 
-	code := listCmd.Run(nil)
+	code := RunCommander(t, WorkspaceListCommander(false), meta, nil)
 	listCmdOutput := listCmdDone(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, listCmdOutput.Stderr())
@@ -272,13 +282,11 @@ func TestWorkspace_createWithState(t *testing.T) {
 
 	// init the backend
 	initCmdView, initCmdDone := testView(t)
-	initCmd := &InitCommand{
-		Meta: Meta{
-			WorkingDir: workdir.NewDir("."),
-			View:       initCmdView,
-		},
+	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       initCmdView,
 	}
-	code := initCmd.Run(nil)
+	code := RunCommander(t, InitCommander(), meta, nil)
 	initCmdOutput := initCmdDone(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", initCmdOutput.Stderr())
@@ -312,13 +320,11 @@ func TestWorkspace_createWithState(t *testing.T) {
 
 	args := []string{"-state", "test.tfstate", workspace}
 	newCmdView, newCmdDone := testView(t)
-	newCmd := &WorkspaceNewCommand{
-		Meta: Meta{
-			WorkingDir: workdir.NewDir("."),
-			View:       newCmdView,
-		},
+	meta = Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       newCmdView,
 	}
-	code = newCmd.Run(args)
+	code = RunCommander(t, WorkspaceNewCommander(false), meta, args)
 	newCmdOutput := newCmdDone(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, newCmdOutput.Stderr())
@@ -362,43 +368,51 @@ func TestWorkspace_delete(t *testing.T) {
 	}
 
 	delCmdView, delCmdDone := testView(t)
-	delCmd := &WorkspaceDeleteCommand{
-		Meta: Meta{
-			WorkingDir: workdir.NewDir("."),
-			View:       delCmdView,
-		},
-	}
-
-	current, _ := delCmd.Workspace(t.Context())
-	if current != "test" {
-		t.Fatal("wrong workspace:", current)
+	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       delCmdView,
 	}
 
 	// we can't delete our current workspace
 	args := []string{"test"}
-	code := delCmd.Run(args)
+	code := RunCommander(t, WorkspaceDeleteCommander(false), meta, args)
 	delCmdOutput := delCmdDone(t)
 	if code == 0 {
 		t.Fatalf("expected error deleting current workspace: %s", delCmdOutput.All())
 	}
 
-	// change back to default
-	if err := delCmd.SetWorkspace(backend.DefaultStateName); err != nil {
-		t.Fatal(err)
+	selectCmdView, selectCmdDone := testView(t)
+	meta = Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       selectCmdView,
+	}
+	code = RunCommander(t, WorkspaceSelectCommander(false), meta, []string{backend.DefaultStateName})
+	selectCmdOutput := selectCmdDone(t)
+	if code != 0 {
+		t.Fatalf("error selecting workspace: %s", selectCmdOutput.All())
 	}
 
 	// try the delete again
 	delCmdView, delCmdDone = testView(t)
-	delCmd.Meta.View = delCmdView
-	code = delCmd.Run(args)
+	meta.View = delCmdView
+	code = RunCommander(t, WorkspaceDeleteCommander(false), meta, args)
 	delCmdOutput = delCmdDone(t)
 	if code != 0 {
 		t.Fatalf("error deleting workspace: %s", delCmdOutput.Stderr())
 	}
 
-	current, _ = delCmd.Workspace(t.Context())
-	if current != backend.DefaultStateName {
-		t.Fatalf("wrong workspace: %q", current)
+	showCmdView, showCmdDone := testView(t)
+	meta = Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       showCmdView,
+	}
+	code = RunCommander(t, WorkspaceShowCommander(), meta, nil)
+	showCmdOutput := showCmdDone(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n\n%s", code, showCmdOutput.Stderr())
+	}
+	if strings.TrimSpace(showCmdOutput.Stdout()) != backend.DefaultStateName {
+		t.Fatal("current workspace should be 'default'")
 	}
 }
 
@@ -416,15 +430,13 @@ func TestWorkspace_deleteInvalid(t *testing.T) {
 	}
 
 	delCmdView, delCmdDone := testView(t)
-	delCmd := &WorkspaceDeleteCommand{
-		Meta: Meta{
-			WorkingDir: workdir.NewDir("."),
-			View:       delCmdView,
-		},
+	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       delCmdView,
 	}
 
 	// delete the workspace
-	code := delCmd.Run([]string{workspace})
+	code := RunCommander(t, WorkspaceDeleteCommander(false), meta, []string{workspace})
 	delCmdOutput := delCmdDone(t)
 	if code != 0 {
 		t.Fatalf("error deleting workspace: %s", delCmdOutput.Stderr())
@@ -480,14 +492,12 @@ func TestWorkspace_deleteWithState(t *testing.T) {
 	f.Close()
 
 	delCmdView, delCmdDone := testView(t)
-	delCmd := &WorkspaceDeleteCommand{
-		Meta: Meta{
-			WorkingDir: workdir.NewDir("."),
-			View:       delCmdView,
-		},
+	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       delCmdView,
 	}
 	args := []string{"test"}
-	code := delCmd.Run(args)
+	code := RunCommander(t, WorkspaceDeleteCommander(false), meta, args)
 	delCmdOutput := delCmdDone(t)
 	if code == 0 {
 		t.Fatalf("expected failure without -force.\noutput: %s", delCmdOutput.All())
@@ -501,10 +511,10 @@ func TestWorkspace_deleteWithState(t *testing.T) {
 	}
 
 	delCmdView, delCmdDone = testView(t)
-	delCmd.Meta.View = delCmdView
+	meta.View = delCmdView
 
 	args = []string{"-force", "test"}
-	code = delCmd.Run(args)
+	code = RunCommander(t, WorkspaceDeleteCommander(false), meta, args)
 	delCmdOutput = delCmdDone(t)
 	if code != 0 {
 		t.Fatalf("failure: %s", delCmdOutput.Stderr())
@@ -520,32 +530,43 @@ func TestWorkspace_selectWithOrCreate(t *testing.T) {
 	td := t.TempDir()
 	t.Chdir(td)
 
-	selectCmd := &WorkspaceSelectCommand{
-		Meta: Meta{
-			WorkingDir: workdir.NewDir("."),
-		},
+	showCmdView, showCmdDone := testView(t)
+	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       showCmdView,
 	}
-
-	current, _ := selectCmd.Workspace(t.Context())
-	if current != backend.DefaultStateName {
+	code := RunCommander(t, WorkspaceShowCommander(), meta, nil)
+	showCmdOutput := showCmdDone(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n\n%s", code, showCmdOutput.Stderr())
+	}
+	if strings.TrimSpace(showCmdOutput.Stdout()) != backend.DefaultStateName {
 		t.Fatal("current workspace should be 'default'")
 	}
 
 	args := []string{"-or-create", "test"}
 	selectCmdView, selectCmdDone := testView(t)
-	selectCmd.Meta = Meta{
+	meta = Meta{
 		WorkingDir: workdir.NewDir("."),
 		View:       selectCmdView,
 	}
-	code := selectCmd.Run(args)
+	code = RunCommander(t, WorkspaceSelectCommander(false), meta, args)
 	selectCmdOutput := selectCmdDone(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, selectCmdOutput.Stderr())
 	}
 
-	current, _ = selectCmd.Workspace(t.Context())
-	if current != "test" {
-		t.Fatalf("current workspace should be 'test', got %q", current)
+	showCmdView, showCmdDone = testView(t)
+	meta = Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       showCmdView,
 	}
-
+	code = RunCommander(t, WorkspaceShowCommander(), meta, nil)
+	showCmdOutput = showCmdDone(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n\n%s", code, showCmdOutput.Stderr())
+	}
+	if strings.TrimSpace(showCmdOutput.Stdout()) != "test" {
+		t.Fatal("current workspace should be 'test'")
+	}
 }

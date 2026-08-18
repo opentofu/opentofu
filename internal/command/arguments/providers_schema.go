@@ -51,6 +51,6 @@ func BindProvidersSchema(cli *CommandLine) *ProvidersSchema {
 func ParseProvidersSchema(args []string) (*ProvidersSchema, func(), tfdiags.Diagnostics) {
 	cli := new(CommandLine)
 	schema := BindProvidersSchema(cli)
-	closer, diags := cli.Stdlib("providers schema", args)
+	closer, diags := cli.parseWithHooks("providers schema", args)
 	return schema, closer, diags
 }

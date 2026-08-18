@@ -24,6 +24,6 @@ func BindWorkspace(cli *CommandLine) *Workspace {
 func ParseWorkspace(args []string) (*Workspace, func(), tfdiags.Diagnostics) {
 	cli := new(CommandLine)
 	ret := BindWorkspace(cli)
-	closer, diags := cli.Stdlib("workspace", args)
+	closer, diags := cli.parseWithHooks("workspace", args)
 	return ret, closer, diags
 }

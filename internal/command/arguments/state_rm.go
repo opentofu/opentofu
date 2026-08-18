@@ -63,6 +63,6 @@ func BindStateRm(cli *CommandLine) *StateRm {
 func ParseStateRm(args []string) (*StateRm, func(), tfdiags.Diagnostics) {
 	cli := new(CommandLine)
 	ret := BindStateRm(cli)
-	closer, diags := cli.Stdlib("state rm", args)
+	closer, diags := cli.parseWithHooks("state rm", args)
 	return ret, closer, diags
 }

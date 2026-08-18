@@ -18,13 +18,12 @@ func TestProvidersMirror(t *testing.T) {
 	// noop example
 	t.Run("noop", func(t *testing.T) {
 		view, done := testView(t)
-		c := &ProvidersMirrorCommand{
-			Meta{
-				WorkingDir: workdir.NewDir("."),
-				View:       view,
-			},
+
+		meta := Meta{
+			WorkingDir: workdir.NewDir("."),
+			View:       view,
 		}
-		code := c.Run([]string{"."})
+		code := RunCommander(t, ProvidersMirrorCommander(), meta, []string{"."})
 		output := done(t)
 		if code != 0 {
 			t.Fatalf("wrong exit code. expected 0, got %d\ngot output:\n%s", code, output.All())
@@ -33,13 +32,12 @@ func TestProvidersMirror(t *testing.T) {
 
 	t.Run("missing arg error", func(t *testing.T) {
 		view, done := testView(t)
-		c := &ProvidersMirrorCommand{
-			Meta: Meta{
-				WorkingDir: workdir.NewDir("."),
-				View:       view,
-			},
+
+		meta := Meta{
+			WorkingDir: workdir.NewDir("."),
+			View:       view,
 		}
-		code := c.Run([]string{"-no-color"})
+		code := RunCommander(t, ProvidersMirrorCommander(), meta, []string{"-no-color"})
 		output := done(t)
 		if code != cli.RunResultHelp {
 			t.Fatalf("wrong exit code. expected 1, got %d", code)

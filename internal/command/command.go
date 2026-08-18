@@ -298,7 +298,7 @@ var RunResultHelp = cli.RunResultHelp
 // RunCommand is how the legacy command structure calls into the new command
 // structure. This will be removed in 1.14.x
 func RunCommand(cmd Command, meta Meta, args []string) int {
-	return RunCli("", cmd, meta, cmd.CommandLine.StdlibArgs(args))
+	return RunCli("", cmd, meta, cmd.CommandLine.ParseLegacy(args))
 }
 
 // RunCli is how the cli package executes a command after performing flag and argument

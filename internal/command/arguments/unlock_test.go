@@ -38,10 +38,8 @@ func TestParseUnlock_basicValidation(t *testing.T) {
 			}),
 		},
 		"invalid flag": {
-			args: []string{"-invalid", "lockid"},
-			want: unlockArgsWithDefaults(func(a *Unlock) {
-				a.LockID = "lockid"
-			}),
+			args:        []string{"-invalid", "lockid"},
+			want:        unlockArgsWithDefaults(nil),
 			wantErrText: "flag provided but not defined: -invalid",
 		},
 	}

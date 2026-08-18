@@ -40,18 +40,17 @@ func TestTaint(t *testing.T) {
 	statePath := testStateFile(t, state)
 
 	view, done := testView(t)
-	c := &TaintCommand{
-		Meta: Meta{
-			WorkingDir: workdir.NewDir("."),
-			View:       view,
-		},
+
+	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       view,
 	}
 
 	args := []string{
 		"-state", statePath,
 		"test_instance.foo",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, TaintCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -87,18 +86,17 @@ func TestTaint_lockedState(t *testing.T) {
 	}
 	defer unlock()
 	view, done := testView(t)
-	c := &TaintCommand{
-		Meta: Meta{
-			WorkingDir: workdir.NewDir("."),
-			View:       view,
-		},
+
+	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       view,
 	}
 
 	args := []string{
 		"-state", statePath,
 		"test_instance.foo",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, TaintCommander(), meta, args)
 	output := done(t)
 	if code == 0 {
 		t.Fatal("expected error")
@@ -136,17 +134,16 @@ func TestTaint_backup(t *testing.T) {
 	testStateFileDefault(t, state)
 
 	view, done := testView(t)
-	c := &TaintCommand{
-		Meta: Meta{
-			WorkingDir: workdir.NewDir("."),
-			View:       view,
-		},
+
+	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       view,
 	}
 
 	args := []string{
 		"test_instance.foo",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, TaintCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -182,18 +179,17 @@ func TestTaint_backupDisable(t *testing.T) {
 	testStateFileDefault(t, state)
 
 	view, done := testView(t)
-	c := &TaintCommand{
-		Meta: Meta{
-			WorkingDir: workdir.NewDir("."),
-			View:       view,
-		},
+
+	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       view,
 	}
 
 	args := []string{
 		"-backup", "-",
 		"test_instance.foo",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, TaintCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -208,18 +204,17 @@ func TestTaint_backupDisable(t *testing.T) {
 
 func TestTaint_badState(t *testing.T) {
 	view, done := testView(t)
-	c := &TaintCommand{
-		Meta: Meta{
-			WorkingDir: workdir.NewDir("."),
-			View:       view,
-		},
+
+	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       view,
 	}
 
 	args := []string{
 		"-state", "i-should-not-exist-ever",
 		"foo.bar",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, TaintCommander(), meta, args)
 	output := done(t)
 	if code != 1 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -252,17 +247,16 @@ func TestTaint_defaultState(t *testing.T) {
 	testStateFileDefault(t, state)
 
 	view, done := testView(t)
-	c := &TaintCommand{
-		Meta: Meta{
-			WorkingDir: workdir.NewDir("."),
-			View:       view,
-		},
+
+	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       view,
 	}
 
 	args := []string{
 		"test_instance.foo",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, TaintCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -304,14 +298,11 @@ func TestTaint_defaultWorkspaceState(t *testing.T) {
 	if err := meta.SetWorkspace(testWorkspace); err != nil {
 		t.Fatal(err)
 	}
-	c := &TaintCommand{
-		Meta: meta,
-	}
 
 	args := []string{
 		"test_instance.foo",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, TaintCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -342,18 +333,17 @@ func TestTaint_missing(t *testing.T) {
 	statePath := testStateFile(t, state)
 
 	view, done := testView(t)
-	c := &TaintCommand{
-		Meta: Meta{
-			WorkingDir: workdir.NewDir("."),
-			View:       view,
-		},
+
+	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       view,
 	}
 
 	args := []string{
 		"-state", statePath,
 		"test_instance.bar",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, TaintCommander(), meta, args)
 	output := done(t)
 	if code == 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.All())
@@ -382,11 +372,10 @@ func TestTaint_missingAllow(t *testing.T) {
 	statePath := testStateFile(t, state)
 
 	view, done := testView(t)
-	c := &TaintCommand{
-		Meta: Meta{
-			WorkingDir: workdir.NewDir("."),
-			View:       view,
-		},
+
+	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       view,
 	}
 
 	args := []string{
@@ -395,7 +384,7 @@ func TestTaint_missingAllow(t *testing.T) {
 		"-state", statePath,
 		"test_instance.bar",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, TaintCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -441,18 +430,17 @@ func TestTaint_stateOut(t *testing.T) {
 	testStateFileDefault(t, state)
 
 	view, done := testView(t)
-	c := &TaintCommand{
-		Meta: Meta{
-			WorkingDir: workdir.NewDir("."),
-			View:       view,
-		},
+
+	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       view,
 	}
 
 	args := []string{
 		"-state-out", "foo",
 		"test_instance.foo",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, TaintCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -500,18 +488,17 @@ func TestTaint_module(t *testing.T) {
 	statePath := testStateFile(t, state)
 
 	view, done := testView(t)
-	c := &TaintCommand{
-		Meta: Meta{
-			WorkingDir: workdir.NewDir("."),
-			View:       view,
-		},
+
+	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       view,
 	}
 
 	args := []string{
 		"-state", statePath,
 		"module.child.test_instance.blah",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, TaintCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -548,16 +535,15 @@ func TestTaint_checkRequiredVersion(t *testing.T) {
 	path := testStateFile(t, state)
 
 	view, done := testView(t)
-	c := &TaintCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{"test_instance.foo"}
-	code := c.Run(args)
+	code := RunCommander(t, TaintCommander(), meta, args)
 	output := done(t)
 	if code != 1 {
 		t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, output.Stderr(), output.All())

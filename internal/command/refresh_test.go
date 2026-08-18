@@ -43,12 +43,11 @@ func TestRefresh(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &RefreshCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	p.GetProviderSchemaResponse = refreshFixtureSchema()
@@ -62,7 +61,7 @@ func TestRefresh(t *testing.T) {
 	args := []string{
 		"-state", statePath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, RefreshCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -98,12 +97,11 @@ func TestRefresh_empty(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &RefreshCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	p.ReadResourceFn = nil
@@ -114,7 +112,7 @@ func TestRefresh_empty(t *testing.T) {
 	}
 
 	args := []string{}
-	code := c.Run(args)
+	code := RunCommander(t, RefreshCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -142,12 +140,11 @@ func TestRefresh_lockedState(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &RefreshCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	p.GetProviderSchemaResponse = refreshFixtureSchema()
@@ -162,7 +159,7 @@ func TestRefresh_lockedState(t *testing.T) {
 		"-state", statePath,
 	}
 
-	code := c.Run(args)
+	code := RunCommander(t, RefreshCommander(), meta, args)
 	output := done(t)
 	if code == 0 {
 		t.Fatal("expected error")
@@ -182,12 +179,11 @@ func TestRefresh_cwd(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &RefreshCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	p.GetProviderSchemaResponse = refreshFixtureSchema()
@@ -201,7 +197,7 @@ func TestRefresh_cwd(t *testing.T) {
 	args := []string{
 		"-state", statePath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, RefreshCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -255,12 +251,11 @@ func TestRefresh_defaultState(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &RefreshCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	p.GetProviderSchemaResponse = refreshFixtureSchema()
@@ -274,7 +269,7 @@ func TestRefresh_defaultState(t *testing.T) {
 	args := []string{
 		"-state", statePath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, RefreshCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -325,12 +320,11 @@ func TestRefresh_outPath(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &RefreshCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	p.GetProviderSchemaResponse = refreshFixtureSchema()
@@ -345,7 +339,7 @@ func TestRefresh_outPath(t *testing.T) {
 		"-state", statePath,
 		"-state-out", outPath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, RefreshCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -386,12 +380,11 @@ func TestRefresh_var(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &RefreshCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 	p.GetProviderSchemaResponse = refreshVarFixtureSchema()
 
@@ -399,7 +392,7 @@ func TestRefresh_var(t *testing.T) {
 		"-var", "foo=bar",
 		"-state", statePath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, RefreshCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -424,12 +417,11 @@ func TestRefresh_varFile(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &RefreshCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 	p.GetProviderSchemaResponse = refreshVarFixtureSchema()
 
@@ -442,7 +434,7 @@ func TestRefresh_varFile(t *testing.T) {
 		"-var-file", varFilePath,
 		"-state", statePath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, RefreshCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -467,12 +459,11 @@ func TestRefresh_varFileDefault(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &RefreshCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 	p.GetProviderSchemaResponse = refreshVarFixtureSchema()
 
@@ -484,7 +475,7 @@ func TestRefresh_varFileDefault(t *testing.T) {
 	args := []string{
 		"-state", statePath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, RefreshCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -515,12 +506,11 @@ func TestRefresh_varsUnset(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &RefreshCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		ResourceTypes: map[string]providers.Schema{
@@ -538,7 +528,7 @@ func TestRefresh_varsUnset(t *testing.T) {
 	args := []string{
 		"-state", statePath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, RefreshCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -580,12 +570,11 @@ func TestRefresh_backup(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &RefreshCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	p.GetProviderSchemaResponse = refreshFixtureSchema()
@@ -601,7 +590,7 @@ func TestRefresh_backup(t *testing.T) {
 		"-state-out", outPath,
 		"-backup", backupPath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, RefreshCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -651,12 +640,11 @@ func TestRefresh_disableBackup(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &RefreshCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	p.GetProviderSchemaResponse = refreshFixtureSchema()
@@ -672,7 +660,7 @@ func TestRefresh_disableBackup(t *testing.T) {
 		"-state-out", outPath,
 		"-backup", "-",
 	}
-	code := c.Run(args)
+	code := RunCommander(t, RefreshCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -718,12 +706,11 @@ func TestRefresh_displaysOutputs(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &RefreshCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		ResourceTypes: map[string]providers.Schema{
@@ -741,7 +728,7 @@ func TestRefresh_displaysOutputs(t *testing.T) {
 	args := []string{
 		"-state", statePath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, RefreshCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -783,19 +770,18 @@ func TestRefresh_targeted(t *testing.T) {
 	}
 
 	view, done := testView(t)
-	c := &RefreshCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-target", "test_instance.foo",
 		"-state", statePath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, RefreshCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -824,17 +810,16 @@ func TestRefresh_targetFlagsDiags(t *testing.T) {
 			t.Chdir(td)
 
 			view, done := testView(t)
-			c := &RefreshCommand{
-				Meta: Meta{
-					WorkingDir: workdir.NewDir("."),
-					View:       view,
-				},
+
+			meta := Meta{
+				WorkingDir: workdir.NewDir("."),
+				View:       view,
 			}
 
 			args := []string{
 				"-target", target,
 			}
-			code := c.Run(args)
+			code := RunCommander(t, RefreshCommander(), meta, args)
 			output := done(t)
 			if code != 1 {
 				t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -879,19 +864,18 @@ func TestRefresh_excluded(t *testing.T) {
 	}
 
 	view, done := testView(t)
-	c := &RefreshCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-exclude", "test_instance.bar",
 		"-state", statePath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, RefreshCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -920,17 +904,16 @@ func TestRefresh_excludeFlagsDiags(t *testing.T) {
 			t.Chdir(td)
 
 			view, done := testView(t)
-			c := &RefreshCommand{
-				Meta: Meta{
-					WorkingDir: workdir.NewDir("."),
-					View:       view,
-				},
+
+			meta := Meta{
+				WorkingDir: workdir.NewDir("."),
+				View:       view,
 			}
 
 			args := []string{
 				"-exclude", exclude,
 			}
-			code := c.Run(args)
+			code := RunCommander(t, RefreshCommander(), meta, args)
 			output := done(t)
 			if code != 1 {
 				t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -967,15 +950,14 @@ func TestRefresh_warnings(t *testing.T) {
 
 	t.Run("full warnings", func(t *testing.T) {
 		view, done := testView(t)
-		c := &RefreshCommand{
-			Meta: Meta{
-				WorkingDir:       workdir.NewDir("."),
-				testingOverrides: metaOverridesForProvider(p),
-				View:             view,
-			},
+
+		meta := Meta{
+			WorkingDir:       workdir.NewDir("."),
+			testingOverrides: metaOverridesForProvider(p),
+			View:             view,
 		}
 
-		code := c.Run([]string{})
+		code := RunCommander(t, RefreshCommander(), meta, []string{})
 		output := done(t)
 		if code != 0 {
 			t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
@@ -993,15 +975,14 @@ func TestRefresh_warnings(t *testing.T) {
 
 	t.Run("compact warnings", func(t *testing.T) {
 		view, done := testView(t)
-		c := &RefreshCommand{
-			Meta: Meta{
-				WorkingDir:       workdir.NewDir("."),
-				testingOverrides: metaOverridesForProvider(p),
-				View:             view,
-			},
+
+		meta := Meta{
+			WorkingDir:       workdir.NewDir("."),
+			testingOverrides: metaOverridesForProvider(p),
+			View:             view,
 		}
 
-		code := c.Run([]string{"-compact-warnings"})
+		code := RunCommander(t, RefreshCommander(), meta, []string{"-compact-warnings"})
 		output := done(t)
 		if code != 0 {
 			t.Fatalf("bad: %d\n\n%s", code, output.Stderr())

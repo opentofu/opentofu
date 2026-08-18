@@ -62,6 +62,6 @@ func BindStateMv(cli *CommandLine) *StateMv {
 func ParseStateMv(args []string) (*StateMv, func(), tfdiags.Diagnostics) {
 	cli := new(CommandLine)
 	ret := BindStateMv(cli)
-	closer, diags := cli.Stdlib("state mv", args)
+	closer, diags := cli.parseWithHooks("state mv", args)
 	return ret, closer, diags
 }

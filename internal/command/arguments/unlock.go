@@ -43,6 +43,6 @@ func BindUnlock(cli *CommandLine) *Unlock {
 func ParseUnlock(args []string) (*Unlock, func(), tfdiags.Diagnostics) {
 	cli := new(CommandLine)
 	arguments := BindUnlock(cli)
-	closer, diags := cli.Stdlib("force-unlock", args)
+	closer, diags := cli.parseWithHooks("force-unlock", args)
 	return arguments, closer, diags
 }

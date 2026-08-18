@@ -64,13 +64,11 @@ func TestApply_destroy(t *testing.T) {
 	}
 
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Destroy: true,
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	// Run the apply command pointing to our existing state
@@ -78,7 +76,7 @@ func TestApply_destroy(t *testing.T) {
 		"-auto-approve",
 		"-state", statePath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, DestroyCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Log(output.Stdout())
@@ -163,19 +161,17 @@ func TestApply_destroyApproveNo(t *testing.T) {
 	})()
 
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Destroy: true,
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-state", statePath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, DestroyCommander(), meta, args)
 	output := done(t)
 	if code != 1 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stdout())
@@ -229,19 +225,17 @@ func TestApply_destroyApproveYes(t *testing.T) {
 	})()
 
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Destroy: true,
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-state", statePath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, DestroyCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Log(output.Stdout())
@@ -298,13 +292,11 @@ func TestApply_destroyLockedState(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Destroy: true,
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	// Run the apply command pointing to our existing state
@@ -313,7 +305,7 @@ func TestApply_destroyLockedState(t *testing.T) {
 		"-state", statePath,
 	}
 
-	code := c.Run(args)
+	code := RunCommander(t, DestroyCommander(), meta, args)
 	output := done(t)
 	if code == 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stdout())
@@ -334,20 +326,18 @@ func TestApply_destroyPlan(t *testing.T) {
 
 	p := testProvider()
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Destroy: true,
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	// Run the apply command pointing to our existing state
 	args := []string{
 		planPath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, DestroyCommander(), meta, args)
 	output := done(t)
 	if code != 1 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stdout())
@@ -366,20 +356,18 @@ func TestApply_destroyPath(t *testing.T) {
 	p := applyFixtureProvider()
 
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Destroy: true,
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args := []string{
 		"-auto-approve",
 		testFixturePath("apply"),
 	}
-	code := c.Run(args)
+	code := RunCommander(t, DestroyCommander(), meta, args)
 	output := done(t)
 	if code != 1 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stdout())
@@ -420,20 +408,18 @@ func TestApply_destroySkipInConfigAndState(t *testing.T) {
 	p := applyFixtureProvider()
 
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Destroy: true,
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	t.Cleanup(testInputMap(t, map[string]string{"approve": "yes"}))
 	args := []string{
 		"-state", statePath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, DestroyCommander(), meta, args)
 	output := done(t)
 	if code != 1 {
 		t.Log(output.Stdout())
@@ -493,13 +479,11 @@ func TestApply_destroySkipWithSuppressFlag(t *testing.T) {
 	p := applyFixtureProvider()
 
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Destroy: true,
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	t.Cleanup(testInputMap(t, map[string]string{"approve": "yes"}))
@@ -508,7 +492,7 @@ func TestApply_destroySkipWithSuppressFlag(t *testing.T) {
 		"-suppress-forget-errors",
 		"-state", statePath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, DestroyCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Log(output.Stdout())
@@ -564,20 +548,18 @@ func TestApply_destroySkipInStateNotInConfig(t *testing.T) {
 	p := applyFixtureProvider()
 
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Destroy: true,
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	t.Cleanup(testInputMap(t, map[string]string{"approve": "yes"}))
 	args := []string{
 		"-state", statePath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, DestroyCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Log(output.Stdout())
@@ -635,20 +617,18 @@ func TestApply_destroySkipInStateOrphaned(t *testing.T) {
 	p := applyFixtureProvider()
 
 	view, done := testView(t)
-	c := &ApplyCommand{
-		Destroy: true,
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 	t.Cleanup(testInputMap(t, map[string]string{"approve": "yes"}))
 
 	args := []string{
 		"-state", statePath,
 	}
-	code := c.Run(args)
+	code := RunCommander(t, DestroyCommander(), meta, args)
 	output := done(t)
 	if code != 1 {
 		t.Log(output.Stdout())
@@ -828,13 +808,11 @@ func TestApply_targetedDestroy(t *testing.T) {
 			}
 
 			view, done := testView(t)
-			c := &ApplyCommand{
-				Destroy: true,
-				Meta: Meta{
-					WorkingDir:       workdir.NewDir("."),
-					testingOverrides: metaOverridesForProvider(p),
-					View:             view,
-				},
+
+			meta := Meta{
+				WorkingDir:       workdir.NewDir("."),
+				testingOverrides: metaOverridesForProvider(p),
+				View:             view,
 			}
 
 			// Run the apply command pointing to our existing state
@@ -844,7 +822,7 @@ func TestApply_targetedDestroy(t *testing.T) {
 				"-state", statePath,
 			}
 
-			code := c.Run(args)
+			code := RunCommander(t, DestroyCommander(), meta, args)
 			output := done(t)
 			if code != 0 {
 				t.Log(output.Stdout())

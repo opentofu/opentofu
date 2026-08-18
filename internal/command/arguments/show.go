@@ -182,6 +182,6 @@ func BindShow(cli *CommandLine) *Show {
 func ParseShow(args []string) (*Show, func(), tfdiags.Diagnostics) {
 	cli := new(CommandLine)
 	show := BindShow(cli)
-	closer, diags := cli.Stdlib("show", args)
+	closer, diags := cli.parseWithHooks("show", args)
 	return show, closer, diags
 }
