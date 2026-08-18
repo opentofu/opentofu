@@ -366,3 +366,106 @@ message Importing {
     // The Identity that we are importing, this is mutually exclusive with the id field
     DynamicValue identity = 2;
 }
+
+// The schema information below only covers parts of the provider schemas
+// that are needed to render a saved planfile. 
+//
+// This is stored so that `tofu show` can avoid re-launching providers 
+// and use schemas that it already knows about.
+//
+// If this data is absent or incomplete for a particular plan then readers
+// should attempt to fall back to the original functionality of obstaining schemas
+// by querying the providers
+
+
+// SchemaNestingMode mirrors configschema.NestingMode, and is used both for
+// nested block types and for NestedType-style (object) attributes.
+enum SchemaNestingMode {
+    SCHEMA_NESTING_INVALID = 0;
+    SCHEMA_NESTING_SINGLE = 1;
+    SCHEMA_NESTING_GROUP = 2;
+    SCHEMA_NESTING_LIST = 3;
+    SCHEMA_NESTING_SET = 4;
+    SCHEMA_NESTING_MAP = 5;
+}
+
+message SchemaObject {
+    repeated SchemaAttribute attributes = 1;
+    SchemaNestingMode nesting = 2;
+}
+
+message SchemaAttribute {
+    string name = 1;
+
+    // type is the ctyjson-encoded cty.Type of the attribute. Mutually
+    // exclusive with nested_type.
+    bytes type = 2;
+
+    // nested_type is set instead of type for NestedType-style attributes.
+    SchemaObject nested_type = 3;
+
+    bool required = 4;
+    bool optional = 5;
+    bool computed = 6;
+    bool sensitive = 7;
+    bool write_only = 8;
+
+
+    // TODO: check with reviewers, do we need to handle anything else here?
+}
+
+message SchemaNestedBlock {
+    string type_name = 1;
+    SchemaBlock block = 2;
+    SchemaNestingMode nesting = 3;
+    int64 min_items = 4;
+    int64 max_items = 5;
+}
+
+message SchemaBlock {
+    repeated SchemaAttribute attributes = 1;
+    repeated SchemaNestedBlock block_types = 2;
+}
+
+message Schema {
+    int64 version = 1;
+    SchemaBlock block = 2;
+}
+
+// ResourceIdentitySchema represents the schema for a managed resource type's
+// identity data (providers.Schema.IdentitySchema / IdentitySchemaVersion).
+message ResourceIdentitySchema {
+    int64 version = 1;
+    SchemaObject body = 2;
+}
+
+// ResourceSchema pairs a managed resource type's or data source's
+// configuration schema with its resource identity schema, if any.
+message ResourceSchema {
+    Schema schema = 1;
+
+    // identity_schema is only ever populated for managed resource types,
+    // never for data sources.
+    ResourceIdentitySchema identity_schema = 2;
+}
+
+// ProviderSchema is a trimmed-down subset of a single provider's schema,
+// containing only the parts needed to render a particular saved plan.
+message ProviderSchema {
+    Schema provider_config = 1;
+    map<string, ResourceSchema> managed_resource_types = 2;
+    map<string, ResourceSchema> data_sources = 3;
+}
+
+// Schemas is the root message for the "tfschemas" entry in the plan file
+// archive: a map from provider source address (e.g.
+// "registry.opentofu.org/hashicorp/aws") to the trimmed schema for that
+// provider.
+message Schemas {
+    // format_version is incremented whenever there is a breaking change to
+    // this serialization format, following the same convention as used for
+    // Plan.version above.
+    uint64 format_version = 1;
+
+    map<string, ProviderSchema> providers = 2;
+}
