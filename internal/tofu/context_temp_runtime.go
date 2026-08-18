@@ -11,7 +11,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"sync/atomic"
 	"time"
 
 	"github.com/apparentlymart/go-versions/versions"
@@ -29,9 +28,10 @@ import (
 	"github.com/opentofu/opentofu/internal/shared"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/version"
 )
 
-/////////////////////////
+// ///////////////////////
 // The definitions in this file are intended as temporary shims to help support
 // the development of the new runtime engine, by allowing experiments-enabled
 // builds to be opted in to the new implementation by setting the environment
@@ -44,30 +44,9 @@ import (
 // to compile: only those working on the implementation of the new engine are
 // responsible for updating this if the rest of the system evolves to the point
 // of that being necessary.
-/////////////////////////
-
-// SetExperimentalRuntimeAllowed must be called with the argument set to true
-// at some point before calling [New] or [NewWithBackend] in order for the
-// experimental opt-in to be effective.
-//
-// In practice this is called by code in the "command" package early in the
-// backend initialization codepath and enables the experimental runtime only
-// in an experiments-enabled OpenTofu build, to make sure that it's not
-// possible to accidentally enable this experimental functionality in normal
-// release builds.
-//
-// Refer to "cmd/tofu/experiments.go" for information on how to produce an
-// experiments-enabled build.
-func SetExperimentalRuntimeAllowed(allowed bool) {
-	experimentalRuntimeAllowed.Store(allowed)
-}
-
-var experimentalRuntimeAllowed atomic.Bool
-
+// ///////////////////////
 func experimentalRuntimeEnabled() bool {
-	if !experimentalRuntimeAllowed.Load() {
-		// The experimental runtime is never enabled when it hasn't been
-		// explicitly allowed.
+	if !version.IsNightly() && !version.IsDev() {
 		return false
 	}
 

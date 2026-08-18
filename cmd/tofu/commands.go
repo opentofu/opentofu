@@ -92,7 +92,6 @@ func makeMeta(
 			CLIConfigDir:              configDir,
 			PluginCacheDir:            config.PluginCacheDir,
 			GlobalPluginDirs:          globalPluginDirs(),
-			AllowExperimentalFeatures: experimentsAreAllowed(),
 			E2ETestingFeaturesEnabled: e2eTestingFeaturesEnabled(),
 		},
 

@@ -63,6 +63,15 @@ func String() string {
 	return Version
 }
 
+func IsDev() bool {
+	return Prerelease == "dev"
+}
+
+func IsNightly() bool {
+	// Nightlies are technically pre-releases
+	return strings.HasPrefix(Prerelease, "nightly")
+}
+
 // This ONLY represents what features OpenTofu currently intends to support from
 // providers which may change their behavior given a particular TerraformVersion.
 // It explicitly does NOT represent any sort of compatibility promise or guarantee.

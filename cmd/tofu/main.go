@@ -149,9 +149,6 @@ func realMain() int {
 		log.Printf("[WARN] Go runtime FIPS 140-3 mode is enabled; OpenTofu is not supported in this configuration, which may cause undesirable behavior")
 	}
 	log.Printf("[INFO] CLI args: %#v", os.Args)
-	if experimentsAreAllowed() {
-		log.Printf("[INFO] This build of OpenTofu allows using experimental features")
-	}
 
 	// NOTE: We're intentionally calling LoadConfig _before_ handling a possible
 	// -chdir=... option on the command line, so that a possible relative
