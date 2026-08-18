@@ -258,6 +258,7 @@ func TestBcrypt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
+	p, _ = p.Unmark()
 
 	err = bcrypt.CompareHashAndPassword([]byte(p.AsString()), []byte("test"))
 	if err != nil {
@@ -269,6 +270,7 @@ func TestBcrypt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
+	p, _ = p.Unmark()
 
 	err = bcrypt.CompareHashAndPassword([]byte(p.AsString()), []byte("test"))
 	if err != nil {

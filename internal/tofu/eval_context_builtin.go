@@ -12,6 +12,8 @@ import (
 	"sync"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/lang/marks"
+	"github.com/opentofu/opentofu/internal/linting/corelinting"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 
@@ -169,6 +171,8 @@ func (c *BuiltinEvalContext) EvaluateBlock(ctx context.Context, body hcl.Body, s
 	diags = diags.Append(evalDiags)
 	val, evalDiags := scope.EvalBlock(ctx, body, schema)
 	diags = diags.Append(evalDiags)
+	val, lintingInfo := marks.ExtractLintingInformationFromValue(val)
+	diags = diags.Append(corelinting.ImpureFuncs(ctx, body.MissingItemRange(), lintingInfo))
 	return val, body, diags
 }
 

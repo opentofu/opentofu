@@ -14,6 +14,7 @@ var (
 	ruleIDCountInsteadOfEnabled = linting.MustParseRuleAddr("core:count-instead-enabled")
 	ruleIDVariableNotUsed       = linting.MustParseRuleAddr("core:unused-variable")
 	ruleIDLocalNotUsed          = linting.MustParseRuleAddr("core:unused-local")
+	ruleIDImpureFuncUsed        = linting.MustParseRuleAddr("core:impure-func")
 )
 
 // This block below is meant to hold all the "core" namespaced linting **group IDs**.
@@ -23,4 +24,5 @@ var (
 	GroupIDAll         = linting.MustParseRuleAddr("core:all")
 	GroupIDConfusing   = linting.MustParseRuleAddr("core:confusing")
 	GroupIDImprovement = linting.MustParseRuleAddr("core:improvement")
+	GroupIDNoConverge  = linting.MustParseRuleAddr("core:noconverge")
 )
