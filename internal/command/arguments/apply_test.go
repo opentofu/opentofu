@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/collections"
+	"github.com/opentofu/opentofu/internal/linting"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 
 	"github.com/google/go-cmp/cmp"
@@ -30,6 +32,8 @@ func TestParseApply_basicValid(t *testing.T) {
 					ConsolidateWarnings: true,
 					InputEnabled:        true,
 					ViewType:            ViewHuman,
+					LintInclude:         make(collections.Set[linting.RuleAddr]),
+					LintExclude:         make(collections.Set[linting.RuleAddr]),
 				},
 				PlanPath: "",
 				State:    &State{Lock: true},
@@ -49,6 +53,8 @@ func TestParseApply_basicValid(t *testing.T) {
 					ConsolidateWarnings: true,
 					InputEnabled:        false,
 					ViewType:            ViewHuman,
+					LintInclude:         make(collections.Set[linting.RuleAddr]),
+					LintExclude:         make(collections.Set[linting.RuleAddr]),
 				},
 				PlanPath: "saved.tfplan",
 				State:    &State{Lock: true},
@@ -68,6 +74,8 @@ func TestParseApply_basicValid(t *testing.T) {
 					ConsolidateWarnings: true,
 					InputEnabled:        true,
 					ViewType:            ViewHuman,
+					LintInclude:         make(collections.Set[linting.RuleAddr]),
+					LintExclude:         make(collections.Set[linting.RuleAddr]),
 				},
 				PlanPath: "",
 				State:    &State{Lock: true},
@@ -87,6 +95,8 @@ func TestParseApply_basicValid(t *testing.T) {
 					ConsolidateWarnings: true,
 					InputEnabled:        false,
 					ViewType:            ViewJSON,
+					LintInclude:         make(collections.Set[linting.RuleAddr]),
+					LintExclude:         make(collections.Set[linting.RuleAddr]),
 				},
 				PlanPath: "",
 				State:    &State{Lock: true},
@@ -774,6 +784,8 @@ func TestParseApplyDestroy_basicValid(t *testing.T) {
 					ConsolidateWarnings: true,
 					InputEnabled:        true,
 					ViewType:            ViewHuman,
+					LintInclude:         make(collections.Set[linting.RuleAddr]),
+					LintExclude:         make(collections.Set[linting.RuleAddr]),
 				},
 				State: &State{Lock: true},
 				Vars:  &Vars{},
@@ -792,6 +804,8 @@ func TestParseApplyDestroy_basicValid(t *testing.T) {
 					ConsolidateWarnings: true,
 					InputEnabled:        false,
 					ViewType:            ViewHuman,
+					LintInclude:         make(collections.Set[linting.RuleAddr]),
+					LintExclude:         make(collections.Set[linting.RuleAddr]),
 				},
 				State: &State{Lock: true},
 				Vars:  &Vars{},

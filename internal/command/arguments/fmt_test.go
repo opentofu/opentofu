@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/opentofu/opentofu/internal/collections"
+	"github.com/opentofu/opentofu/internal/linting"
 )
 
 func TestParseFmt_basicValidation(t *testing.T) {
@@ -110,6 +112,8 @@ func fmtArgsWithDefaults(mutate func(v *Fmt)) *Fmt {
 			ViewType:            ViewHuman,
 			InputEnabled:        false,
 			JSONInto:            nil,
+			LintInclude:         make(collections.Set[linting.RuleAddr]),
+			LintExclude:         make(collections.Set[linting.RuleAddr]),
 		},
 	}
 	if mutate != nil {
