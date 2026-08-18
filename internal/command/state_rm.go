@@ -19,8 +19,9 @@ import (
 
 func StateRmCommander() Command {
 	cmd := Command{
-		Name:  "rm",
-		Short: "Remove instances from the state",
+		Name:    "rm",
+		Aliases: []string{"remove"},
+		Short:   "Remove instances from the state",
 		Long: `Remove one or more items from the OpenTofu state, causing OpenTofu to "forget" those items without first destroying them in the remote system.
 
 This command removes one or more resource instances from the OpenTofu state based on the addresses given. You can view and list the available instances with "tofu state list".

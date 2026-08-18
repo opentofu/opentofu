@@ -20,8 +20,9 @@ import (
 
 func StateListCommander() Command {
 	cmd := Command{
-		Name:  "list",
-		Short: "List resources in the state",
+		Name:    "list",
+		Aliases: []string{"ls"},
+		Short:   "List resources in the state",
 		Long: `List resources in the OpenTofu state.
 
 This command lists resource instances in the OpenTofu state. The address argument can be used to filter the instances by resource or module. If no pattern is given, all resource instances are listed.

@@ -141,6 +141,7 @@ func commandMain(
 func commandToCli(namespace string, cmd command.Command, meta func() (command.Meta, int)) *cli.Command {
 	cc := &cli.Command{
 		Name:        cmd.Name,
+		Aliases:     cmd.Aliases,
 		Description: cmd.Short,
 	}
 

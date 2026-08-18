@@ -22,8 +22,9 @@ import (
 
 func StateMvCommander() Command {
 	cmd := Command{
-		Name:  "mv",
-		Short: "Move an item in the state",
+		Name:    "mv",
+		Aliases: []string{"move"},
+		Short:   "Move an item in the state",
 		Long: `This command will move an item matched by the address given to the destination address. This command can also move to a destination address in a completely different state file.
 
 This can be used for simple resource renaming, moving items to and from a module, moving entire modules, and more. And because this command can also move data to a completely new state, it can also be used for refactoring one configuration into multiple separately managed OpenTofu configurations.

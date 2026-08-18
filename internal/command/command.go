@@ -99,7 +99,8 @@ var (
 // Command is the metadata and action associated with a command available to the CLI.
 // This is eventually translated into a parsable/runnable CLI in cmd/tofu.
 type Command struct {
-	Name string
+	Name    string
+	Aliases []string
 	// Short is the text that accompanies it in the parent command's help text.
 	Short string
 	// Long is the full description that is printed as part of the command's help text.
