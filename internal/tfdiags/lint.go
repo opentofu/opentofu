@@ -190,6 +190,9 @@ func (lrcv *lintingRulesCtxValue) executeRule(execKey string, f func() Diagnosti
 		return nil
 	}
 	diags := f()
+	if hasSkipDiagnostic(diags) {
+		return nil
+	}
 	if !diags.HasErrors() {
 		// safe to set this here since the lock was acquired when this was created, before being stored into the
 		// status container
@@ -301,4 +304,29 @@ func LintRuleEnabled(ctx context.Context, ruleID linting.RuleAddr, groupIDs ...l
 func isLint(diag Diagnostic) bool {
 	_, ok := diag.(lintMessage)
 	return ok
+}
+
+var _ Diagnostic = &skipLintingExecution{}
+
+type skipLintingExecution struct {
+	diagnosticBase
+}
+
+// SkipLintingExecution is just a sentinel diagnostic that is never meant to end up in the rendering layer.
+// This is used only as a signal by the existing linting rules implementation to skip recording the execution
+// of the linting logic.
+// This is useful when the information that came into the linting rule execution is not enough to reliably determine
+// if there is an actual issue or not.
+func SkipLintingExecution() Diagnostic {
+	return &skipLintingExecution{}
+}
+
+// hasSkipDiagnostic checks if the given Diagnostics contains at least one skipLintingExecution.
+func hasSkipDiagnostic(diags Diagnostics) bool {
+	for _, diag := range diags {
+		if _, ok := diag.(*skipLintingExecution); ok {
+			return true
+		}
+	}
+	return false
 }

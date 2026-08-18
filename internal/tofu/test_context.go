@@ -141,6 +141,8 @@ func (tc *TestContext) evaluate(state *states.SyncState, changes *plans.ChangesS
 		runVal, deprDiags := marks.ExtractDeprecatedDiagnosticsWithExpr(runVal, rule.Condition)
 		diags = diags.Append(deprDiags)
 
+		runVal = marks.DropLintingMarks(runVal)
+
 		run.Diagnostics = run.Diagnostics.Append(diags)
 		if diags.HasErrors() {
 			run.Status = run.Status.Merge(moduletest.Error)

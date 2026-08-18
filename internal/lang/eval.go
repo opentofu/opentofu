@@ -212,6 +212,7 @@ func (s *Scope) EvalExpr(ctx context.Context, expr hcl.Expression, wantType cty.
 
 	val, depDiags := marks.ExtractDeprecatedDiagnosticsWithExpr(val, expr)
 	diags = diags.Append(depDiags)
+	val = marks.DropLintingMarks(val)
 
 	return val, diags
 }
