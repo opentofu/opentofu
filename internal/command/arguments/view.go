@@ -124,7 +124,7 @@ func BindView(cli *CommandLine, mask viewFlag) *View {
 				diags = diags.Append(tfdiags.Sourceless(
 					tfdiags.Error,
 					"Invalid argument",
-					fmt.Sprintf("Expected -deprecation prefix %q, got %q", prefix, deprecation),
+					fmt.Sprintf("Expected -deprecation prefix %q, got %q", prefix, s),
 				))
 				continue
 			}
