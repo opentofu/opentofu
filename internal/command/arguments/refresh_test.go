@@ -12,7 +12,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -443,21 +442,21 @@ func TestParseRefresh_excludeAndTarget(t *testing.T) {
 func TestParseRefresh_vars(t *testing.T) {
 	testCases := map[string]struct {
 		args []string
-		want []flags.RawFlag
+		want Vars
 	}{
 		"no var flags by default": {
 			args: nil,
-			want: nil,
+			want: Vars{},
 		},
 		"one var": {
 			args: []string{"-var", "foo=bar"},
-			want: []flags.RawFlag{
+			want: Vars{
 				{Name: "-var", Value: "foo=bar"},
 			},
 		},
 		"one var-file": {
 			args: []string{"-var-file", "cool.tfvars"},
-			want: []flags.RawFlag{
+			want: Vars{
 				{Name: "-var-file", Value: "cool.tfvars"},
 			},
 		},
@@ -467,7 +466,7 @@ func TestParseRefresh_vars(t *testing.T) {
 				"-var-file", "cool.tfvars",
 				"-var", "boop=beep",
 			},
-			want: []flags.RawFlag{
+			want: Vars{
 				{Name: "-var", Value: "foo=bar"},
 				{Name: "-var-file", Value: "cool.tfvars"},
 				{Name: "-var", Value: "boop=beep"},

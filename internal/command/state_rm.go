@@ -53,10 +53,6 @@ func (c StateRmCommand) Execute(args *arguments.StateRm, view views.State) int {
 
 	ctx := c.CommandContext()
 
-	c.Meta.variableArgs = args.Vars.All()
-	c.Meta.stateArgs = *args.State
-	c.Meta.backendArgs = *args.Backend
-
 	if diags := c.Meta.checkRequiredVersion(ctx); diags != nil {
 		view.Diagnostics(diags)
 		return 1

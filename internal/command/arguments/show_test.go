@@ -11,7 +11,6 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -102,8 +101,6 @@ func TestParseShow_valid(t *testing.T) {
 		},
 	}
 
-	cmpOpts := cmpopts.IgnoreUnexported(Operation{}, Vars{}, State{})
-
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			got, _, diags := ParseShow(tc.args)
@@ -111,7 +108,7 @@ func TestParseShow_valid(t *testing.T) {
 			if len(diags) > 0 {
 				t.Fatalf("unexpected diags: %v", diags)
 			}
-			if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
+			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("unexpected result\n%s", diff)
 			}
 		})
@@ -308,13 +305,11 @@ func TestParseShow_invalid(t *testing.T) {
 		},
 	}
 
-	cmpOpts := cmpopts.IgnoreUnexported(Operation{}, Vars{}, State{})
-
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			got, _, gotDiags := ParseShow(tc.args)
 			got.Vars = nil
-			if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
+			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("unexpected result\n%s", diff)
 			}
 			if !reflect.DeepEqual(gotDiags, tc.wantDiags) {

@@ -347,6 +347,26 @@ func RunCli(namespace string, cmd Command, meta Meta, diags tfdiags.Diagnostics)
 	// continue to mutate the Meta object state for now.
 	meta.input = cmd.CommandLine.View.InputEnabled
 
+	if cmd.CommandLine.State != nil {
+		meta.stateArgs = *cmd.CommandLine.State
+	}
+	if cmd.CommandLine.Backend != nil {
+		meta.backendArgs = *cmd.CommandLine.Backend
+	}
+	if cmd.CommandLine.Operation != nil {
+		// FIXME: the -parallelism flag is used to control the concurrency of
+		// OpenTofu operations. At the moment, this value is used both to
+		// initialize the backend via the ContextOpts field inside CLIOpts, and to
+		// set a largely unused field on the Operation request. Again, there is no
+		// clear path to pass this value down, so we continue to mutate the Meta
+		// object state for now.
+		meta.parallelism = cmd.CommandLine.Operation.Parallelism
+	}
+	if cmd.CommandLine.Vars != nil {
+		// Inject variables from args into meta for static evaluation
+		meta.variableArgs = cmd.CommandLine.Vars.All()
+	}
+
 	return cmd.Run(meta)
 }
 

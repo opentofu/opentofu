@@ -85,7 +85,7 @@ func TestParseStateRm_basicValidation(t *testing.T) {
 				stateRm.State.LockTimeout = 15 * time.Second
 				stateRm.State.Lock = true
 				stateRm.TargetAddrs = []string{"resource.foo", "resource.bar"}
-				// Vars would be updated, but we ignore it in cmp
+				stateRm.Vars = &Vars{{Name: "-var", Value: "key=value"}}
 			}),
 		},
 		"no arguments": {
@@ -96,7 +96,6 @@ func TestParseStateRm_basicValidation(t *testing.T) {
 	}
 
 	cmpOpts := cmp.Options{
-		cmpopts.IgnoreUnexported(Vars{}, State{}),
 		cmpopts.IgnoreFields(View{}, "JSONInto"), // We ignore JSONInto because it contains a file which is not really diffable
 	}
 

@@ -46,8 +46,6 @@ func (c WorkspaceListCommand) Execute(args *arguments.WorkspaceList, view views.
 
 	ctx := c.CommandContext()
 
-	c.Meta.variableArgs = args.Vars.All()
-
 	view.WarnWhenUsedAsEnvCmd(c.LegacyName)
 
 	configPath := c.WorkingDir.NormalizePath(c.WorkingDir.RootModuleDir())

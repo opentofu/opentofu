@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 func TestParseProvidersSchema_basicValidation(t *testing.T) {
@@ -62,16 +61,12 @@ func TestParseProvidersSchema_basicValidation(t *testing.T) {
 		},
 	}
 
-	cmpOpts := cmp.Options{
-		cmpopts.IgnoreUnexported(Vars{}),
-	}
-
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			got, closer, diags := ParseProvidersSchema(tc.args)
 			defer closer()
 
-			if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
+			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("unexpected result\n%s", diff)
 			}
 

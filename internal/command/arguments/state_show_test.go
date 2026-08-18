@@ -50,7 +50,7 @@ func TestParseStateShow_basicValidation(t *testing.T) {
 				stateShow.View.ShowSensitive = true
 				stateShow.State.StatePath = "/path/to/state.tfstate"
 				stateShow.TargetRawAddr = "resource_address"
-				// Vars would be updated, but we ignore it in cmp
+				stateShow.Vars = &Vars{{Name: "-var", Value: "key=value"}}
 			}),
 		},
 		"no arguments": {
@@ -75,7 +75,6 @@ func TestParseStateShow_basicValidation(t *testing.T) {
 	}
 
 	cmpOpts := cmp.Options{
-		cmpopts.IgnoreUnexported(Vars{}),
 		cmpopts.IgnoreFields(View{}, "JSONInto"), // We ignore JSONInto because it contains a file which is not really diffable
 	}
 

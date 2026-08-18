@@ -49,9 +49,6 @@ func (c WorkspaceDeleteCommand) Execute(args *arguments.WorkspaceDelete, view vi
 	var diags tfdiags.Diagnostics
 	ctx := c.CommandContext()
 
-	c.Meta.variableArgs = args.Vars.All()
-	c.Meta.stateArgs = *args.State
-
 	view.WarnWhenUsedAsEnvCmd(c.LegacyName)
 
 	configPath := c.WorkingDir.NormalizePath(c.WorkingDir.RootModuleDir())
