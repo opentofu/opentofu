@@ -391,7 +391,7 @@ func (m *Meta) configLoader() configload.Loader {
 	if m.cfgLoader == nil {
 		loader := configload.NewLazy(&configload.Config{
 			ModulesDir:               m.WorkingDir.ModulesDir(),
-			AllowLanguageExperiments: m.SystemCfg.AllowExperimentalFeatures,
+			AllowLanguageExperiments: true, // Experiments are allowed in all OpenTofu builds
 		})
 		m.cfgLoader = loader
 		if m.View != nil {

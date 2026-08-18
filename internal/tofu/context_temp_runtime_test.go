@@ -28,11 +28,6 @@ func maybeRunExperimentalNewRuntimeTests(m *testing.M) {
 		return // we'll just let the normal TestMain function handle things, then
 	}
 
-	// In normal builds we require setting a special linker flag to permit
-	// opting in to the experimental runtime shim, but for tests it's always
-	// allowed and just enabled on request.
-	SetExperimentalRuntimeAllowed(true)
-
 	status := m.Run()
 
 	// Before we exit we'll print some stats about how many times each of

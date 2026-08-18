@@ -21,11 +21,12 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/version"
 	"github.com/zclconf/go-cty/cty"
 )
 
 func (m *Meta) NewRuntimeEnabled() bool {
-	if !m.SystemCfg.AllowExperimentalFeatures {
+	if !version.IsNightly() && !version.IsDev() {
 		return false
 	}
 	optIn := os.Getenv("TOFU_X_EXPERIMENTAL_RUNTIME")

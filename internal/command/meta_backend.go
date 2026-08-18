@@ -109,16 +109,6 @@ func (m *Meta) Backend(ctx context.Context, opts *BackendOpts, enc encryption.St
 		opts = &BackendOpts{}
 	}
 
-	if m.SystemCfg.AllowExperimentalFeatures {
-		// TEMP: While we're in early development of the new language runtime
-		// we have an experimental shim to enable it using an environment
-		// variable, but that's allowed only in builds where experimental
-		// features are enabled. Refer to the file containing the following
-		// function for more information. This should be completely removed
-		// once the experiment is concluded.
-		tofu.SetExperimentalRuntimeAllowed(true)
-	}
-
 	// Initialize a backend from the config unless we're forcing a purely
 	// local operation.
 	var b backend.Backend
@@ -330,16 +320,6 @@ func (m *Meta) selectWorkspace(ctx context.Context, b backend.Backend) error {
 // and produce error diagnostics if not.
 func (m *Meta) BackendForLocalPlan(ctx context.Context, settings plans.Backend, enc encryption.StateEncryption) (backend.Enhanced, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-
-	if m.SystemCfg.AllowExperimentalFeatures {
-		// TEMP: While we're in early development of the new language runtime
-		// we have an experimental shim to enable it using an environment
-		// variable, but that's allowed only in builds where experimental
-		// features are enabled. Refer to the file containing the following
-		// function for more information. This should be completely removed
-		// once the experiment is concluded.
-		tofu.SetExperimentalRuntimeAllowed(true)
-	}
 
 	f, canonType := backendInit.Backend(settings.Type)
 	if f == nil {
