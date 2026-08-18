@@ -92,16 +92,18 @@ func (m *Meta) loadSingleModule(ctx context.Context, dir string, load configs.Se
 		return module, diags
 	}
 
-	fDiags := module.Finalize(symlib.EmptyTable, call)
-	if fDiags.HasErrors() {
+	if module != nil && len(module.SymbolCalls) > 0 {
 		// Hack for symbol libraries
+		// Full config load to include libraries given the poor state of config builder
 		config, cDiags := m.loadConfig(ctx, dir)
-		if !cDiags.HasErrors() {
-			diags = diags.Append(cDiags)
-			return config.Module, diags
+		diags = diags.Append(cDiags)
+		if config != nil {
+			module = config.Module
 		}
+	} else {
+		fDiags := module.Finalize(symlib.EmptyTable, call)
+		diags = diags.Append(fDiags)
 	}
-	diags = diags.Append(fDiags)
 
 	return module, diags
 }
@@ -187,16 +189,18 @@ func (m *Meta) loadSingleModuleWithTests(ctx context.Context, dir string, testDi
 	module, hclDiags := m.configLoader().LoadConfigDirWithTests(dir, testDir)
 	diags = diags.Append(hclDiags)
 
-	fDiags := module.Finalize(symlib.EmptyTable, call)
-	if fDiags.HasErrors() {
+	if module != nil && len(module.SymbolCalls) > 0 {
 		// Hack for symbol libraries
+		// Full config load to include libraries given the poor state of config builder
 		config, cDiags := m.loadConfig(ctx, dir)
-		if !cDiags.HasErrors() {
-			diags = diags.Append(cDiags)
-			return config.Module, diags
+		diags = diags.Append(cDiags)
+		if config != nil {
+			module = config.Module
 		}
+	} else {
+		fDiags := module.Finalize(symlib.EmptyTable, call)
+		diags = diags.Append(fDiags)
 	}
-	diags = diags.Append(fDiags)
 
 	return module, diags
 }

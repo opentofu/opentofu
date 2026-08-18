@@ -138,8 +138,10 @@ func (s SelectiveLoader) filter(input []*File) []*File {
 	out := make([]*File, len(input))
 	for i, inFile := range input {
 		outFile := &File{
-			Variables: inFile.Variables,
-			Locals:    inFile.Locals,
+			// Required for symbols + static eval
+			Variables:   inFile.Variables,
+			Locals:      inFile.Locals,
+			SymbolCalls: inFile.SymbolCalls,
 		}
 
 		switch s {

@@ -65,6 +65,7 @@ type SymbolFile struct {
 	Functions   []*Function
 	TypeDefs    []*TypeDef
 	SymbolCalls []*SymbolCall
+	Languages   []*Language
 }
 
 func LoadSymbolFile(body hcl.Body) (*SymbolFile, hcl.Diagnostics) {
@@ -100,6 +101,12 @@ func LoadSymbolFile(body hcl.Body) (*SymbolFile, hcl.Diagnostics) {
 			if cfg != nil {
 				file.SymbolCalls = append(file.SymbolCalls, cfg)
 			}
+		case "language":
+			cfg, cfgDiags := decodeLanguageBlock(block)
+			diags = append(diags, cfgDiags...)
+			if cfg != nil {
+				file.Languages = append(file.Languages, cfg)
+			}
 		default:
 			// Should never happen because the above cases should be exhaustive
 			// for all block type names in our schema.
@@ -127,6 +134,9 @@ var symbolFileSchema = &hcl.BodySchema{
 		{
 			Type:       "symbols",
 			LabelNames: []string{"name"},
+		},
+		{
+			Type: "language",
 		},
 	},
 }

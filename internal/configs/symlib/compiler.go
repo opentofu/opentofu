@@ -137,6 +137,7 @@ func CompileLibrary(files []*SymbolFile, loader Loader, builtinFuncs map[string]
 	values := map[string]valuer[cty.Value]{}
 	functions := map[string]valuer[function.Function]{}
 	types := map[string]valuer[typeWithDefault]{}
+	var language *Language
 	comp := compiler{requests: map[workgraph.RequestID]ident{}}
 
 	exprContext := func(w *workgraph.Worker, expr hcl.Expression, additional hclValLookup) (*hcl.EvalContext, hcl.Diagnostics) {
@@ -327,6 +328,28 @@ func CompileLibrary(files []*SymbolFile, loader Loader, builtinFuncs map[string]
 			id := ident{name: o.Name, src: &o.DeclRange}
 			functions[o.Name] = onceValuer(comp, id, func(w *workgraph.Worker) (function.Function, hcl.Diagnostics) {
 				return o.Compile(w, typeContext, exprContext)
+			})
+		}
+		for _, o := range file.Languages {
+			if language != nil {
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Duplicate language block",
+					Detail:   "Only a single language block is allowed per symbol library",
+					Subject:  &o.DeclRange,
+				})
+			}
+			language = o
+		}
+	}
+
+	if language != nil {
+		if language.Edition != "experimental2026" {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid langauge edition",
+				Detail:   "The only valid symbol library language edition is \"experimental2026\"",
+				Subject:  &language.DeclRange,
 			})
 		}
 	}
