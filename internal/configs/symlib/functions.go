@@ -74,7 +74,6 @@ func decodeFunctionBlock(block *hcl.Block) (*Function, hcl.Diagnostics) {
 
 				AllowUnknown: true,
 				AllowNull:    true,
-				//AllowMarked?
 			}
 			if !hclsyntax.ValidIdentifier(param.Name) {
 				diags = append(diags, &hcl.Diagnostic{
@@ -164,17 +163,15 @@ func decodeFunctionBlock(block *hcl.Block) (*Function, hcl.Diagnostics) {
 	return fn, diags
 }
 
-func (fn *Function) Compile(w *workgraph.Worker,
-	typeContext func(w *workgraph.Worker) typeexpr.TypeContext,
-	exprContext func(w *workgraph.Worker, expr hcl.Expression, additional hclValLookup) (*hcl.EvalContext, hcl.Diagnostics),
-) (function.Function, hcl.Diagnostics) {
+// TODO make this work in terms of scope
+func (fn *Function) Compile(w *workgraph.Worker, libScope *symbolScope) (function.Function, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
 	spec := &function.Spec{
 		Description: fn.Description,
 	}
 
-	typeCtx := typeContext(w)
+	typeCtx := typeContext(w, libScope)
 
 	returnType := cty.DynamicPseudoType
 	if fn.ReturnType != nil {
@@ -194,6 +191,7 @@ func (fn *Function) Compile(w *workgraph.Worker,
 			Type:         cty.DynamicPseudoType,
 			AllowNull:    param.AllowNull,
 			AllowUnknown: param.AllowUnknown,
+			AllowMarked:  true,
 		}
 
 		validations[fnp.Name] = param.Validations
@@ -223,46 +221,30 @@ func (fn *Function) Compile(w *workgraph.Worker,
 
 		w := workgraph.NewWorker()
 
-		paramEntries := map[string]hcl.Expression{}
+		paramEntries := map[string]cty.Value{}
 		for i, arg := range args[:len(spec.Params)] {
 			param := spec.Params[i]
 
 			if defaults[param.Name] != nil && !arg.IsNull() {
 				arg = defaults[param.Name].Apply(arg)
 			}
-			paramEntries[param.Name] = &hclsyntax.LiteralValueExpr{Val: arg}
+			paramEntries[param.Name] = arg
 		}
 		if spec.VarParam != nil {
-			// TODO defaults + validations
 			if len(spec.Params) != len(args) {
-				paramEntries[spec.VarParam.Name] = &hclsyntax.LiteralValueExpr{Val: cty.ListVal(args[len(spec.Params):])}
+				paramEntries[spec.VarParam.Name] = cty.ListVal(args[len(spec.Params):])
 			} else {
-				paramEntries[spec.VarParam.Name] = &hclsyntax.LiteralValueExpr{Val: cty.ListValEmpty(spec.VarParam.Type)}
+				paramEntries[spec.VarParam.Name] = cty.ListValEmpty(spec.VarParam.Type)
 			}
 		}
 
-		var paramLookup hclValLookup
-		paramLookup = func(w *workgraph.Worker, root string, attr string, rng hcl.Range) (cty.Value, hcl.Diagnostics) {
-			if root != "param" {
-				return cty.NilVal, nil
-			}
-			expr, ok := paramEntries[attr]
-			if !ok {
-				// TODO better error handling
-				return cty.NilVal, nil
-			}
-			hclCtx, diags := exprContext(w, expr, paramLookup)
-			if diags.HasErrors() {
-				return cty.NilVal, diags
-			}
-			return expr.Value(hclCtx)
-		}
+		funcScope := newFunctionScope(libScope, fn.Name, paramEntries)
 
 		for i := range args[:len(spec.Params)] {
 			param := spec.Params[i]
 
 			for _, validation := range validations[param.Name] {
-				hclCtx, hDiags := exprContext(w, validation.Condition, paramLookup)
+				hclCtx, hDiags := hclContext(w, funcScope, validation.Condition)
 				diags = diags.Extend(hDiags)
 				if hDiags.HasErrors() {
 					continue
@@ -276,7 +258,7 @@ func (fn *Function) Compile(w *workgraph.Worker,
 				}
 
 				if condVal.IsKnown() && condVal.False() {
-					hclCtx, hDiags := exprContext(w, validation.ErrorMessage, paramLookup)
+					hclCtx, hDiags := hclContext(w, funcScope, validation.ErrorMessage)
 					diags = diags.Extend(hDiags)
 
 					msgVal, mDiags := validation.ErrorMessage.Value(hclCtx)
@@ -297,24 +279,22 @@ func (fn *Function) Compile(w *workgraph.Worker,
 			}
 		}
 
-		var varLookup hclValLookup
-		varLookup = func(w *workgraph.Worker, root string, attr string, rng hcl.Range) (cty.Value, hcl.Diagnostics) {
-			if root != "local" {
-				return paramLookup(w, root, attr, rng)
-			}
-			expr, ok := fn.Locals[attr]
-			if !ok {
-				// TODO better error handling
-				return cty.NilVal, nil
-			}
-			hclCtx, diags := exprContext(w, expr, varLookup)
-			if diags.HasErrors() {
-				return cty.NilVal, diags
-			}
-			return expr.Value(hclCtx)
+		// Now that parameters have been processed, we can add locals
+		funcScope.locals = map[string]valuer[cty.Value]{}
+		for name, expr := range fn.Locals {
+			id := ident{name: "local." + name, src: expr.Range().Ptr()}
+			funcScope.locals[name] = onceValuer[cty.Value](funcScope.symbolScope, id, func(w *workgraph.Worker) (cty.Value, hcl.Diagnostics) {
+				hclCtx, diags := hclContext(w, funcScope, expr)
+				if diags.HasErrors() {
+					return cty.NilVal, diags
+				}
+				val, vDiags := expr.Value(hclCtx)
+				diags = diags.Extend(vDiags)
+				return val, diags
+			})
 		}
 
-		hclCtx, hDiags := exprContext(w, fn.Return, varLookup)
+		hclCtx, hDiags := hclContext(w, funcScope, fn.Return)
 		diags = diags.Extend(hDiags)
 
 		val, vDiags := fn.Return.Value(hclCtx)

@@ -60,17 +60,17 @@ func (l Library) value() cty.Value {
 	return cty.ObjectVal(l.values)
 }
 
-func (l Library) function(name string, rng hcl.Range) (function.Function, hcl.Diagnostics) {
+func (l Library) function(name string, rng hcl.Range) (*function.Function, hcl.Diagnostics) {
 	fn, ok := l.functions[name]
 	if !ok {
-		return function.Function{}, hcl.Diagnostics{{
+		return nil, hcl.Diagnostics{{
 			Severity: hcl.DiagError,
 			Summary:  "Missing function",
 			Detail:   fmt.Sprintf("Function %s not defined in symbol library %s", name, l.name),
 			Subject:  rng.Ptr(),
 		}}
 	}
-	return fn, nil
+	return &fn, nil
 }
 
 type Table map[string]*Library
@@ -133,10 +133,10 @@ func (t Table) Values() map[string]cty.Value {
 	return values
 }
 
-func (t Table) Function(ref FunctionRef) (function.Function, hcl.Diagnostics) {
+func (t Table) Function(ref FunctionRef) (*function.Function, hcl.Diagnostics) {
 	lib, diags := t.library(ref.Namespace, ref.Range)
 	if diags.HasErrors() {
-		return function.Function{}, diags
+		return nil, diags
 	}
 	return lib.function(ref.Name, ref.Range)
 }

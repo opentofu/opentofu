@@ -14,7 +14,6 @@ import (
 
 	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/ext/typeexpr"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 )
@@ -33,7 +32,7 @@ type valuer[T any] struct {
 	Ident ident
 }
 
-func onceValuer[V any](comp compiler, id ident, fn func(*workgraph.Worker) (V, hcl.Diagnostics)) valuer[V] {
+func onceValuer[V any](s *symbolScope, id ident, fn func(*workgraph.Worker) (V, hcl.Diagnostics)) valuer[V] {
 	var mu sync.Mutex
 	type T struct {
 		value V
@@ -48,7 +47,7 @@ func onceValuer[V any](comp compiler, id ident, fn func(*workgraph.Worker) (V, h
 		mu.Lock()
 		if needsSetup {
 			resolver, promise = workgraph.NewRequest[T](w)
-			comp.requests[resolver.RequestID()] = id
+			s.requests[resolver.RequestID()] = id
 
 			workgraph.WithNewAsyncWorker(func(w *workgraph.Worker) {
 				val, diags := fn(w)
@@ -65,7 +64,7 @@ func onceValuer[V any](comp compiler, id ident, fn func(*workgraph.Worker) (V, h
 				reqDescs := make([]string, 0)
 				for _, reqID := range selfDep.RequestIDs {
 					desc := "<unknown object> (failing to report this is a bug in OpenTofu)"
-					if info, ok := comp.requests[reqID]; ok {
+					if info, ok := s.requests[reqID]; ok {
 						if info.src != nil {
 							desc = fmt.Sprintf("%s (%s)", info.name, info.src)
 						} else {
@@ -134,154 +133,12 @@ func CompileLibrary(files []*SymbolFile, loader Loader, builtinFuncs map[string]
 		return nil, diags
 	}
 
-	values := map[string]valuer[cty.Value]{}
-	functions := map[string]valuer[function.Function]{}
-	types := map[string]valuer[typeWithDefault]{}
+	libScope := newSymbolScope(table, builtinFuncs)
 	var language *Language
-	comp := compiler{requests: map[workgraph.RequestID]ident{}}
-
-	exprContext := func(w *workgraph.Worker, expr hcl.Expression, additional hclValLookup) (*hcl.EvalContext, hcl.Diagnostics) {
-		var diags hcl.Diagnostics
-		hclCtx := &hcl.EvalContext{}
-
-		variables := map[string]map[string]cty.Value{}
-		for _, trav := range expr.Variables() {
-			if len(trav) < 2 {
-				continue
-			}
-			root, ok := trav[0].(hcl.TraverseRoot)
-			if !ok {
-				continue
-			}
-			attr, ok := trav[1].(hcl.TraverseAttr)
-			if !ok {
-				continue
-			}
-			var value cty.Value
-			var vDiags hcl.Diagnostics
-			if root.Name == TypeSymbols {
-				if _, ok = variables[TypeSymbols][attr.Name]; ok {
-					// Already Added
-					continue
-				}
-				value, vDiags = table.Value(ValueRef{
-					Namespace: attr.Name,
-					Range:     trav.SourceRange(),
-				})
-			} else if root.Name == "value" {
-				found, ok := values[attr.Name]
-				if !ok {
-					diags = diags.Append(&hcl.Diagnostic{
-						Summary: "Missing value",
-						Detail:  fmt.Sprintf("Value %s not defined in symbol library", attr.Name),
-						Subject: trav.SourceRange().Ptr(),
-					})
-					continue
-				}
-				value, vDiags = found.Value(w)
-			} else if additional != nil {
-				// TODO integrate these into workgraph to detect loops
-				value, vDiags = additional(w, root.Name, attr.Name, trav.SourceRange())
-			} else {
-				continue
-			}
-			diags = diags.Extend(vDiags)
-			if value != cty.NilVal {
-				if variables[root.Name] == nil {
-					variables[root.Name] = map[string]cty.Value{}
-				}
-				variables[root.Name][attr.Name] = value
-			}
-		}
-
-		hclCtx.Variables = map[string]cty.Value{}
-		for name, entries := range variables {
-			hclCtx.Variables[name] = cty.ObjectVal(entries)
-		}
-
-		hclCtx.Functions = map[string]function.Function{}
-		if fexpr, ok := expr.(hcl.ExpressionWithFunctions); ok {
-			for _, fn := range fexpr.Functions() {
-				root := fn[0].(hcl.TraverseRoot)
-				sp := strings.Split(root.Name, "::")
-				if sp[0] != TypeSymbols {
-					continue
-				}
-				switch len(sp) {
-				case 2:
-					name := sp[1]
-					found, ok := functions[name]
-					if !ok {
-						diags = diags.Append(&hcl.Diagnostic{
-							Summary: "Missing function",
-							Detail:  fmt.Sprintf("Function %s not defined in symbol library", name),
-							Subject: fn.SourceRange().Ptr(),
-						})
-						continue
-					}
-					val, vDiags := found.Value(w)
-					diags = diags.Extend(vDiags)
-					hclCtx.Functions[root.Name] = val
-				case 3:
-					val, vDiags := table.Function(FunctionRef{
-						Namespace: sp[1],
-						Name:      sp[2],
-					})
-					diags = diags.Extend(vDiags)
-					hclCtx.Functions[root.Name] = val
-				default:
-					diags = diags.Append(&hcl.Diagnostic{
-						Summary: "Invalid function call structure",
-						Detail:  "Expected symbol function call of the form symbols::namespace::name()",
-						Subject: fn.SourceRange().Ptr(),
-					})
-				}
-			}
-		}
-
-		maps.Copy(hclCtx.Functions, builtinFuncs)
-
-		return hclCtx, diags
-	}
-
-	typeContext := func(w *workgraph.Worker) typeexpr.TypeContext {
-		return typeexpr.TypeContext{TypeFunc: func(call *hcl.StaticCall) (*cty.Type, *typeexpr.Defaults, hcl.Diagnostics) {
-			split := strings.Split(call.Name, "::")
-			if split[0] != TypeSymbols {
-				return nil, nil, nil
-			}
-
-			switch len(split) {
-			case 2:
-				found, ok := types[split[1]]
-				if !ok {
-					return &cty.NilType, nil, hcl.Diagnostics{{
-						Summary: "Missing type",
-						Detail:  fmt.Sprintf("Type %s not defined in symbol library", split[1]),
-						Subject: call.NameRange.Ptr(),
-					}}
-				}
-				val, diags := found.Value(w)
-				if diags.HasErrors() {
-					return &cty.DynamicPseudoType, nil, diags
-				}
-				return &(val.ty), val.def, diags
-			case 3:
-				ty, def, diags := table.Type(TypeRef{
-					Namespace: split[1],
-					Name:      split[2],
-					Range:     call.NameRange,
-				})
-				return &ty, def, diags
-			default:
-				return nil, nil, nil
-			}
-		}}
-	}
 
 	for _, file := range files {
 		for _, o := range file.Consts {
-			if existing, exists := values[o.Name]; exists {
+			if existing, exists := libScope.values[o.Name]; exists {
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Duplicate values definition",
@@ -290,8 +147,8 @@ func CompileLibrary(files []*SymbolFile, loader Loader, builtinFuncs map[string]
 				})
 			}
 			id := ident{name: o.Name, src: &o.DeclRange}
-			values[o.Name] = onceValuer[cty.Value](comp, id, func(w *workgraph.Worker) (cty.Value, hcl.Diagnostics) {
-				hclCtx, diags := exprContext(w, o.Expr, nil)
+			libScope.values[o.Name] = onceValuer[cty.Value](libScope, id, func(w *workgraph.Worker) (cty.Value, hcl.Diagnostics) {
+				hclCtx, diags := hclContext(w, libScope, o.Expr)
 				if diags.HasErrors() {
 					return cty.NilVal, diags
 				}
@@ -301,7 +158,7 @@ func CompileLibrary(files []*SymbolFile, loader Loader, builtinFuncs map[string]
 			})
 		}
 		for _, o := range file.TypeDefs {
-			if existing, exists := types[o.Name]; exists {
+			if existing, exists := libScope.types[o.Name]; exists {
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Duplicate typedef definition",
@@ -310,14 +167,14 @@ func CompileLibrary(files []*SymbolFile, loader Loader, builtinFuncs map[string]
 				})
 			}
 			id := ident{name: o.Name, src: &o.DeclRange}
-			types[o.Name] = onceValuer(comp, id, func(w *workgraph.Worker) (typeWithDefault, hcl.Diagnostics) {
-				typeCtx := typeContext(w)
+			libScope.types[o.Name] = onceValuer(libScope, id, func(w *workgraph.Worker) (typeWithDefault, hcl.Diagnostics) {
+				typeCtx := typeContext(w, libScope)
 				varType, typeDefault, diags := typeCtx.TypeConstraintWithDefaults(o.TypeExpr)
 				return typeWithDefault{varType, typeDefault}, diags
 			})
 		}
 		for _, o := range file.Functions {
-			if existing, exists := functions[o.Name]; exists {
+			if existing, exists := libScope.functions[o.Name]; exists {
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Duplicate function definition",
@@ -326,8 +183,8 @@ func CompileLibrary(files []*SymbolFile, loader Loader, builtinFuncs map[string]
 				})
 			}
 			id := ident{name: o.Name, src: &o.DeclRange}
-			functions[o.Name] = onceValuer(comp, id, func(w *workgraph.Worker) (function.Function, hcl.Diagnostics) {
-				return o.Compile(w, typeContext, exprContext)
+			libScope.functions[o.Name] = onceValuer(libScope, id, func(w *workgraph.Worker) (function.Function, hcl.Diagnostics) {
+				return o.Compile(w, libScope)
 			})
 		}
 		for _, o := range file.Languages {
@@ -362,17 +219,17 @@ func CompileLibrary(files []*SymbolFile, loader Loader, builtinFuncs map[string]
 	}
 
 	w := workgraph.NewWorker()
-	for name, once := range types {
+	for name, once := range libScope.types {
 		t, tDiags := once.Value(w)
 		diags = diags.Extend(tDiags)
 		lib.types[name] = t
 	}
-	for name, once := range values {
+	for name, once := range libScope.values {
 		v, vDiags := once.Value(w)
 		diags = diags.Extend(vDiags)
 		lib.values[name] = v
 	}
-	for name, once := range functions {
+	for name, once := range libScope.functions {
 		f, fDiags := once.Value(w)
 		diags = diags.Extend(fDiags)
 		lib.functions[name] = f

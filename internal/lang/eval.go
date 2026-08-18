@@ -450,8 +450,8 @@ func (s *Scope) evalContext(ctx context.Context, parent *hcl.EvalContext, refs [
 
 				diags = diags.Append(fnDiags)
 
-				if !fnDiags.HasErrors() {
-					hclCtx.Functions[subj.String()] = fn
+				if fn != nil {
+					hclCtx.Functions[subj.String()] = *fn
 				}
 			}
 
