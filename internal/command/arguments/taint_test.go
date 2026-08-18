@@ -115,7 +115,7 @@ func TestParseTaint_basicValidation(t *testing.T) {
 		},
 	}
 
-	cmpOpts := cmpopts.IgnoreUnexported(Vars{}, ViewOptions{}, State{}, Backend{})
+	cmpOpts := cmpopts.IgnoreUnexported(Vars{}, View{}, State{}, Backend{})
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
@@ -192,9 +192,10 @@ func taintArgsWithDefaults(mutate func(v *Taint)) *Taint {
 	ret := &Taint{
 		TargetAddress: addrs.AbsResourceInstance{},
 		AllowMissing:  false,
-		ViewOptions: ViewOptions{
-			ViewType:     ViewHuman,
-			InputEnabled: false,
+		View: &View{
+			ConsolidateWarnings: true,
+			ViewType:            ViewHuman,
+			InputEnabled:        false,
 		},
 		Vars: &Vars{},
 		State: &State{

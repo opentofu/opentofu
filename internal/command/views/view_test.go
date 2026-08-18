@@ -439,13 +439,22 @@ func TestView_HelpPrompt(t *testing.T) {
 // This was moved as is to keep the same testing patterns but in the context of the
 // views package.
 func TestViewColorize(t *testing.T) {
+	parseView := func(args []string) (*arguments.View, []string) {
+		var cli arguments.CommandLine
+		var newArgs []string
+		cli.VariadicArg(&newArgs, "args")
+		view := arguments.BindView(&cli, 0)
+		cli.Stdlib("", args)
+		return view, newArgs
+	}
+
 	t.Run("with color enabled", func(t *testing.T) {
 		view, done := testView(t)
 		defer done(t)
 
 		args := []string{"foo", "bar"}
 		wantArgs := []string{"foo", "bar"}
-		viewArgs, args := arguments.ParseView(args)
+		viewArgs, args := parseView(args)
 
 		view.Configure(viewArgs)
 
@@ -463,7 +472,7 @@ func TestViewColorize(t *testing.T) {
 
 		args := []string{"foo", "-no-color", "bar"}
 		args2 := []string{"foo", "bar"}
-		viewArgs, args := arguments.ParseView(args)
+		viewArgs, args := parseView(args)
 
 		view.Configure(viewArgs)
 		if !reflect.DeepEqual(args, args2) {
@@ -482,7 +491,7 @@ func TestViewColorize(t *testing.T) {
 		// E.g. an additional -no-color arg could be added by TF_CLI_ARGS.
 		args := []string{"foo", "-no-color", "bar", "-no-color"}
 		args2 := []string{"foo", "bar"}
-		viewArgs, args := arguments.ParseView(args)
+		viewArgs, args := parseView(args)
 
 		view.Configure(viewArgs)
 

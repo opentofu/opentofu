@@ -106,7 +106,7 @@ func TestParseInit_basicValidation(t *testing.T) {
 		},
 	}
 
-	cmpOpts := cmpopts.IgnoreUnexported(Vars{}, ViewOptions{})
+	cmpOpts := cmpopts.IgnoreUnexported(Vars{})
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
@@ -429,9 +429,10 @@ func initArgsWithDefaults(mutate func(init *Init)) *Init {
 		FlagCloud:       true,
 		BackendFlagSet:  false,
 		CloudFlagSet:    false,
-		ViewOptions: ViewOptions{
-			ViewType:     ViewHuman,
-			InputEnabled: true,
+		View: &View{
+			ConsolidateWarnings: true,
+			ViewType:            ViewHuman,
+			InputEnabled:        true,
 		},
 		Vars:    &Vars{},
 		State:   &State{Lock: true},

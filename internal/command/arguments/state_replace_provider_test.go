@@ -113,7 +113,7 @@ func TestParseReplaceProvider_basicValidation(t *testing.T) {
 		"json without auto-approve": {
 			args: []string{"-json", "source", "dest"},
 			want: stateReplaceProviderArgsWithDefaults(func(srp *StateReplaceProvider) {
-				srp.ViewOptions.ViewType = ViewJSON
+				srp.View.ViewType = ViewJSON
 				srp.RawSrcAddr = "source"
 				srp.RawDestAddr = "dest"
 			}),
@@ -122,7 +122,7 @@ func TestParseReplaceProvider_basicValidation(t *testing.T) {
 		"json with auto-approve": {
 			args: []string{"-json", "-auto-approve", "source", "dest"},
 			want: stateReplaceProviderArgsWithDefaults(func(srp *StateReplaceProvider) {
-				srp.ViewOptions.ViewType = ViewJSON
+				srp.View.ViewType = ViewJSON
 				srp.AutoApprove = true
 				srp.RawSrcAddr = "source"
 				srp.RawDestAddr = "dest"
@@ -131,8 +131,8 @@ func TestParseReplaceProvider_basicValidation(t *testing.T) {
 	}
 
 	cmpOpts := cmp.Options{
-		cmpopts.IgnoreUnexported(Vars{}, ViewOptions{}),
-		cmpopts.IgnoreFields(ViewOptions{}, "JSONInto"), // We ignore JSONInto because it contains a file which is not really diffable
+		cmpopts.IgnoreUnexported(Vars{}),
+		cmpopts.IgnoreFields(View{}, "JSONInto"), // We ignore JSONInto because it contains a file which is not really diffable
 	}
 
 	for name, tc := range testCases {
@@ -160,9 +160,10 @@ func TestParseReplaceProvider_basicValidation(t *testing.T) {
 func stateReplaceProviderArgsWithDefaults(mutate func(srp *StateReplaceProvider)) *StateReplaceProvider {
 	ret := &StateReplaceProvider{
 		AutoApprove: false,
-		ViewOptions: ViewOptions{
-			ViewType:     ViewHuman,
-			InputEnabled: false,
+		View: &View{
+			ConsolidateWarnings: true,
+			ViewType:            ViewHuman,
+			InputEnabled:        false,
 		},
 		Backend: &Backend{
 			IgnoreRemoteVersion: false,

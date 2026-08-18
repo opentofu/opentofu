@@ -37,12 +37,6 @@ func (c *ImportCommand) Run(rawArgs []string) int {
 	ctx, span := tracing.Tracer().Start(ctx, "Import")
 	defer span.End()
 
-	common, rawArgs := arguments.ParseView(rawArgs)
-	c.View.Configure(common)
-	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
-	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
-	c.View.DiagsWithNewline()
-
 	// Parse and validate flags
 	args, closer, diags := arguments.ParseImport(rawArgs)
 	defer closer()
@@ -52,12 +46,17 @@ func (c *ImportCommand) Run(rawArgs []string) int {
 		args.ConfigPath = c.WorkingDir.NormalizePath(c.WorkingDir.RootModuleDir())
 	}
 
+	c.View.Configure(args.View)
+	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
+	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
+	c.View.DiagsWithNewline()
+
 	// Instantiate the view, even if there are flag errors, so that we render
 	// diagnostics according to the desired view
-	view := views.NewImport(args.ViewOptions, c.View)
+	view := views.NewImport(args.View, c.View)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
-		if args.ViewOptions.ViewType == arguments.ViewJSON {
+		if args.View.ViewType == arguments.ViewJSON {
 			return 1 // in case it's json, do not print the help of the command
 		}
 		return cli.RunResultHelp
@@ -73,7 +72,7 @@ func (c *ImportCommand) Run(rawArgs []string) int {
 	// FIXME: the -input flag value is needed to initialize the backend and the
 	// operation, but there is no clear path to pass this value down, so we
 	// continue to mutate the Meta object state for now.
-	c.Meta.input = args.ViewOptions.InputEnabled
+	c.Meta.input = args.View.InputEnabled
 
 	// Parse the provided resource address.
 	traversalSrc := []byte(args.ResourceAddress)

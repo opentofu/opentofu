@@ -167,7 +167,7 @@ func TestLogoutViews(t *testing.T) {
 
 func testLogoutHuman(t *testing.T, call func(logout Logout), wantStdout, wantStderr string) {
 	view, done := testView(t)
-	logoutView := NewLogout(arguments.ViewOptions{ViewType: arguments.ViewHuman}, view)
+	logoutView := NewLogout(&arguments.View{ViewType: arguments.ViewHuman}, view)
 	call(logoutView)
 	output := done(t)
 	if diff := cmp.Diff(wantStderr, output.Stderr()); diff != "" {
@@ -180,7 +180,7 @@ func testLogoutHuman(t *testing.T, call func(logout Logout), wantStdout, wantStd
 
 func testLogoutJson(t *testing.T, call func(logout Logout), want []map[string]interface{}) {
 	view, done := testView(t)
-	logoutView := NewLogout(arguments.ViewOptions{ViewType: arguments.ViewJSON}, view)
+	logoutView := NewLogout(&arguments.View{ViewType: arguments.ViewJSON}, view)
 	call(logoutView)
 	output := done(t)
 	if output.Stderr() != "" {
@@ -196,7 +196,7 @@ func testLogoutMulti(t *testing.T, call func(logout Logout), wantStdout string, 
 		t.Fatalf("failed to create the file to write json content into: %s", err)
 	}
 	view, done := testView(t)
-	logoutView := NewLogout(arguments.ViewOptions{ViewType: arguments.ViewHuman, JSONInto: jsonInto}, view)
+	logoutView := NewLogout(&arguments.View{ViewType: arguments.ViewHuman, JSONInto: jsonInto}, view)
 	call(logoutView)
 	{
 		if err := jsonInto.Close(); err != nil {

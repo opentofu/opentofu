@@ -22,7 +22,7 @@ type Logout interface {
 }
 
 // NewLogout returns an initialized Logout implementation for the given ViewType.
-func NewLogout(args arguments.ViewOptions, view *View) Logout {
+func NewLogout(args *arguments.View, view *View) Logout {
 	var ret Logout
 	switch args.ViewType {
 	case arguments.ViewJSON:

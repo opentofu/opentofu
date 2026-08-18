@@ -37,7 +37,7 @@ type Login interface {
 }
 
 // NewLogin returns an initialized Login implementation for the given ViewType.
-func NewLogin(args arguments.ViewOptions, view *View) Login {
+func NewLogin(args *arguments.View, view *View) Login {
 	var ret Login
 	switch args.ViewType {
 	case arguments.ViewJSON:

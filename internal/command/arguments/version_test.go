@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 func TestParseVersion_basicValidation(t *testing.T) {
@@ -38,7 +37,7 @@ func TestParseVersion_basicValidation(t *testing.T) {
 		"json flag": {
 			args: []string{"-json"},
 			want: versionArgsWithDefaults(func(version *Version) {
-				version.ViewOptions.ViewType = ViewJSON
+				version.View.ViewType = ViewJSON
 			}),
 		},
 		"multiple version flags": {
@@ -51,8 +50,6 @@ func TestParseVersion_basicValidation(t *testing.T) {
 			wantErrText: "flag provided but not defined: -foo",
 		},
 	}
-
-	cmpOpts := cmpopts.IgnoreUnexported(ViewOptions{})
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
@@ -69,7 +66,7 @@ func TestParseVersion_basicValidation(t *testing.T) {
 					t.Errorf("the returned diagnostics does not contain the expected error message.\ndiags:\n%s\nwanted: %s\n", errStr, tc.wantErrText)
 				}
 			}
-			if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
+			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("unexpected result\n%s", diff)
 			}
 		})
@@ -78,9 +75,10 @@ func TestParseVersion_basicValidation(t *testing.T) {
 
 func versionArgsWithDefaults(mutate func(version *Version)) *Version {
 	ret := &Version{
-		ViewOptions: ViewOptions{
-			ViewType:     ViewHuman,
-			InputEnabled: false,
+		View: &View{
+			ConsolidateWarnings: true,
+			ViewType:            ViewHuman,
+			InputEnabled:        false,
 		},
 	}
 	if mutate != nil {

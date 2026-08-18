@@ -50,7 +50,7 @@ func TestValidateHuman(t *testing.T) {
 			streams, done := terminal.StreamsForTesting(t)
 			view := NewView(streams)
 			view.Configure(&arguments.View{NoColor: true})
-			v := NewValidate(arguments.ViewOptions{ViewType: arguments.ViewHuman}, view)
+			v := NewValidate(&arguments.View{ViewType: arguments.ViewHuman}, view)
 
 			var diags tfdiags.Diagnostics
 
@@ -108,7 +108,7 @@ func TestValidateJSON(t *testing.T) {
 			streams, done := terminal.StreamsForTesting(t)
 			view := NewView(streams)
 			view.Configure(&arguments.View{NoColor: true})
-			v := NewValidate(arguments.ViewOptions{ViewType: arguments.ViewJSON}, view)
+			v := NewValidate(&arguments.View{ViewType: arguments.ViewJSON}, view)
 
 			var diags tfdiags.Diagnostics
 

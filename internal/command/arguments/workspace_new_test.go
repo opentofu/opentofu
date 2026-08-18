@@ -44,8 +44,8 @@ func TestParseWorkspaceNew_viewOptions(t *testing.T) {
 				t.Fatalf("unexpected diagnostics: %v", diags)
 			}
 
-			if got.ViewOptions.ViewType != tc.wantViewType {
-				t.Errorf("ViewOptions.ViewType = %v, want %v", got.ViewOptions.ViewType, tc.wantViewType)
+			if got.View.ViewType != tc.wantViewType {
+				t.Errorf("View.ViewType = %v, want %v", got.View.ViewType, tc.wantViewType)
 			}
 		})
 	}
@@ -127,7 +127,7 @@ func TestParseWorkspaceNew_basicValidation(t *testing.T) {
 		},
 	}
 
-	cmpOpts := cmpopts.IgnoreUnexported(Vars{}, ViewOptions{})
+	cmpOpts := cmpopts.IgnoreUnexported(Vars{})
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
@@ -167,8 +167,9 @@ func workspaceNewArgsWithDefaults(mutate func(in *WorkspaceNew)) *WorkspaceNew {
 			Lock: true,
 		},
 		Vars: &Vars{},
-		ViewOptions: ViewOptions{
-			ViewType: ViewHuman,
+		View: &View{
+			ConsolidateWarnings: true,
+			ViewType:            ViewHuman,
 		},
 	}
 	if mutate != nil {

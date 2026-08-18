@@ -18,17 +18,16 @@ type Get struct {
 
 	// Vars holds and provides information for the flags related to variables that a user can give into the process
 	Vars *Vars
-	// ViewOptions specifies which view options to use
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 }
 
 // BindGet registers CLI arguments, returning a Get value and it's corresponding hooks.
 func BindGet(cli *CommandLine) *Get {
-	var arguments Get
-
-	arguments.ViewOptions.bind(cli, false)
-
-	arguments.Vars = BindVars(cli)
+	arguments := Get{
+		View: BindView(cli, viewFlagNoInput),
+		Vars: BindVars(cli),
+	}
 
 	cli.BoolVar(&arguments.Update, "update", false, "Check already-downloaded modules for available updates and install the newest versions available.")
 	cli.StringVar(&arguments.TestsDirectory, "test-directory", "tests", `Set the OpenTofu test directory, defaults to "tests". When set, the test command will search for test files in the current directory and in the one specified by the flag.`).SetDisplay("=path")

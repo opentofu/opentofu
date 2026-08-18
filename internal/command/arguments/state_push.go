@@ -16,8 +16,8 @@ type StatePush struct {
 	StateSrc string
 	// Force will try to forcefully push the state remotely. This will happen only if the backend supports it.
 	Force bool
-	// ViewOptions specifies which view options to use
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 
 	// Vars, Backend and State are the common extended flags
 	Vars    *Vars
@@ -27,13 +27,12 @@ type StatePush struct {
 
 // BindStatePush registers CLI arguments, returning a StatePush value and it's corresponding hooks.
 func BindStatePush(cli *CommandLine) *StatePush {
-	var ret StatePush
-
-	ret.ViewOptions.bind(cli, false)
-
-	ret.Vars = BindVars(cli)
-	ret.Backend = BindBackend(cli)
-	ret.State = BindState(cli, stateFlagLock)
+	ret := StatePush{
+		View:    BindView(cli, viewFlagNoInput),
+		Vars:    BindVars(cli),
+		Backend: BindBackend(cli),
+		State:   BindState(cli, stateFlagLock),
+	}
 
 	cli.BoolVar(&ret.Force, "force", false, "Write the state even if lineages don't match or the remote serial is higher.")
 

@@ -51,7 +51,7 @@ type Init interface {
 }
 
 // NewInit returns an initialized Init implementation for the given ViewType.
-func NewInit(args arguments.ViewOptions, view *View) Init {
+func NewInit(args *arguments.View, view *View) Init {
 	var init Init
 	switch args.ViewType {
 	case arguments.ViewJSON:

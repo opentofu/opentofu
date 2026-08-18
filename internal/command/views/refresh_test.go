@@ -21,7 +21,7 @@ import (
 func TestRefreshHuman_operation(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
 	defer done(t)
-	v := NewRefresh(arguments.ViewOptions{ViewType: arguments.ViewHuman}, NewView(streams).SetRunningInAutomation(true)).Operation()
+	v := NewRefresh(&arguments.View{ViewType: arguments.ViewHuman}, NewView(streams).SetRunningInAutomation(true)).Operation()
 	if _, ok := v.(*OperationHuman); !ok {
 		t.Fatalf("unexpected return type %t", v)
 	}
@@ -31,7 +31,7 @@ func TestRefreshHuman_operation(t *testing.T) {
 func TestRefreshHuman_hooks(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
 	defer done(t)
-	v := NewRefresh(arguments.ViewOptions{ViewType: arguments.ViewHuman}, NewView(streams).SetRunningInAutomation(true))
+	v := NewRefresh(&arguments.View{ViewType: arguments.ViewHuman}, NewView(streams).SetRunningInAutomation(true))
 	hooks := v.Hooks()
 
 	var uiHook *UiHook
@@ -49,7 +49,7 @@ func TestRefreshHuman_hooks(t *testing.T) {
 // elsewhere.
 func TestRefreshHuman_outputs(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
-	v := NewRefresh(arguments.ViewOptions{ViewType: arguments.ViewHuman}, NewView(streams))
+	v := NewRefresh(&arguments.View{ViewType: arguments.ViewHuman}, NewView(streams))
 
 	v.Outputs(map[string]*states.OutputValue{
 		"foo": {Value: cty.StringVal("secret")},
@@ -66,7 +66,7 @@ func TestRefreshHuman_outputs(t *testing.T) {
 // Outputs should do nothing if there are no outputs to render.
 func TestRefreshHuman_outputsEmpty(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
-	v := NewRefresh(arguments.ViewOptions{ViewType: arguments.ViewHuman}, NewView(streams))
+	v := NewRefresh(&arguments.View{ViewType: arguments.ViewHuman}, NewView(streams))
 
 	v.Outputs(map[string]*states.OutputValue{})
 
@@ -80,7 +80,7 @@ func TestRefreshHuman_outputsEmpty(t *testing.T) {
 // elsewhere.
 func TestRefreshJSON_outputs(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
-	v := NewRefresh(arguments.ViewOptions{ViewType: arguments.ViewJSON}, NewView(streams))
+	v := NewRefresh(&arguments.View{ViewType: arguments.ViewJSON}, NewView(streams))
 
 	v.Outputs(map[string]*states.OutputValue{
 		"boop_count": {Value: cty.NumberIntVal(92)},

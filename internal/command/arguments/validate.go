@@ -24,19 +24,18 @@ type Validate struct {
 	// included with the module.
 	NoTests bool
 
-	// ViewOptions specifies which view options to use
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 
 	Vars *Vars
 }
 
 // BindValidate registers CLI arguments, returning a Validate value and it's corresponding hooks.
 func BindValidate(cli *CommandLine) *Validate {
-	var validate Validate
-
-	validate.ViewOptions.bind(cli, false)
-
-	validate.Vars = BindVars(cli)
+	validate := Validate{
+		View: BindView(cli, viewFlagNoInput),
+		Vars: BindVars(cli),
+	}
 
 	cli.StringVar(&validate.TestDirectory, "test-directory", "tests", `Set the OpenTofu test directory, defaults to "tests". When set, the test command will search for test files in the current directory and in the one specified by the flag.`).SetDisplay("=path")
 	cli.BoolVar(&validate.NoTests, "no-tests", false, "If specified, OpenTofu will not validate test files.")

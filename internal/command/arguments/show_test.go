@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -21,95 +23,96 @@ func TestParseShow_valid(t *testing.T) {
 		"no options at all": {
 			nil,
 			&Show{
-				TargetType:  ShowState,
-				TargetArg:   "",
-				ViewOptions: ViewOptions{ViewType: ViewHuman},
+				TargetType: ShowState,
+				TargetArg:  "",
+				View:       &View{ConsolidateWarnings: true, ViewType: ViewHuman},
 			},
 		},
 		"json with no other options": {
 			[]string{"-json"},
 			&Show{
-				TargetType:  ShowState,
-				TargetArg:   "",
-				ViewOptions: ViewOptions{ViewType: ViewJSON},
+				TargetType: ShowState,
+				TargetArg:  "",
+				View:       &View{ConsolidateWarnings: true, ViewType: ViewJSON},
 			},
 		},
 		"latest state snapshot": {
 			[]string{"-state"},
 			&Show{
-				TargetType:  ShowState,
-				TargetArg:   "",
-				ViewOptions: ViewOptions{ViewType: ViewHuman},
+				TargetType: ShowState,
+				TargetArg:  "",
+				View:       &View{ConsolidateWarnings: true, ViewType: ViewHuman},
 			},
 		},
 		"latest state snapshot, JSON": {
 			[]string{"-state", "-json"},
 			&Show{
-				TargetType:  ShowState,
-				TargetArg:   "",
-				ViewOptions: ViewOptions{ViewType: ViewJSON},
+				TargetType: ShowState,
+				TargetArg:  "",
+				View:       &View{ConsolidateWarnings: true, ViewType: ViewJSON},
 			},
 		},
 		"saved plan file": {
 			[]string{"-plan=tfplan"},
 			&Show{
-				TargetType:  ShowPlan,
-				TargetArg:   "tfplan",
-				ViewOptions: ViewOptions{ViewType: ViewHuman},
+				TargetType: ShowPlan,
+				TargetArg:  "tfplan",
+				View:       &View{ConsolidateWarnings: true, ViewType: ViewHuman},
 			},
 		},
 		"saved plan file, JSON": {
 			[]string{"-plan=tfplan", "-json"},
 			&Show{
-				TargetType:  ShowPlan,
-				TargetArg:   "tfplan",
-				ViewOptions: ViewOptions{ViewType: ViewJSON},
+				TargetType: ShowPlan,
+				TargetArg:  "tfplan",
+				View:       &View{ConsolidateWarnings: true, ViewType: ViewJSON},
 			},
 		},
 		"legacy positional argument": {
 			[]string{"foo"},
 			&Show{
-				TargetType:  ShowUnknownType, // caller must inspect "foo" to decide the type
-				TargetArg:   "foo",
-				ViewOptions: ViewOptions{ViewType: ViewHuman},
+				TargetType: ShowUnknownType, // caller must inspect "foo" to decide the type
+				TargetArg:  "foo",
+				View:       &View{ConsolidateWarnings: true, ViewType: ViewHuman},
 			},
 		},
 		"json with legacy positional argument": {
 			[]string{"-json", "foo"},
 			&Show{
-				TargetType:  ShowUnknownType, // caller must inspect "foo" to decide the type
-				TargetArg:   "foo",
-				ViewOptions: ViewOptions{ViewType: ViewJSON},
+				TargetType: ShowUnknownType, // caller must inspect "foo" to decide the type
+				TargetArg:  "foo",
+				View:       &View{ConsolidateWarnings: true, ViewType: ViewJSON},
 			},
 		},
 		"configuration with json": {
 			[]string{"-config", "-json"},
 			&Show{
-				TargetType:  ShowConfig,
-				TargetArg:   "",
-				ViewOptions: ViewOptions{ViewType: ViewJSON},
+				TargetType: ShowConfig,
+				TargetArg:  "",
+				View:       &View{ConsolidateWarnings: true, ViewType: ViewJSON},
 			},
 		},
 		"module with json": {
 			[]string{"-module=foo", "-json"},
 			&Show{
-				TargetType:  ShowModule,
-				TargetArg:   "foo",
-				ViewOptions: ViewOptions{ViewType: ViewJSON},
+				TargetType: ShowModule,
+				TargetArg:  "foo",
+				View:       &View{ConsolidateWarnings: true, ViewType: ViewJSON},
 			},
 		},
 	}
+
+	cmpOpts := cmpopts.IgnoreUnexported(Operation{}, Vars{}, State{})
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			got, _, diags := ParseShow(tc.args)
 			got.Vars = nil
-			got.ViewOptions.jsonFlag = tc.want.ViewOptions.jsonFlag
 			if len(diags) > 0 {
 				t.Fatalf("unexpected diags: %v", diags)
 			}
-			if *got != *tc.want {
-				t.Fatalf("unexpected result\n got: %#v\nwant: %#v", got, tc.want)
+			if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
+				t.Errorf("unexpected result\n%s", diff)
 			}
 		})
 	}
@@ -124,8 +127,8 @@ func TestParseShow_invalid(t *testing.T) {
 		"unknown option": {
 			[]string{"-boop"},
 			&Show{
-				TargetType:  ShowState,
-				ViewOptions: ViewOptions{ViewType: ViewHuman},
+				TargetType: ShowState,
+				View:       &View{ConsolidateWarnings: true, ViewType: ViewHuman},
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
@@ -138,7 +141,7 @@ func TestParseShow_invalid(t *testing.T) {
 		"positional arguments with state target selection": {
 			[]string{"-state", "bar"},
 			&Show{
-				ViewOptions: ViewOptions{ViewType: ViewHuman},
+				View: &View{ConsolidateWarnings: true, ViewType: ViewHuman},
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
@@ -151,7 +154,7 @@ func TestParseShow_invalid(t *testing.T) {
 		"positional arguments with planfile target selection": {
 			[]string{"-plan=foo", "bar"},
 			&Show{
-				ViewOptions: ViewOptions{ViewType: ViewHuman},
+				View: &View{ConsolidateWarnings: true, ViewType: ViewHuman},
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
@@ -164,9 +167,9 @@ func TestParseShow_invalid(t *testing.T) {
 		"conflicting target selection options": {
 			[]string{"-state", "-plan=foo"},
 			&Show{
-				TargetType:  ShowPlan,
-				TargetArg:   "foo",
-				ViewOptions: ViewOptions{ViewType: ViewHuman},
+				TargetType: ShowPlan,
+				TargetArg:  "foo",
+				View:       &View{ConsolidateWarnings: true, ViewType: ViewHuman},
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
@@ -179,7 +182,7 @@ func TestParseShow_invalid(t *testing.T) {
 		"too many arguments in legacy mode": {
 			[]string{"bar", "baz"},
 			&Show{
-				ViewOptions: ViewOptions{ViewType: ViewHuman},
+				View: &View{ConsolidateWarnings: true, ViewType: ViewHuman},
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
@@ -192,7 +195,7 @@ func TestParseShow_invalid(t *testing.T) {
 		"too many arguments in legacy mode, json": {
 			[]string{"-json", "bar", "baz"},
 			&Show{
-				ViewOptions: ViewOptions{ViewType: ViewJSON},
+				View: &View{ConsolidateWarnings: true, ViewType: ViewJSON},
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
@@ -205,7 +208,7 @@ func TestParseShow_invalid(t *testing.T) {
 		"configuration without json": {
 			[]string{"-config"},
 			&Show{
-				ViewOptions: ViewOptions{ViewType: ViewHuman},
+				View: &View{ConsolidateWarnings: true, ViewType: ViewHuman},
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
@@ -218,9 +221,9 @@ func TestParseShow_invalid(t *testing.T) {
 		"configuration with state": {
 			[]string{"-config", "-state", "-json"},
 			&Show{
-				TargetType:  ShowConfig,
-				TargetArg:   "",
-				ViewOptions: ViewOptions{ViewType: ViewJSON},
+				TargetType: ShowConfig,
+				TargetArg:  "",
+				View:       &View{ConsolidateWarnings: true, ViewType: ViewJSON},
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
@@ -233,9 +236,9 @@ func TestParseShow_invalid(t *testing.T) {
 		"configuration with plan": {
 			[]string{"-config", "-plan=tfplan", "-json"},
 			&Show{
-				TargetType:  ShowConfig,
-				TargetArg:   "",
-				ViewOptions: ViewOptions{ViewType: ViewJSON},
+				TargetType: ShowConfig,
+				TargetArg:  "",
+				View:       &View{ConsolidateWarnings: true, ViewType: ViewJSON},
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
@@ -248,7 +251,7 @@ func TestParseShow_invalid(t *testing.T) {
 		"module without json": {
 			[]string{"-module=foo"},
 			&Show{
-				ViewOptions: ViewOptions{ViewType: ViewHuman},
+				View: &View{ConsolidateWarnings: true, ViewType: ViewHuman},
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
@@ -261,9 +264,9 @@ func TestParseShow_invalid(t *testing.T) {
 		"module with state": {
 			[]string{"-module=foo", "-state", "-json"},
 			&Show{
-				TargetType:  ShowModule,
-				TargetArg:   "foo",
-				ViewOptions: ViewOptions{ViewType: ViewJSON},
+				TargetType: ShowModule,
+				TargetArg:  "foo",
+				View:       &View{ConsolidateWarnings: true, ViewType: ViewJSON},
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
@@ -276,9 +279,9 @@ func TestParseShow_invalid(t *testing.T) {
 		"module with plan": {
 			[]string{"-module=foo", "-plan=tfplan", "-json"},
 			&Show{
-				TargetType:  ShowModule,
-				TargetArg:   "foo",
-				ViewOptions: ViewOptions{ViewType: ViewJSON},
+				TargetType: ShowModule,
+				TargetArg:  "foo",
+				View:       &View{ConsolidateWarnings: true, ViewType: ViewJSON},
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
@@ -291,9 +294,9 @@ func TestParseShow_invalid(t *testing.T) {
 		"module with config": {
 			[]string{"-module=foo", "-config", "-json"},
 			&Show{
-				TargetType:  ShowModule,
-				TargetArg:   "foo",
-				ViewOptions: ViewOptions{ViewType: ViewJSON},
+				TargetType: ShowModule,
+				TargetArg:  "foo",
+				View:       &View{ConsolidateWarnings: true, ViewType: ViewJSON},
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
@@ -305,13 +308,14 @@ func TestParseShow_invalid(t *testing.T) {
 		},
 	}
 
+	cmpOpts := cmpopts.IgnoreUnexported(Operation{}, Vars{}, State{})
+
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			got, _, gotDiags := ParseShow(tc.args)
 			got.Vars = nil
-			got.ViewOptions.jsonFlag = tc.want.ViewOptions.jsonFlag
-			if *got != *tc.want {
-				t.Fatalf("unexpected result\n got: %#v\nwant: %#v", got, tc.want)
+			if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
+				t.Errorf("unexpected result\n%s", diff)
 			}
 			if !reflect.DeepEqual(gotDiags, tc.wantDiags) {
 				t.Errorf("wrong result\ngot: %s\nwant: %s", spew.Sdump(gotDiags), spew.Sdump(tc.wantDiags))

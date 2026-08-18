@@ -22,8 +22,8 @@ type Graph struct {
 	// PlanPath specifies the path to a plan file to render the graph from.
 	PlanPath string
 
-	// ViewOptions specifies which view options to use
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 
 	// Vars holds and provides information for the flags related to variables that a user can give into the process
 	Vars *Vars
@@ -31,12 +31,10 @@ type Graph struct {
 
 // BindGraph registers CLI arguments, returning a Graph value and it's corresponding hooks.
 func BindGraph(cli *CommandLine) *Graph {
-	var graph Graph
-
-	// we only parse but do not register the views flags since this command does not need it
-	graph.ViewOptions.ParseHook(cli)
-
-	graph.Vars = BindVars(cli)
+	graph := Graph{
+		View: BindView(cli, viewFlagNone),
+		Vars: BindVars(cli),
+	}
 
 	cli.BoolVar(&graph.DrawCycles, "draw-cycles", false, "Highlight any cycles in the graph with colored edges. This helps when diagnosing cycle errors.")
 	cli.StringVar(&graph.GraphType, "type", "", `Type of graph to output. Can be: plan, plan-refresh-only, plan-destroy, or apply. By default OpenTofu chooses "plan", or "apply" if you also set the -plan=... option.`).SetDisplay("=plan")

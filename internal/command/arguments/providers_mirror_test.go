@@ -60,7 +60,7 @@ func TestParseProvidersMirror_basicValidation(t *testing.T) {
 		},
 	}
 
-	cmpOpts := cmpopts.IgnoreUnexported(Vars{}, ViewOptions{})
+	cmpOpts := cmpopts.IgnoreUnexported(Vars{})
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
@@ -139,9 +139,10 @@ func providersMirrorArgsWithDefaults(mutate func(v *ProvidersMirror)) *Providers
 	ret := &ProvidersMirror{
 		Directory:    "",
 		OptPlatforms: nil,
-		ViewOptions: ViewOptions{
-			ViewType:     ViewHuman,
-			InputEnabled: false,
+		View: &View{
+			ConsolidateWarnings: true,
+			ViewType:            ViewHuman,
+			InputEnabled:        false,
 		},
 		Vars: &Vars{},
 	}

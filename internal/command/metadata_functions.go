@@ -26,13 +26,12 @@ func (c *MetadataFunctionsCommand) Synopsis() string {
 }
 
 func (c *MetadataFunctionsCommand) Run(rawArgs []string) int {
-	// new view
-	common, rawArgs := arguments.ParseView(rawArgs)
-	c.View.Configure(common)
-
 	// Parse and validate flags
-	_, closer, diags := arguments.ParseMetadataFunctions(rawArgs)
+	args, closer, diags := arguments.ParseMetadataFunctions(rawArgs)
 	defer closer()
+
+	// new view
+	c.View.Configure(args.View)
 
 	// Instantiate the view, even if there are flag errors, so that we render
 	// diagnostics according to the desired view

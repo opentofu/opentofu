@@ -42,8 +42,8 @@ type Init struct {
 	BackendFlagSet bool
 	CloudFlagSet   bool
 
-	// ViewOptions specifies which view options to use
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 
 	// Vars holds and provides information for the flags related to variables that a user can give into the process
 	Vars *Vars
@@ -56,13 +56,12 @@ type Init struct {
 
 // BindInit registers CLI arguments, returning a Init value and it's corresponding hooks.
 func BindInit(cli *CommandLine) *Init {
-	var init Init
-
-	init.ViewOptions.bind(cli, true)
-
-	init.Vars = BindVars(cli)
-	init.State = BindState(cli, stateFlagLock)
-	init.Backend = BindBackendWithMigration(cli)
+	init := Init{
+		View:    BindView(cli, viewFlagAll),
+		Vars:    BindVars(cli),
+		State:   BindState(cli, stateFlagLock),
+		Backend: BindBackendWithMigration(cli),
+	}
 
 	init.FlagConfigExtra = flagspkg.NewRawFlags("-backend-config")
 

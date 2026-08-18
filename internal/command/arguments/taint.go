@@ -20,8 +20,8 @@ type Taint struct {
 	// when the TargetAddress points to a missing resource.
 	AllowMissing bool
 
-	// ViewOptions specifies which view options to use
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 
 	// Vars holds and provides information for the flags related to variables that a user can give into the process
 	Vars *Vars
@@ -34,13 +34,12 @@ type Taint struct {
 
 // BindTaint registers CLI arguments, returning a Taint value and it's corresponding hooks.
 func BindTaint(cli *CommandLine, isTaint bool) *Taint {
-	var arguments Taint
-
-	arguments.ViewOptions.bind(cli, false)
-
-	arguments.Vars = BindVars(cli)
-	arguments.Backend = BindBackend(cli)
-	arguments.State = BindState(cli, stateFlagAll)
+	arguments := Taint{
+		View:    BindView(cli, viewFlagNoInput),
+		Vars:    BindVars(cli),
+		Backend: BindBackend(cli),
+		State:   BindState(cli, stateFlagAll),
+	}
 
 	cli.BoolVar(&arguments.AllowMissing, "allow-missing", false, "If specified, the command will succeed (exit code 0) even if the resource is missing.")
 

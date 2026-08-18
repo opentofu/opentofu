@@ -116,7 +116,7 @@ func TestGetViews(t *testing.T) {
 func TestGetViews_Hooks(t *testing.T) {
 	t.Run("hooks_human", func(t *testing.T) {
 		view, _ := testView(t)
-		getView := NewGet(arguments.ViewOptions{ViewType: arguments.ViewHuman}, view)
+		getView := NewGet(&arguments.View{ViewType: arguments.ViewHuman}, view)
 		hooks := getView.Hooks(false)
 
 		if hooks == nil {
@@ -131,7 +131,7 @@ func TestGetViews_Hooks(t *testing.T) {
 
 	t.Run("hooks_json", func(t *testing.T) {
 		view, _ := testView(t)
-		getView := NewGet(arguments.ViewOptions{ViewType: arguments.ViewJSON}, view)
+		getView := NewGet(&arguments.View{ViewType: arguments.ViewJSON}, view)
 		hooks := getView.Hooks(true)
 
 		if hooks == nil {
@@ -152,7 +152,7 @@ func TestGetViews_Hooks(t *testing.T) {
 		defer func() { _ = jsonInto.Close() }()
 
 		view, _ := testView(t)
-		getView := NewGet(arguments.ViewOptions{ViewType: arguments.ViewHuman, JSONInto: jsonInto}, view)
+		getView := NewGet(&arguments.View{ViewType: arguments.ViewHuman, JSONInto: jsonInto}, view)
 		hooks := getView.Hooks(true)
 
 		if hooks == nil {
@@ -168,7 +168,7 @@ func TestGetViews_Hooks(t *testing.T) {
 
 func testGetHuman(t *testing.T, call func(get Get), wantStdout, wantStderr string) {
 	view, done := testView(t)
-	getView := NewGet(arguments.ViewOptions{ViewType: arguments.ViewHuman}, view)
+	getView := NewGet(&arguments.View{ViewType: arguments.ViewHuman}, view)
 	call(getView)
 	output := done(t)
 	if diff := cmp.Diff(wantStderr, output.Stderr()); diff != "" {
@@ -181,7 +181,7 @@ func testGetHuman(t *testing.T, call func(get Get), wantStdout, wantStderr strin
 
 func testGetJson(t *testing.T, call func(get Get), want []map[string]interface{}) {
 	view, done := testView(t)
-	getView := NewGet(arguments.ViewOptions{ViewType: arguments.ViewJSON}, view)
+	getView := NewGet(&arguments.View{ViewType: arguments.ViewJSON}, view)
 	call(getView)
 	output := done(t)
 	if output.Stderr() != "" {
@@ -197,7 +197,7 @@ func testGetMulti(t *testing.T, call func(get Get), wantStdout string, wantStder
 		t.Fatalf("failed to create the file to write json content into: %s", err)
 	}
 	view, done := testView(t)
-	getView := NewGet(arguments.ViewOptions{ViewType: arguments.ViewHuman, JSONInto: jsonInto}, view)
+	getView := NewGet(&arguments.View{ViewType: arguments.ViewHuman, JSONInto: jsonInto}, view)
 	call(getView)
 	{
 		if err := jsonInto.Close(); err != nil {

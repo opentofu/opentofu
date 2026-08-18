@@ -84,7 +84,7 @@ func TestParseImport_basicValidation(t *testing.T) {
 			want: importArgsWithDefaults(func(imp *Import) {
 				imp.ResourceAddress = "addr"
 				imp.ResourceID = "id"
-				imp.ViewOptions.InputEnabled = false
+				imp.View.InputEnabled = false
 			}),
 		},
 		"json flag": {
@@ -92,8 +92,8 @@ func TestParseImport_basicValidation(t *testing.T) {
 			want: importArgsWithDefaults(func(imp *Import) {
 				imp.ResourceAddress = "addr"
 				imp.ResourceID = "id"
-				imp.ViewOptions.ViewType = ViewJSON
-				imp.ViewOptions.InputEnabled = false
+				imp.View.ViewType = ViewJSON
+				imp.View.InputEnabled = false
 			}),
 		},
 		"no arguments": {
@@ -118,7 +118,7 @@ func TestParseImport_basicValidation(t *testing.T) {
 		},
 	}
 
-	cmpOpts := cmpopts.IgnoreUnexported(Vars{}, ViewOptions{})
+	cmpOpts := cmpopts.IgnoreUnexported(Vars{})
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
@@ -196,9 +196,10 @@ func importArgsWithDefaults(mutate func(imp *Import)) *Import {
 		ResourceID:      "",
 		ConfigPath:      "",
 		Parallelism:     DefaultParallelism,
-		ViewOptions: ViewOptions{
-			ViewType:     ViewHuman,
-			InputEnabled: true,
+		View: &View{
+			ConsolidateWarnings: true,
+			ViewType:            ViewHuman,
+			InputEnabled:        true,
 		},
 		Vars: &Vars{
 			vars:     &v,

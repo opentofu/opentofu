@@ -11,8 +11,8 @@ import (
 
 // ProvidersSchema represents the command-line arguments for the 'providers schema' command.
 type ProvidersSchema struct {
-	// ViewOptions specifies which view options to use
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 
 	// Vars holds and provides information for the flags related to variables that a user can give into the process
 	Vars *Vars
@@ -20,14 +20,13 @@ type ProvidersSchema struct {
 
 // BindProvidersSchema registers CLI arguments, returning a ProvidersSchema value and it's corresponding hooks.
 func BindProvidersSchema(cli *CommandLine) *ProvidersSchema {
-	var schema ProvidersSchema
-
-	schema.ViewOptions.bindGranularFlags(cli, false, false)
-
-	schema.Vars = BindVars(cli)
+	schema := ProvidersSchema{
+		View: BindView(cli, viewFlagJson),
+		Vars: BindVars(cli),
+	}
 
 	cli.PreHook(func() tfdiags.Diagnostics {
-		if schema.ViewOptions.ViewType != ViewJSON {
+		if schema.View.ViewType != ViewJSON {
 			return tfdiags.New(tfdiags.Sourceless(
 				tfdiags.Error,
 				"Output only in json is allowed",
@@ -38,7 +37,7 @@ func BindProvidersSchema(cli *CommandLine) *ProvidersSchema {
 		// The 'providers schema' command just forces the user to use the `-json` flag but any of the diagnostics should
 		// be printed as human format.
 		// The print of the schema will be in JSON all the time.
-		schema.ViewOptions.ViewType = ViewHuman
+		schema.View.ViewType = ViewHuman
 
 		return nil
 	})

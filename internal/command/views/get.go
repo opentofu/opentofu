@@ -19,7 +19,7 @@ type Get interface {
 }
 
 // NewGet returns an initialized Get implementation for the given ViewType.
-func NewGet(args arguments.ViewOptions, view *View) Get {
+func NewGet(args *arguments.View, view *View) Get {
 	var ret Get
 	switch args.ViewType {
 	case arguments.ViewJSON:

@@ -25,7 +25,7 @@ type Unlock interface {
 }
 
 // NewUnlock returns an initialized Unlock implementation for the given ViewType.
-func NewUnlock(args arguments.ViewOptions, view *View) Unlock {
+func NewUnlock(args *arguments.View, view *View) Unlock {
 	var ret Unlock
 	switch args.ViewType {
 	case arguments.ViewJSON:

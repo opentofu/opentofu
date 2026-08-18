@@ -33,7 +33,7 @@ type Apply interface {
 }
 
 // NewApply returns an initialized Apply implementation for the given ViewType.
-func NewApply(args arguments.ViewOptions, destroy bool, view *View) Apply {
+func NewApply(args *arguments.View, destroy bool, view *View) Apply {
 	var apply Apply
 	switch args.ViewType {
 	case arguments.ViewJSON:
@@ -176,7 +176,7 @@ func (v *ApplyHuman) ResourceCount(stateOutPath string) {
 func (v *ApplyHuman) Outputs(outputValues map[string]*states.OutputValue) {
 	if len(outputValues) > 0 {
 		v.view.streams.Print(v.view.colorize.Color("[reset][bold][green]\nOutputs:\n\n"))
-		NewOutput(arguments.ViewOptions{ViewType: arguments.ViewHuman}, v.view).Output("", outputValues)
+		NewOutput(&arguments.View{ViewType: arguments.ViewHuman}, v.view).Output("", outputValues)
 	}
 }
 

@@ -19,7 +19,7 @@ var _ cli.Ui = (*ViewUiHuman)(nil)
 var _ cli.Ui = (*ViewUiJSON)(nil)
 var _ cli.Ui = (*ViewUiMulti)(nil)
 
-func NewViewUI(args arguments.ViewOptions, view *View, oldUi cli.Ui) cli.Ui {
+func NewViewUI(args *arguments.View, view *View, oldUi cli.Ui) cli.Ui {
 	var ret cli.Ui
 	switch args.ViewType {
 	case arguments.ViewJSON:

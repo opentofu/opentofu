@@ -10,9 +10,8 @@ import (
 )
 
 type WorkspaceShow struct {
-	// ViewOptions contains the options that allows the user to configure different types of outputs
-	// from the current command.
-	ViewOptions ViewOptions
+	// View represents the global view options
+	View *View
 
 	// Vars holds the information that might be needed to be given through `-var`/`-var-file`.
 	Vars *Vars
@@ -20,14 +19,10 @@ type WorkspaceShow struct {
 
 // BindWorkspaceShow registers CLI arguments, returning a WorkspaceShow value and it's corresponding hooks.
 func BindWorkspaceShow(cli *CommandLine) *WorkspaceShow {
-	var ret WorkspaceShow
-
-	// we only parse but do not register the views flags since this command does not need it
-	ret.ViewOptions.ParseHook(cli)
-
-	ret.Vars = BindVars(cli)
-
-	return &ret
+	return &WorkspaceShow{
+		View: BindView(cli, viewFlagNone),
+		Vars: BindVars(cli),
+	}
 }
 
 func ParseWorkspaceShow(args []string) (*WorkspaceShow, func(), tfdiags.Diagnostics) {
