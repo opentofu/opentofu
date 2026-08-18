@@ -12,6 +12,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/opentofu/opentofu/internal/collections"
+	"github.com/opentofu/opentofu/internal/linting"
 )
 
 func TestParseStateRm_basicValidation(t *testing.T) {
@@ -129,6 +131,8 @@ func stateRmArgsWithDefaults(mutate func(stateRm *StateRm)) *StateRm {
 			ConsolidateWarnings: true,
 			ViewType:            ViewHuman,
 			InputEnabled:        false,
+			LintInclude:         make(collections.Set[linting.RuleAddr]),
+			LintExclude:         make(collections.Set[linting.RuleAddr]),
 		},
 		Backend: &Backend{
 			IgnoreRemoteVersion: false,

@@ -11,6 +11,8 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/go-cmp/cmp"
+	"github.com/opentofu/opentofu/internal/collections"
+	"github.com/opentofu/opentofu/internal/linting"
 
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -77,8 +79,12 @@ func TestParseTest(t *testing.T) {
 			want: &Test{
 				Filter:        []string{},
 				TestDirectory: "tests",
-				View:          &View{ConsolidateWarnings: true, ViewType: ViewHuman},
-				Vars:          &Vars{},
+				View: &View{
+					ConsolidateWarnings: true, ViewType: ViewHuman,
+					LintInclude: make(collections.Set[linting.RuleAddr]),
+					LintExclude: make(collections.Set[linting.RuleAddr]),
+				},
+				Vars: &Vars{},
 			},
 			wantDiags: nil,
 		},
@@ -87,8 +93,12 @@ func TestParseTest(t *testing.T) {
 			want: &Test{
 				Filter:        []string{"one.tftest.hcl", "two.tftest.hcl"},
 				TestDirectory: "tests",
-				View:          &View{ConsolidateWarnings: true, ViewType: ViewHuman},
-				Vars:          &Vars{},
+				View: &View{
+					ConsolidateWarnings: true, ViewType: ViewHuman,
+					LintInclude: make(collections.Set[linting.RuleAddr]),
+					LintExclude: make(collections.Set[linting.RuleAddr]),
+				},
+				Vars: &Vars{},
 			},
 			wantDiags: nil,
 		},
@@ -97,8 +107,12 @@ func TestParseTest(t *testing.T) {
 			want: &Test{
 				Filter:        []string{},
 				TestDirectory: "tests",
-				View:          &View{ConsolidateWarnings: true, ViewType: ViewJSON},
-				Vars:          &Vars{},
+				View: &View{
+					ConsolidateWarnings: true, ViewType: ViewJSON,
+					LintInclude: make(collections.Set[linting.RuleAddr]),
+					LintExclude: make(collections.Set[linting.RuleAddr]),
+				},
+				Vars: &Vars{},
 			},
 			wantDiags: nil,
 		},
@@ -107,8 +121,12 @@ func TestParseTest(t *testing.T) {
 			want: &Test{
 				Filter:        []string{},
 				TestDirectory: "other",
-				View:          &View{ConsolidateWarnings: true, ViewType: ViewHuman},
-				Vars:          &Vars{},
+				View: &View{
+					ConsolidateWarnings: true, ViewType: ViewHuman,
+					LintInclude: make(collections.Set[linting.RuleAddr]),
+					LintExclude: make(collections.Set[linting.RuleAddr]),
+				},
+				Vars: &Vars{},
 			},
 			wantDiags: nil,
 		},
@@ -117,9 +135,13 @@ func TestParseTest(t *testing.T) {
 			want: &Test{
 				Filter:        []string{},
 				TestDirectory: "tests",
-				View:          &View{ConsolidateWarnings: true, ViewType: ViewHuman},
-				Verbose:       true,
-				Vars:          &Vars{},
+				View: &View{
+					ConsolidateWarnings: true, ViewType: ViewHuman,
+					LintInclude: make(collections.Set[linting.RuleAddr]),
+					LintExclude: make(collections.Set[linting.RuleAddr]),
+				},
+				Verbose: true,
+				Vars:    &Vars{},
 			},
 		},
 		"unknown flag": {
@@ -127,8 +149,12 @@ func TestParseTest(t *testing.T) {
 			want: &Test{
 				Filter:        []string{},
 				TestDirectory: "tests",
-				View:          &View{ConsolidateWarnings: true, ViewType: ViewHuman},
-				Vars:          &Vars{},
+				View: &View{
+					ConsolidateWarnings: true, ViewType: ViewHuman,
+					LintInclude: make(collections.Set[linting.RuleAddr]),
+					LintExclude: make(collections.Set[linting.RuleAddr]),
+				},
+				Vars: &Vars{},
 			},
 			wantDiags: tfdiags.Diagnostics{
 				tfdiags.Sourceless(

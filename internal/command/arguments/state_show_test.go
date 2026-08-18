@@ -11,6 +11,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/opentofu/opentofu/internal/collections"
+	"github.com/opentofu/opentofu/internal/linting"
 )
 
 func TestParseStateShow_basicValidation(t *testing.T) {
@@ -105,6 +107,8 @@ func stateShowArgsWithDefaults(mutate func(stateShow *StateShow)) *StateShow {
 			ConsolidateWarnings: true,
 			ViewType:            ViewHuman,
 			InputEnabled:        false,
+			LintInclude:         make(collections.Set[linting.RuleAddr]),
+			LintExclude:         make(collections.Set[linting.RuleAddr]),
 		},
 		Vars:  &Vars{},
 		State: &State{},
