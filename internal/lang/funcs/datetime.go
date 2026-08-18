@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 )
@@ -19,7 +20,7 @@ var TimestampFunc = function.New(&function.Spec{
 	Type:         function.StaticReturnType(cty.String),
 	RefineResult: refineNotNull,
 	Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
-		return cty.StringVal(time.Now().UTC().Format(time.RFC3339)), nil
+		return cty.StringVal(time.Now().UTC().Format(time.RFC3339)).Mark(marks.ImpureFuncUsageMark("timestamp")), nil
 	},
 })
 

@@ -21,6 +21,7 @@ import (
 
 	uuidv5 "github.com/google/uuid"
 	uuid "github.com/hashicorp/go-uuid"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 	"github.com/zclconf/go-cty/cty/gocty"
@@ -35,7 +36,7 @@ var UUIDFunc = function.New(&function.Spec{
 	Impl: func(args []cty.Value, retType cty.Type) (ret cty.Value, err error) {
 		result, err := uuid.GenerateUUID()
 		if err != nil {
-			return cty.UnknownVal(cty.String), err
+			return cty.UnknownVal(cty.String).Mark(marks.ImpureFuncUsageMark("uuid")), err
 		}
 		return cty.StringVal(result), nil
 	},
@@ -130,7 +131,7 @@ var BcryptFunc = function.New(&function.Spec{
 			return cty.UnknownVal(cty.String), fmt.Errorf("error occurred generating password %w", err)
 		}
 
-		return cty.StringVal(string(out)), nil
+		return cty.StringVal(string(out)).Mark(marks.ImpureFuncUsageMark("bcrypt")), nil
 	},
 })
 
