@@ -163,8 +163,9 @@ func decodeFunctionBlock(block *hcl.Block) (*Function, hcl.Diagnostics) {
 	return fn, diags
 }
 
-// TODO make this work in terms of scope
-func (fn *Function) Compile(w *workgraph.Worker, libScope *symbolScope) (function.Function, hcl.Diagnostics) {
+type functionWithStack func(stack []string) function.Function
+
+func (fn *Function) Compile(w *workgraph.Worker, libScope *symbolScope) (functionWithStack, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
 	spec := &function.Spec{
@@ -216,103 +217,106 @@ func (fn *Function) Compile(w *workgraph.Worker, libScope *symbolScope) (functio
 		spec.VarParam = &fnp
 	}
 
-	spec.Impl = func(args []cty.Value, retType cty.Type) (cty.Value, error) {
-		var diags hcl.Diagnostics
+	return func(stack []string) function.Function {
+		// This is safe because of struct copies
+		spec.Impl = func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+			var diags hcl.Diagnostics
 
-		// We "intentionally" use the worker assigned to the function here as it causes a panic.
-		// Recursive function calls will hang if new workers are assigned for each function call.
-		// There is not ideal an we should implement some sort of "stack depth" testing, but the panic
-		// covers it well enough for now(ish)
-		// Once we figure out proper recursive tracking of functions, we can move this back to it's own
-		// worker.
-		// w := workgraph.NewWorker()
-
-		paramEntries := map[string]cty.Value{}
-		for i, arg := range args[:len(spec.Params)] {
-			param := spec.Params[i]
-
-			if defaults[param.Name] != nil && !arg.IsNull() {
-				arg = defaults[param.Name].Apply(arg)
-			}
-			paramEntries[param.Name] = arg
-		}
-		if spec.VarParam != nil {
-			if len(spec.Params) != len(args) {
-				paramEntries[spec.VarParam.Name] = cty.ListVal(args[len(spec.Params):])
-			} else {
-				paramEntries[spec.VarParam.Name] = cty.ListValEmpty(spec.VarParam.Type)
-			}
-		}
-
-		funcScope := newFunctionScope(libScope, fn.Name, paramEntries)
-
-		for i := range args[:len(spec.Params)] {
-			param := spec.Params[i]
-
-			for _, validation := range validations[param.Name] {
-				hclCtx, hDiags := hclContext(w, funcScope, validation.Condition)
-				diags = diags.Extend(hDiags)
-				if hDiags.HasErrors() {
-					continue
+			callName := TypeSymbols + "::" + fn.Name
+			for _, entry := range stack {
+				if entry == callName {
+					return cty.NilVal, fmt.Errorf("Recursive call to %s detected", callName)
 				}
+			}
+			stack = append(stack, callName)
 
-				condVal, cDiags := validation.Condition.Value(hclCtx)
-				diags = diags.Extend(cDiags)
+			paramEntries := map[string]cty.Value{}
+			for i, arg := range args[:len(spec.Params)] {
+				param := spec.Params[i]
 
-				if cDiags.HasErrors() {
-					continue
+				if defaults[param.Name] != nil && !arg.IsNull() {
+					arg = defaults[param.Name].Apply(arg)
 				}
+				paramEntries[param.Name] = arg
+			}
+			if spec.VarParam != nil {
+				if len(spec.Params) != len(args) {
+					paramEntries[spec.VarParam.Name] = cty.ListVal(args[len(spec.Params):])
+				} else {
+					paramEntries[spec.VarParam.Name] = cty.ListValEmpty(spec.VarParam.Type)
+				}
+			}
 
-				if condVal.IsKnown() && condVal.False() {
-					hclCtx, hDiags := hclContext(w, funcScope, validation.ErrorMessage)
+			funcScope := newFunctionScope(libScope, fn.Name, paramEntries)
+
+			for i := range args[:len(spec.Params)] {
+				param := spec.Params[i]
+
+				for _, validation := range validations[param.Name] {
+					hclCtx, hDiags := hclContext(w, funcScope, validation.Condition, stack)
 					diags = diags.Extend(hDiags)
-
-					msgVal, mDiags := validation.ErrorMessage.Value(hclCtx)
-					diags = diags.Extend(mDiags)
-
-					if !msgVal.IsKnown() {
-						println(msgVal.Type().GoString())
+					if hDiags.HasErrors() {
 						continue
 					}
 
-					diags = diags.Append(&hcl.Diagnostic{
-						Severity: hcl.DiagError,
-						Summary:  "Function parameter failed validation",
-						Detail:   fmt.Sprintf("Parameter %q: %s", param.Name, msgVal.AsString()),
-						Subject:  validation.Condition.Range().Ptr(),
-					})
+					condVal, cDiags := validation.Condition.Value(hclCtx)
+					diags = diags.Extend(cDiags)
+
+					if cDiags.HasErrors() {
+						continue
+					}
+
+					if condVal.IsKnown() && condVal.False() {
+						hclCtx, hDiags := hclContext(w, funcScope, validation.ErrorMessage, stack)
+						diags = diags.Extend(hDiags)
+
+						msgVal, mDiags := validation.ErrorMessage.Value(hclCtx)
+						diags = diags.Extend(mDiags)
+
+						if !msgVal.IsKnown() {
+							println(msgVal.Type().GoString())
+							continue
+						}
+
+						diags = diags.Append(&hcl.Diagnostic{
+							Severity: hcl.DiagError,
+							Summary:  "Function parameter failed validation",
+							Detail:   fmt.Sprintf("Parameter %q: %s", param.Name, msgVal.AsString()),
+							Subject:  validation.Condition.Range().Ptr(),
+						})
+					}
 				}
 			}
+
+			// Now that parameters have been processed, we can add locals
+			funcScope.locals = map[string]valuer[cty.Value]{}
+			for name, expr := range fn.Locals {
+				id := ident{name: "local." + name, src: expr.Range().Ptr()}
+				funcScope.locals[name] = onceValuer[cty.Value](funcScope, id, func(w *workgraph.Worker) (cty.Value, hcl.Diagnostics) {
+					hclCtx, diags := hclContext(w, funcScope, expr, stack)
+					if diags.HasErrors() {
+						return cty.NilVal, diags
+					}
+					val, vDiags := expr.Value(hclCtx)
+					diags = diags.Extend(vDiags)
+					return val, diags
+				})
+			}
+
+			hclCtx, hDiags := hclContext(w, funcScope, fn.Return, stack)
+			diags = diags.Extend(hDiags)
+
+			val, vDiags := fn.Return.Value(hclCtx)
+			diags = diags.Extend(vDiags)
+
+			if diags.HasErrors() {
+				return val, error(diags)
+			}
+			return val, nil
 		}
 
-		// Now that parameters have been processed, we can add locals
-		funcScope.locals = map[string]valuer[cty.Value]{}
-		for name, expr := range fn.Locals {
-			id := ident{name: "local." + name, src: expr.Range().Ptr()}
-			funcScope.locals[name] = onceValuer[cty.Value](funcScope, id, func(w *workgraph.Worker) (cty.Value, hcl.Diagnostics) {
-				hclCtx, diags := hclContext(w, funcScope, expr)
-				if diags.HasErrors() {
-					return cty.NilVal, diags
-				}
-				val, vDiags := expr.Value(hclCtx)
-				diags = diags.Extend(vDiags)
-				return val, diags
-			})
-		}
-
-		hclCtx, hDiags := hclContext(w, funcScope, fn.Return)
-		diags = diags.Extend(hDiags)
-
-		val, vDiags := fn.Return.Value(hclCtx)
-		diags = diags.Extend(vDiags)
-
-		if diags.HasErrors() {
-			return val, error(diags)
-		}
-		return val, nil
-	}
-
-	return function.New(spec), diags
+		return function.New(spec)
+	}, diags
 }
 
 var functionParameterSchema = &hcl.BodySchema{

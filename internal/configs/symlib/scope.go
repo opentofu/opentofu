@@ -17,7 +17,7 @@ import (
 	"github.com/zclconf/go-cty/cty/function"
 )
 
-func hclContext(w *workgraph.Worker, s scope, expr hcl.Expression) (*hcl.EvalContext, hcl.Diagnostics) {
+func hclContext(w *workgraph.Worker, s scope, expr hcl.Expression, stack []string) (*hcl.EvalContext, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	hclCtx := &hcl.EvalContext{}
 
@@ -51,7 +51,7 @@ func hclContext(w *workgraph.Worker, s scope, expr hcl.Expression) (*hcl.EvalCon
 	hclCtx.Functions = map[string]function.Function{}
 	if fexpr, ok := expr.(hcl.ExpressionWithFunctions); ok {
 		for _, fn := range fexpr.Functions() {
-			found, fDiags := s.functionFor(w, fn)
+			found, fDiags := s.functionFor(w, fn, stack)
 			if found != nil {
 				hclCtx.Functions[fn[0].(hcl.TraverseRoot).Name] = *found
 			}
@@ -74,7 +74,7 @@ func typeContext(w *workgraph.Worker, s scope) typeexpr.TypeContext {
 
 type scope interface {
 	valueFor(*workgraph.Worker, string, string, hcl.Range) (cty.Value, hcl.Diagnostics)
-	functionFor(*workgraph.Worker, hcl.Traversal) (*function.Function, hcl.Diagnostics)
+	functionFor(*workgraph.Worker, hcl.Traversal, []string) (*function.Function, hcl.Diagnostics)
 	typeForStaticCall(*workgraph.Worker, *hcl.StaticCall) (cty.Type, *typeexpr.Defaults, hcl.Diagnostics)
 
 	setRequest(workgraph.RequestID, ident)
@@ -90,7 +90,7 @@ type symbolScope struct {
 	requests   map[workgraph.RequestID]ident
 
 	values    map[string]valuer[cty.Value]
-	functions map[string]valuer[function.Function]
+	functions map[string]valuer[functionWithStack]
 	types     map[string]valuer[typeWithDefault]
 }
 
@@ -102,7 +102,7 @@ func newSymbolScope(table Table, builtinFuncs map[string]function.Function) *sym
 		requests: map[workgraph.RequestID]ident{},
 
 		values:    map[string]valuer[cty.Value]{},
-		functions: map[string]valuer[function.Function]{},
+		functions: map[string]valuer[functionWithStack]{},
 		types:     map[string]valuer[typeWithDefault]{},
 	}
 }
@@ -128,7 +128,7 @@ func (s *symbolScope) valueFor(w *workgraph.Worker, rootName string, attrName st
 	return cty.NilVal, nil
 }
 
-func (s *symbolScope) functionFor(w *workgraph.Worker, fn hcl.Traversal) (*function.Function, hcl.Diagnostics) {
+func (s *symbolScope) functionFor(w *workgraph.Worker, fn hcl.Traversal, stack []string) (*function.Function, hcl.Diagnostics) {
 	root := fn[0].(hcl.TraverseRoot)
 	sp := strings.Split(root.Name, "::")
 	if len(sp) == 1 {
@@ -155,7 +155,7 @@ func (s *symbolScope) functionFor(w *workgraph.Worker, fn hcl.Traversal) (*funct
 			}}
 		}
 		fn, diags := found.Value(w)
-		return &fn, diags
+		return new(fn(stack)), diags
 	case 3:
 		return s.table.Function(FunctionRef{
 			Namespace: sp[1],

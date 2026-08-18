@@ -142,7 +142,7 @@ func CompileLibrary(files []*SymbolFile, loader Loader, builtinFuncs map[string]
 			}
 			id := ident{name: o.Name, src: &o.DeclRange}
 			libScope.values[o.Name] = onceValuer[cty.Value](libScope, id, func(w *workgraph.Worker) (cty.Value, hcl.Diagnostics) {
-				hclCtx, diags := hclContext(w, libScope, o.Expr)
+				hclCtx, diags := hclContext(w, libScope, o.Expr, nil)
 				if diags.HasErrors() {
 					return cty.NilVal, diags
 				}
@@ -177,7 +177,7 @@ func CompileLibrary(files []*SymbolFile, loader Loader, builtinFuncs map[string]
 				})
 			}
 			id := ident{name: o.Name, src: &o.DeclRange}
-			libScope.functions[o.Name] = onceValuer(libScope, id, func(w *workgraph.Worker) (function.Function, hcl.Diagnostics) {
+			libScope.functions[o.Name] = onceValuer(libScope, id, func(w *workgraph.Worker) (functionWithStack, hcl.Diagnostics) {
 				return o.Compile(w, libScope)
 			})
 		}
@@ -226,7 +226,7 @@ func CompileLibrary(files []*SymbolFile, loader Loader, builtinFuncs map[string]
 	for name, once := range libScope.functions {
 		f, fDiags := once.Value(w)
 		diags = diags.Extend(fDiags)
-		lib.functions[name] = f
+		lib.functions[name] = f(nil)
 	}
 
 	return lib, diags
