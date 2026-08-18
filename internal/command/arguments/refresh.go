@@ -20,41 +20,26 @@ type Refresh struct {
 	ViewOptions ViewOptions
 }
 
+// BindRefresh registers CLI arguments, returning a Refresh value and it's corresponding hooks.
+func BindRefresh(cli *CommandLine) *Refresh {
+	var refresh Refresh
+
+	refresh.ViewOptions.bind(cli, true)
+
+	refresh.Vars = BindVars(cli)
+	refresh.Operation = BindOperation(cli)
+
+	refresh.State = BindState(cli, stateFlagAll)
+
+	return &refresh
+}
+
 // ParseRefresh processes CLI arguments, returning a Refresh value, a closer function, and errors.
 // If errors are encountered, a Refresh value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseRefresh(args []string) (*Refresh, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-	refresh := &Refresh{
-		State:     &State{},
-		Operation: &Operation{},
-		Vars:      &Vars{},
-	}
-
-	cmdFlags := extendedFlagSet("refresh", refresh.Operation, refresh.Vars)
-	refresh.State.addFlags(cmdFlags, stateFlagAll)
-	refresh.ViewOptions.AddFlags(cmdFlags, true)
-
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error(),
-		))
-	}
-
-	args = cmdFlags.Args()
-	if len(args) > 0 {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Too many command line arguments",
-			"Expected at most one positional argument.",
-		))
-	}
-
-	diags = diags.Append(refresh.Operation.Parse())
-	closer, moreDiags := refresh.ViewOptions.Parse()
-	diags = diags.Append(moreDiags)
-
+	cli := new(CommandLine)
+	refresh := BindRefresh(cli)
+	closer, diags := cli.Stdlib("refresh", args)
 	return refresh, closer, diags
 }

@@ -115,17 +115,22 @@ func TestParseStateMv_basicValidation(t *testing.T) {
 		"no arguments": {
 			args:        []string{},
 			want:        stateMvArgsWithDefaults(nil),
-			wantErrText: "Invalid number of arguments",
+			wantErrText: "Expected exactly two positional arguments",
 		},
 		"only one argument": {
-			args:        []string{"source"},
-			want:        stateMvArgsWithDefaults(nil),
-			wantErrText: "Invalid number of arguments",
+			args: []string{"source"},
+			want: stateMvArgsWithDefaults(func(stateMv *StateMv) {
+				stateMv.RawSrcAddr = "source"
+			}),
+			wantErrText: "Expected exactly two positional arguments",
 		},
 		"too many arguments": {
-			args:        []string{"source", "dest", "extra"},
-			want:        stateMvArgsWithDefaults(nil),
-			wantErrText: "Invalid number of arguments",
+			args: []string{"source", "dest", "extra"},
+			want: stateMvArgsWithDefaults(func(stateMv *StateMv) {
+				stateMv.RawSrcAddr = "source"
+				stateMv.RawDestAddr = "dest"
+			}),
+			wantErrText: "Expected exactly two positional arguments.",
 		},
 	}
 

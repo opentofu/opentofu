@@ -36,62 +36,97 @@ type Apply struct {
 	SuppressForgetErrorsDuringDestroy bool
 }
 
+// BindApply registers CLI arguments, returning a Apply value and it's corresponding hooks.
+func BindApply(cli *CommandLine) *Apply {
+	var apply Apply
+
+	apply.ViewOptions.bind(cli, true)
+
+	apply.Operation = BindOperation(cli)
+	apply.Vars = BindVars(cli)
+	apply.State = BindState(cli, stateFlagAll)
+
+	cli.BoolVar(&apply.AutoApprove, "auto-approve", false, "Skip interactive approval of plan before applying.")
+	cli.BoolVar(&apply.ShowSensitive, "show-sensitive", false, "If specified, sensitive values will be displayed.")
+	cli.BoolVar(&apply.SuppressForgetErrorsDuringDestroy, "suppress-forget-errors", false, "Suppress the error that occurs when a destroy operation completes successfully but leaves forgotten instances behind.")
+
+	cli.PositionalArg(&apply.PlanPath, "PLAN", true)
+
+	cli.PreHook(func() tfdiags.Diagnostics {
+		// JSON view cannot confirm apply, so we require either a plan file or
+		// auto-approve to be specified. We intentionally fail here rather than
+		// override auto-approve, which would be dangerous.
+		if apply.ViewOptions.jsonFlag && apply.PlanPath == "" && !apply.AutoApprove {
+			return tfdiags.New(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Plan file or auto-approve required",
+				"OpenTofu cannot ask for interactive approval when -json is set. You can either apply a saved plan file, or enable the -auto-approve option.",
+			))
+		}
+		return nil
+	})
+
+	return &apply
+}
+
+// BindApplyDestroy registers CLI arguments, returning a Apply value and it's corresponding hooks.
+func BindApplyDestroy(cli *CommandLine) *Apply {
+	apply := BindApply(cli)
+
+	cli.PreHook(func() tfdiags.Diagnostics {
+		// So far ParseApply was using the command line options like -destroy
+		// and -refresh-only to determine the plan mode. For "tofu destroy"
+		// we expect neither of those arguments to be set, and so the plan mode
+		// should currently be set to NormalMode, which we'll replace with
+		// DestroyMode here. If it's already set to something else then that
+		// suggests incorrect usage.
+		switch apply.Operation.PlanMode {
+		case plans.NormalMode:
+			// This indicates that the user didn't specify any mode options at
+			// all, which is correct, although we know from the command that
+			// they actually intended to use DestroyMode here.
+			apply.Operation.PlanMode = plans.DestroyMode
+		case plans.DestroyMode:
+			return tfdiags.New(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Invalid mode option",
+				"The -destroy option is not valid for \"tofu destroy\", because this command always runs in destroy mode.",
+			))
+		case plans.RefreshOnlyMode:
+			return tfdiags.New(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Invalid mode option",
+				"The -refresh-only option is not valid for \"tofu destroy\".",
+			))
+		default:
+			// This is a non-ideal error message for if we forget to handle a
+			// newly-handled plan mode in Operation.Parse. Ideally they should all
+			// have cases above so we can produce better error messages.
+			return tfdiags.New(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Invalid mode option",
+				fmt.Sprintf("The \"tofu destroy\" command doesn't support %s.", apply.Operation.PlanMode),
+			))
+		}
+
+		// NOTE: It's also invalid to have apply.PlanPath set in this codepath,
+		// but we don't check that in here because we'll return a different error
+		// message depending on whether the given path seems to refer to a saved
+		// plan file or to a configuration directory. The apply command
+		// implementation itself therefore handles this situation.
+		return nil
+	})
+
+	return apply
+}
+
 // ParseApply processes CLI arguments, returning an Apply value, a closer function, and errors.
 // If errors are encountered, an Apply value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseApply(args []string) (*Apply, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-	apply := &Apply{
-		State:     &State{},
-		Operation: &Operation{},
-		Vars:      &Vars{},
-	}
-
-	cmdFlags := extendedFlagSet("apply", apply.Operation, apply.Vars)
-	cmdFlags.BoolVar(&apply.AutoApprove, "auto-approve", false, "auto-approve")
-	cmdFlags.BoolVar(&apply.ShowSensitive, "show-sensitive", false, "displays sensitive values")
-	cmdFlags.BoolVar(&apply.SuppressForgetErrorsDuringDestroy, "suppress-forget-errors", false, "suppress errors in destroy mode due to resources being forgotten")
-
-	apply.State.addFlags(cmdFlags, stateFlagAll)
-	apply.ViewOptions.AddFlags(cmdFlags, true)
-
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error(),
-		))
-	}
-
-	args = cmdFlags.Args()
-	if len(args) > 0 {
-		apply.PlanPath = args[0]
-		args = args[1:]
-	}
-
-	if len(args) > 0 {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Too many command line arguments",
-			"Expected at most one positional argument.",
-		))
-	}
-
-	// JSON view cannot confirm apply, so we require either a plan file or
-	// auto-approve to be specified. We intentionally fail here rather than
-	// override auto-approve, which would be dangerous.
-	if apply.ViewOptions.jsonFlag && apply.PlanPath == "" && !apply.AutoApprove {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Plan file or auto-approve required",
-			"OpenTofu cannot ask for interactive approval when -json is set. You can either apply a saved plan file, or enable the -auto-approve option.",
-		))
-	}
-
-	diags = diags.Append(apply.Operation.Parse())
-	closer, moreDiags := apply.ViewOptions.Parse()
-	diags = diags.Append(moreDiags)
-
+	cli := new(CommandLine)
+	apply := BindApply(cli)
+	closer, diags := cli.Stdlib("apply", args)
 	return apply, closer, diags
 }
 
@@ -99,48 +134,8 @@ func ParseApply(args []string) (*Apply, func(), tfdiags.Diagnostics) {
 // "tofu destroy" command, which is effectively an alias for
 // "tofu apply -destroy".
 func ParseApplyDestroy(args []string) (*Apply, func(), tfdiags.Diagnostics) {
-	apply, closer, diags := ParseApply(args)
-
-	// So far ParseApply was using the command line options like -destroy
-	// and -refresh-only to determine the plan mode. For "tofu destroy"
-	// we expect neither of those arguments to be set, and so the plan mode
-	// should currently be set to NormalMode, which we'll replace with
-	// DestroyMode here. If it's already set to something else then that
-	// suggests incorrect usage.
-	switch apply.Operation.PlanMode {
-	case plans.NormalMode:
-		// This indicates that the user didn't specify any mode options at
-		// all, which is correct, although we know from the command that
-		// they actually intended to use DestroyMode here.
-		apply.Operation.PlanMode = plans.DestroyMode
-	case plans.DestroyMode:
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Invalid mode option",
-			"The -destroy option is not valid for \"tofu destroy\", because this command always runs in destroy mode.",
-		))
-	case plans.RefreshOnlyMode:
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Invalid mode option",
-			"The -refresh-only option is not valid for \"tofu destroy\".",
-		))
-	default:
-		// This is a non-ideal error message for if we forget to handle a
-		// newly-handled plan mode in Operation.Parse. Ideally they should all
-		// have cases above so we can produce better error messages.
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Invalid mode option",
-			fmt.Sprintf("The \"tofu destroy\" command doesn't support %s.", apply.Operation.PlanMode),
-		))
-	}
-
-	// NOTE: It's also invalid to have apply.PlanPath set in this codepath,
-	// but we don't check that in here because we'll return a different error
-	// message depending on whether the given path seems to refer to a saved
-	// plan file or to a configuration directory. The apply command
-	// implementation itself therefore handles this situation.
-
+	cli := new(CommandLine)
+	apply := BindApplyDestroy(cli)
+	closer, diags := cli.Stdlib("destroy", args)
 	return apply, closer, diags
 }

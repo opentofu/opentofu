@@ -32,7 +32,7 @@ func TestParseStatePull_basicValidation(t *testing.T) {
 		"unknown flag": {
 			args:        []string{"-unknown"},
 			want:        statePullArgsWithDefaults(nil),
-			wantErrText: "Failed to parse command-line flags",
+			wantErrText: "Failed to parse command-line options",
 		},
 	}
 

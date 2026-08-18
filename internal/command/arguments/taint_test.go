@@ -25,13 +25,19 @@ func TestParseTaint_basicValidation(t *testing.T) {
 		"no arguments": {
 			args:        nil,
 			want:        taintArgsWithDefaults(nil),
-			wantErrText: "The taint command expects exactly one argument.",
+			wantErrText: "Expected exactly one positional argument",
 			forTaintCmd: true,
 		},
 		"too many arguments": {
-			args:        []string{"test_instance.foo", "test_instance.bar"},
-			want:        taintArgsWithDefaults(nil),
-			wantErrText: "The taint command expects exactly one argument.",
+			args: []string{"test_instance.foo", "test_instance.bar"},
+			want: taintArgsWithDefaults(func(v *Taint) {
+				v.TargetAddress = addrs.Resource{
+					Mode: addrs.ManagedResourceMode,
+					Type: "test_instance",
+					Name: "foo",
+				}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance)
+			}),
+			wantErrText: "Expected exactly one positional argument",
 			forTaintCmd: true,
 		},
 		"valid resource address": {
@@ -97,9 +103,15 @@ func TestParseTaint_basicValidation(t *testing.T) {
 			}),
 		},
 		"unknown flag": {
-			args:        []string{"-unknown-flag", "test_instance.foo"},
-			want:        taintArgsWithDefaults(func(v *Taint) {}),
-			wantErrText: "Failed to parse command-line flags: flag provided but not defined: -unknown-flag",
+			args: []string{"-unknown-flag", "test_instance.foo"},
+			want: taintArgsWithDefaults(func(v *Taint) {
+				v.TargetAddress = addrs.Resource{
+					Mode: addrs.ManagedResourceMode,
+					Type: "test_instance",
+					Name: "foo",
+				}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance)
+			}),
+			wantErrText: "flag provided but not defined: -unknown-flag",
 		},
 	}
 

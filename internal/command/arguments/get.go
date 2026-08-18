@@ -22,40 +22,26 @@ type Get struct {
 	ViewOptions ViewOptions
 }
 
+// BindGet registers CLI arguments, returning a Get value and it's corresponding hooks.
+func BindGet(cli *CommandLine) *Get {
+	var arguments Get
+
+	arguments.ViewOptions.bind(cli, false)
+
+	arguments.Vars = BindVars(cli)
+
+	cli.BoolVar(&arguments.Update, "update", false, "Check already-downloaded modules for available updates and install the newest versions available.")
+	cli.StringVar(&arguments.TestsDirectory, "test-directory", "tests", `Set the OpenTofu test directory, defaults to "tests". When set, the test command will search for test files in the current directory and in the one specified by the flag.`).SetDisplay("=path")
+
+	return &arguments
+}
+
 // ParseGet processes CLI arguments, returning a Get value, a closer function, and errors.
 // If errors are encountered, a Get value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseGet(args []string) (*Get, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-	arguments := &Get{
-		Vars: &Vars{},
-	}
-
-	cmdFlags := extendedFlagSet("get", nil, arguments.Vars)
-	cmdFlags.BoolVar(&arguments.Update, "update", false, "update")
-	cmdFlags.StringVar(&arguments.TestsDirectory, "test-directory", "tests", "test-directory")
-	arguments.ViewOptions.AddFlags(cmdFlags, false)
-
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error(),
-		))
-	}
-
-	closer, moreDiags := arguments.ViewOptions.Parse()
-	diags = diags.Append(moreDiags)
-	if diags.HasErrors() {
-		return arguments, closer, diags
-	}
-	if len(cmdFlags.Args()) > 0 {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Unexpected argument",
-			"Too many command line arguments. Did you mean to use -chdir?",
-		))
-	}
-
+	cli := new(CommandLine)
+	arguments := BindGet(cli)
+	closer, diags := cli.Stdlib("get", args)
 	return arguments, closer, diags
 }

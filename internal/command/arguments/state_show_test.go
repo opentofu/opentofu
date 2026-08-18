@@ -56,17 +56,21 @@ func TestParseStateShow_basicValidation(t *testing.T) {
 		"no arguments": {
 			args:        []string{},
 			want:        stateShowArgsWithDefaults(nil),
-			wantErrText: "Invalid number of arguments",
+			wantErrText: "Expected exactly one positional argument",
 		},
 		"too many arguments": {
-			args:        []string{"resource_address", "extra"},
-			want:        stateShowArgsWithDefaults(nil),
-			wantErrText: "Invalid number of arguments",
+			args: []string{"resource_address", "extra"},
+			want: stateShowArgsWithDefaults(func(stateShow *StateShow) {
+				stateShow.TargetRawAddr = "resource_address"
+			}),
+			wantErrText: "Expected exactly one positional argument",
 		},
 		"unknown flag": {
-			args:        []string{"-unknown-flag"},
-			want:        stateShowArgsWithDefaults(func(v *StateShow) {}),
-			wantErrText: "Failed to parse command-line flags: flag provided but not defined: -unknown-flag",
+			args: []string{"-unknown-flag", "resource_address"},
+			want: stateShowArgsWithDefaults(func(stateShow *StateShow) {
+				stateShow.TargetRawAddr = "resource_address"
+			}),
+			wantErrText: "flag provided but not defined: -unknown-flag",
 		},
 	}
 

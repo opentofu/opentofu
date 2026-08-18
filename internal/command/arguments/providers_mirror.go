@@ -6,7 +6,6 @@
 package arguments
 
 import (
-	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -16,7 +15,7 @@ type ProvidersMirror struct {
 	Directory string
 	// OptPlatforms contains the platforms that the user requested to have the providers
 	// copy for
-	OptPlatforms flags.FlagStringSlice
+	OptPlatforms []string
 
 	// ViewOptions specifies which view options to use
 	ViewOptions ViewOptions
@@ -24,41 +23,30 @@ type ProvidersMirror struct {
 	Vars *Vars
 }
 
+// BindProvidersMirror registers CLI arguments, returning a ProvidersMirror value and it's corresponding hooks.
+func BindProvidersMirror(cli *CommandLine) *ProvidersMirror {
+	var arguments ProvidersMirror
+
+	arguments.ViewOptions.bind(cli, false)
+
+	arguments.Vars = BindVars(cli)
+
+	cli.StringArrayVar(&arguments.OptPlatforms, "platform", nil, `Choose which target platform to build a mirror for. By default OpenTofu will obtain plugin packages suitable for the platform where you run this command. Use this flag multiple times to include packages for multiple target systems.
+
+ Target names consist of an operating system and a CPU architecture. For example, "linux_amd64" selects the Linux operating system running on an AMD64 or x86_64 CPU. Each provider is available only for a limited set of target platforms.`).SetDisplay("=os_arch")
+
+	cli.ArgHelp = "The providers mirror command requires an output directory as a command-line argument."
+	cli.PositionalArg(&arguments.Directory, "target-dir", false)
+
+	return &arguments
+}
+
 // ParseProvidersMirror processes CLI arguments, returning a ProvidersMirror value, a closer function, and errors.
 // If errors are encountered, a ProvidersMirror value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseProvidersMirror(args []string) (*ProvidersMirror, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-	arguments := &ProvidersMirror{
-		Vars: &Vars{},
-	}
-
-	cmdFlags := extendedFlagSet("providers mirror", nil, arguments.Vars)
-	cmdFlags.Var(&arguments.OptPlatforms, "platform", "target platform")
-	arguments.ViewOptions.AddFlags(cmdFlags, false)
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error(),
-		))
-	}
-	remainingArgs := cmdFlags.Args()
-	if len(remainingArgs) != 1 {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Wrong number of arguments",
-			"The providers mirror command requires an output directory as a command-line argument.",
-		))
-	} else {
-		arguments.Directory = remainingArgs[0]
-	}
-
-	closer, moreDiags := arguments.ViewOptions.Parse()
-	diags = diags.Append(moreDiags)
-	if diags.HasErrors() {
-		return arguments, closer, diags
-	}
-
+	cli := new(CommandLine)
+	arguments := BindProvidersMirror(cli)
+	closer, diags := cli.Stdlib("providers mirror", args)
 	return arguments, closer, diags
 }

@@ -93,17 +93,22 @@ func TestParseReplaceProvider_basicValidation(t *testing.T) {
 		"no arguments": {
 			args:        []string{},
 			want:        stateReplaceProviderArgsWithDefaults(nil),
-			wantErrText: "Invalid number of arguments",
+			wantErrText: "Expected exactly two positional arguments",
 		},
 		"only one argument": {
-			args:        []string{"source"},
-			want:        stateReplaceProviderArgsWithDefaults(nil),
-			wantErrText: "Invalid number of arguments",
+			args: []string{"source"},
+			want: stateReplaceProviderArgsWithDefaults(func(srp *StateReplaceProvider) {
+				srp.RawSrcAddr = "source"
+			}),
+			wantErrText: "Expected exactly two positional arguments",
 		},
 		"too many arguments": {
-			args:        []string{"source", "dest", "extra"},
-			want:        stateReplaceProviderArgsWithDefaults(nil),
-			wantErrText: "Invalid number of arguments",
+			args: []string{"source", "dest", "extra"},
+			want: stateReplaceProviderArgsWithDefaults(func(srp *StateReplaceProvider) {
+				srp.RawSrcAddr = "source"
+				srp.RawDestAddr = "dest"
+			}),
+			wantErrText: "Expected exactly two positional arguments",
 		},
 		"json without auto-approve": {
 			args: []string{"-json", "source", "dest"},

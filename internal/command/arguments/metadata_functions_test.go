@@ -21,7 +21,7 @@ func TestParseMetadataFunctions_basicValidation(t *testing.T) {
 		"defaults": {
 			args:        nil,
 			want:        metadataFunctionsArgsWithDefaults(nil),
-			wantErrText: "Invalid arguments: The `tofu metadata functions` command requires the `-json` flag.",
+			wantErrText: "The `tofu metadata functions` command requires the `-json` flag.",
 		},
 		"json flag": {
 			args: []string{"-json"},
@@ -35,7 +35,7 @@ func TestParseMetadataFunctions_basicValidation(t *testing.T) {
 		"invalid flag": {
 			args:        []string{"-foo"},
 			want:        metadataFunctionsArgsWithDefaults(func(args *MetadataFunctions) {}),
-			wantErrText: "Failed to parse command-line flags: flag provided but not defined: -foo",
+			wantErrText: "flag provided but not defined: -foo",
 		},
 	}
 

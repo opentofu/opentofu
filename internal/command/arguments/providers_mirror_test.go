@@ -22,12 +22,14 @@ func TestParseProvidersMirror_basicValidation(t *testing.T) {
 		"no directory": {
 			args:        nil,
 			want:        providersMirrorArgsWithDefaults(nil),
-			wantErrText: "Wrong number of arguments: The providers mirror command requires an output directory as a command-line argument.",
+			wantErrText: "The providers mirror command requires an output directory as a command-line argument.",
 		},
 		"too many arguments": {
-			args:        []string{"/path/to/mirror", "/another/path"},
-			want:        providersMirrorArgsWithDefaults(func(v *ProvidersMirror) {}),
-			wantErrText: "Wrong number of arguments: The providers mirror command requires an output directory as a command-line argument.",
+			args: []string{"/path/to/mirror", "/another/path"},
+			want: providersMirrorArgsWithDefaults(func(v *ProvidersMirror) {
+				v.Directory = "/path/to/mirror"
+			}),
+			wantErrText: "The providers mirror command requires an output directory as a command-line argument.",
 		},
 		"single directory": {
 			args: []string{"/path/to/mirror"},
@@ -54,7 +56,7 @@ func TestParseProvidersMirror_basicValidation(t *testing.T) {
 			want: providersMirrorArgsWithDefaults(func(v *ProvidersMirror) {
 				v.Directory = "/path/to/mirror"
 			}),
-			wantErrText: "Failed to parse command-line flags: flag provided but not defined: -unknown-flag",
+			wantErrText: "flag provided but not defined: -unknown-flag",
 		},
 	}
 

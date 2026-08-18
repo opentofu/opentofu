@@ -29,44 +29,30 @@ type Graph struct {
 	Vars *Vars
 }
 
+// BindGraph registers CLI arguments, returning a Graph value and it's corresponding hooks.
+func BindGraph(cli *CommandLine) *Graph {
+	var graph Graph
+
+	// we only parse but do not register the views flags since this command does not need it
+	graph.ViewOptions.ParseHook(cli)
+
+	graph.Vars = BindVars(cli)
+
+	cli.BoolVar(&graph.DrawCycles, "draw-cycles", false, "Highlight any cycles in the graph with colored edges. This helps when diagnosing cycle errors.")
+	cli.StringVar(&graph.GraphType, "type", "", `Type of graph to output. Can be: plan, plan-refresh-only, plan-destroy, or apply. By default OpenTofu chooses "plan", or "apply" if you also set the -plan=... option.`).SetDisplay("=plan")
+	cli.IntVar(&graph.ModuleDepth, "module-depth", -1, "(deprecated) In prior versions of OpenTofu, specified the depth of modules to show in the output.")
+	cli.BoolVar(&graph.Verbose, "verbose", false, "verbose").SetHidden(true)
+	cli.StringVar(&graph.PlanPath, "plan", "", "Render graph using the specified plan file instead of the configuration in the current directory.").SetDisplay("=tfplan")
+
+	return &graph
+}
+
 // ParseGraph processes CLI arguments, returning a Graph value, a closer function, and errors.
 // If errors are encountered, a Graph value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseGraph(args []string) (*Graph, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-	arguments := &Graph{
-		Vars: &Vars{},
-	}
-
-	cmdFlags := extendedFlagSet("graph", nil, arguments.Vars)
-	cmdFlags.BoolVar(&arguments.DrawCycles, "draw-cycles", false, "draw-cycles")
-	cmdFlags.StringVar(&arguments.GraphType, "type", "", "type")
-	cmdFlags.IntVar(&arguments.ModuleDepth, "module-depth", -1, "module-depth")
-	cmdFlags.BoolVar(&arguments.Verbose, "verbose", false, "verbose")
-	cmdFlags.StringVar(&arguments.PlanPath, "plan", "", "plan")
-
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error(),
-		))
-	}
-
-	// we only parse but do not register the views flags since this command does not need it
-	closer, moreDiags := arguments.ViewOptions.Parse()
-	diags = diags.Append(moreDiags)
-	if diags.HasErrors() {
-		return arguments, closer, diags
-	}
-
-	if len(cmdFlags.Args()) > 0 {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Unexpected argument",
-			"Too many command line arguments. Did you mean to use -chdir?",
-		))
-	}
-
+	cli := new(CommandLine)
+	arguments := BindGraph(cli)
+	closer, diags := cli.Stdlib("graph", args)
 	return arguments, closer, diags
 }

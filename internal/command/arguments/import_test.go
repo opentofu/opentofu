@@ -13,11 +13,9 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/opentofu/opentofu/internal/command/flags"
-	"github.com/opentofu/opentofu/internal/command/workdir"
 )
 
 func TestParseImport_basicValidation(t *testing.T) {
-	wd := workdir.NewDir(".")
 	testCases := map[string]struct {
 		args        []string
 		want        *Import
@@ -101,17 +99,22 @@ func TestParseImport_basicValidation(t *testing.T) {
 		"no arguments": {
 			args:        []string{},
 			want:        importArgsWithDefaults(nil),
-			wantErrText: "Invalid number of arguments: The import command expects two arguments",
+			wantErrText: "The import command expects two arguments",
 		},
 		"one argument": {
-			args:        []string{"addr"},
-			want:        importArgsWithDefaults(nil),
-			wantErrText: "Invalid number of arguments: The import command expects two arguments",
+			args: []string{"addr"},
+			want: importArgsWithDefaults(func(imp *Import) {
+				imp.ResourceAddress = "addr"
+			}),
+			wantErrText: "The import command expects two arguments",
 		},
 		"too many arguments": {
-			args:        []string{"addr", "id", "extra"},
-			want:        importArgsWithDefaults(nil),
-			wantErrText: "Invalid number of arguments: The import command expects two arguments",
+			args: []string{"addr", "id", "extra"},
+			want: importArgsWithDefaults(func(imp *Import) {
+				imp.ResourceAddress = "addr"
+				imp.ResourceID = "id"
+			}),
+			wantErrText: "The import command expects two arguments",
 		},
 	}
 
@@ -119,7 +122,7 @@ func TestParseImport_basicValidation(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			got, closer, diags := ParseImport(tc.args, wd)
+			got, closer, diags := ParseImport(tc.args)
 			defer closer()
 
 			if tc.wantErrText != "" && len(diags) == 0 {
@@ -140,7 +143,6 @@ func TestParseImport_basicValidation(t *testing.T) {
 }
 
 func TestParseImport_vars(t *testing.T) {
-	wd := workdir.NewDir(".")
 	testCases := map[string]struct {
 		args      []string
 		wantCount int
@@ -170,7 +172,7 @@ func TestParseImport_vars(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			got, closer, diags := ParseImport(tc.args, wd)
+			got, closer, diags := ParseImport(tc.args)
 			defer closer()
 
 			if len(diags) > 0 {
@@ -192,7 +194,7 @@ func importArgsWithDefaults(mutate func(imp *Import)) *Import {
 	ret := &Import{
 		ResourceAddress: "",
 		ResourceID:      "",
-		ConfigPath:      ".",
+		ConfigPath:      "",
 		Parallelism:     DefaultParallelism,
 		ViewOptions: ViewOptions{
 			ViewType:     ViewHuman,

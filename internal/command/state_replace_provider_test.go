@@ -230,7 +230,7 @@ func TestStateReplaceProvider(t *testing.T) {
 			t.Fatalf("successful exit; want error")
 		}
 
-		if got, want := output.Stderr(), "Error parsing command-line flags"; !strings.Contains(got, want) {
+		if got, want := output.Stderr(), "Failed to parse command-line options"; !strings.Contains(got, want) {
 			t.Fatalf("missing expected error message\nwant: %s\nfull output:\n%s", want, got)
 		}
 	})
@@ -253,7 +253,7 @@ func TestStateReplaceProvider(t *testing.T) {
 			t.Fatalf("successful exit; want error")
 		}
 
-		if got, want := output.Stderr(), "Exactly two arguments expected"; !strings.Contains(got, want) {
+		if got, want := output.Stderr(), "Expected exactly two positional arguments"; !strings.Contains(got, want) {
 			t.Fatalf("missing expected error message\nwant: %s\nfull output:\n%s", want, got)
 		}
 	})

@@ -124,7 +124,8 @@ func TestParseStateRm_basicValidation(t *testing.T) {
 
 func stateRmArgsWithDefaults(mutate func(stateRm *StateRm)) *StateRm {
 	ret := &StateRm{
-		DryRun: false,
+		TargetAddrs: []string{},
+		DryRun:      false,
 		ViewOptions: ViewOptions{
 			ViewType:     ViewHuman,
 			InputEnabled: false,

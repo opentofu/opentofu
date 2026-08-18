@@ -15,29 +15,19 @@ type Workspace struct {
 	ViewOptions ViewOptions
 }
 
-func ParseWorkspace(args []string) (*Workspace, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	ret := &Workspace{}
-	cmdFlags := defaultFlagSet("workspace")
-
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error(),
-		))
-	}
-	if len(cmdFlags.Args()) > 0 {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Unexpected argument",
-			"Too many command line arguments. Did you mean to use -chdir?",
-		))
-	}
+// BindWorkspace registers CLI arguments, returning a Workspace value and it's corresponding hooks.
+func BindWorkspace(cli *CommandLine) *Workspace {
+	var get Workspace
 
 	// we only parse but do not register the views flags since this command does not need it
-	closer, moreDiags := ret.ViewOptions.Parse()
-	diags = diags.Append(moreDiags)
+	get.ViewOptions.ParseHook(cli)
+
+	return &get
+}
+
+func ParseWorkspace(args []string) (*Workspace, func(), tfdiags.Diagnostics) {
+	cli := new(CommandLine)
+	ret := BindWorkspace(cli)
+	closer, diags := cli.Stdlib("workspace", args)
 	return ret, closer, diags
 }

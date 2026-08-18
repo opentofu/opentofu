@@ -22,13 +22,14 @@ func TestParseUnlock_basicValidation(t *testing.T) {
 		"without arguments": {
 			args:        nil,
 			want:        unlockArgsWithDefaults(nil),
-			wantErrText: "Wrong number of arguments: Expected a single argument: LOCK_ID",
+			wantErrText: "Expected a single argument: LOCK_ID",
 		},
 		"too many arguments": {
 			args: []string{"lockid1", "lockid2"},
 			want: unlockArgsWithDefaults(func(a *Unlock) {
+				a.LockID = "lockid1"
 			}),
-			wantErrText: "Wrong number of arguments: Expected a single argument: LOCK_ID",
+			wantErrText: "Expected a single argument: LOCK_ID",
 		},
 		"with force": {
 			args: []string{"-force", "lockid"},
@@ -38,9 +39,11 @@ func TestParseUnlock_basicValidation(t *testing.T) {
 			}),
 		},
 		"invalid flag": {
-			args:        []string{"-invalid", "lockid"},
-			want:        unlockArgsWithDefaults(func(a *Unlock) {}),
-			wantErrText: "Failed to parse command-line flags: flag provided but not defined: -invalid",
+			args: []string{"-invalid", "lockid"},
+			want: unlockArgsWithDefaults(func(a *Unlock) {
+				a.LockID = "lockid"
+			}),
+			wantErrText: "flag provided but not defined: -invalid",
 		},
 	}
 

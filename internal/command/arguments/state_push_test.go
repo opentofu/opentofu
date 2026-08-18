@@ -22,12 +22,14 @@ func TestParseStatePush_basicValidation(t *testing.T) {
 		"no arguments": {
 			args:        nil,
 			want:        statePushArgsWithDefaults(nil),
-			wantErrText: "Exactly one argument expected",
+			wantErrText: "Expected exactly one positional argument",
 		},
 		"too many arguments": {
-			args:        []string{"state1.tfstate", "state2.tfstate"},
-			want:        statePushArgsWithDefaults(nil),
-			wantErrText: "Exactly one argument expected",
+			args: []string{"state1.tfstate", "state2.tfstate"},
+			want: statePushArgsWithDefaults(func(v *StatePush) {
+				v.StateSrc = "state1.tfstate"
+			}),
+			wantErrText: "Expected exactly one positional argument",
 		},
 		"valid state file path": {
 			args: []string{"terraform.tfstate"},
@@ -83,7 +85,7 @@ func TestParseStatePush_basicValidation(t *testing.T) {
 			want: statePushArgsWithDefaults(func(v *StatePush) {
 				v.StateSrc = "terraform.tfstate"
 			}),
-			wantErrText: "Failed to parse command-line flags: flag provided but not defined: -unknown-flag",
+			wantErrText: "flag provided but not defined: -unknown-flag",
 		},
 	}
 

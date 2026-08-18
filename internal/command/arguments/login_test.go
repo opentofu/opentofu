@@ -77,7 +77,7 @@ func TestParseLogin_arguments(t *testing.T) {
 		}{
 			"no hostname": {
 				args:            []string{},
-				wantDiagSummary: "Unexpected argument",
+				wantDiagSummary: "Invalid arguments list",
 				wantDiagDetail:  "The login command expects exactly one argument: the host to log in to.",
 			},
 			"too many hostnames": {

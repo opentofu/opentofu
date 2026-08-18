@@ -8,7 +8,6 @@ package arguments
 import (
 	"bufio"
 	"bytes"
-	"flag"
 	"fmt"
 	"os"
 	"time"
@@ -65,31 +64,33 @@ type State struct {
 	BackupPath string
 }
 
-// addFlags is the sole logic of registering the state related flags in OpenTofu.
-func (s *State) addFlags(f *flag.FlagSet, mask stateFlag) {
+// bind is the sole logic of registering the state related flags in OpenTofu.
+func BindState(cli *CommandLine, mask stateFlag) *State {
+	var s State
 	if mask&stateFlagLock != 0 {
-		f.BoolVar(&s.Lock, "lock", true, "lock")
-		f.DurationVar(&s.LockTimeout, "lock-timeout", 0, "lock-timeout")
+		cli.BoolVar(&s.Lock, "lock", true,
+			`Don't hold a state lock during the operation. This is dangerous if others might concurrently run commands against the same workspace.`,
+		).SetDisplay("=false")
+		cli.DurationVar(&s.LockTimeout, "lock-timeout", 0,
+			`Duration to retry a state lock, such as "5s" to represent five seconds.`,
+		).SetDisplay("=duration")
 	}
 	if mask&stateFlagStateIn != 0 {
-		s.AddStateInFlag(f, "")
+		cli.StringVar(&s.StatePath, "state", "",
+			`A legacy option used for the local backend only. Refer to the local backend's documentation for more information.`,
+		).SetDisplay("=statefile").SetHidden(true)
 	}
 	if mask&stateFlagStateOut != 0 {
-		f.StringVar(&s.StateOutPath, "state-out", "", "state-path")
+		cli.StringVar(&s.StateOutPath, "state-out", "",
+			`Path to write state to that is different than "-state". This can be used to preserve the old state.`,
+		).SetHidden(true)
 	}
 	if mask&stateFlagBackup != 0 {
-		s.AddBackupFlag(f, "")
+		cli.StringVar(&s.BackupPath, "backup", "",
+			`Path to backup the existing state file before modifying. Defaults to the "-state-out" path with ".backup" extension. Set to "-" to disable backup.`,
+		).SetHidden(true)
 	}
-}
-
-// AddStateInFlag exists strictly because the default value can get a different value in some commands.
-func (s *State) AddStateInFlag(f *flag.FlagSet, defVal string) {
-	f.StringVar(&s.StatePath, "state", defVal, "state-path")
-}
-
-// AddBackupFlag exists strictly because the default value can get a different value in some commands.
-func (s *State) AddBackupFlag(f *flag.FlagSet, defVal string) {
-	f.StringVar(&s.BackupPath, "backup", defVal, "backup-path")
+	return &s
 }
 
 // Operation describes arguments which are used to configure how a OpenTofu
@@ -346,38 +347,52 @@ func (v *Vars) Empty() bool {
 	return v.vars.Empty()
 }
 
-// extendedFlagSet creates a FlagSet with common backend, operation, and vars
-// flags used in many commands. Target structs for each subset of flags must be
-// provided in order to support those flags.
-func extendedFlagSet(name string, operation *Operation, vars *Vars) *flag.FlagSet {
-	f := defaultFlagSet(name)
+// bind registers all Operation flags
+func BindOperation(cli *CommandLine) *Operation {
+	var operation Operation
+	cli.IntVar(&operation.Parallelism, "parallelism", DefaultParallelism,
+		`Limit the number of parallel resource operations. Defaults to 10.`,
+	).SetDisplay("=n")
+	cli.BoolVar(&operation.Refresh, "refresh", true,
+		`Skip checking for external changes to remote objects while creating the plan. This can potentially make planning faster, but at the expense of possibly planning against a stale record of the remote system state.`,
+	).SetDisplay("=false")
+	cli.BoolVar(&operation.destroyRaw, "destroy", false,
+		`Select the "destroy" planning mode, which creates a plan to destroy all objects currently managed by this OpenTofu configuration instead of the usual behavior.`)
+	cli.BoolVar(&operation.refreshOnlyRaw, "refresh-only", false,
+		`Select the "refresh only" planning mode, which checks whether remote objects still match the outcome of the most recent OpenTofu apply but does not propose any actions to undo any changes made outside of OpenTofu.`)
+	cli.StringArrayVar(&operation.targetsRaw, "target", nil,
+		`Limit the planning operation to only the given module, resource, or resource instance and all of its dependencies. You can use this option multiple times to include more than one object. This is for exceptional use only. Cannot be used alongside the -exclude option.`,
+	).SetDisplay("=resource")
+	cli.StringArrayVar(&operation.targetsFilesRaw, "target-file", nil,
+		`Similar to -target, but specifies zero or more resource addresses from a file.`,
+	).SetDisplay("=filename")
+	cli.StringArrayVar(&operation.excludesRaw, "exclude", nil,
+		`Limit the planning operation to not operate on the given module, resource, or resource instance and all of the resources and modules that depend on it. You can use this option multiple times to exclude more than one object. This is for exceptional use only. Cannot be used together with the -target option.`,
+	).SetDisplay("=resource")
+	cli.StringArrayVar(&operation.excludesFilesRaw, "exclude-file", nil,
+		`Similar to -exclude, but specifies zero or more resource addresses from a file.`,
+	).SetDisplay("=filename")
+	cli.StringArrayVar(&operation.forceReplaceRaw, "replace", nil,
+		`Force replacement of a particular resource instance using its resource address. If the plan would've otherwise produced an update or no-op action for this instance, OpenTofu will plan to replace it instead. You can use this option multiple times to replace more than one object.`,
+	).SetDisplay("=resource")
 
-	if operation == nil && vars == nil {
-		panic("use defaultFlagSet")
-	}
+	cli.PreHook(operation.Parse)
 
-	if operation != nil {
-		f.IntVar(&operation.Parallelism, "parallelism", DefaultParallelism, "parallelism")
-		f.BoolVar(&operation.Refresh, "refresh", true, "refresh")
-		f.BoolVar(&operation.destroyRaw, "destroy", false, "destroy")
-		f.BoolVar(&operation.refreshOnlyRaw, "refresh-only", false, "refresh-only")
-		f.Var((*flags.FlagStringSlice)(&operation.targetsRaw), "target", "target")
-		f.Var((*flags.FlagStringSlice)(&operation.targetsFilesRaw), "target-file", "target-file")
-		f.Var((*flags.FlagStringSlice)(&operation.excludesRaw), "exclude", "exclude")
-		f.Var((*flags.FlagStringSlice)(&operation.excludesFilesRaw), "exclude-file", "exclude-file")
-		f.Var((*flags.FlagStringSlice)(&operation.forceReplaceRaw), "replace", "replace")
-	}
+	return &operation
+}
 
-	// Gather all -var and -var-file arguments into one heterogeneous structure
-	// to preserve the overall order.
-	if vars != nil {
-		varsFlags := flags.NewRawFlags("-var")
-		varFilesFlags := varsFlags.Alias("-var-file")
-		vars.vars = &varsFlags
-		vars.varFiles = &varFilesFlags
-		f.Var(vars.vars, "var", "var")
-		f.Var(vars.varFiles, "var-file", "var-file")
-	}
-
-	return f
+// bind registers all Vars flags
+func BindVars(cli *CommandLine) *Vars {
+	var vars Vars
+	varsFlags := flags.NewRawFlags("-var")
+	varFilesFlags := varsFlags.Alias("-var-file")
+	vars.vars = &varsFlags
+	vars.varFiles = &varFilesFlags
+	cli.RawFlags(varsFlags, "var",
+		`Set a value for one of the input variables in the root module of the configuration. Use this option more than once to set more than one variable.`,
+	).SetDisplay(" 'foo=bar'")
+	cli.RawFlags(varFilesFlags, "var-file",
+		`Load variable values from the given file, in addition to the default files terraform.tfvars and *.auto.tfvars. Use this option more than once to include more than one variables file.`,
+	).SetDisplay("=filename")
+	return &vars
 }

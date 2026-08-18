@@ -31,50 +31,38 @@ type StateMv struct {
 	State   *State
 }
 
+// BindStateMv registers CLI arguments, returning a StateMv value and it's corresponding hooks.
+func BindStateMv(cli *CommandLine) *StateMv {
+	var ret StateMv
+
+	ret.ViewOptions.bind(cli, false)
+
+	ret.Vars = BindVars(cli)
+	ret.Backend = BindBackend(cli)
+	ret.State = BindState(cli, stateFlagAll)
+
+	cli.BoolVar(&ret.DryRun, "dry-run", false, "If set, prints out what would've been moved but doesn't actually move anything.")
+	cli.StringVar(&ret.BackupPathOut, "backup-out", "-", "Legacy state backup option").SetHidden(true)
+
+	cli.PositionalArg(&ret.RawSrcAddr, "SOURCE", false)
+	cli.PositionalArg(&ret.RawDestAddr, "DESTINATION", false)
+
+	cli.PreHook(func() tfdiags.Diagnostics {
+		if ret.State.BackupPath == "" {
+			ret.State.BackupPath = "-"
+		}
+		return nil
+	})
+
+	return &ret
+}
+
 // ParseStateMv processes CLI arguments, returning a StateMv value, a closer function, and errors.
 // If errors are encountered, a StateMv value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseStateMv(args []string) (*StateMv, func(), tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	ret := &StateMv{
-		Vars:    &Vars{},
-		Backend: &Backend{},
-		State:   &State{},
-	}
-
-	cmdFlags := extendedFlagSet("state mv", nil, ret.Vars)
-	ret.Backend.AddIgnoreRemoteVersionFlag(cmdFlags)
-	// StateFlagBackup omitted here to be added later with a different default value
-	ret.State.addFlags(cmdFlags, stateFlagLock|stateFlagStateIn|stateFlagStateOut)
-	ret.State.AddBackupFlag(cmdFlags, "-")
-	cmdFlags.BoolVar(&ret.DryRun, "dry-run", false, "dry run")
-	cmdFlags.StringVar(&ret.BackupPathOut, "backup-out", "-", "backup")
-
-	ret.ViewOptions.AddFlags(cmdFlags, false)
-
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line flags",
-			err.Error(),
-		))
-	}
-
-	args = cmdFlags.Args()
-	if len(args) != 2 {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Invalid number of arguments",
-			"Exactly two arguments expected",
-		))
-	} else {
-		ret.RawSrcAddr = args[0]
-		ret.RawDestAddr = args[1]
-	}
-
-	closer, moreDiags := ret.ViewOptions.Parse()
-	diags = diags.Append(moreDiags)
-
+	cli := new(CommandLine)
+	ret := BindStateMv(cli)
+	closer, diags := cli.Stdlib("state mv", args)
 	return ret, closer, diags
 }

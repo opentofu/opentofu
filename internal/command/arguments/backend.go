@@ -6,8 +6,6 @@
 package arguments
 
 import (
-	"flag"
-
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -23,29 +21,35 @@ type Backend struct {
 	MigrateState bool
 }
 
-func (b *Backend) AddIgnoreRemoteVersionFlag(f *flag.FlagSet) {
-	f.BoolVar(&b.IgnoreRemoteVersion, "ignore-remote-version", false, "continue even if remote and local OpenTofu versions are incompatible")
+func BindBackend(cli *CommandLine) *Backend {
+	var b Backend
+	cli.BoolVar(&b.IgnoreRemoteVersion, "ignore-remote-version", false, "A rare option used for the remote backend only. See the remote backend documentation for more information.")
+	return &b
 }
 
-func (b *Backend) AddMigrationFlags(f *flag.FlagSet) {
-	f.BoolVar(&b.ForceInitCopy, "force-copy", false, "suppress prompts about copying state data")
-	f.BoolVar(&b.Reconfigure, "reconfigure", false, "reconfigure")
-	f.BoolVar(&b.MigrateState, "migrate-state", false, "migrate state")
-}
+func BindBackendWithMigration(cli *CommandLine) *Backend {
+	b := BindBackend(cli)
 
-func (b *Backend) migrationFlagsCheck() (diags tfdiags.Diagnostics) {
-	if b.MigrateState && b.Reconfigure {
-		return diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Wrong combination of options",
-			"The -migrate-state and -reconfigure options are mutually-exclusive",
-		))
-	}
+	cli.BoolVar(&b.ForceInitCopy, "force-copy", false, `Suppress prompts about copying state data when initializing a new state backend. This is equivalent to providing a "yes" to all confirmation prompts.`)
+	cli.BoolVar(&b.Reconfigure, "reconfigure", false, `Reconfigure a backend, ignoring any saved configuration.`)
+	cli.BoolVar(&b.MigrateState, "migrate-state", false, `Reconfigure a backend, and attempt to migrate any existing state.`)
 
-	// Copying the state only happens during backend migration, so setting
-	// -force-copy implies -migrate-state
-	if b.ForceInitCopy {
-		b.MigrateState = true
-	}
-	return diags
+	cli.PreHook(func() tfdiags.Diagnostics {
+		if b.MigrateState && b.Reconfigure {
+			return tfdiags.New(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Wrong combination of options",
+				"The -migrate-state and -reconfigure options are mutually-exclusive",
+			))
+		}
+
+		// Copying the state only happens during backend migration, so setting
+		// -force-copy implies -migrate-state
+		if b.ForceInitCopy {
+			b.MigrateState = true
+		}
+		return nil
+	})
+
+	return b
 }
