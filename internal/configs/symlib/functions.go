@@ -219,8 +219,6 @@ func (fn *Function) Compile(w *workgraph.Worker, libScope *symbolScope) (functio
 	spec.Impl = func(args []cty.Value, retType cty.Type) (cty.Value, error) {
 		var diags hcl.Diagnostics
 
-		w := workgraph.NewWorker()
-
 		paramEntries := map[string]cty.Value{}
 		for i, arg := range args[:len(spec.Params)] {
 			param := spec.Params[i]
@@ -283,7 +281,7 @@ func (fn *Function) Compile(w *workgraph.Worker, libScope *symbolScope) (functio
 		funcScope.locals = map[string]valuer[cty.Value]{}
 		for name, expr := range fn.Locals {
 			id := ident{name: "local." + name, src: expr.Range().Ptr()}
-			funcScope.locals[name] = onceValuer[cty.Value](funcScope.symbolScope, id, func(w *workgraph.Worker) (cty.Value, hcl.Diagnostics) {
+			funcScope.locals[name] = onceValuer[cty.Value](funcScope, id, func(w *workgraph.Worker) (cty.Value, hcl.Diagnostics) {
 				hclCtx, diags := hclContext(w, funcScope, expr)
 				if diags.HasErrors() {
 					return cty.NilVal, diags

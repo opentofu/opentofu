@@ -23,38 +23,32 @@ type ident struct {
 	src  *hcl.Range
 }
 
-type compiler struct {
-	requests map[workgraph.RequestID]ident
-}
-
 type valuer[T any] struct {
 	Value func(*workgraph.Worker) (T, hcl.Diagnostics)
 	Ident ident
 }
 
-func onceValuer[V any](s *symbolScope, id ident, fn func(*workgraph.Worker) (V, hcl.Diagnostics)) valuer[V] {
-	var mu sync.Mutex
+func onceValuer[V any](s scope, id ident, fn func(*workgraph.Worker) (V, hcl.Diagnostics)) valuer[V] {
 	type T struct {
 		value V
 		diags hcl.Diagnostics
 	}
 
-	var promise workgraph.Promise[T]
-	var resolver workgraph.Resolver[T]
-	needsSetup := true
+	w := workgraph.NewWorker()
+	resolver, promise := workgraph.NewRequest[T](w)
+	s.setRequest(resolver.RequestID(), id)
+	runFunc := func() {
+		val, diags := fn(w)
+		resolver.Report(w, T{val, diags}, nil)
+	}
 
+	var mu sync.Mutex
 	onceFn := func(w *workgraph.Worker) (V, hcl.Diagnostics) {
 		mu.Lock()
-		if needsSetup {
-			resolver, promise = workgraph.NewRequest[T](w)
-			s.requests[resolver.RequestID()] = id
-
-			workgraph.WithNewAsyncWorker(func(w *workgraph.Worker) {
-				val, diags := fn(w)
-				resolver.Report(w, T{val, diags}, nil)
-			}, resolver)
+		if runFunc != nil {
+			go runFunc()
+			runFunc = nil
 		}
-		needsSetup = false
 		mu.Unlock()
 
 		val, err := promise.Await(w)
@@ -64,7 +58,7 @@ func onceValuer[V any](s *symbolScope, id ident, fn func(*workgraph.Worker) (V, 
 				reqDescs := make([]string, 0)
 				for _, reqID := range selfDep.RequestIDs {
 					desc := "<unknown object> (failing to report this is a bug in OpenTofu)"
-					if info, ok := s.requests[reqID]; ok {
+					if info, ok := s.getRequest(reqID); ok {
 						if info.src != nil {
 							desc = fmt.Sprintf("%s (%s)", info.name, info.src)
 						} else {

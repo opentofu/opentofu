@@ -76,6 +76,9 @@ type scope interface {
 	valueFor(*workgraph.Worker, string, string, hcl.Range) (cty.Value, hcl.Diagnostics)
 	functionFor(*workgraph.Worker, hcl.Traversal) (*function.Function, hcl.Diagnostics)
 	typeForStaticCall(*workgraph.Worker, *hcl.StaticCall) (cty.Type, *typeexpr.Defaults, hcl.Diagnostics)
+
+	setRequest(workgraph.RequestID, ident)
+	getRequest(workgraph.RequestID) (ident, bool)
 }
 
 type symbolScope struct {
@@ -83,8 +86,8 @@ type symbolScope struct {
 
 	builtinFuncs map[string]function.Function
 
-	requestMu sync.Mutex
-	requests  map[workgraph.RequestID]ident
+	requestsMu sync.Mutex
+	requests   map[workgraph.RequestID]ident
 
 	values    map[string]valuer[cty.Value]
 	functions map[string]valuer[function.Function]
@@ -196,8 +199,24 @@ func (s *symbolScope) typeForStaticCall(w *workgraph.Worker, call *hcl.StaticCal
 	}
 }
 
+func (s *symbolScope) setRequest(rid workgraph.RequestID, id ident) {
+	s.requestsMu.Lock()
+	defer s.requestsMu.Unlock()
+	s.requests[rid] = id
+}
+
+func (s *symbolScope) getRequest(rid workgraph.RequestID) (ident, bool) {
+	s.requestsMu.Lock()
+	defer s.requestsMu.Unlock()
+	id, ok := s.requests[rid]
+	return id, ok
+}
+
 type functionScope struct {
 	*symbolScope
+
+	requestsMu sync.Mutex
+	requests   map[workgraph.RequestID]ident
 
 	name   string
 	params map[string]cty.Value
@@ -208,7 +227,10 @@ func newFunctionScope(s *symbolScope, name string, params map[string]cty.Value) 
 	return &functionScope{
 		symbolScope: s,
 		name:        name,
-		params:      params,
+
+		requests: map[workgraph.RequestID]ident{},
+
+		params: params,
 		// Locals intentionally uninitialized as those are added part way though function setup
 	}
 }
@@ -247,4 +269,21 @@ func (f *functionScope) valueFor(w *workgraph.Worker, rootName string, attrName 
 		return local.Value(w)
 	}
 	return f.symbolScope.valueFor(w, rootName, attrName, rng)
+}
+
+func (f *functionScope) setRequest(rid workgraph.RequestID, id ident) {
+	f.requestsMu.Lock()
+	defer f.requestsMu.Unlock()
+	f.requests[rid] = id
+}
+
+func (f *functionScope) getRequest(rid workgraph.RequestID) (ident, bool) {
+	f.requestsMu.Lock()
+	defer f.requestsMu.Unlock()
+	id, ok := f.requests[rid]
+	if ok {
+		return id, ok
+	}
+	// Not in our scope, try parent scope
+	return f.symbolScope.getRequest(rid)
 }

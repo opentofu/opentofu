@@ -200,6 +200,9 @@ func (v *Variable) finalize(symbols symlib.Table) hcl.Diagnostics {
 	if v.TypeExpr != nil {
 		ty, tyDefaults, parseMode, tyDiags := decodeVariableType(v.TypeExpr, new(symbols.TypeContext()))
 		diags = append(diags, tyDiags...)
+		if ty == cty.NilType {
+			ty = cty.DynamicPseudoType
+		}
 		v.ConstraintType = ty
 		v.TypeDefaults = tyDefaults
 		v.Type = ty.WithoutOptionalAttributesDeep()
