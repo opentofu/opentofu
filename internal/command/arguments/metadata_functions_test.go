@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/opentofu/opentofu/internal/collections"
+	"github.com/opentofu/opentofu/internal/linting"
 )
 
 func TestParseMetadataFunctions_basicValidation(t *testing.T) {
@@ -66,6 +68,8 @@ func metadataFunctionsArgsWithDefaults(mutate func(version *MetadataFunctions)) 
 			ConsolidateWarnings: true,
 			ViewType:            ViewHuman,
 			InputEnabled:        false,
+			LintInclude:         make(collections.Set[linting.RuleAddr]),
+			LintExclude:         make(collections.Set[linting.RuleAddr]),
 		},
 	}
 	if mutate != nil {

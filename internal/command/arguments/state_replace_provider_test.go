@@ -12,6 +12,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/opentofu/opentofu/internal/collections"
+	"github.com/opentofu/opentofu/internal/linting"
 )
 
 func TestParseReplaceProvider_basicValidation(t *testing.T) {
@@ -163,6 +165,8 @@ func stateReplaceProviderArgsWithDefaults(mutate func(srp *StateReplaceProvider)
 			ConsolidateWarnings: true,
 			ViewType:            ViewHuman,
 			InputEnabled:        false,
+			LintInclude:         make(collections.Set[linting.RuleAddr]),
+			LintExclude:         make(collections.Set[linting.RuleAddr]),
 		},
 		Backend: &Backend{
 			IgnoreRemoteVersion: false,
