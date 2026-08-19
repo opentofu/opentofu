@@ -35,7 +35,7 @@ type Plan struct {
 // BindPlan registers CLI arguments, returning a Plan value and it's corresponding hooks.
 func BindPlan(cli *CommandLine) *Plan {
 	plan := Plan{
-		View:      BindView(cli, viewFlagAll),
+		View:      BindView(cli, viewFlagAll|viewFlagLint),
 		Operation: BindOperation(cli),
 		Vars:      BindVars(cli),
 		State:     BindState(cli, stateFlagAll),

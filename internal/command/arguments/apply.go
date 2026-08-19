@@ -36,7 +36,7 @@ type Apply struct {
 // BindApply registers CLI arguments, returning a Apply value and it's corresponding hooks.
 func BindApply(cli *CommandLine) *Apply {
 	apply := Apply{
-		View:      BindView(cli, viewFlagAll),
+		View:      BindView(cli, viewFlagAll|viewFlagLint),
 		Operation: BindOperation(cli),
 		Vars:      BindVars(cli),
 		State:     BindState(cli, stateFlagAll),

@@ -158,7 +158,7 @@ func TestParseView(t *testing.T) {
 
 			tc.want.ViewType = ViewHuman
 
-			got := BindView(&cli, viewFlagNone)
+			got := BindView(&cli, viewFlagNone|viewFlagLint)
 			_, diags := cli.parseWithHooks("view", tc.args)
 
 			if tc.wantErr == "" && len(diags) > 0 {
