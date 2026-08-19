@@ -1,6 +1,6 @@
 The v1.11.x release series is supported until **August 1 2026**.
 
-## 1.11.14 (Unreleased)
+## 1.11.14
 
 SECURITY ADVISORIES:
 
