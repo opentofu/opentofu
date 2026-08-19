@@ -295,8 +295,8 @@ func (c ProvidersMirrorCommand) Execute(args *arguments.ProvidersMirror, view vi
 		indexDir := filepath.Dir(getproviders.PackedFilePathForPackage(
 			outputDir, provider, versions.Unspecified, getproviders.CurrentPlatform,
 		))
-		indexVersions := map[string]interface{}{}
-		indexArchives := map[getproviders.Version]map[string]interface{}{}
+		indexVersions := map[string]any{}
+		indexArchives := map[getproviders.Version]map[string]any{}
 		for _, meta := range metas {
 			archivePath, ok := meta.Location.(getproviders.PackageLocalArchive)
 			if !ok {
@@ -328,16 +328,16 @@ func (c ProvidersMirrorCommand) Execute(args *arguments.ProvidersMirror, view vi
 				hashes = append(hashes, hash.String())
 			}
 			slices.Sort(hashes)
-			indexVersions[meta.Version.String()] = map[string]interface{}{}
+			indexVersions[meta.Version.String()] = map[string]any{}
 			if _, ok := indexArchives[version]; !ok {
-				indexArchives[version] = map[string]interface{}{}
+				indexArchives[version] = map[string]any{}
 			}
-			indexArchives[version][platform.String()] = map[string]interface{}{
+			indexArchives[version][platform.String()] = map[string]any{
 				"url":    archiveFilename, // a relative URL from the index file's URL
 				"hashes": hashes,          // an array to allow for additional hash formats in future
 			}
 		}
-		mainIndex := map[string]interface{}{
+		mainIndex := map[string]any{
 			"versions": indexVersions,
 		}
 		mainIndexJSON, err := json.MarshalIndent(mainIndex, "", "  ")
@@ -362,7 +362,7 @@ func (c ProvidersMirrorCommand) Execute(args *arguments.ProvidersMirror, view vi
 			))
 		}
 		for version, archiveIndex := range indexArchives {
-			versionIndex := map[string]interface{}{
+			versionIndex := map[string]any{
 				"archives": archiveIndex,
 			}
 			versionIndexJSON, err := json.MarshalIndent(versionIndex, "", "  ")

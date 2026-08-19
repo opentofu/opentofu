@@ -1251,11 +1251,9 @@ func TestVarsParsing(t *testing.T) {
 		t.Cleanup(testStdinPipe(t, strings.NewReader("var.foo\nvar.snack\n")))
 		streams, done := terminal.StreamsForTesting(t)
 		c := &ConsoleCommand{
-			Meta: Meta{
-				WorkingDir:       workdir.NewDir("."),
-				testingOverrides: metaOverridesForProvider(p),
-				View:             views.NewView(streams),
-			},
+			WorkingDir:       workdir.NewDir("."),
+			testingOverrides: metaOverridesForProvider(p),
+			View:             views.NewView(streams),
 		}
 
 		args := append([]string{"-no-color", "-lock=false"}, varArgs...)

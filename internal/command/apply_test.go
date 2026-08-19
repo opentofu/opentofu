@@ -2561,11 +2561,9 @@ func applyFixturePlanFileMatchState(t *testing.T, stateMeta statemgr.SnapshotMet
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
-		ChangeSrc: plans.ChangeSrc{
-			Action: plans.Create,
-			Before: priorValRaw,
-			After:  plannedValRaw,
-		},
+		Action: plans.Create,
+		Before: priorValRaw,
+		After:  plannedValRaw,
 	})
 	return testPlanFileMatchState(
 		t,

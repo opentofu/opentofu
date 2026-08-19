@@ -404,11 +404,9 @@ func TestShow_planWithForceReplaceChange(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
-		ChangeSrc: plans.ChangeSrc{
-			Action: plans.CreateThenDelete,
-			Before: priorValRaw,
-			After:  plannedValRaw,
-		},
+		Action:       plans.CreateThenDelete,
+		Before:       priorValRaw,
+		After:        plannedValRaw,
 		ActionReason: plans.ResourceInstanceReplaceByRequest,
 	})
 	planFilePath := testPlanFile(
@@ -1423,11 +1421,9 @@ func showFixturePlanFile(t *testing.T, action plans.Action) string {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
-		ChangeSrc: plans.ChangeSrc{
-			Action: action,
-			Before: priorValRaw,
-			After:  plannedValRaw,
-		},
+		Action: action,
+		Before: priorValRaw,
+		After:  plannedValRaw,
 	})
 	return testPlanFile(
 		t,

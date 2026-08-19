@@ -28,11 +28,11 @@ func BindLogin(cli *CommandLine) *Login {
 		// Even though the command does not use the -var/-var-file content, we will keep this for the moment
 		// just to keep backwards compatibility for users (in case any of them are using these flags with this command)
 		Vars: BindVars(cli),
-	}
 
-	// State is only initialised and no flags are registered since the login command needs to lock the
-	// state by default, with no user input on that.
-	arguments.State = &State{Lock: true}
+		// State is only initialised and no flags are registered since the login command needs to lock the
+		// state by default, with no user input on that.
+		State: &State{Lock: true},
+	}
 
 	cli.ArgHelp = "The login command expects exactly one argument: the host to log in to."
 	cli.PositionalArg(&arguments.Host, "hostname", false)

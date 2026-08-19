@@ -1260,7 +1260,7 @@ func TestStateMv_stateOutNew_count(t *testing.T) {
 func TestStateMv_stateOutNew_largeCount(t *testing.T) {
 	state := states.BuildState(func(s *states.SyncState) {
 		// test_instance.foo has 11 instances, all the same except for their ids
-		for i := 0; i < 11; i++ {
+		for i := range 11 {
 			s.SetResourceInstanceCurrent(
 				addrs.Resource{
 					Mode: addrs.ManagedResourceMode,

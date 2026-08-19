@@ -2130,11 +2130,11 @@ func testMetaBackend(t *testing.T) *Meta {
 		stateArgs:  arguments.State{Lock: true},
 		// metaBackend tests are verifying migrate actions
 		backendArgs: arguments.Backend{MigrateState: true},
-	}
 
-	// TODO meta-refactor: these assignments are needed because the extendedFlagSet was used here before,
-	//   which had these with defaults as "true". In a future iteration, once these are not needed, we need to remove them.
-	m.input = true
+		// TODO meta-refactor: these assignments are needed because the extendedFlagSet was used here before,
+		//   which had these with defaults as "true". In a future iteration, once these are not needed, we need to remove them.
+		input: true,
+	}
 
 	t.Cleanup(func() {
 		// Trigger garbage collection to ensure that all open file handles are closed.

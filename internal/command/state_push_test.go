@@ -249,10 +249,8 @@ func TestStatePush_forceRemoteState(t *testing.T) {
 	// init the backend
 	initView, initDone := testView(t)
 	initCmd := &InitCommand{
-		Meta: Meta{
-			WorkingDir: workdir.NewDir("."),
-			View:       initView,
-		},
+		WorkingDir: workdir.NewDir("."),
+		View:       initView,
 	}
 	code := initCmd.Run([]string{})
 	initOutput := initDone(t)
@@ -263,10 +261,8 @@ func TestStatePush_forceRemoteState(t *testing.T) {
 	// create a new workspace
 	wsView, wsDone := testView(t)
 	newCmd := &WorkspaceNewCommand{
-		Meta: Meta{
-			WorkingDir: workdir.NewDir("."),
-			View:       wsView,
-		},
+		WorkingDir: workdir.NewDir("."),
+		View:       wsView,
 	}
 	wsCode := newCmd.Run([]string{"test"})
 	wsOutput := wsDone(t)
