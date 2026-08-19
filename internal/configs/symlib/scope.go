@@ -155,7 +155,8 @@ func (s *symbolScope) functionFor(w *workgraph.Worker, fn hcl.Traversal, stack [
 			}}
 		}
 		fn, diags := found.Value(w)
-		return new(fn(stack)), diags
+		sfn := fn(stack)
+		return &sfn, diags
 	case 3:
 		return s.table.Function(FunctionRef{
 			Namespace: sp[1],

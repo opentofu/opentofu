@@ -100,8 +100,6 @@ func onceValuer[V any](s scope, id ident, fn func(*workgraph.Worker) (V, hcl.Dia
 	}
 }
 
-type hclValLookup func(*workgraph.Worker, string, string, hcl.Range) (cty.Value, hcl.Diagnostics)
-
 func CompileLibrary(files []*SymbolFile, loader Loader, builtinFuncs map[string]function.Function) (*Library, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
