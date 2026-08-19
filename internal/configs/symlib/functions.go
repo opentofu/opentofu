@@ -223,9 +223,11 @@ func (fn *Function) Compile(w *workgraph.Worker, libScope *symbolScope) (functio
 			var diags hcl.Diagnostics
 
 			callName := TypeSymbols + "::" + fn.Name
-			for _, entry := range stack {
-				if entry == callName {
-					return cty.NilVal, fmt.Errorf("Recursive call to %s detected", callName)
+			if len(stack) > 1024 {
+				for _, entry := range stack {
+					if entry == callName {
+						return cty.NilVal, fmt.Errorf("Recursive call to %s detected", callName)
+					}
 				}
 			}
 			stack = append(stack, callName)

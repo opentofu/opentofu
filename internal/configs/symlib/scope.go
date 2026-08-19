@@ -174,6 +174,7 @@ func (s *symbolScope) functionFor(w *workgraph.Worker, fn hcl.Traversal, stack [
 func (s *symbolScope) typeForStaticCall(w *workgraph.Worker, call *hcl.StaticCall) (cty.Type, *typeexpr.Defaults, hcl.Diagnostics) {
 	split := strings.Split(call.Name, "::")
 	if split[0] != TypeSymbols {
+		println("NOT SYM")
 		return cty.NilType, nil, nil
 	}
 
