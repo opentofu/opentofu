@@ -462,10 +462,5 @@ message ProviderSchema {
 // "registry.opentofu.org/hashicorp/aws") to the trimmed schema for that
 // provider.
 message Schemas {
-    // format_version is incremented whenever there is a breaking change to
-    // this serialization format, following the same convention as used for
-    // Plan.version above.
-    uint64 format_version = 1;
-
-    map<string, ProviderSchema> providers = 2;
+    map<string, ProviderSchema> providers = 1;
 }

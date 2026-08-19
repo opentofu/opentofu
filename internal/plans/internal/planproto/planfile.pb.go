@@ -1783,12 +1783,8 @@ func (x *ProviderSchema) GetDataSources() map[string]*ResourceSchema {
 // "registry.opentofu.org/hashicorp/aws") to the trimmed schema for that
 // provider.
 type Schemas struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// format_version is incremented whenever there is a breaking change to
-	// this serialization format, following the same convention as used for
-	// Plan.version above.
-	FormatVersion uint64                     `protobuf:"varint,1,opt,name=format_version,json=formatVersion,proto3" json:"format_version,omitempty"`
-	Providers     map[string]*ProviderSchema `protobuf:"bytes,2,rep,name=providers,proto3" json:"providers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	state         protoimpl.MessageState     `protogen:"open.v1"`
+	Providers     map[string]*ProviderSchema `protobuf:"bytes,1,rep,name=providers,proto3" json:"providers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1821,13 +1817,6 @@ func (x *Schemas) ProtoReflect() protoreflect.Message {
 // Deprecated: Use Schemas.ProtoReflect.Descriptor instead.
 func (*Schemas) Descriptor() ([]byte, []int) {
 	return file_planfile_proto_rawDescGZIP(), []int{17}
-}
-
-func (x *Schemas) GetFormatVersion() uint64 {
-	if x != nil {
-		return x.FormatVersion
-	}
-	return 0
 }
 
 func (x *Schemas) GetProviders() map[string]*ProviderSchema {
@@ -2177,10 +2166,9 @@ const file_planfile_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\v2\x16.tfplan.ResourceSchemaR\x05value:\x028\x01\x1aV\n" +
 	"\x10DataSourcesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
-	"\x05value\x18\x02 \x01(\v2\x16.tfplan.ResourceSchemaR\x05value:\x028\x01\"\xc4\x01\n" +
-	"\aSchemas\x12%\n" +
-	"\x0eformat_version\x18\x01 \x01(\x04R\rformatVersion\x12<\n" +
-	"\tproviders\x18\x02 \x03(\v2\x1e.tfplan.Schemas.ProvidersEntryR\tproviders\x1aT\n" +
+	"\x05value\x18\x02 \x01(\v2\x16.tfplan.ResourceSchemaR\x05value:\x028\x01\"\x9d\x01\n" +
+	"\aSchemas\x12<\n" +
+	"\tproviders\x18\x01 \x03(\v2\x1e.tfplan.Schemas.ProvidersEntryR\tproviders\x1aT\n" +
 	"\x0eProvidersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
 	"\x05value\x18\x02 \x01(\v2\x16.tfplan.ProviderSchemaR\x05value:\x028\x01*1\n" +

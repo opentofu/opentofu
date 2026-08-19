@@ -20,14 +20,11 @@ import (
 )
 
 const (
-	tfschemasFormatVersion = 1
-	tfschemasFilename      = "tfschemas"
+	tfschemasFilename = "tfschemas"
 )
 
 // ErrNoSchemas is returned by Reader.ReadSchemas when the plan file does
-// not have a schemas entry at all, which is expected for plan files written
-// by older versions of OpenTofu, or in the rare case that trimming produced
-// nothing worth storing.
+// not have a schemas entry at all
 var ErrNoSchemas = errors.New("plan file does not have a stored schemas entry")
 
 // prepareSchemasForWrite computes the trimmed-down set of provider schemas
@@ -56,8 +53,7 @@ func prepareSchemasForWrite(plan *plans.Plan, config *configs.Config, schemas ma
 // in the protobuf encoding used for the "tfschemas" entry of a plan file.
 func writeTfschemas(schemas map[addrs.Provider]providers.ProviderSchema, w io.Writer) error {
 	raw := &planproto.Schemas{
-		FormatVersion: tfschemasFormatVersion,
-		Providers:     make(map[string]*planproto.ProviderSchema, len(schemas)),
+		Providers: make(map[string]*planproto.ProviderSchema, len(schemas)),
 	}
 	for provider, schema := range schemas {
 		raw.Providers[provider.String()] = providerSchemaToProto(schema)
@@ -82,10 +78,6 @@ func readTfschemas(r io.Reader) (map[addrs.Provider]providers.ProviderSchema, er
 	var raw planproto.Schemas
 	if err := proto.Unmarshal(src, &raw); err != nil {
 		return nil, fmt.Errorf("parse error: %w", err)
-	}
-
-	if raw.FormatVersion != tfschemasFormatVersion {
-		return nil, fmt.Errorf("unsupported schemas format version %d; only version %d is supported", raw.FormatVersion, tfschemasFormatVersion)
 	}
 
 	ret := make(map[addrs.Provider]providers.ProviderSchema, len(raw.Providers))
