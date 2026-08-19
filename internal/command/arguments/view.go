@@ -96,6 +96,7 @@ const (
 	viewFlagJsonInto
 	viewFlagInput
 	viewFlagSensitive
+	viewFlagLint
 
 	viewFlagNoInput     = viewFlagJson | viewFlagJsonInto
 	viewFlagNoSensitive = viewFlagNoInput | viewFlagInput
@@ -122,7 +123,9 @@ func BindView(cli *CommandLine, mask viewFlag) *View {
 	var deprecation []string
 	cli.StringArrayVar(&deprecation, "deprecation", nil, `Specify what type of warnings are shown. Accepted values for "m": all, local, none. Default: all. When "all" is selected, OpenTofu will show the deprecation warnings for all modules. When "local" is selected, the warns will be shown only for the modules that are imported with a relative path. When "none" is selected, all the deprecation warnings will be dropped.`).SetDisplay("=module:m").SetGlobal(true)
 	var lint []string
-	cli.StringArrayVar(&lint, "lint", nil, ``).SetDisplay("=all").SetGlobal(true)
+	if mask&viewFlagLint != 0 {
+		cli.StringArrayVar(&lint, "lint", nil, `Specify the linting rules to be executed`).SetDisplay("=all").SetGlobal(true)
+	}
 
 	cli.PreHook(func() tfdiags.Diagnostics {
 		var diags tfdiags.Diagnostics
