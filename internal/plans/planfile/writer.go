@@ -79,7 +79,7 @@ func Create(filename string, args CreateArgs, enc encryption.PlanEncryption) err
 	buff := bytes.NewBuffer(make([]byte, 0))
 	zw := zip.NewWriter(buff)
 
-	if err := writeTfplanEntry(zw, args.Plan); err != nil {
+	if err := writePlanEntry(zw, args.Plan); err != nil {
 		return err
 	}
 	if err := writeStateFileEntry(zw, tfstateFilename, args.StateFile); err != nil {
@@ -108,7 +108,7 @@ func Create(filename string, args CreateArgs, enc encryption.PlanEncryption) err
 	return os.WriteFile(filename, encrypted, 0644)
 }
 
-func writeTfplanEntry(zw *zip.Writer, plan *plans.Plan) error {
+func writePlanEntry(zw *zip.Writer, plan *plans.Plan) error {
 	w, err := zw.CreateHeader(&zip.FileHeader{
 		Name:     tfplanFilename,
 		Method:   zip.Deflate,
@@ -117,7 +117,7 @@ func writeTfplanEntry(zw *zip.Writer, plan *plans.Plan) error {
 	if err != nil {
 		return fmt.Errorf("failed to create tfplan file: %w", err)
 	}
-	if err := writeTfplan(plan, w); err != nil {
+	if err := writePlan(plan, w); err != nil {
 		return fmt.Errorf("failed to write plan: %w", err)
 	}
 	return nil
@@ -185,7 +185,7 @@ func writeSchemasEntry(zw *zip.Writer, args CreateArgs) error {
 	if err != nil {
 		return fmt.Errorf("failed to create embedded schemas file: %w", err)
 	}
-	if err := writeTfschemas(trimmed, w); err != nil {
+	if err := writeSchemas(trimmed, w); err != nil {
 		return fmt.Errorf("failed to write embedded schemas file: %w", err)
 	}
 	return nil

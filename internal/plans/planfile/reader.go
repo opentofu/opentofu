@@ -148,7 +148,7 @@ func (r *Reader) ReadPlan() (*plans.Plan, error) {
 	// so we can see what state the plan applies to. Hopefully later we'll
 	// clean this up some more so that we don't have two different ways to
 	// access the prior state (this and the ReadStateFile method).
-	ret, err := readTfplan(pr)
+	ret, err := readPlan(pr)
 	if err != nil {
 		return nil, errUnusable(err)
 	}
@@ -256,7 +256,7 @@ func (r *Reader) ReadSchemas() (map[addrs.Provider]providers.ProviderSchema, err
 	}
 	defer f.Close()
 
-	provSchemas, err := readTfschemas(f)
+	provSchemas, err := readSchemas(f)
 	if err != nil {
 		return nil, errUnusable(fmt.Errorf("failed to read schemas from plan file: %w", err))
 	}

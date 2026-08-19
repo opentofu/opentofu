@@ -49,9 +49,9 @@ func prepareSchemasForWrite(plan *plans.Plan, config *configs.Config, schemas ma
 	return trimmed
 }
 
-// writeTfschemas writes the given (already-trimmed) provider schemas to w
+// writeSchemas writes the given (already-trimmed) provider schemas to w
 // in the protobuf encoding used for the "tfschemas" entry of a plan file.
-func writeTfschemas(schemas map[addrs.Provider]providers.ProviderSchema, w io.Writer) error {
+func writeSchemas(schemas map[addrs.Provider]providers.ProviderSchema, w io.Writer) error {
 	raw := &planproto.Schemas{
 		Providers: make(map[string]*planproto.ProviderSchema, len(schemas)),
 	}
@@ -68,8 +68,8 @@ func writeTfschemas(schemas map[addrs.Provider]providers.ProviderSchema, w io.Wr
 	return err
 }
 
-// readTfschemas reads and decodes the "tfschemas" entry of a plan file.
-func readTfschemas(r io.Reader) (map[addrs.Provider]providers.ProviderSchema, error) {
+// readSchemas reads and decodes the "tfschemas" entry of a plan file.
+func readSchemas(r io.Reader) (map[addrs.Provider]providers.ProviderSchema, error) {
 	src, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
