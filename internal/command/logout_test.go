@@ -27,13 +27,11 @@ func TestLogout(t *testing.T) {
 	t.Run("with no hostname", func(t *testing.T) {
 		logoutView, logoutDone := testView(t)
 		c := &LogoutCommand{
-			Meta: Meta{
-				WorkingDir: workdir.NewDir("."),
-				View:       logoutView,
-				Services: disco.New(
-					disco.WithCredentials(credsSrc),
-				),
-			},
+			WorkingDir: workdir.NewDir("."),
+			View:       logoutView,
+			Services: disco.New(
+				disco.WithCredentials(credsSrc),
+			),
 		}
 		status := c.Run([]string{})
 		output := logoutDone(t)
@@ -76,13 +74,11 @@ func TestLogout(t *testing.T) {
 			}
 			logoutView, logoutDone := testView(t)
 			c := &LogoutCommand{
-				Meta: Meta{
-					WorkingDir: workdir.NewDir("."),
-					View:       logoutView,
-					Services: disco.New(
-						disco.WithCredentials(credsSrc),
-					),
-				},
+				WorkingDir: workdir.NewDir("."),
+				View:       logoutView,
+				Services: disco.New(
+					disco.WithCredentials(credsSrc),
+				),
 			}
 			status := c.Run(tc.args)
 			output := logoutDone(t)

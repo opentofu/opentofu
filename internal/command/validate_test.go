@@ -53,11 +53,9 @@ func setupTest(t *testing.T, fixturepath string, args ...string) (*terminal.Test
 		},
 	}
 	c := &ValidateCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
 	}
 
 	args = append(args, "-no-color")
@@ -82,11 +80,9 @@ func TestValidateCommandWithTfvarsFile(t *testing.T) {
 
 	view, done := testView(t)
 	c := &ValidateCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		View:             view,
 	}
 
 	args := []string{}
@@ -264,11 +260,9 @@ func TestValidateWithInvalidTestFile(t *testing.T) {
 	view, done := testView(t)
 	provider := testing_command.NewProvider(nil)
 	c := &ValidateCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(provider.Provider),
-			View:             view,
-		},
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(provider.Provider),
+		View:             view,
 	}
 
 	var args []string

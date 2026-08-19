@@ -121,11 +121,9 @@ func TestGraph_plan(t *testing.T) {
 			Type: "test_instance",
 			Name: "bar",
 		}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
-		ChangeSrc: plans.ChangeSrc{
-			Action: plans.Delete,
-			Before: plans.DynamicValue(`{}`),
-			After:  plans.DynamicValue(`null`),
-		},
+		Action: plans.Delete,
+		Before: plans.DynamicValue(`{}`),
+		After:  plans.DynamicValue(`null`),
 		ProviderAddr: addrs.AbsProviderConfig{
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,

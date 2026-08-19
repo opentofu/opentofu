@@ -290,10 +290,7 @@ func (c *ShowCommand) legacyShowFromPath(ctx context.Context, path string, enc e
 			// ones (which are likely to be something unhelpful like "not a
 			// valid zip file"). If not, we can fall back to dumping whatever
 			// we've got.
-			var unLocal *planfile.ErrUnusableLocalPlan
-			var unState *statefile.ErrUnusableState
-			var unMisc *errUnusableDataMisc
-			if errors.As(planErr, &unLocal) {
+			if unLocal, ok := errors.AsType[*planfile.ErrUnusableLocalPlan](planErr); ok {
 				diags = diags.Append(
 					tfdiags.Sourceless(
 						tfdiags.Error,
@@ -301,7 +298,7 @@ func (c *ShowCommand) legacyShowFromPath(ctx context.Context, path string, enc e
 						fmt.Sprintf("Plan read error: %s", unLocal),
 					),
 				)
-			} else if errors.As(planErr, &unMisc) {
+			} else if unMisc, ok := errors.AsType[*errUnusableDataMisc](planErr); ok {
 				diags = diags.Append(
 					tfdiags.Sourceless(
 						tfdiags.Error,
@@ -309,7 +306,7 @@ func (c *ShowCommand) legacyShowFromPath(ctx context.Context, path string, enc e
 						fmt.Sprintf("Plan read error: %s", unMisc),
 					),
 				)
-			} else if errors.As(stateErr, &unState) {
+			} else if unState, ok := errors.AsType[*statefile.ErrUnusableState](stateErr); ok {
 				diags = diags.Append(
 					tfdiags.Sourceless(
 						tfdiags.Error,

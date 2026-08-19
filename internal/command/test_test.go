@@ -200,11 +200,9 @@ func TestTest(t *testing.T) {
 			view, done := testView(t)
 
 			c := &TestCommand{
-				Meta: Meta{
-					WorkingDir:       workdir.NewDir("."),
-					testingOverrides: metaOverridesForProvider(provider.Provider),
-					View:             view,
-				},
+				WorkingDir:       workdir.NewDir("."),
+				testingOverrides: metaOverridesForProvider(provider.Provider),
+				View:             view,
 			}
 
 			code := c.Run(tc.args)
@@ -290,11 +288,9 @@ func TestTest_Full_Output(t *testing.T) {
 			view, done := testView(t)
 
 			c := &TestCommand{
-				Meta: Meta{
-					WorkingDir:       workdir.NewDir("."),
-					testingOverrides: metaOverridesForProvider(provider.Provider),
-					View:             view,
-				},
+				WorkingDir:       workdir.NewDir("."),
+				testingOverrides: metaOverridesForProvider(provider.Provider),
+				View:             view,
 			}
 
 			code := c.Run(tc.args)
@@ -327,12 +323,10 @@ func TestTest_Interrupt(t *testing.T) {
 	provider.Interrupt = interrupt
 
 	c := &TestCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(provider.Provider),
-			View:             view,
-			ShutdownCh:       interrupt,
-		},
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(provider.Provider),
+		View:             view,
+		ShutdownCh:       interrupt,
 	}
 
 	c.Run(nil)
@@ -360,12 +354,10 @@ func TestTest_DoubleInterrupt(t *testing.T) {
 	provider.Interrupt = interrupt
 
 	c := &TestCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(provider.Provider),
-			View:             view,
-			ShutdownCh:       interrupt,
-		},
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(provider.Provider),
+		View:             view,
+		ShutdownCh:       interrupt,
 	}
 
 	c.Run(nil)
@@ -553,11 +545,9 @@ func TestTest_CatchesErrorsBeforeDestroy(t *testing.T) {
 	view, done := testView(t)
 
 	c := &TestCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(provider.Provider),
-			View:             view,
-		},
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(provider.Provider),
+		View:             view,
 	}
 
 	code := c.Run([]string{"-no-color"})
@@ -609,11 +599,9 @@ func TestTest_Verbose(t *testing.T) {
 	view, done := testView(t)
 
 	c := &TestCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(provider.Provider),
-			View:             view,
-		},
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(provider.Provider),
+		View:             view,
 	}
 
 	code := c.Run([]string{"-verbose", "-no-color"})
@@ -1192,11 +1180,9 @@ Condition expression could not be evaluated at this time.
 			view, done := testView(t)
 
 			c := &TestCommand{
-				Meta: Meta{
-					WorkingDir:       workdir.NewDir("."),
-					testingOverrides: metaOverridesForProvider(provider.Provider),
-					View:             view,
-				},
+				WorkingDir:       workdir.NewDir("."),
+				testingOverrides: metaOverridesForProvider(provider.Provider),
+				View:             view,
 			}
 
 			code := c.Run([]string{"-no-color"})

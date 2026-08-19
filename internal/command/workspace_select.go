@@ -7,6 +7,7 @@ package command
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/opentofu/opentofu/internal/command/arguments"
@@ -105,13 +106,7 @@ func (c WorkspaceSelectCommand) Execute(args *arguments.WorkspaceSelect, view vi
 		return 0
 	}
 
-	found := false
-	for _, s := range states {
-		if name == s {
-			found = true
-			break
-		}
-	}
+	found := slices.Contains(states, name)
 
 	var newState bool
 

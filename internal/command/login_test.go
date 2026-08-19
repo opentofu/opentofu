@@ -101,12 +101,10 @@ func TestLogin(t *testing.T) {
 			})
 
 			c := &LoginCommand{
-				Meta: Meta{
-					WorkingDir:      workdir.NewDir("."),
-					View:            loginView,
-					BrowserLauncher: browserLauncher,
-					Services:        svcs,
-				},
+				WorkingDir:      workdir.NewDir("."),
+				View:            loginView,
+				BrowserLauncher: browserLauncher,
+				Services:        svcs,
 			}
 
 			test(t, c, loginDone)
@@ -418,13 +416,11 @@ func TestLoginOAuthCallbackRace(t *testing.T) {
 
 			abortCh := make(chan struct{})
 			c := &LoginCommand{
-				Meta: Meta{
-					WorkingDir:      workdir.NewDir("."),
-					View:            loginView,
-					BrowserLauncher: webbrowser.NewMockLauncher(ctx),
-					Services:        svcs,
-					ShutdownCh:      abortCh,
-				},
+				WorkingDir:      workdir.NewDir("."),
+				View:            loginView,
+				BrowserLauncher: webbrowser.NewMockLauncher(ctx),
+				Services:        svcs,
+				ShutdownCh:      abortCh,
 			}
 
 			defer testInputMap(t, map[string]string{
@@ -495,12 +491,10 @@ func TestLoginOAuthCallbackNoPanicOnAbort(t *testing.T) {
 			// is the only way to unblock the command.
 			abortCh := make(chan struct{})
 			c := &LoginCommand{
-				Meta: Meta{
-					WorkingDir: workdir.NewDir("."),
-					View:       loginView,
-					Services:   svcs,
-					ShutdownCh: abortCh,
-				},
+				WorkingDir: workdir.NewDir("."),
+				View:       loginView,
+				Services:   svcs,
+				ShutdownCh: abortCh,
 			}
 
 			defer testInputMap(t, map[string]string{

@@ -61,9 +61,9 @@ func BindInit(cli *CommandLine) *Init {
 		Vars:    BindVars(cli),
 		State:   BindState(cli, stateFlagLock),
 		Backend: BindBackendWithMigration(cli),
-	}
 
-	init.FlagConfigExtra = flagspkg.NewRawFlags("-backend-config")
+		FlagConfigExtra: flagspkg.NewRawFlags("-backend-config"),
+	}
 
 	backend := cli.BoolVar(&init.FlagBackend, "backend", true, "Disable backend or cloud backend initialization for this configuration and use what was previously initialized instead.").SetDisplay("=false")
 	cloud := cli.BoolVar(&init.FlagCloud, "cloud", true, "").SetHidden(true)

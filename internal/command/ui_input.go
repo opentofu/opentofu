@@ -41,7 +41,7 @@ type UIInput struct {
 	Reader io.Reader
 	Writer io.Writer
 
-	listening int32
+	listening atomic.Int32
 	result    chan string
 	err       chan string
 
@@ -120,10 +120,10 @@ func (i *UIInput) Input(ctx context.Context, opts *tofu.InputOpts) (string, erro
 	// Listen for the input in a goroutine. This will allow us to
 	// interrupt this if we are interrupted (SIGINT).
 	go func() {
-		if !atomic.CompareAndSwapInt32(&i.listening, 0, 1) {
+		if !i.listening.CompareAndSwap(0, 1) {
 			return // We are already listening for input.
 		}
-		defer atomic.CompareAndSwapInt32(&i.listening, 1, 0)
+		defer i.listening.CompareAndSwap(1, 0)
 
 		var line string
 		var err error

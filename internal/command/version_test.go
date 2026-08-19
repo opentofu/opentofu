@@ -46,10 +46,8 @@ func TestVersion(t *testing.T) {
 
 	view, done := testView(t)
 	c := &VersionCommand{
-		Meta: Meta{
-			WorkingDir: workdir.NewDir("."),
-			View:       view,
-		},
+		WorkingDir:        workdir.NewDir("."),
+		View:              view,
 		Version:           "4.5.6",
 		VersionPrerelease: "foo",
 		Platform:          getproviders.Platform{OS: "aros", Arch: "riscv64"},
