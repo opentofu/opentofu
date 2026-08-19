@@ -51,7 +51,7 @@ type CreateArgs struct {
 	DependencyLocks *depsfile.Locks
 
 	// Schemas is the full set of provider schemas that were in memory at
-	// the time the plan was created  If set, a trimmed-down subset
+	// the time the plan was created. If set, a trimmed-down subset
 	// of these schemas is stored alongside the plan.
 	// This is deliberately typed as a plain map, rather than as
 	// *tofu.Schemas, so that this package doesn't need to import
