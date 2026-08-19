@@ -682,6 +682,7 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 		}
 
 		val = cty.UnknownAsNull(val).MarkWithPaths(pvms)
+		val = marks.DropLintingMarks(val)
 	}
 
 	state.SetOutputValue(n.Addr, val, n.Config.Sensitive, n.Config.Deprecated)

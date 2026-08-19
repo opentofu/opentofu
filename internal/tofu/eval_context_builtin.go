@@ -171,6 +171,7 @@ func (c *BuiltinEvalContext) EvaluateBlock(ctx context.Context, body hcl.Body, s
 	diags = diags.Append(evalDiags)
 	val, evalDiags := scope.EvalBlock(ctx, body, schema)
 	diags = diags.Append(evalDiags)
+	// TODO andrei we need to figure out how to make this work only for root module resources
 	val, lintingInfo := marks.ExtractLintingInformationFromValue(val)
 	diags = diags.Append(corelinting.ImpureFuncs(ctx, body.MissingItemRange(), lintingInfo))
 	return val, body, diags
