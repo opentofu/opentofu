@@ -6,6 +6,9 @@
 package planfile
 
 import (
+	"fmt"
+	"log"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/plans"
@@ -104,14 +107,46 @@ func referencedResourceTypes(plan *plans.Plan, config *configs.Config) map[addrs
 	return result
 }
 
+// missingProviderSchemas compares schemas against what is needed and returns a
+// human-readable description of everything
+// that is needed but schemas has no entry for. A nil/empty
+// result means schemas fully covers everything needed requires.
+func missingProviderSchemas(needed map[addrs.Provider]*referencedTypes, schemas map[addrs.Provider]providers.ProviderSchema) []string {
+	var missing []string
+
+	for provider, rt := range needed {
+		full, ok := schemas[provider]
+		if !ok {
+			missing = append(missing, fmt.Sprintf("provider %s", provider))
+			continue
+		}
+
+		for typeName := range rt.managed {
+			if _, ok := full.ResourceTypes[typeName]; !ok {
+				missing = append(missing, fmt.Sprintf("managed resource type %q of provider %s", typeName, provider))
+			}
+		}
+		for typeName := range rt.data {
+			if _, ok := full.DataSources[typeName]; !ok {
+				missing = append(missing, fmt.Sprintf("data source %q of provider %s", typeName, provider))
+			}
+		}
+	}
+
+	return missing
+}
+
 // trimSchemas takes the full set of provider schemas that were used to
 // build the given plan and produces a reduced copy containing only the
-// parts that are needed to render that specific planas JSON:
+// parts that are needed to render that specific plan as JSON: each
+// referenced provider's own configuration schema, plus the schemas (and
+// resource identity schemas) for whichever managed resource types and data
+// sources are actually referenced.
 //
-// If schemas is nil, or a provider referenced by the plan has no
-// corresponding entry in schemas, trimSchemas silently omits it; it's the
-// caller's responsibility to decide whether that constitutes a fatal
-// problem.
+// trimSchemas is all-or-nothing: if schemas is nil, or doesn't fully cover
+// everything referencedResourceTypes says is needed (e.g. a provider is
+// missing entirely, or one of its referenced resource/data source types
+// has no schema), trimSchemas returns nil rather than a partial result.
 func trimSchemas(plan *plans.Plan, config *configs.Config, schemas map[addrs.Provider]providers.ProviderSchema) map[addrs.Provider]providers.ProviderSchema {
 	if schemas == nil {
 		return nil
@@ -122,16 +157,18 @@ func trimSchemas(plan *plans.Plan, config *configs.Config, schemas map[addrs.Pro
 		return nil
 	}
 
+	if missing := missingProviderSchemas(needed, schemas); len(missing) > 0 {
+		for _, m := range missing {
+			log.Printf("[TRACE] planfile: no schema for %s; can't embed schemas for this plan", m)
+		}
+		return nil
+	}
+
+	// Now that we know we have coverage (due to checking missingProviderSchemas)
+	// we can move on trimming it down
 	result := make(map[addrs.Provider]providers.ProviderSchema, len(needed))
 	for provider, rt := range needed {
-		full, ok := schemas[provider]
-		if !ok {
-			// We don't have a schema for this provider at all (this
-			// shouldn't normally happen, since the plan couldn't have
-			// been created without it,but its better to be safe than sorry and skip
-			// and the caller has the responsibility to fetch from the provider directly
-			continue
-		}
+		full := schemas[provider]
 
 		trimmed := providers.ProviderSchema{
 			Provider:      full.Provider,
@@ -140,14 +177,10 @@ func trimSchemas(plan *plans.Plan, config *configs.Config, schemas map[addrs.Pro
 		}
 
 		for typeName := range rt.managed {
-			if s, ok := full.ResourceTypes[typeName]; ok {
-				trimmed.ResourceTypes[typeName] = s
-			}
+			trimmed.ResourceTypes[typeName] = full.ResourceTypes[typeName]
 		}
 		for typeName := range rt.data {
-			if s, ok := full.DataSources[typeName]; ok {
-				trimmed.DataSources[typeName] = s
-			}
+			trimmed.DataSources[typeName] = full.DataSources[typeName]
 		}
 
 		result[provider] = trimmed

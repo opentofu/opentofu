@@ -30,23 +30,17 @@ var ErrNoSchemas = errors.New("plan file does not have a stored schemas entry")
 // prepareSchemasForWrite computes the trimmed-down set of provider schemas
 // that are needed to render the given plan, from the full set of schemas
 // that were used to create it.
+//
+// trimSchemas already guarantees an all-or-nothing result (nil if it can't
+// fully cover the plan), so there's nothing left for this function to
+// validate; it just handles the nil-plan/nil-schemas cases that don't make
+// sense to pass through at all.
 func prepareSchemasForWrite(plan *plans.Plan, config *configs.Config, schemas map[addrs.Provider]providers.ProviderSchema) map[addrs.Provider]providers.ProviderSchema {
 	if plan == nil || schemas == nil {
 		return nil
 	}
 
-	trimmed := trimSchemas(plan, config, schemas)
-	if len(trimmed) == 0 {
-		return nil
-	}
-
-	// better to be safe than sorry here, check it again and don't return
-	// schemas if we dont have coverage.
-	if !schemasCoverPlan(plan, config, trimmed) {
-		return nil
-	}
-
-	return trimmed
+	return trimSchemas(plan, config, schemas)
 }
 
 // writeSchemas writes the given (already-trimmed) provider schemas to w
