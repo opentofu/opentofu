@@ -1958,8 +1958,8 @@ func TestSchemaMap_Diff(t *testing.T) {
 					Set: func(v interface{}) int {
 						var buf bytes.Buffer
 						m := v.(map[string]interface{})
-						buf.WriteString(fmt.Sprintf("%s-", m["device_name"].(string)))
-						buf.WriteString(fmt.Sprintf("%t-", m["delete_on_termination"].(bool)))
+						fmt.Fprintf(&buf, "%s-", m["device_name"].(string))
+						fmt.Fprintf(&buf, "%t-", m["delete_on_termination"].(bool))
 						return hashcode.String(buf.String())
 					},
 				},

@@ -39,7 +39,7 @@ func GenerateResourceContents(addr addrs.AbsResourceInstance,
 
 	if pc.LocalName != addr.Resource.Resource.ImpliedProvider() || pc.Alias != "" {
 		buf.WriteString(strings.Repeat(" ", 2))
-		buf.WriteString(fmt.Sprintf("provider = %s\n", pc.StringCompact()))
+		fmt.Fprintf(&buf, "provider = %s\n", pc.StringCompact())
 	}
 
 	stateVal = omitUnknowns(stateVal)
@@ -59,7 +59,7 @@ func GenerateResourceContents(addr addrs.AbsResourceInstance,
 func WrapResourceContents(addr addrs.AbsResourceInstance, config string) string {
 	var buf strings.Builder
 
-	buf.WriteString(fmt.Sprintf("resource %q %q {\n", addr.Resource.Resource.Type, addr.Resource.Resource.Name))
+	fmt.Fprintf(&buf, "resource %q %q {\n", addr.Resource.Resource.Type, addr.Resource.Resource.Name)
 	buf.WriteString(config)
 	buf.WriteString("}")
 

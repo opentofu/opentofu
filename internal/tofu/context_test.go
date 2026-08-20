@@ -901,7 +901,7 @@ func legacyDiffComparisonString(changes *plans.Changes) string {
 		fmt.Fprintf(&buf, "%s:\n", moduleKey)
 		s := bufio.NewScanner(&mBuf)
 		for s.Scan() {
-			buf.WriteString(fmt.Sprintf("  %s\n", s.Text()))
+			fmt.Fprintf(&buf, "  %s\n", s.Text())
 		}
 	}
 

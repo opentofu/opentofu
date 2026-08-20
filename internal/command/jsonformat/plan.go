@@ -408,7 +408,7 @@ func renderHumanDiff(renderer Renderer, diff diff, cause string) (string, bool) 
 	}
 	opts.ShowUnchangedChildren = diff.Importing()
 
-	buf.WriteString(fmt.Sprintf("%s %s %s", renderer.Colorize.Color(renderers.DiffActionSymbol(action)), resourceChangeHeader(diff.change), diff.diff.RenderHuman(0, opts)))
+	fmt.Fprintf(&buf, "%s %s %s", renderer.Colorize.Color(renderers.DiffActionSymbol(action)), resourceChangeHeader(diff.change), diff.diff.RenderHuman(0, opts))
 	return buf.String(), true
 }
 
@@ -424,9 +424,9 @@ func resourceChangeComment(resource jsonplan.ResourceChange, action plans.Action
 
 	switch action {
 	case plans.Create:
-		buf.WriteString(fmt.Sprintf("[bold]  # %s[reset] will be created", dispAddr))
+		fmt.Fprintf(&buf, "[bold]  # %s[reset] will be created", dispAddr)
 	case plans.Read:
-		buf.WriteString(fmt.Sprintf("[bold]  # %s[reset] will be read during apply", dispAddr))
+		fmt.Fprintf(&buf, "[bold]  # %s[reset] will be read during apply", dispAddr)
 		switch resource.ActionReason {
 		case jsonplan.ResourceInstanceReadBecauseConfigUnknown:
 			buf.WriteString("\n  # (config refers to values not yet known)")
@@ -438,31 +438,31 @@ func resourceChangeComment(resource jsonplan.ResourceChange, action plans.Action
 	case plans.Update:
 		switch changeCause {
 		case proposedChange:
-			buf.WriteString(fmt.Sprintf("[bold]  # %s[reset] will be updated in-place", dispAddr))
+			fmt.Fprintf(&buf, "[bold]  # %s[reset] will be updated in-place", dispAddr)
 		case detectedDrift:
-			buf.WriteString(fmt.Sprintf("[bold]  # %s[reset] has changed", dispAddr))
+			fmt.Fprintf(&buf, "[bold]  # %s[reset] has changed", dispAddr)
 		default:
-			buf.WriteString(fmt.Sprintf("[bold]  # %s[reset] update (unknown reason %s)", dispAddr, changeCause))
+			fmt.Fprintf(&buf, "[bold]  # %s[reset] update (unknown reason %s)", dispAddr, changeCause)
 		}
 	case plans.CreateThenDelete, plans.DeleteThenCreate:
 		switch resource.ActionReason {
 		case jsonplan.ResourceInstanceReplaceBecauseTainted:
-			buf.WriteString(fmt.Sprintf("[bold]  # %s[reset] is tainted, so it must be [bold][red]replaced[reset]", dispAddr))
+			fmt.Fprintf(&buf, "[bold]  # %s[reset] is tainted, so it must be [bold][red]replaced[reset]", dispAddr)
 		case jsonplan.ResourceInstanceReplaceByRequest:
-			buf.WriteString(fmt.Sprintf("[bold]  # %s[reset] will be [bold][red]replaced[reset], as requested", dispAddr))
+			fmt.Fprintf(&buf, "[bold]  # %s[reset] will be [bold][red]replaced[reset], as requested", dispAddr)
 		case jsonplan.ResourceInstanceReplaceByTriggers:
-			buf.WriteString(fmt.Sprintf("[bold]  # %s[reset] will be [bold][red]replaced[reset] due to changes in replace_triggered_by", dispAddr))
+			fmt.Fprintf(&buf, "[bold]  # %s[reset] will be [bold][red]replaced[reset] due to changes in replace_triggered_by", dispAddr)
 		default:
-			buf.WriteString(fmt.Sprintf("[bold]  # %s[reset] must be [bold][red]replaced[reset]", dispAddr))
+			fmt.Fprintf(&buf, "[bold]  # %s[reset] must be [bold][red]replaced[reset]", dispAddr)
 		}
 	case plans.Delete:
 		switch changeCause {
 		case proposedChange:
-			buf.WriteString(fmt.Sprintf("[bold]  # %s[reset] will be [bold][red]destroyed[reset]", dispAddr))
+			fmt.Fprintf(&buf, "[bold]  # %s[reset] will be [bold][red]destroyed[reset]", dispAddr)
 		case detectedDrift:
-			buf.WriteString(fmt.Sprintf("[bold]  # %s[reset] has been deleted", dispAddr))
+			fmt.Fprintf(&buf, "[bold]  # %s[reset] has been deleted", dispAddr)
 		default:
-			buf.WriteString(fmt.Sprintf("[bold]  # %s[reset] delete (unknown reason %s)", dispAddr, changeCause))
+			fmt.Fprintf(&buf, "[bold]  # %s[reset] delete (unknown reason %s)", dispAddr, changeCause)
 		}
 		// We can sometimes give some additional detail about why we're
 		// proposing to delete. We show this as additional notes, rather than
@@ -471,16 +471,16 @@ func resourceChangeComment(resource jsonplan.ResourceChange, action plans.Action
 		// in all cases, for easier scanning of this often-risky action.
 		switch resource.ActionReason {
 		case jsonplan.ResourceInstanceDeleteBecauseNoResourceConfig:
-			buf.WriteString(fmt.Sprintf("\n  # (because %s.%s is not in configuration)", resource.Type, resource.Name))
+			fmt.Fprintf(&buf, "\n  # (because %s.%s is not in configuration)", resource.Type, resource.Name)
 		case jsonplan.ResourceInstanceDeleteBecauseNoMoveTarget:
-			buf.WriteString(fmt.Sprintf("\n  # (because %s was moved to %s, which is not in configuration)", resource.PreviousAddress, resource.Address))
+			fmt.Fprintf(&buf, "\n  # (because %s was moved to %s, which is not in configuration)", resource.PreviousAddress, resource.Address)
 		case jsonplan.ResourceInstanceDeleteBecauseNoModule:
 			// FIXME: Ideally we'd truncate addr.Module to reflect the earliest
 			// step that doesn't exist, so it's clearer which call this refers
 			// to, but we don't have enough information out here in the UI layer
 			// to decide that; only the "expander" in OpenTofu Core knows
 			// which module instance keys are actually declared.
-			buf.WriteString(fmt.Sprintf("\n  # (because %s is not in configuration)", resource.ModuleAddress))
+			fmt.Fprintf(&buf, "\n  # (because %s is not in configuration)", resource.ModuleAddress)
 		case jsonplan.ResourceInstanceDeleteBecauseWrongRepetition:
 			var index interface{}
 			if resource.Index != nil {
@@ -499,11 +499,11 @@ func resourceChangeComment(resource jsonplan.ResourceChange, action plans.Action
 				buf.WriteString("\n  # (because resource does not use for_each)")
 			}
 		case jsonplan.ResourceInstanceDeleteBecauseCountIndex:
-			buf.WriteString(fmt.Sprintf("\n  # (because index [%s] is out of range for count)", resource.Index))
+			fmt.Fprintf(&buf, "\n  # (because index [%s] is out of range for count)", resource.Index)
 		case jsonplan.ResourceInstanceDeleteBecauseEnabledFalse:
 			buf.WriteString("\n  # (because enabled is false)")
 		case jsonplan.ResourceInstanceDeleteBecauseEachKey:
-			buf.WriteString(fmt.Sprintf("\n  # (because key [%s] is not in for_each map)", resource.Index))
+			fmt.Fprintf(&buf, "\n  # (because key [%s] is not in for_each map)", resource.Index)
 		}
 		if len(resource.Deposed) != 0 {
 			// In the case where we partially failed to replace a resource
@@ -513,7 +513,7 @@ func resourceChangeComment(resource jsonplan.ResourceChange, action plans.Action
 			buf.WriteString("\n  # (left over from a partially-failed replacement of this instance)")
 		}
 	case plans.Forget:
-		buf.WriteString(fmt.Sprintf("[bold]  # %s[reset] will be removed from the OpenTofu state [bold][red]but will not be destroyed[reset]", dispAddr))
+		fmt.Fprintf(&buf, "[bold]  # %s[reset] will be removed from the OpenTofu state [bold][red]but will not be destroyed[reset]", dispAddr)
 
 		// We need to identify a special case where the resource is being forgotten instead of destroyed due to lifecycle.destroy attribute
 		// There are two cases where this can happen: when lifecycle.destroy = false is set in the configuration, and when lifecycle.destroy = false is persisted in state.
@@ -538,13 +538,13 @@ func resourceChangeComment(resource jsonplan.ResourceChange, action plans.Action
 	case plans.ForgetThenCreate:
 		switch resource.ActionReason {
 		case jsonplan.ResourceInstanceReplaceBecauseTainted:
-			buf.WriteString(fmt.Sprintf("[bold]  # %s[reset] is tainted, so it must be [bold][red]replaced[reset]", dispAddr))
+			fmt.Fprintf(&buf, "[bold]  # %s[reset] is tainted, so it must be [bold][red]replaced[reset]", dispAddr)
 		case jsonplan.ResourceInstanceReplaceByRequest:
-			buf.WriteString(fmt.Sprintf("[bold]  # %s[reset] will be [bold][red]replaced[reset], as requested", dispAddr))
+			fmt.Fprintf(&buf, "[bold]  # %s[reset] will be [bold][red]replaced[reset], as requested", dispAddr)
 		case jsonplan.ResourceInstanceReplaceByTriggers:
-			buf.WriteString(fmt.Sprintf("[bold]  # %s[reset] will be [bold][red]replaced[reset] due to changes in replace_triggered_by", dispAddr))
+			fmt.Fprintf(&buf, "[bold]  # %s[reset] will be [bold][red]replaced[reset] due to changes in replace_triggered_by", dispAddr)
 		default:
-			buf.WriteString(fmt.Sprintf("[bold]  # %s[reset] must be [bold][red]replaced[reset]", dispAddr))
+			fmt.Fprintf(&buf, "[bold]  # %s[reset] must be [bold][red]replaced[reset]", dispAddr)
 		}
 		buf.WriteString(" - [yellow]older instance will [bold]not[reset][yellow] be destroyed [reset]([bold]lifecycle.destroy = false[reset])")
 
@@ -557,12 +557,12 @@ func resourceChangeComment(resource jsonplan.ResourceChange, action plans.Action
 		}
 	case plans.NoOp:
 		if len(resource.PreviousAddress) > 0 && resource.PreviousAddress != resource.Address {
-			buf.WriteString(fmt.Sprintf("[bold]  # %s[reset] has moved to [bold]%s[reset]", resource.PreviousAddress, dispAddr))
+			fmt.Fprintf(&buf, "[bold]  # %s[reset] has moved to [bold]%s[reset]", resource.PreviousAddress, dispAddr)
 			printedMoved = true
 			break
 		}
 		if resource.Change.Importing != nil {
-			buf.WriteString(fmt.Sprintf("[bold]  # %s[reset] will be imported", dispAddr))
+			fmt.Fprintf(&buf, "[bold]  # %s[reset] will be imported", dispAddr)
 			if len(resource.Change.GeneratedConfig) > 0 {
 				buf.WriteString("\n  #[reset] (config will be generated)")
 			}
@@ -571,12 +571,12 @@ func resourceChangeComment(resource jsonplan.ResourceChange, action plans.Action
 		fallthrough
 	default:
 		// should never happen, since the above is exhaustive
-		buf.WriteString(fmt.Sprintf("%s has an action the plan renderer doesn't support (this is a bug)", dispAddr))
+		fmt.Fprintf(&buf, "%s has an action the plan renderer doesn't support (this is a bug)", dispAddr)
 	}
 	buf.WriteString("\n")
 
 	if len(resource.PreviousAddress) > 0 && resource.PreviousAddress != resource.Address && !printedMoved {
-		buf.WriteString(fmt.Sprintf("  # [reset](moved from %s)\n", resource.PreviousAddress))
+		fmt.Fprintf(&buf, "  # [reset](moved from %s)\n", resource.PreviousAddress)
 	}
 	if resource.Change.Importing != nil {
 		// We want to make this as forward compatible as possible, and we know
@@ -586,7 +586,7 @@ func resourceChangeComment(resource jsonplan.ResourceChange, action plans.Action
 		// being removed in the future will mean this renderer will receive it
 		// as an empty string
 		if len(resource.Change.Importing.ID) > 0 {
-			buf.WriteString(fmt.Sprintf("  # [reset](imported from \"%s\")\n", resource.Change.Importing.ID))
+			fmt.Fprintf(&buf, "  # [reset](imported from \"%s\")\n", resource.Change.Importing.ID)
 		} else if len(resource.Change.Importing.Identity) > 0 {
 			// We want to render the identity here in it's json format for now, in the future we should reconsider how this is rendered by for now this is good enough
 			var jsonOut bytes.Buffer
@@ -594,10 +594,10 @@ func resourceChangeComment(resource jsonplan.ResourceChange, action plans.Action
 			if err != nil {
 				// If we fail to indent the JSON for any reason, we should still render the raw identity string,
 				// as it's better than rendering nothing at all and this is just an extra detail for the user
-				buf.WriteString(fmt.Sprintf("  # [reset]imported using resource identity \"%s\"\n", resource.Change.Importing.Identity))
+				fmt.Fprintf(&buf, "  # [reset]imported using resource identity \"%s\"\n", resource.Change.Importing.Identity)
 			} else {
 				// If we successfully indented the JSON, we should render it in a more human friendly way with new lines and indentation
-				buf.WriteString(fmt.Sprintf("  # [reset]imported using resource identity: %s\n", jsonOut.String()))
+				fmt.Fprintf(&buf, "  # [reset]imported using resource identity: %s\n", jsonOut.String())
 			}
 		} else {
 			buf.WriteString("  # [reset](will be imported first)\n")

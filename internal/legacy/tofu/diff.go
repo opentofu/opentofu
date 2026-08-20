@@ -212,11 +212,11 @@ func (d *Diff) String() string {
 			continue
 		}
 
-		buf.WriteString(fmt.Sprintf("%s:\n", key))
+		fmt.Fprintf(&buf, "%s:\n", key)
 
 		s := bufio.NewScanner(strings.NewReader(mStr))
 		for s.Scan() {
-			buf.WriteString(fmt.Sprintf("  %s\n", s.Text()))
+			fmt.Fprintf(&buf, "  %s\n", s.Text())
 		}
 	}
 

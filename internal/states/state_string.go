@@ -72,7 +72,7 @@ func (s *State) String() string {
 				text = "  " + text
 			}
 
-			buf.WriteString(fmt.Sprintf("%s\n", text))
+			fmt.Fprintf(&buf, "%s\n", text)
 		}
 	}
 
@@ -136,9 +136,9 @@ func (ms *Module) testString() string {
 			deposedStr = fmt.Sprintf(" (%d deposed)", len(is.Deposed))
 		}
 
-		buf.WriteString(fmt.Sprintf("%s:%s%s\n", k, taintStr, deposedStr))
-		buf.WriteString(fmt.Sprintf("  ID = %s\n", id))
-		buf.WriteString(fmt.Sprintf("  provider = %s\n", rs.ProviderConfig.String()))
+		fmt.Fprintf(&buf, "%s:%s%s\n", k, taintStr, deposedStr)
+		fmt.Fprintf(&buf, "  ID = %s\n", id)
+		fmt.Fprintf(&buf, "  provider = %s\n", rs.ProviderConfig.String())
 
 		// Attributes were a flatmap before, but are not anymore. To preserve
 		// our old output as closely as possible we need to do a conversion
@@ -184,7 +184,7 @@ func (ms *Module) testString() string {
 
 		for _, ak := range attrKeys {
 			av := attributes[ak]
-			buf.WriteString(fmt.Sprintf("  %s = %s\n", ak, av))
+			fmt.Fprintf(&buf, "  %s = %s\n", ak, av)
 		}
 
 		// CAUTION: Since deposed keys are now random strings instead of
@@ -197,14 +197,14 @@ func (ms *Module) testString() string {
 			if t.Status == ObjectTainted {
 				taintStr = " (tainted)"
 			}
-			buf.WriteString(fmt.Sprintf("  Deposed ID %d = %s%s\n", i, id, taintStr))
+			fmt.Fprintf(&buf, "  Deposed ID %d = %s%s\n", i, id, taintStr)
 			i++
 		}
 
 		if obj := is.Current; obj != nil && len(obj.Dependencies) > 0 {
 			buf.WriteString("\n  Dependencies:\n")
 			for _, dep := range obj.Dependencies {
-				buf.WriteString(fmt.Sprintf("    %s\n", dep.String()))
+				fmt.Fprintf(&buf, "    %s\n", dep.String())
 			}
 		}
 	}
@@ -227,9 +227,9 @@ func (ms *Module) testString() string {
 			lv := hcl2shim.ConfigValueFromHCL2(v.Value)
 			switch vTyped := lv.(type) {
 			case string:
-				buf.WriteString(fmt.Sprintf("%s = %s\n", k, vTyped))
+				fmt.Fprintf(&buf, "%s = %s\n", k, vTyped)
 			case []interface{}:
-				buf.WriteString(fmt.Sprintf("%s = %s\n", k, vTyped))
+				fmt.Fprintf(&buf, "%s = %s\n", k, vTyped)
 			case map[string]interface{}:
 				var mapKeys []string
 				for key := range vTyped {
@@ -240,13 +240,13 @@ func (ms *Module) testString() string {
 				var mapBuf bytes.Buffer
 				mapBuf.WriteString("{")
 				for _, key := range mapKeys {
-					mapBuf.WriteString(fmt.Sprintf("%s:%s ", key, vTyped[key]))
+					fmt.Fprintf(&mapBuf, "%s:%s ", key, vTyped[key])
 				}
 				mapBuf.WriteString("}")
 
-				buf.WriteString(fmt.Sprintf("%s = %s\n", k, mapBuf.String()))
+				fmt.Fprintf(&buf, "%s = %s\n", k, mapBuf.String())
 			default:
-				buf.WriteString(fmt.Sprintf("%s = %#v\n", k, lv))
+				fmt.Fprintf(&buf, "%s = %#v\n", k, lv)
 			}
 		}
 	}

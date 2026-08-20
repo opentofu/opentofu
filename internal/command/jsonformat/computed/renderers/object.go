@@ -64,7 +64,7 @@ func (renderer objectRenderer) RenderHuman(diff computed.Diff, indent int, opts 
 
 	unchangedAttributes := 0
 	var buf bytes.Buffer
-	buf.WriteString(fmt.Sprintf("{%s\n", forcesReplacement(diff.Replace, opts)))
+	fmt.Fprintf(&buf, "{%s\n", forcesReplacement(diff.Replace, opts))
 	for _, key := range keys {
 		attribute := renderer.attributes[key]
 
@@ -73,9 +73,9 @@ func (renderer objectRenderer) RenderHuman(diff computed.Diff, indent int, opts 
 			importantAttributeOpts.ShowUnchangedChildren = true
 
 			for _, warning := range attribute.WarningsHuman(indent+1, importantAttributeOpts) {
-				buf.WriteString(fmt.Sprintf("%s%s\n", formatIndent(indent+1), warning))
+				fmt.Fprintf(&buf, "%s%s\n", formatIndent(indent+1), warning)
 			}
-			buf.WriteString(fmt.Sprintf("%s%s%-*s = %s\n", formatIndent(indent+1), writeDiffActionSymbol(attribute.Action, importantAttributeOpts), maximumKeyLen, escapedKeys[key], attribute.RenderHuman(indent+1, importantAttributeOpts)))
+			fmt.Fprintf(&buf, "%s%s%-*s = %s\n", formatIndent(indent+1), writeDiffActionSymbol(attribute.Action, importantAttributeOpts), maximumKeyLen, escapedKeys[key], attribute.RenderHuman(indent+1, importantAttributeOpts))
 			continue
 		}
 
@@ -86,15 +86,15 @@ func (renderer objectRenderer) RenderHuman(diff computed.Diff, indent int, opts 
 		}
 
 		for _, warning := range attribute.WarningsHuman(indent+1, opts) {
-			buf.WriteString(fmt.Sprintf("%s%s\n", formatIndent(indent+1), warning))
+			fmt.Fprintf(&buf, "%s%s\n", formatIndent(indent+1), warning)
 		}
-		buf.WriteString(fmt.Sprintf("%s%s%-*s = %s\n", formatIndent(indent+1), writeDiffActionSymbol(attribute.Action, attributeOpts), maximumKeyLen, escapedKeys[key], attribute.RenderHuman(indent+1, attributeOpts)))
+		fmt.Fprintf(&buf, "%s%s%-*s = %s\n", formatIndent(indent+1), writeDiffActionSymbol(attribute.Action, attributeOpts), maximumKeyLen, escapedKeys[key], attribute.RenderHuman(indent+1, attributeOpts))
 	}
 
 	if unchangedAttributes > 0 {
-		buf.WriteString(fmt.Sprintf("%s%s%s\n", formatIndent(indent+1), writeDiffActionSymbol(plans.NoOp, opts), unchanged("attribute", unchangedAttributes, opts)))
+		fmt.Fprintf(&buf, "%s%s%s\n", formatIndent(indent+1), writeDiffActionSymbol(plans.NoOp, opts), unchanged("attribute", unchangedAttributes, opts))
 	}
 
-	buf.WriteString(fmt.Sprintf("%s%s}%s", formatIndent(indent), writeDiffActionSymbol(plans.NoOp, opts), nullSuffix(diff.Action, opts)))
+	fmt.Fprintf(&buf, "%s%s}%s", formatIndent(indent), writeDiffActionSymbol(plans.NoOp, opts), nullSuffix(diff.Action, opts))
 	return buf.String()
 }

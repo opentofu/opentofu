@@ -111,7 +111,7 @@ func (v *marshalVertex) dot(g *marshalGraph, opts *DotOpts) []byte {
 		attrs = newAttrs
 	}
 
-	buf.WriteString(fmt.Sprintf(`"[%s] %s"`, graphName, name))
+	fmt.Fprintf(&buf, `"[%s] %s"`, graphName, name)
 	writeAttrs(&buf, attrs)
 	buf.WriteByte('\n')
 

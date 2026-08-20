@@ -33,7 +33,7 @@ func TraversalStr(traversal hcl.Traversal) string {
 			buf.WriteByte('[')
 			switch tStep.Key.Type() {
 			case cty.String:
-				buf.WriteString(fmt.Sprintf("%q", tStep.Key.AsString()))
+				fmt.Fprintf(&buf, "%q", tStep.Key.AsString())
 			case cty.Number:
 				bf := tStep.Key.AsBigFloat()
 				buf.WriteString(bf.Text('g', 10))

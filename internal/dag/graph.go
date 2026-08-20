@@ -279,7 +279,7 @@ func (g *Graph) StringWithNodeTypes() string {
 		v := mapping[name]
 		targets := g.downEdges[hashcode(v)]
 
-		buf.WriteString(fmt.Sprintf("%s - %T\n", name, v))
+		fmt.Fprintf(&buf, "%s - %T\n", name, v)
 
 		// Alphabetize dependencies
 		deps := make([]string, 0, targets.Len())
@@ -293,7 +293,7 @@ func (g *Graph) StringWithNodeTypes() string {
 
 		// Write dependencies
 		for _, d := range deps {
-			buf.WriteString(fmt.Sprintf("  %s - %T\n", d, targetNodes[d]))
+			fmt.Fprintf(&buf, "  %s - %T\n", d, targetNodes[d])
 		}
 	}
 
@@ -321,7 +321,7 @@ func (g *Graph) String() string {
 		v := mapping[name]
 		targets := g.downEdges[hashcode(v)]
 
-		buf.WriteString(fmt.Sprintf("%s\n", name))
+		fmt.Fprintf(&buf, "%s\n", name)
 
 		// Alphabetize dependencies
 		deps := make([]string, 0, targets.Len())
@@ -332,7 +332,7 @@ func (g *Graph) String() string {
 
 		// Write dependencies
 		for _, d := range deps {
-			buf.WriteString(fmt.Sprintf("  %s\n", d))
+			fmt.Fprintf(&buf, "  %s\n", d)
 		}
 	}
 

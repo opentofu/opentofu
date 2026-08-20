@@ -97,11 +97,11 @@ func (i *UIInput) Input(ctx context.Context, opts *tofu.InputOpts) (string, erro
 	// Build the output format for asking
 	var buf bytes.Buffer
 	buf.WriteString("[reset]")
-	buf.WriteString(fmt.Sprintf("[bold]%s[reset]\n", opts.Query))
+	fmt.Fprintf(&buf, "[bold]%s[reset]\n", opts.Query)
 	if opts.Description != "" {
 		s := bufio.NewScanner(strings.NewReader(opts.Description))
 		for s.Scan() {
-			buf.WriteString(fmt.Sprintf("  %s\n", s.Text()))
+			fmt.Fprintf(&buf, "  %s\n", s.Text())
 		}
 		buf.WriteString("\n")
 	}
