@@ -10,7 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/opentofu/opentofu/internal/linting/corelinting"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -57,7 +56,6 @@ type ContextGraphWalker struct {
 
 	variableValuesLock sync.Mutex
 	variableValues     map[string]map[string]cty.Value
-	UsedVars           corelinting.VarsAndLocalsCollector
 
 	providerInputConfigLock sync.Mutex
 }
@@ -117,7 +115,6 @@ func (w *ContextGraphWalker) EvalContext() EvalContext {
 		VariableValuesLock:      &w.variableValuesLock,
 		Encryption:              w.Encryption,
 		ProviderFunctionTracker: w.ProviderFunctionTracker,
-		UsedVars:                w.UsedVars,
 	}
 
 	return ctx

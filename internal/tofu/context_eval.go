@@ -12,7 +12,6 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/lang"
-	"github.com/opentofu/opentofu/internal/linting/corelinting"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tracing"
@@ -86,12 +85,10 @@ func (c *Context) Eval(ctx context.Context, config *configs.Config, state *state
 		return nil, diags
 	}
 
-	usedVarsAndLocals := corelinting.UsedVarsAndLocalsCollector(ctx, config)
 	walkOpts := &graphWalkOpts{
 		InputState:              state,
 		Config:                  config,
 		ProviderFunctionTracker: providerFunctionTracker,
-		UsedVarsAndLocals:       usedVarsAndLocals,
 	}
 
 	walker, moreDiags = c.walk(ctx, graph, walkEval, walkOpts)
@@ -111,6 +108,5 @@ func (c *Context) Eval(ctx context.Context, config *configs.Config, state *state
 	// caches its contexts, so we should get hold of the context that was
 	// previously used for evaluation here, unless we skipped walking.
 	evalCtx := walker.EnterPath(moduleAddr)
-	diags = diags.Append(usedVarsAndLocals.Validate(ctx))
 	return evalCtx.EvaluationScope(nil, nil, EvalDataForNoInstanceKey), diags
 }
