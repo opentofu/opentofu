@@ -19,6 +19,21 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
+// ValidateMoveStatementGraph takes a set of move statements and validates that there
+// are no cycles in it. This is a strict subset of validations done by
+// ValidateMoves, which was written for the runtime defined in the `tofu` package.
+// Local checks for ambiguous moves and moving from a resource which
+// is still defined in the configuration are done on a per-resource
+// basis in the 2026 engine.
+func ValidateMoveStatementGraph(stmts []MoveStatement) tfdiags.Diagnostics {
+	if len(stmts) == 0 {
+		return nil
+	}
+
+	g := buildMoveStatementGraph(stmts)
+	return validateMoveStatementGraph(g)
+}
+
 // ValidateMoves tests whether all of the given move statements comply with
 // both the single-statement validation rules and the "big picture" rules
 // that constrain statements in relation to one another.

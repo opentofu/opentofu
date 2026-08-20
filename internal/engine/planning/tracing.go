@@ -52,6 +52,17 @@ type Tracer struct {
 	StartManagedResourceInstanceObjectPlanning func(ctx context.Context, addr addrs.AbsResourceInstanceObject) context.Context
 	EndManagedResourceInstanceObjectPlanning   func(ctx context.Context, addr addrs.AbsResourceInstanceObject, diags tfdiags.Diagnostics)
 
+	// StartManagedResourceInstanceObjectMove and
+	// EndManagedResourceInstanceObjectMove mark the beginning and end
+	// of the "state move" step for the identified managed resource instance
+	// object.
+	//
+	// These events always occur between calls to
+	// StartManagedResourceInstanceObjectPlanning and
+	// EndManagedResourceInstanceObjectPlanning for the same object address.
+	StartManagedResourceInstanceObjectMove func(ctx context.Context, addr addrs.AbsResourceInstanceObject) context.Context
+	EndManagedResourceInstanceObjectMove   func(ctx context.Context, addr addrs.AbsResourceInstanceObject, upgradedVal cty.Value, diags tfdiags.Diagnostics)
+
 	// StartManagedResourceInstanceObjectUpgrade and
 	// EndManagedResourceInstanceObjectUpgrade mark the beginning and end
 	// of the "state upgrade" step for the identified managed resource instance

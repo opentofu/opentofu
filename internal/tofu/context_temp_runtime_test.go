@@ -120,7 +120,7 @@ var (
 	ExperimentalFeatureRefreshOnly       = ExperimentalFlag{"Missing Refresh-only Planning Mode", false}
 	ExperimentalFeatureValidate          = ExperimentalFlag{"Missing Validate", true}
 	ExperimentalFeatureDestroy           = ExperimentalFlag{"Missing Destroy-mode Planning", true}
-	ExperimentalFeatureMoved             = ExperimentalFlag{"Missing Moved", false}
+	ExperimentalFeatureMoved             = ExperimentalFlag{"Missing Moved", true}
 	ExperimentalFeatureRemoved           = ExperimentalFlag{"Missing Removed", false}
 	ExperimentalFeatureSkipDestroy       = ExperimentalFlag{"Missing Lifecycle Destroy", false}
 	ExperimentalFeatureUpgradeState      = ExperimentalFlag{"Missing Upgrade Resource State", true}
@@ -145,6 +145,7 @@ var (
 	ExperimentalFeatureProviderFunctions = ExperimentalFlag{"Missing Provider Defined Functions", true}
 	ExperimentalFeatureProviderInput     = ExperimentalFlag{"Missing Provider Input Prompting", false}
 	ExperimentalFeatureModuleEnabled     = ExperimentalFlag{"Missing Module Lifecycle Enabled", false}
+	ExperimentalFeatureActionReason      = ExperimentalFlag{"Missing ActionReason", false}
 
 	// Obsolete flags indicate a test which depends on a feature we do not
 	// intend to carry forward into the new engine
