@@ -22,7 +22,7 @@ func ConfigStruct[TConfig any](t *testing.T, configStruct any) {
 	}
 
 	configStructPtrType := reflect.TypeOf(configStruct)
-	if configStructPtrType.Kind() != reflect.Ptr {
+	if configStructPtrType.Kind() != reflect.Pointer {
 		Fail(t, "The ConfigStruct() method returns a %T, but it should return a pointer to a struct.", configStruct)
 	} else {
 		Log(t, "The ConfigStruct() method returned a pointer.")
