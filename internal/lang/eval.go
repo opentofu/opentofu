@@ -418,7 +418,7 @@ func (s *Scope) evalContext(ctx context.Context, parent *hcl.EvalContext, refs [
 				diags = diags.Append(&hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Language Experiment not enabled",
-					Detail:   fmt.Sprintf("This module depends on features that are not yet stable and are only available with the %q experiment enabled", experiments.SymbolLibraries),
+					Detail:   fmt.Sprintf("This module depends on features that are not yet stable and are only available with the %q experiment enabled.", experiments.SymbolLibraries),
 					Subject:  ref.SourceRange.ToHCL().Ptr(),
 				})
 			}
