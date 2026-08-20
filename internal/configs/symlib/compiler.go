@@ -134,7 +134,7 @@ func CompileLibrary(files []*SymbolFile, loader Loader, builtinFuncs map[string]
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Duplicate values definition",
-					Detail:   fmt.Sprintf("An values named %q was already defined at %s. Const names must be unique within a module.", o.Name, existing.Ident.src),
+					Detail:   fmt.Sprintf("A value named %q was already defined at %s. Value names must be unique within a module.", o.Name, existing.Ident.src),
 					Subject:  &o.DeclRange,
 				})
 			}
@@ -154,7 +154,7 @@ func CompileLibrary(files []*SymbolFile, loader Loader, builtinFuncs map[string]
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Duplicate typedef definition",
-					Detail:   fmt.Sprintf("An typedef named %q was already defined at %s. TypeDef names must be unique within a module.", o.Name, existing.Ident.src),
+					Detail:   fmt.Sprintf("A typedef named %q was already defined at %s. Typedef names must be unique within a module.", o.Name, existing.Ident.src),
 					Subject:  &o.DeclRange,
 				})
 			}
@@ -170,7 +170,7 @@ func CompileLibrary(files []*SymbolFile, loader Loader, builtinFuncs map[string]
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Duplicate function definition",
-					Detail:   fmt.Sprintf("An function named %q was already defined at %s. Function names must be unique within a module.", o.Name, existing.Ident.src),
+					Detail:   fmt.Sprintf("A function named %q was already defined at %s. Function names must be unique within a module.", o.Name, existing.Ident.src),
 					Subject:  &o.DeclRange,
 				})
 			}

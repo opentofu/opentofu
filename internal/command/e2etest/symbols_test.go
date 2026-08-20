@@ -22,6 +22,6 @@ func TestSymbolLibraries(t *testing.T) {
 	}
 
 	run("init").Success()
-	run("plan", `-var=my_items=[""]`).Failure().StderrContains("One or more elements is empty")
-	run("plan", `-var=my_items=["foo"]`).Success()
+	run("plan", `-var=my_items=[""]`, `-var=my_items_unchecked=[""]`).Failure().StderrContains("One or more elements is empty").StderrContains("One or more of the elements in")
+	run("plan", `-var=my_items=["foo"]`, `-var=my_items_unchecked=["bar"]`).Success()
 }

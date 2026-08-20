@@ -105,7 +105,7 @@ func decodeFunctionBlock(block *hcl.Block) (*Function, hcl.Diagnostics) {
 
 			for _, block := range content.Blocks {
 				if block.Type != "validation" {
-					panic("BUG")
+					panic("unreachable: schema does not allow any block other than validation")
 				}
 
 				content, moreDiags := block.Body.Content(functionParameterValidationSchema)
@@ -140,7 +140,14 @@ func decodeFunctionBlock(block *hcl.Block) (*Function, hcl.Diagnostics) {
 						Subject:  &attr.NameRange,
 					})
 				}
-				// TODO dupe check locals
+				if existing, ok := fn.Locals[name]; ok {
+					diags = append(diags, &hcl.Diagnostic{
+						Severity: hcl.DiagError,
+						Summary:  "Duplicate local definition",
+						Detail:   fmt.Sprintf("A local named %q was already defined at %s. Local names must be unique within a function.", name, existing.Range()),
+						Subject:  &attr.NameRange,
+					})
+				}
 
 				fn.Locals[name] = attr.Expr
 			}
