@@ -174,6 +174,12 @@ To initialize the configuration already in this working directory, omit the
 	rootModCheckExperiments, checkExperimentsDiags := c.configLoader().LoadConfigDirWithTests(path, args.TestsDirectory)
 	symbolLibrariesEnabled := rootModCheckExperiments != nil && rootModCheckExperiments.LanguageExperiments.Has(experiments.SymbolLibraries)
 	if symbolLibrariesEnabled && args.FlagGet {
+		if checkExperimentsDiags.HasErrors() {
+			view.ConfigError()
+			diags = diags.Append(checkExperimentsDiags)
+			view.Diagnostics(diags)
+			return 1
+		}
 		modsOutput, modsAbort, modsDiags := c.getModules(ctx, path, args.TestsDirectory, rootModCheckExperiments, args.FlagUpgrade, view)
 		diags = diags.Append(modsDiags)
 		if modsAbort || modsDiags.HasErrors() {
