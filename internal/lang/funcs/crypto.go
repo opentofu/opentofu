@@ -184,6 +184,12 @@ var RsaDecryptFunc = function.New(&function.Spec{
 			return cty.UnknownVal(cty.String), function.NewArgErrorf(1, "invalid private key type %t", rawKey)
 		}
 
+		// TODO: Consider whether there's any possible migration path away from
+		// using PKCS #1 v1.5 here without breaking compatibility. If not, then
+		// we should echo the upstream deprecation by documenting that our own
+		// rsadecrypt function is deprecated too. For now though, we'll just
+		// quiet the linter.
+		//nolint:staticcheck // The upstream function is deprecated, but the behavior of our rsadecrypt function is protected by compatibility promises
 		out, err := rsa.DecryptPKCS1v15(nil, privateKey, b)
 		if err != nil {
 			return cty.UnknownVal(cty.String), fmt.Errorf("failed to decrypt: %w", err)
