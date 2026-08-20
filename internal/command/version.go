@@ -12,6 +12,7 @@ import (
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/getproviders"
+	"github.com/opentofu/opentofu/internal/modsdir"
 )
 
 func VersionCommander(version string, versionPrerelease string, platform getproviders.Platform) Command {
@@ -76,7 +77,27 @@ func (c VersionCommand) Execute(view views.Version) int {
 			providerVersions[providerAddr.String()] = lock.Version().String()
 		}
 	}
-	if !view.PrintVersion(c.Version, c.VersionPrerelease, c.Platform.String(), fips140.Enabled(), providerVersions) {
+
+	// Read downloaded module versions from the module manifest if available
+	moduleVersions := map[string]string{}
+	if c.WorkingDir != nil {
+		if manifest, err := modsdir.ReadManifestSnapshotForDir(c.WorkingDir.ModulesDir()); err == nil {
+			for _, record := range manifest {
+				if record.SourceAddr == "" {
+					continue
+				}
+				vStr := ""
+				if record.Version != nil {
+					vStr = record.Version.String()
+				} else if record.VersionStr != "" {
+					vStr = record.VersionStr
+				}
+				moduleVersions[record.SourceAddr] = vStr
+			}
+		}
+	}
+
+	if !view.PrintVersion(c.Version, c.VersionPrerelease, c.Platform.String(), fips140.Enabled(), providerVersions, moduleVersions) {
 		return 1
 	}
 	return 0
