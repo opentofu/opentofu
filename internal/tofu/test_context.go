@@ -11,7 +11,6 @@ import (
 	"sync"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/opentofu/opentofu/internal/linting/corelinting"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/convert"
 	"github.com/zclconf/go-cty/cty/function"
@@ -98,10 +97,9 @@ func (tc *TestContext) evaluate(state *states.SyncState, changes *plans.ChangesS
 			VariableValuesLock: new(sync.Mutex),
 			PlanTimestamp:      tc.Plan.Timestamp,
 		},
-		ModulePath:            nil, // nil for the root module
-		InstanceKeyData:       EvalDataForNoInstanceKey,
-		Operation:             operation,
-		UsedVariableCollector: corelinting.UsedVarsAndLocalsCollector(context.TODO(), nil), // noop collector
+		ModulePath:      nil, // nil for the root module
+		InstanceKeyData: EvalDataForNoInstanceKey,
+		Operation:       operation,
 	}
 
 	scope := &lang.Scope{

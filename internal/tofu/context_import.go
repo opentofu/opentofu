@@ -12,7 +12,6 @@ import (
 	"sync"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/opentofu/opentofu/internal/linting/corelinting"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -455,12 +454,10 @@ func (c *Context) Import(ctx context.Context, config *configs.Config, prevRunSta
 	}
 
 	// Walk it
-	usedVarsAndLocals := corelinting.UsedVarsAndLocalsCollector(ctx, config)
 	walker, walkDiags := c.walk(ctx, graph, walkImport, &graphWalkOpts{
 		Config:                  config,
 		InputState:              state,
 		ProviderFunctionTracker: providerFunctionTracker,
-		UsedVarsAndLocals:       usedVarsAndLocals,
 	})
 	diags = diags.Append(walkDiags)
 	if walkDiags.HasErrors() {
@@ -481,6 +478,5 @@ func (c *Context) Import(ctx context.Context, config *configs.Config, prevRunSta
 	walker.State.RemovePlannedResourceInstanceObjects()
 
 	newState := walker.State.Close()
-	diags = diags.Append(usedVarsAndLocals.Validate(ctx))
 	return newState, diags
 }
