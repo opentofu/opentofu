@@ -18,7 +18,7 @@ import (
 // UnusedVariables generates a linting diagnostic for a not used variable.
 // This gets an iter.Seq that can load data lazily only when the linting rule is actually enabled.
 func UnusedVariables(ctx context.Context, vars iter.Seq[*configs.Variable]) tfdiags.Diagnostics {
-	if !tfdiags.LintRuleEnabled(ctx, ruleIDVariableNotUsed, GroupIDImprovement) {
+	if !tfdiags.LintRuleEnabled(ctx, ruleIDVariableNotUsed, GroupIDAll, GroupIDImprovement) {
 		return nil
 	}
 	var diags tfdiags.Diagnostics
@@ -33,7 +33,7 @@ func UnusedVariables(ctx context.Context, vars iter.Seq[*configs.Variable]) tfdi
 				nil,
 			))
 		}
-		diags = diags.Append(tfdiags.ExecuteLintRule(ctx, exec, tfdiags.SourceRangeFromHCL(vc.DeclRange), ruleIDVariableNotUsed, GroupIDImprovement))
+		diags = diags.Append(tfdiags.ExecuteLintRule(ctx, exec, tfdiags.SourceRangeFromHCL(vc.DeclRange), ruleIDVariableNotUsed, GroupIDAll, GroupIDImprovement))
 	}
 
 	return diags
@@ -42,7 +42,7 @@ func UnusedVariables(ctx context.Context, vars iter.Seq[*configs.Variable]) tfdi
 // UnusedLocal generates a linting diagnostic for a not used local.
 // This gets an iter.Seq that can load data lazily only when the linting rule is actually enabled.
 func UnusedLocal(ctx context.Context, locals iter.Seq[*configs.Local]) tfdiags.Diagnostics {
-	if !tfdiags.LintRuleEnabled(ctx, ruleIDLocalNotUsed, GroupIDImprovement) {
+	if !tfdiags.LintRuleEnabled(ctx, ruleIDLocalNotUsed, GroupIDAll, GroupIDImprovement) {
 		return nil
 	}
 	var diags tfdiags.Diagnostics
@@ -57,7 +57,7 @@ func UnusedLocal(ctx context.Context, locals iter.Seq[*configs.Local]) tfdiags.D
 				nil,
 			))
 		}
-		diags = diags.Append(tfdiags.ExecuteLintRule(ctx, exec, tfdiags.SourceRangeFromHCL(lc.DeclRange), ruleIDLocalNotUsed, GroupIDImprovement))
+		diags = diags.Append(tfdiags.ExecuteLintRule(ctx, exec, tfdiags.SourceRangeFromHCL(lc.DeclRange), ruleIDLocalNotUsed, GroupIDAll, GroupIDImprovement))
 	}
 
 	return diags

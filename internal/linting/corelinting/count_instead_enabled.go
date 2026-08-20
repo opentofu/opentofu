@@ -23,7 +23,7 @@ import (
 func CountInsteadEnabled(
 	ctx context.Context,
 	resources iter.Seq[*configs.Resource]) tfdiags.Diagnostics {
-	if !tfdiags.LintRuleEnabled(ctx, ruleIDCountInsteadOfEnabled, GroupIDImprovement) {
+	if !tfdiags.LintRuleEnabled(ctx, ruleIDCountInsteadOfEnabled, GroupIDAll, GroupIDImprovement) {
 		return nil
 	}
 	var diags tfdiags.Diagnostics
@@ -48,7 +48,7 @@ func CountInsteadEnabled(
 				),
 			)
 		}
-		diags = diags.Append(tfdiags.ExecuteLintRule(ctx, exec, tfdiags.SourceRangeFromHCL(rc.DeclRange), ruleIDCountInsteadOfEnabled, GroupIDImprovement))
+		diags = diags.Append(tfdiags.ExecuteLintRule(ctx, exec, tfdiags.SourceRangeFromHCL(rc.DeclRange), ruleIDCountInsteadOfEnabled, GroupIDAll, GroupIDImprovement))
 	}
 	return diags
 }

@@ -31,5 +31,5 @@ func RootVariableWithNoType(ctx context.Context, vc *configs.Variable) tfdiags.D
 			nil,
 		))
 	}
-	return tfdiags.ExecuteLintRule(ctx, exec, tfdiags.SourceRangeFromHCL(vc.DeclRange), ruleIDUntypedVariable, GroupIDConfusing)
+	return tfdiags.ExecuteLintRule(ctx, exec, tfdiags.SourceRangeFromHCL(vc.DeclRange), ruleIDUntypedVariable, GroupIDAll, GroupIDConfusing)
 }
