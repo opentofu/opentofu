@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/opentofu/opentofu/internal/command/views"
+	"github.com/opentofu/opentofu/internal/experiments"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/convert"
 
@@ -88,11 +89,7 @@ func (m *Meta) loadSingleModule(ctx context.Context, dir string, load configs.Se
 	module, hclDiags := m.configLoader().LoadConfigDirSelective(dir, load)
 	diags = diags.Append(hclDiags)
 
-	if diags.HasErrors() {
-		return module, diags
-	}
-
-	if module != nil && len(module.SymbolCalls) > 0 {
+	if module != nil && module.LanguageExperiments.Has(experiments.SymbolLibraries) {
 		// Hack for symbol libraries
 		// Full config load to include libraries given the poor state of config builder
 		config, cDiags := m.loadConfig(ctx, dir)
@@ -189,7 +186,7 @@ func (m *Meta) loadSingleModuleWithTests(ctx context.Context, dir string, testDi
 	module, hclDiags := m.configLoader().LoadConfigDirWithTests(dir, testDir)
 	diags = diags.Append(hclDiags)
 
-	if module != nil && len(module.SymbolCalls) > 0 {
+	if module != nil && module.LanguageExperiments.Has(experiments.SymbolLibraries) {
 		// Hack for symbol libraries
 		// Full config load to include libraries given the poor state of config builder
 		config, cDiags := m.loadConfig(ctx, dir)
