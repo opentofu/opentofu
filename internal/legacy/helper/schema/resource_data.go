@@ -182,7 +182,7 @@ func (d *ResourceData) Set(key string, value interface{}) error {
 	// use that. This allows Set to take a pointer to primitives to
 	// simplify the interface.
 	reflectVal := reflect.ValueOf(value)
-	if reflectVal.Kind() == reflect.Ptr {
+	if reflectVal.Kind() == reflect.Pointer {
 		if reflectVal.IsNil() {
 			// If the pointer is nil, then the value is just nil
 			value = nil
