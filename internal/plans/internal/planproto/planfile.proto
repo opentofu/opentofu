@@ -409,9 +409,6 @@ message SchemaAttribute {
     bool computed = 6;
     bool sensitive = 7;
     bool write_only = 8;
-
-
-    // TODO: check with reviewers, do we need to handle anything else here?
 }
 
 message SchemaNestedBlock {
