@@ -66,6 +66,48 @@ func TestParsePlan_basicValid(t *testing.T) {
 				},
 			},
 		},
+		"linting flag correctly parsed": {
+			[]string{"-lint=core:all"},
+			&Plan{
+				DetailedExitCode: false,
+				View: &View{
+					ConsolidateWarnings: true,
+					InputEnabled:        true,
+					ViewType:            ViewHuman,
+					LintInclude:         collections.NewSet[linting.RuleAddr](linting.MustParseRuleAddr("core:all")),
+					LintExclude:         make(collections.Set[linting.RuleAddr]),
+				},
+				OutPath: "",
+				State:   &State{Lock: true},
+				Vars:    &Vars{},
+				Operation: &Operation{
+					PlanMode:    plans.NormalMode,
+					Parallelism: 10,
+					Refresh:     true,
+				},
+			},
+		},
+		"linting with destroy disables linting": {
+			[]string{"-lint=core:all", "-destroy"},
+			&Plan{
+				DetailedExitCode: false,
+				View: &View{
+					ConsolidateWarnings: true,
+					InputEnabled:        true,
+					ViewType:            ViewHuman,
+					LintInclude:         make(collections.Set[linting.RuleAddr]), // <- this is expected to be empty
+					LintExclude:         make(collections.Set[linting.RuleAddr]),
+				},
+				OutPath: "",
+				State:   &State{Lock: true},
+				Vars:    &Vars{},
+				Operation: &Operation{
+					PlanMode:    plans.DestroyMode,
+					Parallelism: 10,
+					Refresh:     true,
+				},
+			},
+		},
 		"JSON view disables input": {
 			[]string{"-json"},
 			&Plan{
