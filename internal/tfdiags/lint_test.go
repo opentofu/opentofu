@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/collections"
 	"github.com/opentofu/opentofu/internal/linting"
 	"github.com/zclconf/go-cty/cty"
@@ -448,6 +449,57 @@ func TestFilterLint(t *testing.T) {
 			if diff := cmp.Diff(tc.wantDiags, got, cmpopts.IgnoreUnexported(attributeDiagnostic{}, lintMessage{})); diff != "" {
 				t.Errorf("unexpected returned diagnostics (-want,+got):\n%s", diff)
 			}
+		})
+	}
+}
+
+func TestExperimentalLintWarn(t *testing.T) {
+	wantDiag := New(&hcl.Diagnostic{
+		Severity: hcl.DiagWarning,
+		Summary:  "Experimental linting enabled",
+		Detail:   "The linting functionality is under active development and may change or break in future releases. You can provide feedback by opening a new issue.",
+		Subject:  nil,
+	})
+
+	cases := map[string]struct {
+		ctx  func(parent context.Context) context.Context
+		want Diagnostics
+	}{
+		"no diagnostic when context contains no linting hints": {
+			ctx: func(parent context.Context) context.Context {
+				return parent
+			},
+			want: Diagnostics{},
+		},
+		"no diagnostic when linting hints has nothing included or excluded": {
+			ctx: func(parent context.Context) context.Context {
+				return ContextWithLintFilterHints(parent, collections.NewSet[linting.RuleAddr](), collections.NewSet[linting.RuleAddr]())
+			},
+			want: Diagnostics{},
+		},
+		"diag returned when rule included": {
+			ctx: func(parent context.Context) context.Context {
+				return ContextWithLintFilterHints(parent, collections.NewSet[linting.RuleAddr](linting.MustParseRuleAddr("core:test")), collections.NewSet[linting.RuleAddr]())
+			},
+			want: wantDiag,
+		},
+		"diag returned when rule excluded": {
+			ctx: func(parent context.Context) context.Context {
+				return ContextWithLintFilterHints(parent, collections.NewSet[linting.RuleAddr](), collections.NewSet[linting.RuleAddr](linting.MustParseRuleAddr("core:test")))
+			},
+			want: wantDiag,
+		},
+		"diag returned when rule included and rule excluded": {
+			ctx: func(parent context.Context) context.Context {
+				return ContextWithLintFilterHints(parent, collections.NewSet[linting.RuleAddr](linting.MustParseRuleAddr("core:test2")), collections.NewSet[linting.RuleAddr](linting.MustParseRuleAddr("core:test")))
+			},
+			want: wantDiag,
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			diags := ExperimentalLintWarn(tc.ctx(t.Context()))
+			compareDiagnostics(t, tc.want, diags)
 		})
 	}
 }
