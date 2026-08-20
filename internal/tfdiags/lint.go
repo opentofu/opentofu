@@ -15,6 +15,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/collections"
 	"github.com/opentofu/opentofu/internal/linting"
 )
@@ -300,4 +301,21 @@ func LintRuleEnabled(ctx context.Context, ruleID linting.RuleAddr, groupIDs ...l
 func isLint(diag Diagnostic) bool {
 	_, ok := diag.(lintMessage)
 	return ok
+}
+
+// ExperimentalLintWarn returns a warning diagnostic if the linting functionality is enabled.
+func ExperimentalLintWarn(ctx context.Context) Diagnostics {
+	h := lintHintsFromContext(ctx)
+	if h == nil {
+		return nil
+	}
+	if len(h.include) == 0 && len(h.exclude) == 0 {
+		return nil
+	}
+	return New(&hcl.Diagnostic{
+		Severity: hcl.DiagWarning,
+		Summary:  "Experimental linting enabled",
+		Detail:   "The linting functionality is under active development and may change or break in future releases. You can provide feedback by opening a new issue.",
+		Subject:  nil,
+	})
 }
