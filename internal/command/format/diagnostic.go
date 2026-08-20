@@ -216,29 +216,29 @@ func DiagnosticWarningsCompact(diags tfdiags.Diagnostics, color *colorstring.Col
 	b.WriteString(color.Color("[bold][yellow]Warnings:[reset]\n\n"))
 	for _, diag := range diags {
 		sources := tfdiags.ConsolidatedGroupSourceRanges(diag)
-		b.WriteString(fmt.Sprintf("- %s\n", diag.Description().Summary))
+		fmt.Fprintf(&b, "- %s\n", diag.Description().Summary)
 		if len(sources) > 0 {
 			mainSource := sources[0]
 			if mainSource.Subject != nil {
 				if len(sources) > 1 {
-					b.WriteString(fmt.Sprintf(
+					fmt.Fprintf(&b,
 						"  on %s line %d (and %d more)\n",
 						mainSource.Subject.Filename,
 						mainSource.Subject.Start.Line,
 						len(sources)-1,
-					))
+					)
 				} else {
-					b.WriteString(fmt.Sprintf(
+					fmt.Fprintf(&b,
 						"  on %s line %d\n",
 						mainSource.Subject.Filename,
 						mainSource.Subject.Start.Line,
-					))
+					)
 				}
 			} else if len(sources) > 1 {
-				b.WriteString(fmt.Sprintf(
+				fmt.Fprintf(&b,
 					"  (%d occurrences of this warning)\n",
 					len(sources),
-				))
+				)
 			}
 		}
 	}

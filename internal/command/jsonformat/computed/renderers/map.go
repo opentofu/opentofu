@@ -75,7 +75,7 @@ func (renderer mapRenderer) RenderHuman(diff computed.Diff, indent int, opts com
 	elementOpts.OverrideForcesReplacement = forcesReplacementChildren
 
 	var buf bytes.Buffer
-	buf.WriteString(fmt.Sprintf("{%s\n", forcesReplacement(forcesReplacementSelf, opts)))
+	fmt.Fprintf(&buf, "{%s\n", forcesReplacement(forcesReplacementSelf, opts))
 	for _, key := range keys {
 		element := renderer.elements[key]
 
@@ -86,7 +86,7 @@ func (renderer mapRenderer) RenderHuman(diff computed.Diff, indent int, opts com
 		}
 
 		for _, warning := range element.WarningsHuman(indent+1, opts) {
-			buf.WriteString(fmt.Sprintf("%s%s\n", formatIndent(indent+1), warning))
+			fmt.Fprintf(&buf, "%s%s\n", formatIndent(indent+1), warning)
 		}
 		// Only show commas between elements for objects.
 		comma := ""
@@ -95,17 +95,17 @@ func (renderer mapRenderer) RenderHuman(diff computed.Diff, indent int, opts com
 		}
 
 		if renderer.alignKeys {
-			buf.WriteString(fmt.Sprintf("%s%s%-*s = %s%s\n", formatIndent(indent+1), writeDiffActionSymbol(element.Action, elementOpts), maximumKeyLen, escapedKeys[key], element.RenderHuman(indent+1, elementOpts), comma))
+			fmt.Fprintf(&buf, "%s%s%-*s = %s%s\n", formatIndent(indent+1), writeDiffActionSymbol(element.Action, elementOpts), maximumKeyLen, escapedKeys[key], element.RenderHuman(indent+1, elementOpts), comma)
 		} else {
-			buf.WriteString(fmt.Sprintf("%s%s%s = %s%s\n", formatIndent(indent+1), writeDiffActionSymbol(element.Action, elementOpts), escapedKeys[key], element.RenderHuman(indent+1, elementOpts), comma))
+			fmt.Fprintf(&buf, "%s%s%s = %s%s\n", formatIndent(indent+1), writeDiffActionSymbol(element.Action, elementOpts), escapedKeys[key], element.RenderHuman(indent+1, elementOpts), comma)
 		}
 
 	}
 
 	if unchangedElements > 0 {
-		buf.WriteString(fmt.Sprintf("%s%s%s\n", formatIndent(indent+1), writeDiffActionSymbol(plans.NoOp, opts), unchanged("element", unchangedElements, opts)))
+		fmt.Fprintf(&buf, "%s%s%s\n", formatIndent(indent+1), writeDiffActionSymbol(plans.NoOp, opts), unchanged("element", unchangedElements, opts))
 	}
 
-	buf.WriteString(fmt.Sprintf("%s%s}%s", formatIndent(indent), writeDiffActionSymbol(plans.NoOp, opts), nullSuffix(diff.Action, opts)))
+	fmt.Fprintf(&buf, "%s%s}%s", formatIndent(indent), writeDiffActionSymbol(plans.NoOp, opts), nullSuffix(diff.Action, opts))
 	return buf.String()
 }

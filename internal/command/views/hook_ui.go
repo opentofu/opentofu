@@ -277,7 +277,7 @@ func (h *UiHook) ProvisionOutput(addr addrs.AbsResourceInstance, typeName string
 	for s.Scan() {
 		line := strings.TrimRightFunc(s.Text(), unicode.IsSpace)
 		if line != "" {
-			buf.WriteString(fmt.Sprintf("%s%s\n", prefix, line))
+			fmt.Fprintf(&buf, "%s%s\n", prefix, line)
 		}
 	}
 

@@ -859,7 +859,7 @@ func TestTransformForTest(t *testing.T) {
 	str := func(providers map[string]string) string {
 		var buffer bytes.Buffer
 		for key, config := range providers {
-			buffer.WriteString(fmt.Sprintf("%s: %s\n", key, config))
+			fmt.Fprintf(&buffer, "%s: %s\n", key, config)
 		}
 		return buffer.String()
 	}

@@ -430,7 +430,7 @@ func (t *TestJSON) Conclusion(suite *moduletest.Suite) {
 		// Then no tests.
 		message.WriteString("Executed 0 tests")
 		if summary.Skipped > 0 {
-			message.WriteString(fmt.Sprintf(", %d skipped.", summary.Skipped))
+			fmt.Fprintf(&message, ", %d skipped.", summary.Skipped)
 		} else {
 			message.WriteString(".")
 		}
@@ -441,9 +441,9 @@ func (t *TestJSON) Conclusion(suite *moduletest.Suite) {
 			message.WriteString("Failure!")
 		}
 
-		message.WriteString(fmt.Sprintf(" %d passed, %d failed", summary.Passed, summary.Failed+summary.Errored))
+		fmt.Fprintf(&message, " %d passed, %d failed", summary.Passed, summary.Failed+summary.Errored)
 		if summary.Skipped > 0 {
-			message.WriteString(fmt.Sprintf(", %d skipped.", summary.Skipped))
+			fmt.Fprintf(&message, ", %d skipped.", summary.Skipped)
 		} else {
 			message.WriteString(".")
 		}

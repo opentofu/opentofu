@@ -92,7 +92,7 @@ func listCommands(allCommands map[string]cli.CommandFactory, order []string, max
 		}
 
 		key = fmt.Sprintf("%s%s", key, strings.Repeat(" ", maxKeyLen-len(key)))
-		buf.WriteString(fmt.Sprintf("  %s  %s\n", key, command.Synopsis()))
+		fmt.Fprintf(&buf, "  %s  %s\n", key, command.Synopsis())
 	}
 
 	return buf.String()

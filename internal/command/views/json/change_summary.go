@@ -36,11 +36,11 @@ func (cs *ChangeSummary) String() string {
 	case OperationApplied:
 		builder.WriteString("Apply complete! Resources: ")
 		if cs.Import > 0 {
-			builder.WriteString(fmt.Sprintf("%d imported, ", cs.Import))
+			fmt.Fprintf(&builder, "%d imported, ", cs.Import)
 		}
-		builder.WriteString(fmt.Sprintf("%d added, %d changed, %d destroyed", cs.Add, cs.Change, cs.Remove))
+		fmt.Fprintf(&builder, "%d added, %d changed, %d destroyed", cs.Add, cs.Change, cs.Remove)
 		if cs.Forget > 0 {
-			builder.WriteString(fmt.Sprintf(", %d forgotten.", cs.Forget))
+			fmt.Fprintf(&builder, ", %d forgotten.", cs.Forget)
 		} else {
 			builder.WriteString(".")
 		}
@@ -50,11 +50,11 @@ func (cs *ChangeSummary) String() string {
 	case OperationPlanned:
 		builder.WriteString("Plan: ")
 		if cs.Import > 0 {
-			builder.WriteString(fmt.Sprintf("%d to import, ", cs.Import))
+			fmt.Fprintf(&builder, "%d to import, ", cs.Import)
 		}
-		builder.WriteString(fmt.Sprintf("%d to add, %d to change, %d to destroy", cs.Add, cs.Change, cs.Remove))
+		fmt.Fprintf(&builder, "%d to add, %d to change, %d to destroy", cs.Add, cs.Change, cs.Remove)
 		if cs.Forget > 0 {
-			builder.WriteString(fmt.Sprintf(", %d to forget.", cs.Forget))
+			fmt.Fprintf(&builder, ", %d to forget.", cs.Forget)
 		} else {
 			builder.WriteString(".")
 		}

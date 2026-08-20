@@ -50,7 +50,7 @@ func (r *Reference) DisplayString() string {
 			ret.WriteByte('[')
 			switch tStep.Key.Type() {
 			case cty.String:
-				ret.WriteString(fmt.Sprintf("%q", tStep.Key.AsString()))
+				fmt.Fprintf(&ret, "%q", tStep.Key.AsString())
 			case cty.Number:
 				bf := tStep.Key.AsBigFloat()
 				ret.WriteString(bf.Text('g', 10))

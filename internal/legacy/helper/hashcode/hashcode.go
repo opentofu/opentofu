@@ -40,7 +40,7 @@ func Strings(strings []string) string {
 	var buf bytes.Buffer
 
 	for _, s := range strings {
-		buf.WriteString(fmt.Sprintf("%s-", s))
+		fmt.Fprintf(&buf, "%s-", s)
 	}
 
 	return fmt.Sprintf("%d", String(buf.String()))

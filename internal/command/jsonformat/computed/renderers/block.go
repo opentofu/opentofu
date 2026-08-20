@@ -75,15 +75,15 @@ func (renderer blockRenderer) RenderHuman(diff computed.Diff, indent int, opts c
 	attributeOpts := opts.Clone()
 
 	var buf bytes.Buffer
-	buf.WriteString(fmt.Sprintf("{%s\n", forcesReplacement(diff.Replace, opts)))
+	fmt.Fprintf(&buf, "{%s\n", forcesReplacement(diff.Replace, opts))
 	for _, key := range attributeKeys {
 		attribute := renderer.attributes[key]
 		if importantAttribute(key) {
 			// Always display the important attributes.
 			for _, warning := range attribute.WarningsHuman(indent+1, importantAttributeOpts) {
-				buf.WriteString(fmt.Sprintf("%s%s\n", formatIndent(indent+1), warning))
+				fmt.Fprintf(&buf, "%s%s\n", formatIndent(indent+1), warning)
 			}
-			buf.WriteString(fmt.Sprintf("%s%s%-*s = %s\n", formatIndent(indent+1), writeDiffActionSymbol(attribute.Action, importantAttributeOpts), maximumAttributeKeyLen, key, attribute.RenderHuman(indent+1, importantAttributeOpts)))
+			fmt.Fprintf(&buf, "%s%s%-*s = %s\n", formatIndent(indent+1), writeDiffActionSymbol(attribute.Action, importantAttributeOpts), maximumAttributeKeyLen, key, attribute.RenderHuman(indent+1, importantAttributeOpts))
 			continue
 		}
 		if attribute.Action == plans.NoOp && !opts.ShowUnchangedChildren {
@@ -92,13 +92,13 @@ func (renderer blockRenderer) RenderHuman(diff computed.Diff, indent int, opts c
 		}
 
 		for _, warning := range attribute.WarningsHuman(indent+1, opts) {
-			buf.WriteString(fmt.Sprintf("%s%s\n", formatIndent(indent+1), warning))
+			fmt.Fprintf(&buf, "%s%s\n", formatIndent(indent+1), warning)
 		}
-		buf.WriteString(fmt.Sprintf("%s%s%-*s = %s\n", formatIndent(indent+1), writeDiffActionSymbol(attribute.Action, attributeOpts), maximumAttributeKeyLen, escapedAttributeKeys[key], attribute.RenderHuman(indent+1, attributeOpts)))
+		fmt.Fprintf(&buf, "%s%s%-*s = %s\n", formatIndent(indent+1), writeDiffActionSymbol(attribute.Action, attributeOpts), maximumAttributeKeyLen, escapedAttributeKeys[key], attribute.RenderHuman(indent+1, attributeOpts))
 	}
 
 	if unchangedAttributes > 0 {
-		buf.WriteString(fmt.Sprintf("%s%s%s\n", formatIndent(indent+1), writeDiffActionSymbol(plans.NoOp, opts), unchanged("attribute", unchangedAttributes, opts)))
+		fmt.Fprintf(&buf, "%s%s%s\n", formatIndent(indent+1), writeDiffActionSymbol(plans.NoOp, opts), unchanged("attribute", unchangedAttributes, opts))
 	}
 
 	blockKeys := renderer.blocks.GetAllKeys()
@@ -140,9 +140,9 @@ func (renderer blockRenderer) RenderHuman(diff computed.Diff, indent int, opts c
 			blockOpts.OverrideForcesReplacement = renderer.blocks.ReplaceBlocks[key]
 
 			for _, warning := range diff.WarningsHuman(indent+1, blockOpts) {
-				buf.WriteString(fmt.Sprintf("%s%s\n", formatIndent(indent+1), warning))
+				fmt.Fprintf(&buf, "%s%s\n", formatIndent(indent+1), warning)
 			}
-			buf.WriteString(fmt.Sprintf("%s%s%s%s %s\n", formatIndent(indent+1), writeDiffActionSymbol(diff.Action, blockOpts), EnsureValidAttributeName(key), mapKey, diff.RenderHuman(indent+1, blockOpts)))
+			fmt.Fprintf(&buf, "%s%s%s%s %s\n", formatIndent(indent+1), writeDiffActionSymbol(diff.Action, blockOpts), EnsureValidAttributeName(key), mapKey, diff.RenderHuman(indent+1, blockOpts))
 		}
 
 		switch {
@@ -173,9 +173,9 @@ func (renderer blockRenderer) RenderHuman(diff computed.Diff, indent int, opts c
 	}
 
 	if unchangedBlocks > 0 {
-		buf.WriteString(fmt.Sprintf("\n%s%s%s\n", formatIndent(indent+1), writeDiffActionSymbol(plans.NoOp, opts), unchanged("block", unchangedBlocks, opts)))
+		fmt.Fprintf(&buf, "\n%s%s%s\n", formatIndent(indent+1), writeDiffActionSymbol(plans.NoOp, opts), unchanged("block", unchangedBlocks, opts))
 	}
 
-	buf.WriteString(fmt.Sprintf("%s%s}", formatIndent(indent), writeDiffActionSymbol(plans.NoOp, opts)))
+	fmt.Fprintf(&buf, "%s%s}", formatIndent(indent), writeDiffActionSymbol(plans.NoOp, opts))
 	return buf.String()
 }
