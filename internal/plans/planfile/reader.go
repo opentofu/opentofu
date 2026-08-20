@@ -272,9 +272,6 @@ func (r *Reader) ReadSchemasForPlan(plan *plans.Plan, config *configs.Config) (m
 	if err != nil {
 		return nil, err
 	}
-	if !schemasCoverPlan(plan, config, schemas) {
-		return nil, ErrNoSchemas
-	}
 	return schemas, nil
 }
 

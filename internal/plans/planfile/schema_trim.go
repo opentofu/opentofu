@@ -107,35 +107,6 @@ func referencedResourceTypes(plan *plans.Plan, config *configs.Config) map[addrs
 	return result
 }
 
-// missingProviderSchemas compares schemas against what is needed and returns a
-// human-readable description of everything
-// that is needed but schemas has no entry for. A nil/empty
-// result means schemas fully covers everything needed requires.
-func missingProviderSchemas(needed map[addrs.Provider]*referencedTypes, schemas map[addrs.Provider]providers.ProviderSchema) []string {
-	var missing []string
-
-	for provider, rt := range needed {
-		full, ok := schemas[provider]
-		if !ok {
-			missing = append(missing, fmt.Sprintf("provider %s", provider))
-			continue
-		}
-
-		for typeName := range rt.managed {
-			if _, ok := full.ResourceTypes[typeName]; !ok {
-				missing = append(missing, fmt.Sprintf("managed resource type %q of provider %s", typeName, provider))
-			}
-		}
-		for typeName := range rt.data {
-			if _, ok := full.DataSources[typeName]; !ok {
-				missing = append(missing, fmt.Sprintf("data source %q of provider %s", typeName, provider))
-			}
-		}
-	}
-
-	return missing
-}
-
 // trimSchemas takes the full set of provider schemas that were used to
 // build the given plan and produces a reduced copy containing only the
 // parts that are needed to render that specific plan as JSON: each
@@ -157,18 +128,14 @@ func trimSchemas(plan *plans.Plan, config *configs.Config, schemas map[addrs.Pro
 		return nil
 	}
 
-	if missing := missingProviderSchemas(needed, schemas); len(missing) > 0 {
-		for _, m := range missing {
-			log.Printf("[TRACE] planfile: no schema for %s; can't embed schemas for this plan", m)
-		}
-		return nil
-	}
-
-	// Now that we know we have coverage (due to checking missingProviderSchemas)
-	// we can move on trimming it down
+	var missing []string
 	result := make(map[addrs.Provider]providers.ProviderSchema, len(needed))
 	for provider, rt := range needed {
-		full := schemas[provider]
+		full, ok := schemas[provider]
+		if !ok {
+			missing = append(missing, fmt.Sprintf("provider %s", provider))
+			continue
+		}
 
 		trimmed := providers.ProviderSchema{
 			Provider:      full.Provider,
@@ -177,46 +144,27 @@ func trimSchemas(plan *plans.Plan, config *configs.Config, schemas map[addrs.Pro
 		}
 
 		for typeName := range rt.managed {
-			trimmed.ResourceTypes[typeName] = full.ResourceTypes[typeName]
+			trimmed.ResourceTypes[typeName], ok = full.ResourceTypes[typeName]
+			if !ok {
+				missing = append(missing, fmt.Sprintf("managed resource type %q of provider %s", typeName, provider))
+			}
 		}
 		for typeName := range rt.data {
-			trimmed.DataSources[typeName] = full.DataSources[typeName]
+			trimmed.DataSources[typeName], ok = full.DataSources[typeName]
+			if !ok {
+				missing = append(missing, fmt.Sprintf("data source %q of provider %s", typeName, provider))
+			}
 		}
 
 		result[provider] = trimmed
 	}
 
+	if len(missing) > 0 {
+		for _, m := range missing {
+			log.Printf("[TRACE] planfile: no schema for %s; can't embed schemas for this plan", m)
+		}
+		return nil
+	}
+
 	return result
-}
-
-// schemasCoverPlan reports whether the given set of provider schemas contains
-// everything that referencedResourceTypes says is needed to render the
-// given plan and configuration.
-func schemasCoverPlan(plan *plans.Plan, config *configs.Config, schemas map[addrs.Provider]providers.ProviderSchema) bool {
-	if schemas == nil {
-		return false
-	}
-
-	needed := referencedResourceTypes(plan, config)
-	for provider, rt := range needed {
-		full, ok := schemas[provider]
-		if !ok {
-			return false
-		}
-		// Note: we deliberately don't check full.Provider.Block for nil
-		// here. Some providers (inbuilt) legitimately have no provider
-		// configuration schema even in the original, non-trimmed schema, so
-		// a nil block here doesn't indicate anything was lost in trimming.
-		for typeName := range rt.managed {
-			if _, ok := full.ResourceTypes[typeName]; !ok {
-				return false
-			}
-		}
-		for typeName := range rt.data {
-			if _, ok := full.DataSources[typeName]; !ok {
-				return false
-			}
-		}
-	}
-	return true
 }
