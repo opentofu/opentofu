@@ -347,6 +347,8 @@ The available options are:
 * `-json-into=out.json` - Produces the same output as -json, but redirected to a file. This allows
   for simultaneous capture of both human readable and machine readable logs.
 
+* `-lint=all` - Specify the linting rules to be executed. Wrongly formatted values are silently ignored.
+
 * `-lock=false` - Don't hold a state lock during the operation. This is
   dangerous if others might concurrently run commands against the same
   workspace.
