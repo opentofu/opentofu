@@ -360,7 +360,7 @@ func TestValidate_json(t *testing.T) {
 		{"validate-invalid/incorrectmodulename", nil, false},
 		{"validate-invalid/interpolation", nil, false},
 		{"validate-invalid/missing_defined_var", nil, true},
-		{"validate-invalid/with_lint_warning", []string{"-lint=all"}, true},
+		{"validate-invalid/with_lint_warning", []string{"-lint=core:unused-variable"}, true},
 	}
 
 	cmpOpts := func(t *testing.T) cmp.Options {
