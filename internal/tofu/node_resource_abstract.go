@@ -522,6 +522,11 @@ func (n *NodeAbstractResource) AttachResourceConfig(c *configs.Resource) {
 	n.Config = c
 }
 
+// GraphNodeAttachResourceConfig
+func (n *NodeAbstractResource) NodeConfig() *configs.Resource {
+	return n.Config
+}
+
 // GraphNodeAttachResourceSchema impl
 func (n *NodeAbstractResource) AttachResourceSchema(schema *configschema.Block, version uint64) {
 	n.Schema = schema

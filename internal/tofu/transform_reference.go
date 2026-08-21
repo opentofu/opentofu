@@ -8,11 +8,15 @@ package tofu
 import (
 	"context"
 	"fmt"
+	"iter"
 	"log"
 	"maps"
 	"sort"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/linting/corelinting"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -64,6 +68,12 @@ type GraphNodeAttachDependencies interface {
 type graphNodeDependsOn interface {
 	GraphNodeReferencer
 	DependsOn() []*addrs.Reference
+}
+
+// graphNodePostTransform is an interface to allow transformers to run post actions like validations.
+// This allows also to return proper diagnostics instead of a raw error.
+type graphNodePostTransform interface {
+	PostTransform(ctx context.Context, g *Graph) tfdiags.Diagnostics
 }
 
 // graphNodeAttachResourceDependsOn records all resources that are transitively
@@ -632,4 +642,33 @@ func ReferencesFromConfig(body hcl.Body, schema *configschema.Block) []*addrs.Re
 	}
 	refs, _ := lang.ReferencesInBlock(addrs.ParseRef, body, schema)
 	return refs
+}
+
+// PostTransform implements graphNodePostTransform
+func (t *ReferenceTransformer) PostTransform(ctx context.Context, g *Graph) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+	diags = diags.Append(corelinting.CountInsteadEnabled(ctx, resourceConfigsWithCount(g)))
+	return diags
+}
+
+// unusedVariables returns a iter.Seq that will provide all the configs.Variable objects for the
+// variables that are detected as being unused.
+// The objects returned are only for the root module.
+// By returning iter.Seq, the analysis is postponed and can be skipped in case the linting rule that
+// needs this data is not enabled by the user.
+func resourceConfigsWithCount(g *Graph) iter.Seq[*configs.Resource] {
+	return func(yield func(variable *configs.Resource) bool) {
+		for _, v := range g.Vertices() {
+			switch n := v.(type) {
+			case GraphNodeAttachResourceConfig:
+				c := n.NodeConfig()
+				if c == nil {
+					continue
+				}
+				if !yield(c) {
+					return
+				}
+			}
+		}
+	}
 }
