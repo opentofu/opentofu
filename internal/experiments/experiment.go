@@ -18,21 +18,11 @@ type Experiment string
 // Each experiment is represented by a string that must be a valid HCL
 // identifier so that it can be specified in configuration.
 const (
-	VariableValidation             = Experiment("variable_validation")
-	ModuleVariableOptionalAttrs    = Experiment("module_variable_optional_attrs")
-	SuppressProviderSensitiveAttrs = Experiment("provider_sensitive_attrs")
-	ConfigDrivenMove               = Experiment("config_driven_move")
-	PreconditionsPostconditions    = Experiment("preconditions_postconditions")
 )
 
 func init() {
 	// Each experiment constant defined above must be registered here as either
 	// a current or a concluded experiment.
-	registerConcludedExperiment(VariableValidation, "Custom variable validation can now be used by default, without enabling an experiment.")
-	registerConcludedExperiment(SuppressProviderSensitiveAttrs, "Provider-defined sensitive attributes are now redacted by default, without enabling an experiment.")
-	registerConcludedExperiment(ConfigDrivenMove, "Declarations of moved resource instances using \"moved\" blocks can now be used by default, without enabling an experiment.")
-	registerConcludedExperiment(PreconditionsPostconditions, "Condition blocks can now be used by default, without enabling an experiment.")
-	registerConcludedExperiment(ModuleVariableOptionalAttrs, "The final feature corresponding to this experiment differs from the experimental form and is available in the OpenTofu language from OpenTofu v1.3.0 onwards.")
 }
 
 // GetCurrent takes an experiment name and returns the experiment value
@@ -97,11 +87,12 @@ var currentExperiments = make(Set)
 // Members of this map are registered in the init function above.
 var concludedExperiments = make(map[Experiment]string)
 
-//lint:ignore U1000 No experiments are active
+//nolint:unused // No concluded experiments yet
 func registerCurrentExperiment(exp Experiment) {
 	currentExperiments.Add(exp)
 }
 
+//nolint:unused // No concluded experiments yet
 func registerConcludedExperiment(exp Experiment, message string) {
 	concludedExperiments[exp] = message
 }
