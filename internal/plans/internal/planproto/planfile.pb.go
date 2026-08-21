@@ -240,6 +240,66 @@ func (ResourceInstanceActionReason) EnumDescriptor() ([]byte, []int) {
 	return file_planfile_proto_rawDescGZIP(), []int{2}
 }
 
+// SchemaNestingMode mirrors configschema.NestingMode, and is used both for
+// nested block types and for NestedType-style (object) attributes.
+type SchemaNestingMode int32
+
+const (
+	SchemaNestingMode_SCHEMA_NESTING_INVALID SchemaNestingMode = 0
+	SchemaNestingMode_SCHEMA_NESTING_SINGLE  SchemaNestingMode = 1
+	SchemaNestingMode_SCHEMA_NESTING_GROUP   SchemaNestingMode = 2
+	SchemaNestingMode_SCHEMA_NESTING_LIST    SchemaNestingMode = 3
+	SchemaNestingMode_SCHEMA_NESTING_SET     SchemaNestingMode = 4
+	SchemaNestingMode_SCHEMA_NESTING_MAP     SchemaNestingMode = 5
+)
+
+// Enum value maps for SchemaNestingMode.
+var (
+	SchemaNestingMode_name = map[int32]string{
+		0: "SCHEMA_NESTING_INVALID",
+		1: "SCHEMA_NESTING_SINGLE",
+		2: "SCHEMA_NESTING_GROUP",
+		3: "SCHEMA_NESTING_LIST",
+		4: "SCHEMA_NESTING_SET",
+		5: "SCHEMA_NESTING_MAP",
+	}
+	SchemaNestingMode_value = map[string]int32{
+		"SCHEMA_NESTING_INVALID": 0,
+		"SCHEMA_NESTING_SINGLE":  1,
+		"SCHEMA_NESTING_GROUP":   2,
+		"SCHEMA_NESTING_LIST":    3,
+		"SCHEMA_NESTING_SET":     4,
+		"SCHEMA_NESTING_MAP":     5,
+	}
+)
+
+func (x SchemaNestingMode) Enum() *SchemaNestingMode {
+	p := new(SchemaNestingMode)
+	*p = x
+	return p
+}
+
+func (x SchemaNestingMode) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (SchemaNestingMode) Descriptor() protoreflect.EnumDescriptor {
+	return file_planfile_proto_enumTypes[3].Descriptor()
+}
+
+func (SchemaNestingMode) Type() protoreflect.EnumType {
+	return &file_planfile_proto_enumTypes[3]
+}
+
+func (x SchemaNestingMode) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use SchemaNestingMode.Descriptor instead.
+func (SchemaNestingMode) EnumDescriptor() ([]byte, []int) {
+	return file_planfile_proto_rawDescGZIP(), []int{3}
+}
+
 // Status describes the status of a particular checkable object at the
 // completion of the plan.
 type CheckResults_Status int32
@@ -278,11 +338,11 @@ func (x CheckResults_Status) String() string {
 }
 
 func (CheckResults_Status) Descriptor() protoreflect.EnumDescriptor {
-	return file_planfile_proto_enumTypes[3].Descriptor()
+	return file_planfile_proto_enumTypes[4].Descriptor()
 }
 
 func (CheckResults_Status) Type() protoreflect.EnumType {
-	return &file_planfile_proto_enumTypes[3]
+	return &file_planfile_proto_enumTypes[4]
 }
 
 func (x CheckResults_Status) Number() protoreflect.EnumNumber {
@@ -333,11 +393,11 @@ func (x CheckResults_ObjectKind) String() string {
 }
 
 func (CheckResults_ObjectKind) Descriptor() protoreflect.EnumDescriptor {
-	return file_planfile_proto_enumTypes[4].Descriptor()
+	return file_planfile_proto_enumTypes[5].Descriptor()
 }
 
 func (CheckResults_ObjectKind) Type() protoreflect.EnumType {
-	return &file_planfile_proto_enumTypes[4]
+	return &file_planfile_proto_enumTypes[5]
 }
 
 func (x CheckResults_ObjectKind) Number() protoreflect.EnumNumber {
@@ -1211,6 +1271,561 @@ func (x *Importing) GetIdentity() *DynamicValue {
 	return nil
 }
 
+type SchemaObject struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Attributes    []*SchemaAttribute     `protobuf:"bytes,1,rep,name=attributes,proto3" json:"attributes,omitempty"`
+	Nesting       SchemaNestingMode      `protobuf:"varint,2,opt,name=nesting,proto3,enum=tfplan.SchemaNestingMode" json:"nesting,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SchemaObject) Reset() {
+	*x = SchemaObject{}
+	mi := &file_planfile_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SchemaObject) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SchemaObject) ProtoMessage() {}
+
+func (x *SchemaObject) ProtoReflect() protoreflect.Message {
+	mi := &file_planfile_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SchemaObject.ProtoReflect.Descriptor instead.
+func (*SchemaObject) Descriptor() ([]byte, []int) {
+	return file_planfile_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *SchemaObject) GetAttributes() []*SchemaAttribute {
+	if x != nil {
+		return x.Attributes
+	}
+	return nil
+}
+
+func (x *SchemaObject) GetNesting() SchemaNestingMode {
+	if x != nil {
+		return x.Nesting
+	}
+	return SchemaNestingMode_SCHEMA_NESTING_INVALID
+}
+
+type SchemaAttribute struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Name  string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// type is the ctyjson-encoded cty.Type of the attribute. Mutually
+	// exclusive with nested_type.
+	Type []byte `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	// nested_type is set instead of type for NestedType-style attributes.
+	NestedType    *SchemaObject `protobuf:"bytes,3,opt,name=nested_type,json=nestedType,proto3" json:"nested_type,omitempty"`
+	Required      bool          `protobuf:"varint,4,opt,name=required,proto3" json:"required,omitempty"`
+	Optional      bool          `protobuf:"varint,5,opt,name=optional,proto3" json:"optional,omitempty"`
+	Computed      bool          `protobuf:"varint,6,opt,name=computed,proto3" json:"computed,omitempty"`
+	Sensitive     bool          `protobuf:"varint,7,opt,name=sensitive,proto3" json:"sensitive,omitempty"`
+	WriteOnly     bool          `protobuf:"varint,8,opt,name=write_only,json=writeOnly,proto3" json:"write_only,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SchemaAttribute) Reset() {
+	*x = SchemaAttribute{}
+	mi := &file_planfile_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SchemaAttribute) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SchemaAttribute) ProtoMessage() {}
+
+func (x *SchemaAttribute) ProtoReflect() protoreflect.Message {
+	mi := &file_planfile_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SchemaAttribute.ProtoReflect.Descriptor instead.
+func (*SchemaAttribute) Descriptor() ([]byte, []int) {
+	return file_planfile_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *SchemaAttribute) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *SchemaAttribute) GetType() []byte {
+	if x != nil {
+		return x.Type
+	}
+	return nil
+}
+
+func (x *SchemaAttribute) GetNestedType() *SchemaObject {
+	if x != nil {
+		return x.NestedType
+	}
+	return nil
+}
+
+func (x *SchemaAttribute) GetRequired() bool {
+	if x != nil {
+		return x.Required
+	}
+	return false
+}
+
+func (x *SchemaAttribute) GetOptional() bool {
+	if x != nil {
+		return x.Optional
+	}
+	return false
+}
+
+func (x *SchemaAttribute) GetComputed() bool {
+	if x != nil {
+		return x.Computed
+	}
+	return false
+}
+
+func (x *SchemaAttribute) GetSensitive() bool {
+	if x != nil {
+		return x.Sensitive
+	}
+	return false
+}
+
+func (x *SchemaAttribute) GetWriteOnly() bool {
+	if x != nil {
+		return x.WriteOnly
+	}
+	return false
+}
+
+type SchemaNestedBlock struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TypeName      string                 `protobuf:"bytes,1,opt,name=type_name,json=typeName,proto3" json:"type_name,omitempty"`
+	Block         *SchemaBlock           `protobuf:"bytes,2,opt,name=block,proto3" json:"block,omitempty"`
+	Nesting       SchemaNestingMode      `protobuf:"varint,3,opt,name=nesting,proto3,enum=tfplan.SchemaNestingMode" json:"nesting,omitempty"`
+	MinItems      int64                  `protobuf:"varint,4,opt,name=min_items,json=minItems,proto3" json:"min_items,omitempty"`
+	MaxItems      int64                  `protobuf:"varint,5,opt,name=max_items,json=maxItems,proto3" json:"max_items,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SchemaNestedBlock) Reset() {
+	*x = SchemaNestedBlock{}
+	mi := &file_planfile_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SchemaNestedBlock) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SchemaNestedBlock) ProtoMessage() {}
+
+func (x *SchemaNestedBlock) ProtoReflect() protoreflect.Message {
+	mi := &file_planfile_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SchemaNestedBlock.ProtoReflect.Descriptor instead.
+func (*SchemaNestedBlock) Descriptor() ([]byte, []int) {
+	return file_planfile_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *SchemaNestedBlock) GetTypeName() string {
+	if x != nil {
+		return x.TypeName
+	}
+	return ""
+}
+
+func (x *SchemaNestedBlock) GetBlock() *SchemaBlock {
+	if x != nil {
+		return x.Block
+	}
+	return nil
+}
+
+func (x *SchemaNestedBlock) GetNesting() SchemaNestingMode {
+	if x != nil {
+		return x.Nesting
+	}
+	return SchemaNestingMode_SCHEMA_NESTING_INVALID
+}
+
+func (x *SchemaNestedBlock) GetMinItems() int64 {
+	if x != nil {
+		return x.MinItems
+	}
+	return 0
+}
+
+func (x *SchemaNestedBlock) GetMaxItems() int64 {
+	if x != nil {
+		return x.MaxItems
+	}
+	return 0
+}
+
+type SchemaBlock struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Attributes    []*SchemaAttribute     `protobuf:"bytes,1,rep,name=attributes,proto3" json:"attributes,omitempty"`
+	BlockTypes    []*SchemaNestedBlock   `protobuf:"bytes,2,rep,name=block_types,json=blockTypes,proto3" json:"block_types,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SchemaBlock) Reset() {
+	*x = SchemaBlock{}
+	mi := &file_planfile_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SchemaBlock) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SchemaBlock) ProtoMessage() {}
+
+func (x *SchemaBlock) ProtoReflect() protoreflect.Message {
+	mi := &file_planfile_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SchemaBlock.ProtoReflect.Descriptor instead.
+func (*SchemaBlock) Descriptor() ([]byte, []int) {
+	return file_planfile_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *SchemaBlock) GetAttributes() []*SchemaAttribute {
+	if x != nil {
+		return x.Attributes
+	}
+	return nil
+}
+
+func (x *SchemaBlock) GetBlockTypes() []*SchemaNestedBlock {
+	if x != nil {
+		return x.BlockTypes
+	}
+	return nil
+}
+
+type Schema struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Version       int64                  `protobuf:"varint,1,opt,name=version,proto3" json:"version,omitempty"`
+	Block         *SchemaBlock           `protobuf:"bytes,2,opt,name=block,proto3" json:"block,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Schema) Reset() {
+	*x = Schema{}
+	mi := &file_planfile_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Schema) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Schema) ProtoMessage() {}
+
+func (x *Schema) ProtoReflect() protoreflect.Message {
+	mi := &file_planfile_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Schema.ProtoReflect.Descriptor instead.
+func (*Schema) Descriptor() ([]byte, []int) {
+	return file_planfile_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *Schema) GetVersion() int64 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *Schema) GetBlock() *SchemaBlock {
+	if x != nil {
+		return x.Block
+	}
+	return nil
+}
+
+// ResourceIdentitySchema represents the schema for a managed resource type's
+// identity data (providers.Schema.IdentitySchema / IdentitySchemaVersion).
+type ResourceIdentitySchema struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Version       int64                  `protobuf:"varint,1,opt,name=version,proto3" json:"version,omitempty"`
+	Body          *SchemaObject          `protobuf:"bytes,2,opt,name=body,proto3" json:"body,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResourceIdentitySchema) Reset() {
+	*x = ResourceIdentitySchema{}
+	mi := &file_planfile_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResourceIdentitySchema) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResourceIdentitySchema) ProtoMessage() {}
+
+func (x *ResourceIdentitySchema) ProtoReflect() protoreflect.Message {
+	mi := &file_planfile_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResourceIdentitySchema.ProtoReflect.Descriptor instead.
+func (*ResourceIdentitySchema) Descriptor() ([]byte, []int) {
+	return file_planfile_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *ResourceIdentitySchema) GetVersion() int64 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *ResourceIdentitySchema) GetBody() *SchemaObject {
+	if x != nil {
+		return x.Body
+	}
+	return nil
+}
+
+// ResourceSchema pairs a managed resource type's or data source's
+// configuration schema with its resource identity schema, if any.
+type ResourceSchema struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Schema *Schema                `protobuf:"bytes,1,opt,name=schema,proto3" json:"schema,omitempty"`
+	// identity_schema is only ever populated for managed resource types,
+	// never for data sources.
+	IdentitySchema *ResourceIdentitySchema `protobuf:"bytes,2,opt,name=identity_schema,json=identitySchema,proto3" json:"identity_schema,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ResourceSchema) Reset() {
+	*x = ResourceSchema{}
+	mi := &file_planfile_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResourceSchema) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResourceSchema) ProtoMessage() {}
+
+func (x *ResourceSchema) ProtoReflect() protoreflect.Message {
+	mi := &file_planfile_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResourceSchema.ProtoReflect.Descriptor instead.
+func (*ResourceSchema) Descriptor() ([]byte, []int) {
+	return file_planfile_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *ResourceSchema) GetSchema() *Schema {
+	if x != nil {
+		return x.Schema
+	}
+	return nil
+}
+
+func (x *ResourceSchema) GetIdentitySchema() *ResourceIdentitySchema {
+	if x != nil {
+		return x.IdentitySchema
+	}
+	return nil
+}
+
+// ProviderSchema is a trimmed-down subset of a single provider's schema,
+// containing only the parts needed to render a particular saved plan.
+type ProviderSchema struct {
+	state                protoimpl.MessageState     `protogen:"open.v1"`
+	ProviderConfig       *Schema                    `protobuf:"bytes,1,opt,name=provider_config,json=providerConfig,proto3" json:"provider_config,omitempty"`
+	ManagedResourceTypes map[string]*ResourceSchema `protobuf:"bytes,2,rep,name=managed_resource_types,json=managedResourceTypes,proto3" json:"managed_resource_types,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	DataSources          map[string]*ResourceSchema `protobuf:"bytes,3,rep,name=data_sources,json=dataSources,proto3" json:"data_sources,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *ProviderSchema) Reset() {
+	*x = ProviderSchema{}
+	mi := &file_planfile_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProviderSchema) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProviderSchema) ProtoMessage() {}
+
+func (x *ProviderSchema) ProtoReflect() protoreflect.Message {
+	mi := &file_planfile_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProviderSchema.ProtoReflect.Descriptor instead.
+func (*ProviderSchema) Descriptor() ([]byte, []int) {
+	return file_planfile_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *ProviderSchema) GetProviderConfig() *Schema {
+	if x != nil {
+		return x.ProviderConfig
+	}
+	return nil
+}
+
+func (x *ProviderSchema) GetManagedResourceTypes() map[string]*ResourceSchema {
+	if x != nil {
+		return x.ManagedResourceTypes
+	}
+	return nil
+}
+
+func (x *ProviderSchema) GetDataSources() map[string]*ResourceSchema {
+	if x != nil {
+		return x.DataSources
+	}
+	return nil
+}
+
+// Schemas is the root message for the "tfschemas" entry in the plan file
+// archive: a map from provider source address (e.g.
+// "registry.opentofu.org/hashicorp/aws") to the trimmed schema for that
+// provider.
+type Schemas struct {
+	state         protoimpl.MessageState     `protogen:"open.v1"`
+	Providers     map[string]*ProviderSchema `protobuf:"bytes,1,rep,name=providers,proto3" json:"providers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Schemas) Reset() {
+	*x = Schemas{}
+	mi := &file_planfile_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Schemas) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Schemas) ProtoMessage() {}
+
+func (x *Schemas) ProtoReflect() protoreflect.Message {
+	mi := &file_planfile_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Schemas.ProtoReflect.Descriptor instead.
+func (*Schemas) Descriptor() ([]byte, []int) {
+	return file_planfile_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *Schemas) GetProviders() map[string]*ProviderSchema {
+	if x != nil {
+		return x.Providers
+	}
+	return nil
+}
+
 type PlanResourceAttr struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Resource      string                 `protobuf:"bytes,1,opt,name=resource,proto3" json:"resource,omitempty"`
@@ -1221,7 +1836,7 @@ type PlanResourceAttr struct {
 
 func (x *PlanResourceAttr) Reset() {
 	*x = PlanResourceAttr{}
-	mi := &file_planfile_proto_msgTypes[10]
+	mi := &file_planfile_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1233,7 +1848,7 @@ func (x *PlanResourceAttr) String() string {
 func (*PlanResourceAttr) ProtoMessage() {}
 
 func (x *PlanResourceAttr) ProtoReflect() protoreflect.Message {
-	mi := &file_planfile_proto_msgTypes[10]
+	mi := &file_planfile_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1274,7 +1889,7 @@ type CheckResults_ObjectResult struct {
 
 func (x *CheckResults_ObjectResult) Reset() {
 	*x = CheckResults_ObjectResult{}
-	mi := &file_planfile_proto_msgTypes[11]
+	mi := &file_planfile_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1286,7 +1901,7 @@ func (x *CheckResults_ObjectResult) String() string {
 func (*CheckResults_ObjectResult) ProtoMessage() {}
 
 func (x *CheckResults_ObjectResult) ProtoReflect() protoreflect.Message {
-	mi := &file_planfile_proto_msgTypes[11]
+	mi := &file_planfile_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1336,7 +1951,7 @@ type Path_Step struct {
 
 func (x *Path_Step) Reset() {
 	*x = Path_Step{}
-	mi := &file_planfile_proto_msgTypes[12]
+	mi := &file_planfile_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1348,7 +1963,7 @@ func (x *Path_Step) String() string {
 func (*Path_Step) ProtoMessage() {}
 
 func (x *Path_Step) ProtoReflect() protoreflect.Message {
-	mi := &file_planfile_proto_msgTypes[12]
+	mi := &file_planfile_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1504,7 +2119,59 @@ const file_planfile_proto_rawDesc = "" +
 	"\bselector\"M\n" +
 	"\tImporting\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x120\n" +
-	"\bidentity\x18\x02 \x01(\v2\x14.tfplan.DynamicValueR\bidentity*1\n" +
+	"\bidentity\x18\x02 \x01(\v2\x14.tfplan.DynamicValueR\bidentity\"|\n" +
+	"\fSchemaObject\x127\n" +
+	"\n" +
+	"attributes\x18\x01 \x03(\v2\x17.tfplan.SchemaAttributeR\n" +
+	"attributes\x123\n" +
+	"\anesting\x18\x02 \x01(\x0e2\x19.tfplan.SchemaNestingModeR\anesting\"\x81\x02\n" +
+	"\x0fSchemaAttribute\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
+	"\x04type\x18\x02 \x01(\fR\x04type\x125\n" +
+	"\vnested_type\x18\x03 \x01(\v2\x14.tfplan.SchemaObjectR\n" +
+	"nestedType\x12\x1a\n" +
+	"\brequired\x18\x04 \x01(\bR\brequired\x12\x1a\n" +
+	"\boptional\x18\x05 \x01(\bR\boptional\x12\x1a\n" +
+	"\bcomputed\x18\x06 \x01(\bR\bcomputed\x12\x1c\n" +
+	"\tsensitive\x18\a \x01(\bR\tsensitive\x12\x1d\n" +
+	"\n" +
+	"write_only\x18\b \x01(\bR\twriteOnly\"\xca\x01\n" +
+	"\x11SchemaNestedBlock\x12\x1b\n" +
+	"\ttype_name\x18\x01 \x01(\tR\btypeName\x12)\n" +
+	"\x05block\x18\x02 \x01(\v2\x13.tfplan.SchemaBlockR\x05block\x123\n" +
+	"\anesting\x18\x03 \x01(\x0e2\x19.tfplan.SchemaNestingModeR\anesting\x12\x1b\n" +
+	"\tmin_items\x18\x04 \x01(\x03R\bminItems\x12\x1b\n" +
+	"\tmax_items\x18\x05 \x01(\x03R\bmaxItems\"\x82\x01\n" +
+	"\vSchemaBlock\x127\n" +
+	"\n" +
+	"attributes\x18\x01 \x03(\v2\x17.tfplan.SchemaAttributeR\n" +
+	"attributes\x12:\n" +
+	"\vblock_types\x18\x02 \x03(\v2\x19.tfplan.SchemaNestedBlockR\n" +
+	"blockTypes\"M\n" +
+	"\x06Schema\x12\x18\n" +
+	"\aversion\x18\x01 \x01(\x03R\aversion\x12)\n" +
+	"\x05block\x18\x02 \x01(\v2\x13.tfplan.SchemaBlockR\x05block\"\\\n" +
+	"\x16ResourceIdentitySchema\x12\x18\n" +
+	"\aversion\x18\x01 \x01(\x03R\aversion\x12(\n" +
+	"\x04body\x18\x02 \x01(\v2\x14.tfplan.SchemaObjectR\x04body\"\x81\x01\n" +
+	"\x0eResourceSchema\x12&\n" +
+	"\x06schema\x18\x01 \x01(\v2\x0e.tfplan.SchemaR\x06schema\x12G\n" +
+	"\x0fidentity_schema\x18\x02 \x01(\v2\x1e.tfplan.ResourceIdentitySchemaR\x0eidentitySchema\"\xb6\x03\n" +
+	"\x0eProviderSchema\x127\n" +
+	"\x0fprovider_config\x18\x01 \x01(\v2\x0e.tfplan.SchemaR\x0eproviderConfig\x12f\n" +
+	"\x16managed_resource_types\x18\x02 \x03(\v20.tfplan.ProviderSchema.ManagedResourceTypesEntryR\x14managedResourceTypes\x12J\n" +
+	"\fdata_sources\x18\x03 \x03(\v2'.tfplan.ProviderSchema.DataSourcesEntryR\vdataSources\x1a_\n" +
+	"\x19ManagedResourceTypesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
+	"\x05value\x18\x02 \x01(\v2\x16.tfplan.ResourceSchemaR\x05value:\x028\x01\x1aV\n" +
+	"\x10DataSourcesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
+	"\x05value\x18\x02 \x01(\v2\x16.tfplan.ResourceSchemaR\x05value:\x028\x01\"\x9d\x01\n" +
+	"\aSchemas\x12<\n" +
+	"\tproviders\x18\x01 \x03(\v2\x1e.tfplan.Schemas.ProvidersEntryR\tproviders\x1aT\n" +
+	"\x0eProvidersEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
+	"\x05value\x18\x02 \x01(\v2\x16.tfplan.ProviderSchemaR\x05value:\x028\x01*1\n" +
 	"\x04Mode\x12\n" +
 	"\n" +
 	"\x06NORMAL\x10\x00\x12\v\n" +
@@ -1543,7 +2210,14 @@ const file_planfile_proto_rawDesc = "" +
 	"\x1dDELETE_BECAUSE_NO_MOVE_TARGET\x10\f\x12 \n" +
 	"\x1cDELETE_BECAUSE_ENABLED_FALSE\x10\x0e\x12-\n" +
 	")FORGOT_BECAUSE_LIFECYCLE_DESTROY_IN_STATE\x10\x0f\x12.\n" +
-	"*FORGOT_BECAUSE_LIFECYCLE_DESTROY_IN_CONFIG\x10\x10B@Z>github.com/opentofu/opentofu/internal/plans/internal/planprotob\x06proto3"
+	"*FORGOT_BECAUSE_LIFECYCLE_DESTROY_IN_CONFIG\x10\x10*\xad\x01\n" +
+	"\x11SchemaNestingMode\x12\x1a\n" +
+	"\x16SCHEMA_NESTING_INVALID\x10\x00\x12\x19\n" +
+	"\x15SCHEMA_NESTING_SINGLE\x10\x01\x12\x18\n" +
+	"\x14SCHEMA_NESTING_GROUP\x10\x02\x12\x17\n" +
+	"\x13SCHEMA_NESTING_LIST\x10\x03\x12\x16\n" +
+	"\x12SCHEMA_NESTING_SET\x10\x04\x12\x16\n" +
+	"\x12SCHEMA_NESTING_MAP\x10\x05B@Z>github.com/opentofu/opentofu/internal/plans/internal/planprotob\x06proto3"
 
 var (
 	file_planfile_proto_rawDescOnce sync.Once
@@ -1557,63 +2231,94 @@ func file_planfile_proto_rawDescGZIP() []byte {
 	return file_planfile_proto_rawDescData
 }
 
-var file_planfile_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
-var file_planfile_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_planfile_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
+var file_planfile_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
 var file_planfile_proto_goTypes = []any{
 	(Mode)(0),                         // 0: tfplan.Mode
 	(Action)(0),                       // 1: tfplan.Action
 	(ResourceInstanceActionReason)(0), // 2: tfplan.ResourceInstanceActionReason
-	(CheckResults_Status)(0),          // 3: tfplan.CheckResults.Status
-	(CheckResults_ObjectKind)(0),      // 4: tfplan.CheckResults.ObjectKind
-	(*Plan)(nil),                      // 5: tfplan.Plan
-	(*Backend)(nil),                   // 6: tfplan.Backend
-	(*Change)(nil),                    // 7: tfplan.Change
-	(*ResourceInstanceChange)(nil),    // 8: tfplan.ResourceInstanceChange
-	(*OutputChange)(nil),              // 9: tfplan.OutputChange
-	(*CheckResults)(nil),              // 10: tfplan.CheckResults
-	(*DynamicValue)(nil),              // 11: tfplan.DynamicValue
-	(*Path)(nil),                      // 12: tfplan.Path
-	(*Importing)(nil),                 // 13: tfplan.Importing
-	nil,                               // 14: tfplan.Plan.VariablesEntry
-	(*PlanResourceAttr)(nil),          // 15: tfplan.Plan.resource_attr
-	(*CheckResults_ObjectResult)(nil), // 16: tfplan.CheckResults.ObjectResult
-	(*Path_Step)(nil),                 // 17: tfplan.Path.Step
+	(SchemaNestingMode)(0),            // 3: tfplan.SchemaNestingMode
+	(CheckResults_Status)(0),          // 4: tfplan.CheckResults.Status
+	(CheckResults_ObjectKind)(0),      // 5: tfplan.CheckResults.ObjectKind
+	(*Plan)(nil),                      // 6: tfplan.Plan
+	(*Backend)(nil),                   // 7: tfplan.Backend
+	(*Change)(nil),                    // 8: tfplan.Change
+	(*ResourceInstanceChange)(nil),    // 9: tfplan.ResourceInstanceChange
+	(*OutputChange)(nil),              // 10: tfplan.OutputChange
+	(*CheckResults)(nil),              // 11: tfplan.CheckResults
+	(*DynamicValue)(nil),              // 12: tfplan.DynamicValue
+	(*Path)(nil),                      // 13: tfplan.Path
+	(*Importing)(nil),                 // 14: tfplan.Importing
+	(*SchemaObject)(nil),              // 15: tfplan.SchemaObject
+	(*SchemaAttribute)(nil),           // 16: tfplan.SchemaAttribute
+	(*SchemaNestedBlock)(nil),         // 17: tfplan.SchemaNestedBlock
+	(*SchemaBlock)(nil),               // 18: tfplan.SchemaBlock
+	(*Schema)(nil),                    // 19: tfplan.Schema
+	(*ResourceIdentitySchema)(nil),    // 20: tfplan.ResourceIdentitySchema
+	(*ResourceSchema)(nil),            // 21: tfplan.ResourceSchema
+	(*ProviderSchema)(nil),            // 22: tfplan.ProviderSchema
+	(*Schemas)(nil),                   // 23: tfplan.Schemas
+	nil,                               // 24: tfplan.Plan.VariablesEntry
+	(*PlanResourceAttr)(nil),          // 25: tfplan.Plan.resource_attr
+	(*CheckResults_ObjectResult)(nil), // 26: tfplan.CheckResults.ObjectResult
+	(*Path_Step)(nil),                 // 27: tfplan.Path.Step
+	nil,                               // 28: tfplan.ProviderSchema.ManagedResourceTypesEntry
+	nil,                               // 29: tfplan.ProviderSchema.DataSourcesEntry
+	nil,                               // 30: tfplan.Schemas.ProvidersEntry
 }
 var file_planfile_proto_depIdxs = []int32{
 	0,  // 0: tfplan.Plan.ui_mode:type_name -> tfplan.Mode
-	14, // 1: tfplan.Plan.variables:type_name -> tfplan.Plan.VariablesEntry
-	8,  // 2: tfplan.Plan.resource_changes:type_name -> tfplan.ResourceInstanceChange
-	8,  // 3: tfplan.Plan.resource_drift:type_name -> tfplan.ResourceInstanceChange
-	9,  // 4: tfplan.Plan.output_changes:type_name -> tfplan.OutputChange
-	10, // 5: tfplan.Plan.check_results:type_name -> tfplan.CheckResults
-	6,  // 6: tfplan.Plan.backend:type_name -> tfplan.Backend
-	15, // 7: tfplan.Plan.relevant_attributes:type_name -> tfplan.Plan.resource_attr
-	11, // 8: tfplan.Backend.config:type_name -> tfplan.DynamicValue
+	24, // 1: tfplan.Plan.variables:type_name -> tfplan.Plan.VariablesEntry
+	9,  // 2: tfplan.Plan.resource_changes:type_name -> tfplan.ResourceInstanceChange
+	9,  // 3: tfplan.Plan.resource_drift:type_name -> tfplan.ResourceInstanceChange
+	10, // 4: tfplan.Plan.output_changes:type_name -> tfplan.OutputChange
+	11, // 5: tfplan.Plan.check_results:type_name -> tfplan.CheckResults
+	7,  // 6: tfplan.Plan.backend:type_name -> tfplan.Backend
+	25, // 7: tfplan.Plan.relevant_attributes:type_name -> tfplan.Plan.resource_attr
+	12, // 8: tfplan.Backend.config:type_name -> tfplan.DynamicValue
 	1,  // 9: tfplan.Change.action:type_name -> tfplan.Action
-	11, // 10: tfplan.Change.values:type_name -> tfplan.DynamicValue
-	12, // 11: tfplan.Change.before_sensitive_paths:type_name -> tfplan.Path
-	12, // 12: tfplan.Change.after_sensitive_paths:type_name -> tfplan.Path
-	13, // 13: tfplan.Change.importing:type_name -> tfplan.Importing
-	11, // 14: tfplan.Change.before_identity:type_name -> tfplan.DynamicValue
-	11, // 15: tfplan.Change.after_identity:type_name -> tfplan.DynamicValue
-	7,  // 16: tfplan.ResourceInstanceChange.change:type_name -> tfplan.Change
-	12, // 17: tfplan.ResourceInstanceChange.required_replace:type_name -> tfplan.Path
+	12, // 10: tfplan.Change.values:type_name -> tfplan.DynamicValue
+	13, // 11: tfplan.Change.before_sensitive_paths:type_name -> tfplan.Path
+	13, // 12: tfplan.Change.after_sensitive_paths:type_name -> tfplan.Path
+	14, // 13: tfplan.Change.importing:type_name -> tfplan.Importing
+	12, // 14: tfplan.Change.before_identity:type_name -> tfplan.DynamicValue
+	12, // 15: tfplan.Change.after_identity:type_name -> tfplan.DynamicValue
+	8,  // 16: tfplan.ResourceInstanceChange.change:type_name -> tfplan.Change
+	13, // 17: tfplan.ResourceInstanceChange.required_replace:type_name -> tfplan.Path
 	2,  // 18: tfplan.ResourceInstanceChange.action_reason:type_name -> tfplan.ResourceInstanceActionReason
-	7,  // 19: tfplan.OutputChange.change:type_name -> tfplan.Change
-	4,  // 20: tfplan.CheckResults.kind:type_name -> tfplan.CheckResults.ObjectKind
-	3,  // 21: tfplan.CheckResults.status:type_name -> tfplan.CheckResults.Status
-	16, // 22: tfplan.CheckResults.objects:type_name -> tfplan.CheckResults.ObjectResult
-	17, // 23: tfplan.Path.steps:type_name -> tfplan.Path.Step
-	11, // 24: tfplan.Importing.identity:type_name -> tfplan.DynamicValue
-	11, // 25: tfplan.Plan.VariablesEntry.value:type_name -> tfplan.DynamicValue
-	12, // 26: tfplan.Plan.resource_attr.attr:type_name -> tfplan.Path
-	3,  // 27: tfplan.CheckResults.ObjectResult.status:type_name -> tfplan.CheckResults.Status
-	11, // 28: tfplan.Path.Step.element_key:type_name -> tfplan.DynamicValue
-	29, // [29:29] is the sub-list for method output_type
-	29, // [29:29] is the sub-list for method input_type
-	29, // [29:29] is the sub-list for extension type_name
-	29, // [29:29] is the sub-list for extension extendee
-	0,  // [0:29] is the sub-list for field type_name
+	8,  // 19: tfplan.OutputChange.change:type_name -> tfplan.Change
+	5,  // 20: tfplan.CheckResults.kind:type_name -> tfplan.CheckResults.ObjectKind
+	4,  // 21: tfplan.CheckResults.status:type_name -> tfplan.CheckResults.Status
+	26, // 22: tfplan.CheckResults.objects:type_name -> tfplan.CheckResults.ObjectResult
+	27, // 23: tfplan.Path.steps:type_name -> tfplan.Path.Step
+	12, // 24: tfplan.Importing.identity:type_name -> tfplan.DynamicValue
+	16, // 25: tfplan.SchemaObject.attributes:type_name -> tfplan.SchemaAttribute
+	3,  // 26: tfplan.SchemaObject.nesting:type_name -> tfplan.SchemaNestingMode
+	15, // 27: tfplan.SchemaAttribute.nested_type:type_name -> tfplan.SchemaObject
+	18, // 28: tfplan.SchemaNestedBlock.block:type_name -> tfplan.SchemaBlock
+	3,  // 29: tfplan.SchemaNestedBlock.nesting:type_name -> tfplan.SchemaNestingMode
+	16, // 30: tfplan.SchemaBlock.attributes:type_name -> tfplan.SchemaAttribute
+	17, // 31: tfplan.SchemaBlock.block_types:type_name -> tfplan.SchemaNestedBlock
+	18, // 32: tfplan.Schema.block:type_name -> tfplan.SchemaBlock
+	15, // 33: tfplan.ResourceIdentitySchema.body:type_name -> tfplan.SchemaObject
+	19, // 34: tfplan.ResourceSchema.schema:type_name -> tfplan.Schema
+	20, // 35: tfplan.ResourceSchema.identity_schema:type_name -> tfplan.ResourceIdentitySchema
+	19, // 36: tfplan.ProviderSchema.provider_config:type_name -> tfplan.Schema
+	28, // 37: tfplan.ProviderSchema.managed_resource_types:type_name -> tfplan.ProviderSchema.ManagedResourceTypesEntry
+	29, // 38: tfplan.ProviderSchema.data_sources:type_name -> tfplan.ProviderSchema.DataSourcesEntry
+	30, // 39: tfplan.Schemas.providers:type_name -> tfplan.Schemas.ProvidersEntry
+	12, // 40: tfplan.Plan.VariablesEntry.value:type_name -> tfplan.DynamicValue
+	13, // 41: tfplan.Plan.resource_attr.attr:type_name -> tfplan.Path
+	4,  // 42: tfplan.CheckResults.ObjectResult.status:type_name -> tfplan.CheckResults.Status
+	12, // 43: tfplan.Path.Step.element_key:type_name -> tfplan.DynamicValue
+	21, // 44: tfplan.ProviderSchema.ManagedResourceTypesEntry.value:type_name -> tfplan.ResourceSchema
+	21, // 45: tfplan.ProviderSchema.DataSourcesEntry.value:type_name -> tfplan.ResourceSchema
+	22, // 46: tfplan.Schemas.ProvidersEntry.value:type_name -> tfplan.ProviderSchema
+	47, // [47:47] is the sub-list for method output_type
+	47, // [47:47] is the sub-list for method input_type
+	47, // [47:47] is the sub-list for extension type_name
+	47, // [47:47] is the sub-list for extension extendee
+	0,  // [0:47] is the sub-list for field type_name
 }
 
 func init() { file_planfile_proto_init() }
@@ -1621,7 +2326,7 @@ func file_planfile_proto_init() {
 	if File_planfile_proto != nil {
 		return
 	}
-	file_planfile_proto_msgTypes[12].OneofWrappers = []any{
+	file_planfile_proto_msgTypes[21].OneofWrappers = []any{
 		(*Path_Step_AttributeName)(nil),
 		(*Path_Step_ElementKey)(nil),
 	}
@@ -1630,8 +2335,8 @@ func file_planfile_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_planfile_proto_rawDesc), len(file_planfile_proto_rawDesc)),
-			NumEnums:      5,
-			NumMessages:   13,
+			NumEnums:      6,
+			NumMessages:   25,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

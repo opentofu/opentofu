@@ -324,7 +324,7 @@ func TestTFPlanRoundTrip(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	err := writeTfplan(plan, &buf)
+	err := writePlan(plan, &buf)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -333,7 +333,7 @@ func TestTFPlanRoundTrip(t *testing.T) {
 	// with null in the plan file "variables" object and when read, will be visible only in the plan.EphemeralVariables
 	delete(plan.VariableValues, "baz")
 
-	newPlan, err := readTfplan(&buf)
+	newPlan, err := readPlan(&buf)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -436,12 +436,12 @@ func TestTFPlanRoundTripDestroy(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	err := writeTfplan(plan, &buf)
+	err := writePlan(plan, &buf)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	newPlan, err := readTfplan(&buf)
+	newPlan, err := readPlan(&buf)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -577,12 +577,12 @@ func TestTFPlanChangeReasonsEncoding(t *testing.T) {
 		}
 
 		var buf bytes.Buffer
-		err := writeTfplan(plan, &buf)
+		err := writePlan(plan, &buf)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		_, err = readTfplan(&buf)
+		_, err = readPlan(&buf)
 		if err != nil {
 			t.Fatal(err)
 		}

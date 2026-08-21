@@ -9,15 +9,19 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/depsfile"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -144,7 +148,7 @@ func (r *Reader) ReadPlan() (*plans.Plan, error) {
 	// so we can see what state the plan applies to. Hopefully later we'll
 	// clean this up some more so that we don't have two different ways to
 	// access the prior state (this and the ReadStateFile method).
-	ret, err := readTfplan(pr)
+	ret, err := readPlan(pr)
 	if err != nil {
 		return nil, errUnusable(err)
 	}
@@ -233,6 +237,42 @@ func (r *Reader) ReadConfig(ctx context.Context, rootCall configs.StaticModuleCa
 	diags = diags.Append(configDiags)
 
 	return config, diags
+}
+
+// ReadSchemas reads the trimmed-down subset of provider schemas embedded in
+// the plan file, if present.
+// The result is keyed by provider address, matching the .Providers field
+// of tofu.Schemas; this package can't depend on the tofu package directly
+// (that would create an import cycle), so it's the caller's job to wrap
+// this back up as a *tofu.Schemas if needed.
+func (r *Reader) ReadSchemas() (map[addrs.Provider]providers.ProviderSchema, error) {
+
+	f, err := r.zip.Open(tfschemasFilename)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, ErrNoSchemas
+		}
+		return nil, errUnusable(fmt.Errorf("failed to extract schemas from plan file: %w", err))
+	}
+	defer f.Close()
+
+	provSchemas, err := readSchemas(f)
+	if err != nil {
+		return nil, errUnusable(fmt.Errorf("failed to read schemas from plan file: %w", err))
+	}
+
+	return provSchemas, nil
+}
+
+// ReadSchemasForPlan is like ReadSchemas, but additionally checks that the
+// stored schemas actually cover everything that the given plan and
+// configuration need in order to be fully rendered.
+func (r *Reader) ReadSchemasForPlan(plan *plans.Plan, config *configs.Config) (map[addrs.Provider]providers.ProviderSchema, error) {
+	schemas, err := r.ReadSchemas()
+	if err != nil {
+		return nil, err
+	}
+	return schemas, nil
 }
 
 // ReadDependencyLocks reads the dependency lock information embedded in

@@ -11,11 +11,13 @@ import (
 	"io"
 	"log"
 
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/genconfig"
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/planfile"
+	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -145,6 +147,16 @@ func (b *Local) opPlan(
 	// Record whether this plan includes any side-effects that could be applied.
 	runningOp.PlanEmpty = !plan.CanApply()
 
+	// We need the schemas in order to render the plan, but we
+	// compute them now (before writing the plan file) so that we can also
+	// embed a trimmed subset of them in the saved plan file, letting
+	// `tofu show` avoid relaunching every provider the plan refers to,
+	// to solely gather schemas
+	//
+	// This is purely an optimization: if it fails, we don't bail out here.
+	// We still want to try to write the plan file
+	schemas, schemaDiags := lr.Core.Schemas(ctx, lr.Config, lr.InputState)
+
 	// Save the plan to disk
 	if path := op.PlanOutPath; path != "" {
 		if op.PlanOutBackend == nil {
@@ -175,6 +187,16 @@ func (b *Local) opPlan(
 			State: plan.PrevRunState,
 		}
 
+		// If we failed to load schemas above then we still want to write
+		// out the plan file; we just won't be able to embed any schemas
+		// in it, so `tofu show` will need to launch providers to get the schemas.
+		// This s purposely handled down here instead of at the time of reading schema/s
+		// to ensure that its non-fatal.
+		var schemasForPlanFile map[addrs.Provider]providers.ProviderSchema
+		if !schemaDiags.HasErrors() {
+			schemasForPlanFile = schemas.Providers
+		}
+
 		log.Printf("[INFO] backend/local: writing plan output to: %s", path)
 		err := planfile.Create(path, planfile.CreateArgs{
 			ConfigSnapshot:       configSnap,
@@ -182,6 +204,8 @@ func (b *Local) opPlan(
 			StateFile:            plannedStateFile,
 			Plan:                 plan,
 			DependencyLocks:      op.DependencyLocks,
+			Schemas:              schemasForPlanFile,
+			Config:               lr.Config,
 		}, op.Encryption.Plan())
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
@@ -196,9 +220,8 @@ func (b *Local) opPlan(
 
 	// Render the plan, if we produced one.
 	// (This might potentially be a partial plan with Errored set to true)
-	schemas, moreDiags := lr.Core.Schemas(ctx, lr.Config, lr.InputState)
-	diags = diags.Append(moreDiags)
-	if moreDiags.HasErrors() {
+	diags = diags.Append(schemaDiags)
+	if schemaDiags.HasErrors() {
 		op.ReportResult(runningOp, diags)
 		return
 	}
