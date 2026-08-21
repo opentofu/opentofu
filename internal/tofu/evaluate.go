@@ -351,6 +351,7 @@ func (d *evaluationStateData) GetLocalValue(_ context.Context, addr addrs.LocalV
 		})
 		return cty.DynamicVal, diags
 	}
+
 	val := d.Evaluator.State.LocalValue(addr.Absolute(d.ModulePath))
 	if val == cty.NilVal {
 		// Not evaluated yet?
