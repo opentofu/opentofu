@@ -24,7 +24,7 @@ func CountInsteadEnabled(
 	targetRes addrs.ConfigResource,
 	targetDeclRange hcl.Range,
 	countExpr hcl.Expression) tfdiags.Diagnostics {
-	exec := func() tfdiags.Diagnostics {
+	exec := func(ruleID linting.RuleAddr, groupIDs ...linting.RuleAddr) tfdiags.Diagnostics {
 		// could be replaced with `enabled = true` or `enabled = false`
 		if !canLifecycleEnabledReplaceCountExpr(countExpr, cty.NumberIntVal(1)) &&
 			!canLifecycleEnabledReplaceCountExpr(countExpr, cty.NumberIntVal(0)) {
@@ -32,8 +32,8 @@ func CountInsteadEnabled(
 		}
 		return tfdiags.New(
 			tfdiags.LintMessage(
-				ruleIDcountInsteadOfEnabled,
-				[]linting.RuleAddr{GroupIDImprovement},
+				ruleID,
+				groupIDs,
 				"Could use enabled instead of count",
 				fmt.Sprintf(`%q uses "count" to choose between zero or one instances using a boolean expression. Consider using "enabled" in a "lifecycle" block instead.`, targetRes.String()),
 				new(tfdiags.SourceRangeFromHCL(countExpr.Range())),
