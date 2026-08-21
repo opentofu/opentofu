@@ -62,6 +62,10 @@ func (b *BasicGraphBuilder) Build(ctx context.Context, path addrs.ModuleInstance
 				return g, diags
 			}
 		}
+
+		if post, ok := step.(graphNodePostTransform); ok {
+			diags = diags.Append(post.PostTransform(ctx, g))
+		}
 	}
 
 	if err := g.Validate(); err != nil {
