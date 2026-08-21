@@ -7,13 +7,10 @@ package tofu
 
 import (
 	"context"
-	"iter"
 	"log"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
-	"github.com/opentofu/opentofu/internal/dag"
-	"github.com/opentofu/opentofu/internal/linting/corelinting"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tracing"
@@ -94,8 +91,7 @@ func (c *Context) Validate(ctx context.Context, config *configs.Config) tfdiags.
 	if moreDiags.HasErrors() {
 		return diags
 	}
-	diags = diags.Append(corelinting.UnusedVariables(ctx, unusedVariables(graph)))
-	diags = diags.Append(corelinting.UnusedLocal(ctx, unusedLocals(graph)))
+
 	walker, walkDiags := c.walk(ctx, graph, walkValidate, &graphWalkOpts{
 		Config:                  config,
 		ProviderFunctionTracker: providerFunctionTracker,
@@ -107,76 +103,4 @@ func (c *Context) Validate(ctx context.Context, config *configs.Config) tfdiags.
 	}
 
 	return diags
-}
-
-// unusedLocals returns a iter.Seq that will provide all the configs.Local objects for the
-// locals that are detected as being unused.
-// The objects returned are only for the root module.
-// By returning iter.Seq, the analysis is postponed and can be skipped in case the linting rule that
-// needs this data is not enabled by the user.
-func unusedLocals(g *Graph) iter.Seq[*configs.Local] {
-	return func(yield func(*configs.Local) bool) {
-		isUsed := func(n dag.Vertex) bool {
-			var used bool
-			for _, u := range g.UpEdges(n) {
-				switch u.(type) {
-				case *nodeCloseModule:
-					// if this is the only reference it has, the vertex is not used
-				default:
-					used = true
-				}
-			}
-			return used
-		}
-		for _, v := range g.Vertices() {
-			switch n := v.(type) {
-			case *nodeExpandLocal:
-				if !n.Module.IsRoot() {
-					continue
-				}
-				if isUsed(n) {
-					continue
-				}
-				if !yield(n.Config) {
-					return
-				}
-			}
-		}
-	}
-}
-
-// unusedVariables returns a iter.Seq that will provide all the configs.Variable objects for the
-// variables that are detected as being unused.
-// The objects returned are only for the root module.
-// By returning iter.Seq, the analysis is postponed and can be skipped in case the linting rule that
-// needs this data is not enabled by the user.
-func unusedVariables(g *Graph) iter.Seq[*configs.Variable] {
-	return func(yield func(variable *configs.Variable) bool) {
-		isUsed := func(n dag.Vertex) bool {
-			var used bool
-			for _, u := range g.UpEdges(n) {
-				switch u.(type) {
-				case *nodeCloseModule:
-					// if this is the only reference it has, the vertex is not used
-				default:
-					used = true
-				}
-			}
-			return used
-		}
-		for _, v := range g.Vertices() {
-			switch n := v.(type) {
-			case *nodeVariableReference:
-				if !n.Module.IsRoot() {
-					continue
-				}
-				if isUsed(n) {
-					continue
-				}
-				if !yield(n.Config) {
-					return
-				}
-			}
-		}
-	}
 }

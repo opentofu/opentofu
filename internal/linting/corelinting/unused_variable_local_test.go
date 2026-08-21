@@ -6,12 +6,12 @@
 package corelinting
 
 import (
+	"context"
 	"fmt"
 	"iter"
 	"testing"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/opentofu/opentofu/internal/collections"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/linting"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -51,9 +51,10 @@ func TestUnusedVariables(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			ctx := tfdiags.ContextWithLintFilterHints(t.Context(), collections.NewSet[linting.RuleAddr](GroupIDImprovement), collections.NewSet[linting.RuleAddr]())
-			diags := UnusedVariables(ctx, tc.provider)
-			compareDiagnostics(t, tc.wantDiags, diags)
+			runAgainstMultipleIdentifiers(t, func(t *testing.T, ctx context.Context) {
+				diags := UnusedVariables(ctx, tc.provider)
+				compareDiagnostics(t, tc.wantDiags, diags)
+			}, []linting.RuleAddr{ruleIDVariableNotUsed}, []linting.RuleAddr{GroupIDImprovement})
 		})
 	}
 }
@@ -90,9 +91,10 @@ func TestUnusedLocals(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			ctx := tfdiags.ContextWithLintFilterHints(t.Context(), collections.NewSet[linting.RuleAddr](GroupIDImprovement), collections.NewSet[linting.RuleAddr]())
-			diags := UnusedLocal(ctx, tc.provider)
-			compareDiagnostics(t, tc.wantDiags, diags)
+			runAgainstMultipleIdentifiers(t, func(t *testing.T, ctx context.Context) {
+				diags := UnusedLocal(ctx, tc.provider)
+				compareDiagnostics(t, tc.wantDiags, diags)
+			}, []linting.RuleAddr{ruleIDLocalNotUsed}, []linting.RuleAddr{GroupIDImprovement})
 		})
 	}
 }
