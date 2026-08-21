@@ -651,18 +651,21 @@ func (t *ReferenceTransformer) PostTransform(ctx context.Context, g *Graph) tfdi
 	return diags
 }
 
-// unusedVariables returns a iter.Seq that will provide all the configs.Variable objects for the
-// variables that are detected as being unused.
+// resourceConfigsWithCount returns a iter.Seq that will provide all the configs.Resource objects for the
+// nodes that represent a resource.
 // The objects returned are only for the root module.
 // By returning iter.Seq, the analysis is postponed and can be skipped in case the linting rule that
 // needs this data is not enabled by the user.
 func resourceConfigsWithCount(g *Graph) iter.Seq[*configs.Resource] {
-	return func(yield func(variable *configs.Resource) bool) {
+	return func(yield func(*configs.Resource) bool) {
 		for _, v := range g.Vertices() {
 			switch n := v.(type) {
 			case GraphNodeAttachResourceConfig:
 				c := n.NodeConfig()
 				if c == nil {
+					continue
+				}
+				if !n.ResourceAddr().Module.IsRoot() {
 					continue
 				}
 				if !yield(c) {
