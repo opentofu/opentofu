@@ -124,7 +124,7 @@ func BindView(cli *CommandLine, mask viewFlag) *View {
 	cli.StringArrayVar(&deprecation, "deprecation", nil, `Specify what type of warnings are shown. Accepted values for "m": all, local, none. Default: all. When "all" is selected, OpenTofu will show the deprecation warnings for all modules. When "local" is selected, the warns will be shown only for the modules that are imported with a relative path. When "none" is selected, all the deprecation warnings will be dropped.`).SetDisplay("=module:m").SetGlobal(true)
 	var lint []string
 	if mask&viewFlagLint != 0 {
-		cli.StringArrayVar(&lint, "lint", nil, `Specify the linting rules to be executed`).SetDisplay("=all").SetGlobal(true)
+		cli.StringArrayVar(&lint, "lint", nil, `Specify the linting rules to be executed. Wrongly formatted values are silently ignored.`).SetDisplay("=all").SetGlobal(true)
 	}
 
 	cli.PreHook(func() tfdiags.Diagnostics {
