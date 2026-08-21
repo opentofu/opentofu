@@ -89,6 +89,8 @@ The following options change how the apply command executes and reports on the a
   dangerous if others might concurrently run commands against the same
   workspace.
 
+- `-lint=all` - Specify the linting rules to be executed. Wrongly formatted values are silently ignored.
+
 - `-lock-timeout=DURATION` - Unless locking is disabled with `-lock=false`,
   instructs OpenTofu to retry acquiring a lock for a period of time before
   returning an error. The duration syntax is a number followed by a time
