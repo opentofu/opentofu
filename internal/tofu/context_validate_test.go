@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/opentofu/opentofu/internal/collections"
+	"github.com/opentofu/opentofu/internal/linting"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -3277,6 +3279,152 @@ resource "test_instance" "a" {
 			}
 			if !tc.wantError && diags.HasErrors() {
 				t.Fatalf("unexpected error: %s", diags.Err())
+			}
+		})
+	}
+}
+
+func TestContext2Validate_unusedVariable(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureReplaceTB)
+	tests := map[string]struct {
+		config             map[string]string
+		wantLintingWarning bool
+	}{
+		"variable used by output": {
+			config: map[string]string{
+				`main.tf`: `
+variable "var1" {
+	type = string
+}
+
+output "out" {
+	value = var.var1
+}
+`,
+			},
+			wantLintingWarning: false,
+		},
+		"variable not used": {
+			config: map[string]string{
+				`main.tf`: `
+variable "var1" {
+	type = string
+}
+`,
+			},
+			wantLintingWarning: true,
+		},
+		"module variable not used": {
+			config: map[string]string{
+				"mod/main.tf": `
+variable "mod_var" {
+	type = string
+}`,
+				`main.tf`: `
+variable "var1" {
+	type = string
+}
+module "call" {
+	source = "./mod"
+	mod_var = var.var1
+}
+`,
+			},
+			wantLintingWarning: false,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			m := testModuleInline(t, tc.config)
+
+			c := testContext2(t, &ContextOpts{})
+			include, exclude := collections.NewSet(linting.AllRulesGroupID), collections.NewSet[linting.RuleAddr]()
+			ctx := tfdiags.ContextWithLintFilterHints(t.Context(), include, exclude)
+			diags := c.Validate(ctx, m)
+			if diags.HasErrors() {
+				t.Fatalf("no error expected: %s", diags.Err())
+			}
+			lintingDiags := diags.FilterLint(include, exclude)
+			if tc.wantLintingWarning && len(lintingDiags) == 0 {
+				t.Error("expected to have linting diagnostics but got nothing")
+			} else if !tc.wantLintingWarning && len(lintingDiags) > 0 {
+				t.Errorf("expected to have no linting diagnostics but got %d: %s", len(lintingDiags), lintingDiags)
+			}
+		})
+	}
+}
+
+func TestContext2Validate_unusedLocal(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureReplaceTB)
+	tests := map[string]struct {
+		config             map[string]string
+		wantLintingWarning bool
+	}{
+		"local used by output": {
+			config: map[string]string{
+				`main.tf`: `
+locals {
+	test = "value"
+}
+
+output "out" {
+	value = local.test
+}
+`,
+			},
+			wantLintingWarning: false,
+		},
+		"local not used": {
+			config: map[string]string{
+				`main.tf`: `
+locals {
+	test = "value"
+}
+`,
+			},
+			wantLintingWarning: true,
+		},
+		"local from module not used": {
+			config: map[string]string{
+				"mod/main.tf": `
+variable "mod_var" {
+	type = string
+}
+locals {
+	test = var.mod_var
+}
+`,
+				`main.tf`: `
+locals {
+	test = "value"
+}
+module "call" {
+	source = "./mod"
+	mod_var = local.test
+}
+`,
+			},
+			wantLintingWarning: false,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			m := testModuleInline(t, tc.config)
+
+			c := testContext2(t, &ContextOpts{})
+			include, exclude := collections.NewSet(linting.AllRulesGroupID), collections.NewSet[linting.RuleAddr]()
+			ctx := tfdiags.ContextWithLintFilterHints(t.Context(), include, exclude)
+			diags := c.Validate(ctx, m)
+			if diags.HasErrors() {
+				t.Fatalf("no error expected: %s", diags.Err())
+			}
+			lintingDiags := diags.FilterLint(include, exclude)
+			if tc.wantLintingWarning && len(lintingDiags) == 0 {
+				t.Error("expected to have linting diagnostics but got nothing")
+			} else if !tc.wantLintingWarning && len(lintingDiags) > 0 {
+				t.Errorf("expected to have no linting diagnostics but got %d: %s", len(lintingDiags), lintingDiags)
 			}
 		})
 	}
