@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/opentofu/opentofu/internal/collections"
+	"github.com/opentofu/opentofu/internal/linting"
 )
 
 func TestParseWorkspaceDelete_viewOptions(t *testing.T) {
@@ -165,6 +167,8 @@ func workspaceDeleteArgsWithDefaults(mutate func(in *WorkspaceDelete)) *Workspac
 		View: &View{
 			ConsolidateWarnings: true,
 			ViewType:            ViewHuman,
+			LintInclude:         make(collections.Set[linting.RuleAddr]),
+			LintExclude:         make(collections.Set[linting.RuleAddr]),
 		},
 		State: &State{
 			Lock: true,

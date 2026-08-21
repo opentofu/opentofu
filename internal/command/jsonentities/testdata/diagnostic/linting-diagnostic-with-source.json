@@ -1,0 +1,26 @@
+{
+  "severity": "warning",
+  "summary": "lint diag summary (core:foo)",
+  "detail": "lint diag details",
+  "range": {
+    "filename": "test.tf",
+    "start": {
+      "column": 0,
+      "byte": 0,
+      "line": 0
+    },
+    "end": {
+      "column": 1,
+      "byte": 1,
+      "line": 0
+    }
+  },
+  "snippet": {
+    "code": "resource \"test_resource\" \"test\" {",
+    "context": null,
+    "highlight_end_offset": 1,
+    "highlight_start_offset": 0,
+    "start_line": 0,
+    "values": []
+  }
+}

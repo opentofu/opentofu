@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/opentofu/opentofu/internal/collections"
+	"github.com/opentofu/opentofu/internal/linting"
 )
 
 func TestParseView(t *testing.T) {
@@ -20,78 +22,134 @@ func TestParseView(t *testing.T) {
 	}{
 		"nil": {
 			nil,
-			&View{NoColor: false, CompactWarnings: false, ConsolidateWarnings: true, Concise: false},
+			viewArgsWithDefaults(nil),
 			"",
 		},
 		"empty": {
 			[]string{},
-			&View{NoColor: false, CompactWarnings: false, ConsolidateWarnings: true, Concise: false},
+			viewArgsWithDefaults(nil),
 			"",
 		},
 		"no-color": {
 			[]string{"-no-color"},
-			&View{NoColor: true, CompactWarnings: false, ConsolidateWarnings: true, Concise: false},
+			viewArgsWithDefaults(func(v *View) {
+				v.NoColor = true
+			}),
 			"",
 		},
 		"compact-warnings": {
 			[]string{"-compact-warnings"},
-			&View{NoColor: false, CompactWarnings: true, ConsolidateWarnings: true, Concise: false},
+			viewArgsWithDefaults(func(v *View) {
+				v.CompactWarnings = true
+			}),
 			"",
 		},
 		"concise": {
 			[]string{"-concise"},
-			&View{NoColor: false, CompactWarnings: false, ConsolidateWarnings: true, Concise: true},
+			viewArgsWithDefaults(func(v *View) {
+				v.Concise = true
+			}),
 			"",
 		},
 		"no-color and compact-warnings": {
 			[]string{"-no-color", "-compact-warnings"},
-			&View{NoColor: true, CompactWarnings: true, ConsolidateWarnings: true, Concise: false},
+			viewArgsWithDefaults(func(v *View) {
+				v.NoColor = true
+				v.CompactWarnings = true
+			}),
 			"",
 		},
 		"no-color and concise": {
 			[]string{"-no-color", "-concise"},
-			&View{NoColor: true, CompactWarnings: false, ConsolidateWarnings: true, Concise: true},
+			viewArgsWithDefaults(func(v *View) {
+				v.NoColor = true
+				v.Concise = true
+			}),
 			"",
 		},
 		"concise and compact-warnings": {
 			[]string{"-concise", "-compact-warnings"},
-			&View{NoColor: false, CompactWarnings: true, ConsolidateWarnings: true, Concise: true},
+			viewArgsWithDefaults(func(v *View) {
+				v.Concise = true
+				v.CompactWarnings = true
+			}),
 			"",
 		},
 		"all three": {
 			[]string{"-no-color", "-compact-warnings", "-concise"},
-			&View{NoColor: true, CompactWarnings: true, ConsolidateWarnings: true, Concise: true},
+			viewArgsWithDefaults(func(v *View) {
+				v.NoColor = true
+				v.CompactWarnings = true
+				v.Concise = true
+			}),
 			"",
 		},
 		"all three, resulting in empty args": {
 			[]string{"-no-color", "-compact-warnings", "-concise"},
-			&View{NoColor: true, CompactWarnings: true, ConsolidateWarnings: true, Concise: true},
+			viewArgsWithDefaults(func(v *View) {
+				v.NoColor = true
+				v.CompactWarnings = true
+				v.Concise = true
+			}),
 			"",
 		},
 		"turn off warning consolidation": {
 			[]string{"-consolidate-warnings=false"},
-			&View{NoColor: false, CompactWarnings: false, ConsolidateWarnings: false, Concise: false},
+			viewArgsWithDefaults(func(v *View) {
+				v.ConsolidateWarnings = false
+			}),
 			"",
 		},
 		"show all deprecation warnings": {
 			[]string{"-deprecation=module:all"},
-			&View{ModuleDeprecationWarnLvl: DeprecationWarningLevelAll, ConsolidateWarnings: true},
+			viewArgsWithDefaults(func(v *View) {
+				v.ModuleDeprecationWarnLvl = DeprecationWarningLevelAll
+			}),
 			"",
 		},
 		"show only local deprecation warnings": {
 			[]string{"-deprecation=module:local"},
-			&View{ModuleDeprecationWarnLvl: DeprecationWarningLevelLocal, ConsolidateWarnings: true},
+			viewArgsWithDefaults(func(v *View) {
+				v.ModuleDeprecationWarnLvl = DeprecationWarningLevelLocal
+			}),
 			"",
 		},
 		"show no deprecation warnings": {
 			[]string{"-deprecation=module:none"},
-			&View{ModuleDeprecationWarnLvl: DeprecationWarningLevelNone, ConsolidateWarnings: true},
+			viewArgsWithDefaults(func(v *View) {
+				v.ModuleDeprecationWarnLvl = DeprecationWarningLevelNone
+			}),
 			"",
 		},
 		"deprecation used with other yet non-existing namespaces is returning those in the unparsed args": {
 			[]string{"-deprecation=othernamespace:arg", "-deprecation=module:none", "-deprecation=backend:arg"},
-			&View{ModuleDeprecationWarnLvl: DeprecationWarningLevelNone, ConsolidateWarnings: true},
+			viewArgsWithDefaults(func(v *View) {
+				v.ModuleDeprecationWarnLvl = DeprecationWarningLevelNone
+			}),
 			"Expected -deprecation prefix \"module:\"",
+		},
+		"lint includes 'all' rule": {
+			[]string{"-lint=all"},
+			viewArgsWithDefaults(func(v *View) {
+				v.LintInclude = collections.NewSet(linting.AllRulesGroupID)
+			}),
+			"",
+		},
+		"lint excludes 'all' and allows 'foo'": {
+			[]string{"-lint=!all,foo"},
+			viewArgsWithDefaults(func(v *View) {
+				v.LintInclude = collections.NewSet(linting.MustParseRuleAddr("foo"))
+				v.LintExclude = collections.NewSet[linting.RuleAddr](linting.AllRulesGroupID)
+			}),
+			"",
+		},
+		"lint with invalid rule name": {
+			[]string{"-lint=#foo"},
+			viewArgsWithDefaults(func(v *View) {
+				v.LintInclude = collections.NewSet[linting.RuleAddr]()
+				v.LintExclude = collections.NewSet[linting.RuleAddr]()
+			}),
+			"",
 		},
 	}
 	for name, tc := range testCases {
@@ -100,7 +158,7 @@ func TestParseView(t *testing.T) {
 
 			tc.want.ViewType = ViewHuman
 
-			got := BindView(&cli, viewFlagNone)
+			got := BindView(&cli, viewFlagNone|viewFlagLint)
 			_, diags := cli.parseWithHooks("view", tc.args)
 
 			if tc.wantErr == "" && len(diags) > 0 {
@@ -118,4 +176,25 @@ func TestParseView(t *testing.T) {
 			}
 		})
 	}
+}
+
+func viewArgsWithDefaults(mutate func(v *View)) *View {
+	ret := &View{
+		NoColor:                  false,
+		CompactWarnings:          false,
+		ConsolidateWarnings:      true,
+		ConsolidateErrors:        false,
+		LintInclude:              make(collections.Set[linting.RuleAddr]),
+		LintExclude:              make(collections.Set[linting.RuleAddr]),
+		Concise:                  false,
+		ModuleDeprecationWarnLvl: DeprecationWarningLevelAll,
+		ShowSensitive:            false,
+		ViewType:                 ViewHuman,
+		InputEnabled:             false, // because tests are executed with "viewFlagNone" so -input is not registered
+		JSONInto:                 nil,
+	}
+	if mutate != nil {
+		mutate(ret)
+	}
+	return ret
 }

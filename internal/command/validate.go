@@ -57,6 +57,7 @@ func (c *ValidateCommand) Run(rawArgs []string) int {
 func (c ValidateCommand) Execute(args *arguments.Validate, view views.Validate) int {
 	var diags tfdiags.Diagnostics
 	ctx := c.CommandContext()
+	ctx = tfdiags.ContextWithLintFilterHints(ctx, args.View.LintInclude, args.View.LintExclude)
 
 	// After this point, we must only produce JSON output if JSON mode is
 	// enabled, so all errors should be accumulated into diags and we'll
@@ -233,6 +234,13 @@ Options:
                         to the default files terraform.tfvars and *.auto.tfvars.
                         Use this option more than once to include more than one
                         variables file.
+
+  -lint=all             Configures the linting rules to be executed during this
+                        command. By specifying this flag, the built-in linting
+                        will be enabled, which will start issuing warning
+                        diagnostics if any included rule will be violated.
+                        For more details on the format and available linting rules,
+                        refer to the official documentation.
 `
 	return strings.TrimSpace(helpText)
 }
