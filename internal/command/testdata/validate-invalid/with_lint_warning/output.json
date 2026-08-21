@@ -6,34 +6,13 @@
   "diagnostics": [
     {
       "severity": "warning",
-      "summary": "Variable not used (core:unused-variable)",
-      "detail": "Found no usage of the variable \"test\"",
-      "range": {
-        "filename": "testdata/validate-invalid/with_lint_warning/main.tf",
-        "start": {
-          "line": 1,
-          "column": 1,
-          "byte": 0
-        },
-        "end": {
-          "line": 1,
-          "column": 16,
-          "byte": 15
-        }
-      },
-      "snippet": {
-        "context": null,
-        "code": "variable \"test\" {",
-        "start_line": 1,
-        "highlight_start_offset": 0,
-        "highlight_end_offset": 15,
-        "values": []
-      }
+      "summary": "Experimental linting enabled",
+      "detail": "The linting functionality is under active development and may change or break in future releases. You can provide feedback by opening a new issue."
     },
     {
       "severity": "warning",
-      "summary": "Variable with no type (core:no-type-variable)",
-      "detail": "Variable \"test\" has no type specified.",
+      "summary": "Variable not used (core:unused-variable)",
+      "detail": "Found no usage of the variable \"test\".",
       "range": {
         "filename": "testdata/validate-invalid/with_lint_warning/main.tf",
         "start": {
