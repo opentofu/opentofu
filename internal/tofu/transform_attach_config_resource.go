@@ -21,6 +21,8 @@ type GraphNodeAttachResourceConfig interface {
 
 	// Sets the configuration
 	AttachResourceConfig(*configs.Resource)
+	// Gets the configuration
+	NodeConfig() *configs.Resource
 }
 
 // AttachResourceConfigTransformer goes through the graph and attaches
