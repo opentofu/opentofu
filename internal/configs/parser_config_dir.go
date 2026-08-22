@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/configs/symlib"
 )
 
 const (
@@ -54,8 +55,9 @@ const (
 func (p *Parser) LoadConfigDir(path string) (*Module, hcl.Diagnostics) {
 	return p.LoadConfigDirSelective(path, SelectiveLoadAll)
 }
+
 func (p *Parser) LoadConfigDirSelective(path string, load SelectiveLoader) (*Module, hcl.Diagnostics) {
-	primaryPaths, overridePaths, _, diags := p.dirFiles(path, "")
+	primaryPaths, overridePaths, _, _, diags := p.dirFiles(path, "")
 	if diags.HasErrors() {
 		return nil, diags
 	}
@@ -75,7 +77,7 @@ func (p *Parser) LoadConfigDirSelective(path string, load SelectiveLoader) (*Mod
 // LoadConfigDirWithTests matches LoadConfigDir, but the return Module also
 // contains any relevant .tftest.hcl files.
 func (p *Parser) LoadConfigDirWithTests(path string, testDirectory string) (*Module, hcl.Diagnostics) {
-	primaryPaths, overridePaths, testPaths, diags := p.dirFiles(path, testDirectory)
+	primaryPaths, overridePaths, testPaths, _, diags := p.dirFiles(path, testDirectory)
 	if diags.HasErrors() {
 		return nil, diags
 	}
@@ -100,13 +102,13 @@ func (p *Parser) LoadConfigDirWithTests(path string, testDirectory string) (*Mod
 // If the given directory does not exist or cannot be read, error diagnostics
 // are returned. If errors are returned, the resulting lists may be incomplete.
 func (p Parser) ConfigDirFiles(dir string) (primary, override []string, diags hcl.Diagnostics) {
-	primary, override, _, diags = p.dirFiles(dir, "")
+	primary, override, _, _, diags = p.dirFiles(dir, "")
 	return primary, override, diags
 }
 
 // ConfigDirFilesWithTests matches ConfigDirFiles except it also returns the
 // paths to any test files within the module.
-func (p Parser) ConfigDirFilesWithTests(dir string, testDirectory string) (primary, override, tests []string, diags hcl.Diagnostics) {
+func (p Parser) ConfigDirFilesWithTests(dir string, testDirectory string) (primary, override, tests, symbols []string, diags hcl.Diagnostics) {
 	return p.dirFiles(dir, testDirectory)
 }
 
@@ -115,7 +117,7 @@ func (p Parser) ConfigDirFilesWithTests(dir string, testDirectory string) (prima
 // .tf.json extension.). Note, we explicitly exclude checking for tests here
 // as tests must live alongside actual .tf config files.
 func (p *Parser) IsConfigDir(path string) bool {
-	primaryPaths, overridePaths, _, _ := p.dirFiles(path, "")
+	primaryPaths, overridePaths, _, _, _ := p.dirFiles(path, "")
 	return (len(primaryPaths) + len(overridePaths)) > 0
 }
 
@@ -124,13 +126,22 @@ func (p *Parser) loadFiles(paths []string, override bool) ([]*File, hcl.Diagnost
 	var diags hcl.Diagnostics
 
 	for _, path := range paths {
-		var f *File
-		var fDiags hcl.Diagnostics
-		if override {
-			f, fDiags = p.LoadConfigFileOverride(path)
-		} else {
-			f, fDiags = p.LoadConfigFile(path)
+		f, fDiags := p.loadConfigFile(path, override)
+		diags = append(diags, fDiags...)
+		if f != nil {
+			files = append(files, f)
 		}
+	}
+
+	return files, diags
+}
+
+func (p *Parser) loadSymbolFiles(paths []string) ([]*symlib.SymbolFile, hcl.Diagnostics) {
+	var files []*symlib.SymbolFile
+	var diags hcl.Diagnostics
+
+	for _, path := range paths {
+		f, fDiags := p.loadSymbolFile(path)
 		diags = append(diags, fDiags...)
 		if f != nil {
 			files = append(files, f)
@@ -147,7 +158,7 @@ func (p *Parser) loadFiles(paths []string, override bool) ([]*File, hcl.Diagnost
 // both directly within dir and within testsDir as a subdirectory of dir. In
 // this way, testsDir acts both as a direction to retrieve test files within the
 // main direction and as the location for additional test files.
-func (p *Parser) dirFiles(dir string, testsDir string) (primary, override, tests []string, diags hcl.Diagnostics) {
+func (p *Parser) dirFiles(dir string, testsDir string) (primary, override, tests, symbols []string, diags hcl.Diagnostics) {
 	includeTests := len(testsDir) > 0
 
 	if includeTests {
@@ -230,6 +241,11 @@ func (p *Parser) dirFiles(dir string, testsDir string) (primary, override, tests
 			continue
 		}
 
+		if symbolFileExt(ext) != "" {
+			symbols = append(symbols, filepath.Join(dir, name))
+			continue
+		}
+
 		baseName := name[:len(name)-len(ext)] // strip extension
 		isOverride := baseName == "override" || strings.HasSuffix(baseName, "_override")
 
@@ -241,7 +257,7 @@ func (p *Parser) dirFiles(dir string, testsDir string) (primary, override, tests
 		}
 	}
 
-	return filterTfPathsWithTofuAlternatives(primary), filterTfPathsWithTofuAlternatives(override), filterTfPathsWithTofuAlternatives(tests), diags
+	return filterTfPathsWithTofuAlternatives(primary), filterTfPathsWithTofuAlternatives(override), filterTfPathsWithTofuAlternatives(tests), symbols, diags
 }
 
 // filterTfPathsWithTofuAlternatives filters out .tf files if they have an
@@ -316,6 +332,10 @@ func fileExt(path string) string {
 		extension = tofuFileExt(path)
 	}
 
+	if extension == "" {
+		extension = symbolFileExt(path)
+	}
+
 	return extension
 }
 
@@ -353,6 +373,14 @@ func tofuFileExt(path string) string {
 	return ""
 }
 
+func symbolFileExt(path string) string {
+	symbolExt := ".sym.hcl"
+	if strings.HasSuffix(path, symbolExt) {
+		return symbolExt
+	}
+	return ""
+}
+
 func isTestFileExt(ext string) bool {
 	return ext == tfTestExt || ext == tfTestJSONExt || ext == tofuTestExt || ext == tofuTestJSONExt
 }
@@ -377,7 +405,7 @@ func IsEmptyDir(path string) (bool, error) {
 	}
 
 	p := NewParser(nil)
-	fs, os, _, diags := p.dirFiles(path, "")
+	fs, os, _, _, diags := p.dirFiles(path, "")
 	if diags.HasErrors() {
 		return false, diags
 	}

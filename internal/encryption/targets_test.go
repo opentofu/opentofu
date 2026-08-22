@@ -464,7 +464,7 @@ func TestBaseEncryption_methodConfigsFromTargetAndSetup(t *testing.T) {
 
 	modCall := configs.NewStaticModuleCall(addrs.RootModule, hcl.Range{}, getVars, "<testing>", "")
 
-	staticEval := configs.NewStaticEvaluator(mod, modCall)
+	staticEval := configs.NewStaticEvaluator(mod, nil, modCall)
 
 	for name, test := range tests {
 		t.Run(name, test.newTestRun(reg, staticEval))

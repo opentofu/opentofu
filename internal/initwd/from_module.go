@@ -20,6 +20,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configload"
+	"github.com/opentofu/opentofu/internal/configs/symlib"
 	"github.com/opentofu/opentofu/internal/copy"
 	"github.com/opentofu/opentofu/internal/getmodules"
 
@@ -233,7 +234,7 @@ func DirFromModule(ctx context.Context, loader configload.Loader, rootDir, modul
 					}
 					return cty.DynamicVal, nil
 				}, rootDir, "")
-				_ = mod.WithStaticCall(call)
+				_ = mod.Finalize(symlib.EmptyTable, call) // TODO this does not allow for static evaluation combined with symbol libraries
 
 				for _, mc := range mod.ModuleCalls {
 					if pathTraversesUp(mc.SourceAddrRaw) {

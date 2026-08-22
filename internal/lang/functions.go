@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2/ext/tryfunc"
+	"github.com/hashicorp/hcl/v2/ext/typeexpr"
 	ctyyaml "github.com/zclconf/go-cty-yaml"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
@@ -30,7 +31,7 @@ var impureFunctions = []string{
 func (s *Scope) Functions() map[string]function.Function {
 	s.funcsLock.Lock()
 	if s.funcs == nil {
-		s.funcs = makeBaseFunctionTable(s.BaseDir)
+		s.funcs = makeBaseFunctionTable(s.BaseDir, new(s.SymbolTable.TypeContext()))
 		if s.ConsoleMode {
 			// The type function is only available in OpenTofu console.
 			s.funcs["type"] = funcs.TypeFunc
@@ -104,7 +105,7 @@ func (s *Scope) experimentalFunction(experiment experiments.Experiment, fn funct
 // This function intentionally always returns a fresh map on each call because the
 // caller is expected to modify it further before storing it as part of a
 // particular [Scope], based on the unique settings of that scope.
-func makeBaseFunctionTable(baseDir string) map[string]function.Function {
+func makeBaseFunctionTable(baseDir string, typeCtx *typeexpr.TypeContext) map[string]function.Function {
 	// Some of our functions are just directly the cty stdlib functions.
 	// Others are implemented in the subdirectory "funcs" here in this
 	// repository. New functions should generally start out their lives
@@ -150,7 +151,7 @@ func makeBaseFunctionTable(baseDir string) map[string]function.Function {
 		"compact":             stdlib.CompactFunc,
 		"concat":              stdlib.ConcatFunc,
 		"contains":            stdlib.ContainsFunc,
-		"convert":             makeConvertFunc(),
+		"convert":             makeConvertFunc(typeCtx),
 		"csvdecode":           stdlib.CSVDecodeFunc,
 		"dirname":             funcs.DirnameFunc,
 		"distinct":            stdlib.DistinctFunc,

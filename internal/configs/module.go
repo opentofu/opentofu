@@ -8,10 +8,12 @@ package configs
 import (
 	"context"
 	"fmt"
+	"maps"
 
 	"github.com/hashicorp/hcl/v2"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs/symlib"
 	"github.com/opentofu/opentofu/internal/encryption/config"
 	"github.com/opentofu/opentofu/internal/experiments"
 )
@@ -55,6 +57,10 @@ type Module struct {
 
 	Checks map[string]*Check
 
+	SymbolCalls map[string]*symlib.SymbolCall
+	// Compiled into
+	SymbolTable symlib.Table
+
 	Tests map[string]*TestFile
 
 	// IsOverridden indicates if the module is being overridden. It's used in
@@ -64,10 +70,8 @@ type Module struct {
 	// StaticEvaluator is used to evaluate static expressions in the scope of the Module.
 	StaticEvaluator *StaticEvaluator
 
-	// ActiveExperiments is not currently used and so is always nil, but is
-	// reserved to be a place to capture a module's active experiments if we
-	// begin using language experiments in a later release.
-	ActiveExperiments experiments.Set
+	// LanguageExperiments is where language experiments are stored.
+	LanguageExperiments experiments.Set
 }
 
 // GetProviderConfig uses name and alias to find the respective Provider configuration.
@@ -110,7 +114,11 @@ type File struct {
 	Import  []*Import
 	Removed []*Removed
 
+	SymbolCalls []*symlib.SymbolCall
+
 	Checks []*Check
+
+	LanguageExperiments experiments.Set
 }
 
 // SelectiveLoader allows the consumer to only load and validate the portions of files needed for the given operations/contexts
@@ -131,8 +139,12 @@ func (s SelectiveLoader) filter(input []*File) []*File {
 	out := make([]*File, len(input))
 	for i, inFile := range input {
 		outFile := &File{
-			Variables: inFile.Variables,
-			Locals:    inFile.Locals,
+			// Required for symbols + static eval
+			Variables:   inFile.Variables,
+			Locals:      inFile.Locals,
+			SymbolCalls: inFile.SymbolCalls,
+
+			LanguageExperiments: inFile.LanguageExperiments,
 		}
 
 		switch s {
@@ -167,20 +179,23 @@ func NewModuleWithTests(primaryFiles, overrideFiles []*File, testFiles map[strin
 // module will probably not be semantically valid.
 func NewModule(primaryFiles, overrideFiles []*File, sourceDir string, load SelectiveLoader) (*Module, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
+
 	mod := &Module{
-		ProviderConfigs:    map[string]*Provider{},
-		ProviderLocalNames: map[addrs.Provider]string{},
-		Variables:          map[string]*Variable{},
-		Locals:             map[string]*Local{},
-		Outputs:            map[string]*Output{},
-		ModuleCalls:        map[string]*ModuleCall{},
-		ManagedResources:   map[string]*Resource{},
-		DataResources:      map[string]*Resource{},
-		EphemeralResources: map[string]*Resource{},
-		Checks:             map[string]*Check{},
-		ProviderMetas:      map[addrs.Provider]*ProviderMeta{},
-		Tests:              map[string]*TestFile{},
-		SourceDir:          sourceDir,
+		ProviderConfigs:     map[string]*Provider{},
+		ProviderLocalNames:  map[addrs.Provider]string{},
+		Variables:           map[string]*Variable{},
+		Locals:              map[string]*Local{},
+		Outputs:             map[string]*Output{},
+		ModuleCalls:         map[string]*ModuleCall{},
+		SymbolCalls:         map[string]*symlib.SymbolCall{},
+		ManagedResources:    map[string]*Resource{},
+		DataResources:       map[string]*Resource{},
+		EphemeralResources:  map[string]*Resource{},
+		Checks:              map[string]*Check{},
+		ProviderMetas:       map[addrs.Provider]*ProviderMeta{},
+		Tests:               map[string]*TestFile{},
+		SourceDir:           sourceDir,
+		LanguageExperiments: experiments.Set{},
 	}
 
 	// Apply selective load rules
@@ -232,18 +247,36 @@ func NewModule(primaryFiles, overrideFiles []*File, sourceDir string, load Selec
 		diags = append(diags, fileDiags...)
 	}
 
+	if !mod.LanguageExperiments.Has(experiments.SymbolLibraries) {
+		for _, call := range mod.SymbolCalls {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Language Experiment not enabled",
+				Detail:   fmt.Sprintf("This module depends on features that are not yet stable and are only available with the %q experiment enabled", experiments.SymbolLibraries),
+				Subject:  call.DeclRange.Ptr(),
+			})
+		}
+		mod.SymbolCalls = nil
+	}
+
 	return mod, diags
 }
 
-func (m *Module) WithStaticCall(call StaticModuleCall) hcl.Diagnostics {
+func (m *Module) Finalize(l symlib.Table, call StaticModuleCall) hcl.Diagnostics {
 	var diags hcl.Diagnostics
+
+	m.SymbolTable = l
+
+	for _, v := range m.Variables {
+		diags = diags.Extend(v.finalize(l))
+	}
 
 	if m.StaticEvaluator != nil {
 		panic("applying Static Evaluation to a module twice, this is a critical bug in OpenTofu")
 	}
 
 	// Static evaluation to build a StaticContext now that module has all relevant Locals / Variables
-	m.StaticEvaluator = NewStaticEvaluator(m, call)
+	m.StaticEvaluator = NewStaticEvaluator(m, l, call)
 
 	// If we have a backend, it may have fields that require locals/vars
 	if m.Backend != nil {
@@ -438,6 +471,18 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 		m.ModuleCalls[mc.Name] = mc
 	}
 
+	for _, mc := range file.SymbolCalls {
+		if existing, exists := m.SymbolCalls[mc.Name]; exists {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Duplicate symbols",
+				Detail:   fmt.Sprintf("A symbols named %q was already defined at %s. Symbol calls must have unique names within a module.", existing.Name, existing.DeclRange),
+				Subject:  &mc.DeclRange,
+			})
+		}
+		m.SymbolCalls[mc.Name] = mc
+	}
+
 	for _, r := range file.ManagedResources {
 		key := r.moduleUniqueKey()
 		if existing, exists := m.ManagedResources[key]; exists {
@@ -594,6 +639,8 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 	}
 
 	m.Removed = append(m.Removed, file.Removed...)
+
+	maps.Copy(m.LanguageExperiments, file.LanguageExperiments)
 
 	return diags
 }

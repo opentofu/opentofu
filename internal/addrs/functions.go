@@ -31,6 +31,23 @@ func (v ProviderFunction) UniqueKey() UniqueKey {
 
 func (v ProviderFunction) uniqueKeySigil() {}
 
+// SymbolsFunction is the address of a symbols defined function.
+type SymbolsFunction struct {
+	referenceable
+	SymbolsName string
+	Function    string
+}
+
+func (v SymbolsFunction) String() string {
+	return fmt.Sprintf("symbols::%s::%s", v.SymbolsName, v.Function)
+}
+
+func (v SymbolsFunction) UniqueKey() UniqueKey {
+	return v // A SymbolsFunction is its own UniqueKey
+}
+
+func (v SymbolsFunction) uniqueKeySigil() {}
+
 type Function struct {
 	Namespaces []string
 	Name       string
@@ -38,11 +55,13 @@ type Function struct {
 
 const (
 	FunctionNamespaceProvider = "provider"
+	FunctionNamespaceSymbols  = "symbols"
 	FunctionNamespaceCore     = "core"
 )
 
 var FunctionNamespaces = []string{
 	FunctionNamespaceProvider,
+	FunctionNamespaceSymbols,
 	FunctionNamespaceCore,
 }
 
@@ -93,6 +112,22 @@ func (f Function) AsProviderFunction() (pf ProviderFunction, err error) {
 		pf.ProviderAlias = f.Namespaces[2]
 	} else {
 		return pf, fmt.Errorf("invalid provider function %q: expected provider::<name>::<function> or provider::<name>::<alias>::<function>", f)
+	}
+	pf.Function = f.Name
+	return pf, nil
+}
+
+func (f Function) AsSymbolsFunction() (pf SymbolsFunction, err error) {
+	if !f.IsNamespace(FunctionNamespaceSymbols) {
+		// Should always be checked ahead of time!
+		panic("BUG: non-symbols function " + f.String())
+	}
+
+	if len(f.Namespaces) == 2 {
+		// symbols::<name>::<function>
+		pf.SymbolsName = f.Namespaces[1]
+	} else {
+		return pf, fmt.Errorf("invalid symbols function %q: expected symbols::<name>::<function>", f)
 	}
 	pf.Function = f.Name
 	return pf, nil

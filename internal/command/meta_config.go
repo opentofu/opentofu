@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/opentofu/opentofu/internal/command/views"
+	"github.com/opentofu/opentofu/internal/experiments"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/convert"
 
@@ -24,6 +25,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/configs/symlib"
 	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/initwd"
 	"github.com/opentofu/opentofu/internal/registry"
@@ -86,7 +88,20 @@ func (m *Meta) loadSingleModule(ctx context.Context, dir string, load configs.Se
 
 	module, hclDiags := m.configLoader().LoadConfigDirSelective(dir, load)
 	diags = diags.Append(hclDiags)
-	diags = diags.Append(module.WithStaticCall(call))
+
+	if module != nil && module.LanguageExperiments.Has(experiments.SymbolLibraries) {
+		// Hack for symbol libraries
+		// Full config load to include libraries given the poor state of config builder
+		config, cDiags := m.loadConfig(ctx, dir)
+		diags = diags.Append(cDiags)
+		if config != nil {
+			module = config.Module
+		}
+	} else {
+		fDiags := module.Finalize(symlib.EmptyTable, call)
+		diags = diags.Append(fDiags)
+	}
+
 	return module, diags
 }
 
@@ -170,7 +185,20 @@ func (m *Meta) loadSingleModuleWithTests(ctx context.Context, dir string, testDi
 
 	module, hclDiags := m.configLoader().LoadConfigDirWithTests(dir, testDir)
 	diags = diags.Append(hclDiags)
-	diags = diags.Append(module.WithStaticCall(call))
+
+	if module != nil && module.LanguageExperiments.Has(experiments.SymbolLibraries) {
+		// Hack for symbol libraries
+		// Full config load to include libraries given the poor state of config builder
+		config, cDiags := m.loadConfig(ctx, dir)
+		diags = diags.Append(cDiags)
+		if config != nil {
+			module = config.Module
+		}
+	} else {
+		fDiags := module.Finalize(symlib.EmptyTable, call)
+		diags = diags.Append(fDiags)
+	}
+
 	return module, diags
 }
 

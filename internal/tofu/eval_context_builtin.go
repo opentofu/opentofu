@@ -321,7 +321,7 @@ func (c *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source ad
 	mc := c.Evaluator.Config.DescendentForInstance(c.PathValue)
 
 	if mc == nil || mc.Module.ProviderRequirements == nil {
-		return c.Evaluator.Scope(data, self, source, nil)
+		return c.Evaluator.Scope(data, self, source, nil, nil)
 	}
 
 	scope := c.Evaluator.Scope(data, self, source, func(ctx context.Context, pf addrs.ProviderFunction, rng tfdiags.SourceRange) (*function.Function, tfdiags.Diagnostics) {
@@ -363,8 +363,8 @@ func (c *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source ad
 		}
 
 		return evalContextProviderFunction(ctx, provider, c.Evaluator.Operation, pf, rng)
-	})
-	scope.SetActiveExperiments(mc.Module.ActiveExperiments)
+	}, mc.Module.SymbolTable)
+	scope.SetActiveExperiments(mc.Module.LanguageExperiments)
 
 	return scope
 }

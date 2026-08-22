@@ -29,6 +29,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/encryption"
+	"github.com/opentofu/opentofu/internal/experiments"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/providercache"
 	"github.com/opentofu/opentofu/internal/states"
@@ -169,8 +170,31 @@ To initialize the configuration already in this working directory, omit the
 		return 0
 	}
 
+	// Check for experiment that requires alternate load order
+	rootModCheckExperiments, checkExperimentsDiags := c.configLoader().LoadConfigDirWithTests(path, args.TestsDirectory)
+	symbolLibrariesEnabled := rootModCheckExperiments != nil && rootModCheckExperiments.LanguageExperiments.Has(experiments.SymbolLibraries)
+	if symbolLibrariesEnabled && args.FlagGet {
+		if checkExperimentsDiags.HasErrors() {
+			view.ConfigError()
+			diags = diags.Append(checkExperimentsDiags)
+			view.Diagnostics(diags)
+			return 1
+		}
+		modsOutput, modsAbort, modsDiags := c.getModules(ctx, path, args.TestsDirectory, rootModCheckExperiments, args.FlagUpgrade, view)
+		diags = diags.Append(modsDiags)
+		if modsAbort || modsDiags.HasErrors() {
+			tracing.SetSpanError(span, modsDiags)
+			view.Diagnostics(diags)
+			return 1
+		}
+		if modsOutput {
+			header = true
+		}
+	}
+
 	// Load just the root module to begin backend and module initialization
 	rootModEarly, earlyConfDiags := c.loadSingleModuleWithTests(ctx, path, args.TestsDirectory)
+	earlyConfDiags = earlyConfDiags.StrictDeduplicateMerge(tfdiags.New(checkExperimentsDiags)) // Merge these because of the lazy config loader
 	if earlyConfDiags.HasErrors() {
 		// Historical note: prior to OpenTofu v1.12, we took some extraordinary
 		// effort here to return any backend-related errors in preference to
@@ -267,7 +291,7 @@ To initialize the configuration already in this working directory, omit the
 		state = sMgr.State()
 	}
 
-	if args.FlagGet {
+	if !symbolLibrariesEnabled && args.FlagGet {
 		modsOutput, modsAbort, modsDiags := c.getModules(ctx, path, args.TestsDirectory, rootModEarly, args.FlagUpgrade, view)
 		diags = diags.Append(modsDiags)
 		if modsAbort || modsDiags.HasErrors() {
@@ -377,7 +401,7 @@ func (c *InitCommand) getModules(ctx context.Context, path, testsDir string, ear
 		}
 	}
 
-	if len(earlyRoot.ModuleCalls) == 0 && !testModules {
+	if len(earlyRoot.ModuleCalls) == 0 && len(earlyRoot.SymbolCalls) == 0 && !testModules {
 		// Nothing to do
 		return false, false, nil
 	}
