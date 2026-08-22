@@ -68,10 +68,8 @@ func BuildConfig(ctx context.Context, root *Module, call StaticModuleCall, walke
 	return cfg, diags
 }
 
-func buildSymbolLibraries(ctx context.Context, parent *Config, walker ModuleWalker) (symlib.Table, hcl.Diagnostics) {
-	var symLoader func(symCall *symlib.SymbolCall) (*symlib.Library, hcl.Diagnostics)
-	// TODO track module path + sub call path
-	symLoader = func(symCall *symlib.SymbolCall) (*symlib.Library, hcl.Diagnostics) {
+func symbolLoader(ctx context.Context, parentPath addrs.Module, walker ModuleWalker) symlib.Loader {
+	return func(symCall *symlib.SymbolCall) (*symlib.Library, hcl.Diagnostics) {
 		var diags hcl.Diagnostics
 
 		// THIS IS A BAD HACK
@@ -92,8 +90,8 @@ func buildSymbolLibraries(ctx context.Context, parent *Config, walker ModuleWalk
 			return nil, diags
 		}
 
-		path := make([]string, len(parent.Path)+1)
-		copy(path, parent.Path)
+		path := make([]string, len(parentPath)+1)
+		copy(path, parentPath)
 		path[len(path)-1] = "symbols:" + call.Name
 
 		req := &ModuleRequest{
@@ -101,8 +99,10 @@ func buildSymbolLibraries(ctx context.Context, parent *Config, walker ModuleWalk
 			Path:              path,
 			SourceAddr:        call.SourceAddr,
 			VersionConstraint: call.Version,
-			Parent:            parent,
-			CallRange:         call.DeclRange,
+			Parent: &Config{
+				Path: parentPath,
+			},
+			CallRange: call.DeclRange,
 		}
 		if call.Source != nil {
 			// Invalid modules sometimes have a nil source field which is handled through loadModule below
@@ -126,13 +126,17 @@ func buildSymbolLibraries(ctx context.Context, parent *Config, walker ModuleWalk
 		symbols, fDiags := p.loadSymbolFiles(symPaths)
 		diags = diags.Extend(fDiags)
 
-		l, lDiags := symlib.CompileLibrary(symbols, symLoader, new(lang.Scope{PureOnly: true, BaseDir: "."}).Functions())
+		loader := symbolLoader(ctx, path, walker)
+		l, lDiags := symlib.CompileLibrary(symbols, loader, new(lang.Scope{PureOnly: true, BaseDir: "."}).Functions())
 		diags = diags.Extend(lDiags)
 
 		return l, diags
 	}
+}
 
-	return symlib.BuildTable(slices.Collect(maps.Values(parent.Module.SymbolCalls)), symLoader)
+func buildSymbolLibraries(ctx context.Context, parent *Config, walker ModuleWalker) (symlib.Table, hcl.Diagnostics) {
+	loader := symbolLoader(ctx, parent.Path, walker)
+	return symlib.BuildTable(slices.Collect(maps.Values(parent.Module.SymbolCalls)), loader)
 }
 
 func buildTestModules(ctx context.Context, root *Config, walker ModuleWalker) hcl.Diagnostics {
