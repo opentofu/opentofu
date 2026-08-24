@@ -6,16 +6,14 @@ description: >-
 # Linting
 
 :::info
-At the moment of writing this note, linting functionality is under active development and considered experimental.
-Based on user feedback and upcoming feature requirements, future changes to the current implementation may introduce
-breaking changes to existing functionality. This is also indicated by a warning issued by `tofu` whenever linting is
-enabled.
+OpenTofu's linting functionality is currently under active development and considered experimental.
+The features described below may have breaking changes based on feedback, even in minor releases. OpenTofu produces a warning about this whenever linting is enabled.
 :::
 
 OpenTofu provides built-in linting support for the configurations it runs against. It does that by providing several
 linting rules, named _core linting rules_, that could be executed while running regular OpenTofu operations.
 
-## How it works?
+## How it works
 
 The linting functionality is opt-in by providing a `-lint` flag to the `tofu` commands that support it: `validate`,
 `plan`, `apply` and `refresh`. The flag accepts a comma separated list of identifiers, which point to specific linting rules to run:
@@ -130,7 +128,7 @@ variable "aws_region" {
 ```
 
 ```shell
-│ Warning: Variable not used (core:unused-variable)
+│ Warning: Input variable not used (core:unused-variable)
 │
 │   on main.tf line 17:
 │   17: variable "aws_region" {
@@ -151,10 +149,10 @@ locals {
 ```
 
 ```shell
-│ Warning: Local not used (core:unused-local)
+│ Warning: Local value not used (core:unused-local)
 │
 │   on main.tf line 9, in locals:
 │    9:   arn = "arn:aws:s3:::demo-bucket"
 │
-│ Found no usage of the local "arn".
+│ Found no usage of the local value "arn".
 ```
