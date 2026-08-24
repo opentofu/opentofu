@@ -18,16 +18,21 @@ import (
 	"github.com/zclconf/go-cty/cty/function"
 )
 
+// ident represents a human readable name and location for use in
+// circular dependency messages and diagnostics
 type ident struct {
 	name string
 	src  *hcl.Range
 }
 
+// valuer generically represents an item that can be compiled
 type valuer[T any] struct {
 	Value func(*workgraph.Worker) (T, hcl.Diagnostics)
 	Ident ident
 }
 
+// onceValuer constructs a workgraph backed valuer from the given inputs
+// It also ensures values are only evaluated once.
 func onceValuer[V any](s scope, id ident, fn func(*workgraph.Worker) (V, hcl.Diagnostics)) valuer[V] {
 	type T struct {
 		value V

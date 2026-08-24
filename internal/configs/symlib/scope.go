@@ -17,6 +17,7 @@ import (
 	"github.com/zclconf/go-cty/cty/function"
 )
 
+// hclContext builds a valid hcl.Context backed by the given worker for the expression within the scope
 func hclContext(w *workgraph.Worker, s scope, expr hcl.Expression, stack []string) (*hcl.EvalContext, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	hclCtx := &hcl.EvalContext{}
@@ -62,6 +63,7 @@ func hclContext(w *workgraph.Worker, s scope, expr hcl.Expression, stack []strin
 	return hclCtx, diags
 }
 
+// typeContext builds a valid typeexpr.TypeContext backed by the given worker with the contents of the scope
 func typeContext(w *workgraph.Worker, s scope) typeexpr.TypeContext {
 	return typeexpr.TypeContext{TypeFunc: func(call *hcl.StaticCall) (*cty.Type, *typeexpr.Defaults, hcl.Diagnostics) {
 		ty, def, diags := s.typeForStaticCall(w, call)
@@ -72,15 +74,20 @@ func typeContext(w *workgraph.Worker, s scope) typeexpr.TypeContext {
 	}}
 }
 
+// scope represents a given language scope where types can be defined and expressions can be evaluated
 type scope interface {
 	valueFor(*workgraph.Worker, string, string, hcl.Range) (cty.Value, hcl.Diagnostics)
 	functionFor(*workgraph.Worker, hcl.Traversal, []string) (*function.Function, hcl.Diagnostics)
 	typeForStaticCall(*workgraph.Worker, *hcl.StaticCall) (cty.Type, *typeexpr.Defaults, hcl.Diagnostics)
 
+	// workgraph request information is included here so that sub-scopes (functions) can have their
+	// own sub-evaluation graph backed by the parent scope.
 	setRequest(workgraph.RequestID, ident)
 	getRequest(workgraph.RequestID) (ident, bool)
 }
 
+// symbolsScope represents the contents of all of the evaluatable top level items in a collection
+// of symbol files
 type symbolScope struct {
 	table Table
 
@@ -214,6 +221,8 @@ func (s *symbolScope) getRequest(rid workgraph.RequestID) (ident, bool) {
 	return id, ok
 }
 
+// functionScope represents the evaluation scope of a function, including the context
+// of the parent scope.
 type functionScope struct {
 	*symbolScope
 

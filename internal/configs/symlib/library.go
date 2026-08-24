@@ -36,6 +36,8 @@ type typeWithDefault struct {
 	ty  cty.Type
 	def *typeexpr.Defaults
 }
+
+// Library represents a fully compiled symbol library
 type Library struct {
 	name      string
 	types     map[string]typeWithDefault
@@ -73,6 +75,7 @@ func (l Library) function(name string, rng hcl.Range) (*function.Function, hcl.D
 	return &fn, nil
 }
 
+// Table represents all of the available libraries within a given scope
 type Table map[string]*Library
 
 func (t Table) library(name string, rng hcl.Range) (*Library, hcl.Diagnostics) {
