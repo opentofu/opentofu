@@ -16,7 +16,7 @@ import (
 
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -69,42 +69,44 @@ func BuildConfig(ctx context.Context, root *Module, call StaticModuleCall, walke
 }
 
 func symbolLoader(ctx context.Context, parentPath addrs.Module, walker ModuleWalker) symlib.Loader {
-	return func(symCall *symlib.SymbolCall) (*symlib.Library, hcl.Diagnostics) {
-		var diags hcl.Diagnostics
+	return func(call *symlib.SymbolCall) (*symlib.Library, hcl.Diagnostics) {
+		// Decode source
+		var sourceAddrRaw string
+		diags := gohcl.DecodeExpression(call.Source, nil, &sourceAddrRaw)
+		sourceAddr, moreDiags := decodeSourceAddrRaw("symbol", sourceAddrRaw, call.VersionAttr != nil, call.Source.Range())
+		diags = diags.Extend(moreDiags)
 
-		// THIS IS A BAD HACK
-		fakeModCall := RootModuleCallForTesting()
-		fakeEval := NewStaticEvaluator(&Module{}, symlib.EmptyTable, fakeModCall)
-
-		call := &ModuleCall{
-			Name:        symCall.Name,
-			Source:      symCall.Source,
-			VersionAttr: symCall.VersionAttr,
-			DeclRange:   symCall.DeclRange,
-
-			Config: &hclsyntax.Body{},
+		// Decode version
+		var sourceVersion VersionConstraint
+		if call.VersionAttr != nil {
+			val, moreDiags := call.VersionAttr.Expr.Value(nil)
+			diags = diags.Extend(moreDiags)
+			sourceVersion, moreDiags = decodeVersionConstraintValue(call.VersionAttr, val)
+			diags = diags.Extend(moreDiags)
 		}
 
-		diags = call.decodeStaticFields(ctx, fakeEval)
 		if diags.HasErrors() {
 			return nil, diags
 		}
 
 		path := make([]string, len(parentPath)+1)
 		copy(path, parentPath)
+		// TODO: before stabilizing symbol libraries, we need to decide what our strategy should be used for
+		// installing symbols packages.  Right now we just treat them as module sources, which works well
+		// enough for the experiment.
 		path[len(path)-1] = "symbols:" + call.Name
 
 		req := &ModuleRequest{
 			Name:              call.Name,
 			Path:              path,
-			SourceAddr:        call.SourceAddr,
-			VersionConstraint: call.Version,
+			SourceAddr:        sourceAddr,
+			VersionConstraint: sourceVersion,
 			Parent: &Config{
 				Path: parentPath,
 			},
 			CallRange: call.DeclRange,
 		}
-		if call.Source != nil {
+		if sourceAddr != nil {
 			// Invalid modules sometimes have a nil source field which is handled through loadModule below
 			req.SourceAddrRange = call.Source.Range()
 		}

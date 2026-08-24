@@ -40,8 +40,10 @@ type Variable struct {
 	// of our static eval concept.
 	Const bool
 
-	// Type is the concrete type of the variable value.
-	Type     cty.Type
+	// Type is the concrete type of the variable value and is populated by finalize.
+	Type cty.Type
+	// TypeExpr is what is used to populate Type.  This is deferred until finalize when
+	// symbol libraries are available.
 	TypeExpr hcl.Expression
 
 	// ConstraintType is used for decoding and type conversions, and may
