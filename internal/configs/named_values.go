@@ -18,6 +18,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs/symlib"
 	"github.com/opentofu/opentofu/internal/didyoumean"
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/lang/lint"
@@ -32,14 +33,19 @@ type Variable struct {
 	Name        string
 	Description string
 	Default     cty.Value
+	DefaultAttr *hcl.Attribute
 
 	// Only used inside modules that have *some* variable with ConstSet.
 	// This allows us to match terraform's validation in their imitation
 	// of our static eval concept.
 	Const bool
 
-	// Type is the concrete type of the variable value.
+	// Type is the concrete type of the variable value and is populated by finalize.
 	Type cty.Type
+	// TypeExpr is what is used to populate Type.  This is deferred until finalize when
+	// symbol libraries are available.
+	TypeExpr hcl.Expression
+
 	// ConstraintType is used for decoding and type conversions, and may
 	// contain nested ObjectWithOptionalAttr types.
 	ConstraintType cty.Type
@@ -123,12 +129,8 @@ func decodeVariableBlock(block *hcl.Block, override bool) (*Variable, hcl.Diagno
 	}
 
 	if attr, exists := content.Attributes["type"]; exists {
-		ty, tyDefaults, parseMode, tyDiags := decodeVariableType(attr.Expr)
-		diags = append(diags, tyDiags...)
-		v.ConstraintType = ty
-		v.TypeDefaults = tyDefaults
-		v.Type = ty.WithoutOptionalAttributesDeep()
-		v.ParsingMode = parseMode
+		v.TypeExpr = attr.Expr
+		// needs library for processing
 	}
 
 	if attr, exists := content.Attributes["sensitive"]; exists {
@@ -173,6 +175,46 @@ func decodeVariableBlock(block *hcl.Block, override bool) (*Variable, hcl.Diagno
 	}
 
 	if attr, exists := content.Attributes["default"]; exists {
+		v.DefaultAttr = attr
+	}
+
+	for _, block := range content.Blocks {
+		switch block.Type {
+
+		case "validation":
+			vv, moreDiags := decodeVariableValidationBlock(v.Name, block, override)
+			diags = append(diags, moreDiags...)
+			v.Validations = append(v.Validations, vv)
+
+		default:
+			// The above cases should be exhaustive for all block types
+			// defined in variableBlockSchema
+			panic(fmt.Sprintf("unhandled block type %q", block.Type))
+		}
+	}
+
+	return v, diags
+}
+
+func (v *Variable) finalize(symbols symlib.Table) hcl.Diagnostics {
+	var diags hcl.Diagnostics
+
+	if v.TypeExpr != nil {
+		ty, tyDefaults, parseMode, tyDiags := decodeVariableType(v.TypeExpr, new(symbols.TypeContext()))
+		diags = append(diags, tyDiags...)
+		if ty == cty.NilType {
+			ty = cty.DynamicPseudoType
+		}
+		v.ConstraintType = ty
+		v.TypeDefaults = tyDefaults
+		v.Type = ty.WithoutOptionalAttributesDeep()
+		v.ParsingMode = parseMode
+		v.TypeExpr = nil
+	}
+
+	if v.DefaultAttr != nil {
+		attr := v.DefaultAttr
+
 		val, valDiags := attr.Expr.Value(nil)
 		diags = append(diags, valDiags...)
 
@@ -216,24 +258,10 @@ func decodeVariableBlock(block *hcl.Block, override bool) (*Variable, hcl.Diagno
 		}
 
 		v.Default = val
+		v.DefaultAttr = nil
 	}
 
-	for _, block := range content.Blocks {
-		switch block.Type {
-
-		case "validation":
-			vv, moreDiags := decodeVariableValidationBlock(v.Name, block, override)
-			diags = append(diags, moreDiags...)
-			v.Validations = append(v.Validations, vv)
-
-		default:
-			// The above cases should be exhaustive for all block types
-			// defined in variableBlockSchema
-			panic(fmt.Sprintf("unhandled block type %q", block.Type))
-		}
-	}
-
-	return v, diags
+	return diags
 }
 
 // lintVariableDefaultValue checks for situations where the expression used to
@@ -282,7 +310,7 @@ func lintVariableDefaultValue(expr hcl.Expression, targetTy cty.Type) hcl.Diagno
 	return diags
 }
 
-func decodeVariableType(expr hcl.Expression) (cty.Type, *typeexpr.Defaults, VariableParsingMode, hcl.Diagnostics) {
+func decodeVariableType(expr hcl.Expression, typeCtx *typeexpr.TypeContext) (cty.Type, *typeexpr.Defaults, VariableParsingMode, hcl.Diagnostics) {
 	if exprIsNativeQuotedString(expr) {
 		// If a user provides the pre-0.12 form of variable type argument where
 		// the string values "string", "list" and "map" are accepted, we
@@ -342,7 +370,7 @@ func decodeVariableType(expr hcl.Expression) (cty.Type, *typeexpr.Defaults, Vari
 		return cty.Map(cty.DynamicPseudoType), nil, VariableParseHCL, nil
 	}
 
-	convertTarget, diags := lang.ParseTypeConversionConstraint(expr)
+	convertTarget, diags := lang.ParseTypeConversionConstraint(expr, typeCtx)
 	hclDiags := diags.ToHCL() // Unfortunately package configs conventionally uses hcl.Diagnostics directly, instead of tfdiags.Diagnostics like our other packages
 	if hclDiags.HasErrors() {
 		return cty.DynamicPseudoType, nil, VariableParseHCL, hclDiags

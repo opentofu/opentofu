@@ -1470,7 +1470,7 @@ func TestFunctions(t *testing.T) {
 
 func TestFunctionsPrefixedCorrectly(t *testing.T) {
 	dir := t.TempDir()
-	baseFuncs := makeBaseFunctionTable(dir)
+	baseFuncs := makeBaseFunctionTable(dir, nil)
 	s := &Scope{BaseDir: dir}
 	got := s.Functions()
 

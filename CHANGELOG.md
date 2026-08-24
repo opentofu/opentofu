@@ -27,6 +27,12 @@ UPGRADE NOTES:
 
     This may cause certain invalid input that was previously accepted to now be rejected, in an attempt to better match the expectations of other implementations of these protocols and formats.
 
+EXPERIMENTS:
+
+- Symbol Libraries are now available as an experimental feature ([#4052](https://github.com/opentofu/opentofu/pull/4052))
+
+    This new feature adds the capaibility to define re-usable functions and types in hcl-lang based libraries. As this introduces a drastically different way of building modules and sharing functionality, we are looking for early feedback on the design of the language and how it integrates into OpenTofu workflows. If you are interested in this functionality, you can enable to experiment by adding the appropriate experiment to the experiments list in the language block. As it is experimental, it is subject to change before it is marked as stable and should not be relied upon in production.
+
 ENHANCEMENTS:
 
 - Windows on ARM64 is now an officially-supported platform for OpenTofu itself, though this new platform may not be supported by all available provider plugins. ([#4450](https://github.com/opentofu/opentofu/pull/4450))

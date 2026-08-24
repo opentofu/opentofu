@@ -142,8 +142,7 @@ func checkVersionRequirements(body hcl.Body, expectedVersion *hcVersion.Version)
 	return diags
 }
 
-// configFileVersionConstraintSniffRootSchema is a schema for
-// sniffCoreVersionRequirements and sniffActiveExperiments.
+// configFileVersionConstraintSniffRootSchema is a schema for checkVersionRequirements
 var configFileVersionConstraintSniffRootSchema = &hcl.BodySchema{
 	Blocks: []hcl.BlockHeaderSchema{
 		{Type: "terraform"},

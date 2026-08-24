@@ -18,11 +18,13 @@ type Experiment string
 // Each experiment is represented by a string that must be a valid HCL
 // identifier so that it can be specified in configuration.
 const (
+	SymbolLibraries = Experiment("symbol_libraries")
 )
 
 func init() {
 	// Each experiment constant defined above must be registered here as either
 	// a current or a concluded experiment.
+	registerCurrentExperiment(SymbolLibraries)
 }
 
 // GetCurrent takes an experiment name and returns the experiment value

@@ -19,6 +19,8 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/configs/symlib"
+	"github.com/opentofu/opentofu/internal/experiments"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang/blocktoattr"
 	"github.com/opentofu/opentofu/internal/lang/marks"
@@ -40,7 +42,7 @@ func (s *Scope) ExpandBlock(ctx context.Context, body hcl.Body, schema *configsc
 	traversals := dynblock.ExpandVariablesHCLDec(body, spec)
 	// using ExpandFunctionsHCLDec to extract strictly the functions that are referenced inside the `dynamic`
 	// block, since that is what is needed to be injected into the expansion evalCtx for the expansion to work
-	traversals = append(traversals, filterProviderFunctions(dynblock.ExpandFunctionsHCLDec(body, spec))...)
+	traversals = append(traversals, filterCustomFunctions(dynblock.ExpandFunctionsHCLDec(body, spec))...)
 	refs, diags := References(s.ParseRef, traversals)
 
 	hclCtx, ctxDiags := s.EvalContext(ctx, refs)
@@ -259,6 +261,12 @@ func enhanceFunctionDiag(diag *hcl.Diagnostic, funcExtra hclsyntax.FunctionCallU
 			enhanced.Summary = "Invalid function format"
 			enhanced.Detail = err.Error()
 		}
+	} else if fn.IsNamespace(addrs.FunctionNamespaceSymbols) {
+		if _, err := fn.AsSymbolsFunction(); err != nil {
+			// complete mismatch or invalid prefix
+			enhanced.Summary = "Invalid function format"
+			enhanced.Detail = err.Error()
+		}
 	} else {
 		enhanced.Summary = "Unknown function namespace"
 		enhanced.Detail = fmt.Sprintf("Function %q does not exist within a valid namespace (%s)", fn, strings.Join(addrs.FunctionNamespaces, ","))
@@ -405,6 +413,50 @@ func (s *Scope) evalContext(ctx context.Context, parent *hcl.EvalContext, refs [
 			// we can't yet tell which of the references are being used in
 			// value vs. type expressions.)
 		}
+		if subj, ok := ref.Subject.(addrs.SymbolsFunction); ok {
+			if !s.activeExperiments.Has(experiments.SymbolLibraries) {
+				diags = diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Language Experiment not enabled",
+					Detail:   fmt.Sprintf("This module depends on features that are not yet stable and are only available with the %q experiment enabled.", experiments.SymbolLibraries),
+					Subject:  ref.SourceRange.ToHCL().Ptr(),
+				})
+			}
+			// Inject function directly into context
+			if _, ok := hclCtx.Functions[subj.String()]; !ok {
+				fn, fnDiags := s.SymbolTable.Function(symlib.FunctionRef{
+					Namespace: subj.SymbolsName,
+					Name:      subj.Function,
+					Range:     ref.SourceRange.ToHCL(),
+				})
+
+				// If we were unable to find the function, check to see if it
+				// is a type reference. This is an odd interaction with the convert
+				// function. Worst case if we guess wrong is a less clear error message
+				// presented to the user. TODO In practice we could prevent this
+				// entirely by preventing types and functions from having identical names
+				// within symbol libraries (probably a good idea)
+				_, _, typeDiags := s.SymbolTable.Type(symlib.TypeRef{
+					Namespace: subj.SymbolsName,
+					Name:      subj.Function,
+					Range:     ref.SourceRange.ToHCL(),
+				})
+				if !typeDiags.HasErrors() {
+					// This appears to be a type and does
+					// not need to be a function injected
+					// into the current context
+					continue
+				}
+
+				diags = diags.Append(fnDiags)
+
+				if fn != nil {
+					hclCtx.Functions[subj.String()] = *fn
+				}
+			}
+
+			continue
+		}
 
 		diags = diags.Append(varBuilder.putValueBySubject(ctx, ref))
 	}
@@ -424,6 +476,7 @@ type evalVarBuilder struct {
 	inputVariables     map[string]cty.Value
 	localValues        map[string]cty.Value
 	outputValues       map[string]cty.Value
+	symbolsValues      map[string]cty.Value
 	pathAttrs          map[string]cty.Value
 	terraformAttrs     map[string]cty.Value
 	countAttrs         map[string]cty.Value
@@ -443,6 +496,7 @@ func (s *Scope) newEvalVarBuilder() *evalVarBuilder {
 		inputVariables:     map[string]cty.Value{},
 		localValues:        map[string]cty.Value{},
 		outputValues:       map[string]cty.Value{},
+		symbolsValues:      map[string]cty.Value{},
 		pathAttrs:          map[string]cty.Value{},
 		terraformAttrs:     map[string]cty.Value{},
 		countAttrs:         map[string]cty.Value{},
@@ -552,6 +606,21 @@ func (b *evalVarBuilder) putValueBySubject(ctx context.Context, ref *addrs.Refer
 	case addrs.Check:
 		b.outputValues[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetCheckBlock(ctx, subj, rng))
 
+	case addrs.SymbolsAttr:
+		if !b.s.activeExperiments.Has(experiments.SymbolLibraries) {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Language Experiment not enabled",
+				Detail:   fmt.Sprintf("This module depends on features that are not yet stable and are only available with the %q experiment enabled", experiments.SymbolLibraries),
+				Subject:  rng.ToHCL().Ptr(),
+			})
+		}
+		val, vDiags := b.s.SymbolTable.Value(symlib.ValueRef{
+			Namespace: subj.Name,
+			Range:     rng.ToHCL(),
+		})
+		b.symbolsValues[subj.Name], normDiags = normalizeRefValue(val, tfdiags.New(vDiags))
+
 	default:
 		// Should never happen
 		panic(fmt.Errorf("Scope.buildEvalContext cannot handle address type %T", rawSubj))
@@ -609,6 +678,7 @@ func (b *evalVarBuilder) buildAllVariablesInto(vals map[string]cty.Value) {
 	vals["tofu"] = cty.ObjectVal(b.terraformAttrs)
 	vals["count"] = cty.ObjectVal(b.countAttrs)
 	vals["each"] = cty.ObjectVal(b.forEachAttrs)
+	vals["symbols"] = cty.ObjectVal(b.symbolsValues)
 
 	// Checks and outputs are conditionally included in the available scope, so
 	// we'll only write out their values if we actually have something for them.

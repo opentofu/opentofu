@@ -62,10 +62,14 @@ func NewTypeConversionConstraint(convertTarget cty.Type, defaultAttrVals *typeex
 // This function implements the language used in the "type" argument of a
 // "variable" block in the OpenTofu language, and any other language feature
 // that performs type conversion to an author-specified type.
-func ParseTypeConversionConstraint(expr hcl.Expression) (TypeConversionConstraint, tfdiags.Diagnostics) {
+func ParseTypeConversionConstraint(expr hcl.Expression, typeCtx *typeexpr.TypeContext) (TypeConversionConstraint, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	ty, typeDefaults, hclDiags := typeexpr.TypeConstraintWithDefaults(expr)
+	if typeCtx == nil {
+		typeCtx = new(typeexpr.TypeContext)
+	}
+
+	ty, typeDefaults, hclDiags := typeCtx.TypeConstraintWithDefaults(expr)
 	diags = diags.Append(hclDiags)
 
 	return TypeConversionConstraint{
@@ -106,7 +110,7 @@ func (c TypeConversionConstraint) ConvertValue(val cty.Value) (cty.Value, error)
 // and functions that it's thinly wrapping so it should be easier to maintain
 // this along with everything else if our handling of type conversion targets
 // changes in future.
-func makeConvertFunc() function.Function {
+func makeConvertFunc(typeCtx *typeexpr.TypeContext) function.Function {
 	// (This is a function rather than just a package-level variable because
 	// we're expecting that future work will cause it to take an argument
 	// representing which user-defined type aliases are in scope. For now
@@ -119,7 +123,7 @@ func makeConvertFunc() function.Function {
 			case customdecode.CustomExpressionDecoder:
 				return customdecode.CustomExpressionDecoderFunc(
 					func(expr hcl.Expression, _ *hcl.EvalContext) (cty.Value, hcl.Diagnostics) {
-						convertTarget, diags := ParseTypeConversionConstraint(expr)
+						convertTarget, diags := ParseTypeConversionConstraint(expr, typeCtx)
 						ret := cty.CapsuleVal(typeConversionType, &convertTarget)
 						return ret, diags.ToHCL()
 					},

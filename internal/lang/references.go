@@ -78,7 +78,7 @@ func ReferencesInBlock(parseRef ParseRef, body hcl.Body, schema *configschema.Bl
 	// in a better position to test this due to having mock providers etc
 	// available.
 	traversals := blocktoattr.ExpandedVariables(body, schema)
-	funcs := filterProviderFunctions(blocktoattr.ExpandedFunctions(body, schema))
+	funcs := filterCustomFunctions(blocktoattr.ExpandedFunctions(body, schema))
 
 	return References(parseRef, append(traversals, funcs...))
 }
@@ -92,27 +92,27 @@ func ReferencesInExpr(parseRef ParseRef, expr hcl.Expression) ([]*addrs.Referenc
 	}
 	traversals := expr.Variables()
 	if fexpr, ok := expr.(hcl.ExpressionWithFunctions); ok {
-		funcs := filterProviderFunctions(fexpr.Functions())
+		funcs := filterCustomFunctions(fexpr.Functions())
 		traversals = append(traversals, funcs...)
 	}
 	return References(parseRef, traversals)
 }
 
-// ProviderFunctionsInExpr is a helper wrapper around References that searches for provider
+// CustomFunctionsInExpr is a helper wrapper around References that searches for
 // function traversals in an ExpressionWithFunctions, then converts the traversals into
 // references
-func ProviderFunctionsInExpr(parseRef ParseRef, expr hcl.Expression) ([]*addrs.Reference, tfdiags.Diagnostics) {
+func CustomFunctionsInExpr(parseRef ParseRef, expr hcl.Expression) ([]*addrs.Reference, tfdiags.Diagnostics) {
 	if expr == nil {
 		return nil, nil
 	}
 	if fexpr, ok := expr.(hcl.ExpressionWithFunctions); ok {
-		funcs := filterProviderFunctions(fexpr.Functions())
+		funcs := filterCustomFunctions(fexpr.Functions())
 		return References(parseRef, funcs)
 	}
 	return nil, nil
 }
 
-func filterProviderFunctions(funcs []hcl.Traversal) []hcl.Traversal {
+func filterCustomFunctions(funcs []hcl.Traversal) []hcl.Traversal {
 	pfuncs := make([]hcl.Traversal, 0, len(funcs))
 	for _, fn := range funcs {
 		if len(fn) == 0 {
@@ -120,6 +120,9 @@ func filterProviderFunctions(funcs []hcl.Traversal) []hcl.Traversal {
 		}
 		if root, ok := fn[0].(hcl.TraverseRoot); ok {
 			if addrs.ParseFunction(root.Name).IsNamespace(addrs.FunctionNamespaceProvider) {
+				pfuncs = append(pfuncs, fn)
+			}
+			if addrs.ParseFunction(root.Name).IsNamespace(addrs.FunctionNamespaceSymbols) {
 				pfuncs = append(pfuncs, fn)
 			}
 		}

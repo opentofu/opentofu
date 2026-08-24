@@ -30,6 +30,7 @@ func newStaticScope(eval *StaticEvaluator, stack0 StaticIdentifier, stack ...Sta
 		BaseDir:     ".", // Always current working directory for now. (same as Evaluator.Scope())
 		PureOnly:    false,
 		ConsoleMode: false,
+		SymbolTable: eval.table,
 	}
 }
 
@@ -102,6 +103,8 @@ func (s staticScopeData) StaticValidateReferences(_ context.Context, refs []*add
 				Detail:   fmt.Sprintf("Unable to use %s in static context, which is required by %s", subject.String(), top.String()),
 				Subject:  ref.SourceRange.ToHCL().Ptr(),
 			})
+		case addrs.SymbolsFunction:
+			continue
 		default:
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
