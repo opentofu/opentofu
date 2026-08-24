@@ -70,9 +70,9 @@ type graphNodeDependsOn interface {
 	DependsOn() []*addrs.Reference
 }
 
-// graphNodePostTransform is an interface to allow transformers to run post actions like validations.
+// graphTransformerPostTransform is an interface to allow transformers to run post actions like validations.
 // This allows also to return proper diagnostics instead of a raw error.
-type graphNodePostTransform interface {
+type graphTransformerPostTransform interface {
 	PostTransform(ctx context.Context, g *Graph) tfdiags.Diagnostics
 }
 
@@ -661,7 +661,7 @@ func resourceConfigsWithCount(g *Graph) iter.Seq[*configs.Resource] {
 		for _, v := range g.Vertices() {
 			switch n := v.(type) {
 			case GraphNodeAttachResourceConfig:
-				c := n.NodeConfig()
+				c := n.ResourceConfig()
 				if c == nil {
 					continue
 				}

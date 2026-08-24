@@ -523,7 +523,7 @@ func (n *NodeAbstractResource) AttachResourceConfig(c *configs.Resource) {
 }
 
 // GraphNodeAttachResourceConfig
-func (n *NodeAbstractResource) NodeConfig() *configs.Resource {
+func (n *NodeAbstractResource) ResourceConfig() *configs.Resource {
 	return n.Config
 }
 
