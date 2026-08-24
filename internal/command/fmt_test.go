@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -456,10 +457,6 @@ func TestFmt_check(t *testing.T) {
 		t.Fatalf("wrong exit code. expected 3")
 	}
 
-	// Given that we give relative paths back to the user, normalize this temp
-	// dir so that we're comparing against a relative-ized (normalized) path
-	tempDir = meta.WorkingDir.NormalizePath(tempDir)
-
 	if actual := output.Stdout(); !strings.Contains(actual, tempDir) {
 		t.Fatalf("expected:\n%s\n\nto include: %q", actual, tempDir)
 	}
@@ -493,6 +490,63 @@ func TestFmt_checkStdin(t *testing.T) {
 	}
 }
 
+// TestFmt_symlinkedWorkingDir verifies that an absolute path still resolves
+// when the working directory is reached through a symlink.
+// Regression test for https://github.com/opentofu/opentofu/issues/3879
+func TestFmt_symlinkedWorkingDir(t *testing.T) {
+	t.Run("file", func(t *testing.T) {
+		_, realFilePath := fmtSymlinkedWorkingDir(t)
+
+		view, done := testView(t)
+		meta := Meta{
+			WorkingDir:       workdir.NewDir("."),
+			testingOverrides: metaOverridesForProvider(testProvider()),
+			View:             view,
+		}
+		args := []string{realFilePath}
+		code := RunCommander(t, FmtCommander(nil), meta, args)
+		output := done(t)
+
+		if code != 0 {
+			t.Fatalf("fmt command was unsuccessful:\n%s", output.Stderr())
+		}
+
+		got, err := os.ReadFile(realFilePath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if diff := cmp.Diff(string(fmtFixture.golden), string(got)); diff != "" {
+			t.Errorf("wrong result\n%s", diff)
+		}
+	})
+
+	t.Run("directory", func(t *testing.T) {
+		realDir, realFilePath := fmtSymlinkedWorkingDir(t)
+
+		view, done := testView(t)
+		meta := Meta{
+			WorkingDir:       workdir.NewDir("."),
+			testingOverrides: metaOverridesForProvider(testProvider()),
+			View:             view,
+		}
+		args := []string{realDir}
+		code := RunCommander(t, FmtCommander(nil), meta, args)
+		output := done(t)
+
+		if code != 0 {
+			t.Fatalf("fmt command was unsuccessful:\n%s", output.Stderr())
+		}
+
+		got, err := os.ReadFile(realFilePath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if diff := cmp.Diff(string(fmtFixture.golden), string(got)); diff != "" {
+			t.Errorf("wrong result\n%s", diff)
+		}
+	})
+}
+
 var fmtFixture = struct {
 	filename      string
 	altFilename   string
@@ -520,4 +574,33 @@ func fmtFixtureWriteDir(t *testing.T) string {
 	}
 
 	return dir
+}
+
+func fmtSymlinkedWorkingDir(t *testing.T) (realDir string, realFilePath string) {
+	t.Helper()
+
+	tempDir := t.TempDir()
+	realDir = filepath.Join(tempDir, "dir1", "dir2")
+	realFilePath = filepath.Join(realDir, "test.tf")
+	symlinkPath := filepath.Join(tempDir, "symlink_dir")
+
+	if err := os.MkdirAll(realDir, 0755); err != nil {
+		t.Fatalf("failed to create the folders: %s", err)
+	}
+
+	if err := os.WriteFile(realFilePath, fmtFixture.input, 0600); err != nil {
+		t.Fatalf("failed to create the test file: %s", err)
+	}
+
+	if err := os.Symlink(realDir, symlinkPath); err != nil {
+		if runtime.GOOS == "windows" {
+			// By default Windows does not allow creation of symlinks; avoid false-negatives
+			t.Skipf("can't create symlink on this Windows system: %s", err)
+		}
+		t.Fatalf("failed to make symlink: %s", err)
+	}
+	// Chdir affects the whole process, a test using this should never call t.Parallel()
+	t.Chdir(symlinkPath)
+
+	return realDir, realFilePath
 }
