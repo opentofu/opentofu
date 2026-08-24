@@ -27,7 +27,7 @@ func UnusedVariables(ctx context.Context, vars iter.Seq[*configs.Variable]) tfdi
 			return tfdiags.New(tfdiags.LintMessage(
 				ruleID,
 				groupIDs,
-				"Variable not used",
+				"Input variable not used",
 				fmt.Sprintf("Found no usage of the variable %q", vc.Name),
 				new(tfdiags.SourceRangeFromHCL(vc.DeclRange)),
 				nil,
@@ -51,8 +51,8 @@ func UnusedLocal(ctx context.Context, locals iter.Seq[*configs.Local]) tfdiags.D
 			return tfdiags.New(tfdiags.LintMessage(
 				ruleID,
 				groupIDs,
-				"Local not used",
-				fmt.Sprintf("Found no usage of the local %q", lc.Name),
+				"Local value not used",
+				fmt.Sprintf("Found no usage of the local value %q", lc.Name),
 				new(tfdiags.SourceRangeFromHCL(lc.DeclRange)),
 				nil,
 			))
