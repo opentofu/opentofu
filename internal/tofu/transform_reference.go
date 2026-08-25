@@ -688,9 +688,7 @@ func unusedLocals(g *Graph) iter.Seq[*configs.Local] {
 		isUsed := func(n dag.Vertex) bool {
 			for _, u := range g.UpEdges(n) {
 				switch u.(type) {
-				case *nodeCloseModule:
-					// if this is the only reference it has, the vertex is not used
-				default:
+				case GraphNodeReferencer:
 					return true
 				}
 			}
@@ -724,13 +722,13 @@ func unusedVariables(g *Graph) iter.Seq[*configs.Variable] {
 		isUsed = func(n dag.Vertex) bool {
 			for _, u := range g.UpEdges(n) {
 				switch u.(type) {
-				case *nodeCloseModule:
-				// if this is the only reference it has, the vertex is not used
 				case *nodeVariableReference:
 					if isUsed(u) {
 						return true
 					}
-				default:
+				// *nodeVariableReference is also a GraphNodeReferencer but that is a special case because a NodeRootVariable is always
+				// created alongside a *nodeVariableReference, but the *nodeVariableReference can exist but might reference nothing else so we want to process that separately
+				case GraphNodeReferencer:
 					return true
 				}
 			}
