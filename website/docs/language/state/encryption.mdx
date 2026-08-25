@@ -15,6 +15,7 @@ import AESGCM from '!!raw-loader!./examples/encryption/aes_gcm.tf'
 import PBKDF2 from '!!raw-loader!./examples/encryption/pbkdf2.tf'
 import AWSKMS from '!!raw-loader!./examples/encryption/aws_kms.tf'
 import GCPKMS from '!!raw-loader!./examples/encryption/gcp_kms.tf'
+import STACKITKMS from '!!raw-loader!./examples/encryption/stackit_kms.tf'
 import AZVAULTASYM from '!!raw-loader!./examples/encryption/azure_vault_asymmetric.tf'
 import AZVAULTSYM from '!!raw-loader!./examples/encryption/azure_vault_symmetric.tf'
 import AZVAULTEX1 from '!!raw-loader!./examples/encryption/azure_vault_ex1.tf'
@@ -229,6 +230,24 @@ This key provider uses the [Google Cloud Key Management Service](https://cloud.g
 The following example illustrates a minimal configuration:
 
 <CodeBlock language="hcl">{GCPKMS}</CodeBlock>
+
+### STACKIT KMS
+
+This key provider uses the [STACKIT Key Management Service](https://docs.stackit.cloud/products/security/kms/) to generate keys. Authentication is resolved from the same `STACKIT_*` environment variables and credentials file used by the [STACKIT provider](https://registry.terraform.io/providers/stackitcloud/stackit/latest/docs); optional `service_account_key`, `service_account_key_path`, `service_account_token`, `private_key`, `private_key_path`, and `endpoint` arguments are available to override these per key provider. In addition, please provide the following options:
+
+| Option                          | Description                                                                                                                                                    | Min. | Default                             |
+|----------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|------|--------------------------------------|
+| project_id *(required)*         | STACKIT project UUID the key ring belongs to.                                                                                                                 | N/A  | -                                    |
+| region *(required)*             | STACKIT region the key ring is located in (e.g. `eu01`).                                                                                                      | N/A  | -                                    |
+| key_ring_id *(required)*        | UUID of the key ring.                                                                                                                                          | N/A  | -                                    |
+| key_id *(required)*             | UUID of the key. Must have purpose `symmetric_encrypt_decrypt` and algorithm `aes_256_gcm`.                                                                   | N/A  | -                                    |
+| key_version                     | Key version to wrap the data key with. If omitted, the highest-numbered active version is resolved automatically and stored alongside the ciphertext, so decrypting older state keeps working after the key is rotated. | N/A  | resolved from the key's active versions |
+| key_length *(required)*         | Number of bytes to generate as a key. Must be in range from `1` to `1024` bytes.                                                                              | 1    | -                                    |
+| encrypted_metadata_alias        | Optional identifier to store metadata in the encrypted state/plan files under. Specify this to allow changing the name of a key provider.                     | -    | derived from the key provider name   |
+
+The following example illustrates a minimal configuration:
+
+<CodeBlock language="hcl">{STACKITKMS}</CodeBlock>
 
 ### Azure Vault
 
