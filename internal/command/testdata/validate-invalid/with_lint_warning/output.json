@@ -6,7 +6,7 @@
   "diagnostics": [
     {
       "severity": "warning",
-      "summary": "Variable not used (core:unused-variable)",
+      "summary": "Input variable not used (core:unused-variable)",
       "detail": "Found no usage of the variable \"test\"",
       "range": {
         "filename": "testdata/validate-invalid/with_lint_warning/main.tf",
