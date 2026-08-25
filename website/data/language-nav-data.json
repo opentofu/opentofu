@@ -1228,6 +1228,12 @@
     ]
   },
   {
+    "title": "Symbol Libraries",
+    "routes": [
+      { "title": "Overview", "path": "language/symbol-libraries/index" }
+    ]
+  },
+  {
     "title": "OpenTofu Settings",
     "routes": [
       { "title": "Overview", "path": "language/settings/index" },
