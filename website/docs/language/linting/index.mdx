@@ -22,7 +22,7 @@ tofu apply -lint='all'
 ```
 
 If there is a particular linting rule that is wanted to be excluded from being executed, it can be disabled by
-excluding its identifier after the special identifier `all` has been included:
+including its identifier prefixed by `!`:
 ```shell
 tofu apply -lint='all,!core:unused-local'
 ```
@@ -59,9 +59,18 @@ Groups pack together multiple rules allowing inclusion of those by specifying ju
 
 ### Global identifiers
 OpenTofu provides 2 global identifiers: `all` and `core:all`.
-For the moment, both behave exactly the same, but the purpose of these is different:
+For the moment, both behave similarly, but the purpose of these is different:
 * Once other namespaces, besides `core:` will be introduced, the `all` identifier will enable all the rules from all the namespaces, including `core:`
 * `core:all` includes all the linting rules that are implemented inside the OpenTofu codebase
+
+### Inclusion/exclusion rules
+If multiple identifiers are either included or excluded, OpenTofu determines which linting rule is executed based on how specific an identifier is.
+Inclusion of an identifier has higher priority than its exclusion:
+* If a specific core linting rule identifier is included, it will always be executed, regardless of what is excluded.
+* If a specific core linting rule identifier is excluded, it will be skipped as long as it is not also included.
+* If a specific core linting group identifier is included, it will be executed as long as the specific core linting rule identifier is not excluded.
+* If a specific core linting group identifier is excluded, it will be skipped as long as the specific core linting rule identifier is not included.
+* `core:all` is treated with the same specificity as a group identifier while `all` has lower specificity.
 
 ## Core linting rules
 
@@ -107,9 +116,9 @@ resource "tfcoremock_simple_resource" "my_resource" {
 ```shell
 │ Warning: Could use enabled instead of count (core:count-instead-enabled)
 │
-│   on main.tf line 10, in resource "tfcoremock_simple_resource" "my_resource":
-│    9: resource "tfcoremock_simple_resource" "my_resource" {
-│   10:   count = var.in ? 1 : 0
+│   on main.tf line 7, in resource "tfcoremock_simple_resource" "my_resource":
+│    6: resource "tfcoremock_simple_resource" "my_resource" {
+│    7:   count = var.in ? 1 : 0
 │
 │ "tfcoremock_simple_resource.my_resource" uses "count" to choose between zero or one instances using a boolean expression. Consider using "enabled" in a "lifecycle" block instead.
 ```
@@ -135,8 +144,8 @@ variable "aws_region" {
 ```shell
 │ Warning: Input variable not used (core:unused-variable)
 │
-│   on main.tf line 17:
-│   17: variable "aws_region" {
+│   on main.tf line 1:
+│    1: variable "aws_region" {
 │
 │ Found no usage of the variable "aws_region".
 ```
@@ -156,8 +165,8 @@ locals {
 ```shell
 │ Warning: Local value not used (core:unused-local)
 │
-│   on main.tf line 9, in locals:
-│    9:   arn = "arn:aws:s3:::demo-bucket"
+│   on main.tf line 2, in locals:
+│    2:   arn = "arn:aws:s3:::demo-bucket"
 │
 │ Found no usage of the local value "arn".
 ```
