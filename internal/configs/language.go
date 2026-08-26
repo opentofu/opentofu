@@ -216,8 +216,9 @@ func validateOpenTofuCoreVersionConstraint(constraint VersionConstraint) hcl.Dia
 	return diags
 }
 
-func sniffLanguageExperiments(body hcl.Body) (experiments.Set, hcl.Diagnostics) {
+func sniffLanguageExperiments(body hcl.Body) (experiments.Set, hcl.Range, hcl.Diagnostics) {
 	current := experiments.Set{}
+	var rng hcl.Range
 
 	rootContent, _, diags := body.PartialContent(configFileLanguageExperimentSniffRootSchema)
 
@@ -226,13 +227,16 @@ func sniffLanguageExperiments(body hcl.Body) (experiments.Set, hcl.Diagnostics) 
 		diags = diags.Extend(cDiags)
 
 		if attr, ok := content.Attributes["experiments"]; ok {
+			// Choose a single range for warning reporting, we mostly need this for consolidation
+			rng = attr.Range
+
 			found, moreDiags := decodeReservedExperimentsAttr(attr)
 			diags = append(diags, moreDiags...)
 			maps.Copy(current, found)
 		}
 	}
 
-	return current, diags
+	return current, rng, diags
 }
 
 // decodeReservedExperimentsAttr decodes the "experiments" attribute in a

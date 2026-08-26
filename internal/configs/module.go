@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 
@@ -71,7 +72,8 @@ type Module struct {
 	StaticEvaluator *StaticEvaluator
 
 	// LanguageExperiments is where language experiments are stored.
-	LanguageExperiments experiments.Set
+	LanguageExperiments      experiments.Set
+	LanguageExperimentsRange hcl.Range
 }
 
 // GetProviderConfig uses name and alias to find the respective Provider configuration.
@@ -118,7 +120,8 @@ type File struct {
 
 	Checks []*Check
 
-	LanguageExperiments experiments.Set
+	LanguageExperiments      experiments.Set
+	LanguageExperimentsRange hcl.Range
 }
 
 // SelectiveLoader allows the consumer to only load and validate the portions of files needed for the given operations/contexts
@@ -245,6 +248,21 @@ func NewModule(primaryFiles, overrideFiles []*File, sourceDir string, load Selec
 	for _, file := range overrideFiles {
 		fileDiags := mod.mergeFile(file)
 		diags = append(diags, fileDiags...)
+	}
+
+	if load == SelectiveLoadAll && len(mod.LanguageExperiments) != 0 {
+		// Include warning if any experiments are present
+		var names []string
+		for exp := range mod.LanguageExperiments {
+			names = append(names, string(exp))
+		}
+		expStr := strings.Join(names, ", ")
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagWarning,
+			Summary:  "Experiments are active",
+			Detail:   fmt.Sprintf("Experiments should not be used in production and are subject to change. The following experiments are active: %s", expStr),
+			Subject:  mod.LanguageExperimentsRange.Ptr(),
+		})
 	}
 
 	if !mod.LanguageExperiments.Has(experiments.SymbolLibraries) {
@@ -641,6 +659,9 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 	m.Removed = append(m.Removed, file.Removed...)
 
 	maps.Copy(m.LanguageExperiments, file.LanguageExperiments)
+	if !file.LanguageExperimentsRange.Empty() {
+		m.LanguageExperimentsRange = file.LanguageExperimentsRange
+	}
 
 	return diags
 }
