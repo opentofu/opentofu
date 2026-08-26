@@ -259,8 +259,8 @@ func NewModule(primaryFiles, overrideFiles []*File, sourceDir string, load Selec
 		expStr := strings.Join(names, ", ")
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagWarning,
-			Summary:  "Experiments are active",
-			Detail:   fmt.Sprintf("Experiments should not be used in production and are subject to change. The following experiments are active: %s", expStr),
+			Summary:  "Experimental features are active",
+			Detail:   fmt.Sprintf("Experimental features are subject to breaking changes or total removal in later versions, based on feedback. We recommend against using experimental features in production.\n\nThe following experiments are enabled: %s", expStr),
 			Subject:  mod.LanguageExperimentsRange.Ptr(),
 		})
 	}
