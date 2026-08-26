@@ -216,7 +216,7 @@ func (o *ApplyOracle) DesiredResourceInstance(ctx context.Context, addr addrs.Ab
 	diags = diags.Append(moreDiags)
 	providerInst, moreDiags := inst.ProviderInstance(ctx)
 	diags = diags.Append(moreDiags)
-	providerInstAddr, _ := exprs.DeriveFromDerived(providerInst, func(pi *configgraph.ProviderInstance) (addrs.AbsProviderInstanceCorrect, error) {
+	providerInstAddr, _ := providerInst.Derive(func(pi *configgraph.ProviderInstance) (addrs.AbsProviderInstanceCorrect, error) {
 		return pi.Addr, nil
 	})
 	// FIXME: DesiredResourceInstance is using a possibly-nil pointer to

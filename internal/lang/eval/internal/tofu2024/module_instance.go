@@ -162,7 +162,7 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 	}
 
 	providerInst, _ := inst.ProviderInstance(ctx)
-	ret.ProviderInstance, _ = exprs.DeriveFromDerived(providerInst, func(providerInst *configgraph.ProviderInstance) (*addrs.AbsProviderInstanceCorrect, error) {
+	ret.ProviderInstance, _ = providerInst.Derive(func(providerInst *configgraph.ProviderInstance) (*addrs.AbsProviderInstanceCorrect, error) {
 		return &providerInst.Addr, nil
 	})
 

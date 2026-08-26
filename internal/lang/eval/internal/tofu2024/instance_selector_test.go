@@ -30,7 +30,7 @@ func TestCompileInstanceSelectorSingleton(t *testing.T) {
 	selector := compileInstanceSelector(ctx, exprs.FlatScopeForTesting(nil), nil, nil, nil, dependsOn{})
 	instsSeq, diags := selector.Instances(ctx)
 	instsSeq, marks := instsSeq.Unmark()
-	insts, _ := exprs.DeriveFromDerived(instsSeq, func(s configgraph.InstancesSeq) (map[addrs.InstanceKey]instances.RepetitionData, error) {
+	insts, _ := instsSeq.Derive(func(s configgraph.InstancesSeq) (map[addrs.InstanceKey]instances.RepetitionData, error) {
 		return maps.Collect(s), nil
 	})
 
@@ -689,7 +689,7 @@ func testCompileInstanceSelector(
 
 			selector := compile(ctx, test.expr, test.deps)
 			instsSeq, diags := selector.Instances(ctx)
-			insts, _ := exprs.DeriveFromDerived(instsSeq, func(s configgraph.InstancesSeq) (map[addrs.InstanceKey]instances.RepetitionData, error) {
+			insts, _ := instsSeq.Derive(func(s configgraph.InstancesSeq) (map[addrs.InstanceKey]instances.RepetitionData, error) {
 				return maps.Collect(s), nil
 			})
 
