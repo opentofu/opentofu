@@ -1,0 +1,172 @@
+---
+description: >-
+    An overview of the linting support in OpenTofu
+---
+
+# Linting
+
+:::info
+OpenTofu's linting functionality is currently under active development and considered experimental.
+The features described below may have breaking changes based on feedback, even in minor releases. OpenTofu produces a warning about this whenever linting is enabled.
+:::
+
+OpenTofu provides built-in linting support for the configurations it runs against. It does that by providing several
+linting rules, named _core linting rules_, that could be executed while running regular OpenTofu operations.
+
+## How it works
+
+The linting functionality is opt-in by providing a `-lint` flag to the `tofu` commands that support it: `validate`,
+`plan`, `apply` and `refresh`. The flag accepts a comma separated list of identifiers, which point to specific linting rules to run:
+```shell
+tofu apply -lint='all'
+```
+
+If there is a particular linting rule that is wanted to be excluded from being executed, it can be disabled by
+including its identifier prefixed by `!`:
+```shell
+tofu apply -lint='all,!core:unused-local'
+```
+
+To run just a specific linting rule can be done by specifying only its identifier:
+```shell
+tofu apply -lint='core:unused-local'
+```
+
+At the moment of writing this, the core linting rules run only against the root module. In future improvements it will
+allow more granular configuration on what type of modules these could run against.
+
+Because the destroy operations (`tofu plan -destroy`, `tofu apply -destroy`, `tofu destroy`) do not provide the
+same knowledge depth about the configuration as other operations, the linting is disabled for this particular case.
+For any commands that accept the `-lint` flag and also the `-destroy` one, the linting is silently disabled.
+
+When linting is enabled, any detected issue will be shown as a warning diagnostic.
+
+## Identifiers
+All of the identifiers are case-sensitive and any unknown identifier will be ignored.
+
+### Rule identifiers
+Any linting rule has a unique identifier attached to, which can be used to enable or disable the rule.
+All of the core linting rules identifiers are prefixed with the `core:` keyword which is also called a _namespace_. In future
+versions of OpenTofu, other namespaces will be introduced where linting rules could be defined, like providers, configuration, etc.
+
+### Group identifiers
+Additionally, each rule is also part of one or multiple groups of linting rules.
+Groups pack together multiple rules allowing inclusion of those by specifying just the group identifier:
+|Group identifier|Description|
+|---|---|
+|`core:confusing`|represents all of the rules that notice when something has been written in a way that might be misleading to a future reader of the code|
+|`core:improvement`|represents all of the rules that notice when the configuration is written by using concepts for which there is a better and cleaner alternative|
+
+### Global identifiers
+OpenTofu provides 2 global identifiers: `all` and `core:all`.
+For the moment, both behave similarly, but the purpose of these is different:
+* Once other namespaces, besides `core:` will be introduced, the `all` identifier will enable all the rules from all the namespaces, including `core:`
+* `core:all` includes all the linting rules that are implemented inside the OpenTofu codebase
+
+### Inclusion/exclusion rules
+If multiple identifiers are either included or excluded, OpenTofu determines which linting rule is executed based on how specific an identifier is.
+Inclusion of an identifier has higher priority than its exclusion:
+* If a specific core linting rule identifier is included, it will always be executed, regardless of what is excluded.
+* If a specific core linting rule identifier is excluded, it will be skipped as long as it is not also included.
+* If a specific core linting group identifier is included, it will be executed as long as the specific core linting rule identifier is not excluded.
+* If a specific core linting group identifier is excluded, it will be skipped as long as the specific core linting rule identifier is not included.
+* `core:all` is treated with the same specificity as a group identifier while `all` has lower specificity.
+
+## Core linting rules
+
+### Variable without a specified type
+|Rule identifier|Groups|Lowest phase|Since|
+|---|---|---|---|
+|`core:no-type-variable`|`core:confusing`|`validate`|OpenTofu v1.13|
+
+Reports any variable that has no `type` specified:
+```hcl
+variable "var" {
+  description = "Variable description"
+  default     = "default value"
+}
+```
+
+```shell
+│ Warning: Variable with no type (core:no-type-variable)
+│
+│   on main.tf line 1:
+│    1: variable "var" {
+│
+│ Variable "var" has no type specified.
+```
+
+### `count` expression could be replaced by the usage of `enabled`
+|Rule identifier|Groups|Lowest phase|Since|
+|---|---|---|---|
+|`core:count-instead-enabled`|`core:improvement`|`validate`|OpenTofu v1.13|
+
+Reports any resource that uses `count` with an expression that could be replaced by the `enabled` meta-argument:
+```hcl
+variable "in" {
+  type    = bool
+  default = false
+}
+
+resource "tfcoremock_simple_resource" "my_resource" {
+  count = var.in ? 1 : 0
+}
+```
+
+```shell
+│ Warning: Could use enabled instead of count (core:count-instead-enabled)
+│
+│   on main.tf line 7, in resource "tfcoremock_simple_resource" "my_resource":
+│    6: resource "tfcoremock_simple_resource" "my_resource" {
+│    7:   count = var.in ? 1 : 0
+│
+│ "tfcoremock_simple_resource.my_resource" uses "count" to choose between zero or one instances using a boolean expression. Consider using "enabled" in a "lifecycle" block instead.
+```
+
+:::info
+Because of the difference in sensitive values support between `count` and `enabled`, some `count` expressions might error when migrated to `enabled`.
+For such cases, before an inline `nolint` directive will be available, consider using `nonsensitive` in the `enabled` expression.
+:::
+
+### Unused variable
+|Rule identifier|Groups|Lowest phase|Since|
+|---|---|---|---|
+|`core:unused-variable`|`core:improvement`|`validate`|OpenTofu v1.13|
+
+Reports any root module variable that is unused:
+```hcl
+variable "aws_region" {
+  type    = string
+  default = "us-east-1"
+}
+```
+
+```shell
+│ Warning: Input variable not used (core:unused-variable)
+│
+│   on main.tf line 1:
+│    1: variable "aws_region" {
+│
+│ Found no usage of the variable "aws_region".
+```
+
+### Unused local
+|Rule identifier|Groups|Lowest phase|Since|
+|---|---|---|---|
+|`core:unused-local`|`core:improvement`|`validate`|OpenTofu v1.13|
+
+Reports any root module local that is unused:
+```hcl
+locals {
+  arn = "arn:aws:s3:::demo-bucket"
+}
+```
+
+```shell
+│ Warning: Local value not used (core:unused-local)
+│
+│   on main.tf line 2, in locals:
+│    2:   arn = "arn:aws:s3:::demo-bucket"
+│
+│ Found no usage of the local value "arn".
+```
