@@ -82,19 +82,15 @@ func DeriveFromValue[T any](v cty.Value, f func(cty.Value) (T, error)) (FromValu
 	return Known(knownValue).WithMarks(marks), err
 }
 
-// DeriveFromDerived is like [DeriveFromValue] except that it starts with a
-// [FromValue] instead of from a [cty.Value].
+// Derive is like [DeriveFromValue] except that it starts with a [FromValue]
+// instead of from a [cty.Value].
 //
 // The given function is called only if fv is known, in which case its return
 // value is wrapped in another [FromValue] with the same marks.
 //
 // If fv is unknown then the result is an unknown value with no errors, but
 // still preserving the marks from the input.
-//
-// FIXME: Once we're using Go 1.27, change this into a generic method called
-// FromValue.Derive instead, with fv becoming the receiver. "DeriveFromDerived"
-// is just a temporary placeholder name until then.
-func DeriveFromDerived[T, U any](fv FromValue[T], f func(T) (U, error)) (FromValue[U], error) {
+func (fv FromValue[T]) Derive[U any](f func(T) (U, error)) (FromValue[U], error) {
 	if !fv.IsKnown() {
 		return Unknown[U]().WithMarks(fv.marks), nil
 	}
