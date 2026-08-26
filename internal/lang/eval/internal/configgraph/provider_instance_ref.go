@@ -42,7 +42,7 @@ func ProviderInstanceRefType(provider addrs.Provider) cty.Type {
 		return existing
 	}
 
-	ty := cty.CapsuleWithOps("instance of "+provider.String(), reflect.TypeOf(ProviderInstance{}), &cty.CapsuleOps{
+	ty := cty.CapsuleWithOps("instance of "+provider.String(), reflect.TypeFor[ProviderInstance](), &cty.CapsuleOps{
 		TypeGoString: func(_ reflect.Type) string {
 			return fmt.Sprintf("configgraph.ProviderInstanceRefType(%#v)", provider)
 		},

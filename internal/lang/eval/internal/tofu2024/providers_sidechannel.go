@@ -8,6 +8,7 @@ package tofu2024
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sync"
 
 	"github.com/hashicorp/hcl/v2"
@@ -67,11 +68,8 @@ func compileProviderConfigRefMissingInRoot(
 		//
 		// TODO: only enable this during the validation pass and forbid for other operations
 		for _, required := range requiredProviders {
-			for _, alias := range required.Aliases {
-				if alias == providerInstAddr {
-					providerInstAddr.Alias = ""
-					break
-				}
+			if slices.Contains(required.Aliases, providerInstAddr) {
+				providerInstAddr.Alias = ""
 			}
 		}
 
