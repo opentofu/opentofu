@@ -64,6 +64,7 @@ func compareDiagnostic(t *testing.T, i int, want, got tfdiags.Diagnostic) {
 func runAgainstMultipleIdentifiers(t *testing.T, f func(t *testing.T, ctx context.Context), lintIdentifiers ...[]linting.RuleAddr) {
 	includedIdentifiers := [][]linting.RuleAddr{
 		{linting.AllRulesGroupID},
+		{GroupIDAll},
 	}
 	includedIdentifiers = append(includedIdentifiers, lintIdentifiers...)
 	for _, ids := range includedIdentifiers {

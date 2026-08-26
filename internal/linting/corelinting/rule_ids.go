@@ -19,6 +19,8 @@ var (
 // This block below is meant to hold all the "core" namespaced linting **group IDs**.
 
 var (
+	// GroupIDAll is the rule that should be assigned to any core linting rule
+	GroupIDAll         = linting.MustParseRuleAddr("core:all")
 	GroupIDConfusing   = linting.MustParseRuleAddr("core:confusing")
 	GroupIDImprovement = linting.MustParseRuleAddr("core:improvement")
 )

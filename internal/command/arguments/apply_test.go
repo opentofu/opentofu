@@ -87,6 +87,48 @@ func TestParseApply_basicValid(t *testing.T) {
 				},
 			},
 		},
+		"linting parsed correctly": {
+			[]string{"-lint=all"},
+			&Apply{
+				AutoApprove: false,
+				View: &View{
+					ConsolidateWarnings: true,
+					InputEnabled:        true,
+					ViewType:            ViewHuman,
+					LintInclude:         collections.NewSet(linting.AllRulesGroupID),
+					LintExclude:         make(collections.Set[linting.RuleAddr]),
+				},
+				PlanPath: "",
+				State:    &State{Lock: true},
+				Vars:     &Vars{},
+				Operation: &Operation{
+					PlanMode:    plans.NormalMode,
+					Parallelism: 10,
+					Refresh:     true,
+				},
+			},
+		},
+		"linting with destroy disables linting": {
+			[]string{"-lint=core:all", "-destroy"},
+			&Apply{
+				AutoApprove: false,
+				View: &View{
+					ConsolidateWarnings: true,
+					InputEnabled:        true,
+					ViewType:            ViewHuman,
+					LintInclude:         make(collections.Set[linting.RuleAddr]), // <- this is expected to be empty
+					LintExclude:         make(collections.Set[linting.RuleAddr]),
+				},
+				PlanPath: "",
+				State:    &State{Lock: true},
+				Vars:     &Vars{},
+				Operation: &Operation{
+					PlanMode:    plans.DestroyMode,
+					Parallelism: 10,
+					Refresh:     true,
+				},
+			},
+		},
 		"JSON view disables input": {
 			[]string{"-json", "-auto-approve"},
 			&Apply{
@@ -838,6 +880,18 @@ func TestParseApplyDestroy_invalid(t *testing.T) {
 			t.Fatal("expected diags but got none")
 		}
 		if got, want := diags.Err().Error(), "Invalid mode option:"; !strings.Contains(got, want) {
+			t.Fatalf("wrong diags\n got: %s\nwant: %s", got, want)
+		}
+		if got.View.ViewType != ViewHuman {
+			t.Fatalf("wrong view type, got %#v, want %#v", got.View.ViewType, ViewHuman)
+		}
+	})
+	t.Run("linting flag not recorded for destroy", func(t *testing.T) {
+		got, _, diags := ParseApplyDestroy([]string{"-lint=core:all"})
+		if len(diags) == 0 {
+			t.Fatal("expected diags but got none")
+		}
+		if got, want := diags.Err().Error(), "Failed to parse command-line options: flag provided but not defined: -lint"; !strings.Contains(got, want) {
 			t.Fatalf("wrong diags\n got: %s\nwant: %s", got, want)
 		}
 		if got.View.ViewType != ViewHuman {

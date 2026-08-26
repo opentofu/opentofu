@@ -79,6 +79,7 @@ func (c ApplyCommand) Execute(args *arguments.Apply, view views.Apply) int {
 	var diags tfdiags.Diagnostics
 	ctx := c.CommandContext()
 	ctx = tfdiags.ContextWithLintFilterHints(ctx, args.View.LintInclude, args.View.LintExclude)
+	diags = diags.Append(tfdiags.ExperimentalLintWarn(ctx))
 
 	// Check for user-supplied plugin path
 	var err error
@@ -97,7 +98,8 @@ func (c ApplyCommand) Execute(args *arguments.Apply, view views.Apply) int {
 	}
 
 	// Attempt to load the plan file, if specified
-	planFile, diags := c.LoadPlanFile(args.PlanPath, enc)
+	planFile, planDiags := c.LoadPlanFile(args.PlanPath, enc)
+	diags = diags.Append(planDiags)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
 		return 1

@@ -44,8 +44,8 @@ func TestUnusedVariables(t *testing.T) {
 		"variables provided": {
 			provider: withVars,
 			wantDiags: tfdiags.New(
-				tfdiags.LintMessage(ruleIDVariableNotUsed, []linting.RuleAddr{GroupIDImprovement}, "Input variable not used", fmt.Sprintf("Found no usage of the variable %q", var1.Name), new(tfdiags.SourceRangeFromHCL(var1.DeclRange)), nil),
-				tfdiags.LintMessage(ruleIDVariableNotUsed, []linting.RuleAddr{GroupIDImprovement}, "Input variable not used", fmt.Sprintf("Found no usage of the variable %q", var2.Name), new(tfdiags.SourceRangeFromHCL(var2.DeclRange)), nil),
+				tfdiags.LintMessage(ruleIDVariableNotUsed, []linting.RuleAddr{GroupIDImprovement}, "Input variable not used", fmt.Sprintf("Found no usage of the variable %q.", var1.Name), new(tfdiags.SourceRangeFromHCL(var1.DeclRange)), nil),
+				tfdiags.LintMessage(ruleIDVariableNotUsed, []linting.RuleAddr{GroupIDImprovement}, "Input variable not used", fmt.Sprintf("Found no usage of the variable %q.", var2.Name), new(tfdiags.SourceRangeFromHCL(var2.DeclRange)), nil),
 			),
 		},
 	}
@@ -84,8 +84,8 @@ func TestUnusedLocals(t *testing.T) {
 				yield(local2)
 			}),
 			wantDiags: tfdiags.New(
-				tfdiags.LintMessage(ruleIDLocalNotUsed, []linting.RuleAddr{GroupIDImprovement}, "Local value not used", fmt.Sprintf("Found no usage of the local value %q", local1.Name), new(tfdiags.SourceRangeFromHCL(local1.DeclRange)), nil),
-				tfdiags.LintMessage(ruleIDLocalNotUsed, []linting.RuleAddr{GroupIDImprovement}, "Local value not used", fmt.Sprintf("Found no usage of the local value %q", local2.Name), new(tfdiags.SourceRangeFromHCL(local2.DeclRange)), nil),
+				tfdiags.LintMessage(ruleIDLocalNotUsed, []linting.RuleAddr{GroupIDImprovement}, "Local value not used", fmt.Sprintf("Found no usage of the local value %q.", local1.Name), new(tfdiags.SourceRangeFromHCL(local1.DeclRange)), nil),
+				tfdiags.LintMessage(ruleIDLocalNotUsed, []linting.RuleAddr{GroupIDImprovement}, "Local value not used", fmt.Sprintf("Found no usage of the local value %q.", local2.Name), new(tfdiags.SourceRangeFromHCL(local2.DeclRange)), nil),
 			),
 		},
 	}
