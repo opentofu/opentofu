@@ -30,6 +30,7 @@ type nodeVariableReference struct {
 }
 
 var (
+	_ graphNodeVariableConfig                        = (*nodeVariableReference)(nil)
 	_ GraphNodeDynamicExpandable                     = (*nodeVariableReference)(nil)
 	_ GraphNodeReferenceable                         = (*nodeVariableReference)(nil)
 	_ GraphNodeReferencer                            = (*nodeVariableReference)(nil)
@@ -113,6 +114,11 @@ func (n *nodeVariableReference) ReferenceableAddrs() []addrs.Referenceable {
 	return []addrs.Referenceable{n.Addr}
 }
 
+// graphNodeVariableConfig
+func (n *nodeVariableReference) VariableConfig() *configs.Variable {
+	return n.Config
+}
+
 // nodeVariableReferenceInstance represents a module variable reference during
 // the apply step.
 type nodeVariableReferenceInstance struct {
@@ -124,6 +130,7 @@ type nodeVariableReferenceInstance struct {
 // Ensure that we are implementing all of the interfaces we think we are
 // implementing.
 var (
+	_ graphNodeVariableConfig = (*nodeVariableReferenceInstance)(nil)
 	_ GraphNodeModuleInstance = (*nodeVariableReferenceInstance)(nil)
 	_ GraphNodeExecutable     = (*nodeVariableReferenceInstance)(nil)
 	_ dag.GraphNodeDotter     = (*nodeVariableReferenceInstance)(nil)
@@ -173,4 +180,9 @@ func (n *nodeVariableReferenceInstance) DotNode(name string, _ *dag.DotOpts) *da
 			"shape": "note",
 		},
 	}
+}
+
+// graphNodeVariableConfig
+func (n *nodeVariableReferenceInstance) VariableConfig() *configs.Variable {
+	return n.Config
 }

@@ -14,14 +14,14 @@ import (
 	"sort"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/opentofu/opentofu/internal/configs"
-	"github.com/opentofu/opentofu/internal/linting/corelinting"
-	"github.com/opentofu/opentofu/internal/tfdiags"
-
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/collections"
+	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/dag"
 	"github.com/opentofu/opentofu/internal/lang"
+	"github.com/opentofu/opentofu/internal/linting/corelinting"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // GraphNodeReferenceable must be implemented by any node that represents
@@ -68,12 +68,6 @@ type GraphNodeAttachDependencies interface {
 type graphNodeDependsOn interface {
 	GraphNodeReferencer
 	DependsOn() []*addrs.Reference
-}
-
-// graphTransformerPostTransform is an interface to allow transformers to run post actions like validations.
-// This allows also to return proper diagnostics instead of a raw error.
-type graphTransformerPostTransform interface {
-	PostTransform(ctx context.Context, g *Graph) tfdiags.Diagnostics
 }
 
 // graphNodeAttachResourceDependsOn records all resources that are transitively
@@ -124,11 +118,25 @@ type GraphNodeReferenceOutside interface {
 	ReferenceOutside() (selfPath, referencePath addrs.Module)
 }
 
+// graphNodeLocalConfig is implemented by the nodes that can returns a configs.Local.
+//
+// This is used to reliably detect all the nodes in the graph that can provide the aforementioned configs type.
+type graphNodeLocalConfig interface {
+	LocalValueConfig() *configs.Local
+}
+
+// graphNodeVariableConfig is implemented by the nodes that can returns a configs.Variable.
+//
+// This is used to reliably detect all the nodes in the graph that can provide the aforementioned configs type.
+type graphNodeVariableConfig interface {
+	VariableConfig() *configs.Variable
+}
+
 // ReferenceTransformer is a GraphTransformer that connects all the
 // nodes that reference each other in order to form the proper ordering.
 type ReferenceTransformer struct{}
 
-func (t *ReferenceTransformer) Transform(_ context.Context, g *Graph) error {
+func (t *ReferenceTransformer) Transform(ctx context.Context, g *Graph) error {
 	// Build a reference map so we can efficiently look up the references
 	vs := g.Vertices()
 	m := NewReferenceMap(vs)
@@ -164,7 +172,13 @@ func (t *ReferenceTransformer) Transform(_ context.Context, g *Graph) error {
 			continue
 		}
 	}
-
+	var diags tfdiags.Diagnostics
+	diags = diags.Append(corelinting.UnusedVariables(ctx, unusedVariables(vs, m)))
+	diags = diags.Append(corelinting.UnusedLocal(ctx, unusedLocals(vs, m)))
+	diags = diags.Append(corelinting.CountInsteadEnabled(ctx, resourceConfigsWithCount(g)))
+	if len(diags) > 0 {
+		return tfdiags.NonFatalError{Diagnostics: diags}
+	}
 	return nil
 }
 
@@ -644,15 +658,6 @@ func ReferencesFromConfig(body hcl.Body, schema *configschema.Block) []*addrs.Re
 	return refs
 }
 
-// PostTransform implements graphNodePostTransform
-func (t *ReferenceTransformer) PostTransform(ctx context.Context, g *Graph) tfdiags.Diagnostics {
-	var diags tfdiags.Diagnostics
-	diags = diags.Append(corelinting.UnusedVariables(ctx, unusedVariables(g)))
-	diags = diags.Append(corelinting.UnusedLocal(ctx, unusedLocals(g)))
-	diags = diags.Append(corelinting.CountInsteadEnabled(ctx, resourceConfigsWithCount(g)))
-	return diags
-}
-
 // resourceConfigsWithCount returns a iter.Seq that will provide all the configs.Resource objects for the
 // nodes that represent a resource.
 // The objects returned are only for the root module.
@@ -678,71 +683,102 @@ func resourceConfigsWithCount(g *Graph) iter.Seq[*configs.Resource] {
 	}
 }
 
-// unusedLocals returns a iter.Seq that will provide all the configs.Local objects for the
-// locals that are detected as being unused.
-// The objects returned are only for the root module.
-// By returning iter.Seq, the analysis is postponed and can be skipped in case the linting rule that
-// needs this data is not enabled by the user.
-func unusedLocals(g *Graph) iter.Seq[*configs.Local] {
-	return func(yield func(*configs.Local) bool) {
-		isUsed := func(n dag.Vertex) bool {
-			for _, u := range g.UpEdges(n) {
-				switch u.(type) {
-				case GraphNodeReferencer:
-					return true
-				}
-			}
-			return false
-		}
-		for _, v := range g.Vertices() {
-			switch n := v.(type) {
-			case *nodeExpandLocal:
-				if !n.Module.IsRoot() {
-					continue
-				}
-				if isUsed(n) {
-					continue
-				}
-				if !yield(n.Config) {
-					return
-				}
-			}
-		}
-	}
-}
-
 // unusedVariables returns a iter.Seq that will provide all the configs.Variable objects for the
 // variables that are detected as being unused.
 // The objects returned are only for the root module.
 // By returning iter.Seq, the analysis is postponed and can be skipped in case the linting rule that
 // needs this data is not enabled by the user.
-func unusedVariables(g *Graph) iter.Seq[*configs.Variable] {
-	return func(yield func(*configs.Variable) bool) {
-		var isUsed func(n dag.Vertex) bool
-		isUsed = func(n dag.Vertex) bool {
-			for _, u := range g.UpEdges(n) {
-				switch u.(type) {
-				case *nodeVariableReference:
-					if isUsed(u) {
-						return true
+func unusedVariables(vertices []dag.Vertex, g ReferenceMap) iter.Seq[*configs.Variable] {
+	addrConverter := func(ref addrs.Referenceable) (addrs.InputVariable, bool) {
+		la, ok := ref.(addrs.InputVariable)
+		return la, ok
+	}
+	config := func(ref addrs.Referenceable, refNode GraphNodeReferenceable) (*configs.Variable, addrs.InputVariable, bool) {
+		switch la := ref.(type) {
+		case addrs.InputVariable:
+			ln, ok := refNode.(graphNodeVariableConfig)
+			if !ok {
+				return nil, la, false
+			}
+			return ln.VariableConfig(), la, true
+		}
+		return nil, addrs.InputVariable{}, false
+	}
+	return unusedSequencer[addrs.InputVariable, *configs.Variable](vertices, g, addrConverter, config)
+}
+
+// unusedLocals returns a iter.Seq that will provide all the configs.Local objects for the
+// local values that are detected as being unused.
+// The objects returned are only for the root module.
+// By returning iter.Seq, the analysis is postponed and can be skipped in case the linting rule that
+// needs this data is not enabled by the user.
+func unusedLocals(vertices []dag.Vertex, g ReferenceMap) iter.Seq[*configs.Local] {
+	addrConverter := func(ref addrs.Referenceable) (addrs.LocalValue, bool) {
+		la, ok := ref.(addrs.LocalValue)
+		return la, ok
+	}
+	config := func(ref addrs.Referenceable, refNode GraphNodeReferenceable) (*configs.Local, addrs.LocalValue, bool) {
+		switch la := ref.(type) {
+		case addrs.LocalValue:
+			ln, ok := refNode.(graphNodeLocalConfig)
+			if !ok {
+				return nil, la, false
+			}
+			return ln.LocalValueConfig(), la, true
+		}
+		return nil, addrs.LocalValue{}, false
+	}
+	return unusedSequencer[addrs.LocalValue, *configs.Local](vertices, g, addrConverter, config)
+}
+
+// unusedSequencer is a generic function that checks the given vertices by using the rest of the arguments for
+// unused given types.
+// This is used to detect things like unused locals and variables for linting purposes.
+func unusedSequencer[T comparable, R any](vertices []dag.Vertex, g ReferenceMap, typeConverter func(addrs.Referenceable) (T, bool), config func(addrs.Referenceable, GraphNodeReferenceable) (R, T, bool)) iter.Seq[R] {
+	return func(yield func(R) bool) {
+		used := collections.NewSet[T]()
+		declared := map[T]R{}
+		registerUsed := func(v dag.Vertex) {
+			for _, ref := range g.References(v) {
+				switch rr := ref.(type) {
+				case GraphNodeReferenceable:
+					if !rr.ModulePath().IsRoot() {
+						continue
 					}
-				// *nodeVariableReference is also a GraphNodeReferencer but that is a special case because a NodeRootVariable is always
-				// created alongside a *nodeVariableReference, but the *nodeVariableReference can exist but might reference nothing else so we want to process that separately
-				case GraphNodeReferencer:
-					return true
+					for _, addr := range rr.ReferenceableAddrs() {
+						typ, ok := typeConverter(addr)
+						if ok {
+							used[typ] = struct{}{}
+						}
+					}
 				}
 			}
-			return false
 		}
-		for _, v := range g.Vertices() {
+		registerDeclared := func(n GraphNodeReferenceable) {
+			if !n.ModulePath().IsRoot() {
+				return
+			}
+			for _, ref := range n.ReferenceableAddrs() {
+				if c, add, ok := config(ref, n); ok {
+					declared[add] = c
+				}
+			}
+		}
+		for _, v := range vertices {
 			switch n := v.(type) {
-			case *NodeRootVariable:
-				if isUsed(n) {
-					continue
+			case GraphNodeReferencer:
+				registerUsed(n)
+				if rr, ok := n.(GraphNodeReferenceable); ok {
+					registerDeclared(rr)
 				}
-				if !yield(n.Config) {
-					return
-				}
+			}
+		}
+		for k, v := range declared {
+			if used.Has(k) {
+				continue
+			}
+			if !yield(v) {
+				return
 			}
 		}
 	}
