@@ -114,6 +114,11 @@ resource "tfcoremock_simple_resource" "my_resource" {
 │ "tfcoremock_simple_resource.my_resource" uses "count" to choose between zero or one instances using a boolean expression. Consider using "enabled" in a "lifecycle" block instead.
 ```
 
+:::info
+Because of the difference in sensitive values support between `count` and `enabled`, some `count` expressions might error when migrated to `enabled`.
+For such cases, before an inline `nolint` directive will be available, consider using `nonsensitive` in the `enabled` expression.
+:::
+
 ### Unused variable
 |Rule identifier|Groups|Lowest phase|Since|
 |---|---|---|---|
