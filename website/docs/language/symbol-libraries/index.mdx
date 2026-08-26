@@ -8,12 +8,12 @@ description: >-
 
 :::warning
 The symbol libraries feature is currently experimental and is subject to *significant* changes
-between versions. It is not recommend for use in production.
+even in patch releases. We don't recommend using this in production yet.
 :::
 
 *Symbol Libraries* are collections of re-usable configuration elements, which encapsulate common
 types, functions, and values. They do *not* have direct access to any resource/state information
-and exists as a standalone concept.
+and exist as a standalone concept.
 
 As this feature is experimental, the documentation is still a work in-progress. More information
 can be found within the [Symbol Libraries RFC](https://github.com/opentofu/opentofu/blob/main/rfc/20260424-symbol-libraries.md).
@@ -77,8 +77,7 @@ Symbol libraries are distributed in the same form as module source packages and 
 and not yet finalized. 
 
 :::info
-Symbol libraries are distinct concept from modules. Although symbol files and tofu files may live within
-the same directory, they will *not* be loaded automatically and is *not* a recommended pattern.
+Symbol libraries are distinct concept from modules. Although symbol files and tofu files may live within the same directory, we recommend placing them in separate directories to reduce confusion.
 :::
 
 
