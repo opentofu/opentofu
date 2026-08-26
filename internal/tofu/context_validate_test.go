@@ -3285,7 +3285,7 @@ resource "test_instance" "a" {
 }
 
 func TestContext2Validate_unusedVariable(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureReplaceTB)
+	SkipExperimental(t, ExperimentalFeatureLinting)
 	tests := map[string]struct {
 		config             map[string]string
 		wantLintingWarning bool
@@ -3356,7 +3356,7 @@ module "call" {
 }
 
 func TestContext2Validate_unusedLocal(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureReplaceTB)
+	SkipExperimental(t, ExperimentalFeatureLinting)
 	tests := map[string]struct {
 		config             map[string]string
 		wantLintingWarning bool
