@@ -14,8 +14,7 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-type FindDependenciesGlue interface {
-}
+type FindDependenciesGlue any
 
 // FindDependencies evaluates the called configuration in a special limited mode
 // that aims only to learn which external module packages and providers this

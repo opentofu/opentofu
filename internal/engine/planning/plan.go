@@ -288,11 +288,9 @@ func buildPlanChanges(
 		change := &plans.OutputChange{
 			Addr:      absAddr,
 			Sensitive: sensitiveChange,
-			Change: plans.Change{
-				Action: action,
-				Before: before,
-				After:  value,
-			},
+			Action:    action,
+			Before:    before,
+			After:     value,
 		}
 
 		cs, err := change.Encode()
@@ -314,11 +312,9 @@ func buildPlanChanges(
 			change := &plans.OutputChange{
 				Addr:      absAddr,
 				Sensitive: prevValue.Sensitive,
-				Change: plans.Change{
-					Action: plans.Delete,
-					Before: prevValue.Value,
-					After:  cty.NullVal(cty.DynamicPseudoType),
-				},
+				Action:    plans.Delete,
+				Before:    prevValue.Value,
+				After:     cty.NullVal(cty.DynamicPseudoType),
 			}
 
 			cs, err := change.Encode()

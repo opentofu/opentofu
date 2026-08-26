@@ -45,11 +45,9 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 					&plans.ResourceInstanceChange{
 						Addr:        instAddr,
 						PrevRunAddr: instAddr,
-						Change: plans.Change{
-							Action: plans.Create,
-							Before: cty.NullVal(cty.EmptyObject),
-							After:  cty.EmptyObjectVal,
-						},
+						Action:      plans.Create,
+						Before:      cty.NullVal(cty.EmptyObject),
+						After:       cty.EmptyObjectVal,
 					},
 					replaceDestroyThenCreate,
 				)
@@ -71,11 +69,9 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 					&plans.ResourceInstanceChange{
 						Addr:        instAddr,
 						PrevRunAddr: instAddr,
-						Change: plans.Change{
-							Action: plans.Update,
-							Before: cty.StringVal("before"),
-							After:  cty.StringVal("after"),
-						},
+						Action:      plans.Update,
+						Before:      cty.StringVal("before"),
+						After:       cty.StringVal("after"),
 					},
 					replaceDestroyThenCreate,
 				)
@@ -103,11 +99,9 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 					&plans.ResourceInstanceChange{
 						Addr:        instAddr,
 						PrevRunAddr: oldInstAddr,
-						Change: plans.Change{
-							Action: plans.Update,
-							Before: cty.StringVal("before"),
-							After:  cty.StringVal("after"),
-						},
+						Action:      plans.Update,
+						Before:      cty.StringVal("before"),
+						After:       cty.StringVal("after"),
 					},
 					replaceDestroyThenCreate,
 				)
@@ -131,11 +125,9 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 					&plans.ResourceInstanceChange{
 						Addr:        instAddr,
 						PrevRunAddr: instAddr,
-						Change: plans.Change{
-							Action: plans.Delete,
-							Before: cty.EmptyObjectVal,
-							After:  cty.NullVal(cty.EmptyObject),
-						},
+						Action:      plans.Delete,
+						Before:      cty.EmptyObjectVal,
+						After:       cty.NullVal(cty.EmptyObject),
 					},
 					replaceDestroyThenCreate,
 				)
@@ -166,11 +158,9 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 					&plans.ResourceInstanceChange{
 						Addr:        instAddr,
 						PrevRunAddr: instAddr,
-						Change: plans.Change{
-							Action: plans.DeleteThenCreate,
-							Before: cty.StringVal("before"),
-							After:  cty.StringVal("after"),
-						},
+						Action:      plans.DeleteThenCreate,
+						Before:      cty.StringVal("before"),
+						After:       cty.StringVal("after"),
 					},
 					replaceDestroyThenCreate,
 				)
@@ -201,11 +191,9 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 					&plans.ResourceInstanceChange{
 						Addr:        instAddr,
 						PrevRunAddr: oldInstAddr,
-						Change: plans.Change{
-							Action: plans.DeleteThenCreate,
-							Before: cty.StringVal("before"),
-							After:  cty.StringVal("after"),
-						},
+						Action:      plans.DeleteThenCreate,
+						Before:      cty.StringVal("before"),
+						After:       cty.StringVal("after"),
 					},
 					replaceDestroyThenCreate,
 				)
@@ -232,11 +220,9 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 					&plans.ResourceInstanceChange{
 						Addr:        instAddr,
 						PrevRunAddr: instAddr,
-						Change: plans.Change{
-							Action: plans.CreateThenDelete,
-							Before: cty.StringVal("before"),
-							After:  cty.StringVal("after"),
-						},
+						Action:      plans.CreateThenDelete,
+						Before:      cty.StringVal("before"),
+						After:       cty.StringVal("after"),
 					},
 					replaceCreateThenDestroy,
 				)
@@ -269,11 +255,9 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 					&plans.ResourceInstanceChange{
 						Addr:        instAddr,
 						PrevRunAddr: oldInstAddr,
-						Change: plans.Change{
-							Action: plans.CreateThenDelete,
-							Before: cty.StringVal("before"),
-							After:  cty.StringVal("after"),
-						},
+						Action:      plans.CreateThenDelete,
+						Before:      cty.StringVal("before"),
+						After:       cty.StringVal("after"),
 					},
 					replaceCreateThenDestroy,
 				)

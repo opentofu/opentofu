@@ -449,11 +449,9 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		},
 		RequiredReplace: planResp.RequiresReplace,
 		Private:         planResp.Planned.Private,
-		Change: plans.Change{
-			Action: plannedAction,
-			Before: planResp.Current.Value,
-			After:  planResp.Planned.Value,
-		},
+		Action:          plannedAction,
+		Before:          planResp.Current.Value,
+		After:           planResp.Planned.Value,
 
 		// TODO: ActionReason, but need to figure out how to get the information
 		// we'd need for that into here since most of the reasons are
@@ -682,11 +680,9 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 		},
 		RequiredReplace: planResp.RequiresReplace,
 		Private:         planResp.Planned.Private,
-		Change: plans.Change{
-			Action: plans.Delete,
-			Before: refreshedVal,
-			After:  planResp.Planned.Value,
-		},
+		Action:          plans.Delete,
+		Before:          refreshedVal,
+		After:           planResp.Planned.Value,
 
 		// TODO: ActionReason, but need to figure out how to get the information
 		// we'd need for that into here. For example, to report that the
