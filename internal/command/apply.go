@@ -78,6 +78,7 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 func (c ApplyCommand) Execute(args *arguments.Apply, view views.Apply) int {
 	var diags tfdiags.Diagnostics
 	ctx := c.CommandContext()
+	ctx = tfdiags.ContextWithLintFilterHints(ctx, args.View.LintInclude, args.View.LintExclude)
 
 	// Check for user-supplied plugin path
 	var err error
@@ -394,6 +395,14 @@ Options:
                                modules that are imported with a relative path.
                                When "none" is selected, all the deprecation
                                warnings will be dropped.
+
+  -lint=all                    Configures the linting rules to be executed during
+                               this command. By specifying this flag, the built-in
+                               linting will be enabled, which will start issuing
+                               warning diagnostics if any included rule will be
+                               violated. For more details on the format and
+                               available linting rules, refer to the official
+                               documentation.
 
   If you don't provide a saved plan file then this command will also accept
   all of the plan-customization options accepted by the tofu plan command.

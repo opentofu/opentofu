@@ -13,6 +13,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/opentofu/opentofu/internal/collections"
+	"github.com/opentofu/opentofu/internal/linting"
 )
 
 func TestParseConsole_basicValidation(t *testing.T) {
@@ -101,6 +103,8 @@ func consoleArgsWithDefaults(mutate func(console *Console)) *Console {
 			ConsolidateWarnings: true,
 			ViewType:            ViewHuman,
 			InputEnabled:        true,
+			LintInclude:         make(collections.Set[linting.RuleAddr]),
+			LintExclude:         make(collections.Set[linting.RuleAddr]),
 		},
 		Vars: &Vars{},
 		State: &State{

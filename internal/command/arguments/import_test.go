@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/opentofu/opentofu/internal/collections"
+	"github.com/opentofu/opentofu/internal/linting"
 )
 
 func TestParseImport_basicValidation(t *testing.T) {
@@ -195,6 +197,8 @@ func importArgsWithDefaults(mutate func(imp *Import)) *Import {
 			ConsolidateWarnings: true,
 			ViewType:            ViewHuman,
 			InputEnabled:        true,
+			LintInclude:         make(collections.Set[linting.RuleAddr]),
+			LintExclude:         make(collections.Set[linting.RuleAddr]),
 		},
 		Vars: &Vars{},
 		State: &State{

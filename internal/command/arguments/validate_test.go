@@ -11,6 +11,8 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/go-cmp/cmp"
+	"github.com/opentofu/opentofu/internal/collections"
+	"github.com/opentofu/opentofu/internal/linting"
 
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -25,7 +27,11 @@ func TestParseValidate_valid(t *testing.T) {
 			&Validate{
 				Path:          ".",
 				TestDirectory: "tests",
-				View:          &View{ConsolidateWarnings: true, ViewType: ViewHuman},
+				View: &View{
+					ConsolidateWarnings: true, ViewType: ViewHuman,
+					LintInclude: make(collections.Set[linting.RuleAddr]),
+					LintExclude: make(collections.Set[linting.RuleAddr]),
+				},
 			},
 		},
 		"json": {
@@ -33,7 +39,11 @@ func TestParseValidate_valid(t *testing.T) {
 			&Validate{
 				Path:          ".",
 				TestDirectory: "tests",
-				View:          &View{ConsolidateWarnings: true, ViewType: ViewJSON},
+				View: &View{
+					ConsolidateWarnings: true, ViewType: ViewJSON,
+					LintInclude: make(collections.Set[linting.RuleAddr]),
+					LintExclude: make(collections.Set[linting.RuleAddr]),
+				},
 			},
 		},
 		"path": {
@@ -41,7 +51,11 @@ func TestParseValidate_valid(t *testing.T) {
 			&Validate{
 				Path:          "foo",
 				TestDirectory: "tests",
-				View:          &View{ConsolidateWarnings: true, ViewType: ViewJSON},
+				View: &View{
+					ConsolidateWarnings: true, ViewType: ViewJSON,
+					LintInclude: make(collections.Set[linting.RuleAddr]),
+					LintExclude: make(collections.Set[linting.RuleAddr]),
+				},
 			},
 		},
 		"test-directory": {
@@ -49,7 +63,11 @@ func TestParseValidate_valid(t *testing.T) {
 			&Validate{
 				Path:          ".",
 				TestDirectory: "other",
-				View:          &View{ConsolidateWarnings: true, ViewType: ViewHuman},
+				View: &View{
+					ConsolidateWarnings: true, ViewType: ViewHuman,
+					LintInclude: make(collections.Set[linting.RuleAddr]),
+					LintExclude: make(collections.Set[linting.RuleAddr]),
+				},
 			},
 		},
 		"no-tests": {
@@ -57,8 +75,12 @@ func TestParseValidate_valid(t *testing.T) {
 			&Validate{
 				Path:          ".",
 				TestDirectory: "tests",
-				View:          &View{ConsolidateWarnings: true, ViewType: ViewHuman},
-				NoTests:       true,
+				View: &View{
+					ConsolidateWarnings: true, ViewType: ViewHuman,
+					LintInclude: make(collections.Set[linting.RuleAddr]),
+					LintExclude: make(collections.Set[linting.RuleAddr]),
+				},
+				NoTests: true,
 			},
 		},
 	}
@@ -88,7 +110,11 @@ func TestParseValidate_invalid(t *testing.T) {
 			&Validate{
 				Path:          ".",
 				TestDirectory: "tests",
-				View:          &View{ConsolidateWarnings: true, ViewType: ViewHuman},
+				View: &View{
+					ConsolidateWarnings: true, ViewType: ViewHuman,
+					LintInclude: make(collections.Set[linting.RuleAddr]),
+					LintExclude: make(collections.Set[linting.RuleAddr]),
+				},
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
@@ -103,7 +129,11 @@ func TestParseValidate_invalid(t *testing.T) {
 			&Validate{
 				Path:          "bar",
 				TestDirectory: "tests",
-				View:          &View{ConsolidateWarnings: true, ViewType: ViewJSON},
+				View: &View{
+					ConsolidateWarnings: true, ViewType: ViewJSON,
+					LintInclude: make(collections.Set[linting.RuleAddr]),
+					LintExclude: make(collections.Set[linting.RuleAddr]),
+				},
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(

@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/opentofu/opentofu/internal/collections"
+	"github.com/opentofu/opentofu/internal/linting"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 
 	"github.com/google/go-cmp/cmp"
@@ -30,6 +32,8 @@ func TestParsePlan_basicValid(t *testing.T) {
 					ConsolidateWarnings: true,
 					InputEnabled:        true,
 					ViewType:            ViewHuman,
+					LintInclude:         make(collections.Set[linting.RuleAddr]),
+					LintExclude:         make(collections.Set[linting.RuleAddr]),
 				},
 				OutPath: "",
 				State:   &State{Lock: true},
@@ -49,6 +53,8 @@ func TestParsePlan_basicValid(t *testing.T) {
 					ConsolidateWarnings: true,
 					InputEnabled:        false,
 					ViewType:            ViewHuman,
+					LintInclude:         make(collections.Set[linting.RuleAddr]),
+					LintExclude:         make(collections.Set[linting.RuleAddr]),
 				},
 				OutPath: "saved.tfplan",
 				State:   &State{Lock: true},
@@ -68,6 +74,8 @@ func TestParsePlan_basicValid(t *testing.T) {
 					ConsolidateWarnings: true,
 					InputEnabled:        false,
 					ViewType:            ViewJSON,
+					LintInclude:         make(collections.Set[linting.RuleAddr]),
+					LintExclude:         make(collections.Set[linting.RuleAddr]),
 				},
 				OutPath: "",
 				State:   &State{Lock: true},

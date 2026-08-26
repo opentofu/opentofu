@@ -11,6 +11,8 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/go-cmp/cmp"
+	"github.com/opentofu/opentofu/internal/collections"
+	"github.com/opentofu/opentofu/internal/linting"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -24,7 +26,11 @@ func TestParseShow_valid(t *testing.T) {
 			&Show{
 				TargetType: ShowState,
 				TargetArg:  "",
-				View:       &View{ConsolidateWarnings: true, ViewType: ViewHuman},
+				View: &View{
+					ConsolidateWarnings: true, ViewType: ViewHuman,
+					LintInclude: make(collections.Set[linting.RuleAddr]),
+					LintExclude: make(collections.Set[linting.RuleAddr]),
+				},
 			},
 		},
 		"json with no other options": {
@@ -32,7 +38,11 @@ func TestParseShow_valid(t *testing.T) {
 			&Show{
 				TargetType: ShowState,
 				TargetArg:  "",
-				View:       &View{ConsolidateWarnings: true, ViewType: ViewJSON},
+				View: &View{
+					ConsolidateWarnings: true, ViewType: ViewJSON,
+					LintInclude: make(collections.Set[linting.RuleAddr]),
+					LintExclude: make(collections.Set[linting.RuleAddr]),
+				},
 			},
 		},
 		"latest state snapshot": {
@@ -40,7 +50,11 @@ func TestParseShow_valid(t *testing.T) {
 			&Show{
 				TargetType: ShowState,
 				TargetArg:  "",
-				View:       &View{ConsolidateWarnings: true, ViewType: ViewHuman},
+				View: &View{
+					ConsolidateWarnings: true, ViewType: ViewHuman,
+					LintInclude: make(collections.Set[linting.RuleAddr]),
+					LintExclude: make(collections.Set[linting.RuleAddr]),
+				},
 			},
 		},
 		"latest state snapshot, JSON": {
@@ -48,7 +62,11 @@ func TestParseShow_valid(t *testing.T) {
 			&Show{
 				TargetType: ShowState,
 				TargetArg:  "",
-				View:       &View{ConsolidateWarnings: true, ViewType: ViewJSON},
+				View: &View{
+					ConsolidateWarnings: true, ViewType: ViewJSON,
+					LintInclude: make(collections.Set[linting.RuleAddr]),
+					LintExclude: make(collections.Set[linting.RuleAddr]),
+				},
 			},
 		},
 		"saved plan file": {
@@ -56,7 +74,11 @@ func TestParseShow_valid(t *testing.T) {
 			&Show{
 				TargetType: ShowPlan,
 				TargetArg:  "tfplan",
-				View:       &View{ConsolidateWarnings: true, ViewType: ViewHuman},
+				View: &View{
+					ConsolidateWarnings: true, ViewType: ViewHuman,
+					LintInclude: make(collections.Set[linting.RuleAddr]),
+					LintExclude: make(collections.Set[linting.RuleAddr]),
+				},
 			},
 		},
 		"saved plan file, JSON": {
@@ -64,7 +86,11 @@ func TestParseShow_valid(t *testing.T) {
 			&Show{
 				TargetType: ShowPlan,
 				TargetArg:  "tfplan",
-				View:       &View{ConsolidateWarnings: true, ViewType: ViewJSON},
+				View: &View{
+					ConsolidateWarnings: true, ViewType: ViewJSON,
+					LintInclude: make(collections.Set[linting.RuleAddr]),
+					LintExclude: make(collections.Set[linting.RuleAddr]),
+				},
 			},
 		},
 		"legacy positional argument": {
@@ -72,7 +98,11 @@ func TestParseShow_valid(t *testing.T) {
 			&Show{
 				TargetType: ShowUnknownType, // caller must inspect "foo" to decide the type
 				TargetArg:  "foo",
-				View:       &View{ConsolidateWarnings: true, ViewType: ViewHuman},
+				View: &View{
+					ConsolidateWarnings: true, ViewType: ViewHuman,
+					LintInclude: make(collections.Set[linting.RuleAddr]),
+					LintExclude: make(collections.Set[linting.RuleAddr]),
+				},
 			},
 		},
 		"json with legacy positional argument": {
@@ -80,7 +110,11 @@ func TestParseShow_valid(t *testing.T) {
 			&Show{
 				TargetType: ShowUnknownType, // caller must inspect "foo" to decide the type
 				TargetArg:  "foo",
-				View:       &View{ConsolidateWarnings: true, ViewType: ViewJSON},
+				View: &View{
+					ConsolidateWarnings: true, ViewType: ViewJSON,
+					LintInclude: make(collections.Set[linting.RuleAddr]),
+					LintExclude: make(collections.Set[linting.RuleAddr]),
+				},
 			},
 		},
 		"configuration with json": {
@@ -88,7 +122,11 @@ func TestParseShow_valid(t *testing.T) {
 			&Show{
 				TargetType: ShowConfig,
 				TargetArg:  "",
-				View:       &View{ConsolidateWarnings: true, ViewType: ViewJSON},
+				View: &View{
+					ConsolidateWarnings: true, ViewType: ViewJSON,
+					LintInclude: make(collections.Set[linting.RuleAddr]),
+					LintExclude: make(collections.Set[linting.RuleAddr]),
+				},
 			},
 		},
 		"module with json": {
@@ -96,7 +134,11 @@ func TestParseShow_valid(t *testing.T) {
 			&Show{
 				TargetType: ShowModule,
 				TargetArg:  "foo",
-				View:       &View{ConsolidateWarnings: true, ViewType: ViewJSON},
+				View: &View{
+					ConsolidateWarnings: true, ViewType: ViewJSON,
+					LintInclude: make(collections.Set[linting.RuleAddr]),
+					LintExclude: make(collections.Set[linting.RuleAddr]),
+				},
 			},
 		},
 	}
@@ -125,7 +167,11 @@ func TestParseShow_invalid(t *testing.T) {
 			[]string{"-boop"},
 			&Show{
 				TargetType: ShowState,
-				View:       &View{ConsolidateWarnings: true, ViewType: ViewHuman},
+				View: &View{
+					ConsolidateWarnings: true, ViewType: ViewHuman,
+					LintInclude: make(collections.Set[linting.RuleAddr]),
+					LintExclude: make(collections.Set[linting.RuleAddr]),
+				},
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
@@ -138,7 +184,11 @@ func TestParseShow_invalid(t *testing.T) {
 		"positional arguments with state target selection": {
 			[]string{"-state", "bar"},
 			&Show{
-				View: &View{ConsolidateWarnings: true, ViewType: ViewHuman},
+				View: &View{
+					ConsolidateWarnings: true, ViewType: ViewHuman,
+					LintInclude: make(collections.Set[linting.RuleAddr]),
+					LintExclude: make(collections.Set[linting.RuleAddr]),
+				},
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
@@ -151,7 +201,11 @@ func TestParseShow_invalid(t *testing.T) {
 		"positional arguments with planfile target selection": {
 			[]string{"-plan=foo", "bar"},
 			&Show{
-				View: &View{ConsolidateWarnings: true, ViewType: ViewHuman},
+				View: &View{
+					ConsolidateWarnings: true, ViewType: ViewHuman,
+					LintInclude: make(collections.Set[linting.RuleAddr]),
+					LintExclude: make(collections.Set[linting.RuleAddr]),
+				},
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
@@ -166,7 +220,11 @@ func TestParseShow_invalid(t *testing.T) {
 			&Show{
 				TargetType: ShowPlan,
 				TargetArg:  "foo",
-				View:       &View{ConsolidateWarnings: true, ViewType: ViewHuman},
+				View: &View{
+					ConsolidateWarnings: true, ViewType: ViewHuman,
+					LintInclude: make(collections.Set[linting.RuleAddr]),
+					LintExclude: make(collections.Set[linting.RuleAddr]),
+				},
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
@@ -179,7 +237,11 @@ func TestParseShow_invalid(t *testing.T) {
 		"too many arguments in legacy mode": {
 			[]string{"bar", "baz"},
 			&Show{
-				View: &View{ConsolidateWarnings: true, ViewType: ViewHuman},
+				View: &View{
+					ConsolidateWarnings: true, ViewType: ViewHuman,
+					LintInclude: make(collections.Set[linting.RuleAddr]),
+					LintExclude: make(collections.Set[linting.RuleAddr]),
+				},
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
@@ -192,7 +254,11 @@ func TestParseShow_invalid(t *testing.T) {
 		"too many arguments in legacy mode, json": {
 			[]string{"-json", "bar", "baz"},
 			&Show{
-				View: &View{ConsolidateWarnings: true, ViewType: ViewJSON},
+				View: &View{
+					ConsolidateWarnings: true, ViewType: ViewJSON,
+					LintInclude: make(collections.Set[linting.RuleAddr]),
+					LintExclude: make(collections.Set[linting.RuleAddr]),
+				},
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
@@ -205,7 +271,11 @@ func TestParseShow_invalid(t *testing.T) {
 		"configuration without json": {
 			[]string{"-config"},
 			&Show{
-				View: &View{ConsolidateWarnings: true, ViewType: ViewHuman},
+				View: &View{
+					ConsolidateWarnings: true, ViewType: ViewHuman,
+					LintInclude: make(collections.Set[linting.RuleAddr]),
+					LintExclude: make(collections.Set[linting.RuleAddr]),
+				},
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
@@ -220,7 +290,11 @@ func TestParseShow_invalid(t *testing.T) {
 			&Show{
 				TargetType: ShowConfig,
 				TargetArg:  "",
-				View:       &View{ConsolidateWarnings: true, ViewType: ViewJSON},
+				View: &View{
+					ConsolidateWarnings: true, ViewType: ViewJSON,
+					LintInclude: make(collections.Set[linting.RuleAddr]),
+					LintExclude: make(collections.Set[linting.RuleAddr]),
+				},
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
@@ -235,7 +309,11 @@ func TestParseShow_invalid(t *testing.T) {
 			&Show{
 				TargetType: ShowConfig,
 				TargetArg:  "",
-				View:       &View{ConsolidateWarnings: true, ViewType: ViewJSON},
+				View: &View{
+					ConsolidateWarnings: true, ViewType: ViewJSON,
+					LintInclude: make(collections.Set[linting.RuleAddr]),
+					LintExclude: make(collections.Set[linting.RuleAddr]),
+				},
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
@@ -248,7 +326,11 @@ func TestParseShow_invalid(t *testing.T) {
 		"module without json": {
 			[]string{"-module=foo"},
 			&Show{
-				View: &View{ConsolidateWarnings: true, ViewType: ViewHuman},
+				View: &View{
+					ConsolidateWarnings: true, ViewType: ViewHuman,
+					LintInclude: make(collections.Set[linting.RuleAddr]),
+					LintExclude: make(collections.Set[linting.RuleAddr]),
+				},
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
@@ -263,7 +345,11 @@ func TestParseShow_invalid(t *testing.T) {
 			&Show{
 				TargetType: ShowModule,
 				TargetArg:  "foo",
-				View:       &View{ConsolidateWarnings: true, ViewType: ViewJSON},
+				View: &View{
+					ConsolidateWarnings: true, ViewType: ViewJSON,
+					LintInclude: make(collections.Set[linting.RuleAddr]),
+					LintExclude: make(collections.Set[linting.RuleAddr]),
+				},
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
@@ -278,7 +364,11 @@ func TestParseShow_invalid(t *testing.T) {
 			&Show{
 				TargetType: ShowModule,
 				TargetArg:  "foo",
-				View:       &View{ConsolidateWarnings: true, ViewType: ViewJSON},
+				View: &View{
+					ConsolidateWarnings: true, ViewType: ViewJSON,
+					LintInclude: make(collections.Set[linting.RuleAddr]),
+					LintExclude: make(collections.Set[linting.RuleAddr]),
+				},
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
@@ -293,7 +383,11 @@ func TestParseShow_invalid(t *testing.T) {
 			&Show{
 				TargetType: ShowModule,
 				TargetArg:  "foo",
-				View:       &View{ConsolidateWarnings: true, ViewType: ViewJSON},
+				View: &View{
+					ConsolidateWarnings: true, ViewType: ViewJSON,
+					LintInclude: make(collections.Set[linting.RuleAddr]),
+					LintExclude: make(collections.Set[linting.RuleAddr]),
+				},
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(

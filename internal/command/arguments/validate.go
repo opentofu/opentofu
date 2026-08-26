@@ -33,7 +33,7 @@ type Validate struct {
 // BindValidate registers CLI arguments, returning a Validate value and it's corresponding hooks.
 func BindValidate(cli *CommandLine) *Validate {
 	validate := Validate{
-		View: BindView(cli, viewFlagNoInput),
+		View: BindView(cli, viewFlagNoInput|viewFlagLint),
 		Vars: BindVars(cli),
 	}
 

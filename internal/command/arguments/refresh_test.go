@@ -12,6 +12,8 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/collections"
+	"github.com/opentofu/opentofu/internal/linting"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -27,6 +29,8 @@ func TestParseRefresh_basicValid(t *testing.T) {
 					ConsolidateWarnings: true,
 					InputEnabled:        true,
 					ViewType:            ViewHuman,
+					LintInclude:         make(collections.Set[linting.RuleAddr]),
+					LintExclude:         make(collections.Set[linting.RuleAddr]),
 				},
 			},
 		},
@@ -37,6 +41,8 @@ func TestParseRefresh_basicValid(t *testing.T) {
 					ConsolidateWarnings: true,
 					InputEnabled:        false,
 					ViewType:            ViewHuman,
+					LintInclude:         make(collections.Set[linting.RuleAddr]),
+					LintExclude:         make(collections.Set[linting.RuleAddr]),
 				},
 			},
 		},
@@ -47,6 +53,8 @@ func TestParseRefresh_basicValid(t *testing.T) {
 					ConsolidateWarnings: true,
 					InputEnabled:        false,
 					ViewType:            ViewJSON,
+					LintInclude:         make(collections.Set[linting.RuleAddr]),
+					LintExclude:         make(collections.Set[linting.RuleAddr]),
 				},
 			},
 		},

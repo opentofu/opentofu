@@ -11,6 +11,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/opentofu/opentofu/internal/collections"
+	"github.com/opentofu/opentofu/internal/linting"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -26,6 +28,11 @@ type View struct {
 	CompactWarnings     bool
 	ConsolidateWarnings bool
 	ConsolidateErrors   bool
+
+	// LintInclude and LintExclude contains the linting rules that are used later
+	// to determine if a specific diagnostic should be shown or not based on the
+	// linting rule IDs (or/and groupIDs) that diagnostic is configured with.
+	LintInclude, LintExclude collections.Set[linting.RuleAddr]
 
 	// Concise is used to reduce the level of noise in the output and display
 	// only the important details.
@@ -89,6 +96,7 @@ const (
 	viewFlagJsonInto
 	viewFlagInput
 	viewFlagSensitive
+	viewFlagLint
 
 	viewFlagNoInput     = viewFlagJson | viewFlagJsonInto
 	viewFlagNoSensitive = viewFlagNoInput | viewFlagInput
@@ -114,6 +122,10 @@ func BindView(cli *CommandLine, mask viewFlag) *View {
 
 	var deprecation []string
 	cli.StringArrayVar(&deprecation, "deprecation", nil, `Specify what type of warnings are shown. Accepted values for "m": all, local, none. Default: all. When "all" is selected, OpenTofu will show the deprecation warnings for all modules. When "local" is selected, the warns will be shown only for the modules that are imported with a relative path. When "none" is selected, all the deprecation warnings will be dropped.`).SetDisplay("=module:m").SetGlobal(true)
+	var lint []string
+	if mask&viewFlagLint != 0 {
+		cli.StringArrayVar(&lint, "lint", nil, `Specify the linting rules to be executed`).SetDisplay("=all").SetGlobal(true)
+	}
 
 	cli.PreHook(func() tfdiags.Diagnostics {
 		var diags tfdiags.Diagnostics
@@ -130,7 +142,7 @@ func BindView(cli *CommandLine, mask viewFlag) *View {
 			}
 			v.ModuleDeprecationWarnLvl = ParseDeprecatedWarningLevel(strings.ReplaceAll(s, prefix, ""))
 		}
-
+		v.LintInclude, v.LintExclude = ParseLintingRules(lint)
 		return diags
 	})
 
