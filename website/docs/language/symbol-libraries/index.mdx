@@ -1,0 +1,108 @@
+---
+description: >-
+  Symbol Libraries provide an easy method of re-using common configuration
+  elements. This includes functions, types, and constant values.
+---
+
+# Symbol Libraries
+
+:::warning
+The symbol libraries feature is currently experimental and is subject to *significant* changes
+even in patch releases. We don't recommend using this in production yet.
+:::
+
+*Symbol Libraries* are collections of re-usable configuration elements, which encapsulate common
+types, functions, and values. They do *not* have direct access to any resource/state information
+and exist as a standalone concept.
+
+As this feature is experimental, the documentation is still a work in-progress. More information
+can be found within the [Symbol Libraries RFC](https://github.com/opentofu/opentofu/pull/4052).
+
+If you have feedback on this experiment and have a few moments, we would greatly appreciate if
+you could [leave some comments](https://github.com/orgs/opentofu/discussions/4521)!
+
+## Syntax
+
+Symbol Libraries are a HCL based language and live within `*.sym.hcl` files.
+
+```hcl
+# Specify which language edition this symbol library is built for (not required, but recommended)
+language {
+	edition = "experimental2026"
+}
+
+# Define a re-usable type
+typedef "complex_type" {
+  type = object({
+    ncpus = number
+    # Types may reference other types within the same symbol library (or other imported libraries)
+    memory_size = symbols::simple_type()
+  })
+}
+
+# Nearly identical concept to "locals", but exported as if they were "outputs"
+values {
+  simple = 10
+  custom_regex = "<some complex regex>"
+  # Most *constant* builtin functions are allowed
+  upper_regex = upper(value.custom_regex)
+}
+
+# Function to encapsulate logic 
+function "greeting" {
+  type = list(string)
+  parameter "prefix" {
+    type    = string
+  }
+  parameter "name" {
+    type     = string
+    variadic = true
+    validation {
+      condition     = length(param.name) != 0
+      error_message = "At least one name required"
+    }
+  }
+  locals {
+    messages = [for x in param.name: "${param.prefix} ${x}!"]
+  }
+  return = tolist(local.messages)
+}
+
+# Reference another symbol library
+symbols "otherlib" {
+  source = "../helper-lib"
+}
+```
+
+## Usage in modules
+
+Symbol libraries are distributed in the same form as module source packages and support the same source options. The registry integration is still a work in progress
+and not yet finalized. 
+
+:::info
+Symbol libraries are distinct concept from modules. Although symbol files and tofu files may live within the same directory, we recommend placing them in separate directories to reduce confusion.
+:::
+
+
+```hcl
+symbols "common" {
+  # Standard module source package types are supported here
+  source = "./symbols/common" 
+}
+
+variable "complex" {
+  # Reference defined types
+  type = symbols::common::complex_type()
+}
+
+resource "cloud_resource" "my-resource" {
+  # Reference library values
+  value = symbols.common.custom_regex
+}
+
+output "greeting" {
+  # Reference to functions
+  value = symbols::common::greeting("Hello", ["World", "Universe"])
+}
+
+```
