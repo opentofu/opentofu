@@ -29,6 +29,7 @@ type nodeExpandLocal struct {
 }
 
 var (
+	_ graphNodeLocalConfig                           = (*NodeLocal)(nil)
 	_ GraphNodeReferenceable                         = (*nodeExpandLocal)(nil)
 	_ GraphNodeReferencer                            = (*nodeExpandLocal)(nil)
 	_ GraphNodeDynamicExpandable                     = (*nodeExpandLocal)(nil)
@@ -84,6 +85,11 @@ func (n *nodeExpandLocal) DynamicExpand(ctx EvalContext) (*Graph, error) {
 	return &g, nil
 }
 
+// graphNodeLocalConfig
+func (n *nodeExpandLocal) LocalValueConfig() *configs.Local {
+	return n.Config
+}
+
 // NodeLocal represents a named local value in a particular module.
 //
 // Local value nodes only have one operation, common to all walk types:
@@ -94,6 +100,7 @@ type NodeLocal struct {
 }
 
 var (
+	_ graphNodeLocalConfig    = (*NodeLocal)(nil)
 	_ GraphNodeModuleInstance = (*NodeLocal)(nil)
 	_ GraphNodeReferenceable  = (*NodeLocal)(nil)
 	_ GraphNodeReferencer     = (*NodeLocal)(nil)
@@ -184,4 +191,9 @@ func (n *NodeLocal) DotNode(name string, opts *dag.DotOpts) *dag.DotNode {
 			"shape": "note",
 		},
 	}
+}
+
+// graphNodeLocalConfig
+func (n *NodeLocal) LocalValueConfig() *configs.Local {
+	return n.Config
 }

@@ -128,6 +128,7 @@ type nodeModuleVariable struct {
 // Ensure that we are implementing all of the interfaces we think we are
 // implementing.
 var (
+	_ graphNodeVariableConfig = (*nodeModuleVariable)(nil)
 	_ GraphNodeModuleInstance = (*nodeModuleVariable)(nil)
 	_ GraphNodeExecutable     = (*nodeModuleVariable)(nil)
 	_ graphNodeTemporaryValue = (*nodeModuleVariable)(nil)
@@ -297,4 +298,9 @@ func (n *nodeModuleVariable) warningDiags() tfdiags.Diagnostics {
 	}
 
 	return diags
+}
+
+// graphNodeVariableConfig
+func (n *nodeModuleVariable) VariableConfig() *configs.Variable {
+	return n.Config
 }

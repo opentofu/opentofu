@@ -32,6 +32,7 @@ type NodeRootVariable struct {
 }
 
 var (
+	_ graphNodeVariableConfig = (*NodeRootVariable)(nil)
 	_ GraphNodeExecutable     = (*NodeRootVariable)(nil)
 	_ GraphNodeModuleInstance = (*NodeRootVariable)(nil)
 	_ GraphNodeReferenceable  = (*NodeRootVariable)(nil)
@@ -115,4 +116,9 @@ func (n *NodeRootVariable) DotNode(name string, opts *dag.DotOpts) *dag.DotNode 
 			"shape": "note",
 		},
 	}
+}
+
+// graphNodeVariableConfig
+func (n *NodeRootVariable) VariableConfig() *configs.Variable {
+	return n.Config
 }
