@@ -767,7 +767,7 @@ func TestApply_targetedDestroy(t *testing.T) {
 					}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
 					&states.ResourceInstanceObjectSrc{
 						AttrsJSON:    []byte(`{"id":"i-abc123"}`),
-						Dependencies: []addrs.ConfigResource{mustResourceAddr("test_instance.foo")},
+						Dependencies: []addrs.ConfigResource{addrs.MustParseResourceAddr("test_instance.foo")},
 						Status:       states.ObjectReady,
 					},
 					addrs.AbsProviderConfig{

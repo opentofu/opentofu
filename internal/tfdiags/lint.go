@@ -203,9 +203,8 @@ func (lrcv *lintingRulesCtxValue) executeRule(execKey string, f func() Diagnosti
 // will be used to filter any diagnostics returned from whatever function the
 // resulting context was passed to.
 //
-// Use the returned context with [lintRuleEnabled] elsewhere in the system to
-// skip expensive work to generate a lint diagnostic that is going to get
-// discarded eventually anyway.
+// The returned context can be used with [LintRuleEnabled] elsewhere in the system to
+// skip running expensive work which could generated diagnostics that might be discarded later otherwise.
 func ContextWithLintFilterHints(parent context.Context, include, exclude collections.Set[linting.RuleAddr]) context.Context {
 	return context.WithValue(parent, lintingRulesCtxKey{}, &lintingRulesCtxValue{
 		include:               include,
@@ -287,6 +286,14 @@ func lintRuleAllowed(include, exclude collections.Set[linting.RuleAddr], ruleID 
 	}
 	// In the end, enable the rule only when the "all" configuration is provided
 	return include.Has(linting.AllRulesGroupID)
+}
+
+func LintRuleEnabled(ctx context.Context, ruleID linting.RuleAddr, groupIDs ...linting.RuleAddr) bool {
+	hints := lintHintsFromContext(ctx)
+	if hints == nil {
+		return false
+	}
+	return lintRuleAllowed(hints.include, hints.exclude, ruleID, groupIDs...)
 }
 
 // isLint returns true if the given diagnostic is of lintMessage type.

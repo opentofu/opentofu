@@ -466,6 +466,16 @@ func ParseConfigResource(traversal hcl.Traversal) (ConfigResource, tfdiags.Diagn
 	return configRes, diags.Append(moreDiags)
 }
 
+// MustParseResourceAddr is used to parse a string representation of a resource address to a ConfigResource.
+// Meant to be used only in tests since this panics if the parsing fails.
+func MustParseResourceAddr(s string) ConfigResource {
+	addr, diags := ParseAbsResourceStr(s)
+	if diags.HasErrors() {
+		panic(diags.Err())
+	}
+	return addr.Config()
+}
+
 // Resource returns the address of a particular resource within the module.
 func (m Module) Resource(mode ResourceMode, typeName string, name string) ConfigResource {
 	return ConfigResource{
