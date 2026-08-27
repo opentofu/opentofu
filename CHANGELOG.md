@@ -32,6 +32,9 @@ EXPERIMENTS:
 - Symbol Libraries are now available as an experimental feature ([#4052](https://github.com/opentofu/opentofu/pull/4052))
 
     This new feature adds the capaibility to define re-usable functions and types in hcl-lang based libraries. As this introduces a drastically different way of building modules and sharing functionality, we are looking for early feedback on the design of the language and how it integrates into OpenTofu workflows. If you are interested in this functionality, you can enable to experiment by adding the appropriate experiment to the experiments list in the language block. As it is experimental, it is subject to change before it is marked as stable and should not be relied upon in production.
+- Basic linting support introduced ([#4310](https://github.com/opentofu/opentofu/issues/4310))
+    
+    The linting support can be enabled by using the `-lint` flag on the supported commands. By doing so, OpenTofu will run the selected linting rules against the configuration given to OpenTofu and will show warning diagnostics if any issue is found. The functionality is marked as experimental because this is just a first iteration and we want to see how users interact with it and how useful they find it.
 
 ENHANCEMENTS:
 
