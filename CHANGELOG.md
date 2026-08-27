@@ -1,4 +1,4 @@
-The v1.13.x release series is supported until **August 1 2027**.
+The v1.14.x release series is supported until **February 1 2028**.
 
 ## 1.14.0 (Unreleased)
 
