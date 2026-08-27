@@ -52,6 +52,7 @@ ENHANCEMENTS:
 - On Windows systems, OpenTofu uses a heuristic to detect when it seems to be running in a legacy terminal emulator that uses a named pipe instead of a true pseudoterminal, such as with Cygwin and MSYS. This heuristic is now updated to be more reliable on recent versions of Windows that report slightly different names for those pipes. ([#4459](https://github.com/opentofu/opentofu/issues/4459))
 - `tofu init` in our official releases when running on a 32-bit CPU architecture now warns about our plan to stop publishing official builds for these platforms starting in OpenTofu v1.14. ([#4018](https://github.com/opentofu/opentofu/issues/4018))
 - Saved plan files now include the provider schemas needed to render the plan, so `tofu show` on a plan file no longer needs to launch the providers where possible. ([#4490](https://github.com/opentofu/opentofu/pull/4490))
+- `tofu version` and `tofu version -json` now display downloaded module versions alongside provider selections. ([#4464](https://github.com/opentofu/opentofu/pull/4464))
 
 BUG FIXES:
 
