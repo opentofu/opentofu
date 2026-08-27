@@ -43,7 +43,7 @@ func ParseLintingRules(rules []string) (collections.Set[linting.RuleAddr], colle
 		}
 		la, err := linting.ParseRuleAddr(rule)
 		if err != nil {
-			log.Printf("[WARN] Linting rule %q ignored since it's parsing failed: %s", rawRule, err)
+			log.Printf("[WARN] Linting rule %q ignored since its parsing failed: %s", rawRule, err)
 			continue
 		}
 		t[la] = struct{}{}
