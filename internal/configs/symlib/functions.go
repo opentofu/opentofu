@@ -170,7 +170,7 @@ func decodeFunctionBlock(block *hcl.Block) (*Function, hcl.Diagnostics) {
 	return fn, diags
 }
 
-type functionWithStack func(stack []string) function.Function
+type functionWithStack func(w *workgraph.Worker, stack []string) function.Function
 
 func (fn *Function) Compile(w *workgraph.Worker, libScope *symbolScope) (functionWithStack, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
@@ -224,7 +224,7 @@ func (fn *Function) Compile(w *workgraph.Worker, libScope *symbolScope) (functio
 		spec.VarParam = &fnp
 	}
 
-	return func(stack []string) function.Function {
+	return func(w *workgraph.Worker, stack []string) function.Function {
 		// This is safe because of struct copies
 		spec.Impl = func(args []cty.Value, retType cty.Type) (cty.Value, error) {
 			var diags hcl.Diagnostics
