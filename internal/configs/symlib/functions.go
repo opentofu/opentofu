@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/convert"
 	"github.com/zclconf/go-cty/cty/function"
 )
 
@@ -321,7 +322,13 @@ func (fn *Function) Compile(w *workgraph.Worker, libScope *symbolScope) (functio
 			if diags.HasErrors() {
 				return val, error(diags)
 			}
-			return val, nil
+
+			// Ensure that we convert to the return type here instead of the raw val
+			typedVal, err := convert.Convert(val, retType)
+			if err != nil {
+				return cty.NilVal, err
+			}
+			return typedVal, nil
 		}
 
 		return function.New(spec)
