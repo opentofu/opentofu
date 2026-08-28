@@ -361,3 +361,28 @@ func TestParserLoadConfigFileError(t *testing.T) {
 		})
 	}
 }
+
+// TestMockFileExt is a test thet verifies whether the function mockFileExi
+// returns the correct declared extension for the mock file
+func TestMockFileExt(t *testing.T) {
+	tests := map[string]struct {
+		name string
+		want string
+	}{
+		"tofumock":     {name: "aws.tofumock.hcl", want: tofuTestMockExt},
+		"tfmock":       {name: "aws.tfmock.hcl", want: tfTestMockExt},
+		"unrelated_tf": {name: "main.tf", want: ""},
+		"readme":       {name: "README.md", want: ""},
+		"test_file":    {name: "random.tftest.hcl", want: ""},
+		"no_extension": {name: "config", want: ""},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			got := mockFileExt(tc.name)
+			if got != tc.want {
+				t.Fatalf("mockFileExt(%q) = %q, want %q", tc.name, got, tc.want)
+			}
+		})
+	}
+}

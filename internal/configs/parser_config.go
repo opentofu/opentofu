@@ -43,13 +43,14 @@ func (p *Parser) LoadConfigFileOverride(path string) (*File, hcl.Diagnostics) {
 //
 // It references the same LoadHCLFile as LoadConfigFile, so inherits the same
 // syntax selection behaviours.
-func (p *Parser) LoadTestFile(path string) (*TestFile, hcl.Diagnostics) {
+// baseDir is the root directory containing the main.tf file
+func (p *Parser) LoadTestFile(path, baseDir string) (*TestFile, hcl.Diagnostics) {
 	body, diags := p.LoadHCLFile(path)
 	if body == nil {
 		return nil, diags
 	}
 
-	test, testDiags := loadTestFile(body)
+	test, testDiags := p.loadTestFile(body, baseDir)
 	diags = append(diags, testDiags...)
 	return test, diags
 }
