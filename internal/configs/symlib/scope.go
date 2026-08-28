@@ -162,7 +162,7 @@ func (s *symbolScope) functionFor(w *workgraph.Worker, fn hcl.Traversal, stack [
 			}}
 		}
 		fn, diags := found.Value(w)
-		sfn := fn.ForWorker(w, stack)
+		sfn := fn.ForInternalCaller(w, stack)
 		return &sfn, diags
 	case 3:
 		return s.table.Function(FunctionRef{
