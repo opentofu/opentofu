@@ -14,16 +14,23 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mitchellh/cli"
 	"github.com/zclconf/go-cty/cty"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/provisioners"
 )
 
+type mockUI struct {
+	strings.Builder
+}
+
+func (m *mockUI) Output(str string) {
+	m.WriteString(str + "\n")
+}
+
 func TestResourceProvider_Apply(t *testing.T) {
 	defer os.Remove("test_out")
-	output := cli.NewMockUi()
+	output := new(mockUI)
 	p := New()
 	schema := p.GetSchema().Provisioner
 	c, err := schema.CoerceValue(cty.ObjectVal(map[string]cty.Value{
@@ -56,7 +63,7 @@ func TestResourceProvider_Apply(t *testing.T) {
 }
 
 func TestResourceProvider_stop(t *testing.T) {
-	output := cli.NewMockUi()
+	output := new(mockUI)
 	p := New()
 	schema := p.GetSchema().Provisioner
 
@@ -128,7 +135,7 @@ func TestResourceProvider_stop(t *testing.T) {
 }
 
 func TestResourceProvider_ApplyCustomInterpreter(t *testing.T) {
-	output := cli.NewMockUi()
+	output := new(mockUI)
 	p := New()
 
 	schema := p.GetSchema().Provisioner
@@ -150,7 +157,7 @@ func TestResourceProvider_ApplyCustomInterpreter(t *testing.T) {
 		t.Fatal(resp.Diagnostics.Err())
 	}
 
-	got := strings.TrimSpace(output.OutputWriter.String())
+	got := strings.TrimSpace(output.String())
 	want := `Executing: ["echo" "is" "not really an interpreter"]
 is not really an interpreter`
 	if got != want {
@@ -165,7 +172,7 @@ func TestResourceProvider_ApplyCustomWorkingDirectory(t *testing.T) {
 	}
 	defer os.Remove(testdir)
 
-	output := cli.NewMockUi()
+	output := new(mockUI)
 	p := New()
 	schema := p.GetSchema().Provisioner
 
@@ -195,7 +202,7 @@ func TestResourceProvider_ApplyCustomWorkingDirectory(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	got := strings.TrimSpace(output.OutputWriter.String())
+	got := strings.TrimSpace(output.String())
 	want := "Executing: [\"/bin/sh\" \"-c\" \"echo `pwd`\"]\n" + dir + "/" + testdir
 	if runtime.GOOS == "windows" {
 		want = "Executing: [\"cmd\" \"/C\" \"echo %cd%\"]\n" + dir + "\\" + testdir
@@ -206,7 +213,7 @@ func TestResourceProvider_ApplyCustomWorkingDirectory(t *testing.T) {
 }
 
 func TestResourceProvider_ApplyCustomEnv(t *testing.T) {
-	output := cli.NewMockUi()
+	output := new(mockUI)
 	p := New()
 	schema := p.GetSchema().Provisioner
 	command := "echo $FOO $BAR $BAZ"
@@ -233,7 +240,7 @@ func TestResourceProvider_ApplyCustomEnv(t *testing.T) {
 		t.Fatal(resp.Diagnostics.Err())
 	}
 
-	got := strings.TrimSpace(output.OutputWriter.String())
+	got := strings.TrimSpace(output.String())
 
 	want := "Executing: [\"/bin/sh\" \"-c\" \"echo $FOO $BAR $BAZ\"]\nBAR 1 true"
 	if runtime.GOOS == "windows" {
@@ -275,7 +282,7 @@ func TestResourceProvider_ValidateNullCommand(t *testing.T) {
 }
 
 func TestResourceProvider_ApplyNullCommand(t *testing.T) {
-	output := cli.NewMockUi()
+	output := new(mockUI)
 	p := New()
 	cfg := cty.ObjectVal(map[string]cty.Value{
 		"command":     cty.NullVal(cty.String),
@@ -296,7 +303,7 @@ func TestResourceProvider_ApplyNullCommand(t *testing.T) {
 }
 
 func TestResourceProvisioner_nullsInOptionals(t *testing.T) {
-	output := cli.NewMockUi()
+	output := new(mockUI)
 	p := New()
 	schema := p.GetSchema().Provisioner
 
@@ -353,7 +360,7 @@ func testSpanContext() trace.SpanContext {
 }
 
 func TestResourceProvider_TraceparentPropagation(t *testing.T) {
-	output := cli.NewMockUi()
+	output := new(mockUI)
 	p := New()
 	schema := p.GetSchema().Provisioner
 
@@ -380,7 +387,7 @@ func TestResourceProvider_TraceparentPropagation(t *testing.T) {
 		t.Fatal(resp.Diagnostics.Err())
 	}
 
-	got := strings.TrimSpace(output.OutputWriter.String())
+	got := strings.TrimSpace(output.String())
 	want := "00-0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f-0f0f0f0f0f0f0f0f-01"
 	if !strings.Contains(got, want) {
 		t.Errorf("expected TRACEPARENT %q in output, got %q", want, got)
@@ -390,7 +397,7 @@ func TestResourceProvider_TraceparentPropagation(t *testing.T) {
 func TestResourceProvider_TraceparentNotSetWithoutSpan(t *testing.T) {
 	t.Setenv("TRACEPARENT", "")
 
-	output := cli.NewMockUi()
+	output := new(mockUI)
 	p := New()
 	schema := p.GetSchema().Provisioner
 
@@ -421,7 +428,7 @@ func TestResourceProvider_TraceparentNotSetWithoutSpan(t *testing.T) {
 		t.Fatal(resp.Diagnostics.Err())
 	}
 
-	got := strings.TrimSpace(output.OutputWriter.String())
+	got := strings.TrimSpace(output.String())
 
 	if !strings.Contains(got, expectedOutput) {
 		t.Errorf("expected TRACEPARENT to be unset without span context, got %q", got)
@@ -429,7 +436,7 @@ func TestResourceProvider_TraceparentNotSetWithoutSpan(t *testing.T) {
 }
 
 func TestResourceProvider_TraceparentUserOverride(t *testing.T) {
-	output := cli.NewMockUi()
+	output := new(mockUI)
 	p := New()
 	schema := p.GetSchema().Provisioner
 
@@ -460,7 +467,7 @@ func TestResourceProvider_TraceparentUserOverride(t *testing.T) {
 		t.Fatal(resp.Diagnostics.Err())
 	}
 
-	got := strings.TrimSpace(output.OutputWriter.String())
+	got := strings.TrimSpace(output.String())
 	if !strings.Contains(got, userTraceparent) {
 		t.Errorf("expected user-specified TRACEPARENT %q, got %q", userTraceparent, got)
 	}

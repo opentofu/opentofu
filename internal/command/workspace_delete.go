@@ -42,9 +42,6 @@ type WorkspaceDeleteCommand struct {
 	LegacyName bool
 }
 
-func (c *WorkspaceDeleteCommand) Run(rawArgs []string) int {
-	return RunCommand(WorkspaceDeleteCommander(c.LegacyName), c.Meta, rawArgs)
-}
 func (c WorkspaceDeleteCommand) Execute(args *arguments.WorkspaceDelete, view views.Workspace) int {
 	var diags tfdiags.Diagnostics
 	ctx := c.CommandContext()
@@ -218,47 +215,4 @@ func (c *WorkspaceDeleteCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
 		"-force": complete.PredictNothing,
 	}
-}
-
-func (c *WorkspaceDeleteCommand) Help() string {
-	helpText := `
-Usage: tofu [global options] workspace delete [options] NAME
-
-  Delete a OpenTofu workspace
-
-
-Options:
-
-  -force               Remove a workspace even if it is managing resources.
-                       OpenTofu can no longer track or manage the workspace's
-                       infrastructure.
-
-  -lock=false          Don't hold a state lock during the operation. This is
-                       dangerous if others might concurrently run commands
-                       against the same workspace.
-
-  -lock-timeout=0s     Duration to retry a state lock.
-
-  -var 'foo=bar'       Set a value for one of the input variables in the root
-                       module of the configuration. Use this option more than
-                       once to set more than one variable.
-
-  -var-file=filename   Load variable values from the given file, in addition
-                       to the default files terraform.tfvars and *.auto.tfvars.
-                       Use this option more than once to include more than one
-                       variables file.
-    
-  -json                The output of the command is printed in json format.
-
-  -json-into=out.json  Produce the same output as -json, but sent directly
-                       to the given file. This allows automation to preserve
-                       the original human-readable output streams, while
-                       capturing more detailed logs for machine analysis.
-
-`
-	return strings.TrimSpace(helpText)
-}
-
-func (c *WorkspaceDeleteCommand) Synopsis() string {
-	return "Delete a workspace"
 }

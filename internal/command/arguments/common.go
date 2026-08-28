@@ -7,10 +7,8 @@ package arguments
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"io"
-	"strings"
 	"time"
 
 	"github.com/opentofu/opentofu/internal/command/flags"
@@ -113,21 +111,6 @@ func (c *CommandLine) PositionalError(remaining []string, argsErrored bool) tfdi
 	return diags
 }
 
-// PositionalArgs processes the input as a set of positional arguments. This
-// should be the entries remaining after Flag parsing.
-func (c *CommandLine) PositionalArgs(remaining []string) tfdiags.Diagnostics {
-	argsErrored := false
-	for _, arg := range c.Args {
-		var err error
-		remaining, err = arg.Process(remaining)
-		if err != nil {
-			// For now, we don't care about the more specific error text
-			argsErrored = true
-		}
-	}
-	return c.PositionalError(remaining, argsErrored)
-}
-
 // RemainCheck handles positional arguments and produces a corresponding
 // error if nessesary.
 func (c *CommandLine) RemainCheck(remaining []string) tfdiags.Diagnostics {
@@ -170,62 +153,9 @@ func (c *CommandLine) CliArguments() []cli.Argument {
 	return ret
 }
 
-// ParseLegacy uses the old command line stdargs processing method. This currently exists
-// as a fallback and is primarily used for testing. Once we have completely switched to a
-// new CLI library, the tests can be updated and this function removed.
-func (c *CommandLine) ParseLegacy(args []string) tfdiags.Diagnostics {
-	var diags tfdiags.Diagnostics
-
-	// Special re-ordering of arguments for "global" options
-	var globalFlags []string
-	var rest []string
-	for _, arg := range args {
-		isGlobal := false
-		for _, flag := range c.Flags {
-			if flag.Global {
-				if strings.HasPrefix(arg, "-"+flag.Name) || strings.HasPrefix(arg, "--"+flag.Name) {
-					isGlobal = true
-				}
-			}
-		}
-		if isGlobal {
-			globalFlags = append(globalFlags, arg)
-		} else {
-			rest = append(rest, arg)
-		}
-	}
-	if len(globalFlags) > 0 {
-		args = append(globalFlags, rest...)
-	}
-
-	cmdFlags := defaultFlagSet("")
-	for _, flag := range c.Flags {
-		flag.Stdlib(cmdFlags)
-	}
-	if err := cmdFlags.Parse(args); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to parse command-line options",
-			err.Error(),
-		))
-	}
-
-	// Record flag set state (init hack)
-	for _, flag := range c.Flags {
-		flag.IsSet = func() bool { return flags.FlagIsSet(cmdFlags, flag.Name) }
-	}
-
-	remaining := cmdFlags.Args()
-
-	diags = diags.Append(c.PositionalArgs(remaining))
-
-	return diags
-}
-
 // parseWithHooks is a wrapper around Urfave that handles hooks. This is used by the
 // legacy Parse methods and should be removed when they are retired (only used in test paths).
 func (c *CommandLine) parseWithHooks(name string, args []string) (func(), tfdiags.Diagnostics) {
-	//diags := c.StdlibArgs(args)
 	diags := c.ParseDirect(context.Background(), args)
 
 	// Process hooks
@@ -333,9 +263,8 @@ func (c *CommandLine) Flag(flag *Flag) *Flag {
 // BoolVar attaches a bool flag to the CommandLine.
 func (c *CommandLine) BoolVar(p *bool, name string, value bool, usage string) *Flag {
 	f := c.Flag(&Flag{
-		Name:   name,
-		Usage:  usage,
-		Stdlib: func(f *flag.FlagSet) { f.BoolVar(p, name, value, usage) },
+		Name:  name,
+		Usage: usage,
 	})
 	f.Cli = func() cli.Flag {
 		return &cli.BoolFlag{Name: f.Name, Category: f.GroupID, DefaultText: f.Display, Local: true, Usage: f.Usage, Hidden: f.Hidden, Value: value, Destination: p}
@@ -346,9 +275,8 @@ func (c *CommandLine) BoolVar(p *bool, name string, value bool, usage string) *F
 // IntVar attaches a int flag to the CommandLine.
 func (c *CommandLine) IntVar(p *int, name string, value int, usage string) *Flag {
 	f := c.Flag(&Flag{
-		Name:   name,
-		Usage:  usage,
-		Stdlib: func(f *flag.FlagSet) { f.IntVar(p, name, value, usage) },
+		Name:  name,
+		Usage: usage,
 	})
 	f.Cli = func() cli.Flag {
 		return &cli.IntFlag{Name: f.Name, Category: f.GroupID, DefaultText: f.Display, Local: true, Usage: f.Usage, Hidden: f.Hidden, Value: value, Destination: p}
@@ -359,9 +287,8 @@ func (c *CommandLine) IntVar(p *int, name string, value int, usage string) *Flag
 // StringVar attaches a string flag to the CommandLine.
 func (c *CommandLine) StringVar(p *string, name string, value string, usage string) *Flag {
 	f := c.Flag(&Flag{
-		Name:   name,
-		Usage:  usage,
-		Stdlib: func(f *flag.FlagSet) { f.StringVar(p, name, value, usage) },
+		Name:  name,
+		Usage: usage,
 	})
 	f.Cli = func() cli.Flag {
 		return &cli.StringFlag{Name: f.Name, Category: f.GroupID, DefaultText: f.Display, Local: true, Usage: f.Usage, Hidden: f.Hidden, Value: value, Destination: p}
@@ -372,9 +299,8 @@ func (c *CommandLine) StringVar(p *string, name string, value string, usage stri
 // DurationVar attaches a time.Duration flag to the CommandLine.
 func (c *CommandLine) DurationVar(p *time.Duration, name string, value time.Duration, usage string) *Flag {
 	f := c.Flag(&Flag{
-		Name:   name,
-		Usage:  usage,
-		Stdlib: func(f *flag.FlagSet) { f.DurationVar(p, name, value, usage) },
+		Name:  name,
+		Usage: usage,
 	})
 	f.Cli = func() cli.Flag {
 		return &cli.DurationFlag{Name: f.Name, Category: f.GroupID, DefaultText: f.Display, Local: true, Usage: f.Usage, Hidden: f.Hidden, Value: value, Destination: p}
@@ -386,9 +312,8 @@ func (c *CommandLine) DurationVar(p *time.Duration, name string, value time.Dura
 // This treats every instance of -name is a new entry and does not perform any ',' splitting.
 func (c *CommandLine) StringArrayVar(p *[]string, name string, value []string, usage string) *Flag {
 	f := c.Flag(&Flag{
-		Name:   name,
-		Usage:  usage,
-		Stdlib: func(f *flag.FlagSet) { f.Var((*flags.FlagStringSlice)(p), name, usage) },
+		Name:  name,
+		Usage: usage,
 	})
 	f.Cli = func() cli.Flag {
 		return &cli.StringSliceFlag{Name: f.Name, Category: f.GroupID, DefaultText: f.Display, Local: true, Usage: f.Usage, Hidden: f.Hidden, Value: value, Destination: p}
@@ -401,9 +326,8 @@ func (c *CommandLine) StringArrayVar(p *[]string, name string, value []string, u
 // processing is improved. This will correspond with the removal of the flags package.
 func (c *CommandLine) RawFlags(p flags.RawFlags, name string, usage string) *Flag {
 	f := c.Flag(&Flag{
-		Name:   name,
-		Usage:  usage,
-		Stdlib: func(f *flag.FlagSet) { f.Var(p, name, usage) },
+		Name:  name,
+		Usage: usage,
 	})
 	f.Cli = func() cli.Flag {
 		dest := cli.Value(p)
@@ -434,9 +358,6 @@ type Flag struct {
 	// at some future date.
 	Global bool
 
-	// Stdlib implementation of this flag. Will be removed once the new
-	// CLI adoption is complete.
-	Stdlib func(*flag.FlagSet)
 	// Cli implementation of this flag (urfave/cli)
 	Cli func() cli.Flag
 

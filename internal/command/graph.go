@@ -7,7 +7,6 @@ package command
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/arguments"
@@ -45,9 +44,6 @@ type GraphCommand struct {
 	Meta
 }
 
-func (c *GraphCommand) Run(rawArgs []string) int {
-	return RunCommand(GraphCommander(), c.Meta, rawArgs)
-}
 func (c GraphCommand) Execute(args *arguments.Graph, view views.Graph) int {
 	var diags tfdiags.Diagnostics
 
@@ -269,46 +265,4 @@ func (c GraphCommand) Execute(args *arguments.Graph, view views.Graph) int {
 	view.Output(graphStr)
 
 	return 0
-}
-
-func (c *GraphCommand) Help() string {
-	helpText := `
-Usage: tofu [global options] graph [options]
-
-  Produces a representation of the dependency graph between different
-  objects in the current configuration and state.
-
-  The graph is presented in the DOT language. The typical program that can
-  read this format is GraphViz, but many web services are also available
-  to read this format.
-
-Options:
-
-  -plan=tfplan     Render graph using the specified plan file instead of the
-                   configuration in the current directory.
-
-  -draw-cycles     Highlight any cycles in the graph with colored edges.
-                   This helps when diagnosing cycle errors.
-
-  -type=plan       Type of graph to output. Can be: plan, plan-refresh-only,
-                   plan-destroy, or apply. By default OpenTofu chooses
-                   "plan", or "apply" if you also set the -plan=... option.
-
-  -module-depth=n  (deprecated) In prior versions of OpenTofu, specified the
-				   depth of modules to show in the output.
-
-  -var 'foo=bar'     Set a value for one of the input variables in the root
-                     module of the configuration. Use this option more than
-                     once to set more than one variable.
-
-  -var-file=filename Load variable values from the given file, in addition
-                     to the default files terraform.tfvars and *.auto.tfvars.
-                     Use this option more than once to include more than one
-                     variables file.
-`
-	return strings.TrimSpace(helpText)
-}
-
-func (c *GraphCommand) Synopsis() string {
-	return "Generate a Graphviz graph of the steps in an operation"
 }

@@ -8,7 +8,6 @@ package command
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/arguments"
@@ -41,9 +40,6 @@ type RefreshCommand struct {
 	Meta
 }
 
-func (c *RefreshCommand) Run(rawArgs []string) int {
-	return RunCommand(RefreshCommander(), c.Meta, rawArgs)
-}
 func (c RefreshCommand) Execute(args *arguments.Refresh, view views.Refresh) int {
 	var diags tfdiags.Diagnostics
 	ctx := c.CommandContext()
@@ -142,79 +138,4 @@ func (c *RefreshCommand) OperationRequest(ctx context.Context, be backend.Enhanc
 	}
 
 	return opReq, diags
-}
-
-func (c *RefreshCommand) Help() string {
-	helpText := `
-Usage: tofu [global options] refresh [options]
-
-  Update the state file of your infrastructure with metadata that matches
-  the physical resources they are tracking.
-
-  This will not modify your infrastructure, but it can modify your
-  state file to update metadata. This metadata might cause new changes
-  to occur when you generate a plan or call apply next.
-
-Options:
-
-  -compact-warnings      If OpenTofu produces any warnings that are not
-                         accompanied by errors, show them in a more compact form
-                         that includes only the summary messages.
-
-  -consolidate-warnings  If OpenTofu produces any warnings, no consolidation
-                         will be performed. All locations, for all warnings
-                         will be listed. Enabled by default.
-
-  -consolidate-errors    If OpenTofu produces any errors, no consolidation
-                         will be performed. All locations, for all errors
-                         will be listed. Disabled by default
-
-  -exclude=resource      Resource to exclude. Operation will be limited to all
-                         resources that are not excluded or dependent on excluded
-                         resources. This flag can be used multiple times. Cannot
-                         be used alongside the -target flag.
-
-  -input=true            Ask for input for variables if not directly set.
-
-  -lock=false            Don't hold a state lock during the operation. This is
-                         dangerous if others might concurrently run commands
-                         against the same workspace.
-
-  -lock-timeout=0s       Duration to retry a state lock.
-
-  -no-color              If specified, output won't contain any color.
-
-  -concise               Disables progress-related messages in the output.
-
-  -parallelism=n         Limit the number of concurrent operations. Defaults to 10.
-
-  -target=resource       Resource to target. Operation will be limited to this
-                         resource and its dependencies. This flag can be used
-                         multiple times.  Cannot be used alongside the -exclude
-                         flag.
-
-  -var 'foo=bar'         Set a variable in the OpenTofu configuration. This
-                         flag can be set multiple times.
-
-  -var-file=foo          Set variables in the OpenTofu configuration from
-                         a file. If "terraform.tfvars" or any ".auto.tfvars"
-                         files are present, they will be automatically loaded.
-
-  -json                  Produce output in a machine-readable JSON format,
-                         suitable for use in text editor integrations and 
-                         other automated systems. Always disables color.
-
-  -json-into=out.json    Produce the same output as -json, but sent directly
-                         to the given file. This allows automation to preserve
-                         the original human-readable output streams, while
-                         capturing more detailed logs for machine analysis.
-
-  -state, state-out, and -backup are legacy options supported for the local
-  backend only. For more information, see the local backend's documentation.
-`
-	return strings.TrimSpace(helpText)
-}
-
-func (c *RefreshCommand) Synopsis() string {
-	return "Update the state to match remote systems"
 }

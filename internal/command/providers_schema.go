@@ -38,17 +38,6 @@ type ProvidersSchemaCommand struct {
 	Meta
 }
 
-func (c *ProvidersSchemaCommand) Help() string {
-	return providersSchemaCommandHelp
-}
-
-func (c *ProvidersSchemaCommand) Synopsis() string {
-	return "Show schemas for the providers used in the configuration"
-}
-
-func (c *ProvidersSchemaCommand) Run(rawArgs []string) int {
-	return RunCommand(ProvidersSchemaCommander(), c.Meta, rawArgs)
-}
 func (c ProvidersSchemaCommand) Execute(args *arguments.ProvidersSchema, view views.ProvidersSchema) int {
 	var diags tfdiags.Diagnostics
 	ctx := c.CommandContext()
@@ -151,21 +140,3 @@ func (c ProvidersSchemaCommand) Execute(args *arguments.ProvidersSchema, view vi
 
 	return 0
 }
-
-const providersSchemaCommandHelp = `
-Usage: tofu [global options] providers schema [options] -json
-
-  Prints out a json representation of the schemas for all providers used 
-  in the current configuration.
-
-Options:
-
-  -var 'foo=bar'     Set a value for one of the input variables in the root
-                     module of the configuration. Use this option more than
-                     once to set more than one variable.
-
-  -var-file=filename Load variable values from the given file, in addition
-                     to the default files terraform.tfvars and *.auto.tfvars.
-                     Use this option more than once to include more than one
-                     variables file.
-`

@@ -292,11 +292,6 @@ func (m *Meta) InterruptibleContext(base context.Context) (context.Context, cont
 // CommandContext returns the "root context" to use in the main Run function
 // of a command.
 //
-// This method is just a substitute for passing a context directly to the
-// "Run" method of a command, which we can't do because that API is owned by
-// mitchellh/cli rather than by OpenTofu. Use this only in situations
-// comparable to the context having been passed in as an argument to Run.
-//
 // If the caller (e.g. "package main") provided a context when it instantiated
 // the Meta then the returned context will inherit all of its values, deadlines,
 // etc. If the caller did not provide a context then the result is an inert

@@ -11,159 +11,12 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"strings"
 	"testing"
-
-	"github.com/mitchellh/cli"
 )
 
-func TestMain_cliArgsFromEnv(t *testing.T) {
-	t.Setenv(EnvCliEnabled, "false")
-
-	// Set up the state. This test really messes with the environment and
-	// global state so we set things up to be restored.
-
-	// Restore original CLI args
-	oldArgs := os.Args
-	defer func() { os.Args = oldArgs }()
-
-	// Set up test command and restore that
-	commands = make(map[string]cli.CommandFactory)
-	defer func() {
-		commands = nil
-	}()
-	testCommandName := "unit-test-cli-args"
-	testCommand := &testCommandCLI{}
-	commands[testCommandName] = func() (cli.Command, error) {
-		return testCommand, nil
-	}
-
-	cases := []struct {
-		Name     string
-		Args     []string
-		Value    string
-		Expected []string
-		Err      bool
-	}{
-		{
-			"no env",
-			[]string{testCommandName, "foo", "bar"},
-			"",
-			[]string{"foo", "bar"},
-			false,
-		},
-
-		{
-			"both env var and CLI",
-			[]string{testCommandName, "foo", "bar"},
-			"-foo baz",
-			[]string{"-foo", "baz", "foo", "bar"},
-			false,
-		},
-
-		{
-			"only env var",
-			[]string{testCommandName},
-			"-foo bar",
-			[]string{"-foo", "bar"},
-			false,
-		},
-
-		{
-			"cli string has blank values",
-			[]string{testCommandName, "bar", "", "baz"},
-			"-foo bar",
-			[]string{"-foo", "bar", "bar", "", "baz"},
-			false,
-		},
-
-		{
-			"cli string has blank values before the command",
-			[]string{"", testCommandName, "bar"},
-			"-foo bar",
-			[]string{"-foo", "bar", "bar"},
-			false,
-		},
-
-		{
-			// this should fail gracefully, this is just testing
-			// that we don't panic with our slice arithmetic
-			"no command",
-			[]string{},
-			"-foo bar",
-			nil,
-			true,
-		},
-
-		{
-			"single quoted strings",
-			[]string{testCommandName, "foo"},
-			"-foo 'bar baz'",
-			[]string{"-foo", "bar baz", "foo"},
-			false,
-		},
-
-		{
-			"double quoted strings",
-			[]string{testCommandName, "foo"},
-			`-foo "bar baz"`,
-			[]string{"-foo", "bar baz", "foo"},
-			false,
-		},
-
-		{
-			"double quoted single quoted strings",
-			[]string{testCommandName, "foo"},
-			`-foo "'bar baz'"`,
-			[]string{"-foo", "'bar baz'", "foo"},
-			false,
-		},
-	}
-
-	for i, tc := range cases {
-		t.Run(fmt.Sprintf("%d-%s", i, tc.Name), func(t *testing.T) {
-			// Set the env var value
-			if tc.Value != "" {
-				t.Setenv(EnvCLI, tc.Value)
-			}
-
-			// Set up the args
-			args := make([]string, len(tc.Args)+1)
-			args[0] = oldArgs[0] // process name
-			copy(args[1:], tc.Args)
-
-			// Run it!
-			os.Args = args
-			testCommand.Args = nil
-			exit := realMain()
-			if (exit != 0) != tc.Err {
-				t.Fatalf("bad: %d", exit)
-			}
-			if tc.Err {
-				return
-			}
-
-			// Verify
-			if !reflect.DeepEqual(testCommand.Args, tc.Expected) {
-				t.Fatalf("expected args %#v but got %#v", tc.Expected, testCommand.Args)
-			}
-		})
-	}
-}
-
-// This test just has more options than the test above. Use this for
-// more control over behavior at the expense of more complex test structures.
-func TestMain_cliArgsFromEnvAdvanced(t *testing.T) {
-	t.Setenv(EnvCliEnabled, "false")
-
-	// Restore original CLI args
-	oldArgs := os.Args
-	defer func() { os.Args = oldArgs }()
-
-	// Set up test command and restore that
-	commands = make(map[string]cli.CommandFactory)
-	defer func() {
-		commands = nil
-	}()
+func TestMain_mergeEnvArgs(t *testing.T) {
+	testCommandName := "test-command-name"
 
 	cases := []struct {
 		Name     string
@@ -175,80 +28,158 @@ func TestMain_cliArgsFromEnvAdvanced(t *testing.T) {
 		Err      bool
 	}{
 		{
-			"targeted to another command",
-			"command",
-			EnvCLI + "_foo",
-			[]string{"command", "foo", "bar"},
-			"-flag",
-			[]string{"foo", "bar"},
-			false,
+			Name:     "no env",
+			Command:  testCommandName,
+			Args:     []string{testCommandName, "foo", "bar"},
+			Value:    "",
+			Expected: []string{testCommandName, "foo", "bar"},
 		},
 
 		{
-			"targeted to this command",
-			"command",
-			EnvCLI + "_command",
-			[]string{"command", "foo", "bar"},
-			"-flag",
-			[]string{"-flag", "foo", "bar"},
-			false,
+			Name:     "both env var and CLI",
+			Command:  testCommandName,
+			Args:     []string{testCommandName, "foo", "bar"},
+			Value:    "-foo baz",
+			Expected: []string{testCommandName, "-foo", "baz", "foo", "bar"},
 		},
 
 		{
-			"targeted to a command with a hyphen",
-			"command-name",
-			EnvCLI + "_command_name",
-			[]string{"command-name", "foo", "bar"},
-			"-flag",
-			[]string{"-flag", "foo", "bar"},
-			false,
+			Name:     "only env var",
+			Command:  testCommandName,
+			Args:     []string{testCommandName},
+			Value:    "-foo bar",
+			Expected: []string{testCommandName, "-foo", "bar"},
 		},
 
 		{
-			"targeted to a command with a space",
-			"command name",
-			EnvCLI + "_command_name",
-			[]string{"command", "name", "foo", "bar"},
-			"-flag",
-			[]string{"-flag", "foo", "bar"},
-			false,
+			Name:     "cli string has blank values",
+			Command:  testCommandName,
+			Args:     []string{testCommandName, "bar", "", "baz"},
+			Value:    "-foo bar",
+			Expected: []string{testCommandName, "-foo", "bar", "bar", "", "baz"},
+		},
+
+		{
+			Name:     "cli string has blank values before the command",
+			Command:  testCommandName,
+			Args:     []string{"", testCommandName, "bar"},
+			Value:    "-foo bar",
+			Expected: []string{"", testCommandName, "-foo", "bar", "bar"},
+		},
+
+		{
+			// this should fail gracefully, this is just testing
+			// that we don't panic with our slice arithmetic
+			Name:     "no command",
+			Command:  "",
+			Args:     []string{},
+			Value:    "-foo bar",
+			Expected: []string{"-foo", "bar"},
+			Err:      true,
+		},
+
+		{
+			Name:     "single quoted strings",
+			Command:  testCommandName,
+			Args:     []string{testCommandName, "foo"},
+			Value:    "-foo 'bar baz'",
+			Expected: []string{testCommandName, "-foo", "bar baz", "foo"},
+		},
+
+		{
+			Name:     "double quoted strings",
+			Command:  testCommandName,
+			Args:     []string{testCommandName, "foo"},
+			Value:    `-foo "bar baz"`,
+			Expected: []string{testCommandName, "-foo", "bar baz", "foo"},
+		},
+
+		{
+			Name:     "double quoted single quoted strings",
+			Command:  testCommandName,
+			Args:     []string{testCommandName, "foo"},
+			Value:    `-foo "'bar baz'"`,
+			Expected: []string{testCommandName, "-foo", "'bar baz'", "foo"},
+		},
+		{
+			Name:     "targeted to another command",
+			Command:  "command",
+			EnvVar:   EnvCLI + "_foo",
+			Args:     []string{"command", "foo", "bar"},
+			Value:    "-flag",
+			Expected: []string{"command", "foo", "bar"},
+		},
+
+		{
+			Name:     "targeted to this command",
+			Command:  "command",
+			EnvVar:   EnvCLI + "_command",
+			Args:     []string{"command", "foo", "bar"},
+			Value:    "-flag",
+			Expected: []string{"command", "-flag", "foo", "bar"},
+		},
+
+		{
+			Name:     "targeted to a command with a hyphen",
+			Command:  "command-name",
+			EnvVar:   EnvCLI + "_command_name",
+			Args:     []string{"command-name", "foo", "bar"},
+			Value:    "-flag",
+			Expected: []string{"command-name", "-flag", "foo", "bar"},
+		},
+
+		{
+			Name:     "targeted to a command with a space",
+			Command:  "command name",
+			EnvVar:   EnvCLI + "_command_name",
+			Args:     []string{"command", "name", "foo", "bar"},
+			Value:    "-flag",
+			Expected: []string{"command", "name", "-flag", "foo", "bar"},
 		},
 	}
 
 	for i, tc := range cases {
 		t.Run(fmt.Sprintf("%d-%s", i, tc.Name), func(t *testing.T) {
-			// Set up test command and restore that
-			testCommandName := tc.Command
-			testCommand := &testCommandCLI{}
-			defer func() { delete(commands, testCommandName) }()
-			commands[testCommandName] = func() (cli.Command, error) {
-				return testCommand, nil
-			}
-
 			// Set the env var value
 			if tc.Value != "" {
-				t.Setenv(tc.EnvVar, tc.Value)
+				if tc.EnvVar == "" {
+					t.Setenv(EnvCLI, tc.Value)
+				} else {
+					t.Setenv(tc.EnvVar, tc.Value)
+				}
 			}
 
 			// Set up the args
 			args := make([]string, len(tc.Args)+1)
-			args[0] = oldArgs[0] // process name
+			args[0] = "tofu" // process name
 			copy(args[1:], tc.Args)
 
 			// Run it!
-			os.Args = args
-			testCommand.Args = nil
-			exit := realMain()
-			if (exit != 0) != tc.Err {
-				t.Fatalf("unexpected exit status %d; want 0", exit)
-			}
-			if tc.Err {
-				return
+			{
+				subcommand := tc.Command
+				if subcommand == "" {
+					subcommand = args[0]
+				}
+				var err error
+				args, err = mergeEnvArgs(EnvCLI, subcommand, args)
+				if err != nil {
+					t.Fatal(err.Error())
+				}
+
+				// Prefix the args with any args from the EnvCLI targeting this command
+				suffix := strings.ReplaceAll(strings.ReplaceAll(
+					subcommand, "-", "_"), " ", "_")
+				args, err = mergeEnvArgs(
+					fmt.Sprintf("%s_%s", EnvCLI, suffix), subcommand, args)
+				if err != nil {
+					t.Fatal(err.Error())
+				}
 			}
 
 			// Verify
-			if !reflect.DeepEqual(testCommand.Args, tc.Expected) {
-				t.Fatalf("bad: %#v", testCommand.Args)
+			args = args[1:]
+			if !reflect.DeepEqual(args, tc.Expected) {
+				t.Fatalf("expected args %#v but got %#v", tc.Expected, args)
 			}
 		})
 	}
@@ -256,22 +187,9 @@ func TestMain_cliArgsFromEnvAdvanced(t *testing.T) {
 
 // verify that we output valid autocomplete results
 func TestMain_autoComplete(t *testing.T) {
-	t.Setenv(EnvCliEnabled, "false")
-
 	// Restore original CLI args
 	oldArgs := os.Args
 	defer func() { os.Args = oldArgs }()
-
-	// Set up test command and restore that
-	commands = make(map[string]cli.CommandFactory)
-	defer func() {
-		commands = nil
-	}()
-
-	// Set up test command and restore that
-	commands["foo"] = func() (cli.Command, error) {
-		return &testCommandCLI{}, nil
-	}
 
 	t.Setenv("COMP_LINE", "tofu versio")
 
@@ -282,18 +200,6 @@ func TestMain_autoComplete(t *testing.T) {
 		t.Fatalf("unexpected exit status %d; want 0", exit)
 	}
 }
-
-type testCommandCLI struct {
-	Args []string
-}
-
-func (c *testCommandCLI) Run(args []string) int {
-	c.Args = args
-	return 0
-}
-
-func (c *testCommandCLI) Synopsis() string { return "" }
-func (c *testCommandCLI) Help() string     { return "" }
 
 func TestMkConfigDir_new(t *testing.T) {
 	tmpConfigDir := filepath.Join(t.TempDir(), ".terraform.d")

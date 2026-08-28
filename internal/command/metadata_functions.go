@@ -28,27 +28,3 @@ func MetadataFunctionsCommander() Command {
 
 	return cmd
 }
-
-// MetadataFunctionsCommand is a Command implementation that prints out information
-// about the available functions in OpenTofu.
-type MetadataFunctionsCommand struct {
-	Meta
-}
-
-func (c *MetadataFunctionsCommand) Help() string {
-	return metadataFunctionsCommandHelp
-}
-
-func (c *MetadataFunctionsCommand) Synopsis() string {
-	return "Show signatures and descriptions for the available functions"
-}
-
-func (c *MetadataFunctionsCommand) Run(rawArgs []string) int {
-	return RunCommand(MetadataFunctionsCommander(), c.Meta, rawArgs)
-}
-
-const metadataFunctionsCommandHelp = `
-Usage: tofu [global options] metadata functions -json
-
-  Prints out a json representation of the available function signatures.
-`

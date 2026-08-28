@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 
 	"github.com/opentofu/opentofu/internal/tfdiags"
 
@@ -52,9 +51,6 @@ type StatePushCommand struct {
 	StateMeta
 }
 
-func (c *StatePushCommand) Run(rawArgs []string) int {
-	return RunCommand(StatePushCommander(), c.Meta, rawArgs)
-}
 func (c StatePushCommand) Execute(args *arguments.StatePush, view views.State) int {
 	var diags tfdiags.Diagnostics
 
@@ -203,59 +199,4 @@ func (c StatePushCommand) Execute(args *arguments.StatePush, view views.State) i
 
 	view.Diagnostics(diags)
 	return 0
-}
-
-func (c *StatePushCommand) Help() string {
-	helpText := `
-Usage: tofu [global options] state push [options] PATH
-
-  Update remote state from a local state file at PATH.
-
-  This command "pushes" a local state and overwrites remote state
-  with a local state file. The command will protect you against writing
-  an older serial or a different state file lineage unless you specify the
-  "-force" flag.
-
-  This command works with local state (it will overwrite the local
-  state), but is less useful for this use case.
-
-  If PATH is "-", then this command will read the state to push from stdin.
-  Data from stdin is not streamed to the backend: it is loaded completely
-  (until pipe close), verified, and then pushed.
-
-Options:
-
-  -force              Write the state even if lineages don't match or the
-                      remote serial is higher.
-
-  -lock=false         Don't hold a state lock during the operation. This is
-                      dangerous if others might concurrently run commands
-                      against the same workspace.
-
-  -lock-timeout=0s    Duration to retry a state lock.
-
-  -var 'foo=bar'      Set a value for one of the input variables in the root
-                      module of the configuration. Use this option more than
-                      once to set more than one variable.
-
-  -var-file=filename  Load variable values from the given file, in addition
-                      to the default files terraform.tfvars and *.auto.tfvars.
-                      Use this option more than once to include more than one
-                      variables file.
-
-  -json               Produce output in a machine-readable JSON format, 
-                      suitable for use in text editor integrations and other 
-                      automated systems. Always disables color.
-
-  -json-into=out.json Produce the same output as -json, but sent directly
-                      to the given file. This allows automation to preserve
-                      the original human-readable output streams, while
-                      capturing more detailed logs for machine analysis.
-
-`
-	return strings.TrimSpace(helpText)
-}
-
-func (c *StatePushCommand) Synopsis() string {
-	return "Update remote state from a local state file"
 }

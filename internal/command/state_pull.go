@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
@@ -46,9 +45,6 @@ type StatePullCommand struct {
 	StateMeta
 }
 
-func (c *StatePullCommand) Run(rawArgs []string) int {
-	return RunCommand(StatePullCommander(), c.Meta, rawArgs)
-}
 func (c StatePullCommand) Execute(args *arguments.StatePull, view views.State) int {
 	var diags tfdiags.Diagnostics
 	ctx := c.CommandContext()
@@ -110,36 +106,4 @@ func (c StatePullCommand) Execute(args *arguments.StatePull, view views.State) i
 	}
 
 	return 0
-}
-
-func (c *StatePullCommand) Help() string {
-	helpText := `
-Usage: tofu [global options] state pull [options]
-
-  Pull the state from its location, upgrade the local copy, and output it
-  to stdout.
-
-  This command "pulls" the current state and outputs it to stdout.
-  As part of this process, OpenTofu will upgrade the state format of the
-  local copy to the current version.
-
-  The primary use of this is for state stored remotely. This command
-  will still work with local state but is less useful for this.
-
-Options:
-
-  -var 'foo=bar'     Set a value for one of the input variables in the root
-                     module of the configuration. Use this option more than
-                     once to set more than one variable.
-
-  -var-file=filename Load variable values from the given file, in addition
-                     to the default files terraform.tfvars and *.auto.tfvars.
-                     Use this option more than once to include more than one
-                     variables file.
-`
-	return strings.TrimSpace(helpText)
-}
-
-func (c *StatePullCommand) Synopsis() string {
-	return "Pull current state and output to stdout"
 }

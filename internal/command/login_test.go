@@ -38,7 +38,7 @@ func TestLogin(t *testing.T) {
 	ts := httptest.NewServer(tfeserver.Handler)
 	defer ts.Close()
 
-	loginTestCase := func(test func(t *testing.T, c *LoginCommand, closeView func(*testing.T) *terminal.TestOutput), useBrowserLauncher bool) func(t *testing.T) {
+	loginTestCase := func(test func(t *testing.T, m *Meta, closeView func(*testing.T) *terminal.TestOutput), useBrowserLauncher bool) func(t *testing.T) {
 		return func(t *testing.T) {
 			t.Helper()
 			workDir := t.TempDir()
@@ -100,19 +100,19 @@ func TestLogin(t *testing.T) {
 				// This host intentionally left blank.
 			})
 
-			c := &LoginCommand{
+			m := &Meta{
 				WorkingDir:      workdir.NewDir("."),
 				View:            loginView,
 				BrowserLauncher: browserLauncher,
 				Services:        svcs,
 			}
 
-			test(t, c, loginDone)
+			test(t, m, loginDone)
 		}
 	}
 
-	t.Run("no hostname provided", loginTestCase(func(t *testing.T, c *LoginCommand, closeView func(*testing.T) *terminal.TestOutput) {
-		status := c.Run([]string{})
+	t.Run("no hostname provided", loginTestCase(func(t *testing.T, m *Meta, closeView func(*testing.T) *terminal.TestOutput) {
+		status := RunCommander(t, LoginCommander(), *m, []string{})
 		loginOutput := closeView(t)
 		if status == 0 {
 			t.Fatalf("successful exit; want error")
@@ -123,20 +123,20 @@ func TestLogin(t *testing.T) {
 		}
 	}, true))
 
-	t.Run(hcpTerraformHost+" (special-cased login support)", loginTestCase(func(t *testing.T, c *LoginCommand, closeView func(*testing.T) *terminal.TestOutput) {
+	t.Run(hcpTerraformHost+" (special-cased login support)", loginTestCase(func(t *testing.T, m *Meta, closeView func(*testing.T) *terminal.TestOutput) {
 		// Enter "yes" at the consent prompt, then paste a token with some
 		// accidental whitespace.
 		defer testInputMap(t, map[string]string{
 			"approve": "yes",
 			"token":   "  good-token ",
 		})()
-		status := c.Run([]string{"-no-color", hcpTerraformHost})
+		status := RunCommander(t, LoginCommander(), *m, []string{"-no-color", hcpTerraformHost})
 		loginOutput := closeView(t)
 		if status != 0 {
 			t.Fatalf("unexpected error code %d\nstderr:\n%s", status, loginOutput.Stderr())
 		}
 
-		credsSrc := c.Services.CredentialsSource()
+		credsSrc := m.Services.CredentialsSource()
 		creds, err := credsSrc.ForHost(t.Context(), svchost.Hostname(hcpTerraformHost))
 		if err != nil {
 			t.Errorf("failed to retrieve credentials: %s", err)
@@ -160,18 +160,18 @@ func TestLogin(t *testing.T) {
 		}
 	}, true))
 
-	t.Run("example.com with authorization code flow", loginTestCase(func(t *testing.T, c *LoginCommand, closeView func(*testing.T) *terminal.TestOutput) {
+	t.Run("example.com with authorization code flow", loginTestCase(func(t *testing.T, m *Meta, closeView func(*testing.T) *terminal.TestOutput) {
 		// Enter "yes" at the consent prompt.
 		defer testInputMap(t, map[string]string{
 			"approve": "yes",
 		})()
-		status := c.Run([]string{"example.com"})
+		status := RunCommander(t, LoginCommander(), *m, []string{"example.com"})
 		loginOutput := closeView(t)
 		if status != 0 {
 			t.Fatalf("unexpected error code %d\nstderr:\n%s", status, loginOutput.Stderr())
 		}
 
-		credsSrc := c.Services.CredentialsSource()
+		credsSrc := m.Services.CredentialsSource()
 		creds, err := credsSrc.ForHost(t.Context(), svchost.Hostname("example.com"))
 		if err != nil {
 			t.Errorf("failed to retrieve credentials: %s", err)
@@ -185,27 +185,27 @@ func TestLogin(t *testing.T) {
 		}
 	}, true))
 
-	t.Run("example.com results in no scopes", loginTestCase(func(t *testing.T, c *LoginCommand, closeView func(*testing.T) *terminal.TestOutput) {
+	t.Run("example.com results in no scopes", loginTestCase(func(t *testing.T, m *Meta, closeView func(*testing.T) *terminal.TestOutput) {
 
-		host, _ := c.Services.Discover(t.Context(), "example.com")
+		host, _ := m.Services.Discover(t.Context(), "example.com")
 		client, _ := host.ServiceOAuthClient("login.v1")
 		if len(client.Scopes) != 0 {
 			t.Errorf("unexpected scopes %q; expected none", client.Scopes)
 		}
 	}, true))
 
-	t.Run("with-scopes.example.com with authorization code flow and scopes", loginTestCase(func(t *testing.T, c *LoginCommand, closeView func(*testing.T) *terminal.TestOutput) {
+	t.Run("with-scopes.example.com with authorization code flow and scopes", loginTestCase(func(t *testing.T, m *Meta, closeView func(*testing.T) *terminal.TestOutput) {
 		// Enter "yes" at the consent prompt.
 		defer testInputMap(t, map[string]string{
 			"approve": "yes",
 		})()
-		status := c.Run([]string{"with-scopes.example.com"})
+		status := RunCommander(t, LoginCommander(), *m, []string{"with-scopes.example.com"})
 		loginOutput := closeView(t)
 		if status != 0 {
 			t.Fatalf("unexpected error code %d\nstderr:\n%s", status, loginOutput.Stderr())
 		}
 
-		credsSrc := c.Services.CredentialsSource()
+		credsSrc := m.Services.CredentialsSource()
 		creds, err := credsSrc.ForHost(t.Context(), svchost.Hostname("with-scopes.example.com"))
 
 		if err != nil {
@@ -221,9 +221,9 @@ func TestLogin(t *testing.T) {
 		}
 	}, true))
 
-	t.Run("with-scopes.example.com results in expected scopes", loginTestCase(func(t *testing.T, c *LoginCommand, closeView func(*testing.T) *terminal.TestOutput) {
+	t.Run("with-scopes.example.com results in expected scopes", loginTestCase(func(t *testing.T, m *Meta, closeView func(*testing.T) *terminal.TestOutput) {
 
-		host, _ := c.Services.Discover(t.Context(), "with-scopes.example.com")
+		host, _ := m.Services.Discover(t.Context(), "with-scopes.example.com")
 		client, _ := host.ServiceOAuthClient("login.v1")
 
 		expectedScopes := [2]string{"app1.full_access", "app2.read_only"}
@@ -236,20 +236,20 @@ func TestLogin(t *testing.T) {
 		}
 	}, true))
 
-	t.Run("TFE host without login support", loginTestCase(func(t *testing.T, c *LoginCommand, closeView func(*testing.T) *terminal.TestOutput) {
+	t.Run("TFE host without login support", loginTestCase(func(t *testing.T, m *Meta, closeView func(*testing.T) *terminal.TestOutput) {
 		// Enter "yes" at the consent prompt, then paste a token with some
 		// accidental whitespace.
 		defer testInputMap(t, map[string]string{
 			"approve": "yes",
 			"token":   "  good-token ",
 		})()
-		status := c.Run([]string{"tfe.acme.com"})
+		status := RunCommander(t, LoginCommander(), *m, []string{"tfe.acme.com"})
 		loginOutput := closeView(t)
 		if status != 0 {
 			t.Fatalf("unexpected error code %d\nstderr:\n%s", status, loginOutput.Stderr())
 		}
 
-		credsSrc := c.Services.CredentialsSource()
+		credsSrc := m.Services.CredentialsSource()
 		creds, err := credsSrc.ForHost(t.Context(), svchost.Hostname("tfe.acme.com"))
 		if err != nil {
 			t.Errorf("failed to retrieve credentials: %s", err)
@@ -263,19 +263,19 @@ func TestLogin(t *testing.T) {
 		}
 	}, true))
 
-	t.Run("TFE host without login support, incorrectly pasted token", loginTestCase(func(t *testing.T, c *LoginCommand, closeView func(*testing.T) *terminal.TestOutput) {
+	t.Run("TFE host without login support, incorrectly pasted token", loginTestCase(func(t *testing.T, m *Meta, closeView func(*testing.T) *terminal.TestOutput) {
 		// Enter "yes" at the consent prompt, then paste an invalid token.
 		defer testInputMap(t, map[string]string{
 			"approve": "yes",
 			"token":   "good-tok",
 		})()
-		status := c.Run([]string{"tfe.acme.com"})
+		status := RunCommander(t, LoginCommander(), *m, []string{"tfe.acme.com"})
 		loginOutput := closeView(t)
 		if status != 1 {
 			t.Fatalf("unexpected error code %d\nstderr:\n%s", status, loginOutput.Stderr())
 		}
 
-		credsSrc := c.Services.CredentialsSource()
+		credsSrc := m.Services.CredentialsSource()
 		creds, err := credsSrc.ForHost(t.Context(), svchost.Hostname("tfe.acme.com"))
 		if err != nil {
 			t.Errorf("failed to retrieve credentials: %s", err)
@@ -285,8 +285,8 @@ func TestLogin(t *testing.T) {
 		}
 	}, true))
 
-	t.Run("host without login or TFE API support", loginTestCase(func(t *testing.T, c *LoginCommand, closeView func(*testing.T) *terminal.TestOutput) {
-		status := c.Run([]string{"-no-color", "unsupported.example.net"})
+	t.Run("host without login or TFE API support", loginTestCase(func(t *testing.T, m *Meta, closeView func(*testing.T) *terminal.TestOutput) {
+		status := RunCommander(t, LoginCommander(), *m, []string{"-no-color", "unsupported.example.net"})
 		loginOutput := closeView(t)
 		if status == 0 {
 			t.Fatalf("successful exit; want error")
@@ -297,12 +297,12 @@ func TestLogin(t *testing.T) {
 		}
 	}, true))
 
-	t.Run("answering no cancels", loginTestCase(func(t *testing.T, c *LoginCommand, closeView func(*testing.T) *terminal.TestOutput) {
+	t.Run("answering no cancels", loginTestCase(func(t *testing.T, m *Meta, closeView func(*testing.T) *terminal.TestOutput) {
 		// Enter "no" at the consent prompt
 		defer testInputMap(t, map[string]string{
 			"approve": "no",
 		})()
-		status := c.Run([]string{hcpTerraformHost})
+		status := RunCommander(t, LoginCommander(), *m, []string{hcpTerraformHost})
 		loginOutput := closeView(t)
 		if status != 1 {
 			t.Fatalf("unexpected error code %d\nstderr:\n%s", status, loginOutput.Stderr())
@@ -313,12 +313,12 @@ func TestLogin(t *testing.T) {
 		}
 	}, true))
 
-	t.Run("answering y cancels", loginTestCase(func(t *testing.T, c *LoginCommand, closeView func(*testing.T) *terminal.TestOutput) {
+	t.Run("answering y cancels", loginTestCase(func(t *testing.T, m *Meta, closeView func(*testing.T) *terminal.TestOutput) {
 		// Enter "y" at the consent prompt
 		defer testInputMap(t, map[string]string{
 			"approve": "y",
 		})()
-		status := c.Run([]string{hcpTerraformHost})
+		status := RunCommander(t, LoginCommander(), *m, []string{hcpTerraformHost})
 		loginOutput := closeView(t)
 		if status != 1 {
 			t.Fatalf("unexpected error code %d\nstderr:\n%s", status, loginOutput.Stderr())
@@ -333,7 +333,7 @@ func TestLogin(t *testing.T) {
 	// and wait for the callback with code.
 	// There is no timeout in `tofu login` OAuth2 callback server code, so the only way to interrupt it
 	// is to write to the shutdown channel (or complete the login process).
-	t.Run("example.com Ctrl+C interrupts login command", loginTestCase(func(t *testing.T, c *LoginCommand, closeView func(*testing.T) *terminal.TestOutput) {
+	t.Run("example.com Ctrl+C interrupts login command", loginTestCase(func(t *testing.T, m *Meta, closeView func(*testing.T) *terminal.TestOutput) {
 		// Enter "yes" at the consent prompt.
 		defer testInputMap(t, map[string]string{
 			"approve": "yes",
@@ -341,13 +341,13 @@ func TestLogin(t *testing.T) {
 
 		// override the command's shutdown channel so we can write to it
 		abortCh := make(chan struct{})
-		c.ShutdownCh = abortCh
+		m.ShutdownCh = abortCh
 
 		// statusCh will receive command Run result
 		statusCh := make(chan int)
 		defer close(statusCh)
 		go func() {
-			statusCh <- c.Run([]string{"example.com"})
+			statusCh <- RunCommander(t, LoginCommander(), *m, []string{"example.com"})
 		}()
 
 		// abort background Login command and wait for its result
@@ -415,7 +415,7 @@ func TestLoginOAuthCallbackRace(t *testing.T) {
 			})
 
 			abortCh := make(chan struct{})
-			c := &LoginCommand{
+			m := Meta{
 				WorkingDir:      workdir.NewDir("."),
 				View:            loginView,
 				BrowserLauncher: webbrowser.NewMockLauncher(ctx),
@@ -429,7 +429,7 @@ func TestLoginOAuthCallbackRace(t *testing.T) {
 
 			statusCh := make(chan int, 1)
 			go func() {
-				statusCh <- c.Run([]string{"example.com"})
+				statusCh <- RunCommander(t, LoginCommander(), m, []string{"example.com"})
 			}()
 
 			// Fire ShutdownCh at varying delays to hit different timing windows:
@@ -490,7 +490,7 @@ func TestLoginOAuthCallbackNoPanicOnAbort(t *testing.T) {
 			// No MockLauncher: the OAuth callback will never arrive, so ShutdownCh
 			// is the only way to unblock the command.
 			abortCh := make(chan struct{})
-			c := &LoginCommand{
+			m := Meta{
 				WorkingDir: workdir.NewDir("."),
 				View:       loginView,
 				Services:   svcs,
@@ -503,7 +503,7 @@ func TestLoginOAuthCallbackNoPanicOnAbort(t *testing.T) {
 
 			statusCh := make(chan int, 1)
 			go func() {
-				statusCh <- c.Run([]string{"example.com"})
+				statusCh <- RunCommander(t, LoginCommander(), m, []string{"example.com"})
 			}()
 
 			close(abortCh)

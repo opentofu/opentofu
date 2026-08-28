@@ -248,11 +248,11 @@ func TestStatePush_forceRemoteState(t *testing.T) {
 
 	// init the backend
 	initView, initDone := testView(t)
-	initCmd := &InitCommand{
+	meta := Meta{
 		WorkingDir: workdir.NewDir("."),
 		View:       initView,
 	}
-	code := initCmd.Run([]string{})
+	code := RunCommander(t, InitCommander(), meta, []string{})
 	initOutput := initDone(t)
 	if code != 0 {
 		t.Fatalf("bad exit code: %d\n output:\n%s", code, initOutput.All())
@@ -260,11 +260,11 @@ func TestStatePush_forceRemoteState(t *testing.T) {
 
 	// create a new workspace
 	wsView, wsDone := testView(t)
-	newCmd := &WorkspaceNewCommand{
+	meta = Meta{
 		WorkingDir: workdir.NewDir("."),
 		View:       wsView,
 	}
-	wsCode := newCmd.Run([]string{"test"})
+	wsCode := RunCommander(t, WorkspaceNewCommander(false), meta, []string{"test"})
 	wsOutput := wsDone(t)
 	if wsCode != 0 {
 		t.Fatalf("bad exit code: %d\n\n%s", wsCode, wsOutput.All())
@@ -286,7 +286,7 @@ func TestStatePush_forceRemoteState(t *testing.T) {
 	// push our local state to that new workspace
 	view, done := testView(t)
 
-	meta := Meta{
+	meta = Meta{
 		WorkingDir: workdir.NewDir("."),
 		View:       view,
 	}

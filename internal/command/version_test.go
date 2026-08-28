@@ -11,17 +11,12 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/depsfile"
 	"github.com/opentofu/opentofu/internal/getproviders"
 )
-
-func TestVersionCommand_implements(t *testing.T) {
-	var _ cli.Command = &VersionCommand{}
-}
 
 func TestVersion(t *testing.T) {
 	td := t.TempDir()
@@ -45,17 +40,18 @@ func TestVersion(t *testing.T) {
 	)
 
 	view, done := testView(t)
-	c := &VersionCommand{
-		WorkingDir:        workdir.NewDir("."),
-		View:              view,
-		Version:           "4.5.6",
-		VersionPrerelease: "foo",
-		Platform:          getproviders.Platform{OS: "aros", Arch: "riscv64"},
+	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       view,
 	}
-	if err := c.replaceLockedDependencies(context.Background(), locks); err != nil {
+	if err := meta.replaceLockedDependencies(context.Background(), locks); err != nil {
 		t.Fatal(err)
 	}
-	code := c.Run([]string{})
+
+	version := "4.5.6"
+	versionPrerelease := "foo"
+	platform := getproviders.Platform{OS: "aros", Arch: "riscv64"}
+	code := RunCommander(t, VersionCommander(version, versionPrerelease, platform), meta, []string{})
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
@@ -71,20 +67,16 @@ func TestVersion(t *testing.T) {
 
 func TestVersion_flags(t *testing.T) {
 	view, done := testView(t)
-	m := Meta{
+	meta := Meta{
 		WorkingDir: workdir.NewDir("."),
 		View:       view,
 	}
 
-	// `tofu version`
-	c := &VersionCommand{
-		Meta:              m,
-		Version:           "4.5.6",
-		VersionPrerelease: "foo",
-		Platform:          getproviders.Platform{OS: "aros", Arch: "riscv64"},
-	}
+	version := "4.5.6"
+	versionPrerelease := "foo"
+	platform := getproviders.Platform{OS: "aros", Arch: "riscv64"}
 
-	code := c.Run([]string{"-v", "-version"})
+	code := RunCommander(t, VersionCommander(version, versionPrerelease, platform), meta, []string{"-v", "-version"})
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
@@ -108,12 +100,9 @@ func TestVersion_json(t *testing.T) {
 	}
 
 	// `tofu version -json` without prerelease
-	c := &VersionCommand{
-		Meta:     meta,
-		Version:  "4.5.6",
-		Platform: getproviders.Platform{OS: "aros", Arch: "riscv64"},
-	}
-	code := c.Run([]string{"-json"})
+	version := "4.5.6"
+	platform := getproviders.Platform{OS: "aros", Arch: "riscv64"}
+	code := RunCommander(t, VersionCommander(version, "", platform), meta, []string{"-json"})
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
@@ -153,16 +142,13 @@ func TestVersion_json(t *testing.T) {
 	)
 
 	// `tofu version -json` with prerelease and provider dependencies
-	c = &VersionCommand{
-		Meta:              meta,
-		Version:           "4.5.6",
-		VersionPrerelease: "foo",
-		Platform:          getproviders.Platform{OS: "aros", Arch: "riscv64"},
-	}
-	if err := c.replaceLockedDependencies(context.Background(), locks); err != nil {
+	if err := meta.replaceLockedDependencies(context.Background(), locks); err != nil {
 		t.Fatal(err)
 	}
-	code = c.Run([]string{"-json"})
+	version = "4.5.6"
+	versionPrerelease := "foo"
+	platform = getproviders.Platform{OS: "aros", Arch: "riscv64"}
+	code = RunCommander(t, VersionCommander(version, versionPrerelease, platform), meta, []string{"-json"})
 	output = done(t)
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())

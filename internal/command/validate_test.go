@@ -52,7 +52,7 @@ func setupTest(t *testing.T, fixturepath string, args ...string) (*terminal.Test
 			},
 		},
 	}
-	c := &ValidateCommand{
+	meta := Meta{
 		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: metaOverridesForProvider(p),
 		View:             view,
@@ -61,7 +61,7 @@ func setupTest(t *testing.T, fixturepath string, args ...string) (*terminal.Test
 	args = append(args, "-no-color")
 	args = append(args, testFixturePath(fixturepath))
 
-	code := c.Run(args)
+	code := RunCommander(t, ValidateCommander(), meta, args)
 	return done(t), code
 }
 
@@ -79,14 +79,14 @@ func TestValidateCommandWithTfvarsFile(t *testing.T) {
 	t.Chdir(td)
 
 	view, done := testView(t)
-	c := &ValidateCommand{
+	meta := Meta{
 		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: metaOverridesForProvider(testProvider()),
 		View:             view,
 	}
 
 	args := []string{}
-	code := c.Run(args)
+	code := RunCommander(t, ValidateCommander(), meta, args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad %d\n\n%s", code, output.Stderr())
@@ -259,7 +259,7 @@ func TestValidateWithInvalidTestFile(t *testing.T) {
 
 	view, done := testView(t)
 	provider := testing_command.NewProvider(nil)
-	c := &ValidateCommand{
+	meta := Meta{
 		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: metaOverridesForProvider(provider.Provider),
 		View:             view,
@@ -269,7 +269,7 @@ func TestValidateWithInvalidTestFile(t *testing.T) {
 	args = append(args, "-no-color")
 	args = append(args, testFixturePath("test/invalid"))
 
-	code := c.Run(args)
+	code := RunCommander(t, ValidateCommander(), meta, args)
 	output := done(t)
 
 	if code != 1 {
@@ -309,11 +309,7 @@ func TestValidateWithInvalidTestModule(t *testing.T) {
 		ProviderSource:   providerSource,
 	}
 
-	init := &InitCommand{
-		Meta: meta,
-	}
-
-	code := init.Run(nil)
+	code := RunCommander(t, InitCommander(), meta, nil)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("expected status code 0 but got %d: %s", code, output.Stderr())
@@ -322,14 +318,11 @@ func TestValidateWithInvalidTestModule(t *testing.T) {
 	streams, done = terminal.StreamsForTesting(t)
 	view = views.NewView(streams)
 	meta.View = view
-	c := &ValidateCommand{
-		Meta: meta,
-	}
 
 	var args []string
 	args = append(args, "-no-color")
 
-	code = c.Run(args)
+	code = RunCommander(t, ValidateCommander(), meta, args)
 	output = done(t)
 
 	if code != 1 {

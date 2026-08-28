@@ -199,13 +199,13 @@ func TestTest(t *testing.T) {
 			provider := testing_command.NewProvider(nil)
 			view, done := testView(t)
 
-			c := &TestCommand{
+			meta := Meta{
 				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(provider.Provider),
 				View:             view,
 			}
 
-			code := c.Run(tc.args)
+			code := RunCommander(t, TestCommander(), meta, tc.args)
 			output := done(t)
 
 			if code != tc.code {
@@ -287,13 +287,13 @@ func TestTest_Full_Output(t *testing.T) {
 			provider := testing_command.NewProvider(nil)
 			view, done := testView(t)
 
-			c := &TestCommand{
+			meta := Meta{
 				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(provider.Provider),
 				View:             view,
 			}
 
-			code := c.Run(tc.args)
+			code := RunCommander(t, TestCommander(), meta, tc.args)
 			output := done(t)
 
 			if code != tc.code {
@@ -322,14 +322,14 @@ func TestTest_Interrupt(t *testing.T) {
 	interrupt := make(chan struct{})
 	provider.Interrupt = interrupt
 
-	c := &TestCommand{
+	meta := Meta{
 		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: metaOverridesForProvider(provider.Provider),
 		View:             view,
 		ShutdownCh:       interrupt,
 	}
 
-	c.Run(nil)
+	RunCommander(t, TestCommander(), meta, nil)
 	output := done(t).All()
 
 	if !strings.Contains(output, "Interrupt received") {
@@ -353,14 +353,14 @@ func TestTest_DoubleInterrupt(t *testing.T) {
 	interrupt := make(chan struct{})
 	provider.Interrupt = interrupt
 
-	c := &TestCommand{
+	meta := Meta{
 		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: metaOverridesForProvider(provider.Provider),
 		View:             view,
 		ShutdownCh:       interrupt,
 	}
 
-	c.Run(nil)
+	RunCommander(t, TestCommander(), meta, nil)
 	output := done(t).All()
 
 	if !strings.Contains(output, "Two interrupts received") {
@@ -412,11 +412,7 @@ func TestTest_ProviderAlias(t *testing.T) {
 		ProviderSource:   providerSource,
 	}
 
-	init := &InitCommand{
-		Meta: meta,
-	}
-
-	code := init.Run(nil)
+	code := RunCommander(t, InitCommander(), meta, nil)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("expected status code 0 but got %d: %s", code, output.Stderr())
@@ -425,11 +421,8 @@ func TestTest_ProviderAlias(t *testing.T) {
 	streams, done = terminal.StreamsForTesting(t)
 	view = views.NewView(streams)
 	meta.View = view
-	command := &TestCommand{
-		Meta: meta,
-	}
 
-	code = command.Run(nil)
+	code = RunCommander(t, TestCommander(), meta, nil)
 	output = done(t)
 
 	printedOutput := false
@@ -491,11 +484,7 @@ func TestTest_ModuleDependencies(t *testing.T) {
 		ProviderSource: providerSource,
 	}
 
-	init := &InitCommand{
-		Meta: meta,
-	}
-
-	code := init.Run(nil)
+	code := RunCommander(t, InitCommander(), meta, nil)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("expected status code 0 but got %d: %s", code, output.Stderr())
@@ -504,11 +493,8 @@ func TestTest_ModuleDependencies(t *testing.T) {
 	streams, done = terminal.StreamsForTesting(t)
 	view = views.NewView(streams)
 	meta.View = view
-	command := &TestCommand{
-		Meta: meta,
-	}
 
-	code = command.Run(nil)
+	code = RunCommander(t, TestCommander(), meta, nil)
 	output = done(t)
 
 	printedOutput := false
@@ -544,13 +530,13 @@ func TestTest_CatchesErrorsBeforeDestroy(t *testing.T) {
 	provider := testing_command.NewProvider(nil)
 	view, done := testView(t)
 
-	c := &TestCommand{
+	meta := Meta{
 		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: metaOverridesForProvider(provider.Provider),
 		View:             view,
 	}
 
-	code := c.Run([]string{"-no-color"})
+	code := RunCommander(t, TestCommander(), meta, []string{"-no-color"})
 	output := done(t)
 
 	if code != 1 {
@@ -598,13 +584,13 @@ func TestTest_Verbose(t *testing.T) {
 	provider := testing_command.NewProvider(nil)
 	view, done := testView(t)
 
-	c := &TestCommand{
+	meta := Meta{
 		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: metaOverridesForProvider(provider.Provider),
 		View:             view,
 	}
 
-	code := c.Run([]string{"-verbose", "-no-color"})
+	code := RunCommander(t, TestCommander(), meta, []string{"-verbose", "-no-color"})
 	output := done(t)
 
 	if code != 0 {
@@ -765,11 +751,7 @@ can remove the provider configuration again.
 				ProviderSource:   providerSource,
 			}
 
-			init := &InitCommand{
-				Meta: meta,
-			}
-
-			initCode := init.Run(nil)
+			initCode := RunCommander(t, InitCommander(), meta, nil)
 			initOutput := done(t)
 			if initCode != 0 {
 				t.Fatalf("expected status code 0 but got %d: %s", initCode, initOutput.Stderr())
@@ -777,11 +759,8 @@ can remove the provider configuration again.
 
 			streams, done = terminal.StreamsForTesting(t)
 			meta.View = views.NewView(streams)
-			c := &TestCommand{
-				Meta: meta,
-			}
 
-			code := c.Run([]string{"-no-color"})
+			code := RunCommander(t, TestCommander(), meta, []string{"-no-color"})
 			testOutput := done(t)
 
 			if code != 1 {
@@ -914,11 +893,7 @@ func TestTest_Modules(t *testing.T) {
 				ProviderSource:   providerSource,
 			}
 
-			init := &InitCommand{
-				Meta: meta,
-			}
-
-			initCode := init.Run(nil)
+			initCode := RunCommander(t, InitCommander(), meta, nil)
 			initOutput := done(t)
 			if initCode != 0 {
 				t.Fatalf("expected status code 0 but got %d: %s", initCode, initOutput.Stderr())
@@ -926,11 +901,8 @@ func TestTest_Modules(t *testing.T) {
 
 			streams, done = terminal.StreamsForTesting(t)
 			meta.View = views.NewView(streams)
-			command := &TestCommand{
-				Meta: meta,
-			}
 
-			code := command.Run([]string{"-no-color"})
+			code := RunCommander(t, TestCommander(), meta, []string{"-no-color"})
 			testOutput := done(t)
 			printedOutput := false
 
@@ -994,11 +966,7 @@ func TestTest_StatePropagation(t *testing.T) {
 		ProviderSource:   providerSource,
 	}
 
-	init := &InitCommand{
-		Meta: meta,
-	}
-
-	initCode := init.Run(nil)
+	initCode := RunCommander(t, InitCommander(), meta, nil)
 	initOutput := done(t)
 	if initCode != 0 {
 		t.Fatalf("expected status code 0 but got %d: %s", initCode, initOutput.Stderr())
@@ -1007,11 +975,7 @@ func TestTest_StatePropagation(t *testing.T) {
 	streams, done = terminal.StreamsForTesting(t)
 	meta.View = views.NewView(streams)
 
-	c := &TestCommand{
-		Meta: meta,
-	}
-
-	code := c.Run([]string{"-verbose", "-no-color"})
+	code := RunCommander(t, TestCommander(), meta, []string{"-verbose", "-no-color"})
 	testOutput := done(t)
 
 	if code != 0 {
@@ -1179,13 +1143,13 @@ Condition expression could not be evaluated at this time.
 			provider := testing_command.NewProvider(nil)
 			view, done := testView(t)
 
-			c := &TestCommand{
+			meta := Meta{
 				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(provider.Provider),
 				View:             view,
 			}
 
-			code := c.Run([]string{"-no-color"})
+			code := RunCommander(t, TestCommander(), meta, []string{"-no-color"})
 			output := done(t)
 
 			actualOut, expectedOut := output.Stdout(), tc.expectedOut
@@ -1288,11 +1252,7 @@ Success! 1 passed, 0 failed.
 				ProviderSource:   providerSource,
 			}
 
-			init := &InitCommand{
-				Meta: meta,
-			}
-
-			initCode := init.Run(nil)
+			initCode := RunCommander(t, InitCommander(), meta, nil)
 			initOutput := done(t)
 			if initCode != 0 {
 				t.Fatalf("expected status code 0 but got %d: %s", initCode, initOutput.Stderr())
@@ -1300,11 +1260,8 @@ Success! 1 passed, 0 failed.
 
 			streams, done = terminal.StreamsForTesting(t)
 			meta.View = views.NewView(streams)
-			command := &TestCommand{
-				Meta: meta,
-			}
 
-			code := command.Run([]string{"-verbose", "-no-color"})
+			code := RunCommander(t, TestCommander(), meta, []string{"-verbose", "-no-color"})
 			testOutput := done(t)
 
 			if code != tc.code {
@@ -1376,11 +1333,7 @@ func TestTest_InvalidLocalVariables(t *testing.T) {
 				ProviderSource:   providerSource,
 			}
 
-			init := &InitCommand{
-				Meta: meta,
-			}
-
-			initCode := init.Run(nil)
+			initCode := RunCommander(t, InitCommander(), meta, nil)
 			initOutput := done(t)
 			if initCode != 0 {
 				t.Fatalf("expected status code 0 but got %d: %s", initCode, initOutput.Stderr())
@@ -1389,11 +1342,7 @@ func TestTest_InvalidLocalVariables(t *testing.T) {
 			streams, done = terminal.StreamsForTesting(t)
 			meta.View = views.NewView(streams)
 
-			command := &TestCommand{
-				Meta: meta,
-			}
-
-			code := command.Run([]string{"-verbose", "-no-color"})
+			code := RunCommander(t, TestCommander(), meta, []string{"-verbose", "-no-color"})
 			testOutput := done(t)
 
 			if code != tc.code {
@@ -1464,10 +1413,7 @@ digits, underscores, and dashes.
 				ProviderSource:   providerSource,
 			}
 
-			init := &InitCommand{
-				Meta: meta,
-			}
-			code := init.Run(nil)
+			code := RunCommander(t, InitCommander(), meta, nil)
 			initOutput := done(t)
 			if code != tc.code {
 				t.Fatalf("expected status code 0 but got %d: %s", code, initOutput.Stderr())
@@ -1539,11 +1485,7 @@ func TestTest_MockProviderValidation(t *testing.T) {
 		ProviderSource:   providerSource,
 	}
 
-	testCmd := &TestCommand{
-		Meta: meta,
-	}
-
-	code := testCmd.Run(nil)
+	code := RunCommander(t, TestCommander(), meta, nil)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("expected status code 0 but got %d: %s", code, output.All())
@@ -1604,11 +1546,7 @@ func TestTest_MockProviderValidationForEach(t *testing.T) {
 		ProviderSource:   providerSource,
 	}
 
-	testCmd := &TestCommand{
-		Meta: meta,
-	}
-
-	code := testCmd.Run(nil)
+	code := RunCommander(t, TestCommander(), meta, nil)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("expected status code 0 but got %d: %s", code, output.All())
@@ -1627,11 +1565,7 @@ func TestTest_DeprecatedOutputs(t *testing.T) {
 		View:       view,
 	}
 
-	testCmd := &TestCommand{
-		Meta: meta,
-	}
-
-	code := testCmd.Run(nil)
+	code := RunCommander(t, TestCommander(), meta, nil)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("expected status code 0 but got %d: %s", code, output.All())
@@ -1737,22 +1671,14 @@ func TestTest_InstanceOverride(t *testing.T) {
 				ProviderSource:   providerSource,
 			}
 
-			init := &InitCommand{
-				Meta: meta,
-			}
-
-			initCode := init.Run(nil)
+			initCode := RunCommander(t, InitCommander(), meta, nil)
 
 			if initCode != 0 {
 				initOutput := done(t)
 				t.Fatalf("expected status code 0 but got %d: %s", initCode, initOutput.Stderr())
 			}
 
-			c := &TestCommand{
-				Meta: meta,
-			}
-
-			code := c.Run(nil)
+			code := RunCommander(t, TestCommander(), meta, nil)
 			output := done(t)
 
 			if code != tc.code {

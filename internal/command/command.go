@@ -13,7 +13,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/mitchellh/cli"
 	"github.com/mitchellh/go-wordwrap"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
@@ -293,14 +292,8 @@ func CommandUsage(namespace string, cmd Command, w io.Writer) {
 }
 
 // RunResultHelp is a specific exit code that implies that help text should be shown.
-// This will be modified or removed when we rip out mitchellh/cli in 1.14.x
-var RunResultHelp = cli.RunResultHelp
-
-// RunCommand is how the legacy command structure calls into the new command
-// structure. This will be removed in 1.14.x
-func RunCommand(cmd Command, meta Meta, args []string) int {
-	return RunCli("", cmd, meta, cmd.CommandLine.ParseLegacy(args))
-}
+// This was inherited from mitchellh/cli in 1.14
+var RunResultHelp = -18511
 
 // RunCli is how the cli package executes a command after performing flag and argument
 // parsing. The oddity here is that certain arg handling diags need to be printed

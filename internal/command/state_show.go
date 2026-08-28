@@ -7,7 +7,6 @@ package command
 
 import (
 	"context"
-	"strings"
 
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/configs/configload"
@@ -45,9 +44,6 @@ type StateShowCommand struct {
 	StateMeta
 }
 
-func (c *StateShowCommand) Run(rawArgs []string) int {
-	return RunCommand(StateShowCommander(), c.Meta, rawArgs)
-}
 func (c StateShowCommand) Execute(args *arguments.StateShow, view views.State) int {
 	var diags tfdiags.Diagnostics
 
@@ -194,54 +190,4 @@ func (c StateShowCommand) Execute(args *arguments.StateShow, view views.State) i
 	)
 	resourceState := statefile.New(singleInstance, "", 0)
 	return view.ShowResourceState(ctx, resourceState, schemas)
-}
-
-func (c *StateShowCommand) Help() string {
-	helpText := `
-Usage: tofu [global options] state show [options] ADDRESS
-
-  Shows the attributes of a resource in the OpenTofu state.
-
-  This command shows the attributes of a single resource in the OpenTofu
-  state. The address argument must be used to specify a single resource.
-  You can view the list of available resources with "tofu state list".
-
-Options:
-
-  -state=statefile    Path to a OpenTofu state file to use to look
-                      up OpenTofu-managed resources. By default it will
-                      use the state "terraform.tfstate" if it exists.
-
-  -show-sensitive     If specified, sensitive values will be displayed.
-
-  -var 'foo=bar'      Set a value for one of the input variables in the root
-                      module of the configuration. Use this option more than
-                      once to set more than one variable.
-
-  -var-file=filename  Load variable values from the given file, in addition
-                      to the default files terraform.tfvars and *.auto.tfvars.
-                      Use this option more than once to include more than one
-                      variables file.
-
-  -json               Produce output in a machine-readable JSON format, 
-                      suitable for use in text editor integrations and other 
-                      automated systems. Always disables color.
-                      Warning: Using this option will always print the 
-                      sensitive values even if '-show-sensitive' is not 
-                      specified.
-
-  -json-into=out.json Produce the same output as -json, but sent directly
-                      to the given file. This allows automation to preserve
-                      the original human-readable output streams, while
-                      capturing more detailed logs for machine analysis.
-                      Warning: Using this option will always print the 
-                      sensitive values even if '-show-sensitive' is not 
-                      specified.
-
-`
-	return strings.TrimSpace(helpText)
-}
-
-func (c *StateShowCommand) Synopsis() string {
-	return "Show a resource in the state"
 }

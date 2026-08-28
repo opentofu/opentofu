@@ -7,8 +7,6 @@ package command
 
 import (
 	"fmt"
-	"path/filepath"
-	"strings"
 
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
@@ -44,9 +42,6 @@ type LogoutCommand struct {
 	Meta
 }
 
-func (c *LogoutCommand) Run(rawArgs []string) int {
-	return RunCommand(LogoutCommander(), c.Meta, rawArgs)
-}
 func (c LogoutCommand) Execute(args *arguments.Logout, view views.Logout) int {
 	var diags tfdiags.Diagnostics
 
@@ -121,41 +116,4 @@ func (c LogoutCommand) Execute(args *arguments.Logout, view views.Logout) int {
 	view.LogoutSuccess(dispHostname)
 
 	return 0
-}
-
-// Help implements cli.Command.
-func (c *LogoutCommand) Help() string {
-	defaultFile := c.defaultOutputFile()
-	if defaultFile == "" {
-		// Because this is just for the help message and it's very unlikely
-		// that a user wouldn't have a functioning home directory anyway,
-		// we'll just use a placeholder here. The real command has some
-		// more complex behavior for this case. This result is not correct
-		// on all platforms, but given how unlikely we are to hit this case
-		// that seems okay.
-		defaultFile = "~/.terraform/credentials.tfrc.json"
-	}
-
-	helpText := fmt.Sprintf(`
-Usage: tofu [global options] logout [hostname]
-
-  Removes locally-stored credentials for specified hostname.
-
-  Note: the API token is only removed from local storage, not destroyed on the
-  remote server, so it will remain valid until manually revoked.
-      %s
-`, defaultFile)
-	return strings.TrimSpace(helpText)
-}
-
-// Synopsis implements cli.Command.
-func (c *LogoutCommand) Synopsis() string {
-	return "Remove locally-stored credentials for a remote host"
-}
-
-func (c *LogoutCommand) defaultOutputFile() string {
-	if c.SystemCfg.CLIConfigDir == "" {
-		return "" // no default available
-	}
-	return filepath.Join(c.SystemCfg.CLIConfigDir, "credentials.tfrc.json")
 }

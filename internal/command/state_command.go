@@ -7,8 +7,6 @@ package command
 
 import (
 	"strings"
-
-	"github.com/mitchellh/cli"
 )
 
 func StateCommander() Command {
@@ -43,7 +41,7 @@ type StateCommand struct {
 }
 
 func (c *StateCommand) Run(_ []string) int {
-	return cli.RunResultHelp
+	return RunResultHelp
 }
 
 func (c *StateCommand) Help() string {
