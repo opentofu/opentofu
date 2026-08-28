@@ -121,6 +121,48 @@ func testCompile(t *testing.T, tcfiles map[string]string) (*Library, hcl.Diagnos
 	return CompileLibrary(files["./"], loader, testCtyFuncs)
 }
 
+// TestFunctionResultTypeConversion is a regression test to ensure that we always convert the type
+// of the function's return value to the declared function return type. This solves
+// issues where we need to ensure that we're converting the types to pass through chains correctly.
+func TestFunctionResultTypeConversion(t *testing.T) {
+	files := map[string]string{
+		"./functions.sym.hcl": `
+function "get_list" {
+	description = "returns a list"
+	type = list(string)
+	parameter "values" {
+		description = "input"
+		type = string
+		variadic = true
+	}
+
+		return = [for x in param.values: x]
+}`,
+	}
+
+	lib, diags := testCompile(t, files)
+	assertNoDiags(t, diags)
+	f, ok := lib.functions["get_list"]
+	if !ok {
+		t.Fatal("Failed to find function get_list")
+	}
+
+	got, err := f.Call([]cty.Value{cty.StringVal("hi"), cty.StringVal("mom")})
+	if err != nil {
+		t.Fatalf("Error during function call: %v", err)
+	}
+
+	if !got.Type().Equals(cty.List(cty.String)) {
+		t.Fatalf("Unexpected return type, expected list(string), got %s", got.Type().FriendlyName())
+	}
+
+	wanted := cty.ListVal([]cty.Value{cty.StringVal("hi"), cty.StringVal("mom")})
+
+	if diff := cmp.Diff(wanted, got, ctyCmpOpts); diff != "" {
+		t.Fatal(diff)
+	}
+}
+
 // This initial set of tests mirrors what is in the RFC (rfc/20260424-symbol-libraries.md)
 func TestRFCExamples(t *testing.T) {
 	cases := []struct {
