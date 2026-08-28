@@ -229,7 +229,7 @@ func CompileLibrary(files []*SymbolFile, loader Loader, builtinFuncs map[string]
 	for name, once := range libScope.functions {
 		f, fDiags := once.Value(w)
 		diags = diags.Extend(fDiags)
-		lib.functions[name] = f(w, nil)
+		lib.functions[name] = f.Standalone()
 	}
 
 	return lib, diags

@@ -7,6 +7,7 @@ package symlib
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/hashicorp/hcl/v2"
@@ -171,7 +172,15 @@ func decodeFunctionBlock(block *hcl.Block) (*Function, hcl.Diagnostics) {
 	return fn, diags
 }
 
-type functionWithStack func(w *workgraph.Worker, stack []string) function.Function
+type functionWithStack func(w func() *workgraph.Worker, stack []string) function.Function
+
+func (f functionWithStack) ForWorker(w *workgraph.Worker, stack []string) function.Function {
+	return f(func() *workgraph.Worker { return w }, stack)
+}
+
+func (f functionWithStack) Standalone() function.Function {
+	return f(func() *workgraph.Worker { return workgraph.NewWorker() }, nil)
+}
 
 func (fn *Function) Compile(w *workgraph.Worker, libScope *symbolScope) (functionWithStack, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
@@ -225,17 +234,20 @@ func (fn *Function) Compile(w *workgraph.Worker, libScope *symbolScope) (functio
 		spec.VarParam = &fnp
 	}
 
-	return func(w *workgraph.Worker, stack []string) function.Function {
+	return func(wf func() *workgraph.Worker, stack []string) function.Function {
 		// This is safe because of struct copies
 		spec.Impl = func(args []cty.Value, retType cty.Type) (cty.Value, error) {
 			var diags hcl.Diagnostics
 
+			// Ensure each call to this function has it's own copy of the stack
+			stack := slices.Clone(stack)
+			// Ensure each call uses the correct worker
+			w := wf()
+
 			callName := TypeSymbols + "::" + fn.Name
-			if len(stack) > 1024 {
-				for _, entry := range stack {
-					if entry == callName {
-						return cty.NilVal, fmt.Errorf("Recursive call to %s detected", callName)
-					}
+			for _, entry := range stack {
+				if entry == callName {
+					return cty.NilVal, fmt.Errorf("Recursive call to %s detected", callName)
 				}
 			}
 			stack = append(stack, callName)
