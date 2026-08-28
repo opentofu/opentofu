@@ -683,6 +683,206 @@ func TestEphemeralRepetitionData(t *testing.T) {
 
 }
 
+func TestCoreLintingRules(t *testing.T) {
+	t.Parallel()
+
+	tf := e2e.NewBinary(t, tofuBin, "testdata/linting")
+	buildSimpleProvider(t, "6", tf.WorkDir(), "simple")
+	exec := func(
+		t *testing.T,
+		chdir string,
+		lint []string,
+		expectedPlanOutput []outputCheck,
+		expectedApplyOutput []outputCheck,
+		expectedDestroyOutput []outputCheck,
+	) {
+		var chdirArgs []string
+		if len(chdir) > 0 {
+			chdirArgs = []string{"-chdir=" + chdir}
+		}
+		lintArgs := fmt.Sprintf("-lint=%s", strings.Join(lint, ","))
+		{ // INIT
+			_, stderr, err := tf.Run(append(chdirArgs, "init", "-plugin-dir=./cache")...)
+			if err != nil {
+				t.Fatalf("unexpected init error: %s\nstderr:\n%s", err, stderr)
+			}
+		}
+
+		{ // PLAN
+			stdout, stderr, err := tf.Run(append(chdirArgs, "plan", lintArgs, "-out=tfplan")...)
+			combined := fmt.Sprintf("%s\n\n%s", stripAnsi(stdout), stripAnsi(stderr))
+			if err != nil {
+				t.Errorf("expected no error during plan but got %q. output:\n%s", err, combined)
+			}
+			entriesChecker := outputEntriesChecker(expectedPlanOutput)
+			entriesChecker.check(t, "plan", combined)
+		}
+		{ // APPLY
+			stdout, stderr, err := tf.Run(append(chdirArgs, "apply", lintArgs, "-auto-approve", "tfplan")...)
+			combined := fmt.Sprintf("%s\n\n%s", stripAnsi(stdout), stripAnsi(stderr))
+			if err != nil {
+				t.Errorf("expected no error during apply but got %q. output:\n%s", err, combined)
+			}
+			entriesChecker := outputEntriesChecker(expectedApplyOutput)
+			entriesChecker.check(t, "apply", combined)
+		}
+		{ // DESTROY
+			stdout, stderr, err := tf.Run(append(chdirArgs, "destroy", "-auto-approve")...)
+			combined := fmt.Sprintf("%s\n\n%s", stripAnsi(stdout), stripAnsi(stderr))
+			if err != nil {
+				t.Errorf("expected to have no error during destroy. got %q instead. output:\n%s", err, combined)
+			}
+			entriesChecker := outputEntriesChecker(expectedDestroyOutput)
+			entriesChecker.check(t, "destroy", combined)
+		}
+	}
+	cases := map[string]struct {
+		chdir                 string
+		lint                  []string
+		expectedPlanOutput    []outputCheck
+		expectedApplyOutput   []outputCheck
+		expectedDestroyOutput []outputCheck
+	}{
+		"core:no-type-variable": {
+			lint: []string{"core:no-type-variable"},
+			expectedPlanOutput: []outputCheck{
+				outputCheckNumberOfOccurrences{"Experimental linting enabled", 1},
+				outputCheckNumberOfOccurrences{"3: variable \"no_type\"", 1},
+				outputCheckNumberOfOccurrences{"Variable with no type (core:no-type-variable)", 1},
+				outputCheckNumberOfOccurrences{"Warning:", 2}, // check all the issued linting diagnostics to be sure that there only the ones expected above
+			},
+			expectedApplyOutput: []outputCheck{
+				outputCheckNumberOfOccurrences{"Experimental linting enabled", 1},
+				outputCheckNumberOfOccurrences{"3: variable \"no_type\"", 1},
+				outputCheckNumberOfOccurrences{"Variable with no type (core:no-type-variable)", 1},
+				outputCheckNumberOfOccurrences{"Warning:", 2}, // check all the issued linting diagnostics to be sure that there only the ones expected above
+			},
+			expectedDestroyOutput: []outputCheck{
+				outputCheckDoesNotContain{"Warning:", true},
+			},
+		},
+		"core:unused-variable": {
+			lint: []string{"core:unused-variable"},
+			expectedPlanOutput: []outputCheck{
+				outputCheckNumberOfOccurrences{"Experimental linting enabled", 1},
+				outputCheckNumberOfOccurrences{"Input variable not used (core:unused-variable)", 2},
+				outputCheckNumberOfOccurrences{"3: variable \"no_type\"", 1},
+				outputCheckNumberOfOccurrences{"15: variable \"var_not_used_at_all\"", 1},
+				outputCheckNumberOfOccurrences{"Warning:", 3}, // check all the issued linting diagnostics to be sure that there only the ones expected above
+			},
+			expectedApplyOutput: []outputCheck{
+				outputCheckNumberOfOccurrences{"Experimental linting enabled", 1},
+				outputCheckNumberOfOccurrences{"Input variable not used (core:unused-variable)", 2},
+				outputCheckNumberOfOccurrences{"3: variable \"no_type\"", 1},
+				outputCheckNumberOfOccurrences{"15: variable \"var_not_used_at_all\"", 1},
+				outputCheckNumberOfOccurrences{"Warning:", 3}, // check all the issued linting diagnostics to be sure that there only the ones expected above
+			},
+			expectedDestroyOutput: []outputCheck{
+				outputCheckDoesNotContain{"Warning:", true},
+			},
+		},
+		"core:unused-local": {
+			lint: []string{"core:unused-local"},
+			expectedPlanOutput: []outputCheck{
+				outputCheckNumberOfOccurrences{"Experimental linting enabled", 1},
+				outputCheckNumberOfOccurrences{"Local value not used (core:unused-local)", 1},
+				outputCheckNumberOfOccurrences{"15:  local_not_used_at_all", 1},
+				outputCheckNumberOfOccurrences{"Warning:", 2}, // check all the issued linting diagnostics to be sure that there only the ones expected above
+			},
+			expectedApplyOutput: []outputCheck{
+				outputCheckNumberOfOccurrences{"Experimental linting enabled", 1},
+				outputCheckNumberOfOccurrences{"Local value not used (core:unused-local)", 1},
+				outputCheckNumberOfOccurrences{"15:  local_not_used_at_all", 1},
+				outputCheckNumberOfOccurrences{"Warning:", 2}, // check all the issued linting diagnostics to be sure that there only the ones expected above
+			},
+			expectedDestroyOutput: []outputCheck{
+				outputCheckDoesNotContain{"Warning:", true},
+			},
+		},
+		"core:count-instead-enabled": {
+			lint: []string{"core:count-instead-enabled"},
+			expectedPlanOutput: []outputCheck{
+				outputCheckNumberOfOccurrences{"Experimental linting enabled", 1},
+				outputCheckNumberOfOccurrences{"Could use enabled instead of count (core:count-instead-enabled)", 6},
+				outputCheckNumberOfOccurrences{"resource \"simple_resource\" \"res1\":", 1},
+				outputCheckNumberOfOccurrences{"data \"simple_resource\" \"res2\":", 1},
+				outputCheckNumberOfOccurrences{"ephemeral \"simple_resource\" \"res3\":", 1},
+				outputCheckNumberOfOccurrences{"resource \"simple_resource\" \"res4\":", 1},
+				outputCheckNumberOfOccurrences{"ephemeral \"simple_resource\" \"res5\":", 1},
+				outputCheckNumberOfOccurrences{"data \"simple_resource\" \"res6\":", 1},
+				outputCheckNumberOfOccurrences{"Warning:", 7}, // check all the issued linting diagnostics to be sure that there only the ones expected above
+			},
+			expectedApplyOutput: []outputCheck{
+				outputCheckNumberOfOccurrences{"Experimental linting enabled", 1},
+				outputCheckNumberOfOccurrences{"Could use enabled instead of count (core:count-instead-enabled)", 6},
+				outputCheckNumberOfOccurrences{"resource \"simple_resource\" \"res1\":", 1},
+				outputCheckNumberOfOccurrences{"data \"simple_resource\" \"res2\":", 1},
+				outputCheckNumberOfOccurrences{"ephemeral \"simple_resource\" \"res3\":", 1},
+				outputCheckNumberOfOccurrences{"resource \"simple_resource\" \"res4\":", 1},
+				outputCheckNumberOfOccurrences{"ephemeral \"simple_resource\" \"res5\":", 1},
+				outputCheckNumberOfOccurrences{"data \"simple_resource\" \"res6\":", 1},
+				outputCheckNumberOfOccurrences{"Warning:", 7}, // check all the issued linting diagnostics to be sure that there only the ones expected above
+			},
+			expectedDestroyOutput: []outputCheck{
+				outputCheckDoesNotContain{"Warning:", true},
+			},
+		},
+		"core:all": {
+			lint: []string{"core:all"},
+			expectedPlanOutput: []outputCheck{
+				outputCheckNumberOfOccurrences{"Experimental linting enabled", 1},
+				outputCheckNumberOfOccurrences{"Input variable not used (core:unused-variable)", 2},
+				outputCheckNumberOfOccurrences{"Local value not used (core:unused-local)", 1},
+				outputCheckNumberOfOccurrences{"Variable with no type (core:no-type-variable)", 1},
+				outputCheckNumberOfOccurrences{"3: variable \"no_type\"", 2}, // unused and no type
+				outputCheckNumberOfOccurrences{"15: variable \"var_not_used_at_all\"", 1},
+				outputCheckNumberOfOccurrences{"15:  local_not_used_at_all", 1},
+				outputCheckNumberOfOccurrences{"Could use enabled instead of count (core:count-instead-enabled)", 6},
+				outputCheckNumberOfOccurrences{"resource \"simple_resource\" \"res1\":", 1},
+				outputCheckNumberOfOccurrences{"data \"simple_resource\" \"res2\":", 1},
+				outputCheckNumberOfOccurrences{"ephemeral \"simple_resource\" \"res3\":", 1},
+				outputCheckNumberOfOccurrences{"resource \"simple_resource\" \"res4\":", 1},
+				outputCheckNumberOfOccurrences{"ephemeral \"simple_resource\" \"res5\":", 1},
+				outputCheckNumberOfOccurrences{"data \"simple_resource\" \"res6\":", 1},
+				outputCheckNumberOfOccurrences{"Warning:", 11}, // check all the issued linting diagnostics to be sure that there only the ones expected above
+			},
+			expectedApplyOutput: []outputCheck{
+				outputCheckNumberOfOccurrences{"Experimental linting enabled", 1},
+				outputCheckNumberOfOccurrences{"Input variable not used (core:unused-variable)", 2},
+				outputCheckNumberOfOccurrences{"Local value not used (core:unused-local)", 1},
+				outputCheckNumberOfOccurrences{"Variable with no type (core:no-type-variable)", 1},
+				outputCheckNumberOfOccurrences{"3: variable \"no_type\"", 2}, // unused and no type
+				outputCheckNumberOfOccurrences{"15: variable \"var_not_used_at_all\"", 1},
+				outputCheckNumberOfOccurrences{"15:  local_not_used_at_all", 1},
+				outputCheckNumberOfOccurrences{"Could use enabled instead of count (core:count-instead-enabled)", 6},
+				outputCheckNumberOfOccurrences{"resource \"simple_resource\" \"res1\":", 1},
+				outputCheckNumberOfOccurrences{"data \"simple_resource\" \"res2\":", 1},
+				outputCheckNumberOfOccurrences{"ephemeral \"simple_resource\" \"res3\":", 1},
+				outputCheckNumberOfOccurrences{"resource \"simple_resource\" \"res4\":", 1},
+				outputCheckNumberOfOccurrences{"ephemeral \"simple_resource\" \"res5\":", 1},
+				outputCheckNumberOfOccurrences{"data \"simple_resource\" \"res6\":", 1},
+				outputCheckNumberOfOccurrences{"Warning:", 11}, // check all the issued linting diagnostics to be sure that there only the ones expected above
+			},
+			expectedDestroyOutput: []outputCheck{
+				outputCheckDoesNotContain{"Warning:", true},
+			},
+		},
+	}
+	for name, tt := range cases {
+		t.Run(name, func(t *testing.T) {
+			exec(
+				t,
+				tt.chdir,
+				tt.lint,
+				tt.expectedPlanOutput,
+				tt.expectedApplyOutput,
+				tt.expectedDestroyOutput,
+			)
+		})
+	}
+
+}
+
 func TestApplyPanic(t *testing.T) {
 	t.Parallel()
 
@@ -793,6 +993,24 @@ func buildSimpleProvider(t *testing.T, version string, workdir string, buildOutN
 	providerFinalBinaryFilePath := filepath.Join(workdir, hashiDir, fmt.Sprintf("%s/0.0.1/", providerBinFileName), platform, fmt.Sprintf("terraform-provider-%s", providerBinFileName)) + extension
 	if err := os.Rename(providerTmpBinPath, providerFinalBinaryFilePath); err != nil {
 		t.Fatal(err)
+	}
+}
+
+type outputCheckNumberOfOccurrences struct {
+	token             string
+	wantedOccurrences int
+}
+
+func (oe outputCheckNumberOfOccurrences) check(t *testing.T, hint, in string) {
+	var found int
+	for line := range strings.SplitSeq(in, "\n") {
+		if strings.Contains(line, oe.token) {
+			found++
+		}
+	}
+
+	if oe.wantedOccurrences != found {
+		t.Errorf("[%s] different number of occurrences %q. Wanted %d but got %d\nout:%s", hint, oe.token, oe.wantedOccurrences, found, in)
 	}
 }
 
