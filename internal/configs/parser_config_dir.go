@@ -31,6 +31,8 @@ const (
 	tofuTestExt     = ".tofutest.hcl"
 	tfTestJSONExt   = ".tftest.json"
 	tofuTestJSONExt = ".tofutest.json"
+	tfTestMockExt   = ".tfmock.hcl"
+	tofuTestMockExt = ".tofumock.hcl"
 )
 
 // LoadConfigDir reads the .tf and .tf.json files in the given directory
@@ -302,7 +304,8 @@ func (p *Parser) loadTestFiles(basePath string, paths []string) (map[string]*Tes
 
 	tfs := make(map[string]*TestFile)
 	for _, path := range paths {
-		tf, fDiags := p.LoadTestFile(path)
+		// passing the basePath so that we can load mocked source files
+		tf, fDiags := p.LoadTestFile(path, basePath)
 		diags = append(diags, fDiags...)
 		if tf != nil {
 			// We index test files relative to the module they are testing, so
@@ -378,6 +381,19 @@ func symbolFileExt(path string) string {
 	if strings.HasSuffix(path, symbolExt) {
 		return symbolExt
 	}
+	return ""
+}
+
+// mockFileExt is a function which is used to give mapping from mock file to
+// its corresponding constant declaring the same
+func mockFileExt(path string) string {
+	switch {
+	case strings.HasSuffix(path, tofuTestMockExt):
+		return tofuTestMockExt
+	case strings.HasSuffix(path, tfTestMockExt):
+		return tfTestMockExt
+	}
+
 	return ""
 }
 
