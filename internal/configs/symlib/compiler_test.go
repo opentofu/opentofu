@@ -6,7 +6,9 @@
 package symlib
 
 import (
+	"fmt"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -161,6 +163,57 @@ function "get_list" {
 	if diff := cmp.Diff(wanted, got, ctyCmpOpts); diff != "" {
 		t.Fatal(diff)
 	}
+}
+
+// TestFunctionParallelExternalCalls ensures that functions
+// called from outside the current symbol library have their
+// own dedicated workgraph worker.
+func TestFunctionParallelExternalCalls(t *testing.T) {
+	files := map[string]string{
+		"./functions.sym.hcl": `
+function "outer" {
+	parameter "value" {
+		type = string
+	}
+	return = symbols::inner(param.value)
+}
+function "inner" {
+	parameter "value" {
+		type = string
+	}
+	return = "Value: ${param.value}"
+}
+`,
+	}
+
+	lib, diags := testCompile(t, files)
+	assertNoDiags(t, diags)
+	f, ok := lib.functions["outer"]
+	if !ok {
+		t.Fatal("Failed to find function get_list")
+	}
+
+	var w sync.WaitGroup
+	for i := range 2048 {
+		w.Go(func() {
+			str := fmt.Sprintf("hi %v", i)
+			got, err := f.Call([]cty.Value{cty.StringVal(str)})
+			if err != nil {
+				t.Fatalf("Error during function call: %v", err)
+			}
+
+			if !got.Type().Equals(cty.String) {
+				t.Fatalf("Unexpected return type, expected list(string), got %s", got.Type().FriendlyName())
+			}
+
+			wanted := cty.StringVal(fmt.Sprintf("Value: %s", str))
+			if diff := cmp.Diff(wanted, got, ctyCmpOpts); diff != "" {
+				t.Fatal(diff)
+			}
+		})
+	}
+
+	w.Wait()
 }
 
 // This initial set of tests mirrors what is in the RFC (rfc/20260424-symbol-libraries.md)
