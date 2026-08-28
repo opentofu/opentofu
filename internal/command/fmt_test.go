@@ -576,6 +576,8 @@ func fmtFixtureWriteDir(t *testing.T) string {
 	return dir
 }
 
+// fmtSymlinkedWorkingDir is a t.Helper function that creates the real dir and symlink dir.
+// Chdir into symlink path. Because of this, tests using this helper cannot call t.Parallel().
 func fmtSymlinkedWorkingDir(t *testing.T) (realDir string, realFilePath string) {
 	t.Helper()
 
