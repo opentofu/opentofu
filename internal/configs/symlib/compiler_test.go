@@ -190,7 +190,7 @@ function "inner" {
 	assertNoDiags(t, diags)
 	f, ok := lib.functions["outer"]
 	if !ok {
-		t.Fatal("Failed to find function get_list")
+		t.Fatal("Failed to find function outer")
 	}
 
 	var w sync.WaitGroup
@@ -203,7 +203,7 @@ function "inner" {
 			}
 
 			if !got.Type().Equals(cty.String) {
-				t.Fatalf("Unexpected return type, expected list(string), got %s", got.Type().FriendlyName())
+				t.Fatalf("Unexpected return type, expected string, got %s", got.Type().FriendlyName())
 			}
 
 			wanted := cty.StringVal(fmt.Sprintf("Value: %s", str))

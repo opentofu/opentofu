@@ -174,11 +174,17 @@ func decodeFunctionBlock(block *hcl.Block) (*Function, hcl.Diagnostics) {
 
 type functionWithStack func(w func() *workgraph.Worker, stack []string) function.Function
 
-func (f functionWithStack) ForWorker(w *workgraph.Worker, stack []string) function.Function {
+// ForInternalCaller produces a function for use within a symlib scope where the worker is already known
+func (f functionWithStack) ForInternalCaller(w *workgraph.Worker, stack []string) function.Function {
 	return f(func() *workgraph.Worker { return w }, stack)
 }
 
-func (f functionWithStack) Standalone() function.Function {
+// ForExternalCaller produces a function for use outside of the scope that it resides in. This is helpful
+// when exposing symlib to callers that may be calling the same function from multiple go-routines.
+//
+// Future Note: We may want OpenTofu's new runtime to share it's current worker with the symlib function it's
+// calling, though the benefits of that are still to be debated.
+func (f functionWithStack) ForExternalCaller() function.Function {
 	return f(func() *workgraph.Worker { return workgraph.NewWorker() }, nil)
 }
 
