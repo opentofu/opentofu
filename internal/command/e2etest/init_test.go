@@ -364,12 +364,12 @@ func TestInitProviders_pluginCache(t *testing.T) {
 		t.Errorf("template plugin was not installed from local cache")
 	}
 
-	nullLinkPath := filepath.FromSlash(fmt.Sprintf(".terraform/providers/registry.opentofu.org/hashicorp/null/2.1.0/%s_%s/terraform-provider-null", runtime.GOOS, runtime.GOARCH)) + extension
+	nullLinkPath := filepath.FromSlash(fmt.Sprintf(".terraform/providers/registry.opentofu.org/hashicorp/null/3.3.1/%s_%s/terraform-provider-null", runtime.GOOS, runtime.GOARCH)) + extension
 	if !tf.FileExists(nullLinkPath) {
 		t.Errorf("null plugin was not installed into %s", nullLinkPath)
 	}
 
-	nullCachePath := filepath.FromSlash(fmt.Sprintf("cache/registry.opentofu.org/hashicorp/null/2.1.0/%s_%s/terraform-provider-null", runtime.GOOS, runtime.GOARCH)) + extension
+	nullCachePath := filepath.FromSlash(fmt.Sprintf("cache/registry.opentofu.org/hashicorp/null/3.3.1/%s_%s/terraform-provider-null", runtime.GOOS, runtime.GOARCH)) + extension
 	if !tf.FileExists(nullCachePath) {
 		t.Errorf("null plugin is not in cache after install. expected in: %s", nullCachePath)
 	}

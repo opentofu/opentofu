@@ -3,5 +3,5 @@ provider "template" {
 }
 
 provider "null" {
-  version = "2.1.0"
+  version = "3.3.1"
 }
