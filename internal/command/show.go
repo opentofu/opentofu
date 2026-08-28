@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/cloud"
@@ -71,9 +70,6 @@ type ShowCommand struct {
 	viewType arguments.ViewType
 }
 
-func (c *ShowCommand) Run(rawArgs []string) int {
-	return RunCommand(ShowCommander(), c.Meta, rawArgs)
-}
 func (c ShowCommand) Execute(args *arguments.Show, view views.Show) int {
 	var diags tfdiags.Diagnostics
 
@@ -120,53 +116,6 @@ func (c ShowCommand) Execute(args *arguments.Show, view views.Show) int {
 		return 1
 	}
 	return renderResult(view)
-}
-
-func (c *ShowCommand) Help() string {
-	helpText := `
-Usage: tofu [global options] show [target-selection-option] [other-options]
-
-  Reads and outputs a OpenTofu state or plan file in a human-readable
-  form. If no path is specified, the current state will be shown.
-
-Target selection options:
-
-  Use one of the following options to specify what to show.
-
-    -state          The latest state snapshot, if any.
-    -plan=FILENAME  The plan from a saved plan file.
-    -config         Show the current configuration (requires -json).
-
-  If no target selection options are provided, -state is the default.
-
-Other options:
-
-  -no-color           Disable terminal escape sequences.
-
-  -json               Show the information in a machine-readable form.
-
-  -json-into=out.json Produce the same output as -json, but sent directly
-                      to the given file. This allows automation to preserve
-                      the original human-readable output streams, while
-                      capturing more detailed logs for machine analysis.
-
-  -show-sensitive     If specified, sensitive values will be displayed.
-
-  -var 'foo=bar'      Set a value for one of the input variables in the root
-                      module of the configuration. Use this option more than
-                      once to set more than one variable.
-
-  -var-file=filename  Load variable values from the given file, in addition
-                      to the default files terraform.tfvars and *.auto.tfvars.
-                      Use this option more than once to include more than one
-                      variables file.
-
-`
-	return strings.TrimSpace(helpText)
-}
-
-func (c *ShowCommand) Synopsis() string {
-	return "Show the current state or a saved plan"
 }
 
 type showRenderFunc func(view views.Show) int

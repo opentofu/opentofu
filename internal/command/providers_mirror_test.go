@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 )
 
@@ -39,7 +38,7 @@ func TestProvidersMirror(t *testing.T) {
 		}
 		code := RunCommander(t, ProvidersMirrorCommander(), meta, []string{"-no-color"})
 		output := done(t)
-		if code != cli.RunResultHelp {
+		if code != RunResultHelp {
 			t.Fatalf("wrong exit code. expected 1, got %d", code)
 		}
 

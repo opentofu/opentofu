@@ -40,7 +40,6 @@ const (
 	envTmpLogPath = "TF_TEMP_LOG_PATH"
 
 	EnvCPUProfile = "TOFU_CPU_PROFILE"
-	EnvCliEnabled = "TOFU_EXPERIMENTAL_CLI_ENABLED"
 )
 
 func main() {
@@ -201,32 +200,16 @@ func realMain() int {
 	// Make sure we clean up any managed plugins at the end of this
 	defer plugin.CleanupClients()
 
-	var exitCode int
-	if cliEnabled := os.Getenv(EnvCliEnabled); cliEnabled != "false" {
-		// Use the new CLI library unless explicitly disabled with "false"
-		exitCode = commandMain(
-			ctx,
-			view,
-			rv,
-			config,
-			services,
-			modulePkgFetcher,
-			providerDevOverrides,
-			unmanagedProviders,
-		)
-	} else {
-		// Legacy fallback, only available in v1.13.x, will be removed in v1.14.0
-		exitCode = legacyCommandMain(
-			ctx,
-			view,
-			rv,
-			config,
-			services,
-			modulePkgFetcher,
-			providerDevOverrides,
-			unmanagedProviders,
-		)
-	}
+	exitCode := commandMain(
+		ctx,
+		view,
+		rv,
+		config,
+		services,
+		modulePkgFetcher,
+		providerDevOverrides,
+		unmanagedProviders,
+	)
 
 	// We might generate some additional log lines if OpenTofu relied on any
 	// non-default Go runtime behaviors enabled by GODEBUG settings, because

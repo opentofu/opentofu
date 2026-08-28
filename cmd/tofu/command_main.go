@@ -121,7 +121,9 @@ func commandMain(
 	}
 
 	root := command.RootCommander(&help, &version, &chdirArg)
-	setupCompletion(&root)
+	if checkAndRunCompletion(&root) {
+		return 0
+	}
 
 	rootCmd := commandToCli("", root, meta)
 
@@ -272,7 +274,7 @@ func detectSubcommand(cmd command.Command) string {
 	return subcommand
 }
 
-// setupCompletion uses the same auto-completion that mitchellh/cli does (posener/complete)
+// checkAndRunCompletion uses the same auto-completion that mitchellh/cli does (posener/complete)
 // This keeps parity with the "status-quo" for tofu, though in practice it's a very
 // outdated library that is missing a lot of more modern features and shell support.
 //
@@ -283,7 +285,7 @@ func detectSubcommand(cmd command.Command) string {
 // Additionally, moving away from the `command -C` approach used by posener/complete is complicated
 // by the bash-complete project shipping a fallback for "tofu" that uses `command -C`. Moving away from
 // that and not breaking userspace is going to be quite tricky in the long term.
-func setupCompletion(root *command.Command) {
+func checkAndRunCompletion(root *command.Command) bool {
 	compLine := os.Getenv("COMP_LINE")
 	compPoint := os.Getenv("COMP_POINT")
 	completingSingleDash := true
@@ -353,6 +355,7 @@ func setupCompletion(root *command.Command) {
 	}
 	if compLine != "" {
 		completer.Complete()
-		os.Exit(0)
+		return true
 	}
+	return false
 }

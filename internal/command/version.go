@@ -7,7 +7,6 @@ package command
 
 import (
 	"crypto/fips140"
-	"strings"
 
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
@@ -45,22 +44,6 @@ type VersionCommand struct {
 	Platform          getproviders.Platform
 }
 
-func (c *VersionCommand) Help() string {
-	helpText := `
-Usage: tofu [global options] version [options]
-
-  Displays the version of OpenTofu and all installed plugins
-
-Options:
-
-  -json       Output the version information as a JSON object.
-`
-	return strings.TrimSpace(helpText)
-}
-
-func (c *VersionCommand) Run(rawArgs []string) int {
-	return RunCommand(VersionCommander(c.Version, c.VersionPrerelease, c.Platform), c.Meta, rawArgs)
-}
 func (c VersionCommand) Execute(view views.Version) int {
 	// We'll also attempt to print out the selected plugin versions. We do
 	// this based on the dependency lock file, and so the result might be
@@ -80,8 +63,4 @@ func (c VersionCommand) Execute(view views.Version) int {
 		return 1
 	}
 	return 0
-}
-
-func (c *VersionCommand) Synopsis() string {
-	return "Show the current OpenTofu version"
 }

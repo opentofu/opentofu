@@ -9,7 +9,6 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"strings"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/arguments"
@@ -51,9 +50,6 @@ type ValidateCommand struct {
 	Meta
 }
 
-func (c *ValidateCommand) Run(rawArgs []string) int {
-	return RunCommand(ValidateCommander(), c.Meta, rawArgs)
-}
 func (c ValidateCommand) Execute(args *arguments.Validate, view views.Validate) int {
 	var diags tfdiags.Diagnostics
 	ctx := c.CommandContext()
@@ -164,84 +160,4 @@ func (c *ValidateCommand) validate(ctx context.Context, dir, testDir string, noT
 	}
 
 	return diags
-}
-
-func (c *ValidateCommand) Synopsis() string {
-	return "Check whether the configuration is valid"
-}
-
-func (c *ValidateCommand) Help() string {
-	helpText := `
-Usage: tofu [global options] validate [options]
-
-  Validate the configuration files in a directory, referring only to the
-  configuration and not accessing any remote services such as remote state,
-  provider APIs, etc.
-
-  Validate runs checks that verify whether a configuration is syntactically
-  valid and internally consistent, regardless of any provided variables or
-  existing state. It is thus primarily useful for general verification of
-  reusable modules, including correctness of attribute names and value types.
-
-  It is safe to run this command automatically, for example as a post-save
-  check in a text editor or as a test step for a re-usable module in a CI
-  system.
-
-  Validation requires an initialized working directory with any referenced
-  plugins and modules installed. To initialize a working directory for
-  validation without accessing any configured remote backend, use:
-      tofu init -backend=false
-
-  To verify configuration in the context of a particular run (a particular
-  target workspace, input variable values, etc), use the 'tofu plan'
-  command instead, which includes an implied validation check.
-
-Options:
-
-  -compact-warnings     If OpenTofu produces any warnings that are not
-                        accompanied by errors, show them in a more compact
-                        form that includes only the summary messages.
-
-  -consolidate-warnings If OpenTofu produces any warnings, no consolidation
-                        will be performed. All locations, for all warnings
-                        will be listed. Enabled by default.
-
-  -consolidate-errors   If OpenTofu produces any errors, no consolidation
-                        will be performed. All locations, for all errors
-                        will be listed. Disabled by default
-
-  -json                 Produce output in a machine-readable JSON format, 
-                        suitable for use in text editor integrations and other 
-                        automated systems. Always disables color.
-
-  -json-into=out.json   Produce the same output as -json, but sent directly
-                        to the given file. This allows automation to preserve
-                        the original human-readable output streams, while
-                        capturing more detailed logs for machine analysis.
-
-  -no-color             If specified, output won't contain any color.
-
-  -no-tests             If specified, OpenTofu will not validate test files.
-
-  -test-directory=path  Set the OpenTofu test directory, defaults to "tests". When set, the
-                        test command will search for test files in the current directory and
-                        in the one specified by the flag.
-
-  -var 'foo=bar'        Set a value for one of the input variables in the root
-                        module of the configuration. Use this option more than
-                        once to set more than one variable.
-
-  -var-file=filename    Load variable values from the given file, in addition
-                        to the default files terraform.tfvars and *.auto.tfvars.
-                        Use this option more than once to include more than one
-                        variables file.
-
-  -lint=all             Configures the linting rules to be executed during this
-                        command. By specifying this flag, the built-in linting
-                        will be enabled, which will start issuing warning
-                        diagnostics if any included rule will be violated.
-                        For more details on the format and available linting rules,
-                        refer to the official documentation.
-`
-	return strings.TrimSpace(helpText)
 }

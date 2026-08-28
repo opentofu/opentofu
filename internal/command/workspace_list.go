@@ -7,7 +7,6 @@ package command
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
@@ -38,9 +37,6 @@ type WorkspaceListCommand struct {
 	LegacyName bool
 }
 
-func (c *WorkspaceListCommand) Run(rawArgs []string) int {
-	return RunCommand(WorkspaceListCommander(c.LegacyName), c.Meta, rawArgs)
-}
 func (c WorkspaceListCommand) Execute(args *arguments.WorkspaceList, view views.Workspace) int {
 	var diags tfdiags.Diagnostics
 
@@ -104,35 +100,4 @@ func (c *WorkspaceListCommand) AutocompleteArgs() complete.Predictor {
 
 func (c *WorkspaceListCommand) AutocompleteFlags() complete.Flags {
 	return nil
-}
-
-func (c *WorkspaceListCommand) Help() string {
-	helpText := `
-Usage: tofu [global options] workspace list [options]
-
-  List OpenTofu workspaces.
-
-Options:
-
-  -var 'foo=bar'       Set a value for one of the input variables in the root
-                       module of the configuration. Use this option more than
-                       once to set more than one variable.
-
-  -var-file=filename   Load variable values from the given file, in addition
-                       to the default files terraform.tfvars and *.auto.tfvars.
-                       Use this option more than once to include more than one
-                       variables file.
-    
-  -json                The output of the command is printed in json format.
-
-  -json-into=out.json  Produce the same output as -json, but sent directly
-                       to the given file. This allows automation to preserve
-                       the original human-readable output streams, while
-                       capturing more detailed logs for machine analysis.
-`
-	return strings.TrimSpace(helpText)
-}
-
-func (c *WorkspaceListCommand) Synopsis() string {
-	return "List Workspaces"
 }

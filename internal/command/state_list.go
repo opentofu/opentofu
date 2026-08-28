@@ -8,7 +8,6 @@ package command
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
@@ -52,9 +51,6 @@ type StateListCommand struct {
 	StateMeta
 }
 
-func (c *StateListCommand) Run(rawArgs []string) int {
-	return RunCommand(StateListCommander(), c.Meta, rawArgs)
-}
 func (c StateListCommand) Execute(args *arguments.StateList, view views.State) int {
 	var diags tfdiags.Diagnostics
 
@@ -129,61 +125,4 @@ func (c StateListCommand) Execute(args *arguments.StateList, view views.State) i
 	view.Diagnostics(diags)
 
 	return 0
-}
-
-func (c *StateListCommand) Help() string {
-	helpText := `
-Usage: tofu [global options] state (list|ls) [options] [address...]
-
-  List resources in the OpenTofu state.
-
-  This command lists resource instances in the OpenTofu state. The address
-  argument can be used to filter the instances by resource or module. If
-  no pattern is given, all resource instances are listed.
-
-  The addresses must either be module addresses or absolute resource
-  addresses, such as:
-      aws_instance.example
-      module.example
-      module.example.module.child
-      module.example.aws_instance.example
-
-  An error will be returned if any of the resources or modules given as
-  filter addresses do not exist in the state.
-
-Options:
-
-  -state=statefile    Path to a OpenTofu state file to use to look
-                      up OpenTofu-managed resources. By default, OpenTofu
-                      will consult the state of the currently-selected
-                      workspace.
-
-  -id=ID              Filters the results to include only instances whose
-                      resource types have an attribute named "id" whose value
-                      equals the given id string.
-
-  -var 'foo=bar'      Set a value for one of the input variables in the root
-                      module of the configuration. Use this option more than
-                      once to set more than one variable.
-
-  -var-file=filename  Load variable values from the given file, in addition
-                      to the default files terraform.tfvars and *.auto.tfvars.
-                      Use this option more than once to include more than one
-                      variables file.
-
-  -json               Produce output in a machine-readable JSON format, 
-                      suitable for use in text editor integrations and other 
-                      automated systems. Always disables color.
-
-  -json-into=out.json Produce the same output as -json, but sent directly
-                      to the given file. This allows automation to preserve
-                      the original human-readable output streams, while
-                      capturing more detailed logs for machine analysis.
-
-`
-	return strings.TrimSpace(helpText)
-}
-
-func (c *StateListCommand) Synopsis() string {
-	return "List resources in the state"
 }

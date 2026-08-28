@@ -52,13 +52,6 @@ type ProvidersMirrorCommand struct {
 	Meta
 }
 
-func (c *ProvidersMirrorCommand) Synopsis() string {
-	return "Save local copies of all required provider plugins"
-}
-
-func (c *ProvidersMirrorCommand) Run(rawArgs []string) int {
-	return RunCommand(ProvidersMirrorCommander(), c.Meta, rawArgs)
-}
 func (c ProvidersMirrorCommand) Execute(args *arguments.ProvidersMirror, view views.ProvidersMirror) int {
 	var diags tfdiags.Diagnostics
 
@@ -387,52 +380,4 @@ func (c ProvidersMirrorCommand) Execute(args *arguments.ProvidersMirror, view vi
 		return 1
 	}
 	return 0
-}
-
-func (c *ProvidersMirrorCommand) Help() string {
-	return `
-Usage: tofu [global options] providers mirror [options] <target-dir>
-
-  Populates a local directory with copies of the provider plugins needed for
-  the current configuration, so that the directory can be used either directly
-  as a filesystem mirror or as the basis for a network mirror and thus obtain
-  those providers without access to their origin registries in future.
-
-  The mirror directory will contain JSON index files that can be published
-  along with the mirrored packages on a static HTTP file server to produce
-  a network mirror. Those index files will be ignored if the directory is
-  used instead as a local filesystem mirror.
-
-Options:
-
-  -platform=os_arch  Choose which target platform to build a mirror for.
-                     By default OpenTofu will obtain plugin packages
-                     suitable for the platform where you run this command.
-                     Use this flag multiple times to include packages for
-                     multiple target systems.
-
-                     Target names consist of an operating system and a CPU
-                     architecture. For example, "linux_amd64" selects the
-                     Linux operating system running on an AMD64 or x86_64
-                     CPU. Each provider is available only for a limited
-                     set of target platforms.
-
-  -var 'foo=bar'     Set a value for one of the input variables in the root
-                     module of the configuration. Use this option more than
-                     once to set more than one variable.
-
-  -var-file=filename Load variable values from the given file, in addition
-                     to the default files terraform.tfvars and *.auto.tfvars.
-                     Use this option more than once to include more than one
-                     variables file.
-
-  -json               Produce output in a machine-readable JSON format, 
-                      suitable for use in text editor integrations and other 
-                      automated systems. Always disables color.
-
-  -json-into=out.json Produce the same output as -json, but sent directly
-                      to the given file. This allows automation to preserve
-                      the original human-readable output streams, while
-                      capturing more detailed logs for machine analysis.
-`
 }

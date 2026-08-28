@@ -7,7 +7,6 @@ package command
 
 import (
 	"context"
-	"strings"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/arguments"
@@ -46,9 +45,6 @@ type StateRmCommand struct {
 	StateMeta
 }
 
-func (c *StateRmCommand) Run(rawArgs []string) int {
-	return RunCommand(StateRmCommander(), c.Meta, rawArgs)
-}
 func (c StateRmCommand) Execute(args *arguments.StateRm, view views.State) int {
 	var diags tfdiags.Diagnostics
 
@@ -170,68 +166,4 @@ func (c StateRmCommand) Execute(args *arguments.StateRm, view views.State) int {
 
 	view.RemoveFinalStatus(isCount)
 	return 0
-}
-
-func (c *StateRmCommand) Help() string {
-	helpText := `
-Usage: tofu [global options] state (remove|rm) [options] ADDRESS...
-
-  Remove one or more items from the OpenTofu state, causing OpenTofu to
-  "forget" those items without first destroying them in the remote system.
-
-  This command removes one or more resource instances from the OpenTofu state
-  based on the addresses given. You can view and list the available instances
-  with "tofu state list".
-
-  If you give the address of an entire module then all of the instances in
-  that module and any of its child modules will be removed from the state.
-
-  If you give the address of a resource that has "count" or "for_each" set,
-  all of the instances of that resource will be removed from the state.
-
-Options:
-
-  -dry-run                If set, prints out what would've been removed but
-                          doesn't actually remove anything.
-
-  -backup=PATH            Path where OpenTofu should write the backup
-                          state.
-
-  -lock=false             Don't hold a state lock during the operation. This is
-                          dangerous if others might concurrently run commands
-                          against the same workspace.
-
-  -lock-timeout=0s        Duration to retry a state lock.
-
-  -state=PATH             Path to the state file to update. Defaults to the
-                          current workspace state.
-
-  -ignore-remote-version  Continue even if remote and local OpenTofu versions
-                          are incompatible. This may result in an unusable
-                          workspace, and should be used with extreme caution.
-
-  -var 'foo=bar'          Set a value for one of the input variables in the root
-                          module of the configuration. Use this option more than
-                          once to set more than one variable.
-
-  -var-file=filename      Load variable values from the given file, in addition
-                          to the default files terraform.tfvars and *.auto.tfvars.
-                          Use this option more than once to include more than one
-                          variables file.
-
-  -json                   Produce output in a machine-readable JSON format, 
-                          suitable for use in text editor integrations and other 
-                          automated systems. Always disables color.
-
-  -json-into=out.json     Produce the same output as -json, but sent directly
-                          to the given file. This allows automation to preserve
-                          the original human-readable output streams, while
-                          capturing more detailed logs for machine analysis.
-
-`
-	return strings.TrimSpace(helpText)
-}
-
-func (c *StateRmCommand) Synopsis() string {
-	return "Remove instances from the state"
 }

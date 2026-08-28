@@ -17,7 +17,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"path/filepath"
 	"strings"
 	"sync"
 
@@ -71,9 +70,6 @@ type LoginCommand struct {
 	Meta
 }
 
-func (c *LoginCommand) Run(rawArgs []string) int {
-	return RunCommand(LoginCommander(), c.Meta, rawArgs)
-}
 func (c LoginCommand) Execute(args *arguments.Login, view views.Login) int {
 	var diags tfdiags.Diagnostics
 
@@ -325,35 +321,6 @@ func (c LoginCommand) Execute(args *arguments.Login, view views.Login) int {
 
 func (c *LoginCommand) logMOTDError(err error) {
 	log.Printf("[TRACE] login: An error occurred attempting to fetch a message of the day for cloud backend: %s", err)
-}
-
-// Help implements cli.Command.
-func (c *LoginCommand) Help() string {
-	defaultFile := c.credentialsFileForHelp()
-
-	helpText := fmt.Sprintf(`
-Usage: tofu [global options] login [hostname]
-
-  Retrieves an authentication token for the given hostname, if it supports
-  automatic login, and saves it in a credentials file in your home directory.
-
-  If not overridden by credentials helper settings in the CLI configuration,
-  the credentials will be written to the following local file:
-      %s
-`, defaultFile)
-	return strings.TrimSpace(helpText)
-}
-
-// Synopsis implements cli.Command.
-func (c *LoginCommand) Synopsis() string {
-	return "Obtain and save credentials for a remote host"
-}
-
-func (c *LoginCommand) defaultOutputFile() string {
-	if c.SystemCfg.CLIConfigDir == "" {
-		return "" // no default available
-	}
-	return filepath.Join(c.SystemCfg.CLIConfigDir, "credentials.tfrc.json")
 }
 
 func (c *LoginCommand) interactiveGetTokenByCode(ctx context.Context, hostname svchost.Hostname, credsCtx *loginCredentialsContext, clientConfig *disco.OAuthClient, view views.Login) (*oauth2.Token, tfdiags.Diagnostics) {
@@ -843,20 +810,6 @@ func (c *LoginCommand) proofKey() (key, challenge string, err error) {
 	challenge = base64.RawURLEncoding.EncodeToString(h.Sum(nil))
 
 	return key, challenge, nil
-}
-
-func (c *LoginCommand) credentialsFileForHelp() string {
-	defaultFile := c.defaultOutputFile()
-	if defaultFile == "" {
-		// Because this is just for the help message and it's very unlikely
-		// that a user wouldn't have a functioning home directory anyway,
-		// we'll just use a placeholder here. The real command has some
-		// more complex behavior for this case. This result is not correct
-		// on all platforms, but given how unlikely we are to hit this case
-		// that seems okay.
-		defaultFile = "~/.terraform/credentials.tfrc.json"
-	}
-	return defaultFile
 }
 
 type loginCredentialsContext struct {

@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/opentofu/svchost"
 	"github.com/opentofu/svchost/disco"
@@ -26,16 +25,16 @@ func TestLogout(t *testing.T) {
 
 	t.Run("with no hostname", func(t *testing.T) {
 		logoutView, logoutDone := testView(t)
-		c := &LogoutCommand{
+		m := Meta{
 			WorkingDir: workdir.NewDir("."),
 			View:       logoutView,
 			Services: disco.New(
 				disco.WithCredentials(credsSrc),
 			),
 		}
-		status := c.Run([]string{})
+		status := RunCommander(t, LogoutCommander(), m, []string{})
 		output := logoutDone(t)
-		if status != cli.RunResultHelp {
+		if status != RunResultHelp {
 			t.Fatalf("unexpected error code %d\nstderr:\n%s", status, output.Stderr())
 		}
 
@@ -73,14 +72,14 @@ func TestLogout(t *testing.T) {
 				t.Fatalf("unexpected error storing credentials: %s", err)
 			}
 			logoutView, logoutDone := testView(t)
-			c := &LogoutCommand{
+			m := Meta{
 				WorkingDir: workdir.NewDir("."),
 				View:       logoutView,
 				Services: disco.New(
 					disco.WithCredentials(credsSrc),
 				),
 			}
-			status := c.Run(tc.args)
+			status := RunCommander(t, LogoutCommander(), m, tc.args)
 			output := logoutDone(t)
 			if status != 0 {
 				t.Fatalf("unexpected error code %d\nstderr:\n%s", status, output.Stderr())

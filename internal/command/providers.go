@@ -48,9 +48,6 @@ type ProvidersCommand struct {
 	Meta
 }
 
-func (c *ProvidersCommand) Run(rawArgs []string) int {
-	return RunCommand(ProvidersCommander(), c.Meta, rawArgs)
-}
 func (c ProvidersCommand) Execute(args *arguments.Providers, view views.Providers) int {
 	var diags tfdiags.Diagnostics
 
@@ -161,37 +158,3 @@ func (c ProvidersCommand) Execute(args *arguments.Providers, view views.Provider
 	}
 	return 0
 }
-
-func (c *ProvidersCommand) Help() string {
-	return providersCommandHelp
-}
-
-func (c *ProvidersCommand) Synopsis() string {
-	return "Show the providers required for this configuration"
-}
-
-const providersCommandHelp = `
-Usage: tofu [global options] providers [options] [DIR]
-
-  Prints out a tree of modules in the referenced configuration annotated with
-  their provider requirements.
-
-  This provides an overview of all of the provider requirements across all
-  referenced modules, as an aid to understanding why particular provider
-  plugins are needed and why particular versions are selected.
-
-Options:
-
-  -test-directory=path  Set the OpenTofu test directory, defaults to "tests". When set, the
-                        test command will search for test files in the current directory and
-                        in the one specified by the flag.
-
-  -var 'foo=bar'        Set a value for one of the input variables in the root
-                        module of the configuration. Use this option more than
-                        once to set more than one variable.
-
-  -var-file=filename    Load variable values from the given file, in addition
-                        to the default files terraform.tfvars and *.auto.tfvars.
-                        Use this option more than once to include more than one
-                        variables file.
-`

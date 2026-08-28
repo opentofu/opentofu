@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"os"
 	"slices"
-	"strings"
 
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/posener/complete"
@@ -44,9 +43,6 @@ type WorkspaceNewCommand struct {
 	LegacyName bool
 }
 
-func (c *WorkspaceNewCommand) Run(rawArgs []string) int {
-	return RunCommand(WorkspaceNewCommander(c.LegacyName), c.Meta, rawArgs)
-}
 func (c WorkspaceNewCommand) Execute(args *arguments.WorkspaceNew, view views.Workspace) int {
 	var diags tfdiags.Diagnostics
 
@@ -221,44 +217,4 @@ func (c *WorkspaceNewCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
 		"-state": complete.PredictFiles("*.tfstate"),
 	}
-}
-
-func (c *WorkspaceNewCommand) Help() string {
-	helpText := `
-Usage: tofu [global options] workspace new [OPTIONS] NAME
-
-  Create a new OpenTofu workspace.
-
-Options:
-
-    -lock=false         Don't hold a state lock during the operation. This is
-                        dangerous if others might concurrently run commands
-                        against the same workspace.
-
-    -lock-timeout=0s    Duration to retry a state lock.
-
-    -state=path         Copy an existing state file into the new workspace.
-
-
-    -var 'foo=bar'      Set a value for one of the input variables in the root
-                        module of the configuration. Use this option more than
-                        once to set more than one variable.
-
-    -var-file=filename  Load variable values from the given file, in addition
-                        to the default files terraform.tfvars and *.auto.tfvars.
-                        Use this option more than once to include more than one
-                        variables file.
-    
-    -json               The output of the command is printed in json format.
-
-    -json-into=out.json Produce the same output as -json, but sent directly
-                        to the given file. This allows automation to preserve
-                        the original human-readable output streams, while
-                        capturing more detailed logs for machine analysis.
-`
-	return strings.TrimSpace(helpText)
-}
-
-func (c *WorkspaceNewCommand) Synopsis() string {
-	return "Create a new workspace"
 }

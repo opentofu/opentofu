@@ -7,7 +7,6 @@ package command
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
@@ -36,9 +35,6 @@ type WorkspaceShowCommand struct {
 	Meta
 }
 
-func (c *WorkspaceShowCommand) Run(rawArgs []string) int {
-	return RunCommand(WorkspaceShowCommander(), c.Meta, rawArgs)
-}
 func (c WorkspaceShowCommand) Execute(args *arguments.WorkspaceShow, view views.Workspace) int {
 	ctx := c.CommandContext()
 
@@ -62,17 +58,4 @@ func (c *WorkspaceShowCommand) AutocompleteArgs() complete.Predictor {
 
 func (c *WorkspaceShowCommand) AutocompleteFlags() complete.Flags {
 	return nil
-}
-
-func (c *WorkspaceShowCommand) Help() string {
-	helpText := `
-Usage: tofu [global options] workspace show
-
-  Show the name of the current workspace.
-`
-	return strings.TrimSpace(helpText)
-}
-
-func (c *WorkspaceShowCommand) Synopsis() string {
-	return "Show the name of the current workspace"
 }

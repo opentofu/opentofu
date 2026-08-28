@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/zclconf/go-cty/cty"
 
@@ -57,7 +56,7 @@ func TestGraph_multipleArgs(t *testing.T) {
 	}
 	code := RunCommander(t, GraphCommander(), meta, args)
 	output := done(t)
-	if code != cli.RunResultHelp {
+	if code != RunResultHelp {
 		t.Fatalf("bad: \n%s", output.All())
 	}
 }
