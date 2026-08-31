@@ -241,7 +241,8 @@ func (fn *Function) Compile(w *workgraph.Worker, libScope *symbolScope) (functio
 	}
 
 	return func(wf func() *workgraph.Worker, stack []string) function.Function {
-		// This is safe because of struct copies
+		// Duplicate spec struct for impl overrides
+		spec := new(*spec)
 		spec.Impl = func(args []cty.Value, retType cty.Type) (cty.Value, error) {
 			var diags hcl.Diagnostics
 
