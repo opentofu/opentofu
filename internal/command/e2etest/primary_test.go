@@ -692,8 +692,8 @@ func TestCoreLintingRules(t *testing.T) {
 		t *testing.T,
 		chdir string,
 		lint []string,
-		expectedPlanOutput []outputCheck,
-		expectedApplyOutput []outputCheck,
+		expectedPlanOutput []outputCheck, // used also for the validate command to ensure that the expectations are similar between these 2 phases. Plan is meant to produce the same output as validate
+		expectedApplyOutput []outputCheck, // used also for the refresh command to ensure that the expectations are similar between these 2 phases. Refresh is executed after the changes are applied, so we expect to have the same warnings during refresh as we had during apply
 		expectedDestroyOutput []outputCheck,
 	) {
 		var chdirArgs []string
@@ -701,14 +701,22 @@ func TestCoreLintingRules(t *testing.T) {
 			chdirArgs = []string{"-chdir=" + chdir}
 		}
 		lintArgs := fmt.Sprintf("-lint=%s", strings.Join(lint, ","))
-		{ // INIT
+		t.Run("init", func(t *testing.T) {
 			_, stderr, err := tf.Run(append(chdirArgs, "init", "-plugin-dir=./cache")...)
 			if err != nil {
 				t.Fatalf("unexpected init error: %s\nstderr:\n%s", err, stderr)
 			}
-		}
-
-		{ // PLAN
+		})
+		t.Run("validate", func(t *testing.T) {
+			stdout, stderr, err := tf.Run(append(chdirArgs, "validate", lintArgs)...)
+			combined := fmt.Sprintf("%s\n\n%s", stripAnsi(stdout), stripAnsi(stderr))
+			if err != nil {
+				t.Errorf("expected no error during validate but got %q. output:\n%s", err, combined)
+			}
+			entriesChecker := outputEntriesChecker(expectedPlanOutput)
+			entriesChecker.check(t, "plan", combined)
+		})
+		t.Run("plan", func(t *testing.T) {
 			stdout, stderr, err := tf.Run(append(chdirArgs, "plan", lintArgs, "-out=tfplan")...)
 			combined := fmt.Sprintf("%s\n\n%s", stripAnsi(stdout), stripAnsi(stderr))
 			if err != nil {
@@ -716,8 +724,8 @@ func TestCoreLintingRules(t *testing.T) {
 			}
 			entriesChecker := outputEntriesChecker(expectedPlanOutput)
 			entriesChecker.check(t, "plan", combined)
-		}
-		{ // APPLY
+		})
+		t.Run("apply", func(t *testing.T) {
 			stdout, stderr, err := tf.Run(append(chdirArgs, "apply", lintArgs, "-auto-approve", "tfplan")...)
 			combined := fmt.Sprintf("%s\n\n%s", stripAnsi(stdout), stripAnsi(stderr))
 			if err != nil {
@@ -725,8 +733,17 @@ func TestCoreLintingRules(t *testing.T) {
 			}
 			entriesChecker := outputEntriesChecker(expectedApplyOutput)
 			entriesChecker.check(t, "apply", combined)
-		}
-		{ // DESTROY
+		})
+		t.Run("refresh", func(t *testing.T) {
+			stdout, stderr, err := tf.Run(append(chdirArgs, "refresh", lintArgs)...)
+			combined := fmt.Sprintf("%s\n\n%s", stripAnsi(stdout), stripAnsi(stderr))
+			if err != nil {
+				t.Errorf("expected no error during refresh but got %q. output:\n%s", err, combined)
+			}
+			entriesChecker := outputEntriesChecker(expectedApplyOutput)
+			entriesChecker.check(t, "apply", combined)
+		})
+		t.Run("destroy", func(t *testing.T) {
 			stdout, stderr, err := tf.Run(append(chdirArgs, "destroy", "-auto-approve")...)
 			combined := fmt.Sprintf("%s\n\n%s", stripAnsi(stdout), stripAnsi(stderr))
 			if err != nil {
@@ -734,7 +751,7 @@ func TestCoreLintingRules(t *testing.T) {
 			}
 			entriesChecker := outputEntriesChecker(expectedDestroyOutput)
 			entriesChecker.check(t, "destroy", combined)
-		}
+		})
 	}
 	cases := map[string]struct {
 		chdir                 string
