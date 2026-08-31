@@ -123,7 +123,6 @@ func (c *FmtCommand) fmt(paths []string, stdin io.Reader, stdout io.Writer, args
 	}
 
 	for _, path := range paths {
-		path = c.Meta.WorkingDir.NormalizePath(path)
 		info, err := os.Stat(path)
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
@@ -152,7 +151,7 @@ func (c *FmtCommand) fmt(paths []string, stdin io.Reader, stdout io.Writer, args
 						continue
 					}
 
-					fileDiags := c.processFile(c.Meta.WorkingDir.NormalizePath(path), f, stdout, args)
+					fileDiags := c.processFile(path, f, stdout, args)
 					diags = diags.Append(fileDiags)
 					_ = f.Close()
 
@@ -316,7 +315,7 @@ func (c *FmtCommand) processDir(path string, stdout io.Writer, args arguments.Fm
 					continue
 				}
 
-				fileDiags := c.processFile(c.Meta.WorkingDir.NormalizePath(subPath), f, stdout, args)
+				fileDiags := c.processFile(subPath, f, stdout, args)
 				diags = diags.Append(fileDiags)
 				_ = f.Close()
 
