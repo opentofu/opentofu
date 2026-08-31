@@ -465,9 +465,6 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 	plannedAction := plans.Update
 	if prevRoundState == nil {
 		plannedAction = plans.Create
-	} else if eq, _ := planResp.Planned.Value.Equals(refreshedVal).Unmark(); eq.IsKnown() && eq.True() && !forceReplace {
-		ret.PlaceholderValue = refreshedVal
-		plannedAction = plans.NoOp
 	} else if !planResp.RequiresReplace.Empty() || forceReplace {
 		// For "replace" actions the execution graph will include two separate
 		// plan and apply operations, where one handles deletion and the other
@@ -517,6 +514,9 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		} else {
 			plannedAction = plans.DeleteThenCreate
 		}
+	} else if eq, _ := planResp.Planned.Value.Equals(refreshedVal).Unmark(); eq.IsKnown() && eq.True() {
+		ret.PlaceholderValue = refreshedVal
+		plannedAction = plans.NoOp
 	}
 	// (a "desired" object cannot have a Delete action; we handle those cases
 	// in planOrphanManagedResourceInstance and planDeposedManagedResourceInstanceObject below.)
