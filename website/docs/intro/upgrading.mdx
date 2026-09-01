@@ -1,21 +1,21 @@
 ---
 sidebar_position: 5
-sidebar_label: Upgrading from OpenTofu 1.8.x/1.9.x/1.10.x
+sidebar_label: Upgrading from an Earlier Release
 description: |-
-    Learn how to upgrade OpenTofu from version 1.8.x/1.9.x/1.10.x to 1.11.0.
+    Learn how to upgrade to a new minor release series of OpenTofu.
 ---
 
-# Upgrading from OpenTofu 1.8.x/1.9.x/1.10.x
+# Upgrading from Earlier OpenTofu Release Series
 
-OpenTofu 1.11.x is mostly compatible with previous OpenTofu versions. This migration guide will take you through the process of upgrading OpenTofu to version 1.11.0.
+We intend that it should typically be straightforward to upgrade from earlier versions of OpenTofu. This page describes the general process for moving to a newer minor release series.
 
 ## Step 0: Prepare a disaster recovery plan
 
-Although OpenTofu 1.11 is mostly compatible with previous versions, you should take the necessary precautions to prevent accidents. Make sure you have an up to date and *tested* disaster recovery plan.
+Although new OpenTofu series are generally compatible with previous versions, you should take the necessary precautions to prevent accidents. Make sure you have an up to date and *tested* disaster recovery plan.
 
-## Step 1: Apply all changes with OpenTofu 1.7.x/1.8.x/1.9.x
+## Step 1: Apply all changes with your current OpenTofu version
 
-Before proceeding, make sure that you apply all changes with `tofu apply`. Running `tofu plan` should result in no planned changes. While you can switch to OpenTofu with pending changes, it is not recommended.
+Before proceeding, make sure that you apply all changes with `tofu apply`. Running `tofu plan` should result in no planned changes. While you can switch to OpenTofu with pending changes, we don't recommend it.
 
 ```
 $ tofu plan
@@ -28,14 +28,14 @@ OpenTofu has compared your real infrastructure against your
 configuration and found no differences, so no changes are needed.
 ```
 
-## Step 2: Install OpenTofu 1.11.x
+## Step 2: Install the latest OpenTofu release
 
-As a first step, please [follow the installation instructions for the OpenTofu CLI tool](intro/install/index.mdx). Please test
-if you can successfully execute the `tofu` command and receive the correct version:
+First follow [the installation instructions for OpenTofu CLI](intro/install/index.mdx).
+Test that the `tofu version` command reports the expected version:
 
 ```
-$ tofu --version
-OpenTofu v1.11.0
+$ tofu version
+OpenTofu v1.13.0
 on linux_amd64
 ```
 
@@ -47,7 +47,7 @@ a local state file, you can simply make a copy of your `terraform.tfstate` file 
 If you are using a remote backend such as an S3 bucket, make sure that you follow the backup procedures for the
 backend and that you exercise the restore procedure at least once.
 
-## Step 4: Initialize OpenTofu 1.11.x
+## Step 4: Initialize with the latest OpenTofu release
 
 :::warning
 
@@ -59,19 +59,12 @@ If you suspect the failure may be the result of a bug in OpenTofu,
 :::
 
 Now you are ready to migrate. Run `tofu init` in the directory where your code resides. OpenTofu will download
-any providers and modules referenced in your configuration from the OpenTofu registry.
-
-:::note
-
-If you are using the S3 backend - You will need to run `tofu init -reconfigure` to reinitialize the backend.
-
-:::
+any providers and modules used by your configuration from OpenTofu Registry.
 
 ## Step 5: Inspect the plan
 
 Once initialized, run `tofu plan` and ensure that there are no pending changes similar to step 1 above. If there are
-unexpected changes in the plan, roll back to OpenTofu 1.8.x/1.9.x/1.10.x and troubleshoot your migration. (See the Troubleshooting
-section below.)
+unexpected changes in the plan, roll back to the version you were previously using and troubleshoot your migration.
 
 ```
 $ tofu plan
@@ -91,29 +84,12 @@ change.
 
 ## Rolling back and reporting issues
 
-If you have issues migrating to OpenTofu you can follow these steps to roll back to OpenTofu 1.8.x/1.9.x/1.10.x:
+If you have issues migrating to OpenTofu you can follow these steps to roll back to the version you were previously using:
 
 1. Create another backup of your state file.
-2. Remove OpenTofu 1.11.x and verify that you are running OpenTofu 1.8.x/1.9.x/1.10.x.
+2. Remove the newly-installed OpenTofu version and verify that you are now running whatever version you were previously using.
 3. Run `tofu init`.
 4. Run `tofu plan` and verify that no unexpected changes are in the plan.
 5. Test the rollback with a small, non-critical change.
 
 If you encountered a bug, [please report it on GitHub](https://github.com/opentofu/opentofu/issues).
-
-## Troubleshooting
-
-If you encounter any issues during the migration to OpenTofu, you can join the <a href="/slack/">OpenTofu Slack</a> or ask on
-[GitHub Discussions](https://github.com/orgs/opentofu/discussions).
-
-### Error: Failed to query available provider packages
-
-This error happens when a provider you specified in your configuration is not available in the OpenTofu registry.
-Please roll back to OpenTofu 1.8.x/1.9.x/1.10.x and make sure your code works with that version. If your code works, please
-[submit an issue to include the provider in the registry](https://github.com/opentofu/registry/issues/).
-
-### Error: Module not found
-
-This error happens when a module you specified in your configuration is not available in the OpenTofu registry.
-Please roll back to OpenTofu 1.8.x/1.9.x/1.10.x and make sure your code works with that version. If your code works, please
-[submit an issue to include the module in the registry](https://github.com/opentofu/registry/issues/).
