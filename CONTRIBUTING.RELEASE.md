@@ -363,6 +363,11 @@ Now you can commit your changes and open a pull request.
 
 </details>
 
+## GitHub milestone
+Once the release is public ensure that the GitHub milestones are updated:
+* Close the milestone for the closed release
+* Create the milestone for the next patch release
+
 ---
 
 ## Updating govulncheck github workflow (only for stable releases)
