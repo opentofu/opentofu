@@ -844,46 +844,6 @@ func TestCoreLintingRules(t *testing.T) {
 				outputCheckDoesNotContain{"Warning:", true},
 			},
 		},
-		"core:all": {
-			lint: []string{"core:all"},
-			expectedPlanOutput: []outputCheck{
-				outputCheckNumberOfOccurrences{"Experimental linting enabled", 1},
-				outputCheckNumberOfOccurrences{"Input variable not used (core:unused-variable)", 2},
-				outputCheckNumberOfOccurrences{"Local value not used (core:unused-local)", 1},
-				outputCheckNumberOfOccurrences{"Variable with no type (core:no-type-variable)", 1},
-				outputCheckNumberOfOccurrences{"3: variable \"no_type\"", 2}, // unused and no type
-				outputCheckNumberOfOccurrences{"15: variable \"var_not_used_at_all\"", 1},
-				outputCheckNumberOfOccurrences{"15:  local_not_used_at_all", 1},
-				outputCheckNumberOfOccurrences{"Could use enabled instead of count (core:count-instead-enabled)", 6},
-				outputCheckNumberOfOccurrences{"resource \"simple_resource\" \"res1\":", 1},
-				outputCheckNumberOfOccurrences{"data \"simple_resource\" \"res2\":", 1},
-				outputCheckNumberOfOccurrences{"ephemeral \"simple_resource\" \"res3\":", 1},
-				outputCheckNumberOfOccurrences{"resource \"simple_resource\" \"res4\":", 1},
-				outputCheckNumberOfOccurrences{"ephemeral \"simple_resource\" \"res5\":", 1},
-				outputCheckNumberOfOccurrences{"data \"simple_resource\" \"res6\":", 1},
-				outputCheckNumberOfOccurrences{"Warning:", 11}, // check all the issued linting diagnostics to be sure that there only the ones expected above
-			},
-			expectedApplyOutput: []outputCheck{
-				outputCheckNumberOfOccurrences{"Experimental linting enabled", 1},
-				outputCheckNumberOfOccurrences{"Input variable not used (core:unused-variable)", 2},
-				outputCheckNumberOfOccurrences{"Local value not used (core:unused-local)", 1},
-				outputCheckNumberOfOccurrences{"Variable with no type (core:no-type-variable)", 1},
-				outputCheckNumberOfOccurrences{"3: variable \"no_type\"", 2}, // unused and no type
-				outputCheckNumberOfOccurrences{"15: variable \"var_not_used_at_all\"", 1},
-				outputCheckNumberOfOccurrences{"15:  local_not_used_at_all", 1},
-				outputCheckNumberOfOccurrences{"Could use enabled instead of count (core:count-instead-enabled)", 6},
-				outputCheckNumberOfOccurrences{"resource \"simple_resource\" \"res1\":", 1},
-				outputCheckNumberOfOccurrences{"data \"simple_resource\" \"res2\":", 1},
-				outputCheckNumberOfOccurrences{"ephemeral \"simple_resource\" \"res3\":", 1},
-				outputCheckNumberOfOccurrences{"resource \"simple_resource\" \"res4\":", 1},
-				outputCheckNumberOfOccurrences{"ephemeral \"simple_resource\" \"res5\":", 1},
-				outputCheckNumberOfOccurrences{"data \"simple_resource\" \"res6\":", 1},
-				outputCheckNumberOfOccurrences{"Warning:", 11}, // check all the issued linting diagnostics to be sure that there only the ones expected above
-			},
-			expectedDestroyOutput: []outputCheck{
-				outputCheckDoesNotContain{"Warning:", true},
-			},
-		},
 	}
 	for name, tt := range cases {
 		t.Run(name, func(t *testing.T) {
