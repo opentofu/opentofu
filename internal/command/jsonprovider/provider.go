@@ -8,8 +8,8 @@ package jsonprovider
 import (
 	"encoding/json"
 
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/providers"
-	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // FormatVersion represents the version of the json format and will be
@@ -24,12 +24,12 @@ type Providers struct {
 }
 
 type Provider struct {
-	Provider                 *Schema                                `json:"provider,omitempty"`
-	ResourceSchemas          map[string]*Schema                     `json:"resource_schemas,omitempty"`
-	DataSourceSchemas        map[string]*Schema                     `json:"data_source_schemas,omitempty"`
-	EphemeralResourceSchemas map[string]*Schema                     `json:"ephemeral_resource_schemas,omitempty"`
-	Functions                map[string]*Function                   `json:"functions,omitempty"`
-	ResourceIdentitySchemas  map[string]*ResourceIdentitySchema     `json:"resource_identity_schemas,omitempty"`
+	Provider                 *Schema                            `json:"provider,omitempty"`
+	ResourceSchemas          map[string]*Schema                 `json:"resource_schemas,omitempty"`
+	DataSourceSchemas        map[string]*Schema                 `json:"data_source_schemas,omitempty"`
+	EphemeralResourceSchemas map[string]*Schema                 `json:"ephemeral_resource_schemas,omitempty"`
+	Functions                map[string]*Function               `json:"functions,omitempty"`
+	ResourceIdentitySchemas  map[string]*ResourceIdentitySchema `json:"resource_identity_schemas,omitempty"`
 }
 
 func newProviders() *Providers {
@@ -44,7 +44,7 @@ func newProviders() *Providers {
 // schema into the public structured JSON versions.
 //
 // This is a format that can be read by the structured plan renderer.
-func MarshalForRenderer(s *tofu.Schemas) map[string]*Provider {
+func MarshalForRenderer(s *plugins.Schemas) map[string]*Provider {
 	schemas := make(map[string]*Provider, len(s.Providers))
 	for k, v := range s.Providers {
 		schemas[k.String()] = marshalProvider(v)
@@ -52,7 +52,7 @@ func MarshalForRenderer(s *tofu.Schemas) map[string]*Provider {
 	return schemas
 }
 
-func Marshal(s *tofu.Schemas) ([]byte, error) {
+func Marshal(s *plugins.Schemas) ([]byte, error) {
 	providers := newProviders()
 	providers.Schemas = MarshalForRenderer(s)
 	ret, err := json.Marshal(providers)

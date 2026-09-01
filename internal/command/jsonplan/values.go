@@ -17,8 +17,8 @@ import (
 	"github.com/opentofu/opentofu/internal/command/jsonstate"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/states"
-	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // StateValues is the common representation of resolved values for both the
@@ -94,7 +94,7 @@ func marshalPlannedOutputs(changes *plans.Changes) (map[string]Output, error) {
 	return ret, nil
 }
 
-func marshalPlannedValues(changes *plans.Changes, schemas *tofu.Schemas) (Module, error) {
+func marshalPlannedValues(changes *plans.Changes, schemas *plugins.Schemas) (Module, error) {
 	var ret Module
 
 	// build three maps:
@@ -180,7 +180,7 @@ func marshalPlannedValues(changes *plans.Changes, schemas *tofu.Schemas) (Module
 }
 
 // marshalPlanResources
-func marshalPlanResources(changeMap map[string]*plans.ResourceInstanceChangeSrc, ris []addrs.AbsResourceInstance, schemas *tofu.Schemas) ([]Resource, error) {
+func marshalPlanResources(changeMap map[string]*plans.ResourceInstanceChangeSrc, ris []addrs.AbsResourceInstance, schemas *plugins.Schemas) ([]Resource, error) {
 	var ret []Resource
 
 	for _, ri := range ris {
@@ -276,7 +276,7 @@ func marshalPlanResources(changeMap map[string]*plans.ResourceInstanceChangeSrc,
 // the full module tree.
 func marshalPlanModules(
 	changeMap map[string]*plans.ResourceInstanceChangeSrc,
-	schemas *tofu.Schemas,
+	schemas *plugins.Schemas,
 	childModules []addrs.ModuleInstance,
 	moduleMap map[string][]addrs.ModuleInstance,
 	moduleResourceMap map[string][]addrs.AbsResourceInstance,

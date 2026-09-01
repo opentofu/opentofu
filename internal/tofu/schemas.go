@@ -14,52 +14,17 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-// Schemas is a container for various kinds of schema that OpenTofu needs
-// during processing.
-type Schemas struct {
-	Providers    map[addrs.Provider]providers.ProviderSchema
-	Provisioners map[string]*configschema.Block
-}
-
-// ProviderSchema returns the entire ProviderSchema object that was produced
-// by the plugin for the given provider, or nil if no such schema is available.
+// Schemas is the original name for [plugins.Schemas], preserved as an alias
+// here for now to preserve existing references to this type.
 //
-// It's usually better to go use the more precise methods offered by type
-// Schemas to handle this detail automatically.
-func (ss *Schemas) ProviderSchema(provider addrs.Provider) providers.ProviderSchema {
-	return ss.Providers[provider]
-}
-
-// ProviderConfig returns the schema for the provider configuration of the
-// given provider type, or nil if no such schema is available.
-func (ss *Schemas) ProviderConfig(provider addrs.Provider) *configschema.Block {
-	return ss.ProviderSchema(provider).Provider.Block
-}
-
-// ResourceTypeConfig returns the schema for the configuration of a given
-// resource type belonging to a given provider type, or nil of no such
-// schema is available.
-//
-// In many cases the provider type is inferable from the resource type name,
-// but this is not always true because users can override the provider for
-// a resource using the "provider" meta-argument. Therefore, it's important to
-// always pass the correct provider name, even though it many cases it feels
-// redundant.
-func (ss *Schemas) ResourceTypeConfig(provider addrs.Provider, resourceMode addrs.ResourceMode, resourceType string) (block *providers.Schema, schemaVersion uint64) {
-	ps := ss.ProviderSchema(provider)
-	return ps.SchemaForResourceType(resourceMode, resourceType)
-}
-
-// ProvisionerConfig returns the schema for the configuration of a given
-// provisioner, or nil of no such schema is available.
-func (ss *Schemas) ProvisionerConfig(name string) *configschema.Block {
-	return ss.Provisioners[name]
-}
+// Use [plugins.Schemas] directly in new code.
+type Schemas = plugins.Schemas
 
 // loadSchemas searches the given configuration, state  and plan (any of which
 // may be nil) for constructs that have an associated schema, requests the
@@ -71,7 +36,7 @@ func (ss *Schemas) ProvisionerConfig(name string) *configschema.Block {
 // either misbehavior on the part of one of the providers or of the provider
 // protocol itself. When returned with errors, the returned schemas object is
 // still valid but may be incomplete.
-func loadSchemas(ctx context.Context, config *configs.Config, state *states.State, plugins *contextPlugins) (*Schemas, error) {
+func loadSchemas(ctx context.Context, config *configs.Config, state *states.State, plugins *contextPlugins) (*plugins.Schemas, error) {
 	var diags tfdiags.Diagnostics
 
 	provisioners, provisionerDiags := loadProvisionerSchemas(ctx, config, plugins)
