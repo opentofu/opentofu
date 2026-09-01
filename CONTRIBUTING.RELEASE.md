@@ -276,12 +276,13 @@ We do not release documentation for non-stable releases, any links should point 
 
 </summary>
 
-1. Add a submodule for the new release to the website repository:
+1. Add the new release series to the array of strings in `versions.json` in the root of the repository.
+2. Add a submodule for the new release to the website repository:
    ```
    git submodule add -b vX.Y https://github.com/opentofu/opentofu opentofu-repo/vX.Y
    ```
-2. After you have done this, open the [`docusaurus.config.ts`](https://github.com/opentofu/opentofu.org/blob/main/docusaurus.config.ts) file and `presets` section.
-3. Here, locate the previous latest version:
+3. After you have done this, open the [`docusaurus.config.ts`](https://github.com/opentofu/opentofu.org/blob/main/docusaurus.config.ts) file and `presets` section.
+4. Here, locate the previous latest version:
    ```
    "vX.Y-1": {
      label: "X.Y-1.x",
@@ -296,18 +297,18 @@ We do not release documentation for non-stable releases, any links should point 
      banner: "none",
    },
    ```
-4. Now add the new version you are releasing:
+5. Now add the new version you are releasing:
    ```
    "vX.Y": {
      label: "X.Y.x",
      path: "",
    },
    ```
-5. Now locate any version that is no longer supported and remove the following line to add a deprecation warning:
+6. Now locate any version that is no longer supported and remove the following line to add a deprecation warning:
    ```
      banner: "none",
    ```
-6. Locate the `navbar` option and `Docs` dropdown to reflect the new version list. It should look something like this:
+7. Locate the `navbar` option and `Docs` dropdown to reflect the new version list. It should look something like this:
    ```
    items: [
       {
@@ -325,12 +326,12 @@ We do not release documentation for non-stable releases, any links should point 
       },
     ],
    ```
-7. Add the necessary entries in the `versioned_sidebars` and `versioned_docs` directories.
+8. Add the necessary entries in the `versioned_sidebars` and `versioned_docs` directories.
    ```shell
    cp versioned_sidebars/version-v1.11-sidebars.json versioned_sidebars/version-vX.Y-sidebars.json
    cd versioned_docs && ln -s ../opentofu-repo/vX.Y/website/docs version-vX.Y
    ```
-8. Recreate the `docs` symlink in the root of the repository to refer to the `website` directory from the newly-added submodule, so that the new branch is used for unversioned doc URLs.
+9. Recreate the `docs` symlink in the root of the repository to refer to the `website` directory from the newly-added submodule, so that the new branch is used for unversioned doc URLs.
    ```shell
    # (make sure that your current working directory is the repository root)
    rm docs
