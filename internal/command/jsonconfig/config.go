@@ -17,7 +17,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/getproviders"
-	"github.com/opentofu/opentofu/internal/tofu"
+	"github.com/opentofu/opentofu/internal/plugins"
 )
 
 // Config represents the complete configuration source
@@ -128,7 +128,7 @@ type provisioner struct {
 }
 
 // Marshal returns the json encoding of tofu configuration.
-func Marshal(c *configs.Config, schemas *tofu.Schemas) ([]byte, error) {
+func Marshal(c *configs.Config, schemas *plugins.Schemas) ([]byte, error) {
 	return marshal(c, schemas)
 }
 
@@ -141,7 +141,7 @@ func Marshal(c *configs.Config, schemas *tofu.Schemas) ([]byte, error) {
 // [inSingleModuleMode], and not by directly testing if schemas are nil,
 // so that it's easier for future maintainers to learn about this special
 // treatment through the centralized doc comment.
-func marshal(c *configs.Config, schemas *tofu.Schemas) ([]byte, error) {
+func marshal(c *configs.Config, schemas *plugins.Schemas) ([]byte, error) {
 	var output config
 
 	pcs := make(map[string]providerConfig)
@@ -168,7 +168,7 @@ func marshal(c *configs.Config, schemas *tofu.Schemas) ([]byte, error) {
 
 func marshalProviderConfigs(
 	c *configs.Config,
-	schemas *tofu.Schemas,
+	schemas *plugins.Schemas,
 	m map[string]providerConfig,
 ) {
 	if c == nil {
@@ -184,7 +184,7 @@ func marshalProviderConfigs(
 	// Add an entry for each provider configuration block in the module.
 	for k, pc := range c.Module.ProviderConfigs {
 		providerFqn := c.ProviderForConfigAddr(addrs.LocalProviderConfig{LocalName: pc.Name})
-		schema := mapSchema(schemas, func(schemas *tofu.Schemas) *configschema.Block {
+		schema := mapSchema(schemas, func(schemas *plugins.Schemas) *configschema.Block {
 			return schemas.ProviderConfig(providerFqn)
 		})
 
@@ -337,7 +337,7 @@ func marshalProviderConfigs(
 	}
 }
 
-func marshalModule(c *configs.Config, schemas *tofu.Schemas, addr string) (module, error) {
+func marshalModule(c *configs.Config, schemas *plugins.Schemas, addr string) (module, error) {
 	var module module
 	var rs []resource
 
@@ -448,7 +448,7 @@ func marshalModule(c *configs.Config, schemas *tofu.Schemas, addr string) (modul
 	return module, nil
 }
 
-func marshalModuleCalls(c *configs.Config, schemas *tofu.Schemas) map[string]moduleCall {
+func marshalModuleCalls(c *configs.Config, schemas *plugins.Schemas) map[string]moduleCall {
 	ret := make(map[string]moduleCall)
 
 	for name, mc := range c.Module.ModuleCalls {
@@ -459,7 +459,7 @@ func marshalModuleCalls(c *configs.Config, schemas *tofu.Schemas) map[string]mod
 	return ret
 }
 
-func marshalModuleCall(c *configs.Config, mc *configs.ModuleCall, schemas *tofu.Schemas) moduleCall {
+func marshalModuleCall(c *configs.Config, mc *configs.ModuleCall, schemas *plugins.Schemas) moduleCall {
 	// Note that "c" is always nil when in single module mode!
 	// Refer to the docs on [inSingleModuleMode] to learn about how that
 	// special situation works.
@@ -519,7 +519,7 @@ func marshalModuleCall(c *configs.Config, mc *configs.ModuleCall, schemas *tofu.
 	return ret
 }
 
-func marshalResources(resources map[string]*configs.Resource, schemas *tofu.Schemas, moduleAddr string) ([]resource, error) {
+func marshalResources(resources map[string]*configs.Resource, schemas *plugins.Schemas, moduleAddr string) ([]resource, error) {
 	var rs []resource
 	for _, v := range resources {
 		providerConfigKey := opaqueProviderKey(v.ProviderConfigAddr().StringCompact(), moduleAddr)
@@ -570,7 +570,7 @@ func marshalResources(resources map[string]*configs.Resource, schemas *tofu.Sche
 		if v.Managed != nil && len(v.Managed.Provisioners) > 0 {
 			var provisioners []provisioner
 			for _, p := range v.Managed.Provisioners {
-				schema := mapSchema(schemas, func(schema *tofu.Schemas) *configschema.Block {
+				schema := mapSchema(schemas, func(schema *plugins.Schemas) *configschema.Block {
 					return schemas.ProvisionerConfig(p.Type)
 				})
 				prov := provisioner{
