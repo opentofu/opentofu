@@ -10,9 +10,9 @@ UPGRADE NOTES:
 
     Third parties may continue to offer their own OpenTofu builds targeting platforms that we don't officially support. This only affects the official packages published directly by the OpenTofu project in this repository's release artifacts.
 
-BUG FIXES:
+ENHANCEMENTS:
 
-- `tofu fmt`: Fixed wrong resolution of paths when the working directory is a symlink; output now shows absolute file paths instead of giving error `Invalid file or directory path`. ([#3879](https://github.com/opentofu/opentofu/issues/3879))
+ - Support for defining source while mocking a provider for test command ([#4532](https://github.com/opentofu/opentofu/pull/4532))
 
 BUG FIXES:
 
