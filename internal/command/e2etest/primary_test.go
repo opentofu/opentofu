@@ -1050,3 +1050,72 @@ func mustResourceInstanceAddr(t *testing.T, s string) addrs.AbsResourceInstance 
 	}
 	return addr
 }
+
+func TestCheckForgetWarnings(t *testing.T) {
+	t.Parallel()
+
+	skipIfCannotAccessNetwork(t)
+
+	fixturePath := filepath.Join("testdata", "empty")
+	tf := e2e.NewBinary(t, tofuBin, fixturePath)
+
+	config1 := `
+resource "null_resource" "test" {
+  triggers = {
+    value = "hello"
+  }
+}
+`
+	err := os.WriteFile(tf.Path("main.tf"), []byte(config1), 0644)
+	if err != nil {
+		t.Fatalf("failed to write main.tf: %s", err)
+	}
+
+	_, stderr, err := tf.Run("init")
+	if err != nil {
+		t.Fatalf("unexpected init error: %s\nstderr:\n%s", err, stderr)
+	}
+
+	_, stderr, err = tf.Run("apply", "-auto-approve")
+	if err != nil {
+		t.Fatalf("unexpected apply error: %s\nstderr:\n%s", err, stderr)
+	}
+
+	config2 := `
+removed {
+  from = null_resource.test
+
+  lifecycle {
+    destroy = false
+  }
+}
+`
+	err = os.WriteFile(tf.Path("main.tf"), []byte(config2), 0644)
+	if err != nil {
+		t.Fatalf("failed to write main.tf: %s", err)
+	}
+
+	stdout, stderr, err := tf.Run("plan")
+	if err != nil {
+		t.Fatalf("unexpected plan error: %s\nstderr:\n%s", err, stderr)
+	}
+
+	warningCount := strings.Count(stdout, "Warning:")
+	if warningCount != 1 {
+		t.Errorf("expected exactly 1 warning in output, got %d. Output:\n%s", warningCount, stdout)
+	}
+
+	errorCount := strings.Count(stdout, "Error:")
+	if errorCount != 0 {
+		t.Errorf("expected 0 errors in output, got %d. Output:\n%s", errorCount, stdout)
+	}
+
+	if !strings.Contains(stdout, "Objects will be removed from state") {
+		t.Errorf("expected warning message 'Objects will be removed from state' in stdout. Output:\n%s", stdout)
+	}
+
+	if !strings.Contains(stdout, "After this plan is applied") || !strings.Contains(stdout, "will no longer be managed by OpenTofu") {
+		t.Errorf("expected warning message detail in stdout. Output:\n%s", stdout)
+	}
+}
+
