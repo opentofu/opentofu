@@ -82,7 +82,9 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, hclCtxFunc ContextFunc,
 
 	forEachVal, deprDiags := marks.ExtractDeprecatedDiagnosticsWithExpr(forEachVal, expr)
 	diags = diags.Append(deprDiags)
-	forEachVal = marks.DropLintingMarks(forEachVal)
+	// we don't drop the linting marks here since we want for these to get propagated through the for_each value
+	// inside the possible usage in resource blocks which will allow the impurefunc linting rule to detect
+	// usage of impure functions in resource arguments.
 
 	checksVal, checksDiags := performTypeAndValueChecks(expr, hclCtx, allowUnknown, allowTuple, forEachVal, excludableAddr)
 	diags = diags.Append(checksDiags)

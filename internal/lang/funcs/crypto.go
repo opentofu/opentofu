@@ -38,7 +38,7 @@ var UUIDFunc = function.New(&function.Spec{
 		if err != nil {
 			return cty.UnknownVal(cty.String).Mark(marks.ImpureFuncUsageMark("uuid")), err
 		}
-		return cty.StringVal(result), nil
+		return cty.StringVal(result).Mark(marks.ImpureFuncUsageMark("uuid")), nil
 	},
 })
 

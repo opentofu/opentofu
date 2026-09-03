@@ -56,6 +56,7 @@ Groups pack together multiple rules allowing inclusion of those by specifying ju
 |---|---|
 |`core:confusing`|represents all of the rules that notice when something has been written in a way that might be misleading to a future reader of the code|
 |`core:improvement`|represents all of the rules that notice when the configuration is written by using concepts for which there is a better and cleaner alternative|
+|`core:noconverge`|represents all of the rules that notice when the configuration contains various constructs that could lead to no convergence on resources|
 
 ### Global identifiers
 OpenTofu provides 2 global identifiers: `all` and `core:all`.
@@ -169,4 +170,31 @@ locals {
 │    2:   arn = "arn:aws:s3:::demo-bucket"
 │
 │ Found no usage of the local value "arn".
+```
+
+
+### Impure function usage in resource arguments
+|Rule identifier|Groups|Lowest phase|Since|
+|---|---|---|---|
+|`core:impurefunc`|`core:noconverge`|`apply`|OpenTofu v1.13|
+
+Currently, OpenTofu provides 3 impure functions: `timestamp`, `uuid` and `bcrypt`.
+The result of impure functions cannot be predicted during OpenTofu's planning phase, so by using such a function
+in resource arguments will always generate a new plan.
+
+This core linting rule reports such usage when detected.
+```hcl
+resource "aws_s3_bucket" "my_resource" {
+  bucket = "prefix-${uuid()}"
+}
+
+```
+
+```shell
+│ Warning: Impure function used in a location where convergence is typically expected (core:impurefunc)
+│
+│   on main.tf line 1, in resource "aws_s3_bucket" "my_resource":
+│    1: resource "aws_s3_bucket" "my_resource" {
+│
+│ Attribute ".bucket" inferred from "uuid"
 ```

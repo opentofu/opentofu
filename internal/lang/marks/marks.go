@@ -358,7 +358,7 @@ func ExtractLintingInformationFromValue(val cty.Value) (cty.Value, LintingInfo) 
 			return nil, nil // no changes to non-linting marks
 		}
 		li = append(li, lm.cause.withPath(path.Copy()))
-		return ctymarks.WrangleDrop, nil
+		return ctymarks.WrangleKeep, nil
 	})
 	return newVal, li
 }

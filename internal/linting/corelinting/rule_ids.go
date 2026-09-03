@@ -14,7 +14,7 @@ var (
 	ruleIDCountInsteadOfEnabled = linting.MustParseRuleAddr("core:count-instead-enabled")
 	ruleIDVariableNotUsed       = linting.MustParseRuleAddr("core:unused-variable")
 	ruleIDLocalNotUsed          = linting.MustParseRuleAddr("core:unused-local")
-	ruleIDImpureFuncUsed        = linting.MustParseRuleAddr("core:impure-func")
+	ruleIDImpureFuncUsed        = linting.MustParseRuleAddr("core:impurefunc")
 )
 
 // This block below is meant to hold all the "core" namespaced linting **group IDs**.
