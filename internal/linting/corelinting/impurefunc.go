@@ -45,5 +45,5 @@ func ImpureFuncs(ctx context.Context, targetDeclRange hcl.Range, funcsUsed marks
 
 		return diags
 	}
-	return tfdiags.ExecuteLintRule(ctx, exec, tfdiags.SourceRangeFromHCL(targetDeclRange), ruleIDImpureFuncUsed, GroupIDNoConverge)
+	return tfdiags.ExecuteLintRule(ctx, exec, tfdiags.SourceRangeFromHCL(targetDeclRange), ruleIDImpureFuncUsed, GroupIDAll, GroupIDNoConverge)
 }
