@@ -19,6 +19,7 @@ func TestUUID(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	result, _ = result.Unmark()
 	resultStr := result.AsString()
 	if got, want := len(resultStr), 36; got != want {
 		t.Errorf("wrong result length %d; want %d", got, want)

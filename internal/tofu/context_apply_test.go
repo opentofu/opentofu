@@ -311,6 +311,11 @@ func TestContext2Apply_unstable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("decode error: %v", err)
 	}
+
+	// Unmark the value. This is needed because the linting marks are stored in the *temporary* state and dropped
+	// later during state persistence. Unmarking here simulates the unmarking in actual flows.
+	rs.Value, _ = rs.Value.UnmarkDeep()
+
 	got := rs.Value.GetAttr("random")
 	if !got.IsKnown() {
 		t.Fatalf("random is still unknown after apply")
