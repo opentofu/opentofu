@@ -12,12 +12,13 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/providers"
-	"github.com/opentofu/opentofu/internal/tofu"
-	"github.com/zclconf/go-cty/cty"
 )
 
 func TestFindSourceProviderConfig(t *testing.T) {
@@ -116,7 +117,7 @@ func TestFindSourceProviderConfig(t *testing.T) {
 }
 
 func TestMarshalModule(t *testing.T) {
-	emptySchemas := &tofu.Schemas{}
+	emptySchemas := &plugins.Schemas{}
 	providerAddr := addrs.NewProvider("host", "namespace", "type")
 	resSchema := map[string]providers.Schema{
 		"test_type": {
@@ -134,7 +135,7 @@ func TestMarshalModule(t *testing.T) {
 
 	tests := map[string]struct {
 		Input   *configs.Config
-		Schemas *tofu.Schemas
+		Schemas *plugins.Schemas
 		Want    module
 	}{
 		"empty": {
@@ -306,7 +307,7 @@ func TestMarshalModule(t *testing.T) {
 					},
 				},
 			},
-			Schemas: &tofu.Schemas{
+			Schemas: &plugins.Schemas{
 				Providers: map[addrs.Provider]providers.ProviderSchema{
 					providerAddr: {
 						ResourceTypes:      resSchema,
