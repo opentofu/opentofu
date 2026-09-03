@@ -238,9 +238,9 @@ You can safely re-run this workflow on failure as long as the release whose job 
 
 ## Updating the website/documentation
 
-Depending on the release type, you will need to update the [opentofu.org](https://github.com/opentofu/opentofu.org) repository.
+All releases require some sort of update to the [opentofu.org](https://github.com/opentofu/opentofu.org) repository, but the details depend on what kind of release you are publishing.
 
-Before you begin, make sure that all submodules are prepared:
+Before you begin, make sure that all submodules are initialized:
 
 ```
 git submodule init
@@ -258,8 +258,7 @@ The following summarizes what we need to do for each kind of release:
 
 The following subsections describe the process for each of these types of changes.
 
-<details>
-<summary>
+<details><summary>
 
 ### <span id="website-new-release-series">Introduce new release series</span>
 
@@ -348,12 +347,11 @@ If everything looks good then commit all of these changes and open a PR in the `
 
 </details>
 
-<details>
-<summary>
+<details><summary>
 
-###  <span id="website-submodule-update">Git submodule update</span>
+### <span id="website-submodule-update">Git submodule update</span>
 
-<summary>
+</summary>
 
 The website build process uses the commit currently selected by each of the submodules as the source of documentation for an OpenTofu release series.
 
@@ -386,14 +384,13 @@ Use `docker compose up --build` to start the dev server for the website and chec
 
 </details>
 
-<details>
-<summary>
+<details><summary>
 
-###  <span id="website-change-default-version">Change the default version</span>
+### <span id="website-change-default-version">Change the default version</span>
 
-<summary>
+</summary>
 
-Once the prerelease period for a new release series is over and we're ready to publish its first stable release (e.g. v1.8.0) we need to adjust some of the configuration that we previously would've added when publishing v1.8.0-beta1 so that this series is now treated as the default version and no longer identified as being unreleased.
+Once the prerelease period for a new release series is over and we're ready to publish its first stable release (e.g. v1.8.0) we need to adjust some of the configuration that we would've previously added when publishing v1.8.0-beta1 so that this series is now treated as the default version and no longer identified as being unreleased.
 
 The following steps all take place in a work tree for the `opentofu/opentofu.org` repository:
 
@@ -487,6 +484,8 @@ If everything looks good then commit all of these changes and open a PR in the `
 
 </details>
 
+---
+
 ## GitHub milestones
 
 If you are publishing a _stable_ release (not a beta or release candidate), update the GitHub milestones in the `opentofu/opentofu` repository as follows:
@@ -500,6 +499,8 @@ For the first release in a new series we use the same milestone continuously for
 
 The milestone for the first release in a new series (e.g. v1.9.0 relative to v1.8.0) will typically have been created at some point during the previous development period as a place to drop any issues that we decide to no longer treat as release blockers, but if not then we should create the v1.9.0 milestone when closing the v1.8.0 milestone, in addition to creating the v1.8.1 milestone as described above.
 
+---
+
 ## Updating govulncheck github workflow
 
 In [.github/workflows/govulncheck.yml](.github/workflows/govulncheck.yml), there is a matrix with the actively maintained versions of OpenTofu.
@@ -508,6 +509,8 @@ During each release:
 
 - If starting a new release series, add its maintenence branch to the matrix.
 - If any earlier series has reached end-of-life since the previous release, remove its maintenence branch from the list.
+
+---
 
 ## Testing the release
 
