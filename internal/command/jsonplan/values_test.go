@@ -15,9 +15,9 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
-	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 func TestMarshalAttributeValues(t *testing.T) {
@@ -375,8 +375,8 @@ func TestMarshalPlanValuesNoopDeposed(t *testing.T) {
 	}
 }
 
-func testSchemas() *tofu.Schemas {
-	return &tofu.Schemas{
+func testSchemas() *plugins.Schemas {
+	return &plugins.Schemas{
 		Providers: map[addrs.Provider]providers.ProviderSchema{
 			addrs.NewDefaultProvider("test"): providers.ProviderSchema{
 				ResourceTypes: map[string]providers.Schema{
