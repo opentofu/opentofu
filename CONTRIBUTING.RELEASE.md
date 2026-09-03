@@ -450,7 +450,10 @@ The following steps all take place in a work tree for the `opentofu/opentofu.org
       },
       // ...
    ```
-2. Still in `docusaurus.config.ts`, find the `navbar` property which includes an item whose label is "Docs" and whose nested items describe the navigation links for different versions, like this:
+2. Still in `docusaurus.config.ts`, find the `lastVersion` property that's a sibling of the `versions` property you edited in the previous step.
+
+    Change the value of that property to match the key used to identify the version you've just modified under `versions`, such as `"v1.8"`. This setting controls which version is identified as the "latest version" in the warning callout at the top of all pages belonging to versions whose banner is set to either `"unreleased"` or `"unmaintained"`.
+3. Still in `docusaurus.config.ts`, find the `navbar` property which includes an item whose label is "Docs" and whose nested items describe the navigation links for different versions, like this:
    ```js
    // ...
    {
@@ -471,8 +474,8 @@ The following steps all take place in a work tree for the `opentofu/opentofu.org
    First delete the objects for any series whose `banner` was changed to `"unmantained"` in the previous step. We preserve the old version doc pages to avoid breaking incoming links, but we only list the currently-supported series in the main navigation bar to prevent it from being cluttered with a growing set of end-of-life releases.
 
    Then move the entry that was previously added for the new series (`v1.8.x (beta)` in this example) to the top of the list and remove the ` (beta)` suffix from its label.
-3. Follow the [Git submodule update](#website-submodule-update) steps to change the submodule to refer to the same commit as the `v1.8.0` tag in the `opentofu/opentofu` repository, but don't commit the change yet until finishing this set of steps.
-4. Recreate the `docs` symlink in the root of the repository so that it refers to the submodule directory for the newly-stable release series:
+4. Follow the [Git submodule update](#website-submodule-update) steps to change the submodule to refer to the same commit as the `v1.8.0` tag in the `opentofu/opentofu` repository, but don't commit the change yet until finishing this set of steps.
+5. Recreate the `docs` symlink in the root of the repository so that it refers to the submodule directory for the newly-stable release series:
    ```shell
    rm docs
    ln -s opentofu-repo/v1.8/website/docs docs
