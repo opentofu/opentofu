@@ -120,8 +120,6 @@ func TestContext2Validate_varNoDefaultExplicitType(t *testing.T) {
 }
 
 func TestContext2Validate_computedVar(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureValidate)
-
 	p := testProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		Provider: providers.Schema{
@@ -180,7 +178,6 @@ func TestContext2Validate_computedVar(t *testing.T) {
 }
 
 func TestContext2Validate_computedInFunction(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureValidate)
 	p := testProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		ResourceTypes: map[string]providers.Schema{
@@ -221,7 +218,6 @@ func TestContext2Validate_computedInFunction(t *testing.T) {
 // them to fail during "plan" since we can't know if the computed values
 // can be realized during a plan.
 func TestContext2Validate_countComputed(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureValidate)
 	p := testProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		ResourceTypes: map[string]providers.Schema{
@@ -424,8 +420,6 @@ func TestContext2Validate_moduleGood(t *testing.T) {
 }
 
 func TestContext2Validate_moduleBadResource(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDeclareProvider, ExperimentalFeatureValidate)
-
 	m := testModule(t, "validate-module-bad-rc")
 	p := testProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
@@ -455,8 +449,6 @@ func TestContext2Validate_moduleBadResource(t *testing.T) {
 }
 
 func TestContext2Validate_moduleDepsShouldNotCycle(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDeclareProvider, ExperimentalBugVariableInput)
-
 	m := testModule(t, "validate-module-deps-cycle")
 	p := testProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
@@ -605,8 +597,6 @@ func TestContext2Validate_orphans(t *testing.T) {
 }
 
 func TestContext2Validate_providerConfig_bad(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureProvisioner)
-
 	m := testModule(t, "validate-bad-pc")
 	p := testProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
@@ -749,8 +739,6 @@ func TestContext2Validate_requiredProviderConfig(t *testing.T) {
 }
 
 func TestContext2Validate_provisionerConfig_bad(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureProvisioner)
-
 	m := testModule(t, "validate-bad-prov-conf")
 	p := testProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
@@ -786,8 +774,6 @@ func TestContext2Validate_provisionerConfig_bad(t *testing.T) {
 }
 
 func TestContext2Validate_badResourceConnection(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureProvisioner)
-
 	m := testModule(t, "validate-bad-resource-connection")
 	p := testProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
@@ -820,8 +806,6 @@ func TestContext2Validate_badResourceConnection(t *testing.T) {
 }
 
 func TestContext2Validate_badProvisionerConnection(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureProvisioner)
-
 	m := testModule(t, "validate-bad-prov-connection")
 	p := testProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
@@ -937,8 +921,6 @@ func TestContext2Validate_requiredVar(t *testing.T) {
 }
 
 func TestContext2Validate_resourceConfig_bad(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureValidate)
-
 	m := testModule(t, "validate-bad-rc")
 	p := testProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
@@ -1069,8 +1051,6 @@ func TestContext2Validate_targetedDestroy(t *testing.T) {
 }
 
 func TestContext2Validate_varRefUnknown(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureValidate)
-
 	m := testModule(t, "validate-variable-ref")
 	p := testProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
@@ -1109,8 +1089,6 @@ func TestContext2Validate_varRefUnknown(t *testing.T) {
 // Module variables weren't being interpolated during Validate phase.
 // related to https://github.com/hashicorp/terraform/issues/5322
 func TestContext2Validate_interpolateVar(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDeclareProvider)
-
 	input := new(MockUIInput)
 
 	m := testModule(t, "input-interpolate-var")
@@ -1143,7 +1121,6 @@ func TestContext2Validate_interpolateVar(t *testing.T) {
 // When module vars reference something that is actually computed, this
 // shouldn't cause validation to fail.
 func TestContext2Validate_interpolateComputedModuleVarDef(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDeclareProvider)
 	input := new(MockUIInput)
 
 	m := testModule(t, "validate-computed-module-var-ref")
@@ -1194,8 +1171,6 @@ func TestContext2Validate_interpolateMap(t *testing.T) {
 }
 
 func TestContext2Validate_varSensitive(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureValidate)
-
 	// Smoke test through validate where a variable has sensitive applied
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
@@ -1439,7 +1414,6 @@ output "out" {
 }
 
 func TestContext2Validate_invalidDependsOnResourceRef(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureDependsOn, ExperimentalFeatureValidate)
 	// This test is verifying that we raise an error if depends_on
 	// refers to something that doesn't exist in configuration.
 	m := testModuleInline(t, map[string]string{
@@ -1469,7 +1443,6 @@ resource "test_instance" "bar" {
 }
 
 func TestContext2Validate_invalidResourceIgnoreChanges(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureIgnoreChanges)
 	// This test is verifying that we raise an error if ignore_changes
 	// refers to something that can be statically detected as not conforming
 	// to the resource type schema.
@@ -1556,7 +1529,6 @@ variable "test" {
 }
 
 func TestContext2Validate_expandModules(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDeclareProvider)
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 module "mod1" {
@@ -1679,7 +1651,6 @@ resource "aws_instance" "foo" {
 }
 
 func TestContext2Validate_expandMultipleNestedModules(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDeclareProvider, ExperimentalBugVariableInput)
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 module "modA" {
@@ -1758,8 +1729,6 @@ output "out" {
 }
 
 func TestContext2Validate_invalidModuleDependsOn(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureDependsOn, ExperimentalFeatureValidate)
-
 	// validate module and output depends_on
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
@@ -1802,8 +1771,6 @@ output "out" {
 }
 
 func TestContext2Validate_invalidOutputDependsOn(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureDependsOn, ExperimentalFeatureValidate)
-
 	// validate module and output depends_on
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
@@ -1846,8 +1813,6 @@ output "out" {
 }
 
 func TestContext2Validate_rpcDiagnostics(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureValidate)
-
 	// validate module and output depends_on
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
@@ -1896,7 +1861,6 @@ resource "test_instance" "a" {
 }
 
 func TestContext2Validate_sensitiveProvisionerConfig(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureProvisioner)
 	m := testModule(t, "validate-sensitive-provisioner-config")
 	p := testProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
@@ -1938,7 +1902,6 @@ func TestContext2Validate_sensitiveProvisionerConfig(t *testing.T) {
 }
 
 func TestContext2Plan_validateMinMaxDynamicBlock(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureValidate)
 	p := new(MockProvider)
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
 		ResourceTypes: map[string]*configschema.Block{
@@ -2637,8 +2600,6 @@ resource "test_object" "t" {
 }
 
 func TestContext2Validate_providerAliasesInRootMisconfigured(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureValidate)
-
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 terraform {
@@ -2911,7 +2872,6 @@ func TestContext2Validate_importIntoUnexistingResourceBlock(t *testing.T) {
 }
 
 func TestContext2Validate_replaceTriggeredByInvalidAttribute(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureReplaceTB)
 	p := testProvider("test")
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
 		ResourceTypes: map[string]*configschema.Block{
@@ -3081,7 +3041,6 @@ resource "test_instance" "b" {
 // schema of the referenced resource type, not the schema of the resource
 // containing the lifecycle block.
 func TestContext2Validate_replaceTriggeredByCrossResourceType(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureReplaceTB)
 	// "test_instance" has a "value" attribute; "test_resource" does not.
 	// "test_resource" has a "output" attribute; "test_instance" does not.
 	p := testProvider("test")

@@ -112,7 +112,6 @@ func TestContext2Apply_createBeforeDestroy_deposedKeyPreApply(t *testing.T) {
 // This tests that when a CBD (C) resource depends on a non-CBD (B) resource that depends on another CBD resource (A)
 // Check that create_before_destroy is still set on the B resource after only the B resource is updated
 func TestContext2Apply_createBeforeDestroy_dependsNonCBDUpdate(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureCBD)
 	m := testModule(t, "apply-cbd-depends-non-cbd-update")
 	p := simpleMockProvider()
 
@@ -180,7 +179,7 @@ func TestContext2Apply_createBeforeDestroy_dependsNonCBDUpdate(t *testing.T) {
 		t.Log(legacyDiffComparisonString(plan.Changes))
 	}
 
-	SkipExperimental(t, ExperimentalBugMissingProvider, ExperimentalBugStateCBD)
+	SkipExperimental(t, ExperimentalBugStateCBD)
 	state, diags = ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
@@ -369,7 +368,7 @@ resource "test_instance" "a" {
 
 // verify that dependencies are updated in the state during refresh and apply
 func TestApply_updateDependencies(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureStateDependencies, ExperimentalFeatureRefresh)
+	SkipExperimental(t, ExperimentalFeatureRefresh)
 
 	state := states.NewState()
 	root := state.EnsureModule(addrs.RootModuleInstance)
@@ -736,8 +735,6 @@ func TestContext2Apply_sensitiveInsideUnknown(t *testing.T) {
 }
 
 func TestContext2Apply_ignoreImpureFunctionChanges(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureIgnoreChanges)
-
 	// The impure function call should not cause a planned change with
 	// ignore_changes
 	m := testModuleInline(t, map[string]string{
@@ -830,7 +827,6 @@ resource "test_object" "x" {
 		}, nil),
 	})
 
-	SkipExperimental(t, ExperimentalFeatureCBD)
 	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 	})
@@ -887,7 +883,6 @@ resource "test_object" "x" {
 		}, nil),
 	})
 
-	SkipExperimental(t, ExperimentalFeatureCBD)
 	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 	})
@@ -902,8 +897,6 @@ resource "test_object" "x" {
 }
 
 func TestContext2Apply_nullableVariables(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureRootOutput)
-
 	m := testModule(t, "apply-nullable-variables")
 	state := states.NewState()
 	ctx := testContext2(t, &ContextOpts{})
@@ -937,8 +930,6 @@ func TestContext2Apply_nullableVariables(t *testing.T) {
 }
 
 func TestContext2Apply_targetedDestroyWithMoved(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureMoved, ExperimentalBugDeclareProvider)
-
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 module "modb" {
@@ -989,7 +980,7 @@ resource "test_object" "s" {
 
 // This test is inspired by the above test TestContext2Apply_targetedDestroyWithMoved
 func TestContext2Apply_excludedDestroyWithMoved(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureMoved, ExperimentalBugDeclareProvider)
+	SkipExperimental(t, ExperimentalFeatureMoved)
 
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
@@ -1749,8 +1740,6 @@ func TestContext2Apply_resourceConditionApplyTimeFail(t *testing.T) {
 // pass an input through some expanded values, and back to a provider to make
 // sure we can fully evaluate a provider configuration during a destroy plan.
 func TestContext2Apply_destroyWithConfiguredProvider(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDeclareProvider)
-
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 variable "in" {
@@ -2008,7 +1997,6 @@ resource "test_object" "x" {
 }
 
 func TestContext2Apply_missingOrphanedResource(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugStateProvider)
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 # changed resource address to create a new object
@@ -2056,7 +2044,7 @@ resource "test_object" "y" {
 // Check eval from both root level outputs and module outputs, which are
 // handled differently during apply.
 func TestContext2Apply_outputsNotToEvaluate(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDeclareProvider, ExperimentalFeatureRootOutput, ExperimentalBugDataResource)
+	SkipExperimental(t, ExperimentalBugDataResource)
 
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
@@ -2411,8 +2399,6 @@ output "a" {
 }
 
 func TestContext2Apply_destroyNullModuleOutput(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureRootOutput)
-
 	p := testProvider("test")
 	ctx := testContext2(t, &ContextOpts{
 		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
@@ -2623,8 +2609,6 @@ resource "test_resource" "b" {
 }
 
 func TestContext2Apply_destroyUnusedModuleProvider(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugStateProvider, ExperimentalFeatureDestroy)
-
 	// an unused provider within a module should not be called during destroy
 	unusedProvider := testProvider("unused")
 	testProvider := testProvider("test")
@@ -2668,7 +2652,7 @@ resource "unused_resource" "test" {
 }
 
 func TestContext2Apply_import(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureImport, ExperimentalFeatureHooks)
+	SkipExperimental(t, ExperimentalFeatureImport)
 
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
@@ -2828,7 +2812,7 @@ locals {
 }
 
 func TestContext2Apply_forgetOrphanAndDeposed(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugStateProvider, ExperimentalFeatureDeposed)
+	SkipExperimental(t, ExperimentalFeatureDeposed)
 
 	desposedKey := states.DeposedKey("deposed")
 	addr := "aws_instance.baz"
@@ -2940,7 +2924,6 @@ func TestContext2Apply_forgetOrphanAndDeposedWithDynamicProvider(t *testing.T) {
 
 	p.PlanResourceChangeFn = testDiffFn
 
-	SkipExperimental(t, ExperimentalFeatureCBD)
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
@@ -4783,8 +4766,6 @@ func TestContext2Apply_excludedModuleRecursive(t *testing.T) {
 }
 
 func TestContext2Apply_providerResourceIteration(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureProviderInstances)
-
 	localComplete := `
 locals {
 	direct = "primary"
@@ -5010,8 +4991,6 @@ data "test_data_source" "b_direct" {
 }
 
 func TestContext2Apply_providerModuleIteration(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureProviderInstances)
-
 	localComplete := `
 locals {
 	direct = "primary"
@@ -5153,7 +5132,6 @@ data "test_data_source" "b" {
 
 		_, diags = destroy(t, complete, state)
 		if diags.HasErrors() {
-			SkipExperimental(t, ExperimentalFeatureDestroy)
 			t.Fatal(diags.Err())
 		}
 	})
@@ -5200,7 +5178,6 @@ data "test_data_source" "b" {
 
 		_, diags = destroy(t, partial, state)
 		if diags.HasErrors() {
-			SkipExperimental(t, ExperimentalFeatureDestroy)
 			t.Fatal(diags.Err())
 		}
 	})
@@ -5239,7 +5216,7 @@ data "test_data_source" "b" {
 				return
 			}
 		}
-		SkipExperimental(t, ExperimentalBugStateProvider, ExperimentalChangeDiagWording)
+		SkipExperimental(t, ExperimentalChangeDiagWording)
 		t.Fatal(diags.Err())
 	})
 }
@@ -6226,7 +6203,7 @@ resource "test_instance" "a" {
 // the variable values given in ApplyArgs are getting merged correctly with
 // the plan ones.
 func TestContext2Apply_planVariablesAndApplyArgsGetMergedCorrectly(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureRootOutput, ExperimentalFlagUnknown)
+	SkipExperimental(t, ExperimentalFlagUnknown)
 
 	m := testModuleInline(t, map[string]string{
 		`main.tf`: `
@@ -6711,7 +6688,7 @@ func TestMergePlanAndApplyVariables(t *testing.T) {
 }
 
 func TestContext2Apply_enabledForResource(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureRootOutput, ExperimentalFeatureChanges)
+	SkipExperimental(t, ExperimentalFeatureChanges)
 
 	m := testModule(t, "apply-enabled-resource")
 	p := &MockProvider{
@@ -6977,8 +6954,6 @@ func TestContext2Apply_enabledForModule(t *testing.T) {
 // provider function can be used by referencing it in a dynamic block inside
 // a resource.
 func TestContext2Apply_callingProviderFunctionFromDynamicBlock(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureProviderFunctions)
-
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 terraform {

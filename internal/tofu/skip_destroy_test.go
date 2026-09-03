@@ -406,7 +406,7 @@ func TestSkipDestroy_DestroyMode_ErrorOnForgotten(t *testing.T) {
 // is still present in state.
 
 func TestSkipDestroy_Orphan(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureSkipDestroy, ExperimentalBugStateProvider)
+	SkipExperimental(t, ExperimentalFeatureSkipDestroy)
 	tests := []skipDestroyTestCase{
 		{
 			// Resource aws_instance.foo has been removed from configuration and is only present in state
@@ -448,7 +448,7 @@ func TestSkipDestroy_Orphan(t *testing.T) {
 // TestSkipDestroy_Orphan_RemovedBlockOverrides tests that orphan resource's
 // SkipDestroy attribute in state should be overridden by removed block in config.
 func TestSkipDestroy_Orphan_RemovedBlockOverrides(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureSkipDestroy, ExperimentalBugStateProvider)
+	SkipExperimental(t, ExperimentalFeatureSkipDestroy)
 	tc := skipDestroyTestCase{
 		name: "RemovedBlockOverridesStateFlag",
 		config: `
@@ -683,7 +683,6 @@ func TestSkipDestroy_Deposed(t *testing.T) {
 // - When instances are removed/reduced state attribute protects instances even if config has destroy=true
 
 func TestSkipDestroy_Enabled_Toggle(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugStateProvider)
 	tests := []skipDestroyTestCase{
 		{
 			// Resource exists in state with SkipDestroy=false, but config has enabled=false and destroy=false.
