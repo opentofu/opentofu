@@ -370,7 +370,12 @@ For example, if you're releasing v1.8.1:
    git fetch origin v1.8.1
    git checkout v1.8.1
    ```
-3. Return to the root directory and commit this change:
+3. We don't currently have any automation for keeping the "Development" section updated, so while you're here anyway it's a good opportunity to update that to whatever is currently the latest commit on the `main` branch:
+   ```shell
+   cd ../main
+   git pull --rebase
+   ```
+4. Return to the root directory and commit these changes:
    ```shell
    cd ../..
    git add opentofu-repo/v1.8
