@@ -491,17 +491,27 @@ If everything looks good then commit all of these changes and open a PR in the `
 
 </details>
 
-## GitHub milestone
-Once the release is public ensure that the GitHub milestones are updated:
-* Close the milestone for the closed release
-* Create the milestone for the next patch release
+## GitHub milestones
 
----
+If you are publishing a _stable_ release (not a beta or release candidate), update the GitHub milestones in the `opentofu/opentofu` repository as follows:
 
-## Updating govulncheck github workflow (only for stable releases)
-In [.github/workflows/govulncheck.yml](.github/workflows/govulncheck.yml), there is a matrix with the actively
-maintained versions of OpenTofu.
-When the new branch for the stable version is created, update the matrix above by adding the new branch and removing the deprecated version.
+* Close the milestone whose name matches the release you've just published.
+* Create a milestone for the next patch release in the same series, if it doesn't already exist. For example, if you just closed a "v1.8.0" milestone then create "v1.8.1`.
+
+   **Exception:** If you've just published what is expected to be the final patch release in its series (because the end-of-life date is imminent or already passed) then don't create a new milestone in that series.
+
+For the first release in a new series we use the same milestone continuously for its beta releases, release candidates, and final release, so we should _not_ close e.g. the v1.8.0 milestone when v1.8.0-beta1 is released.
+
+The milestone for the first release in a new series (e.g. v1.9.0 relative to v1.8.0) will typically have been created at some point during the previous development period as a place to drop any issues that we decide to no longer treat as release blockers, but if not then we should create the v1.9.0 milestone when closing the v1.8.0 milestone, in addition to creating the v1.8.1 milestone as described above.
+
+## Updating govulncheck github workflow
+
+In [.github/workflows/govulncheck.yml](.github/workflows/govulncheck.yml), there is a matrix with the actively maintained versions of OpenTofu.
+
+During each release:
+
+- If starting a new release series, add its maintenence branch to the matrix.
+- If any earlier series has reached end-of-life since the previous release, remove its maintenence branch from the list.
 
 ## Testing the release
 
