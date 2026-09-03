@@ -285,8 +285,6 @@ func TestFunctions(t *testing.T) {
 
 // Standard scenario using root provider explicitly passed
 func TestContext2Functions_providerFunctions(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureProviderFunctions)
-
 	p := testProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		Provider: providers.Schema{
@@ -376,8 +374,6 @@ variable "obfmod" {
 
 // Explicitly passed provider with custom function
 func TestContext2Functions_providerFunctionsCustom(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureProviderFunctions)
-
 	p := testProvider("aws")
 	p.GetFunctionsResponse = &providers.GetFunctionsResponse{
 		Functions: map[string]providers.FunctionSpec{
@@ -475,8 +471,6 @@ variable "obfmod" {
 
 // Defaulted stub provider with non-custom function
 func TestContext2Functions_providerFunctionsStub(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureProviderFunctions)
-
 	p := testProvider("aws")
 
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
@@ -569,8 +563,6 @@ variable "obfmod" {
 
 // Defaulted stub provider with custom function (no allowed)
 func TestContext2Functions_providerFunctionsStubCustom(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureProviderFunctions)
-
 	p := testProvider("aws")
 
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
@@ -647,8 +639,6 @@ variable "obfmod" {
 
 // Defaulted stub provider
 func TestContext2Functions_providerFunctionsForEachCount(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureProviderFunctions)
-
 	p := testProvider("aws")
 
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
@@ -749,8 +739,6 @@ variable "obfmod" {
 
 // Functions used as variable values are evaluated correctly
 func TestContext2Functions_providerFunctionsVariableCustom(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureProviderFunctions)
-
 	p := testProvider("aws")
 	p.GetFunctionsResponse = &providers.GetFunctionsResponse{
 		Functions: map[string]providers.FunctionSpec{

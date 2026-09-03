@@ -849,7 +849,7 @@ func TestContext2Refresh_ignoreUncreated(t *testing.T) {
 }
 
 func TestContext2Refresh_hook(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureRefresh, ExperimentalFeatureHooks)
+	SkipExperimental(t, ExperimentalFeatureRefresh)
 
 	h := new(MockHook)
 	p := testProvider("aws")
@@ -926,7 +926,6 @@ func TestContext2Refresh_modules(t *testing.T) {
 }
 
 func TestContext2Refresh_moduleInputComputedOutput(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugVariableInput)
 	m := testModule(t, "refresh-module-input-computed-output")
 	p := testProvider("aws")
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
@@ -960,8 +959,6 @@ func TestContext2Refresh_moduleInputComputedOutput(t *testing.T) {
 }
 
 func TestContext2Refresh_moduleVarModule(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDeclareProvider, ExperimentalBugVariableInput)
-
 	m := testModule(t, "refresh-module-var-module")
 	p := testProvider("aws")
 	ctx := testContext2(t, &ContextOpts{
@@ -1450,7 +1447,6 @@ func TestContext2Refresh_vars(t *testing.T) {
 }
 
 func TestContext2Refresh_orphanModule(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDeclareProvider, ExperimentalBugStateProvider)
 	p := testProvider("aws")
 	m := testModule(t, "refresh-module-orphan")
 
@@ -1550,8 +1546,6 @@ func TestContext2Validate(t *testing.T) {
 }
 
 func TestContext2Refresh_updateProviderInState(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureUpgradeState)
-
 	m := testModule(t, "update-resource-provider")
 	p := testProvider("aws")
 
@@ -1582,7 +1576,7 @@ aws_instance.bar:
 }
 
 func TestContext2Refresh_schemaUpgradeFlatmap(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureUpgradeState, ExperimentalObsoleteFlatAttrs)
+	SkipExperimental(t, ExperimentalObsoleteFlatAttrs)
 
 	m := testModule(t, "refresh-schema-upgrade")
 	p := testProvider("test")
@@ -1669,8 +1663,6 @@ test_thing.bar:
 }
 
 func TestContext2Refresh_schemaUpgradeJSON(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureUpgradeState)
-
 	m := testModule(t, "refresh-schema-upgrade")
 	p := testProvider("test")
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
@@ -1832,7 +1824,6 @@ func TestContext2Refresh_dataResourceDependsOn(t *testing.T) {
 
 // verify that create_before_destroy is updated in the state during refresh
 func TestRefresh_updateLifecycle(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureCBD)
 	state := states.NewState()
 	root := state.EnsureModule(addrs.RootModuleInstance)
 	root.SetResourceInstanceCurrent(
