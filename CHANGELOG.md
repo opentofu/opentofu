@@ -2,6 +2,12 @@ The v1.12.x release series is supported until **February 1 2027**.
 
 ## 1.12.7 (unreleased)
 
+SECURITY ADVISORIES:
+
+- When using either a `remote-exec` or `file` provisioner to connect to an attacker-controlled SSH server, the server could previously deadlock the connection by sending certain unexpected packet types. ([#4551](https://github.com/opentofu/opentofu/pull/4551))
+
+    This addresses the upstream Go security advisories [CVE-2026-78662](https://www.cve.org/CVERecord?id=CVE-2026-78662) and [CVE-2026-56855](https://pkg.go.dev/vuln/GO-2026-6355).
+
 ## 1.12.6
 
 SECURITY ADVISORIES:
