@@ -232,5 +232,7 @@ func CompileLibrary(files []*SymbolFile, loader Loader, builtinFuncs map[string]
 		lib.functions[name] = f.ForExternalCaller()
 	}
 
+	diags = DecompactFunctionErrors(diags)
+
 	return lib, diags
 }
