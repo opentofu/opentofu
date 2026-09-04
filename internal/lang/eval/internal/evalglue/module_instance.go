@@ -16,6 +16,7 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
+	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -213,6 +214,10 @@ type CompiledModuleInstance interface {
 	// range to use to describe each of the requests that were involved in the
 	// problem.
 	AnnounceAllGraphevalRequests(announce func(workgraph.RequestID, grapheval.RequestInfo))
+
+	// GetMoveStatements obtains the move statements for this module and all of its module calls,
+	// with all move statements returned relative to this module instance.
+	GetMoveStatements(ctx context.Context) iter.Seq[refactoring.MoveStatement]
 }
 
 // ModuleInstance finds the [CompiledModuleInstance] representation of the

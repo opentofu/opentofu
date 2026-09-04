@@ -72,10 +72,7 @@ func (b *execGraphBuilder) ManagedResourceInstanceSubgraph(
 	case plans.CreateThenDelete:
 		return b.managedResourceInstanceSubgraphCreateThenDelete(plannedChange)
 	case plans.NoOp:
-		// TODO: We need to handle this because it can occur if the
-		// configuration hasn't changed but the object will move to a new
-		// resource instance address during the apply phase.
-		panic("plans.NoOp execution graph not yet implemented")
+		return b.managedResourceInstanceSubgraphNoOp(plannedChange)
 	default:
 		// We should not get here: the cases above should cover every action
 		// that [planGlue.planDesiredManagedResourceInstance] can possibly
@@ -287,6 +284,18 @@ func (b *execGraphBuilder) managedResourceInstanceSubgraphCreateThenDelete(
 		deletionRef:   deletionRef,
 		addDesiredDep: addCreateDep,
 		addOrphanDep:  addDeleteDep,
+	}
+}
+
+func (b *execGraphBuilder) managedResourceInstanceSubgraphNoOp(
+	plannedChange *plans.ResourceInstanceChange,
+) resourceInstanceObjectSubgraph {
+	_, addCreateDep := b.lower.MutableWaiter()
+
+	_, _, priorStateRef, _ := b.managedResourceInstanceChangeInputs(plannedChange)
+	return resourceInstanceObjectSubgraph{
+		valueRef:      priorStateRef,
+		addDesiredDep: addCreateDep,
 	}
 }
 

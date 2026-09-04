@@ -11,6 +11,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
 	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -18,8 +19,17 @@ import (
 // A PlanningOracle provides information from the configuration that is needed
 // by the planning engine to help orchestrate the planning process.
 type PlanningOracle struct {
-	root      evalglue.CompiledModuleInstance
-	providers *managedProviders
+	root           evalglue.CompiledModuleInstance
+	providers      *managedProviders
+	moveStatements []refactoring.MoveStatement
+	moveResults    moveResults
+}
+
+// HasAddress queries the root module instance to determine if the address is
+// present in the configuration. Note: if instances for the address's underlying
+// resource cannot be resolved, this will return false.
+func (o *PlanningOracle) HasAddress(ctx context.Context, addr addrs.AbsResourceInstance) bool {
+	return evalglue.ResourceInstance(ctx, o.root, addr) != nil
 }
 
 // ProviderInstanceConfig returns a value representing the configuration to
