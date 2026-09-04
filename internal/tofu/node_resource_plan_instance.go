@@ -693,6 +693,9 @@ func (n *NodePlannableResourceInstance) importState(ctx context.Context, evalCtx
 			}
 		}
 
+		// Even though the EvaluateBlock can produce a value with linting marks, at the moment of introducing impurefunc
+		// linting rule (the first linting rule to use marks), we skipped on handling those marks here
+		// since impure functions are not evaluated fully during planning, which this EvaluateBlock call is part of
 		valueWithConfigurationSchemaMarks, _, configDiags := evalCtx.EvaluateBlock(ctx, n.Config.Config, n.Schema, nil, keyData)
 		diags = diags.Append(configDiags)
 		if configDiags.HasErrors() {

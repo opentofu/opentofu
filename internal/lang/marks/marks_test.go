@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty-debug/ctydebug"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/ctymarks"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -290,4 +291,121 @@ func TestContainsMarks(t *testing.T) {
 		})
 	}
 
+}
+
+func TestLintingMarks(t *testing.T) {
+	t.Run("linting marks extracted correctly from value", func(t *testing.T) {
+		v := cty.ObjectVal(map[string]cty.Value{
+			"id": cty.StringVal("id value").Mark(ImpureFuncUsageMark("bcrypt")),
+			"inner": cty.ObjectVal(map[string]cty.Value{
+				"time":    cty.StringVal("inner.time value").Mark(ImpureFuncUsageMark("timestamp")),
+				"regular": cty.StringVal("inner.regular value"),
+				"nested": cty.ObjectVal(map[string]cty.Value{
+					"uuid":       cty.StringVal("inner.nested.crypt value").Mark(ImpureFuncUsageMark("uuid")),
+					"regular":    cty.StringVal("inner.nested.regular"),
+					"sensitive":  cty.StringVal("inner.nested.sensitive value").Mark(Sensitive),
+					"deprecated": Deprecated(cty.StringVal("inner.nested.sensitive value"), DeprecationCauseResource(addrs.AbsResourceInstance{}, cty.Path{}, "cause msg")),
+				}),
+			}),
+		})
+		cleanValue, info := ExtractLintingInformationFromValue(v)
+
+		// check that other marks remain in place
+		var (
+			deprecatedFound int
+			sensitiveFound  int
+			lintingFound    int
+		)
+		_, _ = cleanValue.WrangleMarksDeep(func(mark any, path cty.Path) (ctymarks.WrangleAction, error) {
+			// we keep the linting marks in place to be able to be propagated further to be able to detect in cross resources usage of impure functions
+			switch vm := mark.(type) {
+			case lintingMark:
+				lintingFound++
+			case deprecationMark:
+				deprecatedFound++
+			case valueMark:
+				switch vm.GoString() {
+				case Sensitive.GoString():
+					sensitiveFound++
+				}
+			}
+			return ctymarks.WrangleKeep, nil
+		})
+		if wantDeprecated, wantSensitive, wantLinting := 1, 1, 3; deprecatedFound != wantDeprecated || sensitiveFound != wantSensitive || lintingFound != wantLinting {
+			t.Errorf("the processed value should still have marks. (want/got) sensitive %d/%d; deprecated: %d/%d; linting: %d/%d", wantSensitive, sensitiveFound, wantDeprecated, deprecatedFound, wantLinting, lintingFound)
+		}
+
+		wantLintingMarkInfoDetails := []struct {
+			summary, detail string
+		}{
+			{
+				summary: "Impure function used in a location where convergence is typically expected",
+				detail:  `Argument ".id" value computed by using impure function "bcrypt"`,
+			},
+			{
+				summary: "Impure function used in a location where convergence is typically expected",
+				detail:  `Argument ".inner.nested.uuid" value computed by using impure function "uuid"`,
+			},
+			{
+				summary: "Impure function used in a location where convergence is typically expected",
+				detail:  `Argument ".inner.time" value computed by using impure function "timestamp"`,
+			},
+		}
+		if want, got := len(wantLintingMarkInfoDetails), len(info); got != want {
+			t.Errorf("expected to have %d but got %d linting information from marks", want, got)
+		}
+		if want, got := len(wantLintingMarkInfoDetails), len(info.ImpureFuncUsage()); got != want {
+			t.Errorf("expected to have %d but got %d impure functions entries in the linting information", want, got)
+		}
+		for i, impureFuncInfo := range info.ImpureFuncUsage() {
+			want := wantLintingMarkInfoDetails[i]
+			if want.summary != impureFuncInfo.Summary() {
+				t.Errorf("[%d] expected summary %q but got %q", i, want.summary, impureFuncInfo.Summary())
+			}
+			if want.detail != impureFuncInfo.Detail() {
+				t.Errorf("[%d] expected detail %q but got %q", i, want.detail, impureFuncInfo.Detail())
+			}
+		}
+	})
+	t.Run("linting marks dropped as expected from value", func(t *testing.T) {
+		v := cty.ObjectVal(map[string]cty.Value{
+			"id": cty.StringVal("id value").Mark(ImpureFuncUsageMark("bcrypt")),
+			"inner": cty.ObjectVal(map[string]cty.Value{
+				"time":    cty.StringVal("inner.time value").Mark(ImpureFuncUsageMark("timestamp")),
+				"regular": cty.StringVal("inner.regular value"),
+				"nested": cty.ObjectVal(map[string]cty.Value{
+					"crypt":      cty.StringVal("inner.nested.crypt value").Mark(ImpureFuncUsageMark("bcrypt")),
+					"regular":    cty.StringVal("inner.nested.regular"),
+					"sensitive":  cty.StringVal("inner.nested.sensitive value").Mark(Sensitive),
+					"deprecated": Deprecated(cty.StringVal("inner.nested.sensitive value"), DeprecationCauseResource(addrs.AbsResourceInstance{}, cty.Path{}, "cause msg")),
+				}),
+			}),
+		})
+		cleanValue := DropLintingMarks(v)
+
+		// check that other marks remain in place
+		var (
+			deprecatedFound int
+			sensitiveFound  int
+			lintingFound    int
+		)
+		_, _ = cleanValue.WrangleMarksDeep(func(mark any, path cty.Path) (ctymarks.WrangleAction, error) {
+			// we keep the linting marks in place to be able to be propagated further to be able to detect in cross resources usage of impure functions
+			switch vm := mark.(type) {
+			case lintingMark:
+				lintingFound++
+			case deprecationMark:
+				deprecatedFound++
+			case valueMark:
+				switch vm.GoString() {
+				case Sensitive.GoString():
+					sensitiveFound++
+				}
+			}
+			return ctymarks.WrangleKeep, nil
+		})
+		if wantDeprecated, wantSensitive, wantLinting := 1, 1, 0; deprecatedFound != wantDeprecated || sensitiveFound != wantSensitive || lintingFound != wantLinting {
+			t.Errorf("the processed value should still have marks. (want/got) sensitive %d/%d; deprecated: %d/%d; linting: %d/%d", wantSensitive, sensitiveFound, wantDeprecated, deprecatedFound, wantLinting, lintingFound)
+		}
+	})
 }
