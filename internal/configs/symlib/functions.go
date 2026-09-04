@@ -395,23 +395,38 @@ var functionBlockSchema = &hcl.BodySchema{
 	},
 }
 
+type diagStackEntry struct {
+	*hcl.Diagnostic
+	hclsyntax.FunctionCallDiagExtra
+}
+
+func nestedFunctionErrorDiags(diag *hcl.Diagnostic, stack []diagStackEntry) hcl.Diagnostics {
+	if funcExtra, ok := hcl.DiagnosticExtra[hclsyntax.FunctionCallDiagExtra](diag); ok {
+		err := funcExtra.FunctionCallError()
+		if moreDiags, ok := err.(hcl.Diagnostics); ok {
+			// Continue nesting
+			stack = append(stack, diagStackEntry{diag, funcExtra})
+			var diags hcl.Diagnostics
+			for _, ndiag := range moreDiags {
+				diags = diags.Extend(nestedFunctionErrorDiags(ndiag, stack))
+			}
+			return diags
+		}
+	}
+	if len(stack) > 0 {
+		diag.Detail += "\n\nCalled from: \n"
+		for _, entry := range stack {
+			diag.Detail += fmt.Sprintf("  - %s() at %s\n", entry.CalledFunctionName(), entry.Subject.String())
+		}
+	}
+
+	return hcl.Diagnostics{diag}
+}
+
 func DecompactFunctionErrors(diags hcl.Diagnostics) hcl.Diagnostics {
 	var out hcl.Diagnostics
 	for _, diag := range diags {
-		if funcExtra, ok := hcl.DiagnosticExtra[hclsyntax.FunctionCallDiagExtra](diag); ok {
-			err := funcExtra.FunctionCallError()
-			if moreDiags, ok := err.(hcl.Diagnostics); ok {
-				diag.Extra = nil
-				diag.Detail = fmt.Sprintf("Call to function %s failed, see additional diagnostics for more details", funcExtra.CalledFunctionName())
-
-				// Include original diagnostic for tracability
-				out = out.Append(diag)
-				// Append decompacted diags
-				out = out.Extend(DecompactFunctionErrors(moreDiags))
-				continue
-			}
-		}
-		out = out.Append(diag)
+		out = out.Extend(nestedFunctionErrorDiags(diag, nil))
 	}
 	return out
 }
