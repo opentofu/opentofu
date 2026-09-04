@@ -389,3 +389,22 @@ var functionBlockSchema = &hcl.BodySchema{
 		{Type: "locals"},
 	},
 }
+
+func DecompactFunctionErrors(diags hcl.Diagnostics) hcl.Diagnostics {
+	var out hcl.Diagnostics
+	for _, diag := range diags {
+		if funcExtra, ok := diag.Extra.(hclsyntax.FunctionCallDiagExtra); ok {
+			err := funcExtra.FunctionCallError()
+			if moreDiags, ok := err.(hcl.Diagnostics); ok {
+				diag.Extra = nil
+				diag.Detail = fmt.Sprintf("Call to function %s failed, see additional diagnostics for more details", funcExtra.CalledFunctionName())
+
+				out = out.Append(diag)
+				out = out.Extend(DecompactFunctionErrors(moreDiags))
+				continue
+			}
+		}
+		out = out.Append(diag)
+	}
+	return out
+}
