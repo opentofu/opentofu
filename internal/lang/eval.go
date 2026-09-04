@@ -228,7 +228,7 @@ func enhanceFunctionDiags(diags hcl.Diagnostics) hcl.Diagnostics {
 			out[i] = enhanceFunctionDiag(diag, funcExtra)
 		}
 	}
-	return out
+	return symlib.DecompactFunctionErrors(out)
 }
 
 // enhanceFunctionDiag returns a potentially-improved version of the given diagnostic

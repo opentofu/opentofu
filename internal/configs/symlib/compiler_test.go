@@ -573,7 +573,7 @@ values {
 function "foo" { return = symbols::foo() }
 values { foo = symbols::foo() }`},
 		assert: func(t *testing.T, diags hcl.Diagnostics) {
-			if len(diags) != 1 {
+			if len(diags) != 2 {
 				t.Error("Expected 1 diags")
 			}
 			for _, diag := range diags {
