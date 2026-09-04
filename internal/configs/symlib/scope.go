@@ -125,14 +125,20 @@ func (s *symbolScope) valueFor(w *workgraph.Worker, rootName string, attrName st
 		found, ok := s.values[attrName]
 		if !ok {
 			return cty.NilVal, hcl.Diagnostics{{
-				Summary: "Missing value",
-				Detail:  fmt.Sprintf("Value %s not defined in symbol library", attrName),
-				Subject: rng.Ptr(),
+				Severity: hcl.DiagError,
+				Summary:  "Missing value",
+				Detail:   fmt.Sprintf("Value %s not defined in symbol library", attrName),
+				Subject:  rng.Ptr(),
 			}}
 		}
 		return found.Value(w)
 	}
-	return cty.NilVal, nil
+	return cty.NilVal, hcl.Diagnostics{{
+		Severity: hcl.DiagError,
+		Summary:  "Unknown identifier",
+		Detail:   fmt.Sprintf("The identifier %s is not supported in symbol libraries", rootName),
+		Subject:  rng.Ptr(),
+	}}
 }
 
 func (s *symbolScope) functionFor(w *workgraph.Worker, fn hcl.Traversal, stack []string) (*function.Function, hcl.Diagnostics) {

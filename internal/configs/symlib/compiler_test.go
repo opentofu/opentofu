@@ -97,30 +97,74 @@ var ctyCmpOpts = cmp.Options{
 	cmp.Comparer(func(a cty.Value, b cty.Value) bool { return a.Equals(b).True() }),
 }
 
-func testCompile(t *testing.T, tcfiles map[string]string) (*Library, hcl.Diagnostics) {
+func testCompile(tcfiles map[string]string) (*Library, hcl.Diagnostics) {
+	var diags hcl.Diagnostics
 	files := map[string][]*SymbolFile{}
 	for path, contents := range tcfiles {
 		parts := strings.Split(path, "/")
 		fileName := parts[len(parts)-1]
 		dir := strings.Join(parts[:len(parts)-1], "/") + "/"
 
-		parsed, diags := hclsyntax.ParseConfig([]byte(contents), fileName, hcl.InitialPos)
-		assertNoDiags(t, diags)
+		parsed, moreDiags := hclsyntax.ParseConfig([]byte(contents), fileName, hcl.InitialPos)
+		diags = diags.Extend(moreDiags)
 
-		sFile, diags := LoadSymbolFile(parsed.Body)
-		assertNoDiags(t, diags)
+		sFile, moreDiags := LoadSymbolFile(parsed.Body)
+		diags = diags.Extend(moreDiags)
 
 		files[dir] = append(files[dir], sFile)
+	}
+	if diags.HasErrors() {
+		return nil, diags
 	}
 
 	var loader Loader
 	loader = func(call *SymbolCall) (*Library, hcl.Diagnostics) {
 		var source string
 		diags := gohcl.DecodeExpression(call.Source, nil, &source)
-		assertNoDiags(t, diags)
+		if diags.HasErrors() {
+			return nil, diags
+		}
 		return CompileLibrary(files[source], loader, testCtyFuncs)
 	}
 	return CompileLibrary(files["./"], loader, testCtyFuncs)
+}
+
+func TestLanguageEdition(t *testing.T) {
+	t.Run("Missing", func(t *testing.T) {
+		files := map[string]string{
+			"./lang.sym.hcl": "language {}",
+		}
+		_, diags := testCompile(files)
+		if len(diags) != 1 {
+			t.Error("Expected 1 diags")
+		}
+		for _, diag := range diags {
+			if diag.Summary != "Missing required argument" {
+				t.Errorf("Unexpected diag %#v", diag)
+			}
+		}
+	})
+	t.Run("Invalid", func(t *testing.T) {
+		files := map[string]string{
+			"./lang.sym.hcl": "language { edition = tofu1985}",
+		}
+		_, diags := testCompile(files)
+		if len(diags) != 1 {
+			t.Error("Expected 1 diags")
+		}
+		for _, diag := range diags {
+			if diag.Summary != "Invalid language edition" {
+				t.Errorf("Unexpected diag %#v", diag)
+			}
+		}
+	})
+	t.Run("Valid", func(t *testing.T) {
+		files := map[string]string{
+			"./lang.sym.hcl": "language { edition = experimental2026}",
+		}
+		_, diags := testCompile(files)
+		assertNoDiags(t, diags)
+	})
 }
 
 // TestFunctionResultTypeConversion is a regression test to ensure that we always convert the type
@@ -142,7 +186,7 @@ function "get_list" {
 }`,
 	}
 
-	lib, diags := testCompile(t, files)
+	lib, diags := testCompile(files)
 	assertNoDiags(t, diags)
 	f, ok := lib.functions["get_list"]
 	if !ok {
@@ -186,7 +230,7 @@ function "inner" {
 `,
 	}
 
-	lib, diags := testCompile(t, files)
+	lib, diags := testCompile(files)
 	assertNoDiags(t, diags)
 	f, ok := lib.functions["outer"]
 	if !ok {
@@ -449,7 +493,7 @@ typedef "customexp" {
 				assertNoDiags(t, diags)
 				return CompileLibrary(files[source], loader, testCtyFuncs)
 			}
-			lib, diags := testCompile(t, tc.files)
+			lib, diags := testCompile(tc.files)
 			assertNoDiags(t, diags)
 			tc.assert(t, lib)
 		})
@@ -592,7 +636,7 @@ values { foo = symbols::foo() }`},
 				assertNoDiags(t, diags)
 				return CompileLibrary(files[source], loader, testCtyFuncs)
 			}
-			_, diags := testCompile(t, tc.files)
+			_, diags := testCompile(tc.files)
 			tc.assert(t, diags)
 		})
 	}
