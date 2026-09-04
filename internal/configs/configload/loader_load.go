@@ -54,7 +54,7 @@ func (l *loader) loadConfig(ctx context.Context, rootMod *configs.Module, call c
 		return cfg, diags
 	}
 
-	cfg, cDiags := configs.BuildConfig(ctx, rootMod, call, configs.ModuleWalkerFunc(l.moduleWalkerLoad))
+	cfg, cDiags := configs.BuildConfig(ctx, rootMod, call, configs.ModuleWalkerFunc(l.moduleWalkerLoad, l.parser.LoadSymbolFilesInDir))
 	diags = append(diags, cDiags...)
 
 	l.lastLoadedRoot = cfg

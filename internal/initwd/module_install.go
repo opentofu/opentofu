@@ -362,7 +362,7 @@ func (i *ModuleInstaller) moduleInstallWalker(_ context.Context, manifest modsdi
 				// of addrs.ModuleSource.
 				panic(fmt.Sprintf("unsupported module source address %#v", addr))
 			}
-		},
+		}, i.loader.LoadSymbolFilesInDir,
 	)
 }
 
@@ -383,7 +383,7 @@ func (i *ModuleInstaller) installDescendentModules(ctx context.Context, rootMod 
 			mod, version, diags := installWalker.LoadModule(ctx, req)
 			instDiags = instDiags.Extend(diags)
 			return mod, version, diags
-		})
+		}, i.loader.LoadSymbolFilesInDir)
 	}
 
 	cfg, cDiags := configs.BuildConfig(ctx, rootMod, call, walker)

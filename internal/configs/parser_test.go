@@ -133,7 +133,7 @@ func buildNestedModuleConfig(ctx context.Context, mod *Module, path string, pars
 			version, _ := version.NewVersion(fmt.Sprintf("1.0.%d", versionI))
 			versionI++
 			return mod, version, diags
-		},
+		}, parser.LoadSymbolFilesInDir,
 	))
 }
 
