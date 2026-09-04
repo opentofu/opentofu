@@ -7,7 +7,6 @@ package symlib
 
 import (
 	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/gohcl"
 )
 
 type Language struct {
@@ -25,8 +24,17 @@ func decodeLanguageBlock(block *hcl.Block) (*Language, hcl.Diagnostics) {
 	content, moreDiags := block.Body.Content(languageBlockSchema)
 	diags = diags.Extend(moreDiags)
 
-	moreDiags = gohcl.DecodeExpression(content.Attributes["edition"].Expr, nil, &lang.Edition)
-	diags = diags.Extend(moreDiags)
+	if attr, ok := content.Attributes["edition"]; ok {
+		lang.Edition = hcl.ExprAsKeyword(attr.Expr)
+		if lang.Edition == "" { // (the expression wasn't a keyword at all)
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid language edition",
+				Detail:   "The \"edition\" argument expects a bare language edition keyword.",
+				Subject:  attr.Expr.Range().Ptr(),
+			})
+		}
+	}
 
 	return lang, diags
 }
