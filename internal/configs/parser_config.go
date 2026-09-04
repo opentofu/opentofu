@@ -43,7 +43,8 @@ func (p *Parser) LoadConfigFileOverride(path string) (*File, hcl.Diagnostics) {
 //
 // It references the same LoadHCLFile as LoadConfigFile, so inherits the same
 // syntax selection behaviours.
-// baseDir is the root directory containing the main.tf file
+// baseDir is the directory containing the test file it is used to
+// resolve relative mock provider source
 func (p *Parser) LoadTestFile(path, baseDir string) (*TestFile, hcl.Diagnostics) {
 	body, diags := p.LoadHCLFile(path)
 	if body == nil {

@@ -333,12 +333,10 @@ type MockProvider struct {
 	MockResources     []*MockResource
 	OverrideResources []*OverrideResource
 
-	//Source is the path where the mock file exists two formats are allowed
-	// 1. relative path to mock files
-	// 2. path where mock files exist
-	// Once mock files are found tofumock.hcl are given priority over tfmock.hcl files
-	// Example :- if aws.tofumock.hcl and aws.tfmock.hcl exists in the directory
-	// aws.tofumock.hcl's mocked values will be used
+	//Source is the path to a file or directory containing mock provider data
+	// It can be either :
+	// 1. a relative path to a single mock file or ,
+	// 2. a path to a directory containing mock files.
 	Source      string
 	SourceRange hcl.Range
 }
@@ -1029,7 +1027,8 @@ type mockResourceKey struct {
 }
 
 // mergeMockDataBlocks is a function that merges resources loaded from source
-// with resources declared inline , inline resources is given precedence over
+// with resources declared inline.
+// The inline resources is given precedence over
 // resources defined in source
 func (mp *MockProvider) mergeMockDataBlocks(mockResources []*MockResource, overrideResources []*OverrideResource) {
 	inlineMocks := make(map[mockResourceKey]struct{}, len(mp.MockResources))
@@ -1070,7 +1069,7 @@ func (p *Parser) loadMockDataFiles(dir string, srcRange hcl.Range) ([]*MockResou
 				&hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Mock Provider source not found",
-					Detail:   fmt.Sprintf("The path %q defined in source does not exist", dir),
+					Detail:   fmt.Sprintf("The path %q defined in 'source' does not exist", dir),
 					Subject:  srcRange.Ptr(),
 				},
 			}

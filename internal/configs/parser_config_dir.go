@@ -305,7 +305,7 @@ func (p *Parser) loadTestFiles(basePath string, paths []string) (map[string]*Tes
 	tfs := make(map[string]*TestFile)
 	for _, path := range paths {
 		// passing the basePath so that we can load mocked source files
-		tf, fDiags := p.LoadTestFile(path, basePath)
+		tf, fDiags := p.LoadTestFile(path, filepath.Dir(path))
 		diags = append(diags, fDiags...)
 		if tf != nil {
 			// We index test files relative to the module they are testing, so
