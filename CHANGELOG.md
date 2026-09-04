@@ -10,6 +10,10 @@ UPGRADE NOTES:
 
     Third parties may continue to offer their own OpenTofu builds targeting platforms that we don't officially support. This only affects the official packages published directly by the OpenTofu project in this repository's release artifacts.
 
+ENHANCEMENTS:
+
+- `tofu plan` no longer prints iterative warnings for multiple resources but instead it shows one warning with all of the affected resources. ([#4201](https://github.com/opentofu/opentofu/issues/4201))
+
 BUG FIXES:
 
 - `tofu fmt`: Fixed wrong resolution of paths when the working directory is a symlink; output now shows absolute file paths instead of giving error `Invalid file or directory path`. ([#3879](https://github.com/opentofu/opentofu/issues/3879))
