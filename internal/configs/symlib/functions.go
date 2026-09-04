@@ -8,6 +8,7 @@ package symlib
 import (
 	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/hashicorp/hcl/v2"
@@ -252,9 +253,9 @@ func (fn *Function) Compile(w *workgraph.Worker, libScope *symbolScope) (functio
 			w := wf()
 
 			callName := TypeSymbols + "::" + fn.Name
-			for _, entry := range stack {
+			for i, entry := range stack {
 				if entry == callName {
-					return cty.NilVal, fmt.Errorf("Recursive call to %s detected", callName)
+					return cty.NilVal, fmt.Errorf("Recursive call to %s detected, call stack: %s", callName, strings.Join(append(stack[i:], callName+"()"), "() -> "))
 				}
 			}
 			stack = append(stack, callName)
@@ -335,6 +336,10 @@ func (fn *Function) Compile(w *workgraph.Worker, libScope *symbolScope) (functio
 			hclCtx, hDiags := hclContext(w, funcScope, fn.Return, stack)
 			diags = diags.Extend(hDiags)
 
+			if diags.HasErrors() {
+				return cty.NilVal, error(diags)
+			}
+
 			val, vDiags := fn.Return.Value(hclCtx)
 			diags = diags.Extend(vDiags)
 
@@ -399,7 +404,9 @@ func DecompactFunctionErrors(diags hcl.Diagnostics) hcl.Diagnostics {
 				diag.Extra = nil
 				diag.Detail = fmt.Sprintf("Call to function %s failed, see additional diagnostics for more details", funcExtra.CalledFunctionName())
 
+				// Include original diagnostic for tracability
 				out = out.Append(diag)
+				// Append decompacted diags
 				out = out.Extend(DecompactFunctionErrors(moreDiags))
 				continue
 			}
