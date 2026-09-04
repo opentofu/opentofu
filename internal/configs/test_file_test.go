@@ -7,6 +7,7 @@ package configs
 
 import (
 	"fmt"
+	"path/filepath"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -388,5 +389,69 @@ func TestDecodeMockProviderBlock_InlineWinsOverSource(t *testing.T) {
 
 	if provider.MockResources[0].Defaults["id"].AsString() != "inline_id" {
 		t.Fatalf("Expected inline mock_resource to win over source, got id=%v", provider.MockResources[0].Defaults["id"])
+	}
+}
+
+func TestDecodeMockProviderBlock_MockSourceWithTestDirectory(t *testing.T) {
+	fs := afero.NewMemMapFs()
+
+	moduleDir := "/module"
+	testFilePath := filepath.Join(moduleDir, "nest/nested/main.tftest.hcl")
+	mockFilePath := filepath.Join(moduleDir, "nest/nested/mocks/aws.tofumock.hcl")
+
+	testFileContent := `
+	mock_provider "aws" {
+		source = "./mocks"
+	}
+	`
+	mockFileContent := `
+	mock_resource "resource" {
+		defaults = {
+			id = "source_id"
+		}
+	}
+	`
+
+	if err := afero.WriteFile(fs, testFilePath, []byte(testFileContent), 0644); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	if err := afero.WriteFile(fs, mockFilePath, []byte(mockFileContent), 0644); err != nil {
+		t.Fatalf("failed to write mock file: %v", err)
+	}
+
+	f, parseDiags := hclsyntax.ParseConfig([]byte(testFileContent), "main.tftest.hcl", hcl.InitialPos)
+	if parseDiags.HasErrors() {
+		t.Fatalf("Failed to parse fixture: %s", parseDiags)
+	}
+
+	fileContent, contentDiags := f.Body.Content(&hcl.BodySchema{
+		Blocks: []hcl.BlockHeaderSchema{
+			{Type: blockNameMockProvider, LabelNames: []string{"name"}},
+		},
+	})
+	if contentDiags.HasErrors() {
+		t.Fatalf("Failed to extract mock_provider block: %s", contentDiags)
+	}
+	if len(fileContent.Blocks) != 1 {
+		t.Fatalf("Expected 1 mock_provider block, got %d", len(fileContent.Blocks))
+	}
+
+	p := NewParser(fs)
+
+	baseDir := filepath.Dir(testFilePath)
+
+	provider, diags := p.decodeMockProviderBlock(fileContent.Blocks[0], baseDir)
+
+	if diags.HasErrors() {
+		t.Fatalf("Unexpected diagonistic: %s", diags)
+	}
+
+	if len(provider.MockResources) != 1 {
+		t.Fatalf("Expected 1 mock resource to be loaded from source, got %d", len(provider.MockResources))
+	}
+
+	if provider.MockResources[0].Defaults["id"].AsString() != "source_id" {
+		t.Fatalf("Expected sourced mock_resource id=source_id, got id=%v", provider.MockResources[0].Defaults["id"])
 	}
 }
