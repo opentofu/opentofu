@@ -19,6 +19,7 @@ func TestTimestamp(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
+	result, _ = result.Unmark()
 	resultTime, err := time.Parse(time.RFC3339, result.AsString())
 	if err != nil {
 		t.Fatalf("Error parsing timestamp: %s", err)

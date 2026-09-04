@@ -7354,7 +7354,7 @@ func TestContext2Apply_lintingImpureFunctionUsedInResource(t *testing.T) {
 						ruleID,
 						[]linting.RuleAddr{corelinting.GroupIDAll, corelinting.GroupIDNoConverge},
 						"Impure function used in a location where convergence is typically expected",
-						`Attribute ".value" inferred from "timestamp"`,
+						`Argument ".value" value computed by using impure function "timestamp"`,
 						&tfdiags.SourceRange{
 							Filename: filepath.Join(srcDir, "main.tf"),
 							Start:    tfdiags.SourcePos{Line: 2, Column: 36, Byte: 36},
@@ -7379,7 +7379,7 @@ func TestContext2Apply_lintingImpureFunctionUsedInResource(t *testing.T) {
 						ruleID,
 						[]linting.RuleAddr{corelinting.GroupIDAll, corelinting.GroupIDNoConverge},
 						"Impure function used in a location where convergence is typically expected",
-						`Attribute ".value" inferred from "uuid"`,
+						`Argument ".value" value computed by using impure function "uuid"`,
 						&tfdiags.SourceRange{
 							Filename: filepath.Join(srcDir, "main.tf"),
 							Start:    tfdiags.SourcePos{Line: 2, Column: 36, Byte: 36},
@@ -7404,7 +7404,7 @@ func TestContext2Apply_lintingImpureFunctionUsedInResource(t *testing.T) {
 						ruleID,
 						[]linting.RuleAddr{corelinting.GroupIDAll, corelinting.GroupIDNoConverge},
 						"Impure function used in a location where convergence is typically expected",
-						`Attribute ".value" inferred from "bcrypt"`,
+						`Argument ".value" value computed by using impure function "bcrypt"`,
 						&tfdiags.SourceRange{
 							Filename: filepath.Join(srcDir, "main.tf"),
 							Start:    tfdiags.SourcePos{Line: 2, Column: 36, Byte: 36},
@@ -7444,7 +7444,7 @@ func TestContext2Apply_lintingImpureFunctionUsedInResource(t *testing.T) {
 						ruleID,
 						[]linting.RuleAddr{corelinting.GroupIDAll, corelinting.GroupIDNoConverge},
 						"Impure function used in a location where convergence is typically expected",
-						`Attribute ".value" inferred from "bcrypt"`,
+						`Argument ".value" value computed by using impure function "bcrypt"`,
 						&tfdiags.SourceRange{
 							Filename: filepath.Join(srcDir, "main.tf"),
 							Start:    tfdiags.SourcePos{Line: 5, Column: 36, Byte: 82},
@@ -7456,7 +7456,7 @@ func TestContext2Apply_lintingImpureFunctionUsedInResource(t *testing.T) {
 						ruleID,
 						[]linting.RuleAddr{corelinting.GroupIDAll, corelinting.GroupIDNoConverge},
 						"Impure function used in a location where convergence is typically expected",
-						`Attribute ".value" inferred from "bcrypt"`,
+						`Argument ".value" value computed by using impure function "bcrypt"`,
 						&tfdiags.SourceRange{
 							Filename: filepath.Join(srcDir, "main.tf"),
 							Start:    tfdiags.SourcePos{Line: 8, Column: 37, Byte: 149},
@@ -7500,7 +7500,7 @@ func TestContext2Apply_lintingImpureFunctionUsedInResource(t *testing.T) {
 						ruleID,
 						[]linting.RuleAddr{corelinting.GroupIDAll, corelinting.GroupIDNoConverge},
 						"Impure function used in a location where convergence is typically expected",
-						`Attribute ".value" inferred from "uuid"`,
+						`Argument ".value" value computed by using impure function "uuid"`,
 						&tfdiags.SourceRange{
 							Filename: filepath.Join(srcDir, "main.tf"),
 							Start:    tfdiags.SourcePos{Line: 9, Column: 36, Byte: 145},
@@ -7530,7 +7530,7 @@ func TestContext2Apply_lintingImpureFunctionUsedInResource(t *testing.T) {
 						ruleID,
 						[]linting.RuleAddr{corelinting.GroupIDAll, corelinting.GroupIDNoConverge},
 						"Impure function used in a location where convergence is typically expected",
-						`Attribute ".value" inferred from "uuid"`,
+						`Argument ".value" value computed by using impure function "uuid"`,
 						&tfdiags.SourceRange{
 							Filename: filepath.Join(srcDir, "main.tf"),
 							Start:    tfdiags.SourcePos{Line: 6, Column: 36, Byte: 119},
