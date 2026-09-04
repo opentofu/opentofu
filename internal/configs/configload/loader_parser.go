@@ -12,6 +12,7 @@ package configload
 import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/configs/symlib"
 )
 
 // LoadConfigDir implements Loader
@@ -37,4 +38,9 @@ func (l *loader) LoadConfigDirWithTests(path string, testDirectory string) (*con
 // ForceFileSource implements Loader
 func (l *loader) ForceFileSource(filename string, src []byte) {
 	l.parser.ForceFileSource(filename, src)
+}
+
+// LoadSymbolsFilesInDir implements Loader
+func (l *loader) LoadSymbolFilesInDir(dir string) ([]*symlib.SymbolFile, hcl.Diagnostics) {
+	return l.parser.LoadSymbolFilesInDir(dir)
 }

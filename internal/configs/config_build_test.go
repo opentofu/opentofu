@@ -43,7 +43,7 @@ func TestBuildConfig(t *testing.T) {
 			version, _ := version.NewVersion(fmt.Sprintf("1.0.%d", versionI))
 			versionI++
 			return mod, version, modDiags
-		},
+		}, parser.LoadSymbolFilesInDir,
 	))
 	assertNoDiagnostics(t, diags)
 	if cfg == nil {
@@ -99,7 +99,7 @@ func TestBuildConfigDiags(t *testing.T) {
 			version, _ := version.NewVersion(fmt.Sprintf("1.0.%d", versionI))
 			versionI++
 			return mod, version, modDiags
-		},
+		}, parser.LoadSymbolFilesInDir,
 	))
 
 	wantDiag := filepath.FromSlash(`testdata/nested-errors/child_c/child_c.tf:5,1-8: `) +
@@ -142,7 +142,7 @@ func TestBuildConfigChildModuleBackend(t *testing.T) {
 			mod, modDiags := parser.LoadConfigDir(sourcePath)
 			version, _ := version.NewVersion("1.0.0")
 			return mod, version, modDiags
-		},
+		}, parser.LoadSymbolFilesInDir,
 	))
 
 	assertDiagnosticSummary(t, diags, "Backend configuration ignored")
@@ -225,7 +225,7 @@ func TestBuildConfigInvalidModules(t *testing.T) {
 					mod, diags := parser.LoadConfigDir(sourcePath)
 					version, _ := version.NewVersion("1.0.0")
 					return mod, version, diags
-				},
+				}, parser.LoadSymbolFilesInDir,
 			))
 
 			// we can make this less repetitive later if we want
@@ -321,7 +321,7 @@ func TestBuildConfig_WithNestedTestModules(t *testing.T) {
 			mod, modDiags := parser.LoadConfigDir(sourcePath)
 			version, _ := version.NewVersion("1.0.0")
 			return mod, version, modDiags
-		},
+		}, parser.LoadSymbolFilesInDir,
 	))
 	assertNoDiagnostics(t, diags)
 	if cfg == nil {
@@ -394,7 +394,7 @@ func TestBuildConfig_WithTestModule(t *testing.T) {
 			mod, modDiags := parser.LoadConfigDir(sourcePath)
 			version, _ := version.NewVersion("1.0.0")
 			return mod, version, modDiags
-		},
+		}, parser.LoadSymbolFilesInDir,
 	))
 	assertNoDiagnostics(t, diags)
 	if cfg == nil {
@@ -469,7 +469,7 @@ func TestBuildConfig_UninitModuleAndProviderValidation(t *testing.T) {
 				})
 				return nil, nil, diags
 			}
-		},
+		}, parser.LoadSymbolFilesInDir,
 	))
 
 	// If the system behaved correctly then the only diagnostic returned
