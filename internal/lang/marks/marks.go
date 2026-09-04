@@ -283,7 +283,7 @@ func EnsureNoEphemeralMarks(pvms []cty.PathValueMarks) error {
 }
 
 // LintingInfo provides useful methods to extract different type of linting type information from all the
-// linting marks found for a particular resource.
+// linting marks found for on a particular value.
 type LintingInfo []LintingDiagInfo
 
 // ImpureFuncUsage returns only the diagnostic information generated from impure functions usage marks.
@@ -318,8 +318,8 @@ type lintingCause interface {
 	withPath(cty.Path) lintingCause
 }
 
-// impureFuncUsage is a linting cause that contains the name of the function where this was generated and
-// the path of the final resource block where this was identified.
+// impureFuncUsage is a linting cause containing the name of the function where this was generated and
+// the path of the final resource attribute where this was identified.
 // The path field is configured later, during ExtractLintingInformationFromValue and is used to generate
 // the details of the linting diagnostic.
 type impureFuncUsage struct {
@@ -332,7 +332,10 @@ func (i impureFuncUsage) Summary() string {
 }
 
 func (i impureFuncUsage) Detail() string {
-	return fmt.Sprintf(`Attribute %q inferred from %q`, tfdiags.FormatCtyPath(i.path), i.fn)
+	if len(i.path) == 0 {
+		return fmt.Sprintf(`Value computed by using impure function %q`, i.fn)
+	}
+	return fmt.Sprintf(`Argument %q value computed by using impure function %q`, tfdiags.FormatCtyPath(i.path), i.fn)
 }
 
 func (i impureFuncUsage) withPath(p cty.Path) lintingCause {
@@ -364,7 +367,7 @@ func ExtractLintingInformationFromValue(val cty.Value) (cty.Value, LintingInfo) 
 }
 
 // DropLintingMarks drops any possible linting mark from the given value. This is useful when the value for a particular
-// expression might contain marks that are not relevant to the context.
+// expression might contain marks that are not relevant to the execution context.
 // For example, we don't want to flag the usage of impure functions in expressions for the meta arguments (count, enabled, etc).
 // So in those cases, we just want to drop the marks to not harden the logic of the system with specific handling
 // of this type of marks.
