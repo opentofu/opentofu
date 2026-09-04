@@ -158,7 +158,7 @@ func (l *loader) makeModuleWalkerSnapshot(snap *Snapshot) configs.ModuleWalker {
 			diags = append(diags, addDiags...)
 
 			return mod, v, diags
-		},
+		}, l.parser.LoadSymbolFilesInDir,
 	)
 }
 

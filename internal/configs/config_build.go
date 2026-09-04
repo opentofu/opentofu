@@ -120,12 +120,8 @@ func symbolLoader(ctx context.Context, parentPath addrs.Module, walker ModuleWal
 			return nil, diags
 		}
 
-		p := NewParser(nil)
-
-		_, _, _, symPaths, pDiags := p.dirFiles(mod.SourceDir, "")
-		diags = diags.Extend(pDiags)
-
-		symbols, fDiags := p.loadSymbolFiles(symPaths)
+		fileLoader := walker.LoadSymbols
+		symbols, fDiags := fileLoader(mod.SourceDir)
 		diags = diags.Extend(fDiags)
 
 		loader := symbolLoader(ctx, path, walker)
@@ -368,15 +364,35 @@ type ModuleWalker interface {
 	// LoadConfigDir function (valid syntax, no namespace collisions, etc) have
 	// been performed before returning a module.
 	LoadModule(ctx context.Context, req *ModuleRequest) (*Module, *version.Version, hcl.Diagnostics)
+
+	// Temporary path into Parser.LoadSymbolFilesInDir. Eventually should be
+	// factored out as a distinct path to LoadModule.
+	LoadSymbols(dir string) ([]*symlib.SymbolFile, hcl.Diagnostics)
 }
 
-// ModuleWalkerFunc is an implementation of ModuleWalker that directly wraps
-// a callback function, for more convenient use of that interface.
-type ModuleWalkerFunc func(ctx context.Context, req *ModuleRequest) (*Module, *version.Version, hcl.Diagnostics)
+// moduleWalkerImpl is an implementation of ModuleWalker that directly wraps
+// callback functions, for more convenient use of that interface.
+type moduleWalkerImpl struct {
+	module  func(ctx context.Context, req *ModuleRequest) (*Module, *version.Version, hcl.Diagnostics)
+	symbols func(dir string) ([]*symlib.SymbolFile, hcl.Diagnostics)
+}
+
+// ModuleWalkerFunc builds a ModuleWalker that directly wraps
+// callback functions, for more convenient use of that interface.
+func ModuleWalkerFunc(
+	module func(ctx context.Context, req *ModuleRequest) (*Module, *version.Version, hcl.Diagnostics),
+	symbols func(dir string) ([]*symlib.SymbolFile, hcl.Diagnostics),
+) ModuleWalker {
+	return moduleWalkerImpl{module, symbols}
+}
 
 // LoadModule implements ModuleWalker.
-func (f ModuleWalkerFunc) LoadModule(ctx context.Context, req *ModuleRequest) (*Module, *version.Version, hcl.Diagnostics) {
-	return f(ctx, req)
+func (f moduleWalkerImpl) LoadModule(ctx context.Context, req *ModuleRequest) (*Module, *version.Version, hcl.Diagnostics) {
+	return f.module(ctx, req)
+}
+
+func (f moduleWalkerImpl) LoadSymbols(dir string) ([]*symlib.SymbolFile, hcl.Diagnostics) {
+	return f.symbols(dir)
 }
 
 // ModuleRequest is used with the ModuleWalker interface to describe a child
@@ -444,5 +460,5 @@ func init() {
 				Subject:  &req.CallRange,
 			},
 		}
-	})
+	}, nil)
 }
