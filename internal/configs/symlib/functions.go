@@ -398,7 +398,7 @@ var functionBlockSchema = &hcl.BodySchema{
 func DecompactFunctionErrors(diags hcl.Diagnostics) hcl.Diagnostics {
 	var out hcl.Diagnostics
 	for _, diag := range diags {
-		if funcExtra, ok := diag.Extra.(hclsyntax.FunctionCallDiagExtra); ok {
+		if funcExtra, ok := hcl.DiagnosticExtra[hclsyntax.FunctionCallDiagExtra](diag); ok {
 			err := funcExtra.FunctionCallError()
 			if moreDiags, ok := err.(hcl.Diagnostics); ok {
 				diag.Extra = nil
