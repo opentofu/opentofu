@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/configs/symlib"
 	"github.com/opentofu/opentofu/internal/modsdir"
 )
 
@@ -140,6 +141,15 @@ func (c *lazyLoader) LoadConfigWithSnapshot(ctx context.Context, rootDir string,
 		return nil, nil, initErrorToDiagnostic(err)
 	}
 	return l.LoadConfigWithSnapshot(ctx, rootDir, call)
+}
+
+// LoadSymbolFilesInDir implements Loader
+func (c *lazyLoader) LoadSymbolFilesInDir(dir string) ([]*symlib.SymbolFile, hcl.Diagnostics) {
+	l, err := c.init()
+	if err != nil {
+		return nil, initErrorToDiagnostic(err)
+	}
+	return l.LoadSymbolFilesInDir(dir)
 }
 
 // IsRemoteModuleSource implements Loader

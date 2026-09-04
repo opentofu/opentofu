@@ -121,6 +121,14 @@ func (p *Parser) IsConfigDir(path string) bool {
 	return (len(primaryPaths) + len(overridePaths)) > 0
 }
 
+func (p *Parser) LoadSymbolFilesInDir(dir string) ([]*symlib.SymbolFile, hcl.Diagnostics) {
+	_, _, _, symPaths, diags := p.dirFiles(dir, "")
+
+	symbols, fDiags := p.loadSymbolFiles(symPaths)
+	diags = diags.Extend(fDiags)
+	return symbols, diags
+}
+
 func (p *Parser) loadFiles(paths []string, override bool) ([]*File, hcl.Diagnostics) {
 	var files []*File
 	var diags hcl.Diagnostics
