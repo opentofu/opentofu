@@ -69,6 +69,13 @@ func BuildConfig(ctx context.Context, root *Module, call StaticModuleCall, walke
 }
 
 func symbolLoader(ctx context.Context, parentPath addrs.Module, walker ModuleWalker) symlib.Loader {
+	// TODO open question on if we should allow impure functions within symbol libraries
+	funcs := new(lang.Scope{BaseDir: ".", PureOnly: true}).Functions()
+	// We don't want to expose certain functions to symbol libraries, for now this is implemented as an exclude list
+	for _, fn := range []string{"plantimestamp"} {
+		delete(funcs, fn)
+	}
+
 	return func(call *symlib.SymbolCall) (*symlib.Library, hcl.Diagnostics) {
 		// Decode source
 		var sourceAddrRaw string
@@ -125,7 +132,7 @@ func symbolLoader(ctx context.Context, parentPath addrs.Module, walker ModuleWal
 		diags = diags.Extend(fDiags)
 
 		loader := symbolLoader(ctx, path, walker)
-		l, lDiags := symlib.CompileLibrary(symbols, loader, new(lang.Scope{PureOnly: true, BaseDir: "."}).Functions())
+		l, lDiags := symlib.CompileLibrary(symbols, loader, funcs)
 		diags = diags.Extend(lDiags)
 
 		return l, diags
