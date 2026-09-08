@@ -38,7 +38,7 @@ jobs:
           go-version-file: 'go.mod'
 
       - name: Install govulncheck
-        run: go install golang.org/x/vuln/cmd/govulncheck@d1f380186385b4f64e00313f31743df8e4b89a77 # v1.1.4
+        run: go install golang.org/x/vuln/cmd/govulncheck@617f44b718537dccdea1915395650e0529e3b72e # v1.7.0
         shell: bash
 
       - name: Run and report govulncheck findings
