@@ -65,6 +65,7 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 
 	unmarkedConfigVal, _ := inst.ConfigVal.UnmarkDeep()
 
+	/// DataResourceType) ValidateConfig
 	// TODO resourceType.ValidateConfig
 	validateDiags := p.planCtx.providers.ValidateResourceConfig(ctx, meta.Provider, addrs.DataResourceMode, meta.ResourceType, unmarkedConfigVal)
 	diags = diags.Append(validateDiags)
@@ -129,6 +130,13 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 		return ret, diags
 	}
 
+	// node_resource_abstract_instance.go:L2309
+	/*
+		// We have a complete configuration with no dependencies to wait on, so we
+		// can read the data source into the state.
+		newVal, readDiags := n.readDataSource(ctx, evalCtx, configVal)
+	*/
+
 	resp := providerClient.ReadDataSource(readCtx, providers.ReadDataSourceRequest{
 		TypeName: meta.ResourceType,
 		Config:   unmarkedConfigVal,
@@ -181,7 +189,73 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 func (p *planGlue) planDelayedDataResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance, providerAddr addrs.AbsProviderInstanceCorrect, providerClient providers.Configured, ret *resourceInstanceObject) (*resourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
+	// node_resource_abstract_instance.go:L2253
+	// If there are pending changes, or unknowns, do the read during apply phase instead
+	/*
+		configKnown := configVal.IsWhollyKnown()
+		depsPending := n.dependenciesHavePendingChanges(evalCtx)
+		// If our configuration contains any unknown values, or we depend on any
+		// unknown values then we must defer the read to the apply phase by
+		// producing a "Read" change for this resource, and a placeholder value for
+		// it in the state.
+		if depsPending || !configKnown {
+			// We can't plan any changes if we're only refreshing, so the only
+			// value we can set here is whatever was in state previously.
+			if skipPlanChanges {
+				plannedNewState := &states.ResourceInstanceObject{
+					Value:  priorVal,
+					Status: states.ObjectReady,
+				}
+
+				return nil, plannedNewState, keyData, diags
+			}
+
+			var reason plans.ResourceInstanceChangeActionReason
+			switch {
+			case !configKnown:
+				log.Printf("[TRACE] planDataSource: %s configuration not fully known yet, so deferring to apply phase", n.Addr)
+				reason = plans.ResourceInstanceReadBecauseConfigUnknown
+			case depsPending:
+				// NOTE: depsPending can be true at the same time as configKnown
+				// is false; configKnown takes precedence because it's more
+				// specific.
+				log.Printf("[TRACE] planDataSource: %s configuration is fully known, at least one dependency has changes pending", n.Addr)
+				reason = plans.ResourceInstanceReadBecauseDependencyPending
+			}
+
+			unmarkedConfigVal, configMarkPaths := configVal.UnmarkDeepWithPaths()
+			proposedNewVal := objchange.PlannedUnknownObject(schema.Block, unmarkedConfigVal)
+			proposedNewVal = proposedNewVal.MarkWithPaths(configMarkPaths)
+
+			// Apply detects that the data source will need to be read by the After
+			// value containing unknowns from PlanDataResourceObject.
+			plannedChange := &plans.ResourceInstanceChange{
+				Addr:         n.Addr,
+				PrevRunAddr:  n.prevRunAddr(evalCtx),
+				ProviderAddr: n.ResolvedProvider.ProviderConfig,
+				Change: plans.Change{
+					Action: plans.Read,
+					Before: priorVal,
+					After:  proposedNewVal,
+				},
+				ActionReason: reason,
+			}
+
+			plannedNewState := &states.ResourceInstanceObject{
+				Value:  proposedNewVal,
+				Status: states.ObjectPlanned,
+			}
+
+			diags = diags.Append(evalCtx.Hook(func(h Hook) (HookAction, error) {
+				return h.PostDiff(n.Addr, states.CurrentGen, plans.Read, priorVal, proposedNewVal)
+			}))
+
+			return plannedChange, plannedNewState, keyData, diags
+		}
+	*/
+
 	resourceType := resources.NewDataResourceType(providerAddr.Config.Config.Provider, inst.Addr.Resource.Resource.Type, providerClient)
+
 	schema, schemaDiags := resourceType.LoadSchema(ctx)
 	if schemaDiags.HasErrors() {
 		// We don't return the schema-loading diagnostics directly here because
