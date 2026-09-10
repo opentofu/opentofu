@@ -25,7 +25,7 @@ func TestVersionViews(t *testing.T) {
 			viewCall: func(v Version) {
 				v.PrintVersion("0.1.0", "dev", "darwin_arm64", false, map[string]string{
 					"registry.opentofu.org/test/test": "0.2.0",
-				})
+				}, nil)
 			},
 			wantStdout: `OpenTofu v0.1.0-dev
 on darwin_arm64
@@ -38,7 +38,7 @@ on darwin_arm64
 			viewCall: func(v Version) {
 				v.PrintVersion("0.1.0", "dev", "darwin_arm64", true, map[string]string{
 					"registry.opentofu.org/test/test": "0.2.0",
-				})
+				}, nil)
 			},
 			wantStdout: `OpenTofu v0.1.0-dev
 on darwin_arm64
@@ -52,7 +52,7 @@ running in FIPS 140-3 mode (not yet supported)
 			viewCall: func(v Version) {
 				v.PrintVersion("0.1.0", "dev", "darwin_arm64", false, map[string]string{
 					"registry.opentofu.org/test/test": "0.0.0",
-				})
+				}, nil)
 			},
 			wantStdout: `OpenTofu v0.1.0-dev
 on darwin_arm64
@@ -65,7 +65,7 @@ on darwin_arm64
 			viewCall: func(v Version) {
 				v.PrintVersion("0.1.0", "dev", "darwin_arm64", false, map[string]string{
 					"registry.opentofu.org/test/test": "0.2.0",
-				})
+				}, nil)
 			},
 			wantStdout: `{
   "terraform_version": "0.1.0-dev",
@@ -82,7 +82,7 @@ on darwin_arm64
 			viewCall: func(v Version) {
 				v.PrintVersion("0.1.0", "dev", "darwin_arm64", true, map[string]string{
 					"registry.opentofu.org/test/test": "0.2.0",
-				})
+				}, nil)
 			},
 			wantStdout: `{
   "terraform_version": "0.1.0-dev",
@@ -100,7 +100,7 @@ on darwin_arm64
 			viewCall: func(v Version) {
 				v.PrintVersion("0.1.0", "dev", "darwin_arm64", false, map[string]string{
 					"registry.opentofu.org/test/test": "0.0.0",
-				})
+				}, nil)
 			},
 			wantStdout: `{
   "terraform_version": "0.1.0-dev",
@@ -109,6 +109,37 @@ on darwin_arm64
     "registry.opentofu.org/test/test": "0.0.0"
   }
 }
+`,
+			wantStderr: "",
+		},
+		"json printVersion with modules": {
+			viewType: arguments.ViewJSON,
+			viewCall: func(v Version) {
+				v.PrintVersion("0.1.0", "dev", "darwin_arm64", false, map[string]string{}, map[string]string{
+					"registry.opentofu.org/terraform-aws-modules/eks/aws": "20.24.0",
+				})
+			},
+			wantStdout: `{
+  "terraform_version": "0.1.0-dev",
+  "platform": "darwin_arm64",
+  "provider_selections": {},
+  "module_selections": {
+    "registry.opentofu.org/terraform-aws-modules/eks/aws": "20.24.0"
+  }
+}
+`,
+			wantStderr: "",
+		},
+		"human printVersion with modules": {
+			viewType: arguments.ViewHuman,
+			viewCall: func(v Version) {
+				v.PrintVersion("0.1.0", "dev", "darwin_arm64", false, map[string]string{}, map[string]string{
+					"registry.opentofu.org/terraform-aws-modules/eks/aws": "20.24.0",
+				})
+			},
+			wantStdout: `OpenTofu v0.1.0-dev
+on darwin_arm64
++ provider registry.opentofu.org/terraform-aws-modules/eks/aws v20.24.0
 `,
 			wantStderr: "",
 		},
