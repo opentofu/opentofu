@@ -106,9 +106,9 @@ func (v *VersionMixed) printHumanVersion(version string, versionPrerelease strin
 			continue
 		}
 		if modVers == "0.0.0" {
-			_, _ = v.view.streams.Println(fmt.Sprintf("+ provider %s (unversioned)", modAddr))
+			_, _ = v.view.streams.Println(fmt.Sprintf("+ module %s (unversioned)", modAddr))
 		} else {
-			_, _ = v.view.streams.Println(fmt.Sprintf("+ provider %s v%s", modAddr, modVers))
+			_, _ = v.view.streams.Println(fmt.Sprintf("+ module %s v%s", modAddr, modVers))
 		}
 	}
 
