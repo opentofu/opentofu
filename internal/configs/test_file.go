@@ -333,10 +333,10 @@ type MockProvider struct {
 	MockResources     []*MockResource
 	OverrideResources []*OverrideResource
 
-	//Source is the path to a file or directory containing mock provider data
-	// It can be either :
-	// 1. a relative path to a single mock file or ,
-	// 2. a path to a directory containing mock files.
+	// Source is the path to a file or directory containing mock provider data
+	// It can be either:
+	//   1. a relative path to a single mock file or
+	//   2. a path to a directory containing mock files
 	Source      string
 	SourceRange hcl.Range
 }
