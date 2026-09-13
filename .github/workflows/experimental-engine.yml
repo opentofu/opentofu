@@ -29,7 +29,7 @@ jobs:
       # for testing on non amd64 envs like 386, arm64 etc...
       - name: "Set up QEMU"
         if: matrix.goos == 'linux' && matrix.goarch != 'amd64' && matrix.goarch != 'arm64'
-        uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4.2.0
+        uses: docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a # v4.3.0
 
       - name: "Fetch source code"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
