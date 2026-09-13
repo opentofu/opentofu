@@ -1025,10 +1025,9 @@ type mockResourceKey struct {
 	typeName string
 }
 
-// mergeMockDataBlocks is a function that merges resources loaded from source
+// mergeMockDataBlocks is a function that merges mock blocks loaded from source
 // with resources declared inline.
-// The inline resources is given precedence over
-// resources defined in source
+// The inline ones take precedence.
 func (mp *MockProvider) mergeMockDataBlocks(mockResources []*MockResource, overrideResources []*OverrideResource) {
 	inlineMocks := make(map[mockResourceKey]struct{}, len(mp.MockResources))
 	for _, res := range mp.MockResources {
