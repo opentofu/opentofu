@@ -1090,7 +1090,7 @@ func (p *Parser) loadMockDataFiles(dir string, srcRange hcl.Range) ([]*MockResou
 
 }
 
-// loadMockDataFile is a function that is used to load a mocked provider for a specified file
+// loadMockDataFile reads and parses the content of a provider mock file```
 func (p *Parser) loadMockDataFile(dir string, srcRange hcl.Range) ([]*MockResource, []*OverrideResource, hcl.Diagnostics) {
 	if mockFileExt(dir) == "" {
 		return nil, nil, hcl.Diagnostics{
