@@ -1133,9 +1133,7 @@ func (p *Parser) loadMockDataFile(dir string, srcRange hcl.Range) ([]*MockResour
 	return mockResources, overrideResources, diags
 }
 
-// loadMockDataDir is a function that is used to load all mock data files in a directory
-// if same mocked prefix file exists for .tfmock.hcl or tofumock.hcl then the .tofumock.hcl
-// file is given preference
+// loadMockDataDir reads and loads all mock files in a directory.
 func (p *Parser) loadMockDataDir(dir string, srcRange hcl.Range) ([]*MockResource, []*OverrideResource, hcl.Diagnostics) {
 	infos, err := p.fs.ReadDir(dir)
 	if err != nil {
