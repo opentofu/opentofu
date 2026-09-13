@@ -384,8 +384,7 @@ func symbolFileExt(path string) string {
 	return ""
 }
 
-// mockFileExt is a function which is used to give mapping from mock file to
-// its corresponding constant declaring the same
+// mockFileExt returns the extension of the given mock file.
 func mockFileExt(path string) string {
 	switch {
 	case strings.HasSuffix(path, tofuTestMockExt):
