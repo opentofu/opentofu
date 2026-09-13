@@ -960,9 +960,8 @@ func (p *Parser) decodeMockProviderBlock(block *hcl.Block, baseDir string) (*Moc
 	diags = append(diags, provider.validateMockResources()...)
 	diags = append(diags, provider.validateOverrideResources()...)
 
-	// Checking if in a provider block if source is set then we check if
-	// source value specified is allowed and then we load the mock data files in the specied
-	// folder or file
+	// If the provider block has a seprate file configured, then we will load the block's 
+	// configuration from that.
 	if testModuleFile, exists := content.Attributes["source"]; exists {
 		provider.SourceRange = testModuleFile.Expr.Range()
 
