@@ -7,6 +7,7 @@ package configs
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,6 +16,7 @@ import (
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
+	ctyconvert "github.com/zclconf/go-cty/cty/convert"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/getmodules"
@@ -960,7 +962,7 @@ func (p *Parser) decodeMockProviderBlock(block *hcl.Block, baseDir string) (*Moc
 	diags = append(diags, provider.validateMockResources()...)
 	diags = append(diags, provider.validateOverrideResources()...)
 
-	// If the provider block has a seprate file configured, then we will load the block's 
+	// If the provider block has a seprate file configured, then we will load the block's
 	// configuration from that.
 	if testModuleFile, exists := content.Attributes["source"]; exists {
 		provider.SourceRange = testModuleFile.Expr.Range()
@@ -986,37 +988,32 @@ func (p *Parser) decodeMockProviderBlock(block *hcl.Block, baseDir string) (*Moc
 // decodeMockProviderSourceBlock is a function that takes the source attribute and
 // converts it to a validates Go string
 func decodeMockProviderSourceBlock(attr *hcl.Attribute) (string, hcl.Diagnostics) {
-	invalidSource := func(details string) hcl.Diagnostics {
-		return hcl.Diagnostics{
-			&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid mock provider source",
-				Detail:   details,
-				Subject:  attr.Expr.Range().Ptr(),
-			},
+	invalidSource := func(details string) *hcl.Diagnostic {
+		return &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid mock provider source",
+			Detail:   details,
+			Subject:  attr.Expr.Range().Ptr(),
 		}
 	}
-
+	var diags tfdiags.Diagnostics
 	val, valDiags := attr.Expr.Value(nil)
-	if valDiags.HasErrors() {
-		return "", invalidSource("")
+	diags = diags.Append(valDiags)
+	if diags.HasErrors() {
+		return "", diags.ToHCL()
 	}
-
-	if val.IsNull() || val.Type() != cty.String {
-		return "", invalidSource("")
+	sourceVal, convertErr := ctyconvert.Convert(val, cty.String)
+	if convertErr != nil {
+		return "", diags.Append(invalidSource(convertErr.Error())).ToHCL()
 	}
-
-	source := val.AsString()
+	source := sourceVal.AsString()
 	if source == "" {
-		return "", invalidSource("")
+		return "", diags.Append(invalidSource("Source path cannot be empty")).ToHCL()
 	}
-
 	if strings.Contains(source, "::") || strings.Contains(source, "://") {
-		return "", invalidSource("")
+		return "", diags.Append(invalidSource("Source path contains invalid characters")).ToHCL()
 	}
-
-	return source, hcl.Diagnostics{}
-
+	return source, diags.ToHCL()
 }
 
 // used by mergeMockDataBlocks for a map
@@ -1066,7 +1063,7 @@ func (p *Parser) loadMockDataFiles(dir string, srcRange hcl.Range) ([]*MockResou
 			return nil, nil, hcl.Diagnostics{
 				&hcl.Diagnostic{
 					Severity: hcl.DiagError,
-					Summary:  "Mock Provider source not found",
+					Summary:  "Provider mock source could not be loaded",
 					Detail:   fmt.Sprintf("The path %q defined in 'source' does not exist", dir),
 					Subject:  srcRange.Ptr(),
 				},
@@ -1075,8 +1072,8 @@ func (p *Parser) loadMockDataFiles(dir string, srcRange hcl.Range) ([]*MockResou
 		return nil, nil, hcl.Diagnostics{
 			&hcl.Diagnostic{
 				Severity: hcl.DiagError,
-				Summary:  fmt.Sprintf("Failed to load files in %q", dir),
-				Detail:   fmt.Sprintf("Failed to load files defined in source %q", dir),
+				Summary:  "Provider mock source could not be loaded",
+				Detail:   fmt.Sprintf("Failed to load files defined in source %q: %s", dir, err),
 				Subject:  srcRange.Ptr(),
 			},
 		}
@@ -1092,7 +1089,7 @@ func (p *Parser) loadMockDataFiles(dir string, srcRange hcl.Range) ([]*MockResou
 
 // loadMockDataFile reads and parses the content of a provider mock file```
 func (p *Parser) loadMockDataFile(dir string, srcRange hcl.Range) ([]*MockResource, []*OverrideResource, hcl.Diagnostics) {
-	if mockFileExt(dir) == "" {
+	if _, ok := mockFileExt(dir); !ok {
 		return nil, nil, hcl.Diagnostics{
 			&hcl.Diagnostic{
 				Severity: hcl.DiagError,
@@ -1141,7 +1138,7 @@ func (p *Parser) loadMockDataDir(dir string, srcRange hcl.Range) ([]*MockResourc
 			&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Failed to read mock provider source directory",
-				Detail:   fmt.Sprintf("Failed to read mock provider source directory : %q", dir),
+				Detail:   fmt.Sprintf("Failed to read mock provider source directory %q: %s", dir, err),
 				Subject:  srcRange.Ptr(),
 			},
 		}
@@ -1154,8 +1151,8 @@ func (p *Parser) loadMockDataDir(dir string, srcRange hcl.Range) ([]*MockResourc
 			continue
 		}
 		name := info.Name()
-		ext := mockFileExt(name)
-		if ext == "" {
+		ext, ok := mockFileExt(name)
+		if !ok {
 			continue
 		}
 		base := strings.TrimSuffix(name, ext)
@@ -1167,14 +1164,8 @@ func (p *Parser) loadMockDataDir(dir string, srcRange hcl.Range) ([]*MockResourc
 	}
 
 	if len(finalMockFiles) == 0 {
-		return nil, nil, hcl.Diagnostics{
-			&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "No mock files found",
-				Detail:   fmt.Sprintf("No mock files found in the directory %q", dir),
-				Subject:  srcRange.Ptr(),
-			},
-		}
+		log.Printf("[DEBUG] No mock files found in the directory %q", dir)
+		return nil, nil, nil
 	}
 
 	var mockResources []*MockResource

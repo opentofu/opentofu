@@ -366,22 +366,23 @@ func TestParserLoadConfigFileError(t *testing.T) {
 // returns the correct declared extension for the mock file
 func TestMockFileExt(t *testing.T) {
 	tests := map[string]struct {
-		name string
-		want string
+		name    string
+		wantExt string
+		wantOk  bool
 	}{
-		"tofumock":     {name: "aws.tofumock.hcl", want: tofuTestMockExt},
-		"tfmock":       {name: "aws.tfmock.hcl", want: tfTestMockExt},
-		"unrelated_tf": {name: "main.tf", want: ""},
-		"readme":       {name: "README.md", want: ""},
-		"test_file":    {name: "random.tftest.hcl", want: ""},
-		"no_extension": {name: "config", want: ""},
+		"tofumock":     {name: "aws.tofumock.hcl", wantExt: tofuTestMockExt, wantOk: true},
+		"tfmock":       {name: "aws.tfmock.hcl", wantExt: tfTestMockExt, wantOk: true},
+		"unrelated_tf": {name: "main.tf", wantExt: "", wantOk: false},
+		"readme":       {name: "README.md", wantExt: "", wantOk: false},
+		"test_file":    {name: "random.tftest.hcl", wantExt: "", wantOk: false},
+		"no_extension": {name: "config", wantExt: "", wantOk: false},
 	}
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			got := mockFileExt(tc.name)
-			if got != tc.want {
-				t.Fatalf("mockFileExt(%q) = %q, want %q", tc.name, got, tc.want)
+			gotExt, gotOk := mockFileExt(tc.name)
+			if gotExt != tc.wantExt || gotOk != tc.wantOk {
+				t.Fatalf("mockFileExt(%q) = (%q, %v), want (%q, %v)", tc.name, gotExt, gotOk, tc.wantExt, tc.wantOk)
 			}
 		})
 	}
