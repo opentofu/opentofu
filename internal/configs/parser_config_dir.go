@@ -385,15 +385,15 @@ func symbolFileExt(path string) string {
 }
 
 // mockFileExt returns the extension of the given mock file.
-func mockFileExt(path string) string {
+func mockFileExt(path string) (string, bool) {
 	switch {
 	case strings.HasSuffix(path, tofuTestMockExt):
-		return tofuTestMockExt
+		return tofuTestMockExt, true
 	case strings.HasSuffix(path, tfTestMockExt):
-		return tfTestMockExt
+		return tfTestMockExt, true
 	}
 
-	return ""
+	return "", false
 }
 
 func isTestFileExt(ext string) bool {
