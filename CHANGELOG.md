@@ -17,6 +17,7 @@ ENHANCEMENTS:
 BUG FIXES:
 
 - `tofu fmt`: Fixed wrong resolution of paths when the working directory is a symlink; output now shows absolute file paths instead of giving error `Invalid file or directory path`. ([#3879](https://github.com/opentofu/opentofu/issues/3879))
+- `ephemeral = true`: Fixed outputs export consistency of write-only (ephemeral) values instead of generating a fresh one and sending an unexpected different value to a second resource sharing the same plan/apply workflow.
 
 ## Previous Releases
 
