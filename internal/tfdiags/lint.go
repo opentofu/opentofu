@@ -145,6 +145,7 @@ type lintingRulesCtxValue struct {
 	include collections.Set[linting.RuleAddr]
 	exclude collections.Set[linting.RuleAddr]
 
+	nolint map[string]NoLint
 	// lintOnSourceExecution holds the execution container for a specific (linting rule on a specific config source).
 	// This is to ensure that even if it happens to have the same linting rule executed twice for the same configuration
 	// construct, only one will report the final status.
@@ -156,11 +157,12 @@ type lintingRulesCtxValue struct {
 
 // executeRule gets an execution key and the execution function of a linting rule and executes it
 // if it doesn't yet have a successful execution cached.
-func (lrcv *lintingRulesCtxValue) executeRule(execKey string, f func() Diagnostics) Diagnostics {
+func (lrcv *lintingRulesCtxValue) executeRule(execKey string, src SourceRange, f func() Diagnostics) Diagnostics {
 	type lintExecution struct {
 		m       sync.Mutex
 		success bool
 	}
+	var nolint bool
 	loadExec := func(execId string) *lintExecution {
 		// create a new lint rule execution and lock it to store it into the status container
 		exec := &lintExecution{
@@ -170,6 +172,13 @@ func (lrcv *lintingRulesCtxValue) executeRule(execKey string, f func() Diagnosti
 		exec.m.Lock()
 		loadedExec, loaded := lrcv.lintOnSourceExecution.LoadOrStore(execId, exec)
 		currentExec := exec
+		k := hcl.Range{
+			Filename: src.Filename,
+			Start: hcl.Pos{
+				Line: src.Start.Line - 1,
+			},
+		}.String()
+		_, nolint = lrcv.nolint[k]
 		// another lint execution for this linting rule and source was created before so we need to work with it instead of
 		// the above created one.
 		if loaded {
@@ -188,6 +197,10 @@ func (lrcv *lintingRulesCtxValue) executeRule(execKey string, f func() Diagnosti
 	exec := loadExec(execKey)
 	defer exec.m.Unlock()
 	if exec.success {
+		return nil
+	}
+	if nolint {
+		exec.success = true
 		return nil
 	}
 	diags := f()
@@ -211,7 +224,31 @@ func ContextWithLintFilterHints(parent context.Context, include, exclude collect
 		include:               include,
 		exclude:               exclude,
 		lintOnSourceExecution: sync.Map{},
+		nolint:                make(map[string]NoLint),
 	})
+}
+
+type NoLint struct {
+	Decl    hcl.Range
+	ForRule linting.RuleAddr
+	Reason  string
+}
+
+func ContextWithNoLint(parent context.Context, nolint []NoLint) context.Context {
+	v := lintHintsFromContext(parent)
+	if v == nil {
+		return parent
+	}
+	for _, l := range nolint {
+		k := hcl.Range{
+			Filename: l.Decl.Filename,
+			Start: hcl.Pos{
+				Line: l.Decl.Start.Line,
+			},
+		}.String()
+		v.nolint[k] = l
+	}
+	return parent // no need to create a new context. The hints from the context is a pointer so we just store the nolint directives into that.
 }
 
 // lintHintsFromContext returns the *lintingRulesCtxValue from the given context.
@@ -251,7 +288,7 @@ func ExecuteLintRule(ctx context.Context, f func(ruleID linting.RuleAddr, groupI
 	// this is executed
 	k := keyForLintCall(src, ruleID, groupIDs...)
 
-	return lintCtx.executeRule(k, func() Diagnostics {
+	return lintCtx.executeRule(k, src, func() Diagnostics {
 		return f(ruleID, groupIDs...)
 	})
 }

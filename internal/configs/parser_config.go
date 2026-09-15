@@ -6,7 +6,13 @@
 package configs
 
 import (
+	"bytes"
+	"log"
+	"strings"
+
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/linting"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 
 	"github.com/opentofu/opentofu/internal/configs/symlib"
 	"github.com/opentofu/opentofu/internal/encryption/config"
@@ -208,6 +214,7 @@ func loadConfigFileBody(body hcl.Body, _ string, override bool) (*File, hcl.Diag
 			diags = append(diags, cfgDiags...)
 			if cfg != nil {
 				file.ManagedResources = append(file.ManagedResources, cfg)
+				file.NoLint = append(file.NoLint, cfg.NoLint...)
 			}
 
 		case "data":
@@ -215,6 +222,7 @@ func loadConfigFileBody(body hcl.Body, _ string, override bool) (*File, hcl.Diag
 			diags = append(diags, cfgDiags...)
 			if cfg != nil {
 				file.DataResources = append(file.DataResources, cfg)
+				file.NoLint = append(file.NoLint, cfg.NoLint...)
 			}
 
 		case "ephemeral":
@@ -222,6 +230,7 @@ func loadConfigFileBody(body hcl.Body, _ string, override bool) (*File, hcl.Diag
 			diags = append(diags, cfgDiags...)
 			if cfg != nil {
 				file.EphemeralResources = append(file.EphemeralResources, cfg)
+				file.NoLint = append(file.NoLint, cfg.NoLint...)
 			}
 
 		case "moved":
@@ -264,8 +273,52 @@ func loadConfigFileBody(body hcl.Body, _ string, override bool) (*File, hcl.Diag
 
 		}
 	}
+	file.NoLint = append(file.NoLint, extractNoLint(content.Comments)...)
 
 	return file, diags
+}
+
+func extractNoLint(comments hcl.Comments) []tfdiags.NoLint {
+	const prefix = "nolint("
+	var res []tfdiags.NoLint
+	for _, c := range comments {
+		// cleanup
+		idx := strings.Index(c.Content, "nolint(")
+		if idx < 0 {
+			continue
+		}
+		var ruleIdRaw bytes.Buffer
+		var reasonRaw bytes.Buffer
+		var skipNext bool
+		inRuleIdentifier := true
+		for _, r := range c.Content[idx+len(prefix):] {
+			if skipNext {
+				skipNext = false
+				continue
+			}
+			if r == ')' {
+				inRuleIdentifier = false
+				skipNext = true
+				continue
+			}
+			if inRuleIdentifier {
+				ruleIdRaw.WriteRune(r)
+				continue
+			}
+			reasonRaw.WriteRune(r)
+		}
+		ruleId, err := linting.ParseRuleAddr(ruleIdRaw.String())
+		if err != nil {
+			log.Printf("[DEBUG] failed to parse the given ruleID (%q) from the nolint comment so will be skipped: %s", ruleIdRaw.String(), err)
+			continue
+		}
+		res = append(res, tfdiags.NoLint{
+			Decl:    c.StartRange,
+			ForRule: ruleId,
+			Reason:  reasonRaw.String(),
+		})
+	}
+	return res
 }
 
 // configFileSchema is the schema for the top-level of a config file. We use

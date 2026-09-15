@@ -96,6 +96,8 @@ func (b *Local) opPlan(
 		op.ReportResult(runningOp, diags)
 		return
 	}
+	ctx = tfdiags.ContextWithNoLint(ctx, lr.Config.Module.NoLint)
+
 	// the state was locked during successful context creation; unlock the state
 	// when the operation completes
 	defer func() {
