@@ -16,7 +16,7 @@
     }
   },
   "snippet": {
-    "context": null,
+    "context": "bad \"source\" \"code\"",
     "code": "bad source code",
     "start_line": 1,
     "highlight_start_offset": 15,

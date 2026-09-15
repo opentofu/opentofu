@@ -73,7 +73,7 @@ func TestDiagnostic(t *testing.T) {
 			`[red]╷[reset]
 [red]│[reset] [bold][red]Error: [reset][bold]Bad bad bad[reset]
 [red]│[reset]
-[red]│[reset]   on test.tf line 1:
+[red]│[reset]   on test.tf line 1, in test "source" "code":
 [red]│[reset]    1: test [underline]source[reset] code
 [red]│[reset]
 [red]│[reset] Whatever shall we do?
@@ -105,7 +105,7 @@ func TestDiagnostic(t *testing.T) {
 			`[red]╷[reset]
 [red]│[reset] [bold][red]Error: [reset][bold]Bad bad bad[reset]
 [red]│[reset]
-[red]│[reset]   on test.tf line 1:
+[red]│[reset]   on test.tf line 1, in test "source" "code":
 [red]│[reset]    1: test [underline]source[reset] code
 [red]│[reset]     [dark_gray]├────────────────[reset]
 [red]│[reset]     [dark_gray]│[reset] [bold]boop.beep[reset] is "blah"
@@ -140,7 +140,7 @@ func TestDiagnostic(t *testing.T) {
 			`[red]╷[reset]
 [red]│[reset] [bold][red]Error: [reset][bold]Bad bad bad[reset]
 [red]│[reset]
-[red]│[reset]   on test.tf line 1:
+[red]│[reset]   on test.tf line 1, in test "source" "code":
 [red]│[reset]    1: test [underline]source[reset] code
 [red]│[reset]     [dark_gray]├────────────────[reset]
 [red]│[reset]     [dark_gray]│[reset] [bold]boop.beep[reset] has a sensitive value
@@ -175,7 +175,7 @@ func TestDiagnostic(t *testing.T) {
 			`[red]╷[reset]
 [red]│[reset] [bold][red]Error: [reset][bold]Bad bad bad[reset]
 [red]│[reset]
-[red]│[reset]   on test.tf line 1:
+[red]│[reset]   on test.tf line 1, in test "source" "code":
 [red]│[reset]    1: test [underline]source[reset] code
 [red]│[reset]     [dark_gray]├────────────────[reset]
 [red]│[reset]     [dark_gray]│[reset] [bold]boop.beep[reset] has an ephemeral value
@@ -210,7 +210,7 @@ func TestDiagnostic(t *testing.T) {
 			`[red]╷[reset]
 [red]│[reset] [bold][red]Error: [reset][bold]Bad bad bad[reset]
 [red]│[reset]
-[red]│[reset]   on test.tf line 1:
+[red]│[reset]   on test.tf line 1, in test "source" "code":
 [red]│[reset]    1: test [underline]source[reset] code
 [red]│[reset]     [dark_gray]├────────────────[reset]
 [red]│[reset]     [dark_gray]│[reset] [bold]boop.beep[reset] is a string, known only after apply
@@ -245,7 +245,7 @@ func TestDiagnostic(t *testing.T) {
 			`[red]╷[reset]
 [red]│[reset] [bold][red]Error: [reset][bold]Bad bad bad[reset]
 [red]│[reset]
-[red]│[reset]   on test.tf line 1:
+[red]│[reset]   on test.tf line 1, in test "source" "code":
 [red]│[reset]    1: test [underline]source[reset] code
 [red]│[reset]     [dark_gray]├────────────────[reset]
 [red]│[reset]     [dark_gray]│[reset] [bold]boop.beep[reset] will be known only after apply
@@ -293,7 +293,7 @@ func TestDiagnostic(t *testing.T) {
 			`[red]╷[reset]
 [red]│[reset] [bold][red]Error: [reset][bold]Bad bad bad[reset]
 [red]│[reset]
-[red]│[reset]   on test.tf line 1:
+[red]│[reset]   on test.tf line 1, in test "source" "code":
 [red]│[reset]    1: test [underline]source[reset] code
 [red]│[reset]     [dark_gray]├────────────────[reset]
 [red]│[reset]     [dark_gray]│[reset] while calling [bold]beep[reset](pos_param_0, pos_param_1, var_param...)
@@ -326,7 +326,7 @@ func TestDiagnostic(t *testing.T) {
 			`[red]╷[reset]
 [red]│[reset] [bold][red]Error: [reset][bold]Bad testing[reset]
 [red]│[reset]
-[red]│[reset]   on test.tf line 1:
+[red]│[reset]   on test.tf line 1, in test "source" "code":
 [red]│[reset]    1: test [underline]source[reset] code
 [red]│[reset]     [dark_gray]├────────────────[reset]
 [red]│[reset]     [dark_gray]│[reset] [bold]Diff: [reset]
@@ -531,7 +531,7 @@ wrap over multiple lines.
 			`
 Error: Bad bad bad
 
-  on test.tf line 1:
+  on test.tf line 1, in test "source" "code":
    1: test source code
 
 Whatever shall we do?
@@ -562,7 +562,7 @@ Whatever shall we do?
 			`
 Error: Bad bad bad
 
-  on test.tf line 1:
+  on test.tf line 1, in test "source" "code":
    1: test source code
     ├────────────────
     │ boop.beep is "blah"
@@ -596,7 +596,7 @@ Whatever shall we do?
 			`
 Error: Bad bad bad
 
-  on test.tf line 1:
+  on test.tf line 1, in test "source" "code":
    1: test source code
     ├────────────────
     │ boop.beep has a sensitive value
@@ -629,7 +629,7 @@ Whatever shall we do?
 			`
 Error: Bad bad bad
 
-  on test.tf line 1:
+  on test.tf line 1, in test "source" "code":
    1: test source code
 
 Whatever shall we do?
@@ -661,7 +661,7 @@ Whatever shall we do?
 			`
 Error: Bad bad bad
 
-  on test.tf line 1:
+  on test.tf line 1, in test "source" "code":
    1: test source code
     ├────────────────
     │ boop.beep has an ephemeral value
@@ -694,7 +694,7 @@ Whatever shall we do?
 			`
 Error: Bad bad bad
 
-  on test.tf line 1:
+  on test.tf line 1, in test "source" "code":
    1: test source code
 
 Whatever shall we do?
@@ -726,7 +726,7 @@ Whatever shall we do?
 			`
 Error: Bad bad bad
 
-  on test.tf line 1:
+  on test.tf line 1, in test "source" "code":
    1: test source code
     ├────────────────
     │ boop.beep is a string, known only after apply
@@ -759,7 +759,7 @@ Whatever shall we do?
 			`
 Error: Bad bad bad
 
-  on test.tf line 1:
+  on test.tf line 1, in test "source" "code":
    1: test source code
     ├────────────────
     │ boop.beep is a string
@@ -793,7 +793,7 @@ Whatever shall we do?
 			`
 Error: Bad bad bad
 
-  on test.tf line 1:
+  on test.tf line 1, in test "source" "code":
    1: test source code
     ├────────────────
     │ boop.beep will be known only after apply
@@ -826,7 +826,7 @@ Whatever shall we do?
 			`
 Error: Bad bad bad
 
-  on test.tf line 1:
+  on test.tf line 1, in test "source" "code":
    1: test source code
 
 Whatever shall we do?
