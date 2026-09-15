@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/symlib"
@@ -74,6 +75,8 @@ type Module struct {
 	// LanguageExperiments is where language experiments are stored.
 	LanguageExperiments      experiments.Set
 	LanguageExperimentsRange hcl.Range
+
+	NoLint []tfdiags.NoLint
 }
 
 // GetProviderConfig uses name and alias to find the respective Provider configuration.
@@ -122,6 +125,8 @@ type File struct {
 
 	LanguageExperiments      experiments.Set
 	LanguageExperimentsRange hcl.Range
+
+	NoLint []tfdiags.NoLint
 }
 
 // SelectiveLoader allows the consumer to only load and validate the portions of files needed for the given operations/contexts
@@ -356,6 +361,7 @@ func (m *Module) ResourceByAddr(addr addrs.Resource) *Resource {
 func (m *Module) appendFile(file *File) hcl.Diagnostics {
 	var diags hcl.Diagnostics
 
+	m.NoLint = append(m.NoLint, file.NoLint...)
 	for _, b := range file.Backends {
 		if m.Backend != nil {
 			diags = append(diags, &hcl.Diagnostic{
@@ -669,6 +675,7 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 func (m *Module) mergeFile(file *File) hcl.Diagnostics {
 	var diags hcl.Diagnostics
 
+	m.NoLint = append(m.NoLint, file.NoLint...)
 	if len(file.Backends) != 0 {
 		switch len(file.Backends) {
 		case 1:
