@@ -67,9 +67,9 @@ type DesiredResourceInstance struct {
 	// through the provider protocol, because exactly how we track resource
 	// instances between rounds is a detail we want to be able to change later
 	// without breaking existing providers. In particular, when populating a
-	// resource type name in a request to a provider you should use the
-	// ResourceType field of DesiredResourceInstance instead of fishing it out
-	// from this address field.
+	// resource type name in a request to a provider you should request the
+	// metadata for the resource instance object and use its ResourceType field
+	// instead of using the resource type from from this address field.
 	Addr addrs.AbsResourceInstance
 
 	// ConfigVal is an object-typed value representing the configuration, which
@@ -80,39 +80,6 @@ type DesiredResourceInstance struct {
 	// instance is derived from the results of other resource instances which
 	// have pending actions in this same plan.
 	ConfigVal cty.Value
-
-	// Provider is the source address of the provider that the resource type
-	// of this resource instance belongs to.
-	//
-	// ProviderInstance is guaranteed to refer to an instance of this provider.
-	Provider addrs.Provider
-
-	// ProviderInstance is the absolute address of the provider instance that
-	// this resource instance currently belongs to. All configured-provider
-	// operations related to this resource instance must be performed through
-	// this provider instance.
-	//
-	// This can be nil in situations where the decision about which provider
-	// instance to use depends on an unknown value. In that case the planning
-	// phase should return a canned placeholder object based only on the
-	// configuration value and the schema for this resource type, such as
-	// by using [objchange.ProposedNew], and should otherwise defer any
-	// actions for this resource instance until a future plan/apply round.
-	ProviderInstance *addrs.AbsProviderInstanceCorrect
-	// ResourceMode and ResourceType are the resource type identifiers
-	// as they would be understood by the provider specified in the Provider
-	// and ProviderInstance fields.
-	//
-	// These is what should be sent to a provider plugin when making requests
-	// to it. Today these always matches the similar values encoded in the
-	// address given in the "Addr" field, but we're separating these so that
-	// we're not duplicating that rule in many different parts of the system,
-	// in case future change to OpenTofu cause the provider-facing
-	// representation to differ from how it's exposed in the OpenTofu language.
-	// (The representation in the provider protocol is much harder to change
-	// because we want to stay backward-compatible with existing provider plugins.)
-	ResourceMode addrs.ResourceMode
-	ResourceType string
 
 	// RequiredResourceInstances are the addresses of zero or more resource
 	// instances that must exist and must be fully converged before the
@@ -141,22 +108,6 @@ type DesiredResourceInstance struct {
 	// This is meaningful only for resource modes that support the "update"
 	// change action, and so is always empty for other modes.
 	IgnoreChangesPaths []cty.Path
-
-	// CreateBeforeDestroy is true when the module author specified that
-	// a "replace" action for this resource instance should be decomposed into
-	// "create replacement and then destroy", instead of the default
-	// decomposition of "destroy and then create replacement".
-	//
-	// How exactly that request is honored is outside the scope of this package,
-	// and is instead the responsibility of the planning engine as it builds
-	// the execution graph for the apply phase.
-	//
-	// This is meaningful only for resource modes that support the "update"
-	// change action, and so is always false for other modes.
-	//
-	// FIXME: Probably also need an "unknown" representation for this, so
-	// that we can eventually do https://github.com/opentofu/opentofu/issues/2523 .
-	CreateBeforeDestroy bool
 
 	// ReplaceTriggeredBy describes zero ore more attribute prefixes within
 	// other resource instances for which the planning engine should force

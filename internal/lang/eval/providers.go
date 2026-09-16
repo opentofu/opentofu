@@ -17,6 +17,7 @@ import (
 	"github.com/zclconf/go-cty/cty/function"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/shared"
@@ -135,56 +136,65 @@ func (p *managedProviders) ProviderInstance(ctx context.Context, addr addrs.AbsP
 	})
 }
 
-func (p *managedProviders) OpenEphemeralResourceInstance(ctx context.Context, addr addrs.AbsResourceInstance, cfgVal cty.Value, provider addrs.Provider, providerInstance *addrs.AbsProviderInstanceCorrect) (cty.Value, tfdiags.Diagnostics) {
+func (p *managedProviders) OpenEphemeralResourceInstance(ctx context.Context, addr addrs.AbsResourceInstance, cfgVal cty.Value, provider addrs.Provider, maybeProviderInstance exprs.FromValue[addrs.AbsProviderInstanceCorrect]) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	schema, _ := p.ResourceTypeSchema(ctx, provider, addr.Resource.Resource.Mode, addr.Resource.Resource.Type)
 	if schema == nil || schema.Block == nil {
 		// Should be caught during validation, so we don't bother with a pretty error here
-		diags = diags.Append(fmt.Errorf("provider %q does not support ephemeral resource %q", providerInstance, addr.Resource.Resource.Type))
+		diags = diags.Append(fmt.Errorf("provider %q does not support ephemeral resource %q", provider, addr.Resource.Resource.Type))
 		return cty.NilVal, diags
 	}
 
 	objTy := schema.Block.ImpliedType()
-	priorVal := cty.NullVal(objTy)
+	placeholderVal := cty.UnknownVal(objTy)
 
-	if providerInstance == nil {
+	unmarkedProviderInstance, providerInstMarks := maybeProviderInstance.Unmark()
+	providerInstAddr, ok := unmarkedProviderInstance.ValueOk()
+	if !ok {
 		// If we don't even know which provider instance we're supposed to be
 		// talking to then we'll just return a placeholder value, because
 		// we don't have any way to generate a speculative plan.
-		return priorVal, diags
+		// FIXME: We should record that this ephemeral resource instance has
+		// been "deferred" so that we know to also defer anything that refers
+		// to it, but that's tricky because we're implementing this inside
+		// the evaluator instead of in the planning engine and so there's
+		// not actually any concept of "deferred" out here.
+		return placeholderVal, diags
 	}
+	// FIXME: What should we do with the provider instance marks, if any?
+	_ = providerInstMarks
 
 	// TODO the old engine also looks at depends_on
 	if !cfgVal.IsWhollyKnown() {
-		return priorVal, diags
+		return placeholderVal, diags
 	}
 
-	providerClient, moreDiags := p.ProviderInstance(ctx, *providerInstance)
+	providerClient, moreDiags := p.ProviderInstance(ctx, providerInstAddr)
 	if providerClient == nil {
 		moreDiags = moreDiags.Append(tfdiags.AttributeValue(
 			tfdiags.Error,
 			"Provider instance not available",
-			fmt.Sprintf("Cannot plan %s because its associated provider instance %s cannot initialize.", addr, *providerInstance),
+			fmt.Sprintf("Cannot plan %s because its associated provider instance %s cannot initialize.", addr, providerInstAddr),
 			nil,
 		))
 	}
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
-		return priorVal, diags
+		return placeholderVal, diags
 	}
 
 	newVal, closeFunc, openDiags := shared.OpenEphemeralResourceInstance(
 		ctx,
 		addr,
 		schema.Block,
-		*providerInstance,
+		providerInstAddr,
 		providerClient,
 		cfgVal,
 	)
 	diags = diags.Append(openDiags)
 	if openDiags.HasErrors() {
-		return priorVal, diags
+		return placeholderVal, diags
 	}
 
 	p.closeStackMu.Lock()

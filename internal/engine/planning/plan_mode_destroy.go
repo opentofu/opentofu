@@ -14,6 +14,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/engine/plugins"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
@@ -199,18 +200,6 @@ func (p *planGlueDestroy) PlanDesiredResourceInstance(ctx context.Context, inst 
 	// runtime's handling of this situation and mimic it as closely as we can
 	// for backward-compatibility.
 
-	// FIXME: Ideally we'd use [resources.ManagedResourceType] here to match
-	// how [planGlue.planDesiredManagedResourceInstance] gets schema, but
-	// we want to avoid starting up a "configured" provider here just to fetch
-	// the schema, since that would increase the risk of this failing due
-	// to the provider config referring to something that isn't available in
-	// this weird destroy mode.
-	schema, moreDiags := p.normalGlue.planCtx.providers.ResourceTypeSchema(ctx, inst.Provider, inst.ResourceMode, inst.ResourceType)
-	diags = diags.Append(moreDiags)
-	if moreDiags.HasErrors() {
-		return exprs.AsEvalError(cty.DynamicVal), diags
-	}
-
 	prevState := p.normalGlue.planCtx.prevRoundState.SyncWrapper().ResourceInstanceObjectFull(inst.Addr.CurrentObject())
 	if prevState == nil {
 		// If this is something that didn't exist at all in the prior state
@@ -229,7 +218,7 @@ func (p *planGlueDestroy) PlanDesiredResourceInstance(ctx context.Context, inst 
 		// for itself how it wants to handle that situation, including possibly
 		// making our subsequent calls to PlanResourceChange signal that the
 		// provider needs to defer planning that change.
-		return cty.UnknownVal(schema.Block.ImpliedType()), diags
+		return cty.DynamicVal, diags
 	}
 
 	// TODO: The refreshing and upgrading logic is currently embedded in the
@@ -259,6 +248,21 @@ func (p *planGlueDestroy) PlanDesiredResourceInstance(ctx context.Context, inst 
 	upgradedState := prevState
 	refreshedState := upgradedState
 
+	configMeta := p.normalGlue.oracle.ResourceInstanceObjectMeta(ctx, inst.Addr.CurrentObject())
+	meta := exec.BuildResourceInstanceObjectMeta(inst.Addr.CurrentObject(), configMeta, refreshedState)
+
+	// FIXME: Ideally we'd use [resources.ManagedResourceType] here to match
+	// how [planGlue.planDesiredManagedResourceInstance] gets schema, but
+	// we want to avoid starting up a "configured" provider here just to fetch
+	// the schema, since that would increase the risk of this failing due
+	// to the provider config referring to something that isn't available in
+	// this weird destroy mode.
+	schema, moreDiags := p.normalGlue.planCtx.providers.ResourceTypeSchema(ctx, meta.Provider, inst.Addr.Resource.Resource.Mode, meta.ResourceType)
+	diags = diags.Append(moreDiags)
+	if moreDiags.HasErrors() {
+		return exprs.AsEvalError(cty.DynamicVal), diags
+	}
+
 	obj, err := states.DecodeResourceInstanceObjectFull(refreshedState, schema.Block.ImpliedType())
 	if err != nil {
 		diags = diags.Append(tfdiags.AttributeValue(
@@ -266,7 +270,7 @@ func (p *planGlueDestroy) PlanDesiredResourceInstance(ctx context.Context, inst 
 			"Invalid prior state for resource instance",
 			fmt.Sprintf(
 				"Cannot decode the most recent state snapshot for %s: %s.\n\nIs the selected version of %s incompatible with the provider that most recently changed this object?",
-				inst.Addr, tfdiags.FormatError(err), inst.Provider,
+				inst.Addr, tfdiags.FormatError(err), meta.Provider,
 			),
 			nil, // this error belongs to the whole resource config
 		))
