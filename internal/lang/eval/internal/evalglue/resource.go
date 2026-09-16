@@ -119,4 +119,8 @@ type ResourceProvisionerConfig struct {
 	// Not all provisioner types make remote connections. Those that don't need
 	// it will just ignore this field completely.
 	ConnectionConfig cty.Value
+
+	// RequiredResourceInstances are the resource instances whose results must
+	// be finalized before the provisioner is executed.
+	RequiredResourceInstances addrs.Set[addrs.AbsResourceInstance]
 }

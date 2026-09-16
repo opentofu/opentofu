@@ -174,6 +174,7 @@ func (r *Resource) PreventDestroy(ctx context.Context) (cty.Value, *tfdiags.Sour
 			),
 			Subject: rng.ToHCL().Ptr(),
 		})
+		return cty.UnknownVal(cty.Bool), rng, diags
 	}
 	// TODO deprecated handling
 	//preventDestroyVal, moreDiags := marks.ExtractDeprecatedDiagnosticsWithExpr(preventDestroyVal, preventDestroyExpr)

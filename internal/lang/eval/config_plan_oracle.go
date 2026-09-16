@@ -53,7 +53,8 @@ func (o *PlanningOracle) HasAddress(ctx context.Context, addr addrs.AbsResourceI
 //
 // This method returns nil if there is absolutely no configuration-based
 // metadata for the given object, in which case the caller will need to rely
-// on the state exclusively for deciding the metadata.
+// on the state exclusively for deciding the metadata. Callers can assume that
+// a "desired" resource instance object will always have non-nil metadata.
 //
 // If errors in the configuration prevent producing the full metadata for the
 // resource instance then the result may include unknown values as placeholders

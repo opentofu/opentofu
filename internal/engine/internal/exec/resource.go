@@ -224,19 +224,24 @@ type ResourceInstanceObjectMeta struct {
 	// the course of the apply phase.
 	Addr addrs.AbsResourceInstanceObject
 
+	// Provider is the address of the provider that the resource type in
+	// [ResourceInstanceObjectMeta.ResourceType] belongs to.
+	Provider addrs.Provider
+	// ResourceType is the resource type of the object this metadata is for,
+	// as would be understood by the provider identified in
+	// [ResourceInstanceObjectMeta.Provider].
+	ResourceType string
+
 	// ProviderInstance is the address of the provider instance that is
 	// currently considered responsible for this resource instance object.
+	// If populated, this is always an instance of the provider specified in the
+	// Provider field.
 	//
 	// A resource instance object is associated with a specific provider
 	// instance throughout a plan/apply round, but may change which provider
 	// instance it is associated with between rounds based on changes in the
 	// configuration.
 	ProviderInstance exprs.FromValue[addrs.AbsProviderInstanceCorrect]
-
-	// ResourceType is the resource type of the object this metadata is for,
-	// as would be understood by the provider identified in
-	// [ResourceInstanceObjectMeta.ProviderInstance].
-	ResourceType string
 
 	// PostCreateProvisioners are the provisioners to execute immediately after
 	// the resource instance object has been created.
@@ -253,6 +258,21 @@ type ResourceInstanceObjectMeta struct {
 	// the apply phase would delete a resource instance object at the associated
 	// address. Its contents are unspecified in other cases.
 	PreDeleteProvisioners []*eval.ResourceProvisioner
+
+	// CreateBeforeDelete is true if this object is configured to force creating
+	// a new remote object before destroying the current one when performing
+	// a "replace" action. Otherwise either ordering is allowed and delete
+	// happens first by default unless the other ordering is forced by a
+	// dependent object having this set to true.
+	//
+	// This setting also affects how actions for this object may be ordered
+	// with actions from other objects even when not replacing, in order to
+	// produce a well-defined execution order when this object's actions are
+	// combined with actions of other objects in the apply-time execution graph.
+	//
+	// This field is relevant only for managed resource mode and its value is
+	// unspecified for other resource modes.
+	CreateThenDelete exprs.FromValue[bool]
 }
 
 // BuildResourceInstanceObjectMeta constructs a [ResourceInstanceObjectMeta]
@@ -273,10 +293,10 @@ type ResourceInstanceObjectMeta struct {
 // At least one of fromConfig and state must be non-nil, or this function will
 // panic. There is no reason to ask for metadata for an object that exists in
 // neither the desired nor the prior state.
-func BuildResourceInstanceObjectMeta(
+func BuildResourceInstanceObjectMeta[SV states.ValueOrJSONEquivalent](
 	addr addrs.AbsResourceInstanceObject,
 	fromConfig *eval.ConfiguredResourceInstanceObjectMeta,
-	state *states.ResourceInstanceObjectFull,
+	state *states.ResourceInstanceObjectRepr[SV], // We only care about metadata, so either the decoded or encoded variant is acceptable
 ) *ResourceInstanceObjectMeta {
 	if fromConfig == nil && state == nil {
 		panic(fmt.Sprintf("cannot build resource instance object metadata for %s with neither configured nor prior state metadata", addr))
@@ -290,18 +310,38 @@ func BuildResourceInstanceObjectMeta(
 	if state != nil {
 		// Note that if this object is participating in a cross-resource-type
 		// move in this plan/apply round this will initially reflect the
-		// old resource type, but then we'll overwrite it with the new resource
-		// type from the configuration object below.
+		// old provider and resource type, but then we'll overwrite it with the
+		// new provider and resource type from the configuration object below.
+		ret.Provider = state.ProviderInstanceAddr.Config.Config.Provider
 		ret.ResourceType = state.ResourceType
+
+		ret.ProviderInstance = exprs.Known(state.ProviderInstanceAddr)
+		ret.CreateThenDelete = exprs.Known(state.CreateBeforeDestroy)
 
 		// TODO: Everything else
 	}
 
 	if fromConfig != nil {
+		ret.Provider = fromConfig.Provider
 		ret.ResourceType = fromConfig.ResourceType
 
+		// The provider instance is a little awkward because the config form
+		// of this uses a pointer to represent there being no selection at all
+		// but we can only check the nilness by unwrapping it first.
+		// FIXME: Consider a different way of representing
+		// "no provider specified", such as by making the top-level
+		// exprs.FromValue be a pointer instead of the value inside it being a
+		// pointer.
+		piUnmarked, _ := fromConfig.ProviderInstance.Unmark()
+		if pi, ok := piUnmarked.ValueOk(); !ok || pi != nil {
+			nonPtr, _ := fromConfig.ProviderInstance.Derive(func(addr *addrs.AbsProviderInstanceCorrect) (addrs.AbsProviderInstanceCorrect, error) {
+				return *addr, nil
+			})
+			ret.ProviderInstance = nonPtr
+		}
 		ret.PostCreateProvisioners = fromConfig.PostCreateProvisioners
 		ret.PreDeleteProvisioners = fromConfig.PreDestroyProvisioners
+		ret.CreateThenDelete = fromConfig.CreateBeforeDelete
 
 		// TODO: Everything else
 	}

@@ -17,6 +17,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/collections"
+	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
@@ -347,11 +348,11 @@ func (p *planGlue) providerClient(ctx context.Context, addr addrs.AbsProviderIns
 	return p.oracle.ProviderInstance(ctx, addr)
 }
 
-func (p *planGlue) desiredResourceInstanceMustBeDeferred(inst *eval.DesiredResourceInstance) bool {
+func (p *planGlue) desiredResourceInstanceMustBeDeferred(inst *eval.DesiredResourceInstance, meta *exec.ResourceInstanceObjectMeta) bool {
 	// There are various reasons why we might need to defer final planning
 	// of this to a later round. The following is not exhaustive but is a
 	// placeholder to show where deferral might fit in.
-	return inst.IsPlaceholder() || inst.ProviderInstance == nil || derivedFromDeferredVal(inst.ConfigVal)
+	return inst.IsPlaceholder() || !meta.ProviderInstance.IsKnown() || derivedFromDeferredVal(inst.ConfigVal)
 }
 
 // resourceInstancesFilter returns a sequence of resource instances from the
