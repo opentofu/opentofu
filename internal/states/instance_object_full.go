@@ -36,7 +36,7 @@ import (
 //
 // Use [EncodeResourceInstanceObjectFull] with the appropriate schema from the
 // appropriate provider to transform this into [ResourceInstanceObjectFullSrc].
-type ResourceInstanceObjectFull = resourceInstanceObjectRepr[cty.Value]
+type ResourceInstanceObjectFull = ResourceInstanceObjectRepr[cty.Value]
 
 // ResourceInstanceObjectFullSrc is to [ResourceInstanceObjectSrc] what
 // [ResourceInstanceObjectFull] is to [ResourceInstanceObject]: a variant
@@ -46,7 +46,7 @@ type ResourceInstanceObjectFull = resourceInstanceObjectRepr[cty.Value]
 //
 // Use [DecodeResourceInstanceObjectFull] with the appropriate schema from the
 // appropriate provider to transform this into [ResourceInstanceObjectFull].
-type ResourceInstanceObjectFullSrc = resourceInstanceObjectRepr[ValueJSONWithMetadata]
+type ResourceInstanceObjectFullSrc = ResourceInstanceObjectRepr[ValueJSONWithMetadata]
 
 func DecodeResourceInstanceObjectFull(src *ResourceInstanceObjectFullSrc, ty cty.Type) (*ResourceInstanceObjectFull, error) {
 	v, err := src.Value.Decode(ty)
@@ -240,12 +240,17 @@ func (s *SyncState) RemoveResourceInstanceObjectFull(addr addrs.AbsResourceInsta
 	s.maybePruneModule(addr.InstanceAddr.Module)
 }
 
+// ValueOrJSONEquivalent is a constraint type that can either be a realized
+// [cty.Value] that's encodable for state storage or the already-JSON-encoded
+// equivalent of it.
+type ValueOrJSONEquivalent interface {
+	cty.Value | ValueJSONWithMetadata
+}
+
 // ResourceInstanceObjectFullRepr is the generic type that both
 // [ResourceInstanceObjectFull] and [ResourceInstanceObjectFullSrc] are based
 // on, since they vary only by the type of the Value field.
-type resourceInstanceObjectRepr[V interface {
-	cty.Value | ValueJSONWithMetadata
-}] struct {
+type ResourceInstanceObjectRepr[V ValueOrJSONEquivalent] struct {
 	// Value is the object-typed value representing the remote object within
 	// OpenTofu.
 	Value V
@@ -313,10 +318,8 @@ type resourceInstanceObjectRepr[V interface {
 	CreateBeforeDestroy bool
 }
 
-func mapResourceInstanceObjectReprValue[V1, V2 interface {
-	cty.Value | ValueJSONWithMetadata
-}](input *resourceInstanceObjectRepr[V1], newValue V2) *resourceInstanceObjectRepr[V2] {
-	return &resourceInstanceObjectRepr[V2]{
+func mapResourceInstanceObjectReprValue[V1, V2 ValueOrJSONEquivalent](input *ResourceInstanceObjectRepr[V1], newValue V2) *ResourceInstanceObjectRepr[V2] {
+	return &ResourceInstanceObjectRepr[V2]{
 		Value:                newValue,
 		Private:              input.Private,
 		Status:               input.Status,
