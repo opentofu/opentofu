@@ -13,6 +13,13 @@ import (
 	"github.com/opentofu/opentofu/internal/command/jsonformat/structured"
 )
 
+// ComputeDiffForOutput computes the rendered diff for a single root output.
+//
+// Note: change.BeforeSensitive / change.AfterSensitive may legitimately
+// differ here (unlike the raw JSON plan) when this Change was constructed
+// from jsonplan.MarshalForRenderer's renderer-only sensitivity
+// reconstruction. checkForSensitiveType below already handles
+// before != after correctly via structured.Change.CheckForSensitive.
 func ComputeDiffForOutput(change structured.Change) computed.Diff {
 	if sensitive, ok := checkForSensitiveType(change, cty.DynamicPseudoType); ok {
 		return sensitive
