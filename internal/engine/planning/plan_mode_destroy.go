@@ -239,11 +239,6 @@ var _ eval.PlanGlue = (*planGlueDestroy)(nil)
 
 // PlanDesiredResourceInstance implements [eval.PlanGlue].
 func (p *planGlueDestroy) PlanDesiredResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance) (cty.Value, tfdiags.Diagnostics) {
-	if p.normalGlue.desiredResourceInstanceMustBeDeferred(inst) {
-		log.Printf("[TRACE] planGlueDestroy.PlanDesiredResourceInstance for %s DEFERRED", inst.Addr)
-		return deferredVal(cty.DynamicVal), nil
-	}
-
 	var diags tfdiags.Diagnostics
 	log.Printf("[TRACE] planGlueDestroy.PlanDesiredResourceInstance for %s", inst.Addr)
 
@@ -324,6 +319,15 @@ func (p *planGlueDestroy) PlanDesiredResourceInstance(ctx context.Context, inst 
 
 	configMeta := p.normalGlue.oracle.ResourceInstanceObjectMeta(ctx, inst.Addr.CurrentObject())
 	meta := exec.BuildResourceInstanceObjectMeta(inst.Addr.CurrentObject(), configMeta, refreshedState)
+
+	if p.normalGlue.desiredResourceInstanceMustBeDeferred(inst, meta) {
+		p.normalGlue.planCtx.deferredMu.Lock()
+		p.normalGlue.planCtx.deferred.Put(inst.Addr, struct{}{})
+		p.normalGlue.planCtx.deferredMu.Unlock()
+
+		log.Printf("[TRACE] planGlueDestroy.PlanDesiredResourceInstance for %s DEFERRED", inst.Addr)
+		return deferredVal(cty.DynamicVal), nil
+	}
 
 	// FIXME: Ideally we'd use [resources.ManagedResourceType] here to match
 	// how [planGlue.planDesiredManagedResourceInstance] gets schema, but

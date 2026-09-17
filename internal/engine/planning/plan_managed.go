@@ -44,7 +44,9 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 	// of this to a later round. The following is not exhaustive but is a
 	// placeholder to show where deferral might fit in.
 	if p.desiredResourceInstanceMustBeDeferred(inst, meta) {
-		p.planCtx.deferred.Put(inst.Addr, struct{}{}) // TODO this is currently unused
+		p.planCtx.deferredMu.Lock()
+		p.planCtx.deferred.Put(inst.Addr, struct{}{})
+		p.planCtx.deferredMu.Unlock()
 		defer func() {
 			// Our result must be marked as deferred, whichever return path
 			// we leave through.
