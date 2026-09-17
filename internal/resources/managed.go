@@ -98,3 +98,41 @@ func (rt *ManagedResourceType) LoadSchema(ctx context.Context) (providers.Schema
 
 	return ret, diags
 }
+
+// ReplaceOrder represents potential restrictions on which order the "create"
+// and "delete" actions must be taken when replacing a managed resource
+// instance object.
+type ReplaceOrder byte
+
+//go:generate go tool golang.org/x/tools/cmd/stringer -type ReplaceOrder
+
+const (
+	// ReplaceAnyOrder means that there is no constraint on which order the
+	// "create" and "delete" operations must happen in, and so the order can
+	// be selected to suit the constraints of other resource instace objects
+	// in a dependency chain.
+	//
+	// This particular [ReplaceOrder] value is valid only early in the planning
+	// phase when each resource instance object is reporting just its own
+	// requirements. Part of the work of the planning phase is to decide on a
+	// specific order to use for each resource instance object, and so after
+	// that step this value is no longer suitable.
+	ReplaceAnyOrder ReplaceOrder = iota
+
+	// ReplaceCreateFirst means that a new object must be created before the
+	// previous object is deleted.
+	//
+	// This implies that temporarily there are two objects, with the previous
+	// object considered to be "deposed" during the overlap. This isn't possible
+	// for all resource instances due to uniqueness constraints in the remote
+	// system.
+	ReplaceCreateFirst
+
+	// ReplaceDeleteFirst means that the previous object must be deleted before
+	// the new object is created.
+	//
+	// This implies that there will temporarily be no objects at all, but this
+	// is sometimes necessary because of uniqueness constraints in the remote
+	// system.
+	ReplaceDeleteFirst
+)

@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/resources"
 )
 
 func TestFindEffectiveReplaceOrders(t *testing.T) {
@@ -29,24 +30,24 @@ func TestFindEffectiveReplaceOrders(t *testing.T) {
 
 	tests := map[string]struct {
 		build        func(*resourceInstanceObjectsBuilder)
-		want         addrs.Map[addrs.AbsResourceInstanceObject, resourceInstanceReplaceOrder]
+		want         addrs.Map[addrs.AbsResourceInstanceObject, resources.ReplaceOrder]
 		wantSelfDeps addrs.Set[addrs.AbsResourceInstanceObject]
 	}{
 		"empty": {
 			func(objs *resourceInstanceObjectsBuilder) {},
-			addrs.MakeMap[addrs.AbsResourceInstanceObject, resourceInstanceReplaceOrder](),
+			addrs.MakeMap[addrs.AbsResourceInstanceObject, resources.ReplaceOrder](),
 			addrs.MakeSet[addrs.AbsResourceInstanceObject](),
 		},
 		"one allowing any order": {
 			func(objs *resourceInstanceObjectsBuilder) {
 				objs.Put(&resourceInstanceObject{
 					Addr:         objAddr("a"),
-					ReplaceOrder: replaceAnyOrder,
+					ReplaceOrder: resources.ReplaceAnyOrder,
 				})
 			},
-			addrs.MakeMap(addrs.MapElem[addrs.AbsResourceInstanceObject, resourceInstanceReplaceOrder]{
+			addrs.MakeMap(addrs.MapElem[addrs.AbsResourceInstanceObject, resources.ReplaceOrder]{
 				Key:   objAddr("a"),
-				Value: replaceDestroyThenCreate,
+				Value: resources.ReplaceDeleteFirst,
 			}),
 			addrs.MakeSet[addrs.AbsResourceInstanceObject](),
 		},
@@ -54,12 +55,12 @@ func TestFindEffectiveReplaceOrders(t *testing.T) {
 			func(objs *resourceInstanceObjectsBuilder) {
 				objs.Put(&resourceInstanceObject{
 					Addr:         objAddr("a"),
-					ReplaceOrder: replaceCreateThenDestroy,
+					ReplaceOrder: resources.ReplaceCreateFirst,
 				})
 			},
-			addrs.MakeMap(addrs.MapElem[addrs.AbsResourceInstanceObject, resourceInstanceReplaceOrder]{
+			addrs.MakeMap(addrs.MapElem[addrs.AbsResourceInstanceObject, resources.ReplaceOrder]{
 				Key:   objAddr("a"),
-				Value: replaceCreateThenDestroy,
+				Value: resources.ReplaceCreateFirst,
 			}),
 			addrs.MakeSet[addrs.AbsResourceInstanceObject](),
 		},
@@ -67,31 +68,31 @@ func TestFindEffectiveReplaceOrders(t *testing.T) {
 			func(objs *resourceInstanceObjectsBuilder) {
 				objs.Put(&resourceInstanceObject{
 					Addr:         objAddr("a"),
-					ReplaceOrder: replaceAnyOrder,
+					ReplaceOrder: resources.ReplaceAnyOrder,
 				})
 				objs.Put(&resourceInstanceObject{
 					Addr:               objAddr("b"),
-					ReplaceOrder:       replaceAnyOrder,
+					ReplaceOrder:       resources.ReplaceAnyOrder,
 					ConfigDependencies: addrs.MakeSet(objAddr("a")),
 				})
 				objs.Put(&resourceInstanceObject{
 					Addr:               objAddr("c"),
-					ReplaceOrder:       replaceAnyOrder,
+					ReplaceOrder:       resources.ReplaceAnyOrder,
 					ConfigDependencies: addrs.MakeSet(objAddr("a"), objAddr("b")),
 				})
 			},
 			addrs.MakeMap(
-				addrs.MapElem[addrs.AbsResourceInstanceObject, resourceInstanceReplaceOrder]{
+				addrs.MapElem[addrs.AbsResourceInstanceObject, resources.ReplaceOrder]{
 					Key:   objAddr("a"),
-					Value: replaceDestroyThenCreate,
+					Value: resources.ReplaceDeleteFirst,
 				},
-				addrs.MapElem[addrs.AbsResourceInstanceObject, resourceInstanceReplaceOrder]{
+				addrs.MapElem[addrs.AbsResourceInstanceObject, resources.ReplaceOrder]{
 					Key:   objAddr("b"),
-					Value: replaceDestroyThenCreate,
+					Value: resources.ReplaceDeleteFirst,
 				},
-				addrs.MapElem[addrs.AbsResourceInstanceObject, resourceInstanceReplaceOrder]{
+				addrs.MapElem[addrs.AbsResourceInstanceObject, resources.ReplaceOrder]{
 					Key:   objAddr("c"),
-					Value: replaceDestroyThenCreate,
+					Value: resources.ReplaceDeleteFirst,
 				},
 			),
 			addrs.MakeSet[addrs.AbsResourceInstanceObject](),
@@ -100,31 +101,31 @@ func TestFindEffectiveReplaceOrders(t *testing.T) {
 			func(objs *resourceInstanceObjectsBuilder) {
 				objs.Put(&resourceInstanceObject{
 					Addr:         objAddr("a"),
-					ReplaceOrder: replaceCreateThenDestroy,
+					ReplaceOrder: resources.ReplaceCreateFirst,
 				})
 				objs.Put(&resourceInstanceObject{
 					Addr:               objAddr("b"),
-					ReplaceOrder:       replaceAnyOrder,
+					ReplaceOrder:       resources.ReplaceAnyOrder,
 					ConfigDependencies: addrs.MakeSet(objAddr("a")),
 				})
 				objs.Put(&resourceInstanceObject{
 					Addr:               objAddr("c"),
-					ReplaceOrder:       replaceAnyOrder,
+					ReplaceOrder:       resources.ReplaceAnyOrder,
 					ConfigDependencies: addrs.MakeSet(objAddr("a"), objAddr("b")),
 				})
 			},
 			addrs.MakeMap(
-				addrs.MapElem[addrs.AbsResourceInstanceObject, resourceInstanceReplaceOrder]{
+				addrs.MapElem[addrs.AbsResourceInstanceObject, resources.ReplaceOrder]{
 					Key:   objAddr("a"),
-					Value: replaceCreateThenDestroy,
+					Value: resources.ReplaceCreateFirst,
 				},
-				addrs.MapElem[addrs.AbsResourceInstanceObject, resourceInstanceReplaceOrder]{
+				addrs.MapElem[addrs.AbsResourceInstanceObject, resources.ReplaceOrder]{
 					Key:   objAddr("b"),
-					Value: replaceDestroyThenCreate,
+					Value: resources.ReplaceDeleteFirst,
 				},
-				addrs.MapElem[addrs.AbsResourceInstanceObject, resourceInstanceReplaceOrder]{
+				addrs.MapElem[addrs.AbsResourceInstanceObject, resources.ReplaceOrder]{
 					Key:   objAddr("c"),
-					Value: replaceDestroyThenCreate,
+					Value: resources.ReplaceDeleteFirst,
 				},
 			),
 			addrs.MakeSet[addrs.AbsResourceInstanceObject](),
@@ -133,31 +134,31 @@ func TestFindEffectiveReplaceOrders(t *testing.T) {
 			func(objs *resourceInstanceObjectsBuilder) {
 				objs.Put(&resourceInstanceObject{
 					Addr:         objAddr("a"),
-					ReplaceOrder: replaceAnyOrder,
+					ReplaceOrder: resources.ReplaceAnyOrder,
 				})
 				objs.Put(&resourceInstanceObject{
 					Addr:               objAddr("b"),
-					ReplaceOrder:       replaceCreateThenDestroy,
+					ReplaceOrder:       resources.ReplaceCreateFirst,
 					ConfigDependencies: addrs.MakeSet(objAddr("a")),
 				})
 				objs.Put(&resourceInstanceObject{
 					Addr:               objAddr("c"),
-					ReplaceOrder:       replaceAnyOrder,
+					ReplaceOrder:       resources.ReplaceAnyOrder,
 					ConfigDependencies: addrs.MakeSet(objAddr("a"), objAddr("b")),
 				})
 			},
 			addrs.MakeMap(
-				addrs.MapElem[addrs.AbsResourceInstanceObject, resourceInstanceReplaceOrder]{
+				addrs.MapElem[addrs.AbsResourceInstanceObject, resources.ReplaceOrder]{
 					Key:   objAddr("a"),
-					Value: replaceCreateThenDestroy,
+					Value: resources.ReplaceCreateFirst,
 				},
-				addrs.MapElem[addrs.AbsResourceInstanceObject, resourceInstanceReplaceOrder]{
+				addrs.MapElem[addrs.AbsResourceInstanceObject, resources.ReplaceOrder]{
 					Key:   objAddr("b"),
-					Value: replaceCreateThenDestroy,
+					Value: resources.ReplaceCreateFirst,
 				},
-				addrs.MapElem[addrs.AbsResourceInstanceObject, resourceInstanceReplaceOrder]{
+				addrs.MapElem[addrs.AbsResourceInstanceObject, resources.ReplaceOrder]{
 					Key:   objAddr("c"),
-					Value: replaceDestroyThenCreate,
+					Value: resources.ReplaceDeleteFirst,
 				},
 			),
 			addrs.MakeSet[addrs.AbsResourceInstanceObject](),
@@ -166,31 +167,31 @@ func TestFindEffectiveReplaceOrders(t *testing.T) {
 			func(objs *resourceInstanceObjectsBuilder) {
 				objs.Put(&resourceInstanceObject{
 					Addr:         objAddr("a"),
-					ReplaceOrder: replaceAnyOrder,
+					ReplaceOrder: resources.ReplaceAnyOrder,
 				})
 				objs.Put(&resourceInstanceObject{
 					Addr:               objAddr("b"),
-					ReplaceOrder:       replaceAnyOrder,
+					ReplaceOrder:       resources.ReplaceAnyOrder,
 					ConfigDependencies: addrs.MakeSet(objAddr("a")),
 				})
 				objs.Put(&resourceInstanceObject{
 					Addr:               objAddr("c"),
-					ReplaceOrder:       replaceCreateThenDestroy,
+					ReplaceOrder:       resources.ReplaceCreateFirst,
 					ConfigDependencies: addrs.MakeSet(objAddr("a"), objAddr("b")),
 				})
 			},
 			addrs.MakeMap(
-				addrs.MapElem[addrs.AbsResourceInstanceObject, resourceInstanceReplaceOrder]{
+				addrs.MapElem[addrs.AbsResourceInstanceObject, resources.ReplaceOrder]{
 					Key:   objAddr("a"),
-					Value: replaceCreateThenDestroy,
+					Value: resources.ReplaceCreateFirst,
 				},
-				addrs.MapElem[addrs.AbsResourceInstanceObject, resourceInstanceReplaceOrder]{
+				addrs.MapElem[addrs.AbsResourceInstanceObject, resources.ReplaceOrder]{
 					Key:   objAddr("b"),
-					Value: replaceCreateThenDestroy,
+					Value: resources.ReplaceCreateFirst,
 				},
-				addrs.MapElem[addrs.AbsResourceInstanceObject, resourceInstanceReplaceOrder]{
+				addrs.MapElem[addrs.AbsResourceInstanceObject, resources.ReplaceOrder]{
 					Key:   objAddr("c"),
-					Value: replaceCreateThenDestroy,
+					Value: resources.ReplaceCreateFirst,
 				},
 			),
 			addrs.MakeSet[addrs.AbsResourceInstanceObject](),
@@ -199,30 +200,30 @@ func TestFindEffectiveReplaceOrders(t *testing.T) {
 			func(objs *resourceInstanceObjectsBuilder) {
 				objs.Put(&resourceInstanceObject{
 					Addr:         objAddr("a"),
-					ReplaceOrder: replaceAnyOrder,
+					ReplaceOrder: resources.ReplaceAnyOrder,
 				})
 				objs.Put(&resourceInstanceObject{
 					Addr:               objAddr("b"),
-					ReplaceOrder:       replaceCreateThenDestroy,
+					ReplaceOrder:       resources.ReplaceCreateFirst,
 					ConfigDependencies: addrs.MakeSet(objAddr("a")),
 				})
 				objs.Put(&resourceInstanceObject{
 					Addr:         objAddr("unchained"),
-					ReplaceOrder: replaceAnyOrder,
+					ReplaceOrder: resources.ReplaceAnyOrder,
 				})
 			},
 			addrs.MakeMap(
-				addrs.MapElem[addrs.AbsResourceInstanceObject, resourceInstanceReplaceOrder]{
+				addrs.MapElem[addrs.AbsResourceInstanceObject, resources.ReplaceOrder]{
 					Key:   objAddr("a"),
-					Value: replaceCreateThenDestroy,
+					Value: resources.ReplaceCreateFirst,
 				},
-				addrs.MapElem[addrs.AbsResourceInstanceObject, resourceInstanceReplaceOrder]{
+				addrs.MapElem[addrs.AbsResourceInstanceObject, resources.ReplaceOrder]{
 					Key:   objAddr("b"),
-					Value: replaceCreateThenDestroy,
+					Value: resources.ReplaceCreateFirst,
 				},
-				addrs.MapElem[addrs.AbsResourceInstanceObject, resourceInstanceReplaceOrder]{
+				addrs.MapElem[addrs.AbsResourceInstanceObject, resources.ReplaceOrder]{
 					Key:   objAddr("unchained"),
-					Value: replaceDestroyThenCreate,
+					Value: resources.ReplaceDeleteFirst,
 				},
 			),
 			addrs.MakeSet[addrs.AbsResourceInstanceObject](),
@@ -231,31 +232,31 @@ func TestFindEffectiveReplaceOrders(t *testing.T) {
 			func(objs *resourceInstanceObjectsBuilder) {
 				objs.Put(&resourceInstanceObject{
 					Addr:               objAddr("a"),
-					ReplaceOrder:       replaceAnyOrder,
+					ReplaceOrder:       resources.ReplaceAnyOrder,
 					ConfigDependencies: addrs.MakeSet(objAddr("a"), objAddr("b")),
 				})
 				objs.Put(&resourceInstanceObject{
 					Addr:               objAddr("b"),
-					ReplaceOrder:       replaceAnyOrder,
+					ReplaceOrder:       resources.ReplaceAnyOrder,
 					ConfigDependencies: addrs.MakeSet(objAddr("a"), objAddr("b")),
 				})
 				objs.Put(&resourceInstanceObject{
 					Addr:         objAddr("c"),
-					ReplaceOrder: replaceAnyOrder,
+					ReplaceOrder: resources.ReplaceAnyOrder,
 				})
 			},
 			addrs.MakeMap(
-				addrs.MapElem[addrs.AbsResourceInstanceObject, resourceInstanceReplaceOrder]{
+				addrs.MapElem[addrs.AbsResourceInstanceObject, resources.ReplaceOrder]{
 					Key:   objAddr("a"),
-					Value: replaceDestroyThenCreate,
+					Value: resources.ReplaceDeleteFirst,
 				},
-				addrs.MapElem[addrs.AbsResourceInstanceObject, resourceInstanceReplaceOrder]{
+				addrs.MapElem[addrs.AbsResourceInstanceObject, resources.ReplaceOrder]{
 					Key:   objAddr("b"),
-					Value: replaceDestroyThenCreate,
+					Value: resources.ReplaceDeleteFirst,
 				},
-				addrs.MapElem[addrs.AbsResourceInstanceObject, resourceInstanceReplaceOrder]{
+				addrs.MapElem[addrs.AbsResourceInstanceObject, resources.ReplaceOrder]{
 					Key:   objAddr("c"),
-					Value: replaceDestroyThenCreate,
+					Value: resources.ReplaceDeleteFirst,
 				},
 			),
 			addrs.MakeSet(

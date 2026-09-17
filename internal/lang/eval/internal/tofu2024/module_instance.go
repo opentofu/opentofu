@@ -171,22 +171,12 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 		return ret
 	}
 
-	// TODO: Should CreateBeforeDestroy actually be modeled as a resource-level
+	// TODO: Should ReplaceOrder actually be modeled as a resource-level
 	// setting rather than an instance-level setting? For now assuming not
 	// because for non-desired objects we'll use the value from the prior state
 	// instead anyway, but we should check whether the old runtime let the
 	// resource-level config "win" for an orphaned resource instance.
-	cbdVal, _, _ := inst.CreateBeforeDestroy(ctx)
-	ret.CreateBeforeDelete, _ = exprs.DeriveFromValue(cbdVal, func(v cty.Value) (bool, error) {
-		if v.Type() != cty.Bool {
-			// Getting here suggests a bug in [configgraph.ResourceInstance.CreateBeforeDestroy].
-			// TODO: Consider changing configgraph.ResourceInstance.CreateBeforeDestroy
-			// to directly return exprs.FromValue[bool] itself, since it
-			// shouldn't be returning anything that can't represent anyway.
-			panic(fmt.Sprintf("value for CreateBeforeDestroy is %#v, but cty.Bool is required", v))
-		}
-		return cbdVal.True(), nil
-	})
+	ret.ReplaceOrder, _, _ = inst.ReplaceOrder(ctx)
 
 	providerInst, _ := inst.ProviderInstance(ctx)
 	ret.ProviderInstance, _ = providerInst.Derive(func(providerInst *configgraph.ProviderInstance) (*addrs.AbsProviderInstanceCorrect, error) {

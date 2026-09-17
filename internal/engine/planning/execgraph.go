@@ -8,6 +8,7 @@ package planning
 import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/internal/execgraph"
+	"github.com/opentofu/opentofu/internal/resources"
 )
 
 // execGraphBuilder is a legacy leftover of an earlier version of this component
@@ -38,7 +39,7 @@ type execGraphBuilder struct {
 
 func buildExecutionGraph(
 	objs *resourceInstanceObjects,
-	effectiveReplaceOrders addrs.Map[addrs.AbsResourceInstanceObject, resourceInstanceReplaceOrder],
+	effectiveReplaceOrders addrs.Map[addrs.AbsResourceInstanceObject, resources.ReplaceOrder],
 	additionalStateDependencies addrs.Set[addrs.AbsResourceInstance],
 	makeDeposedKey func(addrs.AbsResourceInstance) addrs.DeposedKey,
 ) *execgraph.Graph {

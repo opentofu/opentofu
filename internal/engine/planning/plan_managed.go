@@ -87,16 +87,39 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 	for dep := range inst.RequiredResourceInstances.All() {
 		ret.ConfigDependencies.Add(dep.CurrentObject())
 	}
-	createBeforeDestroy, ok := meta.CreateThenDelete.ValueOk()
-	if ok && createBeforeDestroy {
-		ret.ReplaceOrder = replaceCreateThenDestroy
+	replaceOrder, ok := meta.ReplaceOrder.ValueOk()
+	if ok {
+		ret.ReplaceOrder = replaceOrder
+		if replaceOrder == resources.ReplaceDeleteFirst {
+			// TODO: For now the downstream logic only allows for an object
+			// to have "create first" ordering or "don't care" ordering, so
+			// we'll reject any attempt to force "delete first" ordering at
+			// least until we decide how that would be handled by the code
+			// that finalizes all of the "don't care" orderings based on
+			// any rigid constraints in the same dependency chains.
+			// Once we resolve this, we'll need to update either the
+			// configgraph package to deny setting "delete first" in the first
+			// place or the [findEffectiveReplaceOrders] function to accept
+			// that ordering constraint as valid input.
+			ret.ReplaceOrder = resources.ReplaceAnyOrder // to allow the remaining planning logic to still complete below
+			diags = diags.Append(tfdiags.AttributeValue(
+				tfdiags.Error,
+				"Unsupported object replacement order",
+				// As usual this diagnostic message violates the separation of
+				// concerns slightly by talking about surface-level syntax
+				// even though we're supposed to be abstracted away from that,
+				// but also as usual we'll accept that out of pragmatism.
+				"If present, the create_before_destroy argument may be set only to true to force creation-first replacement ordering. Forcing deletion-first is not allowed.",
+				nil,
+			))
+		}
 	} else {
 		// TODO: Decide what we ought to do in this case. Perhaps we can
 		// continue with planning and then treat the change as deferred, but
 		// not sure yet if that's actually acceptable since replace order
 		// is "infectious" through dependencies and affects the ordering even
 		// of non-replace actions between different resource instance objects.
-		ret.ReplaceOrder = replaceAnyOrder
+		ret.ReplaceOrder = resources.ReplaceAnyOrder
 	}
 
 	providerInstUnmarked, providerInstMarks := meta.ProviderInstance.Unmark()
@@ -534,7 +557,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		// We'll select a reasonable initial planned action here but this
 		// might be overridden later once we propagate ordering constraints
 		// through the dependency graph.
-		if createBeforeDestroy {
+		if replaceOrder == resources.ReplaceCreateFirst {
 			plannedAction = plans.CreateThenDelete
 		} else {
 			plannedAction = plans.DeleteThenCreate
