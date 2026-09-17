@@ -10,6 +10,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/plugins"
 	"github.com/opentofu/opentofu/internal/lang/eval"
@@ -115,14 +116,13 @@ type planContextResult struct {
 	Destroying bool
 }
 
-// Post-process "prevent_destroy" values now that the changes have been built
-//
-// This was copied and modified from NodeAbstractResourceInstance.checkPreventDestroy
+// Handle "prevent_destroy" arguments once the changes have been built,
+// generating error diagnostics for anything that is proposed for deletion
+// when deletion is prohibited.
 func (p *planContextResult) CheckPreventDestroy(ctx context.Context, oracle *eval.PlanningOracle) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 	const errSummary = "Invalid value for prevent_destroy"
 
-	// Check that prevent_destroy has not been violated
 	for objAddr, obj := range p.ResourceInstanceObjects.All() {
 		change := obj.PlannedChange
 
@@ -130,40 +130,27 @@ func (p *planContextResult) CheckPreventDestroy(ctx context.Context, oracle *eva
 			continue
 		}
 		if change.Action != plans.Delete && !change.Action.IsReplace() {
-			// If we're not attempting to destroy then the above checks are
-			// sufficient to reject an expression that cannot possibly be valid
-			// for prevent_destroy. If we're not actually planning to destroy
-			// then we'll skip the remaining checks because they are likely to
-			// fail dynamically in non-destroy situations even though they
-			// could be valid by the time this object actually is planned for
-			// destroy.
+			// If we're not attempting to destroy then we'll skip the remaining
+			// checks because they are likely to fail dynamically in non-destroy
+			// situations even though they could be valid by the time this
+			// object actually is planned for destroy.
 			continue
 		}
-		preventDestroyVal, rng, pdDiags := oracle.PreventDestroy(ctx, objAddr.InstanceAddr)
+		preventDestroyV, rng, pdDiags := oracle.PreventDestroy(ctx, objAddr.InstanceAddr)
+		diags = diags.Append(pdDiags)
 		if pdDiags.HasErrors() {
-			diags = diags.Append(pdDiags)
+			// If PreventDestroy is was specified in an invalid way then we'll
+			// assume the diags we just appended already describe the root
+			// problem and we'll avoid adding any new errors that might just
+			// confusingly restate the same problem in a less direct way.
 			continue
 		}
+		preventDestroyV, preventDestroyMarks := preventDestroyV.Unmark()
+		// FIXME: What should we do with these marks, if anything?
+		_ = preventDestroyMarks
 
-		if preventDestroyVal.IsNull() {
-			// We could potentially treat null as equivalent to false here, matching
-			// how OpenTofu would behave if there were no expression present at all,
-			// but "false" is just as easy to specify as "null" in a conditional
-			// expression and doesn't require a reader to know what the default
-			// is, so we'll require that to make life easier for a future maintainer
-			// that isn't necessarily familiar with the prevent_destroy behavior yet.
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  errSummary,
-				Detail: fmt.Sprintf(
-					"Resource %s has prevent_destroy set to null. When making a dynamic decision to allow destroy, use false instead.",
-					objAddr.InstanceAddr,
-				),
-				Subject: rng.ToHCL().Ptr(),
-			})
-		}
-
-		if !preventDestroyVal.IsKnown() {
+		preventDestroy, ok := preventDestroyV.ValueOk()
+		if !ok {
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  errSummary,
@@ -174,31 +161,10 @@ func (p *planContextResult) CheckPreventDestroy(ctx context.Context, oracle *eva
 				Subject: rng.ToHCL().Ptr(),
 				Extra:   evalchecks.DiagnosticCausedByUnknown(true),
 			})
-		}
-		if preventDestroyVal.IsNull() {
-			// We could potentially treat null as equivalent to false here, matching
-			// how OpenTofu would behave if there were no expression present at all,
-			// but "false" is just as easy to specify as "null" in a conditional
-			// expression and doesn't require a reader to know what the default
-			// is, so we'll require that to make life easier for a future maintainer
-			// that isn't necessarily familiar with the prevent_destroy behavior yet.
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  errSummary,
-				Detail: fmt.Sprintf(
-					"Resource instance %s has prevent_destroy set to null. When making a dynamic decision to allow destroy, use false instead.",
-					objAddr.InstanceAddr.String(),
-				),
-				Subject: rng.ToHCL().Ptr(),
-			})
-		}
-		if diags.HasErrors() {
-			// Any errors so far means that preventDestroyVal.True is likely to
-			// either panic or return nonsense.
 			continue
 		}
 
-		if preventDestroyVal.True() {
+		if preventDestroy {
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Resource instance cannot be destroyed",

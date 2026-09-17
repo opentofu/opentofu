@@ -8,10 +8,9 @@ package eval
 import (
 	"context"
 
-	"github.com/zclconf/go-cty/cty"
-
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
+	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -96,14 +95,14 @@ func (o *PlanningOracle) ProviderInstance(ctx context.Context, addr addrs.AbsPro
 	return o.providers.ProviderInstance(ctx, addr)
 }
 
-func (o *PlanningOracle) PreventDestroy(ctx context.Context, addr addrs.AbsResourceInstance) (cty.Value, *tfdiags.SourceRange, tfdiags.Diagnostics) {
+func (o *PlanningOracle) PreventDestroy(ctx context.Context, addr addrs.AbsResourceInstance) (exprs.FromValue[bool], *tfdiags.SourceRange, tfdiags.Diagnostics) {
 	mod := evalglue.ModuleInstance(ctx, o.root, addr.Module)
 	if mod == nil {
-		return cty.False, nil, nil
+		return exprs.Known(false), nil, nil
 	}
 	resource := mod.Resource(ctx, addr.Resource.Resource)
 	if resource == nil {
-		return cty.False, nil, nil
+		return exprs.Known(false), nil, nil
 	}
 	return resource.PreventDestroy(ctx)
 }

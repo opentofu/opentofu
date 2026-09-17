@@ -143,14 +143,11 @@ func (r *Resource) decideInstances(ctx context.Context) (*compiledInstances[*Res
 // situations.
 //
 // The different possible known boolean results have the following meaning:
-//   - [cty.True] means that this resource instance MUST not be destroyed.
-//   - [cty.False] means that this resource instance MAY be destroyed.
-//   - A null value is not accepted, see the comment below.
-//
-// This was copied and modified from NodeAbstractResourceInstance.checkPreventDestroy
-func (r *Resource) PreventDestroy(ctx context.Context) (cty.Value, *tfdiags.SourceRange, tfdiags.Diagnostics) {
+//   - true means that this resource instance MUST NOT be destroyed.
+//   - false means that this resource instance MAY be destroyed.
+func (r *Resource) PreventDestroy(ctx context.Context) (exprs.FromValue[bool], *tfdiags.SourceRange, tfdiags.Diagnostics) {
 	if r.PreventDestroyValuer == nil {
-		return cty.False, nil, nil
+		return exprs.Known(false), nil, nil
 	}
 	rng := r.PreventDestroyValuer.ValueSourceRange()
 
@@ -174,7 +171,7 @@ func (r *Resource) PreventDestroy(ctx context.Context) (cty.Value, *tfdiags.Sour
 			),
 			Subject: rng.ToHCL().Ptr(),
 		})
-		return cty.UnknownVal(cty.Bool), rng, diags
+		return exprs.Unknown[bool](), rng, diags
 	}
 	// TODO deprecated handling
 	//preventDestroyVal, moreDiags := marks.ExtractDeprecatedDiagnosticsWithExpr(preventDestroyVal, preventDestroyExpr)
@@ -222,10 +219,33 @@ func (r *Resource) PreventDestroy(ctx context.Context) (cty.Value, *tfdiags.Sour
 			})
 		}
 	}
+	if preventDestroyVal.IsNull() {
+		// We could potentially treat null as equivalent to false here, matching
+		// how OpenTofu would behave if there were no expression present at all,
+		// but "false" is just as easy to specify as "null" in a conditional
+		// expression and doesn't require a reader to know what the default
+		// is, so we'll require that to make life easier for a future maintainer
+		// that isn't necessarily familiar with the prevent_destroy behavior yet.
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  errSummary,
+			Detail: fmt.Sprintf(
+				"Resource %s has prevent_destroy set to null. When making a dynamic decision to allow destroy, use false instead.",
+				r.Addr,
+			),
+			Subject: rng.ToHCL().Ptr(),
+		})
+		// We'll still return a valid value so that downstream work can continue
+		// despite the error.
+		preventDestroyVal = cty.False.WithSameMarks(preventDestroyVal)
+	}
 	if diags.HasErrors() {
 		preventDestroyVal = exprs.AsEvalError(preventDestroyVal)
 	}
-	return preventDestroyVal, rng, diags
+	ret, _ := exprs.DeriveFromValue(preventDestroyVal, func(v cty.Value) (bool, error) {
+		return v.True(), nil
+	})
+	return ret, rng, diags
 }
 
 // CheckAll implements allChecker.

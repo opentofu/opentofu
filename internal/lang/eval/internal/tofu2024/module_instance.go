@@ -7,7 +7,6 @@ package tofu2024
 
 import (
 	"context"
-	"fmt"
 	"iter"
 	"maps"
 
@@ -140,24 +139,7 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 	// methods because our caller is expected to collect them separately
 	// using [CompiledModuleInstance.CheckAll].
 
-	preventDestroyVal, _, _ := rsrc.PreventDestroy(ctx)
-	preventDestroy, _ := exprs.DeriveFromValue(preventDestroyVal, func(v cty.Value) (bool, error) {
-		if v.Type() != cty.Bool {
-			// Getting here suggests a bug in [configgraph.Resource.PreventDestroy].
-			// TODO: Consider changing configgraph.Resource.PreventDestroy
-			// to directly return exprs.FromValue[bool] itself, since it
-			// shouldn't be returning anything that can't represent anyway.
-			panic(fmt.Sprintf("value for PreventDestroy is %#v, but cty.Bool is required", v))
-		}
-		if v.True() {
-			return true, nil
-		}
-		if v.False() {
-			return false, nil
-		}
-		// No other value is expected, based on the documentation of [configgraph.Resource.PreventDestroy].
-		panic(fmt.Sprintf("method PreventDestroy for %s returned unexpected value %#v", addr.InstanceAddr.Resource, v))
-	})
+	preventDestroy, _, _ := rsrc.PreventDestroy(ctx)
 	ret.DeletionInvalid = preventDestroy
 
 	destroyProvisioners := rsrc.DestroyProvisioners(ctx, addr.InstanceAddr)
