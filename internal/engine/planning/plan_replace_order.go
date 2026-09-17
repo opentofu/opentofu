@@ -10,18 +10,20 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/resources"
 )
 
 // findEffectiveReplaceOrders analyzes the given graph of resource instance
 // objects to decide the final effective "replace order" for each resource
 // instance object.
 //
-// Specifically, any object whose initial replace order is [replaceAnyOrder]
-// will have its effective order set to either [replaceDestroyThenCreate] or
-// [replaceCreateThenDestroy], depending on whether they are in dependency
-// chains with objects those initial replace order was
-// [replaceCreateThenDestroy]. All objects in a chain of dependencies are
-// required to have the same replace order.
+// Specifically, any object whose initial replace order is
+// [resources.ReplaceAnyOrder] will have its effective order set to either
+// [resources.ReplaceDeleteFirst] or [resources.ReplaceCreateFirst], depending
+// on whether they are in dependency chains with objects those initial replace
+// order was [resources.ReplaceCreateFirst]. All objects in a chain of
+// dependencies are required to have a compatible replace order so that the
+// execution graph wouuld be acyclic.
 //
 // The second return value is a set of addresses of objects which depend on
 // themselves either directly or indirectly, which should be impossible if the
@@ -29,17 +31,17 @@ import (
 // map of effective replace orders is likely to be incomplete.
 //
 // This function currently assumes that all of the provided objects have their
-// initial replace order set to either [replaceAnyOrder] or
-// [replaceCreateThenDestroy]. If any of the given objects have the initial
-// order [replaceDestroyThenCreate] then this function will panic; that
+// initial replace order set to either [resources.ReplaceAnyOrder] or
+// [resources.ReplaceCreateFirst]. If any of the given objects have the initial
+// order [resources.ReplaceDeleteFirst] then this function will panic; that
 // replace order is used only as the _effective_ replace order for any object
 // that isn't chained with an object whose initial order is
-// [replaceCreateThenDestroy]. This models the current constraints of the
+// [resources.ReplaceCreateFirst]. This models the current constraints of the
 // surface language where "create_before_destroy = true" is treated as
-// [replaceCreateThenDestroy] and everything else is treated as
-// [replaceAnyOrder].
-func findEffectiveReplaceOrders(objs *resourceInstanceObjects) (addrs.Map[addrs.AbsResourceInstanceObject, resourceInstanceReplaceOrder], addrs.Set[addrs.AbsResourceInstanceObject]) {
-	orders := addrs.MakeMap[addrs.AbsResourceInstanceObject, resourceInstanceReplaceOrder]()
+// [resources.ReplaceCreateFirst] and everything else is treated as
+// [resources.ReplaceAnyOrder].
+func findEffectiveReplaceOrders(objs *resourceInstanceObjects) (addrs.Map[addrs.AbsResourceInstanceObject, resources.ReplaceOrder], addrs.Set[addrs.AbsResourceInstanceObject]) {
+	orders := addrs.MakeMap[addrs.AbsResourceInstanceObject, resources.ReplaceOrder]()
 	selfDeps := addrs.MakeSet[addrs.AbsResourceInstanceObject]()
 
 	// This initial implementation is pretty simplistic: we just visit every
@@ -50,13 +52,13 @@ func findEffectiveReplaceOrders(objs *resourceInstanceObjects) (addrs.Map[addrs.
 	// Maybe later we'll devise a cleverer algorithm for this which doesn't
 	// involve revisiting the same objects quite as much. For now our only
 	// minor optimization is to stop as soon as we find the first neighbor
-	// with [replaceCreateThenDestroy].
+	// with [resources.ReplaceCreateFirst].
 
 Objects:
 	for currentInst, currentObj := range objs.All() {
-		if currentObj.ReplaceOrder == replaceCreateThenDestroy {
+		if currentObj.ReplaceOrder == resources.ReplaceCreateFirst {
 			// Easy case: this one is definitely create-then-destroy.
-			orders.Put(currentInst, replaceCreateThenDestroy)
+			orders.Put(currentInst, resources.ReplaceCreateFirst)
 			continue
 		}
 
@@ -69,13 +71,20 @@ Objects:
 				continue
 			}
 
-			if currentObj.ReplaceOrder != replaceAnyOrder && currentObj.ReplaceOrder != replaceCreateThenDestroy {
+			if currentObj.ReplaceOrder != resources.ReplaceAnyOrder && currentObj.ReplaceOrder != resources.ReplaceCreateFirst {
+				// FIXME: The configgraph layer is actually currently allowing
+				// writing "create_before_destroy = false" to mean "must be
+				// deleted first", which is not something the old runtime ever
+				// supported and so we should consider whether we actually
+				// want to support it. If not then we should reject that at the
+				// config layer too, but if so then we need to handle the case
+				// where ReplaceOrder is [resources.ReplaceDeleteFirst].
 				panic(fmt.Sprintf("%s has invalid initial replace order %s", currentInst, currentObj.ReplaceOrder))
 			}
 
 			// If we've already recorded a decision for this one then we'll
 			// prefer to use that decision. At this point in the process that
-			// decision can only be [replaceCreateThenDestroy], because we
+			// decision can only be [resources.ReplaceCreateFirst], because we
 			// don't populate any others until after these loops are complete.
 			if previous, ok := orders.GetOk(otherInst); ok {
 				orders.Put(currentInst, previous)
@@ -90,68 +99,28 @@ Objects:
 				// partial plan, so we'll ignore the invalid item.
 				continue
 			}
-			if otherObj.ReplaceOrder == replaceCreateThenDestroy {
-				orders.Put(currentInst, replaceCreateThenDestroy)
+			if otherObj.ReplaceOrder == resources.ReplaceCreateFirst {
+				orders.Put(currentInst, resources.ReplaceCreateFirst)
 			}
 		}
 	}
 
 	// Now we'll make a followup pass and just set everything we didn't already
-	// decide to replaceDestroyThenCreate, which is the default.
+	// decide to ReplaceDeleteFirst, which is the default.
 	for currentInst := range objs.All() {
 		if !orders.Has(currentInst) {
-			orders.Put(currentInst, replaceDestroyThenCreate)
+			orders.Put(currentInst, resources.ReplaceDeleteFirst)
 		}
 	}
 
 	return orders, selfDeps
 }
 
-// resourceInstanceReplaceOrder represents the constraint, if any, for what
-// order the create and destroy steps of a "replace" action must happen in.
-type resourceInstanceReplaceOrder int
-
-//go:generate go tool golang.org/x/tools/cmd/stringer -type=resourceInstanceReplaceOrder -trimprefix=replace
-
-const (
-	// replaceAnyOrder means that it's okay to use either order, in which
-	// case the associated resource instance will just follow the prevailing
-	// order chosen by its upstream and downstream dependencies.
-	//
-	// It isn't possible for conflicting replace orders to coexist in the
-	// same chain of dependent resource instances because that would mean there
-	// is no valid order to perform the steps in, and so we rely on the
-	// assumption that most resource instances begin without any constraint
-	// and then just follow whatever order is required to satisfy the needs
-	// of their neighbors.
-	replaceAnyOrder resourceInstanceReplaceOrder = iota
-
-	// replaceCreateThenDestroy represents that a replacement object must be
-	// created before destroying the previous object.
-	replaceCreateThenDestroy
-
-	// replaceDestroyThenCreate represents that the previous object must be
-	// destroyed before creating its replacement, such as if both objects
-	// would try to occupy the same unique object name and so cannot coexist
-	// at the same time.
-	//
-	// This is the default resolution if all dependencies in a chain start
-	// off as [replaceAnyOrder].
-	replaceDestroyThenCreate
-)
-
-// ChangeAction returns the [plans.Action] corresponding to the receiver,
-// or panics if the receiver is [replaceAnyOrder] because that value represents
-// that we haven't yet decided which action to use.
-//
-// This should typically be used only on values taken from the result of a
-// call to [findEffectiveReplaceOrders], where all resource instance objects
-// are expected to have a definitive effective replace order.
-func (o resourceInstanceReplaceOrder) ChangeAction() plans.Action {
-	switch o {
-	case replaceCreateThenDestroy:
+func replaceOrderPlanAction(order resources.ReplaceOrder) plans.Action {
+	switch order {
+	case resources.ReplaceCreateFirst:
 		return plans.CreateThenDelete
-	case replaceDestroyThenCreate:
+	case resources.ReplaceDeleteFirst:
 		return plans.DeleteThenCreate
 	default:
 		panic(fmt.Errorf("no change action for undecided replace order"))

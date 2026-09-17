@@ -19,6 +19,7 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/lang/marks"
+	"github.com/opentofu/opentofu/internal/resources"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -161,25 +162,19 @@ func (ri *ResourceInstance) ConfigValue(ctx context.Context) (v cty.Value, diags
 	return configVal, diags
 }
 
-// CreateBeforeDestroy returns a value-based representation of the "create
-// before destroy" setting for this resource instance.
+// ReplaceOrder describes the "replace ordering" constraints for for this
+// resource instance.
 //
-// The result is guaranteed to be a [cty.Bool] value, but it could potentially
-// be unknown or marked and it's the caller's responsibility to handle those
-// situations.
-//
-// The different possible known boolean results have the following meaning:
-//   - [cty.True] means that this resource instance MUST use the create-then-destroy replace order.
-//   - [cty.False] means that this resource instance MUST use the destroy-then-create replace order.
-//   - A null value means that either order is acceptable for this resource instance.
+// The result could potentially be unknown and/or marked and it's the caller's
+// responsibility to handle those situations.
 //
 // (Callers of this function may impose additional constraints on its result
 // depending on the context where the resource instance is being used. This
 // function only checks the basic validity rules.)
-func (ri *ResourceInstance) CreateBeforeDestroy(ctx context.Context) (cty.Value, *tfdiags.SourceRange, tfdiags.Diagnostics) {
+func (ri *ResourceInstance) ReplaceOrder(ctx context.Context) (exprs.FromValue[resources.ReplaceOrder], *tfdiags.SourceRange, tfdiags.Diagnostics) {
 	if ri.CreateBeforeDestroyValuer == nil {
 		// Not setting this is equivalent to setting it to null.
-		return cty.NullVal(cty.Bool), nil, nil
+		return exprs.Known(resources.ReplaceAnyOrder), nil, nil
 	}
 	rng := ri.CreateBeforeDestroyValuer.ValueSourceRange()
 
@@ -196,7 +191,7 @@ func (ri *ResourceInstance) CreateBeforeDestroy(ctx context.Context) (cty.Value,
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  errSummary,
-			Detail:   fmt.Sprintf("Unsuitable value for create_before_destory argument: %s.", tfdiags.FormatError(err)),
+			Detail:   fmt.Sprintf("Unsuitable value for create_before_destroy argument: %s.", tfdiags.FormatError(err)),
 			Subject:  rng.ToHCL().Ptr(),
 		})
 		cbdVal = cty.UnknownVal(cty.Bool)
@@ -220,7 +215,16 @@ func (ri *ResourceInstance) CreateBeforeDestroy(ctx context.Context) (cty.Value,
 	if diags.HasErrors() {
 		cbdVal = exprs.AsEvalError(cbdVal)
 	}
-	return cbdVal, rng, diags
+	ret, _ := exprs.DeriveFromValue(cbdVal, func(v cty.Value) (resources.ReplaceOrder, error) {
+		if v.IsNull() {
+			return resources.ReplaceAnyOrder, nil
+		}
+		if v.True() {
+			return resources.ReplaceCreateFirst, nil
+		}
+		return resources.ReplaceDeleteFirst, nil
+	})
+	return ret, rng, diags
 }
 
 // Value implements exprs.Valuer.

@@ -18,6 +18,7 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/resources"
 	"github.com/opentofu/opentofu/internal/shared"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -184,7 +185,7 @@ func finalizePlan(ctx context.Context, intermediate *planContextResult, provider
 func buildPlanChanges(
 	ctx context.Context,
 	objs *resourceInstanceObjects,
-	effectiveReplaceOrders addrs.Map[addrs.AbsResourceInstanceObject, resourceInstanceReplaceOrder],
+	effectiveReplaceOrders addrs.Map[addrs.AbsResourceInstanceObject, resources.ReplaceOrder],
 	providers plugins.Providers,
 	rootOutput rootOutput,
 ) (*plans.Changes, tfdiags.Diagnostics) {
@@ -222,7 +223,7 @@ func buildPlanChanges(
 		if changeSrc.Action.IsReplace() {
 			// We substitute the final effective change action now, to describe
 			// the change accurately to the end-user.
-			changeSrc.Action = effectiveReplaceOrders.Get(addr).ChangeAction()
+			changeSrc.Action = replaceOrderPlanAction(effectiveReplaceOrders.Get(addr))
 		}
 
 		changes.AppendResourceInstanceChange(changeSrc)

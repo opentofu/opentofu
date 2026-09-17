@@ -14,6 +14,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/resources"
 )
 
 // TestExecGraphBuilder_ManagedResourceInstanceSubgraph is a unit test for
@@ -49,7 +50,7 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 						Before:      cty.NullVal(cty.EmptyObject),
 						After:       cty.EmptyObjectVal,
 					},
-					replaceDestroyThenCreate,
+					resources.ReplaceDeleteFirst,
 				)
 			},
 			`
@@ -73,7 +74,7 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 						Before:      cty.StringVal("before"),
 						After:       cty.StringVal("after"),
 					},
-					replaceDestroyThenCreate,
+					resources.ReplaceDeleteFirst,
 				)
 			},
 			`
@@ -103,7 +104,7 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 						Before:      cty.StringVal("before"),
 						After:       cty.StringVal("after"),
 					},
-					replaceDestroyThenCreate,
+					resources.ReplaceDeleteFirst,
 				)
 			},
 			`
@@ -129,7 +130,7 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 						Before:      cty.EmptyObjectVal,
 						After:       cty.NullVal(cty.EmptyObject),
 					},
-					replaceDestroyThenCreate,
+					resources.ReplaceDeleteFirst,
 				)
 			},
 			`
@@ -162,7 +163,7 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 						Before:      cty.StringVal("before"),
 						After:       cty.StringVal("after"),
 					},
-					replaceDestroyThenCreate,
+					resources.ReplaceDeleteFirst,
 				)
 			},
 			`
@@ -195,7 +196,7 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 						Before:      cty.StringVal("before"),
 						After:       cty.StringVal("after"),
 					},
-					replaceDestroyThenCreate,
+					resources.ReplaceDeleteFirst,
 				)
 			},
 			`
@@ -224,7 +225,7 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 						Before:      cty.StringVal("before"),
 						After:       cty.StringVal("after"),
 					},
-					replaceCreateThenDestroy,
+					resources.ReplaceCreateFirst,
 				)
 			},
 			`
@@ -259,7 +260,7 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 						Before:      cty.StringVal("before"),
 						After:       cty.StringVal("after"),
 					},
-					replaceCreateThenDestroy,
+					resources.ReplaceCreateFirst,
 				)
 			},
 			`

@@ -13,6 +13,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
+	"github.com/opentofu/opentofu/internal/resources"
 	"github.com/opentofu/opentofu/internal/states"
 )
 
@@ -259,11 +260,14 @@ type ResourceInstanceObjectMeta struct {
 	// address. Its contents are unspecified in other cases.
 	PreDeleteProvisioners []*eval.ResourceProvisioner
 
-	// CreateBeforeDelete is true if this object is configured to force creating
-	// a new remote object before destroying the current one when performing
-	// a "replace" action. Otherwise either ordering is allowed and delete
-	// happens first by default unless the other ordering is forced by a
-	// dependent object having this set to true.
+	// ReplaceOrder describes the configured constraint on what order the
+	// create and delete steps of a  "replace" action for this resource instance
+	// object must happen in.
+	//
+	// The result can be [resources.ReplaceAnyOrder] for objects that have no
+	// such constraint, in which case the planning phase must decide on an
+	// ordering based on the constraints of other objects that are dependencies
+	// or dependents of this one.
 	//
 	// This setting also affects how actions for this object may be ordered
 	// with actions from other objects even when not replacing, in order to
@@ -272,7 +276,7 @@ type ResourceInstanceObjectMeta struct {
 	//
 	// This field is relevant only for managed resource mode and its value is
 	// unspecified for other resource modes.
-	CreateThenDelete exprs.FromValue[bool]
+	ReplaceOrder exprs.FromValue[resources.ReplaceOrder]
 }
 
 // BuildResourceInstanceObjectMeta constructs a [ResourceInstanceObjectMeta]
@@ -316,7 +320,14 @@ func BuildResourceInstanceObjectMeta[SV states.ValueOrJSONEquivalent](
 		ret.ResourceType = state.ResourceType
 
 		ret.ProviderInstance = exprs.Known(state.ProviderInstanceAddr)
-		ret.CreateThenDelete = exprs.Known(state.CreateBeforeDestroy)
+
+		// TODO: Consider making state also model this as a
+		// [resources.ReplaceOrder] too, for consistency.
+		if state.CreateBeforeDestroy {
+			ret.ReplaceOrder = exprs.Known(resources.ReplaceCreateFirst)
+		} else {
+			ret.ReplaceOrder = exprs.Known(resources.ReplaceAnyOrder)
+		}
 
 		// TODO: Everything else
 	}
@@ -341,7 +352,7 @@ func BuildResourceInstanceObjectMeta[SV states.ValueOrJSONEquivalent](
 		}
 		ret.PostCreateProvisioners = fromConfig.PostCreateProvisioners
 		ret.PreDeleteProvisioners = fromConfig.PreDestroyProvisioners
-		ret.CreateThenDelete = fromConfig.CreateBeforeDelete
+		ret.ReplaceOrder = fromConfig.ReplaceOrder
 
 		// TODO: Everything else
 	}

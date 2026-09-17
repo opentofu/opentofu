@@ -12,6 +12,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
+	"github.com/opentofu/opentofu/internal/resources"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -41,11 +42,14 @@ type ConfiguredResourceInstanceObjectMeta struct {
 	// fall back to a selection from the prior state instead.
 	ProviderInstance exprs.FromValue[*addrs.AbsProviderInstanceCorrect]
 
-	// CreateBeforeDelete is true if this object is configured to force creating
-	// a new remote object before destroying the current one when performing
-	// a "replace" action. Otherwise either ordering is allowed and delete
-	// happens first by default unless the other ordering is forced by a
-	// dependent object having this set to true.
+	// ReplaceOrder describes the configured constraint on what order the
+	// create and delete steps of a  "replace" action for this resource instance
+	// object must happen in.
+	//
+	// The result can be [resources.ReplaceAnyOrder] for objects that have no
+	// such constraint, in which case the planning phase must decide on an
+	// ordering based on the constraints of other objects that are dependencies
+	// or dependents of this one.
 	//
 	// This setting also affects how actions for this object may be ordered
 	// with actions from other objects even when not replacing, in order to
@@ -54,7 +58,7 @@ type ConfiguredResourceInstanceObjectMeta struct {
 	//
 	// This field is relevant only for managed resource mode and its value is
 	// unspecified for other resource modes.
-	CreateBeforeDelete exprs.FromValue[bool]
+	ReplaceOrder exprs.FromValue[resources.ReplaceOrder]
 
 	// DeleteWhenRemoved is true if the expected treatment for a non-desired
 	// object at this address is to ask the associated provider to delete it,
