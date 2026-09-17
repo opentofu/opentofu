@@ -67,9 +67,11 @@ func (p *planGlue) PlanDesiredResourceInstance(ctx context.Context, inst *eval.D
 		diags = diags.Append(fmt.Errorf("the planning engine does not support %s; this is a bug in OpenTofu", mode))
 		return cty.DynamicVal, diags
 	}
-	if !p.desiredResourceInstanceMustBeDeferred(inst) {
+	p.planCtx.deferredMu.Lock()
+	if !p.planCtx.deferred.Has(inst.Addr) {
 		p.planCtx.resourceInstObjs.Put(obj)
 	}
+	p.planCtx.deferredMu.Unlock()
 	return obj.ResultValue(), diags
 }
 

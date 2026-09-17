@@ -8,6 +8,7 @@ package planning
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -37,7 +38,8 @@ type planContext struct {
 	// TODO: The following should probably track a reason why each resource
 	// instance was deferred, but since deferral is not the focus of this
 	// current experiment we'll just keep this boolean for now.
-	deferred addrs.Map[addrs.AbsResourceInstance, struct{}]
+	deferredMu sync.Mutex
+	deferred   addrs.Map[addrs.AbsResourceInstance, struct{}]
 
 	forceReplace []addrs.AbsResourceInstance
 
