@@ -6,6 +6,9 @@
 package tofu
 
 import (
+	"fmt"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -631,4 +634,68 @@ func encodeCtyValue(t *testing.T, value cty.Value) []byte {
 		t.Fatalf("failed to marshal JSON: %s", err)
 	}
 	return data
+}
+
+func compareDiagnostics(t *testing.T, want, got tfdiags.Diagnostics) {
+	if len(want) != len(got) {
+		t.Fatalf("cannot compare the diagnostic slices. want len = %d; got len = %d", len(want), len(got))
+	}
+	diagsSortF := func(a, b tfdiags.Diagnostic) int {
+		if d := int(a.Severity().ToHCL()) - int(b.Severity().ToHCL()); d != 0 {
+			return d
+		}
+		if d := strings.Compare(a.Description().Summary, b.Description().Summary); d != 0 {
+			return d
+		}
+		if d := strings.Compare(a.Description().Detail, b.Description().Detail); d != 0 {
+			return d
+		}
+		aSub := a.Source().Subject
+		bSub := b.Source().Subject
+		if aSub == bSub {
+			return 0
+		}
+		if aSub != nil && bSub == nil {
+			return 1
+		}
+		if aSub == nil && bSub != nil {
+			return -1
+		}
+		return aSub.Start.Line - bSub.Start.Line
+	}
+	slices.SortFunc(want, diagsSortF)
+	slices.SortFunc(got, diagsSortF)
+	for i := range want {
+		compareDiagnostic(t, i, want[i], got[i])
+	}
+}
+
+func compareDiagnostic(t *testing.T, i int, want, got tfdiags.Diagnostic) {
+	var prefix string
+	if i >= 0 {
+		prefix = fmt.Sprintf("[idx %d] ", i)
+	}
+	if wv, gv := want.Severity(), got.Severity(); wv != gv {
+		t.Errorf("%sinvalid severity. want: %q but got %q", prefix, wv.String(), gv.String())
+	}
+	if wv, gv := want.Description().Summary, got.Description().Summary; wv != gv {
+		t.Errorf("%sinvalid summary. want: %q but got %q", prefix, wv, gv)
+	}
+	if wv, gv := want.Description().Detail, got.Description().Detail; wv != gv {
+		t.Errorf("%sinvalid detail. want: %q but got %q", prefix, wv, gv)
+	}
+	if wv, gv := want.Description().Address, got.Description().Address; wv != gv {
+		t.Errorf("%sinvalid address. want: %q but got %q", prefix, wv, gv)
+	}
+	if wv, gv := want.Source(), got.Source(); !wv.Equal(gv) {
+		t.Errorf("%sinvalid source. want: %+v but got %+v", prefix, wv, gv)
+	}
+	wei, gei := want.ExtraInfo(), got.ExtraInfo()
+	if diff := cmp.Diff(wei, gei); diff != "" {
+		t.Errorf("%sinvalid extra info (-want,+got):\n%s", prefix, diff)
+	}
+	wexpr, gexpr := want.FromExpr(), got.FromExpr()
+	if diff := cmp.Diff(wexpr, gexpr); diff != "" {
+		t.Errorf("%sinvalid fromExpr (-want,+got):\n%s", prefix, diff)
+	}
 }
