@@ -129,7 +129,7 @@ func destroyPlan(ctx context.Context, opts *PlanOpts, prevRoundState *states.Sta
 	// planCtx.resourceInstObjs should accurately represent the relationships
 	// between all of the "current" resource instance objects we found, but
 	// we won't discover any deposed objects until the next step below.
-	evalResult, moreDiags := configInst.DrivePlanning(ctx, opts.Targets, opts.Excludes, func(oracle *eval.PlanningOracle) eval.PlanGlue {
+	evalResult, moreDiags := configInst.DrivePlanning(ctx, func(oracle *eval.PlanningOracle) eval.PlanGlue {
 		closeConfiguredProviders = oracle.Close
 		return &planGlueDestroy{
 			normalGlue: planGlue{
@@ -237,6 +237,10 @@ type planGlueDestroy struct {
 
 var _ eval.PlanGlue = (*planGlueDestroy)(nil)
 
+func (p *planGlueDestroy) PreProcess(targeter func(target addrs.Targetable)) {
+	p.normalGlue.PreProcess(targeter)
+}
+
 // PlanDesiredResourceInstance implements [eval.PlanGlue].
 func (p *planGlueDestroy) PlanDesiredResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
@@ -321,10 +325,6 @@ func (p *planGlueDestroy) PlanDesiredResourceInstance(ctx context.Context, inst 
 	meta := exec.BuildResourceInstanceObjectMeta(inst.Addr.CurrentObject(), configMeta, refreshedState)
 
 	if p.normalGlue.desiredResourceInstanceMustBeDeferred(inst, meta) {
-		p.normalGlue.planCtx.deferredMu.Lock()
-		p.normalGlue.planCtx.deferred.Put(inst.Addr, struct{}{})
-		p.normalGlue.planCtx.deferredMu.Unlock()
-
 		log.Printf("[TRACE] planGlueDestroy.PlanDesiredResourceInstance for %s DEFERRED", inst.Addr)
 		return deferredVal(cty.DynamicVal), nil
 	}

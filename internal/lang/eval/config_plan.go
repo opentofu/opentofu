@@ -29,6 +29,8 @@ import (
 // each other, and so implementations must use suitable synchronization to
 // avoid data races between calls.
 type PlanGlue interface {
+	PreProcess(targeter func(target addrs.Targetable))
+
 	// Creates planned action(s) for the given resource instance and return
 	// the planned new state that would result from those actions.
 	//
@@ -115,8 +117,6 @@ type PlanGlue interface {
 // actions to destroy any instances that are currently tracked but no longer
 // configured.
 func (c *ConfigInstance) DrivePlanning(ctx context.Context,
-	targets []addrs.Targetable,
-	excludes []addrs.Targetable,
 	buildGlue func(*PlanningOracle) PlanGlue,
 ) (*PlanningResult, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
@@ -187,75 +187,57 @@ func (c *ConfigInstance) DrivePlanning(ctx context.Context,
 		return nil, diags
 	}
 
-	// Targeting
-	if len(targets) > 0 {
+	// Tell the glue that we are almost ready to walk the full configuration
+	// and give it a chance to handle target/exclude logic pre-emptively.
+	// We need to give it a way to pre-eval targeted resources before the main walk.
+	glue.PreProcess(func(target addrs.Targetable) {
 		ctx := grapheval.ContextWithNewWorker(ctx)
 		ctx = grapheval.ContextWithRequestTracker(ctx, workgraphRequestTracker{rootModuleInstance})
 
-		// TODO parallelize?
-		for _, target := range targets {
-			switch target.AddrType() {
-			case addrs.ConfigResourceAddrType:
-				configResource := target.(addrs.ConfigResource)
-				for _, modInst := range evalglue.ConfigModuleInstances(ctx, rootModuleInstance, configResource.Module) {
-					for resInst := range modInst.ResourceInstancesForResource(ctx, configResource.Resource) {
-						resInst.Value(ctx)
-					}
+		addTarget := func(ri *configgraph.ResourceInstance) {
+			// Populate the value before the glue disables itself for the rest of processing
+			ri.Value(ctx)
+		}
+
+		switch target.AddrType() {
+		case addrs.ConfigResourceAddrType:
+			configResource := target.(addrs.ConfigResource)
+			for _, modInst := range evalglue.ConfigModuleInstances(ctx, rootModuleInstance, configResource.Module) {
+				for resInst := range modInst.ResourceInstancesForResource(ctx, configResource.Resource) {
+					addTarget(resInst)
 				}
-			case addrs.AbsResourceAddrType:
-				absResource := target.(addrs.AbsResource)
-				modInst := evalglue.ModuleInstance(ctx, rootModuleInstance, absResource.Module)
-				if modInst != nil {
-					for resInst := range modInst.ResourceInstancesForResource(ctx, absResource.Resource) {
-						resInst.Value(ctx)
-					}
+			}
+		case addrs.AbsResourceAddrType:
+			absResource := target.(addrs.AbsResource)
+			modInst := evalglue.ModuleInstance(ctx, rootModuleInstance, absResource.Module)
+			if modInst != nil {
+				for resInst := range modInst.ResourceInstancesForResource(ctx, absResource.Resource) {
+					addTarget(resInst)
 				}
-			case addrs.AbsResourceInstanceAddrType:
-				absResourceInstance := target.(addrs.AbsResourceInstance)
-				resInst := evalglue.ResourceInstance(ctx, rootModuleInstance, absResourceInstance)
-				if resInst != nil {
-					resInst.Value(ctx)
+			}
+		case addrs.AbsResourceInstanceAddrType:
+			absResourceInstance := target.(addrs.AbsResourceInstance)
+			resInst := evalglue.ResourceInstance(ctx, rootModuleInstance, absResourceInstance)
+			if resInst != nil {
+				addTarget(resInst)
+			}
+		case addrs.ModuleAddrType:
+			module := target.(addrs.Module)
+			for _, modInst := range evalglue.ConfigModuleInstances(ctx, rootModuleInstance, module) {
+				for resInst := range evalglue.ResourceInstancesDeep(ctx, modInst) {
+					addTarget(resInst)
 				}
-			case addrs.ModuleAddrType:
-				module := target.(addrs.Module)
-				for _, modInst := range evalglue.ConfigModuleInstances(ctx, rootModuleInstance, module) {
-					for resInst := range evalglue.ResourceInstancesDeep(ctx, modInst) {
-						resInst.Value(ctx)
-					}
-				}
-			case addrs.ModuleInstanceAddrType:
-				moduleInstance := target.(addrs.ModuleInstance)
-				modInst := evalglue.ModuleInstance(ctx, rootModuleInstance, moduleInstance)
-				if modInst != nil {
-					for resInst := range evalglue.ResourceInstancesDeep(ctx, modInst) {
-						resInst.Value(ctx)
-					}
+			}
+		case addrs.ModuleInstanceAddrType:
+			moduleInstance := target.(addrs.ModuleInstance)
+			modInst := evalglue.ModuleInstance(ctx, rootModuleInstance, moduleInstance)
+			if modInst != nil {
+				for resInst := range evalglue.ResourceInstancesDeep(ctx, modInst) {
+					addTarget(resInst)
 				}
 			}
 		}
-
-		// TODO orphans
-
-		// Turn all additional resource operations into defers
-		evalGlue.planEngineGlue = &targetingGlue{
-			excluded: func(addrs.Targetable) bool {
-				return true
-			},
-			parent: glue,
-		}
-	} else if len(excludes) != 0 {
-		evalGlue.planEngineGlue = &targetingGlue{
-			excluded: func(addr addrs.Targetable) bool {
-				for _, exclude := range excludes {
-					if exclude.TargetContains(addr) {
-						return true
-					}
-				}
-				return false
-			},
-			parent: glue,
-		}
-	}
+	})
 
 	// The plan phase is driven forward by us evaluating expressions during
 	// the "checkAll" process, and so we can just run that here and then
@@ -269,7 +251,7 @@ func (c *ConfigInstance) DrivePlanning(ctx context.Context,
 	// Note that these calls are done sequentially instead of concurrently:
 	// that's because Plan*Orphans populates move results
 	// within the oracle, which are then used in CheckAll.
-	orphanDiags := announcePlanOrphans(ctx, evalGlue.planEngineGlue, rootModuleInstance)
+	orphanDiags := announcePlanOrphans(ctx, glue, rootModuleInstance)
 	diags = diags.Append(orphanDiags)
 
 	// Check whether any moves were blocked, and provide the appropriate warnings

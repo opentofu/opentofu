@@ -44,9 +44,6 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 	// of this to a later round. The following is not exhaustive but is a
 	// placeholder to show where deferral might fit in.
 	if p.desiredResourceInstanceMustBeDeferred(inst, meta) {
-		p.planCtx.deferredMu.Lock()
-		p.planCtx.deferred.Put(inst.Addr, struct{}{})
-		p.planCtx.deferredMu.Unlock()
 		defer func() {
 			// Our result must be marked as deferred, whichever return path
 			// we leave through.
@@ -137,10 +134,6 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		return ret, diags
 	}
 
-	if inst.ConfigVal == cty.DynamicVal {
-		// Deferred
-		return ret, diags
-	}
 	providerClient, moreDiags := p.providerClient(ctx, providerInst)
 	if providerClient == nil {
 		moreDiags = moreDiags.Append(tfdiags.AttributeValue(
