@@ -6,19 +6,26 @@
 package getproviders
 
 import (
+	"archive/zip"
+	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
 	"github.com/apparentlymart/go-versions/versions"
 	"github.com/google/go-cmp/cmp"
+	"github.com/hashicorp/go-retryablehttp"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/svchost"
 	disco "github.com/opentofu/svchost/disco"
+	"github.com/opentofu/svchost/svcauth"
 )
 
 // testRegistryServices starts up a local HTTP server running a fake provider registry
@@ -435,4 +442,176 @@ func TestLocationRetriesConfiguredCorrectly(t *testing.T) {
 	if expectedSuffix := "giving up after 3 attempt(s)"; !strings.HasSuffix(err.Error(), expectedSuffix) {
 		t.Fatalf("expected err %q to have suffix %q", err.Error(), expectedSuffix)
 	}
+}
+
+// TestRegistryProviderDownloadCredentials tests that use_mirror_credentials in
+// the registry download metadata response controls whether credentials are
+// forwarded when downloading the provider package archive (ZIP file).
+func TestRegistryProviderDownloadCredentials(t *testing.T) {
+	var lastZipPath string
+	var lastZipAuth string
+
+	// Build a real ZIP in memory and compute its sha256 so that
+	// InstallProviderPackage's checksum verification passes.
+	zipBytes := func() []byte {
+		var buf bytes.Buffer
+		zw := zip.NewWriter(&buf)
+		f, _ := zw.Create("terraform-provider-test_v1.0.0_tos_m68k/terraform-provider-test_v1.0.0")
+		_, _ = f.Write([]byte("binary content"))
+		zw.Close()
+		return buf.Bytes()
+	}()
+	zipSHA256 := sha256.Sum256(zipBytes)
+	zipSHAHex := hex.EncodeToString(zipSHA256[:])
+
+	shasumsContent := zipSHAHex + "  provider_1.0.0.zip\n"
+
+	makeMetaJSON := func(downloadPath string, useMirrorCreds *bool) string {
+		var credsField string
+		if useMirrorCreds != nil {
+			if *useMirrorCreds {
+				credsField = `, "use_mirror_credentials": true`
+			} else {
+				credsField = `, "use_mirror_credentials": false`
+			}
+		}
+		return fmt.Sprintf(`{
+			"protocols": ["5.0"],
+			"os": "tos",
+			"arch": "m68k",
+			"filename": "provider_1.0.0.zip",
+			"download_url": "%s",
+			"shasum": "%s",
+			"shasums_url": "/shasums/provider_1.0.0_SHA256SUMS",
+			"shasums_signature_url": "/shasums/provider_1.0.0_SHA256SUMS.sig",
+			"signing_keys": {"gpg_public_keys": []}%s
+		}`, downloadPath, zipSHAHex, credsField)
+	}
+
+	boolPtr := func(b bool) *bool { return &b }
+
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Logf("Mock registry server received %s %s [Auth: %q]", r.Method, r.URL.Path, r.Header.Get("Authorization"))
+
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/withcreds/1.0.0/download/tos/m68k"):
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprint(w, makeMetaJSON("/downloads/protected.zip", boolPtr(true)))
+
+		case strings.HasSuffix(r.URL.Path, "/withoutcreds/1.0.0/download/tos/m68k"):
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprint(w, makeMetaJSON("/downloads/public.zip", boolPtr(false)))
+
+		case strings.HasSuffix(r.URL.Path, "/nocredsfield/1.0.0/download/tos/m68k"):
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprint(w, makeMetaJSON("/downloads/default.zip", nil))
+
+		case strings.HasPrefix(r.URL.Path, "/downloads/"):
+			lastZipPath = r.URL.Path
+			lastZipAuth = r.Header.Get("Authorization")
+
+			if r.URL.Path == "/downloads/protected.zip" && lastZipAuth != "Bearer placeholder-token" {
+				http.Error(w, "missing credentials", http.StatusUnauthorized)
+				return
+			}
+			w.Header().Set("Content-Type", "application/zip")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(zipBytes)
+
+		case r.URL.Path == "/shasums/provider_1.0.0_SHA256SUMS":
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprint(w, shasumsContent)
+
+		case r.URL.Path == "/shasums/provider_1.0.0_SHA256SUMS.sig":
+			w.WriteHeader(http.StatusOK)
+
+		default:
+			t.Logf("Unhandled path: %s", r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	baseURL := server.URL + "/providers/v1/"
+	parsedBaseURL, err := url.Parse(baseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	creds := svcauth.HostCredentialsToken("placeholder-token")
+
+	retryHTTPClient := retryablehttp.NewClient()
+	retryHTTPClient.HTTPClient = server.Client()
+	retryHTTPClient.RetryMax = 0
+
+	client := newRegistryClient(t.Context(), parsedBaseURL, creds, retryHTTPClient, LocationConfig{})
+
+	platform := Platform{OS: "tos", Arch: "m68k"}
+
+	makeProvider := func(namespace, provType string) addrs.Provider {
+		return addrs.Provider{
+			Hostname:  svchost.Hostname("registry.example.com"),
+			Namespace: namespace,
+			Type:      provType,
+		}
+	}
+
+	t.Run("use_mirror_credentials true forwards Authorization header on ZIP download", func(t *testing.T) {
+		lastZipPath, lastZipAuth = "", ""
+		provider := makeProvider("registry", "withcreds")
+		meta, err := client.PackageMeta(t.Context(), provider, MustParseVersion("1.0.0"), platform)
+		if err != nil {
+			t.Fatalf("PackageMeta failed: %v", err)
+		}
+
+		tmp := t.TempDir()
+		_, installErr := meta.Location.InstallProviderPackage(t.Context(), meta, tmp, nil)
+		if lastZipPath != "/downloads/protected.zip" {
+			t.Fatalf("expected ZIP download path /downloads/protected.zip, got %q", lastZipPath)
+		}
+		if lastZipAuth != "Bearer placeholder-token" {
+			t.Fatalf("expected Authorization header 'Bearer placeholder-token' on ZIP download, got %q (install error: %v)", lastZipAuth, installErr)
+		}
+	})
+
+	t.Run("use_mirror_credentials false omits Authorization header on ZIP download", func(t *testing.T) {
+		lastZipPath, lastZipAuth = "", ""
+		provider := makeProvider("registry", "withoutcreds")
+		meta, err := client.PackageMeta(t.Context(), provider, MustParseVersion("1.0.0"), platform)
+		if err != nil {
+			t.Fatalf("PackageMeta failed: %v", err)
+		}
+
+		tmp := t.TempDir()
+		_, installErr := meta.Location.InstallProviderPackage(t.Context(), meta, tmp, nil)
+		_ = installErr
+		if lastZipPath != "/downloads/public.zip" {
+			t.Fatalf("expected ZIP download path /downloads/public.zip, got %q", lastZipPath)
+		}
+		if lastZipAuth != "" {
+			t.Fatalf("expected NO Authorization header on ZIP download when use_mirror_credentials is false, got %q", lastZipAuth)
+		}
+	})
+
+	t.Run("use_mirror_credentials absent omits Authorization header on ZIP download", func(t *testing.T) {
+		lastZipPath, lastZipAuth = "", ""
+		provider := makeProvider("registry", "nocredsfield")
+		meta, err := client.PackageMeta(t.Context(), provider, MustParseVersion("1.0.0"), platform)
+		if err != nil {
+			t.Fatalf("PackageMeta failed: %v", err)
+		}
+
+		tmp := t.TempDir()
+		_, installErr := meta.Location.InstallProviderPackage(t.Context(), meta, tmp, nil)
+		_ = installErr
+		if lastZipPath != "/downloads/default.zip" {
+			t.Fatalf("expected ZIP download path /downloads/default.zip, got %q", lastZipPath)
+		}
+		if lastZipAuth != "" {
+			t.Fatalf("expected NO Authorization header on ZIP download when use_mirror_credentials is absent, got %q", lastZipAuth)
+		}
+	})
 }

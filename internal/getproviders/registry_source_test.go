@@ -127,7 +127,7 @@ func TestSourcePackageMeta(t *testing.T) {
 		TargetPlatform:   Platform{"linux", "amd64"},
 		Filename:         "happycloud_1.2.0.zip",
 		Location: PackageHTTPURL{URL: baseURL + "/pkg/awesomesauce/happycloud_1.2.0.zip", ClientBuilder: func(ctx context.Context) *retryablehttp.Client {
-			return packageHTTPUrlClientWithRetry(ctx, source.locationConfig.ProviderDownloadRetries)
+			return packageHTTPUrlClientWithRetry(ctx, source.locationConfig.ProviderDownloadRetries, nil)
 		}},
 	}
 	validMeta.Authentication = PackageAuthenticationAll(
