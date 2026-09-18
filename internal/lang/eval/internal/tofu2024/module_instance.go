@@ -142,6 +142,13 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 
 	preventDestroyVal, _, _ := rsrc.PreventDestroy(ctx)
 	preventDestroy, _ := exprs.DeriveFromValue(preventDestroyVal, func(v cty.Value) (bool, error) {
+		if v.Type() != cty.Bool {
+			// Getting here suggests a bug in [configgraph.Resource.PreventDestroy].
+			// TODO: Consider changing configgraph.Resource.PreventDestroy
+			// to directly return exprs.FromValue[bool] itself, since it
+			// shouldn't be returning anything that can't represent anyway.
+			panic(fmt.Sprintf("value for PreventDestroy is %#v, but cty.Bool is required", v))
+		}
 		if v.True() {
 			return true, nil
 		}
@@ -164,10 +171,37 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 		return ret
 	}
 
+	// TODO: Should CreateBeforeDestroy actually be modeled as a resource-level
+	// setting rather than an instance-level setting? For now assuming not
+	// because for non-desired objects we'll use the value from the prior state
+	// instead anyway, but we should check whether the old runtime let the
+	// resource-level config "win" for an orphaned resource instance.
+	cbdVal, _, _ := inst.CreateBeforeDestroy(ctx)
+	ret.CreateBeforeDelete, _ = exprs.DeriveFromValue(cbdVal, func(v cty.Value) (bool, error) {
+		if v.Type() != cty.Bool {
+			// Getting here suggests a bug in [configgraph.ResourceInstance.CreateBeforeDestroy].
+			// TODO: Consider changing configgraph.ResourceInstance.CreateBeforeDestroy
+			// to directly return exprs.FromValue[bool] itself, since it
+			// shouldn't be returning anything that can't represent anyway.
+			panic(fmt.Sprintf("value for CreateBeforeDestroy is %#v, but cty.Bool is required", v))
+		}
+		return cbdVal.True(), nil
+	})
+
 	providerInst, _ := inst.ProviderInstance(ctx)
 	ret.ProviderInstance, _ = providerInst.Derive(func(providerInst *configgraph.ProviderInstance) (*addrs.AbsProviderInstanceCorrect, error) {
 		return &providerInst.Addr, nil
 	})
+
+	// TODO: "Provider" should probably be a resource-level setting rather than
+	// an instance-level setting, because all instances of a resource are
+	// required to have the same resource type and therefore the same provider
+	// even if they belong to different instances of that provider. Without
+	// this we can only rely on the state for determining the provider of
+	// something that is "orphaned", which'll make it harder for folks to get
+	// themselves out of a trap where the provider instance they most recently
+	// used is no longer present and cannot be re-added in place.
+	ret.Provider = inst.Provider
 
 	ret.PostCreateProvisioners = prepareResourceProvisioners(inst.CreateProvisioners)
 

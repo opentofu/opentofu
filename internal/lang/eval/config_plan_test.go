@@ -8,6 +8,7 @@ package eval_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"iter"
 	"sync"
 	"testing"
@@ -178,16 +179,6 @@ func TestPlan_managedResourceSimple(t *testing.T) {
 			ConfigVal: cty.ObjectVal(map[string]cty.Value{
 				"name": cty.StringVal("foo bar name"),
 			}),
-			Provider: addrs.MustParseProviderSourceString("test/foo"),
-			ProviderInstance: &addrs.AbsProviderInstanceCorrect{
-				Config: addrs.AbsProviderConfigCorrect{
-					Config: addrs.ProviderConfigCorrect{
-						Provider: addrs.MustParseProviderSourceString("test/foo"),
-					},
-				},
-			},
-			ResourceMode:              addrs.ManagedResourceMode,
-			ResourceType:              "foo",
 			RequiredResourceInstances: addrs.MakeSet[addrs.AbsResourceInstance](),
 		}),
 	)
@@ -289,16 +280,6 @@ func TestPlan_managedResourceUnknownCount(t *testing.T) {
 			ConfigVal: cty.ObjectVal(map[string]cty.Value{
 				"name": cty.StringVal("foo bar name"),
 			}),
-			Provider: addrs.MustParseProviderSourceString("test/foo"),
-			ProviderInstance: &addrs.AbsProviderInstanceCorrect{
-				Config: addrs.AbsProviderConfigCorrect{
-					Config: addrs.ProviderConfigCorrect{
-						Provider: addrs.MustParseProviderSourceString("test/foo"),
-					},
-				},
-			},
-			ResourceMode:              addrs.ManagedResourceMode,
-			ResourceType:              "foo",
 			RequiredResourceInstances: addrs.MakeSet[addrs.AbsResourceInstance](),
 		}),
 	)
@@ -334,7 +315,13 @@ func (p *planGlueCallLog) PlanDesiredResourceInstance(ctx context.Context, inst 
 		diags = diags.Append(errors.New("cannot use resources in this test without including an eval.Providers object to the planGlueCallLog object"))
 		return cty.DynamicVal, diags
 	}
-	schema, diags := p.providers.ResourceTypeSchema(ctx, inst.Provider, inst.Addr.Resource.Resource.Mode, inst.Addr.Resource.Resource.Type)
+	meta := p.oracle.ResourceInstanceObjectMeta(ctx, inst.Addr.CurrentObject())
+	if meta == nil {
+		var diags tfdiags.Diagnostics
+		diags = diags.Append(fmt.Errorf("no resource instance object metadata for desired object %s", inst.Addr))
+		return cty.DynamicVal, diags
+	}
+	schema, diags := p.providers.ResourceTypeSchema(ctx, meta.Provider, inst.Addr.Resource.Resource.Mode, inst.Addr.Resource.Resource.Type)
 	if diags.HasErrors() {
 		return cty.DynamicVal, diags
 	}

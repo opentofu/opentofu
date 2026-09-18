@@ -46,9 +46,12 @@ func (ops *execOperations) ManagedFinalPlan(
 		// whenever both are set.
 		instAddr = desired.Addr
 		// (deposed objects are never "desired")
-		resourceTypeName = desired.ResourceType
-		// TODO possibly nil here
-		providerConfigAddr = *desired.ProviderInstance
+		resourceTypeName = metadata.ResourceType
+		providerInstUnmarked, providerInstMarks := metadata.ProviderInstance.Unmark()
+		// TODO: What should we do with these marks, if anything?
+		_ = providerInstMarks
+		// TODO: could this actually be unknown at this point?
+		providerConfigAddr = providerInstUnmarked.KnownValue()
 		requiredConfigResources = desired.RequiredResourceInstances
 	} else if prior != nil {
 		instAddr = prior.Addr.InstanceAddr

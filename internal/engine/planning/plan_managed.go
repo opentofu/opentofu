@@ -14,6 +14,7 @@ import (
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
@@ -27,10 +28,22 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 	inst *eval.DesiredResourceInstance,
 ) (ret *resourceInstanceObject, diags tfdiags.Diagnostics) {
 
+	configMeta := p.oracle.ResourceInstanceObjectMeta(ctx, inst.Addr.CurrentObject())
+	if configMeta == nil {
+		// Should not happen: the evaluator is required to always produce
+		// non-nil metadata for a desired object.
+		panic(fmt.Sprintf("no metadata available for desired object %s", inst.Addr))
+	}
+	// For a desired object we never pass a prior state object in here because
+	// the configuration is expected to be authoritative. We blend configuration
+	// and state metadata only for non-desired objects where the configuration
+	// tends to be incomplete and so we rely on prior state to fill gaps.
+	meta := exec.BuildResourceInstanceObjectMeta(inst.Addr.CurrentObject(), configMeta, (*states.ResourceInstanceObjectFullSrc)(nil))
+
 	// There are various reasons why we might need to defer final planning
 	// of this to a later round. The following is not exhaustive but is a
 	// placeholder to show where deferral might fit in.
-	if p.desiredResourceInstanceMustBeDeferred(inst) {
+	if p.desiredResourceInstanceMustBeDeferred(inst, meta) {
 		p.planCtx.deferred.Put(inst.Addr, struct{}{})
 		defer func() {
 			// Our result must be marked as deferred, whichever return path
@@ -60,7 +73,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		Addr:               inst.Addr.CurrentObject(),
 		ConfigDependencies: addrs.MakeSet[addrs.AbsResourceInstanceObject](),
 		StateDependencies:  addrs.MakeSet[addrs.AbsResourceInstanceObject](),
-		Provider:           inst.Provider,
+		Provider:           meta.Provider,
 
 		// We'll start off with a completely-unknown placeholder value, but
 		// we might refine this to be more specific as we learn more below.
@@ -74,21 +87,33 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 	for dep := range inst.RequiredResourceInstances.All() {
 		ret.ConfigDependencies.Add(dep.CurrentObject())
 	}
-	if inst.CreateBeforeDestroy {
+	createBeforeDestroy, ok := meta.CreateThenDelete.ValueOk()
+	if ok && createBeforeDestroy {
 		ret.ReplaceOrder = replaceCreateThenDestroy
+	} else {
+		// TODO: Decide what we ought to do in this case. Perhaps we can
+		// continue with planning and then treat the change as deferred, but
+		// not sure yet if that's actually acceptable since replace order
+		// is "infectious" through dependencies and affects the ordering even
+		// of non-replace actions between different resource instance objects.
+		ret.ReplaceOrder = replaceAnyOrder
 	}
 
-	if inst.ProviderInstance == nil {
+	providerInstUnmarked, providerInstMarks := meta.ProviderInstance.Unmark()
+	// TODO: What should we do with these marks, if anything?
+	_ = providerInstMarks
+	providerInst, ok := providerInstUnmarked.ValueOk()
+	if !ok {
 		// If we don't even know which provider instance we're supposed to be
 		// talking to then we can't proceed any further.
 		return ret, diags
 	}
-	providerClient, moreDiags := p.providerClient(ctx, *inst.ProviderInstance)
+	providerClient, moreDiags := p.providerClient(ctx, providerInst)
 	if providerClient == nil {
 		moreDiags = moreDiags.Append(tfdiags.AttributeValue(
 			tfdiags.Error,
 			"Provider instance not available",
-			fmt.Sprintf("Cannot plan %s because its associated provider instance %s cannot initialize.", inst.Addr, *inst.ProviderInstance),
+			fmt.Sprintf("Cannot plan %s because its associated provider instance %s cannot initialize.", inst.Addr, providerInst),
 			nil,
 		))
 	}
@@ -97,7 +122,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		return ret, diags
 	}
 
-	resourceType := resources.NewManagedResourceType(inst.Provider, inst.Addr.Resource.Resource.Type, providerClient)
+	resourceType := resources.NewManagedResourceType(meta.Provider, meta.ResourceType, providerClient)
 	schema, schemaDiags := resourceType.LoadSchema(ctx)
 	if schemaDiags.HasErrors() {
 		// We don't return the schema-loading diagnostics directly here because
@@ -109,7 +134,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 			"Resource type schema unavailable",
 			fmt.Sprintf(
 				"Cannot plan %s because provider %s failed to return the schema for its resource type %q.",
-				inst.Addr, inst.Provider, inst.Addr.Resource.Resource.Type,
+				inst.Addr, meta.Provider, meta.ResourceType,
 			),
 			nil, // this error belongs to the whole resource config
 		))
@@ -124,7 +149,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 
 	unmarkedConfigVal, _ := inst.ConfigVal.UnmarkDeep()
 
-	validateDiags = p.planCtx.providers.ValidateResourceConfig(ctx, inst.Provider, inst.ResourceMode, inst.ResourceType, unmarkedConfigVal)
+	validateDiags = p.planCtx.providers.ValidateResourceConfig(ctx, meta.Provider, addrs.ManagedResourceMode, meta.ResourceType, unmarkedConfigVal)
 	diags = diags.Append(validateDiags)
 	if diags.HasErrors() {
 		return ret, diags
@@ -161,7 +186,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 	}
 	// only run MoveResourceState or UpgradeResourceState if prevRoundState is non-nil at this point.
 	if prevRoundState != nil {
-		if moved && !impliedMove && (resourceType.ResourceTypeName() != prevRoundState.ResourceType || !inst.Provider.Equals(prevRoundState.ProviderInstanceAddr.Config.Config.Provider)) {
+		if moved && !impliedMove && (resourceType.ResourceTypeName() != prevRoundState.ResourceType || !meta.Provider.Equals(prevRoundState.ProviderInstanceAddr.Config.Config.Provider)) {
 			moveCtx := ctx
 			if cb := tracer.StartManagedResourceInstanceObjectMove; cb != nil {
 				moveCtx = cb(ctx, inst.Addr.CurrentObject())
@@ -218,7 +243,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 			}
 			p.planCtx.upgradedState.SetResourceInstanceObjectFull(inst.Addr.CurrentObject(), movedPrevState)
 			// Update the provider instance for the refreshed state only, not the "upgraded" state
-			movedPrevState.ProviderInstanceAddr = *inst.ProviderInstance
+			movedPrevState.ProviderInstanceAddr = providerInst
 			p.planCtx.refreshedState.SetResourceInstanceObjectFull(inst.Addr.CurrentObject(), movedPrevState)
 
 			obj, err := states.DecodeResourceInstanceObjectFull(movedPrevState, schema.Block.ImpliedType())
@@ -228,7 +253,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 					"Invalid prior state for resource instance",
 					fmt.Sprintf(
 						"Cannot decode the most recent state snapshot for %s: %s.\n\nIs the selected version of %s incompatible with the provider that most recently changed this object?",
-						inst.Addr, tfdiags.FormatError(err), inst.Provider,
+						inst.Addr, tfdiags.FormatError(err), providerInst,
 					),
 					nil, // this error belongs to the whole resource config
 				))
@@ -266,7 +291,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 					// version might be required here. :(
 					// Or maybe we do. I dunno, I just copied the comment+diag from
 					// upgrade_resource_state.go:upgradeResourceStateTransform :P
-					fmt.Sprintf("The current state of %s was created by a newer provider version than is currently selected. Upgrade the %s provider to work with this state.", inst.Addr, inst.Provider.Type),
+					fmt.Sprintf("The current state of %s was created by a newer provider version than is currently selected. Upgrade %s to work with this state.", inst.Addr, meta.Provider.ForDisplay()),
 				))
 			}
 
@@ -332,7 +357,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 			}
 			p.planCtx.upgradedState.SetResourceInstanceObjectFull(stateSaveObj, upgradedPrevState)
 			// Update the provider instance for the refreshed state only, not the upgraded state
-			upgradedPrevState.ProviderInstanceAddr = *inst.ProviderInstance
+			upgradedPrevState.ProviderInstanceAddr = providerInst
 			p.planCtx.refreshedState.SetResourceInstanceObjectFull(stateSaveObj, upgradedPrevState)
 
 			obj, err := states.DecodeResourceInstanceObjectFull(upgradedPrevState, schema.Block.ImpliedType())
@@ -342,7 +367,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 					"Invalid prior state for resource instance",
 					fmt.Sprintf(
 						"Cannot decode the most recent state snapshot for %s: %s.\n\nIs the selected version of %s incompatible with the provider that most recently changed this object?",
-						inst.Addr, tfdiags.FormatError(err), inst.Provider,
+						inst.Addr, tfdiags.FormatError(err), meta.Provider,
 					),
 					nil, // this error belongs to the whole resource config
 				))
@@ -509,7 +534,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		// We'll select a reasonable initial planned action here but this
 		// might be overridden later once we propagate ordering constraints
 		// through the dependency graph.
-		if inst.CreateBeforeDestroy {
+		if createBeforeDestroy {
 			plannedAction = plans.CreateThenDelete
 		} else {
 			plannedAction = plans.DeleteThenCreate
@@ -528,9 +553,9 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 			// address representation, since our old models aren't yet updated
 			// to support the modern one. It cannot handle a provider config
 			// inside a module call that uses count or for_each.
-			Module:   (*inst.ProviderInstance).Config.Module.Module(),
-			Provider: (*inst.ProviderInstance).Config.Config.Provider,
-			Alias:    (*inst.ProviderInstance).Config.Config.Alias,
+			Module:   providerInst.Config.Module.Module(),
+			Provider: providerInst.Config.Config.Provider,
+			Alias:    providerInst.Config.Config.Alias,
 		},
 		RequiredReplace: planResp.RequiresReplace,
 		Private:         planResp.Planned.Private,
@@ -544,7 +569,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		// [eval.DesiredResourceInstance].
 		ActionReason: actionReason,
 	}
-	ret.ProviderInst = *inst.ProviderInstance
+	ret.ProviderInst = providerInst
 
 	if cb := tracer.EndManagedResourceInstanceObjectPlanChanges; cb != nil {
 		plannedVal := cty.DynamicVal
@@ -619,10 +644,13 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 	// how to factor out as much of this logic as possible into shared functions
 	// so that this'll be easier to maintain in future as requirements change.
 
+	configMeta := p.oracle.ResourceInstanceObjectMeta(ctx, addr)
+	meta := exec.BuildResourceInstanceObjectMeta(addr, configMeta, stateSrc)
+
 	ret := &resourceInstanceObject{
 		Addr:              addr,
 		StateDependencies: addrs.MakeSet[addrs.AbsResourceInstanceObject](),
-		Provider:          stateSrc.ProviderInstanceAddr.Config.Config.Provider,
+		Provider:          meta.Provider,
 
 		// Orphan and deposed objects are always planned for deletion, so we can
 		// assume the result will be always be some kind of null.
@@ -721,13 +749,23 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 	//
 	// There's another FIXME comment further down the callstack beneath this
 	// function identifying the main location of the problem.
-	providerAddr := stateSrc.ProviderInstanceAddr.Config.Config.Provider
-	providerClient, moreDiags := p.providerClient(ctx, stateSrc.ProviderInstanceAddr)
+	providerAddr := meta.Provider
+	providerInstAddr, ok := meta.ProviderInstance.ValueOk()
+	if !ok {
+		// TODO: Is there anything sensible to do here? It should only be
+		// possible to get into this situation if the unwanted object still
+		// has configuration, but we specify the provider instance using a
+		// per-resource-instance config setting and so presumably there should
+		// never be a provider instance specified in the configuration if a
+		// resource instance is "unwanted".
+		panic(fmt.Sprintf("unknown provider instance address for %s", providerInstAddr))
+	}
+	providerClient, moreDiags := p.providerClient(ctx, meta.ProviderInstance.KnownValue())
 	if providerClient == nil {
 		moreDiags = moreDiags.Append(tfdiags.AttributeValue(
 			tfdiags.Error,
 			"Provider instance not available",
-			fmt.Sprintf("Cannot plan %s because its associated provider instance %s cannot initialize.", addr, stateSrc.ProviderInstanceAddr),
+			fmt.Sprintf("Cannot plan %s because its associated provider instance %s cannot initialize.", addr, providerInstAddr),
 			nil,
 		))
 	}
@@ -736,7 +774,7 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 		return ret, diags
 	}
 
-	resourceType := resources.NewManagedResourceType(providerAddr, addr.InstanceAddr.Resource.Resource.Type, providerClient)
+	resourceType := resources.NewManagedResourceType(providerAddr, meta.ResourceType, providerClient)
 	schema, schemaDiags := resourceType.LoadSchema(ctx)
 	if schemaDiags.HasErrors() {
 		// We don't return the schema-loading diagnostics directly here because
@@ -748,15 +786,16 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 			"Resource type schema unavailable",
 			fmt.Sprintf(
 				"Cannot plan %s because provider %s failed to return the schema for its resource type %q.",
-				addr, providerAddr, addr.InstanceAddr.Resource.Resource.Type,
+				addr, providerAddr, meta.ResourceType,
 			),
 			nil, // this error belongs to the whole resource config
 		))
 		return ret, diags
 	}
 
-	// FIXME: Need to "upgrade" the previous run state and then refresh it
-	// before we try to decode it.
+	// FIXME: Need to "upgrade" the previous run state before we try to decode
+	// it, because the current provider version might be different than the one
+	// which most recently updated this object.
 
 	var prevRoundVal cty.Value
 	var prevRoundPrivate []byte
@@ -794,20 +833,16 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 	}
 
 	// Include destroy provisioner dependencies
-	// FIXME: Use the resource instance object metadata API to do this, which
-	// means extending [evalglue.ResourceProvisionerConfig] to include a set
-	// of resource instances required for each provisioner configuration.
-	// (Intentionally leaving this unresolved for now because the work to
-	// implement "moved" blocks is likely to cause significant changes to how
-	// we handle "unwanted" resource instances, so don't want to change the
-	// flow of things here too much right now.)
-	/*
-		for _, prov := range p.oracle.DestroyProvisioners(ctx, addr.InstanceAddr) {
-			for ri := range prov.Dependencies {
-				ret.ConfigDependencies.Add(ri.Addr.CurrentObject())
-			}
+	for _, p := range meta.PostCreateProvisioners {
+		// We intentionally ignore the diagnostics here because we expect they
+		// will be collected by the concurrent "CheckAll" walk. We'll just make
+		// a best effort to collect whatever dependencies the configuration is
+		// valid enough for us to collect.
+		cfg, _ := p.BuildConfig(ctx, prevRoundVal)
+		for _, ri := range cfg.RequiredResourceInstances {
+			ret.ConfigDependencies.Add(ri.CurrentObject())
 		}
-	*/
+	}
 
 	// TODO: Call providerClient.ReadResource and update the "refreshed state"
 	// and reassign this refreshedVal to the refreshed result.
@@ -850,9 +885,9 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 			// address representation, since our old models aren't yet updated
 			// to support the modern one. It cannot handle a provider config
 			// inside a module call that uses count or for_each.
-			Module:   prevRoundState.ProviderInstanceAddr.Config.Module.Module(),
-			Provider: prevRoundState.ProviderInstanceAddr.Config.Config.Provider,
-			Alias:    prevRoundState.ProviderInstanceAddr.Config.Config.Alias,
+			Module:   providerInstAddr.Config.Module.Module(),
+			Provider: providerInstAddr.Config.Config.Provider,
+			Alias:    providerInstAddr.Config.Config.Alias,
 		},
 		RequiredReplace: planResp.RequiresReplace,
 		Private:         planResp.Planned.Private,
@@ -868,7 +903,7 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 		// function, since it presumably already knows how it concluded that
 		// this address is "orphaned".
 	}
-	ret.ProviderInst = prevRoundState.ProviderInstanceAddr
+	ret.ProviderInst = providerInstAddr
 	return ret, diags
 }
 

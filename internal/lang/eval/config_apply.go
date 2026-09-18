@@ -8,7 +8,6 @@ package eval
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/hashicorp/hcl/v2"
@@ -114,11 +113,10 @@ type applyingEvalGlue struct {
 // ResourceInstanceValue implements [evalglue.Glue].
 func (g *applyingEvalGlue) ResourceInstanceValue(ctx context.Context, ri *configgraph.ResourceInstance, cfgVal cty.Value, providerInst exprs.FromValue[*configgraph.ProviderInstance], _ addrs.Set[addrs.AbsResourceInstance]) (cty.Value, tfdiags.Diagnostics) {
 	if ri.Addr.Resource.Resource.Mode == addrs.EphemeralResourceMode {
-		if providerInst, ok := providerInst.ValueOk(); ok {
-			return g.providers.OpenEphemeralResourceInstance(ctx, ri.Addr, cfgVal, ri.Provider, &providerInst.Addr)
-		}
-		log.Printf("[WARN] Provider is not yet known for ephemeral resource %s", ri.Addr)
-		return cty.UnknownVal(cty.DynamicPseudoType), nil
+		providerInstAddr, _ := providerInst.Derive(func(pi *configgraph.ProviderInstance) (addrs.AbsProviderInstanceCorrect, error) {
+			return pi.Addr, nil
+		})
+		return g.providers.OpenEphemeralResourceInstance(ctx, ri.Addr, cfgVal, ri.Provider, providerInstAddr)
 	}
 
 	finalVal := g.applyEngineGlue.ResourceInstanceFinalState(ctx, ri.Addr)
@@ -214,23 +212,6 @@ func (o *ApplyOracle) DesiredResourceInstance(ctx context.Context, addr addrs.Ab
 	// to do its work.
 	configVal, moreDiags := inst.ConfigValue(ctx)
 	diags = diags.Append(moreDiags)
-	providerInst, moreDiags := inst.ProviderInstance(ctx)
-	diags = diags.Append(moreDiags)
-	providerInstAddr, _ := providerInst.Derive(func(pi *configgraph.ProviderInstance) (addrs.AbsProviderInstanceCorrect, error) {
-		return pi.Addr, nil
-	})
-	// FIXME: DesiredResourceInstance is using a possibly-nil pointer to
-	// addrs.AbsProviderInstanceCorrect as a legacy way to represent a
-	// provider instance address that might be unknown, since it was written
-	// before we had exprs.FromValue. We should eventually update that type
-	// so that its ProviderInstance field is
-	// exprs.FromValue[addrs.AbsProviderInstanceCorrect] but we'll shim to
-	// the legacy form for now.
-	var providerInstAddrPtr *addrs.AbsProviderInstanceCorrect
-	unmarkedProviderInstAddr, _ := providerInstAddr.Unmark()
-	if addr, ok := unmarkedProviderInstAddr.ValueOk(); ok {
-		providerInstAddrPtr = &addr
-	}
 
 	riDeps := addrs.MakeSet[addrs.AbsResourceInstance]()
 	for depInst := range inst.ResourceInstanceDependencies(ctx) {
@@ -240,10 +221,6 @@ func (o *ApplyOracle) DesiredResourceInstance(ctx context.Context, addr addrs.Ab
 	ret := &DesiredResourceInstance{
 		Addr:                      inst.Addr,
 		ConfigVal:                 configVal,
-		Provider:                  inst.Provider,
-		ProviderInstance:          providerInstAddrPtr,
-		ResourceMode:              addr.Resource.Resource.Mode,
-		ResourceType:              addr.Resource.Resource.Type,
 		RequiredResourceInstances: riDeps,
 	}
 	return ret, diags
