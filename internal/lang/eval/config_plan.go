@@ -8,6 +8,7 @@ package eval
 import (
 	"context"
 	"iter"
+	"log"
 	"sync"
 
 	"github.com/hashicorp/hcl/v2"
@@ -19,6 +20,7 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
+	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -177,15 +179,12 @@ func (c *ConfigInstance) DrivePlanning(ctx context.Context,
 	// anything that might cause calls to the evalGlue object.
 	oracle.root = rootModuleInstance
 	oracle.providers = managedProviders
+	oracle.moveResults = moveResults{
+		Changes: addrs.MakeSyncMap[addrs.AbsResourceInstance, refactoring.MoveSuccess](),
+		Blocked: addrs.MakeSyncMap[addrs.AbsMoveable, refactoring.MoveBlocked](),
+	}
 	// Inject configured providers
 	evalGlue.providers = managedProviders
-	// Set up the move results map
-	moreDiags = oracle.SetUpMoveStatements(ctx)
-
-	diags = diags.Append(moreDiags)
-	if moreDiags.HasErrors() {
-		return nil, diags
-	}
 
 	// Tell the glue that we are almost ready to walk the full configuration
 	// and give it a chance to handle target/exclude logic pre-emptively.
@@ -196,6 +195,7 @@ func (c *ConfigInstance) DrivePlanning(ctx context.Context,
 
 		addTarget := func(ri *configgraph.ResourceInstance) {
 			// Populate the value before the glue disables itself for the rest of processing
+			log.Printf("[DEBUG] %s targeting %s", target, ri.Addr)
 			ri.Value(ctx)
 		}
 
@@ -238,6 +238,14 @@ func (c *ConfigInstance) DrivePlanning(ctx context.Context,
 			}
 		}
 	})
+
+	// Set up the move results map
+	moreDiags = oracle.SetUpMoveStatements(ctx)
+
+	diags = diags.Append(moreDiags)
+	if moreDiags.HasErrors() {
+		return nil, diags
+	}
 
 	// The plan phase is driven forward by us evaluating expressions during
 	// the "checkAll" process, and so we can just run that here and then
