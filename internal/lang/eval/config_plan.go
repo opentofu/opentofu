@@ -8,6 +8,7 @@ package eval
 import (
 	"context"
 	"iter"
+	"log"
 	"sync"
 
 	"github.com/hashicorp/hcl/v2"
@@ -19,6 +20,7 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
+	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -29,6 +31,8 @@ import (
 // each other, and so implementations must use suitable synchronization to
 // avoid data races between calls.
 type PlanGlue interface {
+	PreProcess(targeter func(target addrs.Targetable))
+
 	// Creates planned action(s) for the given resource instance and return
 	// the planned new state that would result from those actions.
 	//
@@ -114,7 +118,9 @@ type PlanGlue interface {
 // tracked in the prior state and then presumably generate additional planned
 // actions to destroy any instances that are currently tracked but no longer
 // configured.
-func (c *ConfigInstance) DrivePlanning(ctx context.Context, buildGlue func(*PlanningOracle) PlanGlue) (*PlanningResult, tfdiags.Diagnostics) {
+func (c *ConfigInstance) DrivePlanning(ctx context.Context,
+	buildGlue func(*PlanningOracle) PlanGlue,
+) (*PlanningResult, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// All of our work will be associated with a workgraph worker that serves
@@ -173,8 +179,66 @@ func (c *ConfigInstance) DrivePlanning(ctx context.Context, buildGlue func(*Plan
 	// anything that might cause calls to the evalGlue object.
 	oracle.root = rootModuleInstance
 	oracle.providers = managedProviders
+	oracle.moveResults = moveResults{
+		Changes: addrs.MakeSyncMap[addrs.AbsResourceInstance, refactoring.MoveSuccess](),
+		Blocked: addrs.MakeSyncMap[addrs.AbsMoveable, refactoring.MoveBlocked](),
+	}
 	// Inject configured providers
 	evalGlue.providers = managedProviders
+
+	// Tell the glue that we are almost ready to walk the full configuration
+	// and give it a chance to handle target/exclude logic pre-emptively.
+	// We need to give it a way to pre-eval targeted resources before the main walk.
+	glue.PreProcess(func(target addrs.Targetable) {
+		ctx := grapheval.ContextWithNewWorker(ctx)
+		ctx = grapheval.ContextWithRequestTracker(ctx, workgraphRequestTracker{rootModuleInstance})
+
+		addTarget := func(ri *configgraph.ResourceInstance) {
+			// Populate the value before the glue disables itself for the rest of processing
+			log.Printf("[DEBUG] %s targeting %s", target, ri.Addr)
+			ri.Value(ctx)
+		}
+
+		switch target.AddrType() {
+		case addrs.ConfigResourceAddrType:
+			configResource := target.(addrs.ConfigResource)
+			for _, modInst := range evalglue.ConfigModuleInstances(ctx, rootModuleInstance, configResource.Module) {
+				for resInst := range modInst.ResourceInstancesForResource(ctx, configResource.Resource) {
+					addTarget(resInst)
+				}
+			}
+		case addrs.AbsResourceAddrType:
+			absResource := target.(addrs.AbsResource)
+			modInst := evalglue.ModuleInstance(ctx, rootModuleInstance, absResource.Module)
+			if modInst != nil {
+				for resInst := range modInst.ResourceInstancesForResource(ctx, absResource.Resource) {
+					addTarget(resInst)
+				}
+			}
+		case addrs.AbsResourceInstanceAddrType:
+			absResourceInstance := target.(addrs.AbsResourceInstance)
+			resInst := evalglue.ResourceInstance(ctx, rootModuleInstance, absResourceInstance)
+			if resInst != nil {
+				addTarget(resInst)
+			}
+		case addrs.ModuleAddrType:
+			module := target.(addrs.Module)
+			for _, modInst := range evalglue.ConfigModuleInstances(ctx, rootModuleInstance, module) {
+				for resInst := range evalglue.ResourceInstancesDeep(ctx, modInst) {
+					addTarget(resInst)
+				}
+			}
+		case addrs.ModuleInstanceAddrType:
+			moduleInstance := target.(addrs.ModuleInstance)
+			modInst := evalglue.ModuleInstance(ctx, rootModuleInstance, moduleInstance)
+			if modInst != nil {
+				for resInst := range evalglue.ResourceInstancesDeep(ctx, modInst) {
+					addTarget(resInst)
+				}
+			}
+		}
+	})
+
 	// Set up the move results map
 	moreDiags = oracle.SetUpMoveStatements(ctx)
 

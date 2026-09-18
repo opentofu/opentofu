@@ -32,11 +32,28 @@ import (
 // The methods of this type can all be called concurrently with themselves and
 // each other, so they must use appropriate synchronization to avoid races.
 type planGlue struct {
-	planCtx *planContext
-	oracle  *eval.PlanningOracle
+	planCtx  *planContext
+	oracle   *eval.PlanningOracle
+	targets  []addrs.Targetable
+	excludes []addrs.Targetable
+
+	allResourcesDeferred bool
 }
 
 var _ eval.PlanGlue = (*planGlue)(nil)
+
+func (p *planGlue) PreProcess(targeter func(target addrs.Targetable)) {
+	if len(p.targets) == 0 {
+		// Nop
+		return
+	}
+
+	for _, target := range p.targets {
+		targeter(target)
+	}
+
+	p.allResourcesDeferred = true
+}
 
 // PlanDesiredResourceInstance implements eval.PlanGlue.
 //
@@ -45,6 +62,18 @@ var _ eval.PlanGlue = (*planGlue)(nil)
 // active concurrently and so this function must take care to avoid races.
 func (p *planGlue) PlanDesiredResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance) (cty.Value, tfdiags.Diagnostics) {
 	log.Printf("[TRACE] planContext: planning desired resource instance %s", inst.Addr)
+
+	// Set during targeting after initial targets have been resolved
+	if p.allResourcesDeferred {
+		return deferredVal(cty.DynamicVal), nil
+	}
+
+	// If the resource is excluded, handle it as such
+	for _, exclude := range p.excludes {
+		if exclude.TargetContains(inst.Addr) {
+			return deferredVal(cty.DynamicVal), nil
+		}
+	}
 
 	// The details of how we plan vary considerably depending on the resource
 	// mode, so we'll dispatch each one to a separate function after we've
@@ -65,12 +94,46 @@ func (p *planGlue) PlanDesiredResourceInstance(ctx context.Context, inst *eval.D
 		diags = diags.Append(fmt.Errorf("the planning engine does not support %s; this is a bug in OpenTofu", mode))
 		return cty.DynamicVal, diags
 	}
-	p.planCtx.resourceInstObjs.Put(obj)
-	return obj.ResultValue(), diags
+	rv := obj.ResultValue()
+	if !isDeferredVal(rv) {
+		p.planCtx.resourceInstObjs.Put(obj)
+	}
+	return rv, diags
 }
 
 func (p *planGlue) planOrphanResourceInstance(ctx context.Context, addr addrs.AbsResourceInstance, state *states.ResourceInstanceObjectFullSrc) tfdiags.Diagnostics {
 	log.Printf("[TRACE] planContext: planning orphan resource instance %s", addr)
+
+	if len(p.targets) != 0 {
+		// We can only process orphans of *explicit targets*
+		targeted := false
+		for _, target := range p.targets {
+			if target.TargetContains(addr) {
+				targeted = true
+				break
+			}
+		}
+		// Check to see if this resource is targeted or a dependency of targeted
+		if !targeted {
+			log.Printf("[TRACE] planContext: resource instance %s not targeted", addr)
+			return nil
+		}
+	}
+	if len(p.excludes) != 0 {
+		// TODO exclude oprhan deps
+		excluded := false
+		for _, exclude := range p.excludes {
+			if exclude.TargetContains(addr) {
+				excluded = true
+				break
+			}
+		}
+		if excluded {
+			log.Printf("[TRACE] planContext: resource instance %s not targeted", addr)
+			return nil
+		}
+	}
+
 	var obj *resourceInstanceObject
 	var diags tfdiags.Diagnostics
 	switch mode := addr.Resource.Resource.Mode; mode {

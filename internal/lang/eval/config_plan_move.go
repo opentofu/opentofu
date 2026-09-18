@@ -29,10 +29,6 @@ type moveResults struct {
 // and all its called sub-modules. Diagnostics from move graph validation are returned,
 // which checks for cycles in the graph.
 func (o *PlanningOracle) SetUpMoveStatements(ctx context.Context) tfdiags.Diagnostics {
-	o.moveResults = moveResults{
-		Changes: addrs.MakeSyncMap[addrs.AbsResourceInstance, refactoring.MoveSuccess](),
-		Blocked: addrs.MakeSyncMap[addrs.AbsMoveable, refactoring.MoveBlocked](),
-	}
 	o.moveStatements = slices.Collect(o.root.GetMoveStatements(ctx))
 	return refactoring.ValidateMoveStatementGraph(o.moveStatements)
 }

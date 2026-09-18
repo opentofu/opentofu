@@ -5,5 +5,5 @@ resource "aws_instance" "me" {
   count = 3
 }
 resource "aws_elb" "meneither" {
-  instances = ["${aws_instance.me.*.id}"]
+  instances = aws_instance.me.*.id
 }
