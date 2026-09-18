@@ -457,7 +457,7 @@ func TestRegistryProviderDownloadCredentials(t *testing.T) {
 		var buf bytes.Buffer
 		zw := zip.NewWriter(&buf)
 		f, _ := zw.Create("terraform-provider-test_v1.0.0_tos_m68k/terraform-provider-test_v1.0.0")
-		f.Write([]byte("binary content"))
+		_, _ = f.Write([]byte("binary content"))
 		zw.Close()
 		return buf.Bytes()
 	}()
@@ -519,7 +519,7 @@ func TestRegistryProviderDownloadCredentials(t *testing.T) {
 			}
 			w.Header().Set("Content-Type", "application/zip")
 			w.WriteHeader(http.StatusOK)
-			w.Write(zipBytes)
+			_, _ = w.Write(zipBytes)
 
 		case r.URL.Path == "/shasums/provider_1.0.0_SHA256SUMS":
 			w.WriteHeader(http.StatusOK)

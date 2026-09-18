@@ -457,7 +457,7 @@ func TestHTTPMirrorProviderDownloadCredentials(t *testing.T) {
 			w.WriteHeader(http.StatusOK)
 			zw := zip.NewWriter(w)
 			f, _ := zw.Create("terraform-provider-test_v1.0.0")
-			f.Write([]byte("binary content"))
+			_, _ = f.Write([]byte("binary content"))
 			zw.Close()
 		}
 	}))
