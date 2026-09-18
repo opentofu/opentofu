@@ -7328,3 +7328,109 @@ func TestContext2Apply_ephemeralInModuleWithExpansion(t *testing.T) {
 
 	}
 }
+
+// TestContext2Apply_ephemeralOutputCrossModuleWriteOnly checks that a value produced
+// by an ephemeral resource and shared via an `ephemeral = true` module output is
+// exporting identically at two different write-only attribute consumers: one in the
+// same module as the ephemeral resource, and one in a different module reached only
+// through the output.
+func TestContext2Apply_ephemeralOutputCrossModuleWriteOnly(t *testing.T) {
+	SkipExperimental(t, ExperimentalFlagUnknown)
+
+	m := testModuleInline(t, map[string]string{
+		"child/main.tf": `
+			ephemeral "test_ephemeral_resource" "generate" {
+				input = "seed"
+			}
+
+			resource "test_instance" "child" {
+				vpc_id   = "child"
+				value_wo = ephemeral.test_ephemeral_resource.generate.secret
+			}
+
+			output "secret" {
+				ephemeral = true
+				value     = ephemeral.test_ephemeral_resource.generate.secret
+			}
+		`,
+		"main.tf": `
+			module "child" {
+				source = "./child"
+			}
+
+			resource "test_instance" "root" {
+				vpc_id   = "root"
+				value_wo = module.child.secret
+			}
+		`,
+	})
+
+	provider := testProvider("test")
+
+	openCount := 0
+	provider.OpenEphemeralResourceFn = func(req providers.OpenEphemeralResourceRequest) providers.OpenEphemeralResourceResponse {
+		openCount++
+		return providers.OpenEphemeralResourceResponse{
+			Result: cty.ObjectVal(map[string]cty.Value{
+				"id":     cty.StringVal("id"),
+				"secret": cty.StringVal(fmt.Sprintf("generated-%d", openCount)),
+				"input":  req.Config.GetAttr("input"),
+			}),
+		}
+	}
+
+	// Write-only attributes must never appear in planned state, so null it out here
+	provider.PlanResourceChangeFn = func(req providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
+		planned := req.ProposedNewState.AsValueMap()
+		if _, ok := planned["value_wo"]; ok {
+			planned["value_wo"] = cty.NullVal(cty.String)
+		}
+		if planned["id"].IsNull() {
+			planned["id"] = cty.UnknownVal(cty.String)
+		}
+		return providers.PlanResourceChangeResponse{
+			PlannedState: cty.ObjectVal(planned),
+		}
+	}
+
+	// Capture the write-only value actually sent to ApplyResourceChange for each of the two resources
+	applied := map[string]string{}
+	provider.ApplyResourceChangeFn = func(req providers.ApplyResourceChangeRequest) providers.ApplyResourceChangeResponse {
+		newState := req.PlannedState.AsValueMap()
+		vpcID := newState["vpc_id"].AsString()
+		newState["id"] = cty.StringVal("id-" + vpcID)
+
+		wo := req.Config.GetAttr("value_wo")
+		if !wo.IsNull() {
+			applied[vpcID] = wo.AsString()
+		}
+
+		return providers.ApplyResourceChangeResponse{
+			NewState: cty.ObjectVal(newState),
+		}
+	}
+
+	ctx := testContext2(t, &ContextOpts{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(provider),
+		}, nil),
+	})
+
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
+		Mode: plans.NormalMode,
+	})
+	assertNoErrors(t, diags)
+
+	_, diags = ctx.Apply(context.Background(), plan, m, nil)
+	assertNoErrors(t, diags)
+
+	if applied["child"] == "" || applied["root"] == "" {
+		t.Fatalf("did not capture write-only values for both resources: %#v", applied)
+	}
+	if applied["child"] != applied["root"] {
+		t.Errorf(
+			"write-only values diverged across the module boundary: child=%q root=%q (ephemeral resource opened %d times)",
+			applied["child"], applied["root"], openCount,
+		)
+	}
+}
