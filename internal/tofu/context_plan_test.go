@@ -5113,6 +5113,9 @@ func TestContext2Plan_excluded(t *testing.T) {
 	schema := p.GetProviderSchemaResponse.ResourceTypes["aws_instance"]
 
 	if len(plan.Changes.Resources) != 1 {
+		for _, rc := range plan.Changes.Resources {
+			t.Logf("%s - %s", rc.Addr, rc.Action)
+		}
 		t.Fatal("expected 1 changes, got", len(plan.Changes.Resources))
 	}
 

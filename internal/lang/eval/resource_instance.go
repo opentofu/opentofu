@@ -81,9 +81,6 @@ type DesiredResourceInstance struct {
 	// have pending actions in this same plan.
 	ConfigVal cty.Value
 
-	// Hack
-	Deferred bool
-
 	// RequiredResourceInstances are the addresses of zero or more resource
 	// instances that must exist and must be fully converged before the
 	// final plan for this resource instance could be calculated.

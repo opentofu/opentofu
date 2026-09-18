@@ -36,9 +36,24 @@ type planGlue struct {
 	oracle   *eval.PlanningOracle
 	targets  []addrs.Targetable
 	excludes []addrs.Targetable
+
+	allResourcesDeferred bool
 }
 
 var _ eval.PlanGlue = (*planGlue)(nil)
+
+func (p *planGlue) PreProcess(targeter func(target addrs.Targetable)) {
+	if len(p.targets) == 0 {
+		// Nop
+		return
+	}
+
+	for _, target := range p.targets {
+		targeter(target)
+	}
+
+	p.allResourcesDeferred = true
+}
 
 // PlanDesiredResourceInstance implements eval.PlanGlue.
 //
@@ -47,6 +62,18 @@ var _ eval.PlanGlue = (*planGlue)(nil)
 // active concurrently and so this function must take care to avoid races.
 func (p *planGlue) PlanDesiredResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance) (cty.Value, tfdiags.Diagnostics) {
 	log.Printf("[TRACE] planContext: planning desired resource instance %s", inst.Addr)
+
+	// Set during targeting after initial targets have been resolved
+	if p.allResourcesDeferred {
+		return deferredVal(cty.DynamicVal), nil
+	}
+
+	// If the resource is excluded, handle it as such
+	for _, exclude := range p.excludes {
+		if exclude.TargetContains(inst.Addr) {
+			return deferredVal(cty.DynamicVal), nil
+		}
+	}
 
 	// The details of how we plan vary considerably depending on the resource
 	// mode, so we'll dispatch each one to a separate function after we've
@@ -67,12 +94,11 @@ func (p *planGlue) PlanDesiredResourceInstance(ctx context.Context, inst *eval.D
 		diags = diags.Append(fmt.Errorf("the planning engine does not support %s; this is a bug in OpenTofu", mode))
 		return cty.DynamicVal, diags
 	}
-	p.planCtx.deferredMu.Lock()
-	if !p.planCtx.deferred.Has(inst.Addr) {
+	rv := obj.ResultValue()
+	if !isDeferredVal(rv) {
 		p.planCtx.resourceInstObjs.Put(obj)
 	}
-	p.planCtx.deferredMu.Unlock()
-	return obj.ResultValue(), diags
+	return rv, diags
 }
 
 func (p *planGlue) planOrphanResourceInstance(ctx context.Context, addr addrs.AbsResourceInstance, state *states.ResourceInstanceObjectFullSrc) tfdiags.Diagnostics {
@@ -389,7 +415,7 @@ func (p *planGlue) desiredResourceInstanceMustBeDeferred(inst *eval.DesiredResou
 	// There are various reasons why we might need to defer final planning
 	// of this to a later round. The following is not exhaustive but is a
 	// placeholder to show where deferral might fit in.
-	return inst.IsPlaceholder() || !meta.ProviderInstance.IsKnown() || derivedFromDeferredVal(inst.ConfigVal) || inst.Deferred
+	return inst.IsPlaceholder() || !meta.ProviderInstance.IsKnown() || derivedFromDeferredVal(inst.ConfigVal)
 }
 
 // resourceInstancesFilter returns a sequence of resource instances from the
