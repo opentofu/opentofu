@@ -230,6 +230,8 @@ func (c *registryClient) PackageMeta(ctx context.Context, provider addrs.Provide
 			Hashes      []string `json:"hashes"`
 			PackageSize int64    `json:"package_size"`
 		} `json:"packages"`
+
+		UseMirrorCredentials *bool `json:"use_mirror_credentials"`
 	}
 	var body ResponseBody
 
@@ -290,6 +292,11 @@ func (c *registryClient) PackageMeta(ctx context.Context, provider addrs.Provide
 		return PackageMeta{}, fmt.Errorf("registry response includes invalid download URL: must use http or https scheme")
 	}
 
+	useMirrorCreds := false
+	if body.UseMirrorCredentials != nil {
+		useMirrorCreds = *body.UseMirrorCredentials
+	}
+
 	ret := PackageMeta{
 		Provider:         provider,
 		Version:          version,
@@ -300,7 +307,22 @@ func (c *registryClient) PackageMeta(ctx context.Context, provider addrs.Provide
 		},
 		Filename: body.Filename,
 		Location: PackageHTTPURL{URL: downloadURL.String(), ClientBuilder: func(ctx context.Context) *retryablehttp.Client {
-			return packageHTTPUrlClientWithRetry(ctx, c.locationConfig.ProviderDownloadRetries)
+			retries := c.locationConfig.ProviderDownloadRetries
+			if retries == 0 && c.httpClient != nil && c.httpClient.RetryMax != 0 {
+				retries = c.httpClient.RetryMax
+			}
+			client := packageHTTPUrlClientWithRetry(ctx, retries)
+			if c.httpClient != nil && c.httpClient.HTTPClient != nil && c.httpClient.HTTPClient.Transport != nil {
+				client.HTTPClient.Transport = c.httpClient.HTTPClient.Transport
+			}
+			if c.creds != nil && useMirrorCreds {
+				client.HTTPClient.Transport = &registryCredentialTransport{
+					creds: c.creds,
+					host:  c.baseURL.Host,
+					base:  client.HTTPClient.Transport,
+				}
+			}
+			return client
 		}},
 		// "Authentication" is populated below
 	}
@@ -502,4 +524,22 @@ func HostFromRequest(req *http.Request) string {
 	// it will be handled as part of Request.Write()
 	// https://cs.opensource.google/go/go/+/refs/tags/go1.18.4:src/net/http/request.go;l=574
 	return ""
+}
+
+type registryCredentialTransport struct {
+	creds svcauth.HostCredentials
+	host  string
+	base  http.RoundTripper
+}
+
+func (t *registryCredentialTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if t.creds != nil && req.URL != nil && req.URL.Host == t.host {
+		req = req.Clone(req.Context())
+		t.creds.PrepareRequest(req)
+	}
+	base := t.base
+	if base == nil {
+		base = http.DefaultTransport
+	}
+	return base.RoundTrip(req)
 }
