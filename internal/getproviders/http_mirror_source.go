@@ -174,8 +174,9 @@ func (s *HTTPMirrorSource) PackageMeta(ctx context.Context, provider addrs.Provi
 	// If we got here then the response had status OK and so our body
 	// will be non-nil and should contain some JSON for us to parse.
 	type ResponseArchiveMeta struct {
-		RelativeURL string `json:"url"`
-		Hashes      []string
+		RelativeURL          string `json:"url"`
+		Hashes               []string
+		UseMirrorCredentials *bool  `json:"use_mirror_credentials"`
 	}
 	type ResponseBody struct {
 		Archives map[string]*ResponseArchiveMeta `json:"archives"`
@@ -212,7 +213,21 @@ func (s *HTTPMirrorSource) PackageMeta(ctx context.Context, provider addrs.Provi
 		TargetPlatform: target,
 
 		Location: PackageHTTPURL{URL: absURL.String(), ClientBuilder: func(ctx context.Context) *retryablehttp.Client {
-			return packageHTTPUrlClientWithRetry(ctx, s.locationConfig.ProviderDownloadRetries)
+			retries := s.locationConfig.ProviderDownloadRetries
+			if retries == 0 && s.httpClient != nil && s.httpClient.RetryMax != 0 {
+				retries = s.httpClient.RetryMax
+			}
+			client := packageHTTPUrlClientWithRetry(ctx, retries)
+			if s.httpClient != nil && s.httpClient.HTTPClient != nil && s.httpClient.HTTPClient.Transport != nil {
+				client.HTTPClient.Transport = s.httpClient.HTTPClient.Transport
+			}
+			if s.creds != nil && archiveMeta.UseMirrorCredentials != nil && *archiveMeta.UseMirrorCredentials {
+				client.HTTPClient.Transport = &mirrorCredentialTransport{
+					creds: s.creds,
+					base:  client.HTTPClient.Transport,
+				}
+			}
+			return client
 		}},
 		Filename: path.Base(absURL.Path),
 	}
@@ -429,4 +444,27 @@ func svchostFromURL(u *url.URL) (svchost.Hostname, error) {
 	// therefore now be accepted by svchost.ForComparison with no additional
 	// errors, but the port portion can still potentially be invalid.
 	return svchost.ForComparison(normalized + portPortion)
+}
+
+type mirrorCredentialTransport struct {
+	creds svcauth.CredentialsSource
+	base  http.RoundTripper
+}
+
+func (t *mirrorCredentialTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if t.creds != nil {
+		host, err := svchostFromURL(req.URL)
+		if err == nil {
+			hostCreds, err := t.creds.ForHost(req.Context(), host)
+			if err == nil && hostCreds != nil {
+				req = req.Clone(req.Context())
+				hostCreds.PrepareRequest(req)
+			}
+		}
+	}
+	base := t.base
+	if base == nil {
+		base = http.DefaultTransport
+	}
+	return base.RoundTrip(req)
 }

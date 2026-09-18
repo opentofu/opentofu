@@ -17,6 +17,8 @@ ENHANCEMENTS:
 BUG FIXES:
 
 - `tofu fmt`: Fixed wrong resolution of paths when the working directory is a symlink; output now shows absolute file paths instead of giving error `Invalid file or directory path`. ([#3879](https://github.com/opentofu/opentofu/issues/3879))
+- Provider installation: Registry and network mirror sources now only forward authentication credentials to the package download URL when the provider metadata explicitly opts in via `use_mirror_credentials: true`. Previously, credentials could be forwarded to unintended third-party download hosts. ([#4314](https://github.com/opentofu/opentofu/issues/4314))
+
 
 ## Previous Releases
 
