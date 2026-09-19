@@ -13,6 +13,7 @@ UPGRADE NOTES:
 ENHANCEMENTS:
 
 - `tofu plan` no longer prints iterative warnings for multiple resources but instead it shows one warning with all of the affected resources. ([#4201](https://github.com/opentofu/opentofu/issues/4201))
+- `tofu version` now includes the list of modules and their versions. ([#3270](https://github.com/opentofu/opentofu/issues/3270))
 
 BUG FIXES:
 
