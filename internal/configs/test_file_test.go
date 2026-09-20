@@ -455,3 +455,108 @@ func TestDecodeMockProviderBlock_MockSourceWithTestDirectory(t *testing.T) {
 		t.Fatalf("Expected sourced mock_resource id=source_id, got id=%v", provider.MockResources[0].Defaults["id"])
 	}
 }
+
+func TestDecodeMockProviderBlock_DuplicateMockResourceWithinSourceFile(t *testing.T) {
+	fs := afero.NewMemMapFs()
+
+	content := `
+	 mock_resource "resource" {
+	 	defaults = {
+			id = "first"
+		}
+	 }
+	mock_resource "resource" {
+	 	defaults = {
+			id = "second"
+		}
+	 }
+	 `
+
+	if err := afero.WriteFile(fs, "/mocks/duplicate.tfmock.hcl", []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write %v", err)
+	}
+
+	providerContent := `
+	mock_provider "test" {
+	 	source = "/mocks/duplicate.tfmock.hcl"
+	}
+	`
+
+	f, parseDiags := hclsyntax.ParseConfig([]byte(providerContent), "main.tftest.hcl", hcl.InitialPos)
+
+	if parseDiags.HasErrors() {
+		t.Fatalf("Failed to parse fixtures: %s", parseDiags)
+	}
+
+	fileContent, contentDiags := f.Body.Content(&hcl.BodySchema{
+		Blocks: []hcl.BlockHeaderSchema{{Type: blockNameMockProvider, LabelNames: []string{"name"}}},
+	})
+
+	if contentDiags.HasErrors() {
+		t.Fatalf("Failed to extract mock provider block: %s", contentDiags)
+	}
+
+	p := NewParser(fs)
+
+	_, diags := p.decodeMockProviderBlock(fileContent.Blocks[0], "")
+
+	if !diags.HasErrors() {
+		t.Fatalf("Expected a duplicate mock_resource diagnostic for resources within a single source file, got none")
+	}
+}
+
+func TestDecodeMockProviderBlock_DuplicateMockResourceAcrossSourceFiles(t *testing.T) {
+	fs := afero.NewMemMapFs()
+
+	fileOne := `
+	 mock_resource "resource" {
+	 	defaults = {
+			id = "first_file"
+		}
+	 }
+	 `
+
+	fileTwo := `
+	 mock_resource "resource" {
+	 	defaults = {
+			id = "second_file"
+		}
+	 }
+	 `
+
+	if err := afero.WriteFile(fs, "/mocks/one.tfmock.hcl", []byte(fileOne), 0644); err != nil {
+		t.Fatalf("Failed to write %v", err)
+	}
+
+	if err := afero.WriteFile(fs, "/mocks/two.tfmock.hcl", []byte(fileTwo), 0644); err != nil {
+		t.Fatalf("Failed to write %v", err)
+	}
+
+	providerContent := `
+	mock_provider "test" {
+	 	source = "/mocks"
+	}
+	`
+
+	f, parseDiags := hclsyntax.ParseConfig([]byte(providerContent), "main.tftest.hcl", hcl.InitialPos)
+
+	if parseDiags.HasErrors() {
+		t.Fatalf("Failed to parse fixtures: %s", parseDiags)
+	}
+
+	fileContent, contentDiags := f.Body.Content(&hcl.BodySchema{
+		Blocks: []hcl.BlockHeaderSchema{{Type: blockNameMockProvider, LabelNames: []string{"name"}}},
+	})
+
+	if contentDiags.HasErrors() {
+		t.Fatalf("Failed to extract mock provider block: %s", contentDiags)
+	}
+
+	p := NewParser(fs)
+
+	_, diags := p.decodeMockProviderBlock(fileContent.Blocks[0], "")
+
+	if !diags.HasErrors() {
+		t.Fatalf("Expected a duplicate mock_resource diagnostic across source files in a directory, got none")
+	}
+}

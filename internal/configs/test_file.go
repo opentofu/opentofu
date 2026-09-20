@@ -959,9 +959,6 @@ func (p *Parser) decodeMockProviderBlock(block *hcl.Block, baseDir string) (*Moc
 		}
 	}
 
-	diags = append(diags, provider.validateMockResources()...)
-	diags = append(diags, provider.validateOverrideResources()...)
-
 	// If the provider block has a seprate file configured, then we will load the block's
 	// configuration from that.
 	if testModuleFile, exists := content.Attributes["source"]; exists {
@@ -972,21 +969,24 @@ func (p *Parser) decodeMockProviderBlock(block *hcl.Block, baseDir string) (*Moc
 		if !sourceDiags.HasErrors() {
 			provider.Source = source
 
-			dir := source
+			path := source
 			if !filepath.IsAbs(source) {
-				dir = filepath.Join(baseDir, dir)
+				path = filepath.Join(baseDir, path)
 			}
-			mockResources, overrideResources, mockDiags := p.loadMockDataFiles(dir, provider.SourceRange)
+			mockResources, overrideResources, mockDiags := p.loadMockDataFiles(path, provider.SourceRange)
 			diags = append(diags, mockDiags...)
 			provider.mergeMockDataBlocks(mockResources, overrideResources)
 		}
 	}
 
+	diags = append(diags, provider.validateMockResources()...)
+	diags = append(diags, provider.validateOverrideResources()...)
+
 	return provider, diags
 }
 
 // decodeMockProviderSourceBlock is a function that takes the source attribute and
-// converts it to a validates Go string
+// converts it to a valid Go string
 func decodeMockProviderSourceBlock(attr *hcl.Attribute) (string, hcl.Diagnostics) {
 	invalidSource := func(details string) *hcl.Diagnostic {
 		return &hcl.Diagnostic{
@@ -1056,15 +1056,15 @@ func (mp *MockProvider) mergeMockDataBlocks(mockResources []*MockResource, overr
 
 // loadMockDataFiles is a function that takes a source/directory as input and checks whether
 // the path specified is a file or folder and calls loadMockDataFile or loadMockDataDir accordingly
-func (p *Parser) loadMockDataFiles(dir string, srcRange hcl.Range) ([]*MockResource, []*OverrideResource, hcl.Diagnostics) {
-	info, err := p.fs.Stat(dir)
+func (p *Parser) loadMockDataFiles(path string, srcRange hcl.Range) ([]*MockResource, []*OverrideResource, hcl.Diagnostics) {
+	info, err := p.fs.Stat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil, hcl.Diagnostics{
 				&hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Provider mock source could not be loaded",
-					Detail:   fmt.Sprintf("The path %q defined in 'source' does not exist", dir),
+					Detail:   fmt.Sprintf("The path %q defined in 'source' does not exist", path),
 					Subject:  srcRange.Ptr(),
 				},
 			}
@@ -1073,17 +1073,17 @@ func (p *Parser) loadMockDataFiles(dir string, srcRange hcl.Range) ([]*MockResou
 			&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Provider mock source could not be loaded",
-				Detail:   fmt.Sprintf("Failed to load files defined in source %q: %s", dir, err),
+				Detail:   fmt.Sprintf("Failed to load files defined in source %q: %s", path, err),
 				Subject:  srcRange.Ptr(),
 			},
 		}
 	}
 
 	if !info.IsDir() {
-		return p.loadMockDataFile(dir, srcRange)
+		return p.loadMockDataFile(path, srcRange)
 	}
 
-	return p.loadMockDataDir(dir, srcRange)
+	return p.loadMockDataDir(path, srcRange)
 
 }
 
