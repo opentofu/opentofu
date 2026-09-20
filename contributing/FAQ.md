@@ -10,14 +10,14 @@ When you submit an enhancement request, the [maintainers](MAINTAINERS.md) looks 
 4. **Is there enough capacity on the maintainers to support a community contributor?**<br />Core engineers dedicate time to review PRs and help community members with questions as we don't expect contributors to implement the entire feature in isolation. We actively participate with planning, reviews and writing documentation as needed, some more than others, which flows into the decision of accepting or rejecting an issue. 
 5. **Does this feature enable someone to do something new with OpenTofu they were not able to do before?**<br />We prioritize work based on community input and need. An issue with a large number of reactions is more likely to make it into the accepted phase, but if a viable workaround or tool exists, the feature is less likely to be accepted. If a feature is just the integration of a cool technology, but doesn't solve any problems for a large number of people, it will be rejected.
 
-Depending on the maintainers's review, a feature request can have the following outcomes:
+Depending on the maintainers' review, a feature request can have the following outcomes:
 
 1. **The feature is accepted for development by the maintainers.** This means that the core team will schedule it for an upcoming release and develop it.
 2. **The feature is accepted and open for community contributions.** The maintainers adds a `help wanted` label and waits for community volunteers to develop it.
 3. **More information is needed.** The maintainers will either add questions in comments, or when there is a deep technical issue to be resolved, call for an [RFC](./rfc/README.md) to detail a possible implementation.
-4. **More community input is needed.** When an issue is, on its surface, valuable, but there is no track record of a large portion of the community needing it, the maintainers adds the `needs community input` label. If you are interested in the feature and would like to use it, please add a reaction to the issue and add a description on specifically what problem it would solve for you in a comment.
+4. **More community input is needed.** When an issue is, on its surface, valuable, but there is no track record of a large portion of the community needing it, the maintainers add the `needs community input` label. If you are interested in the feature and would like to use it, please add a reaction to the issue and add a description on specifically what problem it would solve for you in a comment.
 5. **The feature is rejected.** If based on the criteria above it is not feasible to implement the feature, the maintainers closes the issue with an explanation why it is being closed.
-6. **The feature is referred to the Technical Steering Committee**. If the feature requires the commitment of a larger amount of core developer time, has legal implications, or otherwise requires leadership attention, the maintainers adds the feature to the agenda of the Technical Leadership Committee. Once decided, the TSC records the decision in the [TSC notes](https://github.com/opentofu/org/tree/main/TSC).
+6. **The feature is referred to the Technical Steering Committee**. If the feature requires the commitment of a larger amount of core developer time, has legal implications, or otherwise requires leadership attention, the maintainers add the feature to the agenda of the Technical Leadership Committee. Once decided, the TSC records the decision in the [TSC notes](https://github.com/opentofu/org/tree/main/TSC).
 
 ---
 
