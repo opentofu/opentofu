@@ -20,7 +20,7 @@ Welcome and thank you for wanting to contribute!
 > [!TIP]
 > For more OpenTofu events, subscribe to the [OpenTofu Events Calendar](https://calendar.google.com/calendar/embed?src=c_3f2dd3c1fe0ef4e93ef3fc456ca2dd219a2e8fd85f6b40750af16c3df370bf93%40group.calendar.google.com)!
 
-**⚠️ Important:** Please avoid working on features or refactor without [an `accepted` and `help-wanted` issue](https://github.com/opentofu/opentofu/issues?q=is%3Aopen+is%3Aissue+label%3Aaccepted+label%3A"help+wanted"). OpenTofu is a large and complex project and every change needs careful consideration. We cannot merge pull requests without first having a discussion about them, no matter how trivial the issue may seem.
+**⚠️ Important:** Please avoid working on features or refactoring without [an `accepted` and `help-wanted` issue](https://github.com/opentofu/opentofu/issues?q=is%3Aopen+is%3Aissue+label%3Aaccepted+label%3A"help+wanted"). OpenTofu is a large and complex project and every change needs careful consideration. We cannot merge pull requests without first having a discussion about them, no matter how trivial the issue may seem.
 
 Check out our [Contributing FAQ](contributing/FAQ.md) and [Development Guide](contributing/DEVELOPING.md) for more detailed information.
 
