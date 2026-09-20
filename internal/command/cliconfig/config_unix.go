@@ -23,9 +23,19 @@ func (cl *ConfigLoader) configFile() (string, error) {
 	newConfigFile := filepath.Join(dir, ".tofurc")
 	legacyConfigFile := filepath.Join(dir, ".terraformrc")
 
-	if xdgDir := os.Getenv("XDG_CONFIG_HOME"); xdgDir != "" && !cl.pathExists(legacyConfigFile) && !cl.pathExists(newConfigFile) {
-		// a fresh install should not use terraform naming
-		return filepath.Join(xdgDir, "opentofu", "tofurc"), nil
+	// Determine the effective XDG config directory:
+	// If XDG_CONFIG_HOME is set, use it. Otherwise, default to $HOME/.config.
+	xdgDir := os.Getenv("XDG_CONFIG_HOME")
+	if xdgDir == "" {
+		xdgDir = filepath.Join(dir, ".config")
+	}
+
+	xdgConfigFile := filepath.Join(xdgDir, "opentofu", "tofurc")
+
+	// If the XDG config file exists, or if neither legacy/new home files exist,
+	// prefer or fall back to the XDG path.
+	if cl.pathExists(xdgConfigFile) || (!cl.pathExists(legacyConfigFile) && !cl.pathExists(newConfigFile)) {
+		return xdgConfigFile, nil
 	}
 
 	return getNewOrLegacyPath(cl, newConfigFile, legacyConfigFile)

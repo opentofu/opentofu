@@ -40,7 +40,7 @@ func TestConfigFileConfigDir(t *testing.T) {
 		{
 			name:     "configFile: use default fallback",
 			testFunc: cl.configFile,
-			expect:   filepath.Join(homeDir, ".tofurc"),
+			expect:   filepath.Join(homeDir, ".config", "opentofu", "tofurc"),
 		},
 		{
 			name:          "configFile: use XDG tofurc",
@@ -73,6 +73,13 @@ func TestConfigFileConfigDir(t *testing.T) {
 			xdgConfigHome: filepath.Join(homeDir, "xdg"),
 			files:         []string{filepath.Join(homeDir, ".terraform.d", "placeholder")},
 			expect:        filepath.Join(homeDir, ".terraform.d"),
+		},
+		{
+			name:          "configFile: use default XDG path when XDG_CONFIG_HOME is unset",
+			testFunc:      cl.configFile,
+			xdgConfigHome: "", // Explicitly empty to test default ~/.config fallback
+			files:         []string{filepath.Join(homeDir, ".config", "opentofu", "tofurc")},
+			expect:        filepath.Join(homeDir, ".config", "opentofu", "tofurc"),
 		},
 		{
 			name:          "configDir: use XDG value",
