@@ -333,9 +333,6 @@ func BuildResourceInstanceObjectMeta[SV states.ValueOrJSONEquivalent](
 	}
 
 	if fromConfig != nil {
-		ret.Provider = fromConfig.Provider
-		ret.ResourceType = fromConfig.ResourceType
-
 		// The provider instance is a little awkward because the config form
 		// of this uses a pointer to represent there being no selection at all
 		// but we can only check the nilness by unwrapping it first.
@@ -344,12 +341,22 @@ func BuildResourceInstanceObjectMeta[SV states.ValueOrJSONEquivalent](
 		// exprs.FromValue be a pointer instead of the value inside it being a
 		// pointer.
 		piUnmarked, _ := fromConfig.ProviderInstance.Unmark()
-		if pi, ok := piUnmarked.ValueOk(); !ok || pi != nil {
+		pi, ok := piUnmarked.ValueOk()
+		providerSpecified := !ok || pi != nil
+		if providerSpecified {
 			nonPtr, _ := fromConfig.ProviderInstance.Derive(func(addr *addrs.AbsProviderInstanceCorrect) (addrs.AbsProviderInstanceCorrect, error) {
 				return *addr, nil
 			})
 			ret.ProviderInstance = nonPtr
 		}
+
+		if providerSpecified || state == nil {
+			// Use the configured provider only if the configuration specifies a provider, or take the best guess from config if the state does not exist
+			ret.Provider = fromConfig.Provider
+		}
+
+		ret.ResourceType = fromConfig.ResourceType
+
 		ret.PostCreateProvisioners = fromConfig.PostCreateProvisioners
 		ret.PreDeleteProvisioners = fromConfig.PreDestroyProvisioners
 		ret.ReplaceOrder = fromConfig.ReplaceOrder
