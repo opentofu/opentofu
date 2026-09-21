@@ -49,57 +49,59 @@ the warnings for.
 
 Some ways the directive can be used:
 ```hcl
-// nolint(core:all): in this particular case, this nolint directive supresses 2 possible warnings: core:no-type-variable, core:unused-variable
+#nolint(core:all): in this particular case, this nolint directive supresses 2 possible warnings: core:no-type-variable, core:unused-variable
 variable "in_string" {
   default = "input"
 }
 
-// nolint(core:no-type-variable)
+#nolint(core:no-type-variable)
 variable "in_number" {
   default = 42
 }
 
 locals {
-  // nolint(core:unused-local)
+  #nolint(core:unused-local)
   temp = var.in_number
 }
 
 resource "terraform_data" "all_answers" {
-  // nolint(core:count-instead-enabled): I need this to be portable
+  #nolint(core:count-instead-enabled): I need this to be portable
   count = var.in_number == 42 ? 1 : 0
 }
 ```
 
 The nolint comment will be recognised only when it follows the following format:
 ```hcl
-// nolint(<linting rule identifier>)[: reason]
+#nolint(<linting rule identifier>)[: reason]
 ```
 In order to supress correctly the linting warnings, it needs be present right above the line indicated by the linting diagnostic.
 
 Invalid usage:
 ```hcl
-// nolint(core:all): in this particular case, this nolint directive supresses 2 possible warnings: core:no-type-variable, core:unused-variable
-//
-// This is another comment that will break the supression of the nolint directive above
+#nolint(core:all): in this particular case, this nolint directive supresses 2 possible warnings: core:no-type-variable, core:unused-variable
+#
+# This is another comment that will break the supression of the nolint directive above
 variable "in_string" {
   default = "input"
 }
 
 variable "in_number" {
-  // Because the core:no-type-variable linting rule diagnostic refers to the whole variable block, having it added inside the block will not be used to supress the warning 
-  // nolint(core:no-type-variable)
+  # Because the core:no-type-variable linting rule diagnostic refers to the whole variable block, having it added inside the block will not be used to supress the warning 
+  #nolint(core:no-type-variable)
   default = 42
 }
 
-// core:unused-local points directly to the local variable declaration. nolint directive at the `locals` block level will have no effect in the linting warning supresssion
-// nolint(core:unused-local)
+# core:unused-local points directly to the local variable declaration. nolint directive at the `locals` block level will have no effect in the linting warning supresssion
+# nolint(core:unused-local)
 locals {
   temp = var.in_number
 }
 
-// Since OpenTofu does not look for block level nolint directives and because the core:count-instead-enabled linting rule warning points directly to the `count` meta-argument, the usage of nolint directive at this level will have no effect in the suppression
-// nolint(core:count-instead-enabled): I need this to be portable
+# Since OpenTofu does not look for block level nolint directives and because the core:count-instead-enabled linting rule warning points directly to the `count` meta-argument, the usage of nolint directive at this level will have no effect in the suppression
+#nolint(core:count-instead-enabled): I need this to be portable
 resource "terraform_data" "all_answers" {
+  # Since the format of a nolint directive requires no space between the comment token and the `nolint` keyword, this will be discarded
+  # nolint(core:count-instead-enabled): I need this to be portable
   count = var.in_number == 42 ? 1 : 0
 }
 ```
