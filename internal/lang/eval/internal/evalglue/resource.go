@@ -33,6 +33,8 @@ type ConfiguredResourceInstanceObjectMeta struct {
 	ResourceMode addrs.ResourceMode
 	ResourceType string
 
+	DeclRange tfdiags.SourceRange
+
 	// ProviderInstance is the address of the specific provider instance that
 	// this object is currently configured to belong to.
 	//

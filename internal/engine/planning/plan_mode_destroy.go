@@ -136,6 +136,9 @@ func destroyPlan(ctx context.Context, opts *PlanOpts, prevRoundState *states.Sta
 		}
 	}
 
+	// We also need to check for invalid moves
+	diags = diags.Append(pg.validateMoves(ctx))
+
 	// TODO: Consider factoring most of the work we've done here into a single
 	// function that directly returns the "intermediate" object. Exposing
 	// planCtx as a mutable object in this function doesn't seem necessary
@@ -200,7 +203,13 @@ func (p *planGlueDestroy) PlanDesiredResourceInstance(ctx context.Context, inst 
 	// runtime's handling of this situation and mimic it as closely as we can
 	// for backward-compatibility.
 
-	prevState := p.normalGlue.planCtx.prevRoundState.SyncWrapper().ResourceInstanceObjectFull(inst.Addr.CurrentObject())
+	prevStateInfo, moveDiags := p.normalGlue.locateStateForConfig(ctx, inst.Addr)
+	diags = diags.Append(moveDiags)
+	if diags.HasErrors() {
+		return cty.DynamicVal, diags
+	}
+	prevState := prevStateInfo.state
+
 	if prevState == nil {
 		// If this is something that didn't exist at all in the prior state
 		// then we have nothing reasonable to return here, so we'll return
