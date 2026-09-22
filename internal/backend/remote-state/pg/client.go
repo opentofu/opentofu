@@ -13,6 +13,7 @@ import (
 	"hash/fnv"
 
 	"github.com/lib/pq"
+	"github.com/lib/pq/auth/kerberos"
 
 	uuid "github.com/hashicorp/go-uuid"
 	"github.com/opentofu/opentofu/internal/states/remote"
@@ -28,6 +29,11 @@ type RemoteClient struct {
 	IndexName  string
 
 	info *statemgr.LockInfo
+}
+
+// Kerberos (GSSAPI) authentication initialization for lib/pq backend
+func init() {
+	pq.RegisterGSSProvider(func() (pq.GSS, error) { return kerberos.NewGSS() })
 }
 
 func (c *RemoteClient) Get(_ context.Context) (*remote.Payload, error) {

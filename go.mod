@@ -66,6 +66,7 @@ require (
 	github.com/jmespath/go-jmespath v0.4.0
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0
 	github.com/lib/pq v1.12.3
+	github.com/lib/pq/auth/kerberos v0.0.0-20260820222753-451ac10e4e85
 	github.com/mattn/go-isatty v0.0.24
 	github.com/mattn/go-shellwords v1.0.14
 	github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db
@@ -134,6 +135,7 @@ require (
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.57.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.57.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
+	github.com/alexbrainman/sspi v0.0.0-20250919150558-7d374ff0d59e // indirect
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
 	github.com/apparentlymart/go-textseg/v17 v17.0.1 // indirect
 	github.com/armon/go-metrics v0.4.1 // indirect
@@ -192,6 +194,12 @@ require (
 	github.com/hashicorp/serf v0.10.4 // indirect
 	github.com/hashicorp/terraform-plugin-log v0.10.1-0.20260721164921-2f73dc013b2c // indirect
 	github.com/hashicorp/yamux v0.1.2 // indirect
+	github.com/jcmturner/aescts/v2 v2.0.0 // indirect
+	github.com/jcmturner/dnsutils/v2 v2.0.0 // indirect
+	github.com/jcmturner/gofork v1.7.6 // indirect
+	github.com/jcmturner/goidentity/v6 v6.0.1 // indirect
+	github.com/jcmturner/gokrb5/v8 v8.4.4 // indirect
+	github.com/jcmturner/rpc/v2 v2.0.3 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.19.2 // indirect
