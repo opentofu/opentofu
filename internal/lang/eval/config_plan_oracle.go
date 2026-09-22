@@ -19,17 +19,20 @@ import (
 // A PlanningOracle provides information from the configuration that is needed
 // by the planning engine to help orchestrate the planning process.
 type PlanningOracle struct {
-	root           evalglue.CompiledModuleInstance
-	providers      *managedProviders
-	moveStatements []refactoring.MoveStatement
-	moveResults    moveResults
+	root      evalglue.CompiledModuleInstance
+	providers *managedProviders
 }
 
-// HasAddress queries the root module instance to determine if the address is
-// present in the configuration. Note: if instances for the address's underlying
-// resource cannot be resolved, this will return false.
-func (o *PlanningOracle) HasAddress(ctx context.Context, addr addrs.AbsResourceInstance) bool {
-	return evalglue.ResourceInstance(ctx, o.root, addr) != nil
+// MoveStatementsFor queries the root module for any move statements along the given path.
+// This should eventually be replaced with ResourceInstanceObjectMeta.
+func (o *PlanningOracle) MoveStatementsFor(ctx context.Context, addr addrs.Module) []refactoring.MoveStatement {
+	return o.root.GetMoveStatementsFor(ctx, addr)
+}
+
+// DetectImplicitMoveForAddress spiders the configuration, attempting to determine if there is an implicit
+// move that could be found given the supplied state address.
+func (o *PlanningOracle) DetectImplicitMoveForAddress(ctx context.Context, addr addrs.AbsResourceInstance) *addrs.AbsResourceInstance {
+	return o.root.DetectImplicitMoveForAddress(ctx, addr)
 }
 
 // ResourceInstanceObjectMeta returns whatever metadata applies to the
