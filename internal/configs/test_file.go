@@ -1144,7 +1144,7 @@ func (p *Parser) loadMockDataDir(dir string, srcRange hcl.Range) ([]*MockResourc
 		}
 	}
 
-	//tofuMocks given priority over tfMocks
+	// tofuMocks given priority over tfMocks
 	finalMockFiles := make(map[string]string)
 	for _, info := range infos {
 		if info.IsDir() {
