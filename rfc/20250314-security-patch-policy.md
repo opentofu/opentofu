@@ -54,14 +54,14 @@ As a matter of policy we do _not_ adopt an upgrade of a third-party dependency i
 
 ## Sharing our conclusions
 
-We respond to any valid upstream advisory that was either detected by `govulncheck` or reported in good faith by a community member by publishing a security advisory in [our repository's Security Advisories section on GitHub](https://github.com/opentofu/opentofu/security/advisories).
+For every upstream advisory we consider, we add an entry to the OpenTofu project's OpenVEX repository as described in [OpenTofu OpenVEX Repository](./20260921-openvex-repository.md), so that it can be consumed by security scanning software which supports that format.
 
-Our advisory for each report includes a summary of whether and how the report relates to each of the minor release series that are not yet end-of-life. If our response included the issuing of new patch releases in any of those series, we will clearly indicate the minimum patch release in each series that includes the fix.
+If we find that an advisory affects OpenTofu in a significant way then we will also publish a security advisory in [our repository's Security Advisories section on GitHub](https://github.com/opentofu/opentofu/security/advisories). Our advisory for each report includes a summary of whether and how the report relates to each of the minor release series that are not yet end-of-life. If our response included the issuing of new patch releases in any of those series, we will clearly indicate the minimum patch release in each series that includes the fix.
 
-For reports that we classify as false-positives, we instead publish our reasoning for that decision in comments on the relevant GitHub issue and close the issue without making any changes to the code. We ensure that the summary of these issues includes the Go vulerability database ID (or equivalent from another vulnerability database) and the module path of the main Go module that the advisory relates to so that folks who encounter the same false-positives in the tools they use can find our previous discussion about them.
+For reports that we classify as false-positives, we instea publish our reasoning for that decision in comments on the relevant GitHub issue and close the issue without making any changes to the code. We ensure that the summary of these issues includes the Go vulerability database ID (or equivalent from another vulnerability database) and the module path of the main Go module that the advisory relates to so that folks who encounter the same false-positives in the tools they use can find our previous discussion about them. False-positive outcomes are also represented in our OpenVEX repository to make them discoverable by automated security scanners.
 
 > [!NOTE]
 >
-> The original accepted version of this policy stated that we would publish security advisories with no severity when we conclude that a report is a false-positive, because we hoped to list both the valid and false-positive outcomes together in the same place.
+> An earlier version of this policy predated our use of OpenVEX for announcing our conclusions. We introduced OpenVEX in order to have a single central location where all of our conclusions are available in a machine-readable way.
 >
-> Unfortunately at the time of writing GitHub's security advisory features do not allow publishing a "no severity" advisory without that then being copied into other vulnerability databases and thus potentially causing _even more_ false-positive reporting noise for low-accuracy security scanners, and so we've adopted the compromise of describing false-positives only in the GitHub issue that they were reported in.
+> We continue to publish GitHub-based security advisories alongside the OpenVEX reports for problems where we recommend upgrading.
