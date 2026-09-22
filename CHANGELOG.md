@@ -14,7 +14,7 @@ ENHANCEMENTS:
 
 - `tofu plan` no longer prints iterative warnings for multiple resources but instead it shows one warning with all of the affected resources. ([#4201](https://github.com/opentofu/opentofu/issues/4201))
 
- - Support for defining source while mocking a provider for test command ([#4532](https://github.com/opentofu/opentofu/pull/4532))
+ - `mock_provider` now supports the `source` argument that can get a file or directory with specific provider overrides ([#4532](https://github.com/opentofu/opentofu/pull/4532))
 
 BUG FIXES:
 
