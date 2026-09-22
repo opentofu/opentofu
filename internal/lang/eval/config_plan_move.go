@@ -20,21 +20,11 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
+// TODO ALL OF THIS GOES AWAY
+
 type moveResults struct {
 	Changes addrs.SyncMap[addrs.AbsResourceInstance, refactoring.MoveSuccess]
 	Blocked addrs.SyncMap[addrs.AbsMoveable, refactoring.MoveBlocked]
-}
-
-// SetUpMoveStatements obtains the complete collection of move statements from the root module
-// and all its called sub-modules. Diagnostics from move graph validation are returned,
-// which checks for cycles in the graph.
-func (o *PlanningOracle) SetUpMoveStatements(ctx context.Context) tfdiags.Diagnostics {
-	o.moveResults = moveResults{
-		Changes: addrs.MakeSyncMap[addrs.AbsResourceInstance, refactoring.MoveSuccess](),
-		Blocked: addrs.MakeSyncMap[addrs.AbsMoveable, refactoring.MoveBlocked](),
-	}
-	o.moveStatements = slices.Collect(o.root.GetMoveStatements(ctx))
-	return refactoring.ValidateMoveStatementGraph(o.moveStatements)
 }
 
 // FindAddressesMovedFromHere returns all of the addresses that this address will be moved to,
@@ -45,7 +35,7 @@ func (o *PlanningOracle) SetUpMoveStatements(ctx context.Context) tfdiags.Diagno
 // it may take a while to return.
 //
 // A diagnostic is returned if the move was ambiguous.
-func (o *PlanningOracle) FindAddressesMovedFromHere(ctx context.Context, addr addrs.AbsResourceInstance) ([]addrs.AbsResourceInstance, tfdiags.Diagnostics) {
+func (o *PlanningOracle) findAddressesMovedFromHere(ctx context.Context, addr addrs.AbsResourceInstance) ([]addrs.AbsResourceInstance, tfdiags.Diagnostics) {
 	return o.findAddressesByMove(ctx, addr, false)
 }
 
@@ -58,7 +48,7 @@ func (o *PlanningOracle) FindAddressesMovedFromHere(ctx context.Context, addr ad
 // it may take a while to return.
 //
 // A diagnostic is returned if the move was ambiguous.
-func (o *PlanningOracle) FindAddressesMovedToHere(ctx context.Context, addr addrs.AbsResourceInstance) ([]addrs.AbsResourceInstance, tfdiags.Diagnostics) {
+func (o *PlanningOracle) findAddressesMovedToHere(ctx context.Context, addr addrs.AbsResourceInstance) ([]addrs.AbsResourceInstance, tfdiags.Diagnostics) {
 	return o.findAddressesByMove(ctx, addr, true)
 }
 
@@ -187,7 +177,7 @@ func manyFromOneTo(first *moveInfo, mi *moveInfo) *hcl.Diagnostic {
 	}
 }
 
-func (o *PlanningOracle) RecordSuccessfulMove(newAddr, oldAddr addrs.AbsResourceInstance, implied bool) {
+func (o *PlanningOracle) recordSuccessfulMove(newAddr, oldAddr addrs.AbsResourceInstance, implied bool) {
 	o.moveResults.Changes.Put(newAddr, refactoring.MoveSuccess{
 		From:    oldAddr,
 		To:      newAddr,
@@ -195,18 +185,18 @@ func (o *PlanningOracle) RecordSuccessfulMove(newAddr, oldAddr addrs.AbsResource
 	})
 }
 
-func (o *PlanningOracle) RecordBlockedMove(newAddr, wantedAddr addrs.AbsResourceInstance) {
+func (o *PlanningOracle) recordBlockedMove(newAddr, wantedAddr addrs.AbsResourceInstance) {
 	o.moveResults.Blocked.Put(newAddr, refactoring.MoveBlocked{
 		Wanted: wantedAddr,
 		Actual: newAddr,
 	})
 }
 
-func (o *PlanningOracle) MovedAddress(addr addrs.AbsResourceInstance) (refactoring.MoveSuccess, bool) {
+func (o *PlanningOracle) movedAddress(addr addrs.AbsResourceInstance) (refactoring.MoveSuccess, bool) {
 	return o.moveResults.Changes.GetOk(addr)
 }
 
-func (o *PlanningOracle) BlockedDiags() tfdiags.Diagnostics {
+func (o *PlanningOracle) blockedDiags() tfdiags.Diagnostics {
 	var itemsBuf bytes.Buffer
 	// Question: Do we actually need these concurrency features?
 	// I don't think Range is actually parallel...
@@ -241,7 +231,7 @@ func (o *PlanningOracle) BlockedDiags() tfdiags.Diagnostics {
 	)}
 }
 
-func (o *PlanningOracle) CheckMovesFromAddr(addr addrs.AbsResourceInstance) (diags tfdiags.Diagnostics) {
+func (o *PlanningOracle) checkMovesFromAddr(addr addrs.AbsResourceInstance) (diags tfdiags.Diagnostics) {
 	for _, move := range o.moveStatements {
 		// if the move statement can move our address, it matches the "From"
 		if _, moved := addr.MoveDestination(move.From, move.To); moved {
@@ -277,7 +267,7 @@ func reciprocalKey(a, b addrs.InstanceKey) bool {
 // A flag is also returned for whether this is a "pyrrhic move": we may make a move to a non-nil resource
 // instance address with a IntKey(0), but the instance does not actually exist. This is a quirk implemented
 // for compatibility with the previous runtime.
-func (o *PlanningOracle) SearchForImplicitMoveableResourceInstance(ctx context.Context, addr addrs.AbsResourceInstance) (*addrs.AbsResourceInstance, bool) {
+func (o *PlanningOracle) searchForImplicitMoveableResourceInstance(ctx context.Context, addr addrs.AbsResourceInstance) (*addrs.AbsResourceInstance, bool) {
 	// Note: the config graph should already be expanded at this point,
 	// so looking through it again to obtain resource instance information
 	// should be just fine. But I'm also gonna add this, because it's

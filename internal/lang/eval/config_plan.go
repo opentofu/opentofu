@@ -175,8 +175,6 @@ func (c *ConfigInstance) DrivePlanning(ctx context.Context, buildGlue func(*Plan
 	oracle.providers = managedProviders
 	// Inject configured providers
 	evalGlue.providers = managedProviders
-	// Set up the move results map
-	moreDiags = oracle.SetUpMoveStatements(ctx)
 
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
@@ -188,21 +186,17 @@ func (c *ConfigInstance) DrivePlanning(ctx context.Context, buildGlue func(*Plan
 	// it'll cause various calls out to the "glue" object whenever we're
 	// ready to provide configuration for a resource instance and need to
 	// obtain its result for downstream use.
-	//
+	checkDiags := checkAll(ctx, rootModuleInstance)
+	diags = diags.Append(checkDiags)
+
 	// We also call the Plan*Orphans methods on
 	// PlanGlue, which does a similar tree walk but is unique only to the
 	// planning phase and doesn't directly evaluate any nodes.
-	// Note that these calls are done sequentially instead of concurrently:
+	// Note that these calls are done sequentially instead of concurrently: TODO
 	// that's because Plan*Orphans populates move results
 	// within the oracle, which are then used in CheckAll.
 	orphanDiags := announcePlanOrphans(ctx, glue, rootModuleInstance)
 	diags = diags.Append(orphanDiags)
-
-	// Check whether any moves were blocked, and provide the appropriate warnings
-	diags = diags.Append(oracle.BlockedDiags())
-
-	checkDiags := checkAll(ctx, rootModuleInstance)
-	diags = diags.Append(checkDiags)
 
 	// (We intentionally don't return here because we'll make a best effort
 	// to return a partial result even if we encountered errors, so an
