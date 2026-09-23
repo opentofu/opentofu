@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -22,6 +23,10 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/collections"
+	"github.com/opentofu/opentofu/internal/linting"
+	"github.com/opentofu/opentofu/internal/linting/corelinting"
+	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -7319,12 +7324,273 @@ func TestContext2Apply_ephemeralInModuleWithExpansion(t *testing.T) {
 			}
 
 			// Apply again to be sure that nothing changes and it still working
-			newState, diags := apply(t, m, states.NewState())
+			_, diags = apply(t, m, states.NewState())
 			if diags.HasErrors() {
 				t.Fatal(diags.Err())
 			}
-			fmt.Println(newState)
 		})
 
+	}
+}
+
+func TestContext2Apply_lintingImpureFunctionUsedInResource(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureLinting)
+	ruleID := linting.MustParseRuleAddr("core:impurefunc")
+	cases := map[string]struct {
+		cfg           map[string]string
+		expectedDiags func(srcDir string) tfdiags.Diagnostics
+	}{
+		"resource uses timestamp": {
+			cfg: map[string]string{
+				`main.tf`: `
+				resource "test_resource" "res" {
+					value = timestamp()
+				}
+				`,
+			},
+			expectedDiags: func(srcDir string) tfdiags.Diagnostics {
+				return tfdiags.New(
+					tfdiags.LintMessage(
+						ruleID,
+						[]linting.RuleAddr{corelinting.GroupIDAll, corelinting.GroupIDNoConverge},
+						"Impure function used in a location where convergence is typically expected",
+						`Argument ".value" value computed by using impure function "timestamp"`,
+						&tfdiags.SourceRange{
+							Filename: filepath.Join(srcDir, "main.tf"),
+							Start:    tfdiags.SourcePos{Line: 2, Column: 36, Byte: 36},
+							End:      tfdiags.SourcePos{Line: 2, Column: 36, Byte: 36},
+						},
+						nil,
+					),
+				)
+			},
+		},
+		"resource uses uuid": {
+			cfg: map[string]string{
+				`main.tf`: `
+				resource "test_resource" "res" {
+					value = uuid()
+				}
+				`,
+			},
+			expectedDiags: func(srcDir string) tfdiags.Diagnostics {
+				return tfdiags.New(
+					tfdiags.LintMessage(
+						ruleID,
+						[]linting.RuleAddr{corelinting.GroupIDAll, corelinting.GroupIDNoConverge},
+						"Impure function used in a location where convergence is typically expected",
+						`Argument ".value" value computed by using impure function "uuid"`,
+						&tfdiags.SourceRange{
+							Filename: filepath.Join(srcDir, "main.tf"),
+							Start:    tfdiags.SourcePos{Line: 2, Column: 36, Byte: 36},
+							End:      tfdiags.SourcePos{Line: 2, Column: 36, Byte: 36},
+						},
+						nil,
+					),
+				)
+			},
+		},
+		"resource uses bcrypt": {
+			cfg: map[string]string{
+				`main.tf`: `
+				resource "test_resource" "res" {
+					value = bcrypt("input")
+				}
+				`,
+			},
+			expectedDiags: func(srcDir string) tfdiags.Diagnostics {
+				return tfdiags.New(
+					tfdiags.LintMessage(
+						ruleID,
+						[]linting.RuleAddr{corelinting.GroupIDAll, corelinting.GroupIDNoConverge},
+						"Impure function used in a location where convergence is typically expected",
+						`Argument ".value" value computed by using impure function "bcrypt"`,
+						&tfdiags.SourceRange{
+							Filename: filepath.Join(srcDir, "main.tf"),
+							Start:    tfdiags.SourcePos{Line: 2, Column: 36, Byte: 36},
+							End:      tfdiags.SourcePos{Line: 2, Column: 36, Byte: 36},
+						},
+						nil,
+					),
+				)
+			},
+		},
+		"impurefunc mark propagated in the same module": {
+			cfg: map[string]string{
+				`main.tf`: `
+				locals {
+					val = bcrypt("input")
+				}
+				resource "test_resource" "res" {
+					value = local.val
+				}
+				resource "test_resource" "res2" {
+					value = test_resource.res.value
+				}
+				output "out1" {
+					value = local.val
+				}
+				output "out2" {
+					value = test_resource.res.value
+				}
+				output "out3" {
+					value = test_resource.res2.value
+				}
+				`,
+			},
+			expectedDiags: func(srcDir string) tfdiags.Diagnostics {
+				return tfdiags.New(
+					tfdiags.LintMessage(
+						ruleID,
+						[]linting.RuleAddr{corelinting.GroupIDAll, corelinting.GroupIDNoConverge},
+						"Impure function used in a location where convergence is typically expected",
+						`Argument ".value" value computed by using impure function "bcrypt"`,
+						&tfdiags.SourceRange{
+							Filename: filepath.Join(srcDir, "main.tf"),
+							Start:    tfdiags.SourcePos{Line: 5, Column: 36, Byte: 82},
+							End:      tfdiags.SourcePos{Line: 5, Column: 36, Byte: 82},
+						},
+						nil,
+					),
+					tfdiags.LintMessage(
+						ruleID,
+						[]linting.RuleAddr{corelinting.GroupIDAll, corelinting.GroupIDNoConverge},
+						"Impure function used in a location where convergence is typically expected",
+						`Argument ".value" value computed by using impure function "bcrypt"`,
+						&tfdiags.SourceRange{
+							Filename: filepath.Join(srcDir, "main.tf"),
+							Start:    tfdiags.SourcePos{Line: 8, Column: 37, Byte: 149},
+							End:      tfdiags.SourcePos{Line: 8, Column: 37, Byte: 149},
+						},
+						nil,
+					),
+				)
+			},
+		},
+		"impurefunc mark propagated over modules": {
+			cfg: map[string]string{
+				`mod/main.tf`: `
+				variable "mod_in" {
+					type = string
+				}
+				resource "test_resource" "res" {
+					value = var.mod_in
+				}
+				output "mod_out" {
+					value = test_resource.res.value
+				}
+
+				`,
+				`main.tf`: `
+				locals {
+					val = uuid()
+				}
+				module "call" {
+					source = "./mod"
+					mod_in = local.val
+				}
+				resource "test_resource" "res" {
+					value = module.call.mod_out
+				}
+				`,
+			},
+			expectedDiags: func(srcDir string) tfdiags.Diagnostics {
+				return tfdiags.New(
+					tfdiags.LintMessage(
+						ruleID,
+						[]linting.RuleAddr{corelinting.GroupIDAll, corelinting.GroupIDNoConverge},
+						"Impure function used in a location where convergence is typically expected",
+						`Argument ".value" value computed by using impure function "uuid"`,
+						&tfdiags.SourceRange{
+							Filename: filepath.Join(srcDir, "main.tf"),
+							Start:    tfdiags.SourcePos{Line: 9, Column: 36, Byte: 145},
+							End:      tfdiags.SourcePos{Line: 9, Column: 36, Byte: 145},
+						},
+						nil,
+					),
+				)
+			},
+		},
+		"impurefunc mark propagated through for_each": {
+			cfg: map[string]string{
+				`main.tf`: `
+				locals {
+				  for_each = tomap({ "id1" : uuid(), "id2" : uuid() })
+				}
+				
+				resource "test_resource" "res" {
+				  for_each = local.for_each
+				  value   = each.value
+				}
+				`,
+			},
+			expectedDiags: func(srcDir string) tfdiags.Diagnostics {
+				return tfdiags.New(
+					tfdiags.LintMessage(
+						ruleID,
+						[]linting.RuleAddr{corelinting.GroupIDAll, corelinting.GroupIDNoConverge},
+						"Impure function used in a location where convergence is typically expected",
+						`Argument ".value" value computed by using impure function "uuid"`,
+						&tfdiags.SourceRange{
+							Filename: filepath.Join(srcDir, "main.tf"),
+							Start:    tfdiags.SourcePos{Line: 6, Column: 36, Byte: 119},
+							End:      tfdiags.SourcePos{Line: 6, Column: 36, Byte: 119},
+						},
+						nil,
+					),
+				)
+			},
+		},
+		"impurefunc mark propagated through provisioner": {
+			cfg: map[string]string{
+				`main.tf`: `
+				resource "test_resource" "res" {
+				  value   = "value"
+			      provisioner "local-exec" {
+					command = "echo \"${uuid()}\""
+				  }
+				}
+				`,
+			},
+			expectedDiags: func(srcDir string) tfdiags.Diagnostics {
+				return nil
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			m := testModuleInline(t, tc.cfg)
+			provider := testProvider("test")
+			ps := map[addrs.Provider]providers.Factory{
+				addrs.NewDefaultProvider("test"): testProviderFuncFixed(provider),
+			}
+
+			h := &testHook{}
+			apply := func(t *testing.T, m *configs.Config, prevState *states.State) (*states.State, tfdiags.Diagnostics) {
+				tofuCtx := testContext2(t, &ContextOpts{
+					Plugins: plugins.NewLibrary(ps, map[string]provisioners.Factory{
+						"local-exec": testProvisionerFuncFixed(testProvisioner()),
+					}),
+					Hooks: []Hook{h},
+				})
+
+				ctx := tfdiags.ContextWithLintFilterHints(t.Context(), collections.NewSet(linting.MustParseRuleAddr("core:impurefunc")), collections.NewSet[linting.RuleAddr]())
+				plan, diags := tofuCtx.Plan(ctx, m, prevState, &PlanOpts{
+					Mode: plans.NormalMode,
+				})
+				if diags.HasErrors() {
+					return nil, diags
+				}
+
+				return tofuCtx.Apply(ctx, plan, m, nil)
+			}
+
+			_, diags := apply(t, m, states.NewState())
+			if diags.HasErrors() {
+				t.Fatal(diags.Err())
+			}
+			compareDiagnostics(t, tc.expectedDiags(m.Module.SourceDir), diags)
+		})
 	}
 }
