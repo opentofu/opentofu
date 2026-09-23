@@ -12,6 +12,7 @@ import (
 	"iter"
 	"log"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
@@ -28,11 +29,9 @@ type prevStateInfo struct {
 type moveStep struct {
 	From      addrs.AbsResourceInstance
 	To        *moveStep
-	Implied   bool
-	DeclRange tfdiags.SourceRange
+	Statement refactoring.MoveStatement
 }
 
-// TODO forward vs backward
 func (p *planGlue) locateMovesFor(ctx context.Context, addr addrs.AbsResourceInstance, forward bool) ([]*moveStep, tfdiags.Diagnostics) {
 	// Build simple lookup for move statements that have spidering traversals
 	moveStatementsCache := map[string][]refactoring.MoveStatement{}
@@ -67,17 +66,27 @@ func (p *planGlue) locateMovesFor(ctx context.Context, addr addrs.AbsResourceIns
 	for len(currentIteration) > 0 {
 		for _, addr := range currentIteration {
 			for _, move := range getMoveStatementsFor(addr) {
-				if prevAddr, moved := addr.MoveDestination(move.To, move.From); moved {
+				to, from := move.To, move.From
+				if !forward {
+					to, from = from, to
+				}
+				if prevAddr, moved := addr.MoveDestination(to, from); moved {
 					_, ok := potentialAddresses.GetOk(prevAddr)
 					if ok {
-						diags = diags.Append(fmt.Errorf("CYCLE TODO"))
+						// Detect if this is a duplicate path or a true cycle
+						for step := potentialAddresses.Get(addr); step != nil; step = step.To {
+							if step.From.Equal(prevAddr) {
+								diags = diags.Append(fmt.Errorf("CYCLE TODO"))
+								break
+							}
+						}
 						continue
 					}
 
 					addStep(&moveStep{
 						From:      prevAddr,
 						To:        potentialAddresses.Get(addr),
-						DeclRange: move.DeclRange,
+						Statement: move,
 					})
 					nextIteration.Add(prevAddr)
 				}
@@ -96,10 +105,16 @@ func (p *planGlue) locateMovesFor(ctx context.Context, addr addrs.AbsResourceIns
 			// We only want to use an implicit move if there is no explicit move already defined
 			continue
 		}
+		var approxSrcRange tfdiags.SourceRange // TODO
 		addStep(&moveStep{
-			From:    implicitAddr,
-			To:      potentialAddresses.Get(addr),
-			Implied: true,
+			From: implicitAddr,
+			To:   potentialAddresses.Get(addr),
+			Statement: refactoring.MoveStatement{
+				From:      addrs.ImpliedMoveStatementEndpoint(implicitAddr, approxSrcRange),
+				To:        addrs.ImpliedMoveStatementEndpoint(addr, approxSrcRange),
+				Implied:   true,
+				DeclRange: approxSrcRange,
+			},
 		})
 	}
 
@@ -149,13 +164,39 @@ func (p *planGlue) LocatePreviousState(ctx context.Context, addr addrs.AbsResour
 		ret.From = move.From
 		ret.State = move.state
 		ret.Moved = move.To != nil
-		ret.ImplicitMove = move.Implied
+		ret.ImplicitMove = move.Statement.Implied
+
+		for step := move.moveStep; step.To != nil; step = move.To {
+			if p.oracle.HasAddress(ctx, step.From) {
+				move := step.Statement
+				absFrom := move.From.InModuleInstance(addr.Module)
+				absTo := move.To.InModuleInstance(addr.Module)
+				noun := absFrom.Noun()
+				shortNoun := absFrom.ShortNoun()
+
+				// TODO determine DeclRange, probably by adding some config information from the caller
+				declaredAt := ""
+
+				diags = diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Moved object still exists",
+					Detail: fmt.Sprintf(
+						"This statement declares a move from %s, but that %s is still declared%s.\n\nChange your configuration so that this %s will be declared as %s instead.",
+						absFrom, noun, declaredAt, shortNoun, absTo,
+					),
+					Subject: move.DeclRange.ToHCL().Ptr(),
+				})
+			}
+
+		}
 	}
 
 	if !ret.To.Equal(ret.From) {
 		// Active move
 		p.planCtx.moveMu.Lock()
-		// TODO ambiguous moves
+		if p.planCtx.recordedMoves.Has(ret.From) {
+			diags = diags.Append(fmt.Errorf("Ambiguous Move!"))
+		}
 		p.planCtx.recordedMoves.Put(ret.From, ret.To)
 		p.planCtx.moveMu.Unlock()
 	}
@@ -171,9 +212,39 @@ func (p *planGlue) LocateExecutedMove(addr addrs.AbsResourceInstance) *addrs.Abs
 	return nil
 }
 
-func (p *planGlue) LocateUnexecutedMove(ctx context.Context, addr addrs.AbsResourceInstance) *addrs.AbsResourceInstance {
-	// TODO
-	return nil
+func (p *planGlue) LocateUnexecutedMove(ctx context.Context, addr addrs.AbsResourceInstance) (*addrs.AbsResourceInstance, tfdiags.Diagnostics) {
+	potentialMoves, diags := p.locateMovesFor(ctx, addr, false)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	// Calculate the potential end addresses
+	toAddresses := addrs.MakeSet[addrs.AbsResourceInstance]()
+
+	for _, move := range potentialMoves {
+		if move.Statement.Implied {
+			// TODO TestContext2Apply_scaleInMultivarRef
+			// Implicit moves should apply here, but ony when the resource block exists
+			continue
+		}
+		if move.From.Equal(addr) {
+			// Ignore nop move
+			continue
+		}
+		// This is inverted so From is the correct field
+		toAddresses.Add(move.From)
+	}
+
+	if len(toAddresses) == 0 {
+		return nil, diags
+	}
+	if len(toAddresses) == 1 {
+		for _, addr := range toAddresses {
+			return &addr, diags
+		}
+	}
+	panic("TODO untested")
+	return nil, diags.Append(fmt.Errorf("Multiple destinations!"))
 }
 
 func (p *planContext) BlockedMoveDiags() tfdiags.Diagnostics {
@@ -222,6 +293,7 @@ func implicitAddrsFor(addr addrs.AbsResourceInstance) iter.Seq[addrs.AbsResource
 	}
 }
 func implicitAddrsForInternal(addr addrs.AbsResourceInstance) iter.Seq[addrs.AbsResourceInstance] {
+	// TODO should this validate that enabled/count/for_each is available given the configuration?
 	if len(addr.Module) > 0 {
 		part := addr.Module[0]
 		rest := addr.Module[1:]

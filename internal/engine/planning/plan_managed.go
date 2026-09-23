@@ -685,8 +685,12 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 			return ret, diags
 		}
 	}
-
-	if movedToAddr := p.LocateUnexecutedMove(ctx, currentRunAddr); movedToAddr != nil {
+	movedToAddr, movedDiags := p.LocateUnexecutedMove(ctx, currentRunAddr)
+	diags = diags.Append(movedDiags)
+	if diags.HasErrors() {
+		return ret, diags
+	}
+	if movedToAddr != nil {
 		// Discover true configMeta based on state moves
 		configMeta = p.oracle.ResourceInstanceObjectMeta(ctx, addr)
 		meta = exec.BuildResourceInstanceObjectMeta(addr, configMeta, stateSrc)

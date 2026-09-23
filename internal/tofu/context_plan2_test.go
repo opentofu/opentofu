@@ -2692,7 +2692,9 @@ func TestContext2Plan_movedResourceErrors(t *testing.T) {
 		},
 		"cycle in several move statements": {
 			configFolder: "move-cycle",
-			state:        states.NewState(),
+			state: states.BuildState(func(s *states.SyncState) {
+				makeState(s, "test_object.a")
+			}),
 			wantDiag: map[string][]string{
 				"Cyclic dependency in move statements": {"The following chained move statements form a cycle, and so there is no final location"},
 			},
