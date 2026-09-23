@@ -13,6 +13,7 @@ import (
 	"log"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -24,143 +25,60 @@ type prevStateInfo struct {
 	ImplicitMove bool
 }
 
-func (p *planGlue) LocatePreviousState(ctx context.Context, addr addrs.AbsResourceInstance) (prevStateInfo, tfdiags.Diagnostics) {
+type moveStep struct {
+	From      addrs.AbsResourceInstance
+	To        *moveStep
+	Implied   bool
+	DeclRange tfdiags.SourceRange
+}
+
+// TODO forward vs backward
+func (p *planGlue) locateMovesFor(ctx context.Context, addr addrs.AbsResourceInstance, forward bool) ([]*moveStep, tfdiags.Diagnostics) {
+	// Build simple lookup for move statements that have spidering traversals
+	moveStatementsCache := map[string][]refactoring.MoveStatement{}
+	getMoveStatementsFor := func(addr addrs.AbsResourceInstance) []refactoring.MoveStatement {
+		key := addr.Module.Module().String()
+		statements, ok := moveStatementsCache[key]
+		if !ok {
+			// TODO rewrite this in terms of the module address and/or make the lookup func simpler
+			statements = p.oracle.MoveStatementsFor(ctx, addr)
+			moveStatementsCache[key] = statements
+		}
+		return statements
+	}
+
 	var diags tfdiags.Diagnostics
+	var ret []*moveStep
+	potentialAddresses := addrs.MakeMap[addrs.AbsResourceInstance, *moveStep]()
 
-	// Start out unmoved
-	ret := prevStateInfo{
-		From:  addr,
-		To:    addr,
-		State: p.planCtx.prevRoundState.SyncWrapper().ResourceInstanceObjectFull(addr.CurrentObject()),
+	// We need ret and potentialAddresses to be distinct as list ordering matters
+	addStep := func(move *moveStep) {
+		ret = append(ret, move)
+		potentialAddresses.Put(move.From, move)
 	}
 
-	// Query potentially active moved blocks that pertain to our resource
-	// Question: do we need to re-query when dealing with implicit moves?
-	moveStatements := p.oracle.MoveStatementsFor(ctx, addr)
-
-	// We need to check the following:
-	// * Is there state at any of the previous moves
-	// * Do any of the moves conflict?
-	// * Do we have both state at a previous move and a future move?
-	// * How do we take "implicit" moves into account here?
-
-	currentIteration := addrs.MakeSet(addr)
+	currentIteration := addrs.MakeSet[addrs.AbsResourceInstance]()
 	nextIteration := addrs.MakeSet[addrs.AbsResourceInstance]()
-	potentialAddresses := addrs.MakeSet[addrs.AbsResourceInstance]()
 
-	invertInstanceKey := func(key addrs.InstanceKey) addrs.InstanceKey {
-		if key == addrs.NoKey {
-			return addrs.IntKey(0)
-		}
-		if ik, ok := key.(addrs.IntKey); ok && ik == 0 {
-			return addrs.NoKey
-		}
-		return key
-	}
-
-	var implicitAddrsFor func(addr addrs.AbsResourceInstance) iter.Seq[addrs.AbsResourceInstance]
-	implicitAddrsFor = func(addr addrs.AbsResourceInstance) iter.Seq[addrs.AbsResourceInstance] {
-		if len(addr.Module) > 0 {
-			part := addr.Module[0]
-			rest := addr.Module[1:]
-			partInvert := addrs.ModuleInstanceStep{
-				Name:        part.Name,
-				InstanceKey: invertInstanceKey(part.InstanceKey),
-			}
-			subImplicit := implicitAddrsFor(addrs.AbsResourceInstance{
-				Resource: addr.Resource,
-				Module:   rest,
-			})
-			return func(yield func(addrs.AbsResourceInstance) bool) {
-				for implicit := range subImplicit {
-					if !yield(addrs.AbsResourceInstance{
-						Resource: implicit.Resource,
-						Module:   append([]addrs.ModuleInstanceStep{part}, implicit.Module...),
-					}) {
-						return
-					}
-					if part.InstanceKey == partInvert.InstanceKey {
-						continue
-					}
-					if !yield(addrs.AbsResourceInstance{
-						Resource: implicit.Resource,
-						Module:   append([]addrs.ModuleInstanceStep{partInvert}, implicit.Module...),
-					}) {
-						return
-					}
-				}
-			}
-		} else {
-			return func(yield func(addrs.AbsResourceInstance) bool) {
-				if !yield(addr) {
-					return
-				}
-				inverted := addrs.AbsResourceInstance{Resource: addrs.ResourceInstance{Resource: addr.Resource.Resource, Key: invertInstanceKey(addr.Resource.Key)}}
-				if inverted.Resource.Key == addr.Resource.Key {
-					return
-				}
-				_ = yield(inverted)
-			}
-		}
-	}
-
-	// TODO detect move cycles
+	// Start with the initial address
+	currentIteration.Add(addr)
+	addStep(&moveStep{From: addr})
 
 	for len(currentIteration) > 0 {
 		for _, addr := range currentIteration {
-			for implicitAddr := range implicitAddrsFor(addr) {
-				if implicitAddr.Equal(addr) {
-					continue
-				}
-				if potentialAddresses.Has(implicitAddr) {
-					continue
-				}
-				state := p.planCtx.prevRoundState.SyncWrapper().ResourceInstanceObjectFull(implicitAddr.CurrentObject())
-				if state != nil {
-					// We have found an active move
-					log.Printf("[TRACE] Detected implicit move of %s to %s", implicitAddr, ret.To)
-					if ret.State != nil {
-						p.planCtx.moveMu.Lock()
-						p.planCtx.blockedMoves.Put(implicitAddr, ret.To)
-						p.planCtx.moveMu.Unlock()
-						continue
-					}
-					ret.From = implicitAddr
-					ret.State = state
-					ret.Moved = true
-					ret.ImplicitMove = true
-
-					potentialAddresses.Add(implicitAddr)
-					nextIteration.Add(implicitAddr)
-				}
-				// TODO potentialAddresses / nextIteration?
-			}
-
-			for _, move := range moveStatements {
+			for _, move := range getMoveStatementsFor(addr) {
 				if prevAddr, moved := addr.MoveDestination(move.To, move.From); moved {
-					if potentialAddresses.Has(prevAddr) {
-						p.planCtx.moveMu.Lock()
-						p.planCtx.blockedMoves.Put(prevAddr, ret.To)
-						p.planCtx.moveMu.Unlock()
+					_, ok := potentialAddresses.GetOk(prevAddr)
+					if ok {
+						diags = diags.Append(fmt.Errorf("CYCLE TODO"))
 						continue
 					}
 
-					state := p.planCtx.prevRoundState.SyncWrapper().ResourceInstanceObjectFull(prevAddr.CurrentObject())
-					if state != nil {
-						// We have found an active move
-						log.Printf("[TRACE] Detected explicit move of %s to %s", prevAddr, ret.To)
-						if ret.State != nil {
-							p.planCtx.moveMu.Lock()
-							p.planCtx.blockedMoves.Put(prevAddr, ret.To)
-							p.planCtx.moveMu.Unlock()
-							continue
-						}
-						ret.From = prevAddr
-						ret.State = state
-						ret.Moved = true
-					}
-
-					potentialAddresses.Add(prevAddr)
+					addStep(&moveStep{
+						From:      prevAddr,
+						To:        potentialAddresses.Get(addr),
+						DeclRange: move.DeclRange,
+					})
 					nextIteration.Add(prevAddr)
 				}
 			}
@@ -170,6 +88,68 @@ func (p *planGlue) LocatePreviousState(ctx context.Context, addr addrs.AbsResour
 		currentIteration, nextIteration = nextIteration, currentIteration
 		// Clear next
 		clear(nextIteration)
+	}
+
+	// Add implicit entries to the graph, we only do this at the starting address
+	for implicitAddr := range implicitAddrsFor(addr) {
+		if potentialAddresses.Has(implicitAddr) {
+			// We only want to use an implicit move if there is no explicit move already defined
+			continue
+		}
+		addStep(&moveStep{
+			From:    implicitAddr,
+			To:      potentialAddresses.Get(addr),
+			Implied: true,
+		})
+	}
+
+	return ret, diags
+}
+
+func (p *planGlue) LocatePreviousState(ctx context.Context, addr addrs.AbsResourceInstance) (prevStateInfo, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
+	// Start without state
+	ret := prevStateInfo{
+		From: addr,
+		To:   addr,
+	}
+
+	potentialMoves, moveDiags := p.locateMovesFor(ctx, addr, true)
+	diags = diags.Append(moveDiags)
+	if diags.HasErrors() {
+		return ret, diags
+	}
+
+	type statefulMove struct {
+		*moveStep
+		state *states.ResourceInstanceObjectFullSrc
+	}
+
+	var statefulMoves []statefulMove
+
+	for _, move := range potentialMoves {
+		state := p.planCtx.prevRoundState.SyncWrapper().ResourceInstanceObjectFull(move.From.CurrentObject())
+		if state != nil {
+			log.Printf("[TRACE] PotentialMove with state %s -> %s", move.From, ret.To)
+			statefulMoves = append(statefulMoves, statefulMove{move, state})
+		} else {
+			log.Printf("[TRACE] PotentialMove (no state) %s -> %s", move.From, ret.To)
+		}
+	}
+
+	for _, move := range statefulMoves {
+		if ret.State != nil {
+			log.Printf("[TRACE] ConflictingMove: (%s || %s) -> %s", move.From, ret.From, ret.To)
+			p.planCtx.moveMu.Lock()
+			p.planCtx.blockedMoves.Put(move.From, ret.To)
+			p.planCtx.moveMu.Unlock()
+			continue
+		}
+		ret.From = move.From
+		ret.State = move.state
+		ret.Moved = move.To != nil
+		ret.ImplicitMove = move.Implied
 	}
 
 	if !ret.To.Equal(ret.From) {
@@ -217,4 +197,71 @@ func (p *planContext) BlockedMoveDiags() tfdiags.Diagnostics {
 			itemsBuf.String(),
 		),
 	)}
+}
+
+func invertInstanceKey(key addrs.InstanceKey) addrs.InstanceKey {
+	if key == addrs.NoKey {
+		return addrs.IntKey(0)
+	}
+	if ik, ok := key.(addrs.IntKey); ok && ik == 0 {
+		return addrs.NoKey
+	}
+	return key
+}
+
+func implicitAddrsFor(addr addrs.AbsResourceInstance) iter.Seq[addrs.AbsResourceInstance] {
+	return func(yield func(addrs.AbsResourceInstance) bool) {
+		for implicit := range implicitAddrsForInternal(addr) {
+			if implicit.Equal(addr) {
+				continue
+			}
+			if !yield(implicit) {
+				return
+			}
+		}
+	}
+}
+func implicitAddrsForInternal(addr addrs.AbsResourceInstance) iter.Seq[addrs.AbsResourceInstance] {
+	if len(addr.Module) > 0 {
+		part := addr.Module[0]
+		rest := addr.Module[1:]
+		partInvert := addrs.ModuleInstanceStep{
+			Name:        part.Name,
+			InstanceKey: invertInstanceKey(part.InstanceKey),
+		}
+		subImplicit := implicitAddrsForInternal(addrs.AbsResourceInstance{
+			Resource: addr.Resource,
+			Module:   rest,
+		})
+		return func(yield func(addrs.AbsResourceInstance) bool) {
+			for implicit := range subImplicit {
+				if !yield(addrs.AbsResourceInstance{
+					Resource: implicit.Resource,
+					Module:   append([]addrs.ModuleInstanceStep{part}, implicit.Module...),
+				}) {
+					return
+				}
+				if part.InstanceKey == partInvert.InstanceKey {
+					continue
+				}
+				if !yield(addrs.AbsResourceInstance{
+					Resource: implicit.Resource,
+					Module:   append([]addrs.ModuleInstanceStep{partInvert}, implicit.Module...),
+				}) {
+					return
+				}
+			}
+		}
+	} else {
+		return func(yield func(addrs.AbsResourceInstance) bool) {
+			if !yield(addr) {
+				return
+			}
+			inverted := addrs.AbsResourceInstance{Resource: addrs.ResourceInstance{Resource: addr.Resource.Resource, Key: invertInstanceKey(addr.Resource.Key)}}
+			if inverted.Resource.Key == addr.Resource.Key {
+				return
+			}
+			_ = yield(inverted)
+		}
+	}
 }
