@@ -25,7 +25,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/zclconf/go-cty-debug/ctydebug"
 	"github.com/zclconf/go-cty/cty"
-	"github.com/zclconf/go-cty/cty/gocty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
@@ -10465,37 +10464,16 @@ func TestContext2Apply_ProviderMeta_apply_set(t *testing.T) {
 		t.Fatalf("ApplyResourceChange not called")
 	}
 
-	expectations := map[string]cty.Value{}
-
 	if pm, ok := arcPMs["test_resource"]; !ok {
 		t.Fatalf("sub-module ApplyResourceChange not called")
-	} else if pm.IsNull() {
-		t.Fatalf("null ProviderMeta in sub-module ApplyResourceChange")
-	} else {
-		expectations["quux-submodule"] = pm
+	} else if !pm.IsNull() {
+		t.Fatalf("Unexpected non-null ProviderMeta in sub-module ApplyResourceChange")
 	}
 
 	if pm, ok := arcPMs["test_instance"]; !ok {
 		t.Fatalf("root module ApplyResourceChange not called")
-	} else if pm.IsNull() {
-		t.Fatalf("null ProviderMeta in root module ApplyResourceChange")
-	} else {
-		expectations["quux"] = pm
-	}
-
-	type metaStruct struct {
-		Baz string `cty:"baz"`
-	}
-
-	for expected, v := range expectations {
-		var meta metaStruct
-		err := gocty.FromCtyValue(v, &meta)
-		if err != nil {
-			t.Fatalf("Error parsing cty value: %s", err)
-		}
-		if meta.Baz != expected {
-			t.Fatalf("Expected meta.Baz to be %q, got %q", expected, meta.Baz)
-		}
+	} else if !pm.IsNull() {
+		t.Fatalf("Unexpected non-null ProviderMeta in root module ApplyResourceChange")
 	}
 }
 
@@ -10550,13 +10528,13 @@ func TestContext2Apply_ProviderMeta_apply_unset(t *testing.T) {
 	if pm, ok := arcPMs["test_resource"]; !ok {
 		t.Fatalf("sub-module ApplyResourceChange not called")
 	} else if !pm.IsNull() {
-		t.Fatalf("non-null ProviderMeta in sub-module ApplyResourceChange: %+v", pm)
+		t.Fatalf("Unexpected non-null ProviderMeta in sub-module ApplyResourceChange: %+v", pm)
 	}
 
 	if pm, ok := arcPMs["test_instance"]; !ok {
 		t.Fatalf("root module ApplyResourceChange not called")
 	} else if !pm.IsNull() {
-		t.Fatalf("non-null ProviderMeta in root module ApplyResourceChange: %+v", pm)
+		t.Fatalf("Unexpected non-null ProviderMeta in root module ApplyResourceChange: %+v", pm)
 	}
 }
 
@@ -10595,37 +10573,16 @@ func TestContext2Apply_ProviderMeta_plan_set(t *testing.T) {
 		t.Fatalf("PlanResourceChange not called")
 	}
 
-	expectations := map[string]cty.Value{}
-
 	if pm, ok := prcPMs["test_resource"]; !ok {
 		t.Fatalf("sub-module PlanResourceChange not called")
-	} else if pm.IsNull() {
-		t.Fatalf("null ProviderMeta in sub-module PlanResourceChange")
-	} else {
-		expectations["quux-submodule"] = pm
+	} else if !pm.IsNull() {
+		t.Fatalf("Unexpected non-null ProviderMeta in sub-module PlanResourceChange")
 	}
 
 	if pm, ok := prcPMs["test_instance"]; !ok {
 		t.Fatalf("root module PlanResourceChange not called")
-	} else if pm.IsNull() {
-		t.Fatalf("null ProviderMeta in root module PlanResourceChange")
-	} else {
-		expectations["quux"] = pm
-	}
-
-	type metaStruct struct {
-		Baz string `cty:"baz"`
-	}
-
-	for expected, v := range expectations {
-		var meta metaStruct
-		err := gocty.FromCtyValue(v, &meta)
-		if err != nil {
-			t.Fatalf("Error parsing cty value: %s", err)
-		}
-		if meta.Baz != expected {
-			t.Fatalf("Expected meta.Baz to be %q, got %q", expected, meta.Baz)
-		}
+	} else if !pm.IsNull() {
+		t.Fatalf("Unexpected non-null ProviderMeta in root module PlanResourceChange")
 	}
 }
 
@@ -10690,31 +10647,7 @@ func TestContext2Apply_ProviderMeta_plan_setNoSchema(t *testing.T) {
 	})
 
 	_, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
-	if !diags.HasErrors() {
-		t.Fatalf("plan supposed to error, has no errors")
-	}
-
-	var rootErr, subErr bool
-	errorSummary := "The resource test_%s.bar belongs to a provider that doesn't support provider_meta blocks"
-	for _, diag := range diags {
-		if diag.Description().Summary != "Provider registry.opentofu.org/hashicorp/test doesn't support provider_meta" {
-			t.Errorf("Unexpected error: %+v", diag.Description())
-		}
-		switch diag.Description().Detail {
-		case fmt.Sprintf(errorSummary, "instance"):
-			rootErr = true
-		case fmt.Sprintf(errorSummary, "resource"):
-			subErr = true
-		default:
-			t.Errorf("Unexpected error: %s", diag.Description())
-		}
-	}
-	if !rootErr {
-		t.Errorf("Expected unsupported provider_meta block error for root module, none received")
-	}
-	if !subErr {
-		t.Errorf("Expected unsupported provider_meta block error for sub-module, none received")
-	}
+	assertNoErrors(t, diags)
 }
 
 func TestContext2Apply_ProviderMeta_plan_setInvalid(t *testing.T) {
@@ -10740,35 +10673,7 @@ func TestContext2Apply_ProviderMeta_plan_setInvalid(t *testing.T) {
 	})
 
 	_, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
-	if !diags.HasErrors() {
-		t.Fatalf("plan supposed to error, has no errors")
-	}
-
-	var reqErr, invalidErr bool
-	for _, diag := range diags {
-		switch diag.Description().Summary {
-		case "Missing required argument":
-			if diag.Description().Detail == `The argument "quux" is required, but no definition was found.` {
-				reqErr = true
-			} else {
-				t.Errorf("Unexpected error %+v", diag.Description())
-			}
-		case "Unsupported argument":
-			if diag.Description().Detail == `An argument named "baz" is not expected here.` {
-				invalidErr = true
-			} else {
-				t.Errorf("Unexpected error %+v", diag.Description())
-			}
-		default:
-			t.Errorf("Unexpected error %+v", diag.Description())
-		}
-	}
-	if !reqErr {
-		t.Errorf("Expected missing required argument error, none received")
-	}
-	if !invalidErr {
-		t.Errorf("Expected unsupported argument error, none received")
-	}
+	assertNoErrors(t, diags)
 }
 
 func TestContext2Apply_ProviderMeta_refresh_set(t *testing.T) {
@@ -10816,37 +10721,16 @@ func TestContext2Apply_ProviderMeta_refresh_set(t *testing.T) {
 		t.Fatalf("ReadResource not called")
 	}
 
-	expectations := map[string]cty.Value{}
-
 	if pm, ok := rrcPMs["test_resource"]; !ok {
 		t.Fatalf("sub-module ReadResource not called")
-	} else if pm.IsNull() {
-		t.Fatalf("null ProviderMeta in sub-module ReadResource")
-	} else {
-		expectations["quux-submodule"] = pm
+	} else if !pm.IsNull() {
+		t.Fatalf("Unexpected non-null ProviderMeta in sub-module ReadResource")
 	}
 
 	if pm, ok := rrcPMs["test_instance"]; !ok {
 		t.Fatalf("root module ReadResource not called")
-	} else if pm.IsNull() {
-		t.Fatalf("null ProviderMeta in root module ReadResource")
-	} else {
-		expectations["quux"] = pm
-	}
-
-	type metaStruct struct {
-		Baz string `cty:"baz"`
-	}
-
-	for expected, v := range expectations {
-		var meta metaStruct
-		err := gocty.FromCtyValue(v, &meta)
-		if err != nil {
-			t.Fatalf("Error parsing cty value: %s", err)
-		}
-		if meta.Baz != expected {
-			t.Fatalf("Expected meta.Baz to be %q, got %q", expected, meta.Baz)
-		}
+	} else if !pm.IsNull() {
+		t.Fatalf("Unexpected non-null ProviderMeta in root module ReadResource")
 	}
 }
 
@@ -10880,7 +10764,7 @@ func TestContext2Apply_ProviderMeta_refresh_setNoSchema(t *testing.T) {
 	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	assertNoErrors(t, diags)
 
-	// drop the schema before refresh, to test that it errors
+	// drop the schema before refresh
 	schema.ProviderMeta = nil
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(schema)
 	ctx = testContext2(t, &ContextOpts{
@@ -10890,31 +10774,7 @@ func TestContext2Apply_ProviderMeta_refresh_setNoSchema(t *testing.T) {
 	})
 
 	_, diags = ctx.Refresh(context.Background(), m, state, DefaultPlanOpts)
-	if !diags.HasErrors() {
-		t.Fatalf("refresh supposed to error, has no errors")
-	}
-
-	var rootErr, subErr bool
-	errorSummary := "The resource test_%s.bar belongs to a provider that doesn't support provider_meta blocks"
-	for _, diag := range diags {
-		if diag.Description().Summary != "Provider registry.opentofu.org/hashicorp/test doesn't support provider_meta" {
-			t.Errorf("Unexpected error: %+v", diag.Description())
-		}
-		switch diag.Description().Detail {
-		case fmt.Sprintf(errorSummary, "instance"):
-			rootErr = true
-		case fmt.Sprintf(errorSummary, "resource"):
-			subErr = true
-		default:
-			t.Errorf("Unexpected error: %s", diag.Description())
-		}
-	}
-	if !rootErr {
-		t.Errorf("Expected unsupported provider_meta block error for root module, none received")
-	}
-	if !subErr {
-		t.Errorf("Expected unsupported provider_meta block error for sub-module, none received")
-	}
+	assertNoErrors(t, diags)
 }
 
 func TestContext2Apply_ProviderMeta_refresh_setInvalid(t *testing.T) {
@@ -10947,7 +10807,7 @@ func TestContext2Apply_ProviderMeta_refresh_setInvalid(t *testing.T) {
 	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	assertNoErrors(t, diags)
 
-	// change the schema before refresh, to test that it errors
+	// change the schema before refresh
 	schema.ProviderMeta = &configschema.Block{
 		Attributes: map[string]*configschema.Attribute{
 			"quux": {
@@ -10964,35 +10824,7 @@ func TestContext2Apply_ProviderMeta_refresh_setInvalid(t *testing.T) {
 	})
 
 	_, diags = ctx.Refresh(context.Background(), m, state, DefaultPlanOpts)
-	if !diags.HasErrors() {
-		t.Fatalf("refresh supposed to error, has no errors")
-	}
-
-	var reqErr, invalidErr bool
-	for _, diag := range diags {
-		switch diag.Description().Summary {
-		case "Missing required argument":
-			if diag.Description().Detail == `The argument "quux" is required, but no definition was found.` {
-				reqErr = true
-			} else {
-				t.Errorf("Unexpected error %+v", diag.Description())
-			}
-		case "Unsupported argument":
-			if diag.Description().Detail == `An argument named "baz" is not expected here.` {
-				invalidErr = true
-			} else {
-				t.Errorf("Unexpected error %+v", diag.Description())
-			}
-		default:
-			t.Errorf("Unexpected error %+v", diag.Description())
-		}
-	}
-	if !reqErr {
-		t.Errorf("Expected missing required argument error, none received")
-	}
-	if !invalidErr {
-		t.Errorf("Expected unsupported argument error, none received")
-	}
+	assertNoErrors(t, diags)
 }
 
 func TestContext2Apply_ProviderMeta_refreshdata_set(t *testing.T) {
@@ -11057,37 +10889,16 @@ func TestContext2Apply_ProviderMeta_refreshdata_set(t *testing.T) {
 		t.Fatalf("ReadDataSource not called")
 	}
 
-	expectations := map[string]cty.Value{}
-
 	if pm, ok := rdsPMs["test_file"]; !ok {
 		t.Fatalf("sub-module ReadDataSource not called")
-	} else if pm.IsNull() {
-		t.Fatalf("null ProviderMeta in sub-module ReadDataSource")
-	} else {
-		expectations["quux-submodule"] = pm
+	} else if !pm.IsNull() {
+		t.Fatalf("Unexpected non-null ProviderMeta in sub-module ReadDataSource")
 	}
 
 	if pm, ok := rdsPMs["test_data_source"]; !ok {
 		t.Fatalf("root module ReadDataSource not called")
-	} else if pm.IsNull() {
-		t.Fatalf("null ProviderMeta in root module ReadDataSource")
-	} else {
-		expectations["quux"] = pm
-	}
-
-	type metaStruct struct {
-		Baz string `cty:"baz"`
-	}
-
-	for expected, v := range expectations {
-		var meta metaStruct
-		err := gocty.FromCtyValue(v, &meta)
-		if err != nil {
-			t.Fatalf("Error parsing cty value: %s", err)
-		}
-		if meta.Baz != expected {
-			t.Fatalf("Expected meta.Baz to be %q, got %q", expected, meta.Baz)
-		}
+	} else if !pm.IsNull() {
+		t.Fatalf("Unexpected non-null ProviderMeta in root module ReadDataSource")
 	}
 }
 
@@ -11171,39 +10982,31 @@ func TestContext2Apply_ProviderMeta_refreshdata_setNoSchema(t *testing.T) {
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
 		}, nil),
 	})
-	p.ReadDataSourceResponse = &providers.ReadDataSourceResponse{
-		State: cty.ObjectVal(map[string]cty.Value{
-			"id":  cty.StringVal("yo"),
-			"foo": cty.StringVal("bar"),
-		}),
+	p.ReadDataSourceFn = func(req providers.ReadDataSourceRequest) providers.ReadDataSourceResponse {
+		switch req.TypeName {
+		case "test_data_source":
+			return providers.ReadDataSourceResponse{
+				State: cty.ObjectVal(map[string]cty.Value{
+					"id":  cty.StringVal("yo"),
+					"foo": cty.StringVal("bar"),
+				}),
+			}
+		case "test_file":
+			return providers.ReadDataSourceResponse{
+				State: cty.ObjectVal(map[string]cty.Value{
+					"id":       cty.StringVal("bar"),
+					"rendered": cty.StringVal("baz"),
+					"template": cty.StringVal(""),
+				}),
+			}
+		default:
+			// config drift, oops
+			return providers.ReadDataSourceResponse{}
+		}
 	}
 
 	_, diags := ctx.Refresh(context.Background(), m, states.NewState(), DefaultPlanOpts)
-	if !diags.HasErrors() {
-		t.Fatalf("refresh supposed to error, has no errors")
-	}
-
-	var rootErr, subErr bool
-	errorSummary := "The resource data.test_%s.foo belongs to a provider that doesn't support provider_meta blocks"
-	for _, diag := range diags {
-		if diag.Description().Summary != "Provider registry.opentofu.org/hashicorp/test doesn't support provider_meta" {
-			t.Errorf("Unexpected error: %+v", diag.Description())
-		}
-		switch diag.Description().Detail {
-		case fmt.Sprintf(errorSummary, "data_source"):
-			rootErr = true
-		case fmt.Sprintf(errorSummary, "file"):
-			subErr = true
-		default:
-			t.Errorf("Unexpected error: %s", diag.Description())
-		}
-	}
-	if !rootErr {
-		t.Errorf("Expected unsupported provider_meta block error for root module, none received")
-	}
-	if !subErr {
-		t.Errorf("Expected unsupported provider_meta block error for sub-module, none received")
-	}
+	assertNoErrors(t, diags)
 }
 
 func TestContext2Apply_ProviderMeta_refreshdata_setInvalid(t *testing.T) {
@@ -11227,43 +11030,31 @@ func TestContext2Apply_ProviderMeta_refreshdata_setInvalid(t *testing.T) {
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
 		}, nil),
 	})
-	p.ReadDataSourceResponse = &providers.ReadDataSourceResponse{
-		State: cty.ObjectVal(map[string]cty.Value{
-			"id":  cty.StringVal("yo"),
-			"foo": cty.StringVal("bar"),
-		}),
+	p.ReadDataSourceFn = func(req providers.ReadDataSourceRequest) providers.ReadDataSourceResponse {
+		switch req.TypeName {
+		case "test_data_source":
+			return providers.ReadDataSourceResponse{
+				State: cty.ObjectVal(map[string]cty.Value{
+					"id":  cty.StringVal("yo"),
+					"foo": cty.StringVal("bar"),
+				}),
+			}
+		case "test_file":
+			return providers.ReadDataSourceResponse{
+				State: cty.ObjectVal(map[string]cty.Value{
+					"id":       cty.StringVal("bar"),
+					"rendered": cty.StringVal("baz"),
+					"template": cty.StringVal(""),
+				}),
+			}
+		default:
+			// config drift, oops
+			return providers.ReadDataSourceResponse{}
+		}
 	}
 
 	_, diags := ctx.Refresh(context.Background(), m, states.NewState(), DefaultPlanOpts)
-	if !diags.HasErrors() {
-		t.Fatalf("refresh supposed to error, has no errors")
-	}
-
-	var reqErr, invalidErr bool
-	for _, diag := range diags {
-		switch diag.Description().Summary {
-		case "Missing required argument":
-			if diag.Description().Detail == `The argument "quux" is required, but no definition was found.` {
-				reqErr = true
-			} else {
-				t.Errorf("Unexpected error %+v", diag.Description())
-			}
-		case "Unsupported argument":
-			if diag.Description().Detail == `An argument named "baz" is not expected here.` {
-				invalidErr = true
-			} else {
-				t.Errorf("Unexpected error %+v", diag.Description())
-			}
-		default:
-			t.Errorf("Unexpected error %+v", diag.Description())
-		}
-	}
-	if !reqErr {
-		t.Errorf("Expected missing required argument error, none received")
-	}
-	if !invalidErr {
-		t.Errorf("Expected unsupported argument error, none received")
-	}
+	assertNoErrors(t, diags)
 }
 
 func TestContext2Apply_expandModuleVariables(t *testing.T) {
