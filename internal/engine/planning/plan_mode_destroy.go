@@ -91,6 +91,9 @@ func destroyPlan(ctx context.Context, opts *PlanOpts, prevRoundState *states.Sta
 		panic(fmt.Sprintf("%T.DrivePlanning returned nil result without any error diagnostics", configInst))
 	}
 
+	// We also need to handle any blocked moves here
+	diags = diags.Append(planCtx.BlockedMoveDiags())
+
 	// We also need to deal with any "deposed" resource instances that were
 	// in the previous round state. We do this separately afterwards because
 	// these have no direct representation in the configuration at all and
@@ -200,7 +203,13 @@ func (p *planGlueDestroy) PlanDesiredResourceInstance(ctx context.Context, inst 
 	// runtime's handling of this situation and mimic it as closely as we can
 	// for backward-compatibility.
 
-	prevState := p.normalGlue.planCtx.prevRoundState.SyncWrapper().ResourceInstanceObjectFull(inst.Addr.CurrentObject())
+	prevStateInfo, moveDiags := p.normalGlue.LocatePreviousState(ctx, inst.Addr)
+	diags = diags.Append(moveDiags)
+	if diags.HasErrors() {
+		return cty.DynamicVal, diags
+	}
+	prevState := prevStateInfo.State
+
 	if prevState == nil {
 		// If this is something that didn't exist at all in the prior state
 		// then we have nothing reasonable to return here, so we'll return
