@@ -691,10 +691,14 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 		return ret, diags
 	}
 	if movedToAddr != nil {
+		movedObj := movedToAddr.Object(addr.DeposedKey)
+		//addr = movedObj
 		// Discover true configMeta based on state moves
-		configMeta = p.oracle.ResourceInstanceObjectMeta(ctx, addr)
-		meta = exec.BuildResourceInstanceObjectMeta(addr, configMeta, stateSrc)
+		configMeta = p.oracle.ResourceInstanceObjectMeta(ctx, movedObj)
+		meta = exec.BuildResourceInstanceObjectMeta(movedObj, configMeta, stateSrc)
+		//ret.Addr = movedObj
 		ret.Provider = meta.Provider
+		currentRunAddr = movedObj.InstanceAddr
 	}
 
 	// FIXME: Currently this fails if the only mention of a particular provider

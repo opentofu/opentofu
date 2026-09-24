@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"iter"
 	"log"
+	"slices"
 	"sort"
 	"strings"
 
@@ -146,23 +147,41 @@ func (p *planGlue) locateMovesFor(ctx context.Context, addr addrs.AbsResourceIns
 		clear(nextIteration)
 	}
 
-	// Add implicit entries to the graph, we only do this at the starting address
-	for implicitAddr := range implicitAddrsFor(addr) {
-		if potentialAddresses.Has(implicitAddr) {
-			// We only want to use an implicit move if there is no explicit move already defined
-			continue
+	if forward {
+		// Add implicit entries to the graph, we only do this at the starting address
+		for implicitAddr := range implicitAddrsFor(addr) {
+			if potentialAddresses.Has(implicitAddr) {
+				// We only want to use an implicit move if there is no explicit move already defined
+				continue
+			}
+			var approxSrcRange tfdiags.SourceRange // TODO
+			addStep(&moveStep{
+				From: implicitAddr,
+				To:   potentialAddresses.Get(addr),
+				Statement: refactoring.MoveStatement{
+					From:      addrs.ImpliedMoveStatementEndpoint(implicitAddr, approxSrcRange),
+					To:        addrs.ImpliedMoveStatementEndpoint(addr, approxSrcRange),
+					Implied:   true,
+					DeclRange: approxSrcRange,
+				},
+			})
 		}
-		var approxSrcRange tfdiags.SourceRange // TODO
-		addStep(&moveStep{
-			From: implicitAddr,
-			To:   potentialAddresses.Get(addr),
-			Statement: refactoring.MoveStatement{
-				From:      addrs.ImpliedMoveStatementEndpoint(implicitAddr, approxSrcRange),
-				To:        addrs.ImpliedMoveStatementEndpoint(addr, approxSrcRange),
-				Implied:   true,
-				DeclRange: approxSrcRange,
-			},
-		})
+	} else {
+		// Add implicit addr to the graph, we only do this at the starting address
+		if implicitAddr := p.oracle.DetectImplicitMoveForAddress(ctx, addr); implicitAddr != nil && !potentialAddresses.Has(*implicitAddr) {
+			// We only want to use an implicit move if there is no explicit move already defined
+			var approxSrcRange tfdiags.SourceRange // TODO
+			addStep(&moveStep{
+				From: *implicitAddr,
+				To:   potentialAddresses.Get(addr),
+				Statement: refactoring.MoveStatement{
+					From:      addrs.ImpliedMoveStatementEndpoint(implicitAddr, approxSrcRange),
+					To:        addrs.ImpliedMoveStatementEndpoint(addr, approxSrcRange),
+					Implied:   true,
+					DeclRange: approxSrcRange,
+				},
+			})
+		}
 	}
 
 	return ret, diags
@@ -307,11 +326,6 @@ func (p *planGlue) LocateUnexecutedMove(ctx context.Context, addr addrs.AbsResou
 	toAddresses := addrs.MakeSet[addrs.AbsResourceInstance]()
 
 	for _, move := range potentialMoves {
-		if move.Statement.Implied {
-			// TODO TestContext2Apply_scaleInMultivarRef
-			// Implicit moves should apply here, but ony when the resource block exists
-			continue
-		}
 		if move.From.Equal(addr) {
 			// Ignore nop move
 			continue
@@ -324,9 +338,13 @@ func (p *planGlue) LocateUnexecutedMove(ctx context.Context, addr addrs.AbsResou
 		return nil, diags
 	}
 	if len(toAddresses) == 1 {
-		for _, addr := range toAddresses {
-			return &addr, diags
+		toAddr := slices.Collect(toAddresses.All())[0]
+		// Check if this move was previously blocked
+		if p.planCtx.blockedMoves.Has(addr) {
+			return nil, diags
 		}
+
+		return &toAddr, diags
 	}
 	panic("TODO untested")
 	return nil, diags.Append(fmt.Errorf("Multiple destinations!"))

@@ -183,6 +183,8 @@ type CompiledModuleInstance interface {
 	// resource.
 	ResourceInstancesForResource(ctx context.Context, addr addrs.Resource) iter.Seq[*configgraph.ResourceInstance]
 
+	DetectImplicitMoveForAddress(ctx context.Context, addr addrs.AbsResourceInstance) *addrs.AbsResourceInstance
+
 	// ProviderInstances returns a sequence of all of the provider instances
 	// declared in the module.
 	//

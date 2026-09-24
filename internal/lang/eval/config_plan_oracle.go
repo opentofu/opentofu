@@ -56,6 +56,10 @@ func (o *PlanningOracle) MoveStatementsFor(ctx context.Context, addr addrs.AbsRe
 	return results
 }
 
+func (o *PlanningOracle) DetectImplicitMoveForAddress(ctx context.Context, addr addrs.AbsResourceInstance) *addrs.AbsResourceInstance {
+	return o.root.DetectImplicitMoveForAddress(ctx, addr)
+}
+
 // ResourceInstanceObjectMeta returns whatever metadata applies to the
 // given resource instance object based only on information available in
 // the configuration.
