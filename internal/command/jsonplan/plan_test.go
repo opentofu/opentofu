@@ -18,6 +18,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/states"
 )
 
 func TestOmitUnknowns(t *testing.T) {
@@ -558,6 +559,104 @@ func TestGenerateChange(t *testing.T) {
 
 			if !cmp.Equal(change, test.expected) {
 				t.Errorf("wrong result:\n %v\n", cmp.Diff(change, test.expected))
+			}
+		})
+	}
+}
+
+// TestApplyRendererOutputSensitivity verifies that applyRendererOutputSensitivity
+// correctly reconstructs distinct before/after sensitivity for root outputs.
+//
+// This is a renderer-only code path: Marshal and MarshalForLog are not
+// affected, and the JSON plan format on disk remains byte-for-byte identical.
+func TestApplyRendererOutputSensitivity(t *testing.T) {
+	root := addrs.RootModuleInstance
+
+	// buildChanges creates a *plans.Changes with a single root output change.
+	buildChanges := func(name string, afterSensitive bool) *plans.Changes {
+		return &plans.Changes{
+			Outputs: []*plans.OutputChangeSrc{
+				{
+					Addr: root.OutputValue(name),
+					ChangeSrc: plans.ChangeSrc{
+						Action: plans.Update,
+					},
+					Sensitive: afterSensitive,
+				},
+			},
+		}
+	}
+
+	// buildPrevRunState returns a *states.State with the given output value
+	// and sensitivity already recorded.
+	buildPrevRunState := func(name string, sensitive bool) *states.State {
+		s := states.NewState()
+		ms := s.EnsureModule(root)
+		ms.SetOutputValue(name, cty.StringVal("hello"), sensitive, "")
+		return s
+	}
+
+	tests := map[string]struct {
+		name                string
+		prevSensitive       bool
+		afterSensitive      bool
+		wantBeforeSensitive json.RawMessage
+		wantAfterSensitive  json.RawMessage
+	}{
+		"becomes sensitive": {
+			name:                "myoutput",
+			prevSensitive:       false,
+			afterSensitive:      true,
+			wantBeforeSensitive: json.RawMessage("false"),
+			wantAfterSensitive:  json.RawMessage("true"),
+		},
+		"no longer sensitive": {
+			name:                "myoutput",
+			prevSensitive:       true,
+			afterSensitive:      false,
+			wantBeforeSensitive: json.RawMessage("true"),
+			wantAfterSensitive:  json.RawMessage("false"),
+		},
+		"unchanged sensitivity": {
+			name:                "myoutput",
+			prevSensitive:       true,
+			afterSensitive:      true,
+			wantBeforeSensitive: json.RawMessage("true"),
+			wantAfterSensitive:  json.RawMessage("true"),
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			p := &plans.Plan{
+				Changes:      buildChanges(tc.name, tc.afterSensitive),
+				PrevRunState: buildPrevRunState(tc.name, tc.prevSensitive),
+			}
+
+			outputChanges, err := MarshalOutputChanges(p.Changes)
+			if err != nil {
+				t.Fatalf("MarshalOutputChanges: unexpected error: %s", err)
+			}
+
+			// Verify that MarshalOutputChanges itself (the machine-readable
+			// path) uses the same value for before and after — this is the
+			// existing behaviour and must not change.
+			rawChange := outputChanges[tc.name]
+			if !cmp.Equal(rawChange.BeforeSensitive, rawChange.AfterSensitive) {
+				t.Errorf("MarshalOutputChanges should produce identical BeforeSensitive and AfterSensitive, got before=%s after=%s",
+					rawChange.BeforeSensitive, rawChange.AfterSensitive)
+			}
+
+			// Now apply the renderer-only fix and verify the distinction is
+			// correctly reconstructed.
+			applyRendererOutputSensitivity(outputChanges, p)
+
+			got := outputChanges[tc.name]
+			if !cmp.Equal(got.BeforeSensitive, tc.wantBeforeSensitive) {
+				t.Errorf("BeforeSensitive: got %s, want %s", got.BeforeSensitive, tc.wantBeforeSensitive)
+			}
+			if !cmp.Equal(got.AfterSensitive, tc.wantAfterSensitive) {
+				t.Errorf("AfterSensitive:  got %s, want %s", got.AfterSensitive, tc.wantAfterSensitive)
 			}
 		})
 	}
