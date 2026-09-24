@@ -23,6 +23,19 @@ generated within the OpenTofu language. For example, the result of this
 function can be used to create a compressed object in Amazon S3 as part of
 an S3 website.
 
+:::note
+The implementation of this function changed between the OpenTofu v1.12 and v1.13
+series. The result for any given input is equivalent but _not_ byte-for-byte
+identical between the two releases, and so resource configuration arguments
+defined with this function will propose changes when upgrading across that
+version boundary.
+
+If you cannot apply the proposed changes immediately then consider using
+[the `ignore_changes` meta-argument](../resources/behavior.mdx#ignore_changes)
+to cause OpenTofu to temporarily ignore the different function result, which
+you can then remove once you're ready to switch to the new encoding.
+:::
+
 ## Related Functions
 
 * [`base64encode`](../../language/functions/base64encode.mdx) applies Base64 encoding _without_
