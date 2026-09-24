@@ -6,6 +6,8 @@
 package configs
 
 import (
+	"log"
+
 	"github.com/hashicorp/hcl/v2"
 
 	"github.com/opentofu/opentofu/internal/configs/symlib"
@@ -142,11 +144,7 @@ func loadConfigFileBody(body hcl.Body, _ string, override bool) (*File, hcl.Diag
 					file.RequiredProviders = append(file.RequiredProviders, reqs)
 
 				case "provider_meta":
-					providerCfg, cfgDiags := decodeProviderMetaBlock(innerBlock)
-					diags = append(diags, cfgDiags...)
-					if providerCfg != nil {
-						file.ProviderMetas = append(file.ProviderMetas, providerCfg)
-					}
+					log.Printf("[WARN] Ignoring provider meta_block at %s", innerBlock.DefRange)
 
 				case "encryption":
 					encryptionCfg, cfgDiags := config.DecodeConfig(innerBlock.Body, innerBlock.DefRange)
