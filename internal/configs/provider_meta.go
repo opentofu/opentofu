@@ -16,30 +16,3 @@ type ProviderMeta struct {
 	ProviderRange hcl.Range
 	DeclRange     hcl.Range
 }
-
-func decodeProviderMetaBlock(block *hcl.Block) (*ProviderMeta, hcl.Diagnostics) {
-	// provider_meta must be a static map. We can verify this by attempting to
-	// evaluate the values.
-	attrs, diags := block.Body.JustAttributes()
-	if diags.HasErrors() {
-		return nil, diags
-	}
-
-	for _, attr := range attrs {
-		_, d := attr.Expr.Value(nil)
-		diags = append(diags, d...)
-	}
-
-	// If the name is invalid, we return an error early, lest the invalid value
-	// is used by the caller and causes a panic further down the line.
-	if diags = append(diags, checkProviderNameNormalized(block.Labels[0], block.DefRange)...); diags.HasErrors() {
-		return nil, diags
-	}
-
-	return &ProviderMeta{
-		Provider:      block.Labels[0],
-		ProviderRange: block.LabelRanges[0],
-		Config:        block.Body,
-		DeclRange:     block.DefRange,
-	}, diags
-}
