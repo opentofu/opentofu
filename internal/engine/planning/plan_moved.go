@@ -34,6 +34,13 @@ type moveStep struct {
 	Statement refactoring.MoveStatement
 }
 
+func (m *moveStep) FinalTo() addrs.AbsResourceInstance {
+	if m.To == nil {
+		return m.From
+	}
+	return m.To.FinalTo()
+}
+
 func (p *planGlue) locateMovesFor(ctx context.Context, addr addrs.AbsResourceInstance, forward bool) ([]*moveStep, tfdiags.Diagnostics) {
 	// Build simple lookup for move statements that have spidering traversals
 	moveStatementsCache := map[string][]refactoring.MoveStatement{}
@@ -193,20 +200,46 @@ func (p *planGlue) LocatePreviousState(ctx context.Context, addr addrs.AbsResour
 		}
 	}
 
+	// Assertions:
+	// * NOP move (self -> self) detection is always first (if state exists)
+	// * Implicit moves are always last
+	// * Order is deterministic
+	var stepTaken *moveStep
 	for _, move := range statefulMoves {
 		if ret.State != nil {
-			log.Printf("[TRACE] ConflictingMove: (%s || %s) -> %s", move.From, ret.From, ret.To)
-			p.planCtx.moveMu.Lock()
-			p.planCtx.blockedMoves.Put(move.From, ret.To)
-			p.planCtx.moveMu.Unlock()
+			if ret.From.Equal(ret.To) {
+				log.Printf("[TRACE] BlockedMove: (%s || %s) -> %s", move.From, ret.From, ret.To)
+				p.planCtx.moveMu.Lock()
+				p.planCtx.blockedMoves.Put(move.From, ret.To)
+				p.planCtx.moveMu.Unlock()
+			} else {
+				log.Printf("[TRACE] AmbiguousMove: (%s || %s) -> %s", move.From, ret.From, ret.To)
+				absFrom := move.Statement.From.InModuleInstance(move.From.Module)
+				absTo := move.Statement.To.InModuleInstance(move.From.Module)
+				absOtherFrom := stepTaken.Statement.From.InModuleInstance(stepTaken.From.Module)
+
+				diags = diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Ambiguous move statements",
+					Detail: fmt.Sprintf(
+						"A statement at %s declared that %s moved to %s, but this statement instead declares that %s moved there.\n\nEach %s can have moved from only one source %s.",
+						move.Statement.DeclRange.StartString(), absFrom, absTo, absOtherFrom,
+						absFrom.Noun(), absFrom.ShortNoun(),
+					),
+					Subject: stepTaken.Statement.DeclRange.ToHCL().Ptr(),
+				})
+			}
 			continue
 		}
 		ret.From = move.From
 		ret.State = move.state
 		ret.Moved = move.To != nil
 		ret.ImplicitMove = move.Statement.Implied
+		stepTaken = move.moveStep
+	}
 
-		for step := move.moveStep; step.To != nil; step = move.To {
+	if stepTaken != nil {
+		for step := stepTaken; step.To != nil; step = step.To {
 			if p.oracle.HasAddress(ctx, step.From) {
 				move := step.Statement
 				absFrom := move.From.InModuleInstance(addr.Module)
@@ -227,32 +260,29 @@ func (p *planGlue) LocatePreviousState(ctx context.Context, addr addrs.AbsResour
 					Subject: move.DeclRange.ToHCL().Ptr(),
 				})
 			}
-
 		}
 	}
 
 	if !ret.To.Equal(ret.From) {
 		// Active move
 		p.planCtx.moveMu.Lock()
-		if p.planCtx.recordedMoves.Has(ret.From) {
-			/*
-				absFrom := first.stmt.From.InModuleInstance(first.addr.Module)
-				absTo := first.stmt.To.InModuleInstance(first.addr.Module)
-				absOtherFrom := mi.stmt.From.InModuleInstance(mi.addr.Module)
+		if first, ok := p.planCtx.recordedMoves.GetOk(ret.From); ok {
+			absFrom := first.Statement.From.InModuleInstance(first.From.Module)
+			absTo := first.Statement.To.InModuleInstance(first.From.Module)
+			absOtherTo := stepTaken.Statement.To.InModuleInstance(stepTaken.From.Module)
 
-				diags = diags.Append(&hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Ambiguous move statements",
-					Detail: fmt.Sprintf(
-						"A statement at %s declared that %s moved to %s, but this statement instead declares that %s moved there.\n\nEach %s can have moved from only one source %s.",
-						first.stmt.DeclRange.StartString(), absFrom, absTo, absOtherFrom,
-						absFrom.Noun(), absFrom.ShortNoun(),
-					),
-					Subject: mi.stmt.DeclRange.ToHCL().Ptr(),
-				})*/
-			diags = diags.Append(fmt.Errorf("Ambiguous move"))
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Ambiguous move statements",
+				Detail: fmt.Sprintf(
+					"A statement at %s declared that %s moved to %s, but this statement instead declares that it moved to %s.\n\nEach %s can move to only one destination %s.",
+					first.Statement.DeclRange.StartString(), absFrom, absTo, absOtherTo,
+					absFrom.Noun(), absFrom.ShortNoun(),
+				),
+				Subject: stepTaken.Statement.DeclRange.ToHCL().Ptr(),
+			})
 		}
-		p.planCtx.recordedMoves.Put(ret.From, ret.To)
+		p.planCtx.recordedMoves.Put(ret.From, stepTaken)
 		p.planCtx.moveMu.Unlock()
 	}
 
@@ -260,9 +290,9 @@ func (p *planGlue) LocatePreviousState(ctx context.Context, addr addrs.AbsResour
 }
 
 func (p *planGlue) LocateExecutedMove(addr addrs.AbsResourceInstance) *addrs.AbsResourceInstance {
-	to, ok := p.planCtx.recordedMoves.GetOk(addr)
+	step, ok := p.planCtx.recordedMoves.GetOk(addr)
 	if ok {
-		return &to
+		return new(step.FinalTo())
 	}
 	return nil
 }
