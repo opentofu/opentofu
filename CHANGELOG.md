@@ -10,6 +10,8 @@ UPGRADE NOTES:
 
     Third parties may continue to offer their own OpenTofu builds targeting platforms that we don't officially support. This only affects the official packages published directly by the OpenTofu project in this repository's release artifacts.
 
+- `provider_meta` blocks in `terraform` blocks are now just silently ignored by OpenTofu, behaving as if they were not declared at all. ([#4600](https://github.com/opentofu/opentofu/pull/4600))
+
 ENHANCEMENTS:
 
 - `tofu plan` no longer prints iterative warnings for multiple resources but instead it shows one warning with all of the affected resources. ([#4201](https://github.com/opentofu/opentofu/issues/4201))
