@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"iter"
 	"log"
+	"sort"
+	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -71,12 +73,50 @@ func (p *planGlue) locateMovesFor(ctx context.Context, addr addrs.AbsResourceIns
 					to, from = from, to
 				}
 				if prevAddr, moved := addr.MoveDestination(to, from); moved {
+					if prevAddr.Equal(addr) {
+						diags = diags.Append(&hcl.Diagnostic{
+							Severity: hcl.DiagError,
+							Summary:  "Redundant move statement",
+							Detail: fmt.Sprintf(
+								"This statement declares a move from %s to the same address, which is the same as not declaring this move at all.",
+								prevAddr,
+							),
+							Subject: move.DeclRange.ToHCL().Ptr(),
+						})
+						continue
+					}
+
 					_, ok := potentialAddresses.GetOk(prevAddr)
 					if ok {
 						// Detect if this is a duplicate path or a true cycle
+
+						// Reporting cycles is awkward because there isn't any definitive
+						// way to decide which of the objects in the cycle is the cause of
+						// the problem. Therefore we'll just list them all out and leave
+						// the user to figure it out. :(
+						var stmtStrs []string
+
 						for step := potentialAddresses.Get(addr); step != nil; step = step.To {
+							// move statement graph nodes are pointers to move statements
+							stmt := step.Statement
+							stmtStrs = append(stmtStrs, fmt.Sprintf(
+								"\n  - %s: %s → %s",
+								stmt.DeclRange.StartString(),
+								stmt.From.String(),
+								stmt.To.String(),
+							))
+
 							if step.From.Equal(prevAddr) {
-								diags = diags.Append(fmt.Errorf("CYCLE TODO"))
+								sort.Strings(stmtStrs) // just to make the order deterministic
+
+								diags = diags.Append(tfdiags.Sourceless(
+									tfdiags.Error,
+									"Cyclic dependency in move statements",
+									fmt.Sprintf(
+										"The following chained move statements form a cycle, and so there is no final location to move objects to:%s\n\nA chain of move statements must end with an address that doesn't appear in any other statements, and which typically also refers to an object still declared in the configuration.",
+										strings.Join(stmtStrs, ""),
+									),
+								))
 								break
 							}
 						}
@@ -195,7 +235,22 @@ func (p *planGlue) LocatePreviousState(ctx context.Context, addr addrs.AbsResour
 		// Active move
 		p.planCtx.moveMu.Lock()
 		if p.planCtx.recordedMoves.Has(ret.From) {
-			diags = diags.Append(fmt.Errorf("Ambiguous Move!"))
+			/*
+				absFrom := first.stmt.From.InModuleInstance(first.addr.Module)
+				absTo := first.stmt.To.InModuleInstance(first.addr.Module)
+				absOtherFrom := mi.stmt.From.InModuleInstance(mi.addr.Module)
+
+				diags = diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Ambiguous move statements",
+					Detail: fmt.Sprintf(
+						"A statement at %s declared that %s moved to %s, but this statement instead declares that %s moved there.\n\nEach %s can have moved from only one source %s.",
+						first.stmt.DeclRange.StartString(), absFrom, absTo, absOtherFrom,
+						absFrom.Noun(), absFrom.ShortNoun(),
+					),
+					Subject: mi.stmt.DeclRange.ToHCL().Ptr(),
+				})*/
+			diags = diags.Append(fmt.Errorf("Ambiguous move"))
 		}
 		p.planCtx.recordedMoves.Put(ret.From, ret.To)
 		p.planCtx.moveMu.Unlock()
