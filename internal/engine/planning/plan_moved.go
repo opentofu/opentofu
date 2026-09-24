@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"iter"
 	"log"
 	"slices"
 	"sort"
@@ -149,14 +148,10 @@ func (p *planGlue) locateMovesFor(ctx context.Context, addr addrs.AbsResourceIns
 
 	if forward {
 		// Add implicit entries to the graph, we only do this at the starting address
-		for implicitAddr := range implicitAddrsFor(addr) {
-			if potentialAddresses.Has(implicitAddr) {
-				// We only want to use an implicit move if there is no explicit move already defined
-				continue
-			}
+		if implicitAddr := p.planCtx.DetectImplicitStateMoveForAddress(addr); implicitAddr != nil && !potentialAddresses.Has(*implicitAddr) {
 			var approxSrcRange tfdiags.SourceRange // TODO
 			addStep(&moveStep{
-				From: implicitAddr,
+				From: *implicitAddr,
 				To:   potentialAddresses.Get(addr),
 				Statement: refactoring.MoveStatement{
 					From:      addrs.ImpliedMoveStatementEndpoint(implicitAddr, approxSrcRange),
@@ -373,70 +368,69 @@ func (p *planContext) BlockedMoveDiags() tfdiags.Diagnostics {
 	)}
 }
 
-func invertInstanceKey(key addrs.InstanceKey) addrs.InstanceKey {
-	if key == addrs.NoKey {
-		return addrs.IntKey(0)
-	}
-	if ik, ok := key.(addrs.IntKey); ok && ik == 0 {
-		return addrs.NoKey
-	}
-	return key
-}
+func (p *planContext) DetectImplicitStateMoveForAddress(addr addrs.AbsResourceInstance) *addrs.AbsResourceInstance {
+	var currentStep []addrs.ModuleInstance
+	var nextStep []addrs.ModuleInstance
 
-func implicitAddrsFor(addr addrs.AbsResourceInstance) iter.Seq[addrs.AbsResourceInstance] {
-	return func(yield func(addrs.AbsResourceInstance) bool) {
-		for implicit := range implicitAddrsForInternal(addr) {
-			if implicit.Equal(addr) {
-				continue
+	// Start with the root module
+	currentStep = append(currentStep, addrs.RootModuleInstance)
+	for _, part := range addr.Module {
+		for _, currentAddr := range currentStep {
+			// Add alternate
+			if part.InstanceKey == addrs.NoKey {
+				nextStep = append(nextStep, currentAddr.Child(part.Name, addrs.IntKey(0)))
 			}
-			if !yield(implicit) {
-				return
+			if ik, ok := part.InstanceKey.(addrs.IntKey); ok && ik == 0 {
+				nextStep = append(nextStep, currentAddr.Child(part.Name, addrs.NoKey))
 			}
+
+			// Add standard
+			nextStep = append(nextStep, currentAddr.Child(part.Name, part.InstanceKey))
+		}
+		// Swap and clear next
+		currentStep, nextStep = nextStep, currentStep
+		nextStep = nextStep[:0]
+	}
+
+	var modAddr addrs.ModuleInstance
+	for _, modAddr = range currentStep {
+		if p.prevRoundState.Module(modAddr) != nil {
+			// Found it!
+			break
 		}
 	}
-}
-func implicitAddrsForInternal(addr addrs.AbsResourceInstance) iter.Seq[addrs.AbsResourceInstance] {
-	// TODO should this validate that enabled/count/for_each is available given the configuration?
-	if len(addr.Module) > 0 {
-		part := addr.Module[0]
-		rest := addr.Module[1:]
-		partInvert := addrs.ModuleInstanceStep{
-			Name:        part.Name,
-			InstanceKey: invertInstanceKey(part.InstanceKey),
-		}
-		subImplicit := implicitAddrsForInternal(addrs.AbsResourceInstance{
-			Resource: addr.Resource,
-			Module:   rest,
-		})
-		return func(yield func(addrs.AbsResourceInstance) bool) {
-			for implicit := range subImplicit {
-				if !yield(addrs.AbsResourceInstance{
-					Resource: implicit.Resource,
-					Module:   append([]addrs.ModuleInstanceStep{part}, implicit.Module...),
-				}) {
-					return
-				}
-				if part.InstanceKey == partInvert.InstanceKey {
-					continue
-				}
-				if !yield(addrs.AbsResourceInstance{
-					Resource: implicit.Resource,
-					Module:   append([]addrs.ModuleInstanceStep{partInvert}, implicit.Module...),
-				}) {
-					return
-				}
-			}
-		}
-	} else {
-		return func(yield func(addrs.AbsResourceInstance) bool) {
-			if !yield(addr) {
-				return
-			}
-			inverted := addrs.AbsResourceInstance{Resource: addrs.ResourceInstance{Resource: addr.Resource.Resource, Key: invertInstanceKey(addr.Resource.Key)}}
-			if inverted.Resource.Key == addr.Resource.Key {
-				return
-			}
-			_ = yield(inverted)
-		}
+
+	mod := p.prevRoundState.Module(modAddr)
+	if mod == nil {
+		return nil
 	}
+	resource := mod.Resource(addr.Resource.Resource)
+
+	if resource == nil {
+		return nil
+	}
+
+	// Find potential instances
+	normal := addr.Resource
+	invert := addr.Resource
+
+	if invert.Key == addrs.NoKey {
+		// Try NoKey -> 0
+		// TODO check iteration type
+		invert.Key = addrs.IntKey(0)
+	} else if ik, ok := invert.Key.(addrs.IntKey); ok && ik == 0 {
+		// Try 0 -> NoKey
+		// TODO check iteration type
+		invert.Key = addrs.NoKey
+	}
+
+	instances := resource.Instances
+	if _, ok := instances[invert.Key]; ok {
+		return new(resource.Addr.Instance(invert.Key))
+	}
+	if _, ok := instances[normal.Key]; ok {
+		return new(resource.Addr.Instance(normal.Key))
+	}
+
+	return nil
 }
