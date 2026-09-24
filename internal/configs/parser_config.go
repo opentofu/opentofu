@@ -144,7 +144,7 @@ func loadConfigFileBody(body hcl.Body, _ string, override bool) (*File, hcl.Diag
 					file.RequiredProviders = append(file.RequiredProviders, reqs)
 
 				case "provider_meta":
-					log.Printf("[WARN] Ignoring provider meta_block at %s", innerBlock.DefRange)
+					log.Printf("[WARN] Ignoring provider_meta block at %s", innerBlock.DefRange)
 
 				case "encryption":
 					encryptionCfg, cfgDiags := config.DecodeConfig(innerBlock.Body, innerBlock.DefRange)
