@@ -43,13 +43,14 @@ func (m *moveStep) FinalTo() addrs.AbsResourceInstance {
 
 func (p *planGlue) locateExplicitMovesFor(ctx context.Context, addr addrs.AbsResourceInstance, forward bool) ([]*moveStep, tfdiags.Diagnostics) {
 	// Build simple lookup for move statements that have spidering traversals
+	// TODO replace with with resource config meta (tricky with orphans)
 	moveStatementsCache := map[string][]refactoring.MoveStatement{}
 	getMoveStatementsFor := func(addr addrs.AbsResourceInstance) []refactoring.MoveStatement {
-		key := addr.Module.Module().String()
+		mod := addr.Module.Module()
+		key := mod.String()
 		statements, ok := moveStatementsCache[key]
 		if !ok {
-			// TODO rewrite this in terms of the module address and/or make the lookup func simpler
-			statements = p.oracle.MoveStatementsFor(ctx, addr)
+			statements = p.oracle.MoveStatementsFor(ctx, mod)
 			moveStatementsCache[key] = statements
 		}
 		return statements

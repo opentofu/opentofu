@@ -219,7 +219,7 @@ type CompiledModuleInstance interface {
 
 	// GetMoveStatements obtains the move statements for this module and all of its module calls,
 	// with all move statements returned relative to this module instance.
-	GetMoveStatements() []refactoring.MoveStatement
+	GetMoveStatementsFor(ctx context.Context, addr addrs.Module) []refactoring.MoveStatement
 }
 
 // ModuleInstance finds the [CompiledModuleInstance] representation of the

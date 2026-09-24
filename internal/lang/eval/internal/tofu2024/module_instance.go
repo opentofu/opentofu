@@ -387,8 +387,21 @@ func (c *CompiledModuleInstance) AnnounceAllGraphevalRequests(announce func(work
 }
 
 // GetMoveStatements implements evalglue.CompiledModuleInstance.
-func (c *CompiledModuleInstance) GetMoveStatements() []refactoring.MoveStatement {
-	return c.moveStatements
+func (c *CompiledModuleInstance) GetMoveStatementsFor(ctx context.Context, addr addrs.Module) []refactoring.MoveStatement {
+	var stmts []refactoring.MoveStatement
+	stmts = append(stmts, c.moveStatements...)
+	if len(addr) > len(c.moduleInstanceNode.Addr) {
+		// Find child and recurse
+		childName := addr[len(c.moduleInstanceNode.Addr)]
+		instances := c.ChildModuleInstancesForCall(ctx, addrs.ModuleCall{Name: childName})
+		for _, instance := range instances {
+			stmts = append(stmts, instance.GetMoveStatementsFor(ctx, addr)...)
+			// Recurse into first instance only, these are not instance key specific
+			break
+		}
+	}
+
+	return stmts
 }
 
 func (c *CompiledModuleInstance) DetectImplicitMoveForAddress(ctx context.Context, addr addrs.AbsResourceInstance) *addrs.AbsResourceInstance {

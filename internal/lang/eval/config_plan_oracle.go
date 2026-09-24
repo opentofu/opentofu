@@ -32,28 +32,8 @@ func (o *PlanningOracle) HasAddress(ctx context.Context, addr addrs.AbsResourceI
 	return evalglue.ResourceInstance(ctx, o.root, addr) != nil
 }
 
-func (o *PlanningOracle) MoveStatementsFor(ctx context.Context, addr addrs.AbsResourceInstance) []refactoring.MoveStatement {
-	var results []refactoring.MoveStatement
-
-	results = append(results, o.root.GetMoveStatements()...)
-	for i := range addr.Module {
-		inst := evalglue.ModuleInstance(ctx, o.root, addr.Module[:i])
-		if inst != nil {
-			results = append(results, inst.GetMoveStatements()...)
-		}
-	}
-	// TODO this does *NOT* follow move statements that traverse sibiling modules!!!
-	/*
-		ChildA Module Moved:
-		module.childa.resource_type.foo -> module.childa.resource_type.bar
-
-		ChildB Module Moved:
-		module.childb.resource_type.baz -> module.childb.resource_type.bash
-
-		Root Module Moved:
-		module.childa.resource_type.bar -> module.childb.resource_type.baz
-	*/
-	return results
+func (o *PlanningOracle) MoveStatementsFor(ctx context.Context, addr addrs.Module) []refactoring.MoveStatement {
+	return o.root.GetMoveStatementsFor(ctx, addr)
 }
 
 func (o *PlanningOracle) DetectImplicitMoveForAddress(ctx context.Context, addr addrs.AbsResourceInstance) *addrs.AbsResourceInstance {
