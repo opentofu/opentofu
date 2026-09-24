@@ -41,7 +41,7 @@ func (m *moveStep) FinalTo() addrs.AbsResourceInstance {
 	return m.To.FinalTo()
 }
 
-func (p *planGlue) locateMovesFor(ctx context.Context, addr addrs.AbsResourceInstance, forward bool) ([]*moveStep, tfdiags.Diagnostics) {
+func (p *planGlue) locateExplicitMovesFor(ctx context.Context, addr addrs.AbsResourceInstance, forward bool) ([]*moveStep, tfdiags.Diagnostics) {
 	// Build simple lookup for move statements that have spidering traversals
 	moveStatementsCache := map[string][]refactoring.MoveStatement{}
 	getMoveStatementsFor := func(addr addrs.AbsResourceInstance) []refactoring.MoveStatement {
@@ -146,39 +146,6 @@ func (p *planGlue) locateMovesFor(ctx context.Context, addr addrs.AbsResourceIns
 		clear(nextIteration)
 	}
 
-	if forward {
-		// Add implicit entries to the graph, we only do this at the starting address
-		if implicitAddr := p.planCtx.DetectImplicitStateMoveForAddress(addr); implicitAddr != nil && !potentialAddresses.Has(*implicitAddr) {
-			var approxSrcRange tfdiags.SourceRange // TODO
-			addStep(&moveStep{
-				From: *implicitAddr,
-				To:   potentialAddresses.Get(addr),
-				Statement: refactoring.MoveStatement{
-					From:      addrs.ImpliedMoveStatementEndpoint(implicitAddr, approxSrcRange),
-					To:        addrs.ImpliedMoveStatementEndpoint(addr, approxSrcRange),
-					Implied:   true,
-					DeclRange: approxSrcRange,
-				},
-			})
-		}
-	} else {
-		// Add implicit addr to the graph, we only do this at the starting address
-		if implicitAddr := p.oracle.DetectImplicitMoveForAddress(ctx, addr); implicitAddr != nil && !potentialAddresses.Has(*implicitAddr) {
-			// We only want to use an implicit move if there is no explicit move already defined
-			var approxSrcRange tfdiags.SourceRange // TODO
-			addStep(&moveStep{
-				From: *implicitAddr,
-				To:   potentialAddresses.Get(addr),
-				Statement: refactoring.MoveStatement{
-					From:      addrs.ImpliedMoveStatementEndpoint(implicitAddr, approxSrcRange),
-					To:        addrs.ImpliedMoveStatementEndpoint(addr, approxSrcRange),
-					Implied:   true,
-					DeclRange: approxSrcRange,
-				},
-			})
-		}
-	}
-
 	return ret, diags
 }
 
@@ -191,10 +158,28 @@ func (p *planGlue) LocatePreviousState(ctx context.Context, addr addrs.AbsResour
 		To:   addr,
 	}
 
-	potentialMoves, moveDiags := p.locateMovesFor(ctx, addr, true)
+	potentialMoves, moveDiags := p.locateExplicitMovesFor(ctx, addr, true)
 	diags = diags.Append(moveDiags)
 	if diags.HasErrors() {
 		return ret, diags
+	}
+
+	// Add implicit move
+	if implicitAddr := p.planCtx.DetectImplicitStateMoveForAddress(addr); implicitAddr != nil {
+		// TODO We only want to use an implicit move if there is no explicit move already defined
+		if todo := true; todo {
+			var approxSrcRange tfdiags.SourceRange // TODO
+			potentialMoves = append(potentialMoves, &moveStep{
+				From: *implicitAddr,
+				To:   potentialMoves[0], // NOP is always first
+				Statement: refactoring.MoveStatement{
+					From:      addrs.ImpliedMoveStatementEndpoint(implicitAddr, approxSrcRange),
+					To:        addrs.ImpliedMoveStatementEndpoint(addr, approxSrcRange),
+					Implied:   true,
+					DeclRange: approxSrcRange,
+				},
+			})
+		}
 	}
 
 	type statefulMove struct {
@@ -312,9 +297,27 @@ func (p *planGlue) LocateExecutedMove(addr addrs.AbsResourceInstance) *addrs.Abs
 }
 
 func (p *planGlue) LocateUnexecutedMove(ctx context.Context, addr addrs.AbsResourceInstance) (*addrs.AbsResourceInstance, tfdiags.Diagnostics) {
-	potentialMoves, diags := p.locateMovesFor(ctx, addr, false)
+	potentialMoves, diags := p.locateExplicitMovesFor(ctx, addr, false)
 	if diags.HasErrors() {
 		return nil, diags
+	}
+
+	// Add implicit move
+	if implicitAddr := p.oracle.DetectImplicitMoveForAddress(ctx, addr); implicitAddr != nil {
+		// TODO We only want to use an implicit move if there is no explicit move already defined
+		if todo := true; todo {
+			var approxSrcRange tfdiags.SourceRange // TODO
+			potentialMoves = append(potentialMoves, &moveStep{
+				From: *implicitAddr,
+				To:   potentialMoves[0], //NOP is always first
+				Statement: refactoring.MoveStatement{
+					From:      addrs.ImpliedMoveStatementEndpoint(implicitAddr, approxSrcRange),
+					To:        addrs.ImpliedMoveStatementEndpoint(addr, approxSrcRange),
+					Implied:   true,
+					DeclRange: approxSrcRange,
+				},
+			})
+		}
 	}
 
 	// Calculate the potential end addresses
@@ -429,7 +432,10 @@ func (p *planContext) DetectImplicitStateMoveForAddress(addr addrs.AbsResourceIn
 		return new(resource.Addr.Instance(invert.Key))
 	}
 	if _, ok := instances[normal.Key]; ok {
-		return new(resource.Addr.Instance(normal.Key))
+		newAddr := resource.Addr.Instance(normal.Key)
+		if !newAddr.Equal(addr) {
+			return &newAddr
+		}
 	}
 
 	return nil
