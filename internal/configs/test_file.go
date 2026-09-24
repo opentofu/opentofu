@@ -7,11 +7,16 @@ package configs
 
 import (
 	"fmt"
+	"log"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
+	ctyconvert "github.com/zclconf/go-cty/cty/convert"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/getmodules"
@@ -329,6 +334,13 @@ type MockProvider struct {
 
 	MockResources     []*MockResource
 	OverrideResources []*OverrideResource
+
+	// Source is the path to a file or directory containing mock provider data
+	// It can be either:
+	//   1. a relative path to a single mock file or
+	//   2. a path to a directory containing mock files
+	Source      string
+	SourceRange hcl.Range
 }
 
 // moduleUniqueKey is copied from Provider.moduleUniqueKey
@@ -417,7 +429,7 @@ func (r MockResource) getBlockName() string {
 	}
 }
 
-func loadTestFile(body hcl.Body) (*TestFile, hcl.Diagnostics) {
+func (p *Parser) loadTestFile(body hcl.Body, baseDir string) (*TestFile, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
 	content, contentDiags := body.Content(testFileSchema)
@@ -479,7 +491,7 @@ func loadTestFile(body hcl.Body) (*TestFile, hcl.Diagnostics) {
 			}
 
 		case blockNameMockProvider:
-			mockProvider, mockProviderDiags := decodeMockProviderBlock(block)
+			mockProvider, mockProviderDiags := p.decodeMockProviderBlock(block, baseDir)
 			diags = append(diags, mockProviderDiags...)
 
 			if !mockProviderDiags.HasErrors() {
@@ -878,7 +890,7 @@ func decodeOverrideModuleBlock(block *hcl.Block) (*OverrideModule, hcl.Diagnosti
 }
 
 // Some code of decodeMockProviderBlock function was copied from decodeProviderBlock.
-func decodeMockProviderBlock(block *hcl.Block) (*MockProvider, hcl.Diagnostics) {
+func (p *Parser) decodeMockProviderBlock(block *hcl.Block, baseDir string) (*MockProvider, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
 	content, moreDiags := block.Body.Content(mockProviderBlockSchema)
@@ -947,10 +959,227 @@ func decodeMockProviderBlock(block *hcl.Block) (*MockProvider, hcl.Diagnostics) 
 		}
 	}
 
+	// If the provider block has a seprate file configured, then we will load the block's
+	// configuration from that.
+	if testModuleFile, exists := content.Attributes["source"]; exists {
+		provider.SourceRange = testModuleFile.Expr.Range()
+
+		source, sourceDiags := decodeMockProviderSourceBlock(testModuleFile)
+		diags = append(diags, sourceDiags...)
+		if !sourceDiags.HasErrors() {
+			provider.Source = source
+
+			path := source
+			if !filepath.IsAbs(source) {
+				path = filepath.Join(baseDir, path)
+			}
+			mockResources, overrideResources, mockDiags := p.loadMockDataFiles(path, provider.SourceRange)
+			diags = append(diags, mockDiags...)
+			provider.mergeMockDataBlocks(mockResources, overrideResources)
+		}
+	}
+
 	diags = append(diags, provider.validateMockResources()...)
 	diags = append(diags, provider.validateOverrideResources()...)
 
 	return provider, diags
+}
+
+// decodeMockProviderSourceBlock is a function that takes the source attribute and
+// converts it to a valid Go string
+func decodeMockProviderSourceBlock(attr *hcl.Attribute) (string, hcl.Diagnostics) {
+	invalidSource := func(details string) *hcl.Diagnostic {
+		return &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid mock provider source",
+			Detail:   details,
+			Subject:  attr.Expr.Range().Ptr(),
+		}
+	}
+	var diags tfdiags.Diagnostics
+	val, valDiags := attr.Expr.Value(nil)
+	diags = diags.Append(valDiags)
+	if diags.HasErrors() {
+		return "", diags.ToHCL()
+	}
+	sourceVal, convertErr := ctyconvert.Convert(val, cty.String)
+	if convertErr != nil {
+		return "", diags.Append(invalidSource(convertErr.Error())).ToHCL()
+	}
+	source := sourceVal.AsString()
+	if source == "" {
+		return "", diags.Append(invalidSource("Source path cannot be empty")).ToHCL()
+	}
+	if strings.Contains(source, "::") || strings.Contains(source, "://") {
+		return "", diags.Append(invalidSource("Source path contains invalid characters")).ToHCL()
+	}
+	return source, diags.ToHCL()
+}
+
+// used by mergeMockDataBlocks for a map
+type mockResourceKey struct {
+	mode     addrs.ResourceMode
+	typeName string
+}
+
+// mergeMockDataBlocks is a function that merges mock blocks loaded from source
+// with resources declared inline.
+// The inline ones take precedence.
+func (mp *MockProvider) mergeMockDataBlocks(mockResources []*MockResource, overrideResources []*OverrideResource) {
+	inlineMocks := make(map[mockResourceKey]struct{}, len(mp.MockResources))
+	for _, res := range mp.MockResources {
+		inlineMocks[mockResourceKey{mode: res.Mode, typeName: res.Type}] = struct{}{}
+	}
+	for _, res := range mockResources {
+		if _, ok := inlineMocks[mockResourceKey{mode: res.Mode, typeName: res.Type}]; ok {
+			continue
+		}
+		mp.MockResources = append(mp.MockResources, res)
+	}
+
+	inlineOverrides := make(map[string]struct{}, len(mp.OverrideResources))
+	for _, res := range mp.OverrideResources {
+		if res.TargetParsed != nil {
+			inlineOverrides[res.TargetParsed.String()] = struct{}{}
+		}
+	}
+
+	for _, res := range overrideResources {
+		if res.TargetParsed != nil {
+			if _, ok := inlineOverrides[res.TargetParsed.String()]; ok {
+				continue
+			}
+		}
+		mp.OverrideResources = append(mp.OverrideResources, res)
+	}
+}
+
+// loadMockDataFiles is a function that takes a source/directory as input and checks whether
+// the path specified is a file or folder and calls loadMockDataFile or loadMockDataDir accordingly
+func (p *Parser) loadMockDataFiles(path string, srcRange hcl.Range) ([]*MockResource, []*OverrideResource, hcl.Diagnostics) {
+	info, err := p.fs.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil, hcl.Diagnostics{
+				&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Provider mock source could not be loaded",
+					Detail:   fmt.Sprintf("The path %q defined in 'source' does not exist", path),
+					Subject:  srcRange.Ptr(),
+				},
+			}
+		}
+		return nil, nil, hcl.Diagnostics{
+			&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Provider mock source could not be loaded",
+				Detail:   fmt.Sprintf("Failed to load files defined in source %q: %s", path, err),
+				Subject:  srcRange.Ptr(),
+			},
+		}
+	}
+
+	if !info.IsDir() {
+		return p.loadMockDataFile(path, srcRange)
+	}
+
+	return p.loadMockDataDir(path, srcRange)
+
+}
+
+// loadMockDataFile reads and parses the content of a provider mock file```
+func (p *Parser) loadMockDataFile(dir string, srcRange hcl.Range) ([]*MockResource, []*OverrideResource, hcl.Diagnostics) {
+	if _, ok := mockFileExt(dir); !ok {
+		return nil, nil, hcl.Diagnostics{
+			&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Unrecognized mock file extension",
+				Detail:   fmt.Sprintf("The file specified in source %q should have the extension .tfmock.hcl or .tofumock.hcl", dir),
+				Subject:  srcRange.Ptr(),
+			},
+		}
+	}
+	body, diags := p.LoadHCLFile(dir)
+	if body == nil {
+		return nil, nil, diags
+	}
+
+	content, contentDiags := body.Content(mockProviderBlockSchema)
+	diags = append(diags, contentDiags...)
+
+	var mockResources []*MockResource
+	var overrideResources []*OverrideResource
+
+	for _, block := range content.Blocks {
+		switch block.Type {
+		case blockNameMockData, blockNameMockResource:
+			res, resDiags := decodeMockResourceBlock(block)
+			diags = append(diags, resDiags...)
+			if !resDiags.HasErrors() {
+				mockResources = append(mockResources, res)
+			}
+		case blockNameOverrideData, blockNameOverrideResource:
+			res, resDiags := decodeOverrideResourceBlock(block)
+			diags = append(diags, resDiags...)
+			if !resDiags.HasErrors() {
+				overrideResources = append(overrideResources, res)
+			}
+		}
+	}
+
+	return mockResources, overrideResources, diags
+}
+
+// loadMockDataDir reads and loads all mock files in a directory.
+func (p *Parser) loadMockDataDir(dir string, srcRange hcl.Range) ([]*MockResource, []*OverrideResource, hcl.Diagnostics) {
+	infos, err := p.fs.ReadDir(dir)
+	if err != nil {
+		return nil, nil, hcl.Diagnostics{
+			&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Failed to read mock provider source directory",
+				Detail:   fmt.Sprintf("Failed to read mock provider source directory %q: %s", dir, err),
+				Subject:  srcRange.Ptr(),
+			},
+		}
+	}
+
+	// tofuMocks given priority over tfMocks
+	finalMockFiles := make(map[string]string)
+	for _, info := range infos {
+		if info.IsDir() {
+			continue
+		}
+		name := info.Name()
+		ext, ok := mockFileExt(name)
+		if !ok {
+			continue
+		}
+		base := strings.TrimSuffix(name, ext)
+		if ext == tofuTestMockExt {
+			finalMockFiles[base] = name
+		} else if _, exists := finalMockFiles[base]; !exists {
+			finalMockFiles[base] = name
+		}
+	}
+
+	if len(finalMockFiles) == 0 {
+		log.Printf("[DEBUG] No mock files found in the directory %q", dir)
+		return nil, nil, nil
+	}
+
+	var mockResources []*MockResource
+	var overrideResources []*OverrideResource
+	var diags hcl.Diagnostics
+
+	for _, finalMockFile := range finalMockFiles {
+		fileMockResources, fileOverrideResources, fileDiags := p.loadMockDataFile(filepath.Join(dir, finalMockFile), srcRange)
+		diags = append(diags, fileDiags...)
+		mockResources = append(mockResources, fileMockResources...)
+		overrideResources = append(overrideResources, fileOverrideResources...)
+	}
+
+	return mockResources, overrideResources, diags
 }
 
 func decodeMockResourceBlock(block *hcl.Block) (*MockResource, hcl.Diagnostics) {
@@ -1178,6 +1407,10 @@ var mockProviderBlockSchema = &hcl.BodySchema{
 		},
 		{
 			Name:     "for_each",
+			Required: false,
+		},
+		{
+			Name:     "source",
 			Required: false,
 		},
 	},
