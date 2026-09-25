@@ -6,6 +6,7 @@
 package getproviders
 
 import (
+	"archive/zip"
 	"context"
 	"fmt"
 	"net/http"
@@ -408,4 +409,143 @@ func TestHTTPMirrorLocationRetriesConfiguredCorrectly(t *testing.T) {
 	if expectedSuffix := "giving up after 3 attempt(s)"; !strings.HasSuffix(err.Error(), expectedSuffix) {
 		t.Fatalf("expected err %q to have suffix %q", err.Error(), expectedSuffix)
 	}
+}
+
+func TestHTTPMirrorProviderDownloadCredentials(t *testing.T) {
+	var lastZipAuth string
+	var lastZipPath string
+
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Logf("Mock server received %s %s [Auth: %q]", r.Method, r.URL.Path, r.Header.Get("Authorization"))
+
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/index.json"):
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{"versions":["1.0.0"]}`)
+
+		case strings.HasSuffix(r.URL.Path, "/1.0.0.json"):
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{
+				"archives": {
+					"tos_m68k": {
+						"url": "/downloads/provider.zip",
+						"use_mirror_credentials": true
+					}
+				}
+			}`)
+
+		case strings.HasSuffix(r.URL.Path, "/1.0.0-noauth.json"):
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{
+				"archives": {
+					"tos_m68k": {
+						"url": "/downloads/provider-noauth.zip",
+						"use_mirror_credentials": false
+					}
+				}
+			}`)
+
+		default:
+			lastZipPath = r.URL.Path
+			lastZipAuth = r.Header.Get("Authorization")
+
+			if strings.HasSuffix(r.URL.Path, "provider.zip") && lastZipAuth != "Bearer placeholder-token" {
+				http.Error(w, "missing credentials", http.StatusUnauthorized)
+				return
+			}
+
+			w.WriteHeader(http.StatusOK)
+			zw := zip.NewWriter(w)
+			f, _ := zw.Create("terraform-provider-test_v1.0.0")
+			_, _ = f.Write([]byte("binary content"))
+			zw.Close()
+		}
+	}))
+	defer server.Close()
+
+	baseURL, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	creds := svcauth.StaticCredentialsSource(
+		map[svchost.Hostname]svcauth.HostCredentials{
+			svchost.Hostname(baseURL.Host): svcauth.HostCredentialsToken("placeholder-token"),
+		},
+	)
+
+	retryHTTPClient := retryablehttp.NewClient()
+	retryHTTPClient.HTTPClient = server.Client()
+
+	source := newHTTPMirrorSourceWithHTTPClient(
+		baseURL,
+		creds,
+		retryHTTPClient,
+		LocationConfig{},
+	)
+
+	provider := addrs.MustParseProviderSourceString("terraform.io/test/provider")
+	version := MustParseVersion("1.0.0")
+	platform := Platform{OS: "tos", Arch: "m68k"}
+
+	t.Run("use_mirror_credentials true sending Authorization header on ZIP download", func(t *testing.T) {
+		meta, err := source.PackageMeta(
+			context.Background(),
+			provider,
+			version,
+			platform,
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		tmp := t.TempDir()
+		_, err = meta.Location.InstallProviderPackage(
+			context.Background(),
+			meta,
+			tmp,
+			nil,
+		)
+		if err != nil {
+			t.Fatalf("expected provider ZIP download to succeed with credentials, got: %v", err)
+		}
+
+		if lastZipPath != "/downloads/provider.zip" {
+			t.Fatalf("expected ZIP download request to /downloads/provider.zip, got %q", lastZipPath)
+		}
+		if lastZipAuth != "Bearer placeholder-token" {
+			t.Fatalf("expected Authorization header 'Bearer placeholder-token' on ZIP download, got %q", lastZipAuth)
+		}
+	})
+
+	t.Run("use_mirror_credentials false omitting Authorization header on ZIP download", func(t *testing.T) {
+		versionNoAuth := MustParseVersion("1.0.0-noauth")
+		metaNoAuth, err := source.PackageMeta(
+			context.Background(),
+			provider,
+			versionNoAuth,
+			platform,
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		tmp := t.TempDir()
+		_, err = metaNoAuth.Location.InstallProviderPackage(
+			context.Background(),
+			metaNoAuth,
+			tmp,
+			nil,
+		)
+		if err != nil {
+			t.Fatalf("expected provider ZIP download to succeed, got: %v", err)
+		}
+
+		if lastZipPath != "/downloads/provider-noauth.zip" {
+			t.Fatalf("expected ZIP download request to /downloads/provider-noauth.zip, got %q", lastZipPath)
+		}
+		if lastZipAuth != "" {
+			t.Fatalf("expected NO Authorization header on ZIP download when use_mirror_credentials is false, got %q", lastZipAuth)
+		}
+	})
 }
