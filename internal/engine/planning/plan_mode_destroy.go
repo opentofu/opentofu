@@ -92,7 +92,7 @@ func destroyPlan(ctx context.Context, opts *PlanOpts, prevRoundState *states.Sta
 	}
 
 	// We also need to handle any blocked moves here
-	diags = diags.Append(planCtx.BlockedMoveDiags())
+	diags = diags.Append(planCtx.ConflictingMoveDiags())
 
 	// We also need to deal with any "deposed" resource instances that were
 	// in the previous round state. We do this separately afterwards because

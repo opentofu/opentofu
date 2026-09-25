@@ -43,9 +43,9 @@ type planContext struct {
 
 	forceReplace []addrs.AbsResourceInstance
 
-	moveMu        sync.Mutex
-	recordedMoves addrs.Map[addrs.AbsResourceInstance, *moveStep]
-	blockedMoves  addrs.Map[addrs.AbsResourceInstance, addrs.AbsResourceInstance]
+	moveMu          sync.Mutex
+	recordedMoves   addrs.Map[addrs.AbsResourceInstance, *moveStep]
+	configuredMoves addrs.Map[addrs.AbsResourceInstance, []*moveStep]
 
 	// prevRoundState MUST be treated as immutable
 	prevRoundState *states.State
@@ -78,7 +78,7 @@ func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, pro
 		deferred:         addrs.MakeMap[addrs.AbsResourceInstance, struct{}](),
 		forceReplace:     opts.ForceReplace,
 		recordedMoves:    addrs.MakeMap[addrs.AbsResourceInstance, *moveStep](),
-		blockedMoves:     addrs.MakeMap[addrs.AbsResourceInstance, addrs.AbsResourceInstance](),
+		configuredMoves:  addrs.MakeMap[addrs.AbsResourceInstance, []*moveStep](),
 		prevRoundState:   prevRoundState,
 		refreshedState:   refreshedState.SyncWrapper(),
 		upgradedState:    upgradedState.SyncWrapper(),

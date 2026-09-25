@@ -10,7 +10,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"slices"
 	"sort"
 	"strings"
 
@@ -41,11 +40,11 @@ func (m *moveStep) FinalTo() addrs.AbsResourceInstance {
 	return m.To.FinalTo()
 }
 
-func (p *planGlue) locateMovesMovesFor(ctx context.Context, addr addrs.AbsResourceInstance, forward bool, implicit func(addr addrs.AbsResourceInstance) *refactoring.MoveStatement) ([]*moveStep, tfdiags.Diagnostics) {
+func (p *planGlue) locateMovesFor(ctx context.Context, addr addrs.AbsResourceInstance, forward bool, implicit func(addr addrs.AbsResourceInstance) *refactoring.MoveStatement) ([]*moveStep, tfdiags.Diagnostics) {
 	// Build simple lookup for move statements that have spidering traversals
 	// TODO replace with with resource config meta (tricky with orphans)
 	moveStatementsCache := map[string][]refactoring.MoveStatement{}
-	getMoveStatementsFor := func(addr addrs.AbsResourceInstance, i bool) []refactoring.MoveStatement {
+	getMoveStatementsFor := func(addr addrs.AbsResourceInstance, isImplicit bool) []refactoring.MoveStatement {
 		mod := addr.Module.Module()
 		key := mod.String()
 		statements, ok := moveStatementsCache[key]
@@ -53,10 +52,10 @@ func (p *planGlue) locateMovesMovesFor(ctx context.Context, addr addrs.AbsResour
 			statements = p.oracle.MoveStatementsFor(ctx, mod)
 			moveStatementsCache[key] = statements
 		}
-		// if concurrency is ever introduced here, this is inherently unsafe
-		if !i {
+		if !isImplicit {
 			iMove := implicit(addr)
 			if iMove != nil {
+				// if concurrency is ever introduced here, this slice manipulation is inherently unsafe
 				statements = append(statements, *iMove)
 			}
 		}
@@ -91,6 +90,7 @@ func (p *planGlue) locateMovesMovesFor(ctx context.Context, addr addrs.AbsResour
 				if prevAddr, moved := addr.MoveDestination(to, from); moved {
 					if prevAddr.Equal(addr) {
 						if !move.Implied {
+							// TODO Move this diagnostic out of locateMovesFor
 							diags = diags.Append(&hcl.Diagnostic{
 								Severity: hcl.DiagError,
 								Summary:  "Redundant move statement",
@@ -143,7 +143,7 @@ func (p *planGlue) locateMovesMovesFor(ctx context.Context, addr addrs.AbsResour
 
 					addStep(&moveStep{
 						From:      prevAddr,
-						To:        potentialAddresses.Get(addr),
+						To:        lastMove,
 						Statement: move,
 					})
 					nextIteration.Add(prevAddr)
@@ -171,7 +171,7 @@ func (p *planGlue) LocatePreviousState(ctx context.Context, addr addrs.AbsResour
 		To:   addr,
 	}
 
-	potentialMoves, moveDiags := p.locateMovesMovesFor(ctx, addr, true, func(addr addrs.AbsResourceInstance) *refactoring.MoveStatement {
+	potentialMoves, moveDiags := p.locateMovesFor(ctx, addr, true, func(addr addrs.AbsResourceInstance) *refactoring.MoveStatement {
 		implicitAddr := p.planCtx.DetectImplicitStateMoveForAddress(addr)
 		if implicitAddr == nil {
 			return nil
@@ -202,97 +202,37 @@ func (p *planGlue) LocatePreviousState(ctx context.Context, addr addrs.AbsResour
 		if state != nil {
 			log.Printf("[TRACE] PotentialMove with state %s -> %s", move.From, ret.To)
 			statefulMoves = append(statefulMoves, statefulMove{move, state})
+
+			// Record move statements for later analysis
+			p.planCtx.moveMu.Lock()
+			p.planCtx.configuredMoves.Put(move.From, append(p.planCtx.configuredMoves.Get(move.From), move))
+			p.planCtx.moveMu.Unlock()
 		} else {
 			log.Printf("[TRACE] PotentialMove (no state) %s -> %s", move.From, ret.To)
 		}
+	}
+
+	if len(statefulMoves) == 0 {
+		log.Printf("[TRACE] NoPotentialMoves with state for %s", addr)
+		return ret, diags
 	}
 
 	// Assertions:
 	// * NOP move (self -> self) detection is always first (if state exists)
 	// * Implicit moves are always last in a chain
 	// * Order is deterministic
-	var stepTaken *moveStep
-	for _, move := range statefulMoves {
-		if ret.State != nil {
-			if ret.From.Equal(ret.To) {
-				log.Printf("[TRACE] BlockedMove: (%s || %s) -> %s", move.From, ret.From, ret.To)
-				p.planCtx.moveMu.Lock()
-				p.planCtx.blockedMoves.Put(move.From, ret.To)
-				p.planCtx.moveMu.Unlock()
-			} else {
-				log.Printf("[TRACE] AmbiguousMove: (%s || %s) -> %s", move.From, ret.From, ret.To)
-				absFrom := move.Statement.From.InModuleInstance(move.From.Module)
-				absTo := move.Statement.To.InModuleInstance(move.From.Module)
-				absOtherFrom := stepTaken.Statement.From.InModuleInstance(stepTaken.From.Module)
+	move := statefulMoves[0]
+	ret.From = move.From
+	ret.State = move.state
+	ret.Moved = move.To != nil
+	ret.ImplicitMove = move.Statement.Implied
 
-				diags = diags.Append(&hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Ambiguous move statements",
-					Detail: fmt.Sprintf(
-						"A statement at %s declared that %s moved to %s, but this statement instead declares that %s moved there.\n\nEach %s can have moved from only one source %s.",
-						move.Statement.DeclRange.StartString(), absFrom, absTo, absOtherFrom,
-						absFrom.Noun(), absFrom.ShortNoun(),
-					),
-					Subject: stepTaken.Statement.DeclRange.ToHCL().Ptr(),
-				})
-			}
-			continue
-		}
-		ret.From = move.From
-		ret.State = move.state
-		ret.Moved = move.To != nil
-		ret.ImplicitMove = move.Statement.Implied
-		stepTaken = move.moveStep
-	}
-
-	if stepTaken != nil {
-		for step := stepTaken; step.To != nil; step = step.To {
-			if p.oracle.HasAddress(ctx, step.From) {
-				move := step.Statement
-				absFrom := move.From.InModuleInstance(addr.Module)
-				absTo := move.To.InModuleInstance(addr.Module)
-				noun := absFrom.Noun()
-				shortNoun := absFrom.ShortNoun()
-
-				// TODO determine DeclRange, probably by adding some config information from the caller
-				declaredAt := ""
-
-				diags = diags.Append(&hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Moved object still exists",
-					Detail: fmt.Sprintf(
-						"This statement declares a move from %s, but that %s is still declared%s.\n\nChange your configuration so that this %s will be declared as %s instead.",
-						absFrom, noun, declaredAt, shortNoun, absTo,
-					),
-					Subject: move.DeclRange.ToHCL().Ptr(),
-				})
-			}
-		}
-	}
-
-	if !ret.To.Equal(ret.From) {
-		// Active move
+	if ret.Moved {
 		p.planCtx.moveMu.Lock()
-		if first, ok := p.planCtx.recordedMoves.GetOk(ret.From); ok {
-			log.Printf("[TRACE] AmbiguousMove: %s -> (%s||%s)", first.From, first.To.From, ret.To)
-
-			absFrom := first.Statement.From.InModuleInstance(first.From.Module)
-			absTo := first.Statement.To.InModuleInstance(first.From.Module)
-			// This diag input is wrong, but fires in the correct circumstances
-			absOtherTo := stepTaken.Statement.To.InModuleInstance(stepTaken.From.Module)
-
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Ambiguous move statements",
-				Detail: fmt.Sprintf(
-					"A statement at %s declared that %s moved to %s, but this statement instead declares that it moved to %s.\n\nEach %s can move to only one destination %s.",
-					first.Statement.DeclRange.StartString(), absFrom, absTo, absOtherTo,
-					absFrom.Noun(), absFrom.ShortNoun(),
-				),
-				Subject: stepTaken.Statement.DeclRange.ToHCL().Ptr(),
-			})
+		// Record all moves that are part of this chain
+		for step := move.moveStep; step != nil; step = step.To {
+			p.planCtx.recordedMoves.Put(step.From, step.To)
 		}
-		p.planCtx.recordedMoves.Put(ret.From, stepTaken)
 		p.planCtx.moveMu.Unlock()
 	}
 
@@ -310,7 +250,12 @@ func (p *planGlue) LocateExecutedMove(addr addrs.AbsResourceInstance) *addrs.Abs
 func (p *planGlue) LocateUnexecutedMove(ctx context.Context, addr addrs.AbsResourceInstance) (*addrs.AbsResourceInstance, tfdiags.Diagnostics) {
 	log.Printf("[TRACE] LocateUnexecutedMove for %s", addr)
 
-	potentialMoves, diags := p.locateMovesMovesFor(ctx, addr, false, func(addr addrs.AbsResourceInstance) *refactoring.MoveStatement {
+	if p.planCtx.configuredMoves.Has(addr) {
+		// Move was configured but not executed for some reason and will be reported as an error elsewhere
+		return nil, nil
+	}
+
+	potentialMoves, diags := p.locateMovesFor(ctx, addr, false, func(addr addrs.AbsResourceInstance) *refactoring.MoveStatement {
 		implicitAddr := p.oracle.DetectImplicitMoveForAddress(ctx, addr)
 		if implicitAddr == nil {
 			return nil
@@ -328,60 +273,157 @@ func (p *planGlue) LocateUnexecutedMove(ctx context.Context, addr addrs.AbsResou
 		return nil, diags
 	}
 
-	// Calculate the potential end addresses
-	toAddresses := addrs.MakeSet[addrs.AbsResourceInstance]()
+	// First entry is always the self move (nop here)
+	potentialMoves = potentialMoves[1:]
 
-	for _, move := range potentialMoves {
-		if move.From.Equal(addr) {
-			// Ignore nop move
-			continue
-		}
-		// This is inverted so From is the correct field
-		toAddresses.Add(move.From)
-	}
-
-	if len(toAddresses) == 0 {
+	if len(potentialMoves) == 0 {
 		return nil, diags
 	}
-	if len(toAddresses) == 1 {
-		toAddr := slices.Collect(toAddresses.All())[0]
-		// Check if this move was previously blocked
-		if p.planCtx.blockedMoves.Has(addr) {
-			return nil, diags
-		}
 
-		return &toAddr, diags
-	}
-	panic("TODO untested")
-	return nil, diags.Append(fmt.Errorf("Multiple destinations!"))
+	// TODO I'm not sure if this is correct or even tested for the old engine
+	/*for _, move := range potentialMoves {
+		// Record move statements for later analysis
+		p.planCtx.moveMu.Lock()
+		p.planCtx.configuredMoves.Put(move.From, append(p.planCtx.configuredMoves.Get(move.From), move))
+		p.planCtx.moveMu.Unlock()
+	}*/
+
+	// This is inverted so From is the correct field
+	return new(potentialMoves[0].From), diags
 }
 
-func (p *planContext) BlockedMoveDiags() tfdiags.Diagnostics {
+func (p *planContext) ConflictingMoveDiags() tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+
+	// TODO Redundant move blocks? (see above)
+
+	// Detect moves from the same address
+	for _, moves := range p.configuredMoves.Values() {
+		// TODO we need to find a way to stable sort moves to ensure self moves always come first
+		// this hack works for now
+		first := moves[0]
+		for _, stepTaken := range moves {
+			if stepTaken.To == nil {
+				first = stepTaken
+				break
+			}
+		}
+		for _, stepTaken := range moves {
+			if stepTaken == first {
+				continue
+			}
+			if first.To == nil || first.Statement.Implied {
+				move := stepTaken.Statement
+				absFrom := move.From.InModuleInstance(first.From.Module)
+				absTo := move.To.InModuleInstance(first.From.Module)
+				noun := absFrom.Noun()
+				shortNoun := absFrom.ShortNoun()
+
+				// TODO determine DeclRange, probably by adding some config information from the caller
+				declaredAt := ""
+
+				diags = diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Moved object still exists",
+					Detail: fmt.Sprintf(
+						"This statement declares a move from %s, but that %s is still declared%s.\n\nChange your configuration so that this %s will be declared as %s instead.",
+						absFrom, noun, declaredAt, shortNoun, absTo,
+					),
+					Subject: move.DeclRange.ToHCL().Ptr(),
+				})
+			} else {
+				log.Printf("[TRACE] AmbiguousMove: %s -> (%s||%s)", first.From, first.To.From, stepTaken.To.From)
+
+				absFrom := first.Statement.From.InModuleInstance(first.From.Module)
+				absTo := first.Statement.To.InModuleInstance(first.From.Module)
+				// This diag input is wrong, but fires in the correct circumstances
+				absOtherTo := stepTaken.Statement.To.InModuleInstance(stepTaken.From.Module)
+
+				diags = diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Ambiguous move statements",
+					Detail: fmt.Sprintf(
+						"A statement at %s declared that %s moved to %s, but this statement instead declares that it moved to %s.\n\nEach %s can move to only one destination %s.",
+						first.Statement.DeclRange.StartString(), absFrom, absTo, absOtherTo,
+						absFrom.Noun(), absFrom.ShortNoun(),
+					),
+					Subject: stepTaken.Statement.DeclRange.ToHCL().Ptr(),
+				})
+			}
+		}
+	}
+
+	// Build up inverse map (could probably do this inline elsewhere, though this is probably more efficient)
+	movesTo := addrs.MakeMap[addrs.AbsResourceInstance, []*moveStep]()
+	for _, moves := range p.configuredMoves.Values() {
+		for _, move := range moves {
+			if move.To == nil {
+				// Self moves don't count
+				continue
+			}
+			movesTo.Put(move.To.From, append(movesTo.Get(move.To.From), move))
+		}
+	}
+
+	blocked := addrs.MakeMap[addrs.AbsResourceInstance, addrs.AbsResourceInstance]()
+
+	for _, moves := range movesTo.Values() {
+		// This may need to be tweaked a bit, it's relying on the moved.To filter above
+		// See check in previous loop about To/Implicit
+		if p.prevRoundState.ResourceInstance(moves[0].To.From) != nil {
+			for _, move := range moves {
+				log.Printf("[TRACE] BlockedMove: (%s || %s) -> %s", move.From, move.To.From, move.To.From)
+				blocked.Put(move.From, move.To.From)
+			}
+		} else if len(moves) >= 2 {
+			for i, move := range moves {
+				stepTaken := moves[(i+1)%len(moves)]
+
+				log.Printf("[TRACE] AmbiguousMove: (%s || %s) -> %s", move.From, stepTaken.From, stepTaken.To.From)
+				absFrom := move.Statement.From.InModuleInstance(move.From.Module)
+				absTo := move.Statement.To.InModuleInstance(move.From.Module)
+				absOtherFrom := stepTaken.Statement.From.InModuleInstance(stepTaken.From.Module)
+
+				diags = diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Ambiguous move statements",
+					Detail: fmt.Sprintf(
+						"A statement at %s declared that %s moved to %s, but this statement instead declares that %s moved there.\n\nEach %s can have moved from only one source %s.",
+						move.Statement.DeclRange.StartString(), absFrom, absTo, absOtherFrom,
+						absFrom.Noun(), absFrom.ShortNoun(),
+					),
+					Subject: stepTaken.Statement.DeclRange.ToHCL().Ptr(),
+				})
+			}
+		}
+	}
+
 	var itemsBuf bytes.Buffer
 	empty := true
 
-	for _, blocked := range p.blockedMoves.Elements() {
+	for _, blocked := range blocked.Elements() {
 		fmt.Fprintf(&itemsBuf, "\n  - %s could not move to %s", blocked.Key, blocked.Value)
 		empty = false
 	}
 
-	if empty {
-		return nil
+	if !empty {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Warning,
+			"Unresolved resource instance address changes",
+			fmt.Sprintf(
+				"OpenTofu tried to adjust resource instance addresses in the prior state based on change information recorded in the configuration, but some adjustments did not succeed due to existing objects already at the intended addresses:%s\n\nOpenTofu has planned to destroy these objects. If OpenTofu's proposed changes aren't appropriate, you must first resolve the conflicts using the \"tofu state\" subcommands and then create a new plan.",
+				itemsBuf.String(),
+			),
+		))
 	}
-
-	return tfdiags.Diagnostics{tfdiags.Sourceless(
-		tfdiags.Warning,
-		"Unresolved resource instance address changes",
-		fmt.Sprintf(
-			"OpenTofu tried to adjust resource instance addresses in the prior state based on change information recorded in the configuration, but some adjustments did not succeed due to existing objects already at the intended addresses:%s\n\nOpenTofu has planned to destroy these objects. If OpenTofu's proposed changes aren't appropriate, you must first resolve the conflicts using the \"tofu state\" subcommands and then create a new plan.",
-			itemsBuf.String(),
-		),
-	)}
+	return diags
 }
 
 func (p *planContext) DetectImplicitStateMoveForAddress(addr addrs.AbsResourceInstance) *addrs.AbsResourceInstance {
 	var currentStep []addrs.ModuleInstance
 	var nextStep []addrs.ModuleInstance
+
+	// TODO this could be much more efficient with a recursive iter pattern (steal from a previous commit on this branch)
 
 	// Start with the root module
 	currentStep = append(currentStep, addrs.RootModuleInstance)
