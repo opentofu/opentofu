@@ -32,6 +32,14 @@ func (o *PlanningOracle) HasAddress(ctx context.Context, addr addrs.AbsResourceI
 	return evalglue.ResourceInstance(ctx, o.root, addr) != nil
 }
 
+func (o *PlanningOracle) MoveStatementsFor(ctx context.Context, addr addrs.Module) []refactoring.MoveStatement {
+	return o.root.GetMoveStatementsFor(ctx, addr)
+}
+
+func (o *PlanningOracle) DetectImplicitMoveForAddress(ctx context.Context, addr addrs.AbsResourceInstance) *addrs.AbsResourceInstance {
+	return o.root.DetectImplicitMoveForAddress(ctx, addr)
+}
+
 // ResourceInstanceObjectMeta returns whatever metadata applies to the
 // given resource instance object based only on information available in
 // the configuration.

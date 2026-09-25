@@ -183,6 +183,8 @@ type CompiledModuleInstance interface {
 	// resource.
 	ResourceInstancesForResource(ctx context.Context, addr addrs.Resource) iter.Seq[*configgraph.ResourceInstance]
 
+	DetectImplicitMoveForAddress(ctx context.Context, addr addrs.AbsResourceInstance) *addrs.AbsResourceInstance
+
 	// ProviderInstances returns a sequence of all of the provider instances
 	// declared in the module.
 	//
@@ -217,7 +219,7 @@ type CompiledModuleInstance interface {
 
 	// GetMoveStatements obtains the move statements for this module and all of its module calls,
 	// with all move statements returned relative to this module instance.
-	GetMoveStatements(ctx context.Context) iter.Seq[refactoring.MoveStatement]
+	GetMoveStatementsFor(ctx context.Context, addr addrs.Module) []refactoring.MoveStatement
 }
 
 // ModuleInstance finds the [CompiledModuleInstance] representation of the

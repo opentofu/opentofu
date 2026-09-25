@@ -69,6 +69,9 @@ func normalPlan(ctx context.Context, opts *PlanOpts, prevRoundState *states.Stat
 		panic(fmt.Sprintf("%T.DrivePlanning returned nil result without any error diagnostics", configInst))
 	}
 
+	// We also need to handle any blocked moves here
+	diags = diags.Append(planCtx.BlockedMoveDiags())
+
 	// We also need to deal with any "deposed" resource instances that were
 	// in the previous round state. We do this separately afterwards because
 	// these have no direct representation in the configuration at all and

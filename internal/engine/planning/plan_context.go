@@ -8,6 +8,7 @@ package planning
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/hashicorp/hcl/v2"
 
@@ -42,6 +43,10 @@ type planContext struct {
 
 	forceReplace []addrs.AbsResourceInstance
 
+	moveMu        sync.Mutex
+	recordedMoves addrs.Map[addrs.AbsResourceInstance, *moveStep]
+	blockedMoves  addrs.Map[addrs.AbsResourceInstance, addrs.AbsResourceInstance]
+
 	// prevRoundState MUST be treated as immutable
 	prevRoundState *states.State
 
@@ -72,6 +77,8 @@ func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, pro
 		resourceInstObjs: newResourceInstanceObjectsBuilder(),
 		deferred:         addrs.MakeMap[addrs.AbsResourceInstance, struct{}](),
 		forceReplace:     opts.ForceReplace,
+		recordedMoves:    addrs.MakeMap[addrs.AbsResourceInstance, *moveStep](),
+		blockedMoves:     addrs.MakeMap[addrs.AbsResourceInstance, addrs.AbsResourceInstance](),
 		prevRoundState:   prevRoundState,
 		refreshedState:   refreshedState.SyncWrapper(),
 		upgradedState:    upgradedState.SyncWrapper(),

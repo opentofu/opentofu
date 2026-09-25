@@ -180,33 +180,18 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 
 	var prevRoundVal cty.Value
 	var prevRoundPrivate []byte
-	prevRoundState := p.planCtx.prevRoundState.SyncWrapper().ResourceInstanceObjectFull(inst.Addr.CurrentObject())
 
-	prevRunAddr := inst.Addr
-	diags = diags.Append(p.oracle.CheckMovesFromAddr(inst.Addr))
+	prevStateInfo, moveDiags := p.LocatePreviousState(ctx, inst.Addr)
+	diags = diags.Append(moveDiags)
 	if diags.HasErrors() {
 		return ret, diags
 	}
+	prevRoundState := prevStateInfo.State
 
-	impliedMove := false
-	moved := false
-	if prevRoundState == nil {
-		// check for ambiguous moves
-		_, moveDiags := p.oracle.FindAddressesMovedToHere(ctx, inst.Addr)
-		diags = diags.Append(moveDiags)
-		if diags.HasErrors() {
-			// More than one address this could move to.
-			// "Ambiguous move statements": many From, one To
-			return ret, diags
-		}
-		if moveInfo, ok := p.oracle.MovedAddress(inst.Addr); ok {
-			// we tracked a move in "Unwanted", manage state upgrades and plans here.
-			moved = true
-			prevRunAddr = moveInfo.From
-			prevRoundState = p.planCtx.prevRoundState.SyncWrapper().ResourceInstanceObjectFull(prevRunAddr.CurrentObject())
-			impliedMove = moveInfo.Implied
-		}
-	}
+	prevRunAddr := prevStateInfo.From
+	moved := prevStateInfo.Moved
+	impliedMove := prevStateInfo.ImplicitMove
+
 	// only run MoveResourceState or UpgradeResourceState if prevRoundState is non-nil at this point.
 	if prevRoundState != nil {
 		if moved && !impliedMove && (resourceType.ResourceTypeName() != prevRoundState.ResourceType || !meta.Provider.Equals(prevRoundState.ProviderInstanceAddr.Config.Config.Provider)) {
@@ -691,75 +676,29 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 
 	currentRunAddr := addr.InstanceAddr
 	if addr.IsCurrent() {
-		// Ask the planning oracle whether there are any "moved" blocks
-		// starting at inst.Addr in the configuration (possibly following
-		// a chain of multiple moves).
-		moveAddrs, moveDiags := p.oracle.FindAddressesMovedFromHere(ctx, addr.InstanceAddr)
-		diags = diags.Append(moveDiags)
-		if diags.HasErrors() {
-			// More than one address this could move to.
-			// "Ambiguous move statements": one From, many To
+		// TODO for legacy reasons, we *may* want to attempt to detect moves here,
+		// though that is only for one odd test?
+		movedToAddress := p.LocateExecutedMove(currentRunAddr)
+		if movedToAddress != nil {
+			// We were part of a move already and can safely be ignored
+			log.Printf("[TRACE] Potentially orphaned resource %s was recorded as being moved to %s and is therefore not orphaned", currentRunAddr, *movedToAddress)
 			return ret, diags
 		}
-		// Check the target instance address of each
-		// one in turn in case we find an as-yet-unbound resource address
-		// that wants to be rebound to the state given here.
-		// Addresses are given from start "From" to final "To"
-		foundAddr := false
-		blockedMove := false
-		for _, nextAddr := range moveAddrs {
-			if nextAddr.Equal(addr.InstanceAddr) {
-				continue
-			}
-			if p.oracle.HasAddress(ctx, nextAddr) {
-				// found state at a moveable address!
-				foundAddr = true
-				blockedMove = p.checkStateAndRecordMoveResult(currentRunAddr, nextAddr, addr, false)
-				if blockedMove {
-					// STOP THE PRESSES!
-					// We're going to handle this state with another function call
-					// (or the state is already bound to an address).
-					// As it is, this state is blocked.
-
-					// We also undo the address, but keep that we "found a move"
-					// so we correctly remove this blocked state
-					currentRunAddr = addr.InstanceAddr
-				} else {
-					currentRunAddr = nextAddr
-				}
-				// If there is another address down the chain, it is an error;
-				// you cannot move from an address that exists in configuration.
-				// We'll leave the loop now.
-				break
-			}
-		}
-		if !foundAddr && !blockedMove {
-			// no address found. Try an implicit move
-			// TODO a logical question: do we check these implicit moves for EVERY candidate address above?
-			// I'd prefer it if we didn't... but I'm afraid that might match what we're expecting...
-			// Except! Who in the world is actually combining moves like that???
-			implicitMoveAddr, pyrrhicMove := p.oracle.SearchForImplicitMoveableResourceInstance(ctx, addr.InstanceAddr)
-			if implicitMoveAddr != nil {
-				if pyrrhicMove {
-					// We set currentRunAddr to implicitMoveAddr,
-					// but we're still going to be deleting it
-					// because we didn't actually find an instance
-					// in the configuration
-					currentRunAddr = *implicitMoveAddr
-				} else {
-					foundAddr = true
-					blockedMove = p.checkStateAndRecordMoveResult(currentRunAddr, *implicitMoveAddr, addr, true)
-					if !blockedMove {
-						currentRunAddr = *implicitMoveAddr
-					}
-				}
-			}
-		}
-		if foundAddr && !blockedMove {
-			// No change planned: it's moved, and the state movement is handled in "Desired"
-			ret.PlannedChange = nil
-			return ret, diags
-		}
+	}
+	movedToAddr, movedDiags := p.LocateUnexecutedMove(ctx, currentRunAddr)
+	diags = diags.Append(movedDiags)
+	if diags.HasErrors() {
+		return ret, diags
+	}
+	if movedToAddr != nil {
+		movedObj := movedToAddr.Object(addr.DeposedKey)
+		//addr = movedObj
+		// Discover true configMeta based on state moves
+		configMeta = p.oracle.ResourceInstanceObjectMeta(ctx, movedObj)
+		meta = exec.BuildResourceInstanceObjectMeta(movedObj, configMeta, stateSrc)
+		//ret.Addr = movedObj
+		ret.Provider = meta.Provider
+		currentRunAddr = movedObj.InstanceAddr
 	}
 
 	// FIXME: Currently this fails if the only mention of a particular provider
@@ -928,17 +867,4 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 	}
 	ret.ProviderInst = providerInstAddr
 	return ret, diags
-}
-
-// checkStateAndRecordMoveResult returns true is a successful move and false if
-// the move is blocked by pre-existing state
-func (p *planGlue) checkStateAndRecordMoveResult(currentRunAddr addrs.AbsResourceInstance, nextAddr addrs.AbsResourceInstance, addr addrs.AbsResourceInstanceObject, impliedMove bool) bool {
-	preExistingState := p.planCtx.prevRoundState.SyncWrapper().ResourceInstanceObjectFull(nextAddr.CurrentObject())
-	if preExistingState != nil {
-		p.oracle.RecordBlockedMove(currentRunAddr, nextAddr)
-		return true
-	}
-	// Record move in the oracle, for use in "Desired" section
-	p.oracle.RecordSuccessfulMove(nextAddr, addr.InstanceAddr, impliedMove)
-	return false
 }

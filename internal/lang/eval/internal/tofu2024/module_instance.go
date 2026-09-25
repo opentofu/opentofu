@@ -358,7 +358,7 @@ func (c *CompiledModuleInstance) ResourceInstancesForResource(ctx context.Contex
 	}
 }
 
-// ResourceInstancesForResource implements evalglue.ProviderRequirements.
+// ResourceInstancesForResource implements evalglue.CompiledModuleInstance.
 func (c *CompiledModuleInstance) ProviderRequirements(ctx context.Context) (getproviders.Requirements, *getproviders.ProvidersQualification, tfdiags.Diagnostics) {
 	return c.providerRequirements(ctx)
 }
@@ -386,26 +386,82 @@ func (c *CompiledModuleInstance) AnnounceAllGraphevalRequests(announce func(work
 	}
 }
 
-// GetMoveStatements implements evalglue.GetMoveStatements.
-func (c *CompiledModuleInstance) GetMoveStatements(ctx context.Context) iter.Seq[refactoring.MoveStatement] {
-	return func(yield func(refactoring.MoveStatement) bool) {
-		for _, moveStatement := range c.moveStatements {
-			if !yield(moveStatement) {
-				return
-			}
-		}
-		for callAddr := range c.ChildModuleCalls(ctx) {
-			for _, compiled := range c.ChildModuleInstancesForCall(ctx, callAddr) {
-				// Note: move statement addresses are already "unified" with their module address relative to the root
-				subModuleMoveStatements := compiled.GetMoveStatements(ctx)
-				for subModuleMoveStatement := range subModuleMoveStatements {
-					if !yield(subModuleMoveStatement) {
-						return
-					}
-				}
-				// We only need move statements from one module instance, so we break immediately.
-				break
-			}
+// GetMoveStatements implements evalglue.CompiledModuleInstance.
+func (c *CompiledModuleInstance) GetMoveStatementsFor(ctx context.Context, addr addrs.Module) []refactoring.MoveStatement {
+	var stmts []refactoring.MoveStatement
+	stmts = append(stmts, c.moveStatements...)
+	if len(addr) > len(c.moduleInstanceNode.Addr) {
+		// Find child and recurse
+		childName := addr[len(c.moduleInstanceNode.Addr)]
+		instances := c.ChildModuleInstancesForCall(ctx, addrs.ModuleCall{Name: childName})
+		for _, instance := range instances {
+			stmts = append(stmts, instance.GetMoveStatementsFor(ctx, addr)...)
+			// Recurse into first instance only, these are not instance key specific
+			break
 		}
 	}
+
+	return stmts
+}
+
+func (c *CompiledModuleInstance) DetectImplicitMoveForAddress(ctx context.Context, addr addrs.AbsResourceInstance) *addrs.AbsResourceInstance {
+	if len(c.moduleInstanceNode.Addr) < len(addr.Module) {
+		// Find child module and recurse
+		childStep := addr.Module[len(c.moduleInstanceNode.Addr)]
+		childCall := addrs.ModuleCall{Name: childStep.Name}
+
+		if instance := c.ChildModuleInstance(ctx, addrs.ModuleCallInstance{Call: childCall, Key: childStep.InstanceKey}); instance != nil {
+			return instance.DetectImplicitMoveForAddress(ctx, addr)
+		}
+
+		if childStep.InstanceKey == addrs.NoKey {
+			// Try NoKey -> 0
+			// TODO check iteration type
+			if instance := c.ChildModuleInstance(ctx, addrs.ModuleCallInstance{Call: childCall, Key: addrs.IntKey(0)}); instance != nil {
+				return instance.DetectImplicitMoveForAddress(ctx, addr)
+			}
+		} else if ik, ok := childStep.InstanceKey.(addrs.IntKey); ok && ik == 0 {
+			// Try 0 -> NoKey
+			// TODO check iteration type
+			if instance := c.ChildModuleInstance(ctx, addrs.ModuleCallInstance{Call: childCall, Key: addrs.NoKey}); instance != nil {
+				return instance.DetectImplicitMoveForAddress(ctx, addr)
+			}
+		}
+		// No child instance found
+		return nil
+	}
+
+	resource := c.Resource(ctx, addr.Resource.Resource)
+	if resource == nil {
+		return nil
+	}
+
+	// Find potential instances
+	normal := addr.Resource
+	invert := addr.Resource
+
+	if invert.Key == addrs.NoKey {
+		// Try NoKey -> 0
+		// TODO check iteration type
+		invert.Key = addrs.IntKey(0)
+	} else if ik, ok := invert.Key.(addrs.IntKey); ok && ik == 0 {
+		// Try 0 -> NoKey
+		// TODO check iteration type
+		invert.Key = addrs.NoKey
+	}
+
+	instances := resource.Instances(ctx)
+	if len(instances) == 0 && invert.Key != normal.Key {
+		// count == 0 || enabled == false
+		return new(resource.Addr.Instance(invert.Key))
+	}
+
+	if ri, ok := instances[normal.Key]; ok {
+		return new(ri.Addr)
+	}
+	if ri, ok := instances[invert.Key]; ok {
+		return new(ri.Addr)
+	}
+
+	return nil
 }
