@@ -1,5 +1,11 @@
 The v1.13.x release series is supported until **August 1 2027**.
 
+## 1.13.1 (Unreleased)
+BUG FIXES:
+
+* The values of the ephemeral outputs inside child modules are evaluated on every graph walk to ensure that no stale information is used by the module caller. ([#4582](https://github.com/opentofu/opentofu/issues/4582))
+
+
 ## 1.13.0 (Unreleased)
 
 UPGRADE NOTES:
