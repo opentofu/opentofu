@@ -69,10 +69,11 @@ of OpenTofu:
 - `experiments`: Specifies a set of experimental language features the module
   is using.
 
-    The current version of OpenTofu has no active experiments, so the only
-    valid expression to assign to this argument is the empty set `[]`, which
-    is also the default. Modules written for today's OpenTofu should typically
-    not set this argument at all.
+    If present, the argument must be set to a literal list of keywords
+    representing currently-active experiments. The syntax and keyword to use
+    will generally be mentioned in the documentation for any active experiment.
+    If you are not intending to use any specific experiment in your module
+    then you should not set this argument at all.
 
 Current OpenTofu only has basic handling of these arguments enough to return
 helpful error messages if different possibilities are introduced in future
