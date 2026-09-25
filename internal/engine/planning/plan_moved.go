@@ -41,17 +41,24 @@ func (m *moveStep) FinalTo() addrs.AbsResourceInstance {
 	return m.To.FinalTo()
 }
 
-func (p *planGlue) locateExplicitMovesFor(ctx context.Context, addr addrs.AbsResourceInstance, forward bool) ([]*moveStep, tfdiags.Diagnostics) {
+func (p *planGlue) locateMovesMovesFor(ctx context.Context, addr addrs.AbsResourceInstance, forward bool, implicit func(addr addrs.AbsResourceInstance) *refactoring.MoveStatement) ([]*moveStep, tfdiags.Diagnostics) {
 	// Build simple lookup for move statements that have spidering traversals
 	// TODO replace with with resource config meta (tricky with orphans)
 	moveStatementsCache := map[string][]refactoring.MoveStatement{}
-	getMoveStatementsFor := func(addr addrs.AbsResourceInstance) []refactoring.MoveStatement {
+	getMoveStatementsFor := func(addr addrs.AbsResourceInstance, i bool) []refactoring.MoveStatement {
 		mod := addr.Module.Module()
 		key := mod.String()
 		statements, ok := moveStatementsCache[key]
 		if !ok {
 			statements = p.oracle.MoveStatementsFor(ctx, mod)
 			moveStatementsCache[key] = statements
+		}
+		// if concurrency is ever introduced here, this is inherently unsafe
+		if !i {
+			iMove := implicit(addr)
+			if iMove != nil {
+				statements = append(statements, *iMove)
+			}
 		}
 		return statements
 	}
@@ -75,22 +82,25 @@ func (p *planGlue) locateExplicitMovesFor(ctx context.Context, addr addrs.AbsRes
 
 	for len(currentIteration) > 0 {
 		for _, addr := range currentIteration {
-			for _, move := range getMoveStatementsFor(addr) {
+			lastMove := potentialAddresses.Get(addr)
+			for _, move := range getMoveStatementsFor(addr, lastMove.Statement.Implied) {
 				to, from := move.To, move.From
 				if !forward {
 					to, from = from, to
 				}
 				if prevAddr, moved := addr.MoveDestination(to, from); moved {
 					if prevAddr.Equal(addr) {
-						diags = diags.Append(&hcl.Diagnostic{
-							Severity: hcl.DiagError,
-							Summary:  "Redundant move statement",
-							Detail: fmt.Sprintf(
-								"This statement declares a move from %s to the same address, which is the same as not declaring this move at all.",
-								prevAddr,
-							),
-							Subject: move.DeclRange.ToHCL().Ptr(),
-						})
+						if !move.Implied {
+							diags = diags.Append(&hcl.Diagnostic{
+								Severity: hcl.DiagError,
+								Summary:  "Redundant move statement",
+								Detail: fmt.Sprintf(
+									"This statement declares a move from %s to the same address, which is the same as not declaring this move at all.",
+									prevAddr,
+								),
+								Subject: move.DeclRange.ToHCL().Ptr(),
+							})
+						}
 						continue
 					}
 
@@ -153,34 +163,31 @@ func (p *planGlue) locateExplicitMovesFor(ctx context.Context, addr addrs.AbsRes
 func (p *planGlue) LocatePreviousState(ctx context.Context, addr addrs.AbsResourceInstance) (prevStateInfo, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
+	log.Printf("[TRACE] LocateMove for %s", addr)
+
 	// Start without state
 	ret := prevStateInfo{
 		From: addr,
 		To:   addr,
 	}
 
-	potentialMoves, moveDiags := p.locateExplicitMovesFor(ctx, addr, true)
+	potentialMoves, moveDiags := p.locateMovesMovesFor(ctx, addr, true, func(addr addrs.AbsResourceInstance) *refactoring.MoveStatement {
+		implicitAddr := p.planCtx.DetectImplicitStateMoveForAddress(addr)
+		if implicitAddr == nil {
+			return nil
+		}
+		log.Printf("[TRACE] ImplicitMove with state %s -> %s", *implicitAddr, addr)
+		var approxSrcRange tfdiags.SourceRange // TODO
+		return &refactoring.MoveStatement{
+			From:      addrs.ImpliedMoveStatementEndpoint(*implicitAddr, approxSrcRange),
+			To:        addrs.ImpliedMoveStatementEndpoint(addr, approxSrcRange),
+			Implied:   true,
+			DeclRange: approxSrcRange,
+		}
+	})
 	diags = diags.Append(moveDiags)
 	if diags.HasErrors() {
 		return ret, diags
-	}
-
-	// Add implicit move
-	if implicitAddr := p.planCtx.DetectImplicitStateMoveForAddress(addr); implicitAddr != nil {
-		// TODO We only want to use an implicit move if there is no explicit move already defined
-		if todo := true; todo {
-			var approxSrcRange tfdiags.SourceRange // TODO
-			potentialMoves = append(potentialMoves, &moveStep{
-				From: *implicitAddr,
-				To:   potentialMoves[0], // NOP is always first
-				Statement: refactoring.MoveStatement{
-					From:      addrs.ImpliedMoveStatementEndpoint(implicitAddr, approxSrcRange),
-					To:        addrs.ImpliedMoveStatementEndpoint(addr, approxSrcRange),
-					Implied:   true,
-					DeclRange: approxSrcRange,
-				},
-			})
-		}
 	}
 
 	type statefulMove struct {
@@ -202,7 +209,7 @@ func (p *planGlue) LocatePreviousState(ctx context.Context, addr addrs.AbsResour
 
 	// Assertions:
 	// * NOP move (self -> self) detection is always first (if state exists)
-	// * Implicit moves are always last
+	// * Implicit moves are always last in a chain
 	// * Order is deterministic
 	var stepTaken *moveStep
 	for _, move := range statefulMoves {
@@ -267,8 +274,11 @@ func (p *planGlue) LocatePreviousState(ctx context.Context, addr addrs.AbsResour
 		// Active move
 		p.planCtx.moveMu.Lock()
 		if first, ok := p.planCtx.recordedMoves.GetOk(ret.From); ok {
+			log.Printf("[TRACE] AmbiguousMove: %s -> (%s||%s)", first.From, first.To.From, ret.To)
+
 			absFrom := first.Statement.From.InModuleInstance(first.From.Module)
 			absTo := first.Statement.To.InModuleInstance(first.From.Module)
+			// This diag input is wrong, but fires in the correct circumstances
 			absOtherTo := stepTaken.Statement.To.InModuleInstance(stepTaken.From.Module)
 
 			diags = diags.Append(&hcl.Diagnostic{
@@ -298,27 +308,24 @@ func (p *planGlue) LocateExecutedMove(addr addrs.AbsResourceInstance) *addrs.Abs
 }
 
 func (p *planGlue) LocateUnexecutedMove(ctx context.Context, addr addrs.AbsResourceInstance) (*addrs.AbsResourceInstance, tfdiags.Diagnostics) {
-	potentialMoves, diags := p.locateExplicitMovesFor(ctx, addr, false)
+	log.Printf("[TRACE] LocateUnexecutedMove for %s", addr)
+
+	potentialMoves, diags := p.locateMovesMovesFor(ctx, addr, false, func(addr addrs.AbsResourceInstance) *refactoring.MoveStatement {
+		implicitAddr := p.oracle.DetectImplicitMoveForAddress(ctx, addr)
+		if implicitAddr == nil {
+			return nil
+		}
+		log.Printf("[TRACE] ImplicitMove %s -> %s", *implicitAddr, addr)
+		var approxSrcRange tfdiags.SourceRange // TODO
+		return &refactoring.MoveStatement{
+			To:        addrs.ImpliedMoveStatementEndpoint(*implicitAddr, approxSrcRange),
+			From:      addrs.ImpliedMoveStatementEndpoint(addr, approxSrcRange),
+			Implied:   true,
+			DeclRange: approxSrcRange,
+		}
+	})
 	if diags.HasErrors() {
 		return nil, diags
-	}
-
-	// Add implicit move
-	if implicitAddr := p.oracle.DetectImplicitMoveForAddress(ctx, addr); implicitAddr != nil {
-		// TODO We only want to use an implicit move if there is no explicit move already defined
-		if todo := true; todo {
-			var approxSrcRange tfdiags.SourceRange // TODO
-			potentialMoves = append(potentialMoves, &moveStep{
-				From: *implicitAddr,
-				To:   potentialMoves[0], //NOP is always first
-				Statement: refactoring.MoveStatement{
-					From:      addrs.ImpliedMoveStatementEndpoint(implicitAddr, approxSrcRange),
-					To:        addrs.ImpliedMoveStatementEndpoint(addr, approxSrcRange),
-					Implied:   true,
-					DeclRange: approxSrcRange,
-				},
-			})
-		}
 	}
 
 	// Calculate the potential end addresses
