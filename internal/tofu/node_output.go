@@ -344,8 +344,12 @@ func (n *NodeApplyableOutput) Execute(ctx context.Context, evalCtx EvalContext, 
 	}
 
 	// If there was no change recorded, or the recorded change was not wholly
-	// known, then we need to re-evaluate the output
-	if !changeRecorded || !val.IsWhollyKnown() {
+	// known, then we need to re-evaluate the output.
+	//
+	// Ephemeral outputs must also always be re-evaluated, so their value stays
+	// consistent with other consumers of the same ephemeral resource in this apply,
+	// instead of exporting a stale plan-time value across the module boundary.
+	if !changeRecorded || !val.IsWhollyKnown() || n.Config.Ephemeral {
 		switch {
 		// If the module is not being overridden, we proceed normally
 		case !n.Config.IsOverridden:
