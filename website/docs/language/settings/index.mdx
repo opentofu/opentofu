@@ -125,4 +125,7 @@ settings described elsewhere:
 - `backend` blocks represent [backend configuration](./backends/configuration.mdx).
 - `cloud` blocks represent [cloud configuration](./tf-cloud.mdx).
 - `required_providers` blocks represent [provider requirements](../providers/requirements.mdx).
-- `provider_meta` blocks configure [provider metadata](../../internals/provider-meta.mdx).
+
+OpenTofu also accepts `provider_meta` blocks for compatibility with modules that
+were written for Terraform, but silently ignores them instead of sending their
+data to providers.
