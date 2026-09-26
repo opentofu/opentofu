@@ -7,6 +7,7 @@ package funcs
 
 import (
 	"math"
+	"fmt"
 	"math/big"
 
 	"github.com/zclconf/go-cty/cty"
@@ -39,7 +40,11 @@ var LogFunc = function.New(&function.Spec{
 			return cty.UnknownVal(cty.String), err
 		}
 
-		return cty.NumberFloatVal(math.Log(num) / math.Log(base)), nil
+		res := math.Log(num) / math.Log(base)
+		if math.IsNaN(res) {
+			return cty.UnknownVal(cty.Number), fmt.Errorf("logarithm is undefined for the given arguments")
+		}
+		return cty.NumberFloatVal(res), nil
 	},
 })
 
@@ -68,7 +73,11 @@ var PowFunc = function.New(&function.Spec{
 			return cty.UnknownVal(cty.String), err
 		}
 
-		return cty.NumberFloatVal(math.Pow(num, power)), nil
+		res := math.Pow(num, power)
+		if math.IsNaN(res) {
+			return cty.UnknownVal(cty.Number), fmt.Errorf("power is undefined for the given arguments")
+		}
+		return cty.NumberFloatVal(res), nil
 	},
 })
 
