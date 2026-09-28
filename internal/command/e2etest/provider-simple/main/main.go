@@ -6,14 +6,14 @@
 package main
 
 import (
+	simple "github.com/opentofu/opentofu/internal/command/e2etest/provider-simple"
 	"github.com/opentofu/opentofu/internal/grpcwrap"
-	"github.com/opentofu/opentofu/internal/plugin"
-	simple "github.com/opentofu/opentofu/internal/provider-simple"
+	"github.com/opentofu/opentofu/internal/plugin/plugintest"
 	"github.com/opentofu/opentofu/internal/tfplugin5"
 )
 
 func main() {
-	plugin.Serve(&plugin.ServeOpts{
+	plugintest.Serve5(&plugintest.ServeOpts5{
 		GRPCProviderFunc: func() tfplugin5.ProviderServer {
 			return grpcwrap.Provider(simple.Provider())
 		},
