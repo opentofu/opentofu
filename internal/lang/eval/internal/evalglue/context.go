@@ -8,6 +8,8 @@ package evalglue
 import (
 	"testing"
 	"time"
+
+	"github.com/opentofu/opentofu/internal/encryption"
 )
 
 // EvalContext is a collection of contextual information provided by an
@@ -67,6 +69,10 @@ type EvalContext struct {
 	// PlanTimestamp is the time at which the plan was created. This is
 	// used to provide a consistent result for the plantimestamp function.
 	PlanTimestamp time.Time
+
+	// Encryption is used to read terraform_remote_state data sources,
+	// and should NOT be used for anything else.
+	Encryption encryption.Encryption
 }
 
 // AssertValid must be called early on entry to any exported function that

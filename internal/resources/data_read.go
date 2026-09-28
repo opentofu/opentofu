@@ -8,16 +8,18 @@ package resources
 import (
 	"context"
 	"fmt"
-	"log"
-	"strings"
 
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/plans/objchange"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
+
+type ProviderWithEncryption interface {
+	ReadDataSourceEncrypted(ctx context.Context, req providers.ReadDataSourceRequest, path addrs.AbsResourceInstance, enc encryption.Encryption) providers.ReadDataSourceResponse
+}
 
 // Read encapsulates the logic for reading data for a data resource instance.
 //
@@ -36,15 +38,26 @@ import (
 // either be nil or be a partial description of the invalid plan, depending on
 // the nature of the failure. Callers should use defensive programming
 // techniques if interacting with a partial response associated with an error.
-func (rt *DataResourceType) Read(ctx context.Context, req *DataResourceReadRequest, dispAddr addrs.AbsResourceInstanceObject) (*DataResourceReadResponse, tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
+func (rt *DataResourceType) Read(ctx context.Context, req *DataResourceReadRequest, dispAddr addrs.AbsResourceInstanceObject, encryption encryption.Encryption) (*DataResourceReadResponse, tfdiags.Diagnostics) {
+	// TODO I can do whatever I want here!
+	// plan_data is the only file using this method
 
-	schema, moreDiags := rt.LoadSchema(ctx)
-	diags = diags.Append(moreDiags)
-	if diags.HasErrors() {
+	// Things the OG had that I need, and why:
+	// - encryption.Encryption (for ReadDataSourceEncrypted)
+	// That's it!
+	// Looks like that's obtained during EvalContext() thru ContextGraphWalker,
+	// which in turn gets set in graphWalker for *Context
+	// Which is set by the NewContext function in the tofu package; one of the options is encryption
+
+	var diags tfdiags.Diagnostics
+	var out *DataResourceReadResponse
+
+	schema, schemaDiags := rt.LoadSchema(ctx)
+	if schemaDiags.HasErrors() {
+		// Should be caught during validation, so we don't bother with a pretty error here
+		diags = diags.Append(schemaDiags)
 		return nil, diags
 	}
-	ty := schema.Block.ImpliedType().WithoutOptionalAttributesDeep()
 
 	var providerMetaVal cty.Value
 	if req.ProviderMetaValue != cty.NilVal {
@@ -56,109 +69,101 @@ func (rt *DataResourceType) Read(ctx context.Context, req *DataResourceReadReque
 		providerMetaVal = cty.NullVal(cty.DynamicPseudoType)
 	}
 
-	// proposedVal is essentially a default answer for how to merge currentVal
-	// and desiredVal, which providers are allowed to use as a shortcut in
-	// their planning logic for simple cases where no special planning behavior
-	// is needed. Providers are allowed to ignore this value completely and
-	// implement their own merging logic though, as long as the result conforms
-	// to the rules that [objchange.AssertPlanValid] enforces.
-	var proposedVal cty.Value
-	if !desiredVal.IsNull() {
-		proposedVal = objchange.ProposedNew(schema.Block, currentVal, desiredVal)
+	configVal, pvm := req.ConfigValue.UnmarkDeepWithPaths()
+
+	providerReq := providers.ReadDataSourceRequest{
+		TypeName:     rt.typeName,
+		Config:       configVal,
+		ProviderMeta: providerMetaVal,
+	}
+
+	var providerResp providers.ReadDataSourceResponse
+	if tfp, ok := rt.client.(ProviderWithEncryption); ok {
+		// handling terraform_remote_state with builtin tf provider
+		providerResp = tfp.ReadDataSourceEncrypted(ctx, providerReq, req.ResourceAddress, encryption)
 	} else {
-		proposedVal = cty.NullVal(ty)
+		providerResp = rt.client.ReadDataSource(ctx, providerReq)
 	}
 
-	currentValUnmarked, currentMarks := currentVal.UnmarkDeepWithPaths()
-	desiredValUnmarked, desiredMarks := desiredVal.UnmarkDeepWithPaths()
-	proposedValUnmarked, _ := proposedVal.UnmarkDeep()
-	providerMetaValUnmarked, _ := providerMetaVal.UnmarkDeep()
+	// TODO Attach config to response diagnostics using InConfigBody
+	// FIXME: Our "contextual diagnostics" mechanism, where the callee provides
+	// an attribute path and then the caller discovers a suitable source range
+	// for each diagnostic based on information in the body, can only work
+	// when we have direct access to a [hcl.Body], but we intentionally
+	// abstracted that away here. We'll need to find a different design for
+	// contextual diagnostics that can work through the [exprs.Valuer]
+	// abstraction to make a best effort to interpret attribute paths against
+	// whatever the valuer was evaluating.
+	diags = diags.Append(providerResp.Diagnostics)
 
-	var resp providers.PlanResourceChangeResponse
-	if !desiredValUnmarked.IsNull() || rt.providerCanPlanDestroy(ctx) {
-		resp = rt.client.PlanResourceChange(ctx, providers.PlanResourceChangeRequest{
-			TypeName:         rt.typeName,
-			PriorState:       currentValUnmarked,
-			PriorPrivate:     currentPrivate,
-			Config:           desiredValUnmarked,
-			ProposedNewState: proposedValUnmarked,
-			ProviderMeta:     providerMetaValUnmarked,
-		})
-		diags = diags.Append(resp.Diagnostics)
-		if resp.Diagnostics.HasErrors() {
-			return nil, diags
-		}
-	} else {
-		// For older providers that are not capable of generating destroy plans
-		// themselves, we generate a synthetic destroy plan.
-		resp = rt.fakeDestroyPlan(ty)
+	newVal := providerResp.State
+	if newVal == cty.NilVal {
+		// This can happen with incompletely-configured mocks. We'll allow it
+		// and treat it as an alias for a properly-typed null value.
+		newVal = cty.NullVal(schema.Block.ImpliedType())
 	}
 
-	plannedValUnmarked := resp.PlannedState
-	plannedPrivate := resp.PlannedPrivate
-	if errs := objchange.AssertPlanValid(schema.Block, currentValUnmarked, desiredValUnmarked, plannedValUnmarked); len(errs) > 0 {
-		if resp.LegacyTypeSystem {
-			// The shimming of the old type system in the legacy SDK is not precise
-			// enough to pass this consistency check, so we'll give it a pass here,
-			// but we will generate a warning about it so that we are more likely
-			// to notice in the logs if an inconsistency beyond the type system
-			// leads to a downstream provider failure.
-			var buf strings.Builder
-			fmt.Fprintf(&buf,
-				"[WARN] Provider %q produced an invalid plan for %s, but we are tolerating it because it is using the legacy plugin SDK.\n    The following problems may be the cause of any confusing errors from downstream operations:",
-				rt.providerAddr, dispAddr,
-			)
-			for _, err := range errs {
-				fmt.Fprintf(&buf, "\n      - %s", tfdiags.FormatError(err))
-			}
-			log.Print(buf.String())
-		} else {
-			for _, err := range errs {
-				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
-					"Provider produced invalid plan",
-					fmt.Sprintf(
-						"Provider %q planned an invalid value for %s.\n\nThis is a bug in the provider, which should be reported in the provider's own issue tracker.",
-						rt.providerAddr, tfdiags.FormatErrorPrefixed(err, dispAddr.String()),
-					),
-				))
-			}
-			return nil, diags
-		}
-	}
-	if len(resp.RequiresReplace) != 0 && (currentVal.IsNull() || desiredVal.IsNull()) {
-		// RequiresReplace is only applicable when the plan request had both
-		// a current and a desired value, because it specifies attributes that
-		// cannot be updated-in-place, but unfortunately existing providers
-		// do generate spurious "requires replace" signals for non-update
-		// plans and so we need to just ignore them.
-		log.Printf("[WARN] Ignoring nonsensical RequiresReplace values from provider %s while planning a non-update change for %s", rt.providerAddr, dispAddr)
-		// We'll discard the meaningless extra info here just so that the
-		// rest of the system can assume that this is populated only when it
-		// actually needs to be acted on.
-		resp.RequiresReplace = nil
+	for _, err := range newVal.Type().TestConformance(schema.Block.ImpliedType()) {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Provider produced invalid object",
+			fmt.Sprintf(
+				"Provider %q produced an invalid value for %s.\n\nThis is a bug in the provider, which should be reported in the provider's own issue tracker.",
+				rt.providerAddr.String(), tfdiags.FormatErrorPrefixed(err, req.ResourceAddress.String()),
+			),
+		))
 	}
 
-	// FIXME: plannedVal also needs sensitive marks added to it based on the
-	// static attribute flags in the resource type schema.
-	plannedVal := plannedValUnmarked.MarkWithPaths(currentMarks).MarkWithPaths(desiredMarks)
+	if newVal.IsNull() {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Provider produced null object",
+			fmt.Sprintf(
+				"Provider %q produced a null value for %s.\n\nThis is a bug in the provider, which should be reported in the provider's own issue tracker.",
+				rt.providerAddr.String(), req.ResourceAddress.String(),
+			),
+		))
+	}
 
-	return &ManagedResourcePlanResponse{
-		Current: ValueWithPrivate{
-			Value:   currentVal,
-			Private: currentPrivate,
-		},
-		DesiredValue: desiredVal,
-		Planned: ValueWithPrivate{
-			Value:   plannedVal,
-			Private: plannedPrivate,
-		},
-		RequiresReplace: resp.RequiresReplace,
-	}, diags
+	if !newVal.IsNull() && !newVal.IsWhollyKnown() {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Provider produced invalid object",
+			fmt.Sprintf(
+				"Provider %q produced a value for %s that is not wholly known.\n\nThis is a bug in the provider, which should be reported in the provider's own issue tracker.",
+				rt.providerAddr.String(), req.ResourceAddress.String(),
+			),
+		))
+
+		// We'll still save the object, but we need to eliminate any unknown
+		// values first because we can't serialize them in the state file.
+		// Note that this may cause set elements to be coalesced if they
+		// differed only by having unknown values, but we don't worry about
+		// that here because we're saving the value only for inspection
+		// purposes; the error we added above will halt the graph walk.
+		newVal = cty.UnknownAsNull(newVal)
+	}
+
+	if len(pvm) > 0 {
+		newVal = newVal.MarkWithPaths(pvm)
+	}
+
+	// TODO this data resource response doesn't look right, only Result is actually set??? Where do the other values come from?
+	out = &DataResourceReadResponse{
+		ConfigValue:             cty.Value{},
+		Result:                  newVal,
+		DelayedUntilApply:       false,
+		RequiredUpstreamChanges: addrs.Set[addrs.AbsResourceInstance]{},
+	}
+
+	return out, diags
 }
 
 // DataResourceReadRequest is the request type for [DataResourceType.Read].
 type DataResourceReadRequest struct {
+	// ResourceAddress is used mostly for diagnostics
+	ResourceAddress addrs.AbsResourceInstance
+
 	// ConfigValue is a value representing the configuration for the
 	// resource instance, which is typically the result of evaluating the
 	// arguments in a block in the configuration.
