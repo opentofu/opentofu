@@ -134,6 +134,8 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 		return ret
 	}
 
+	ret.DeclRange = rsrc.DeclRange
+
 	// In the remaining code we intentionally ignore all diagnostics from
 	// accessing the configgraph.Resource and configgraph.ResourceInstance
 	// methods because our caller is expected to collect them separately

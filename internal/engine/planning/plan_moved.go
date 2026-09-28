@@ -177,7 +177,11 @@ func (p *planGlue) LocatePreviousState(ctx context.Context, addr addrs.AbsResour
 			return nil
 		}
 		log.Printf("[TRACE] ImplicitMove with state %s -> %s", *implicitAddr, addr)
-		var approxSrcRange tfdiags.SourceRange // TODO
+		var approxSrcRange tfdiags.SourceRange
+		meta := p.oracle.ResourceInstanceObjectMeta(ctx, implicitAddr.CurrentObject())
+		if meta != nil {
+			approxSrcRange = meta.DeclRange
+		}
 		return &refactoring.MoveStatement{
 			From:      addrs.ImpliedMoveStatementEndpoint(*implicitAddr, approxSrcRange),
 			To:        addrs.ImpliedMoveStatementEndpoint(addr, approxSrcRange),
@@ -261,7 +265,11 @@ func (p *planGlue) LocateUnexecutedMove(ctx context.Context, addr addrs.AbsResou
 			return nil
 		}
 		log.Printf("[TRACE] ImplicitMove %s -> %s", *implicitAddr, addr)
-		var approxSrcRange tfdiags.SourceRange // TODO
+		var approxSrcRange tfdiags.SourceRange
+		meta := p.oracle.ResourceInstanceObjectMeta(ctx, implicitAddr.CurrentObject())
+		if meta != nil {
+			approxSrcRange = meta.DeclRange
+		}
 		return &refactoring.MoveStatement{
 			To:        addrs.ImpliedMoveStatementEndpoint(*implicitAddr, approxSrcRange),
 			From:      addrs.ImpliedMoveStatementEndpoint(addr, approxSrcRange),
@@ -296,6 +304,9 @@ func (p *planContext) ConflictingMoveDiags() tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	// TODO Redundant move blocks? (see above)
+	// TODO Although the error reporting here passes the tests, the actual logic and statements break
+	// down for many common scenarios.  This should be re-built off of the pattern in refactoring/moved*
+	// instead of guessed at from the tests.
 
 	// Detect moves from the same address
 	for _, moves := range p.configuredMoves.Values() {
@@ -314,6 +325,9 @@ func (p *planContext) ConflictingMoveDiags() tfdiags.Diagnostics {
 			}
 			if first.To == nil || first.Statement.Implied {
 				move := stepTaken.Statement
+				if move.Implied {
+					continue
+				}
 				absFrom := move.From.InModuleInstance(first.From.Module)
 				absTo := move.To.InModuleInstance(first.From.Module)
 				noun := absFrom.Noun()

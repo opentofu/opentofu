@@ -15,6 +15,7 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/resources"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // ManagedResourceObjectFinalPlan represents a final plan -- ready to actually
@@ -233,6 +234,8 @@ type ResourceInstanceObjectMeta struct {
 	// [ResourceInstanceObjectMeta.Provider].
 	ResourceType string
 
+	DeclRange tfdiags.SourceRange
+
 	// ProviderInstance is the address of the provider instance that is
 	// currently considered responsible for this resource instance object.
 	// If populated, this is always an instance of the provider specified in the
@@ -356,6 +359,7 @@ func BuildResourceInstanceObjectMeta[SV states.ValueOrJSONEquivalent](
 		}
 
 		ret.ResourceType = fromConfig.ResourceType
+		ret.DeclRange = fromConfig.DeclRange
 
 		ret.PostCreateProvisioners = fromConfig.PostCreateProvisioners
 		ret.PreDeleteProvisioners = fromConfig.PreDestroyProvisioners
