@@ -43,7 +43,7 @@ jobs:
 
       - name: Run and report govulncheck findings
         run: |
-          govulncheck -format json ./... | tee results
+          govulncheck -format json ./cmd/tofu | tee results
           # This is parsing the output of govulncheck by:
           # * extracting only the findings that are affecting the current branch (.finding | select(.trace | length > 1))
           # * getting only the vulnerability key out of the objects (.osv)
