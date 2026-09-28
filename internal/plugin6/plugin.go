@@ -7,7 +7,6 @@ package plugin6
 
 import (
 	"github.com/hashicorp/go-plugin"
-	proto "github.com/opentofu/opentofu/internal/tfplugin6"
 )
 
 const (
@@ -33,36 +32,4 @@ var Handshake = plugin.HandshakeConfig{
 	// The magic cookie values should NEVER be changed.
 	MagicCookieKey:   "TF_PLUGIN_MAGIC_COOKIE",
 	MagicCookieValue: "d602bf8f470bc67ca7faa0386276bbdd4330efaf76d1a219cb4d6991ca9872b2",
-}
-
-type GRPCProviderFunc func() proto.ProviderServer
-
-// ServeOpts are the configurations to serve a plugin.
-type ServeOpts struct {
-	GRPCProviderFunc GRPCProviderFunc
-}
-
-// Serve serves a plugin. This function never returns and should be the final
-// function called in the main function of the plugin.
-func Serve(opts *ServeOpts) {
-	plugin.Serve(&plugin.ServeConfig{
-		HandshakeConfig:  Handshake,
-		VersionedPlugins: pluginSet(opts),
-		GRPCServer:       plugin.DefaultGRPCServer,
-	})
-}
-
-func pluginSet(opts *ServeOpts) map[int]plugin.PluginSet {
-	plugins := map[int]plugin.PluginSet{}
-
-	// add the new protocol versions if they're configured
-	if opts.GRPCProviderFunc != nil {
-		plugins[6] = plugin.PluginSet{}
-		if opts.GRPCProviderFunc != nil {
-			plugins[6]["provider"] = &GRPCProviderPlugin{
-				GRPCProvider: opts.GRPCProviderFunc,
-			}
-		}
-	}
-	return plugins
 }

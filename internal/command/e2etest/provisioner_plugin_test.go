@@ -40,7 +40,7 @@ func TestProvisionerPlugin(t *testing.T) {
 	// to actually run it. Here will build the local-exec provisioner into a
 	// binary called test-provisioner
 	provisionerExePrefix := filepath.Join(tf.WorkDir(), "terraform-provisioner-test_")
-	provisionerExe := e2e.GoBuild("github.com/opentofu/opentofu/internal/provisioner-local-exec/main", provisionerExePrefix)
+	provisionerExe := e2e.GoBuild("github.com/opentofu/opentofu/internal/command/e2etest/provisioner-local-exec/main", provisionerExePrefix)
 
 	extension := ""
 	if runtime.GOOS == "windows" {

@@ -895,10 +895,10 @@ func TestApplyPanic(t *testing.T) {
 		}
 
 		if !strings.Contains(stderr, "Graph Traversal Panic") {
-			t.Errorf("Expected graph panic, got %s", stderr)
+			t.Fatalf("Expected graph panic, got %s", stderr)
 		}
 		if !strings.Contains(stderr, "Crash simulating a critical programming error in the apply process, this should produce an errored.tfstate file") {
-			t.Errorf("Expected graph panic, got %s", stderr)
+			t.Fatalf("Expected graph panic, got %s", stderr)
 		}
 		_, err = tf.LocalState()
 		if err == nil {
@@ -907,7 +907,7 @@ func TestApplyPanic(t *testing.T) {
 
 		state, err := tf.StateFromFile("errored.tfstate")
 		if err != nil {
-			t.Errorf("Expected errored.tfstate to exist: %s", err.Error())
+			t.Fatalf("Expected errored.tfstate to exist: %s", err.Error())
 		}
 
 		stateResources := state.RootModule().Resources
@@ -952,7 +952,7 @@ func buildSimpleProvider(t *testing.T, version string, workdir string, buildOutN
 		providerBinFileName = buildOutName
 	}
 	providerBuildOutDir := filepath.Join(workdir, fmt.Sprintf("terraform-provider-%s", providerBinFileName))
-	providerTmpBinPath := e2e.GoBuild(fmt.Sprintf("github.com/opentofu/opentofu/internal/%s/main", implPkgName), providerBuildOutDir)
+	providerTmpBinPath := e2e.GoBuild(fmt.Sprintf("github.com/opentofu/opentofu/internal/command/e2etest/%s/main", implPkgName), providerBuildOutDir)
 
 	extension := ""
 	if runtime.GOOS == "windows" {
@@ -1118,4 +1118,3 @@ removed {
 		t.Errorf("expected warning message detail in stdout. Output:\n%s", stdout)
 	}
 }
-

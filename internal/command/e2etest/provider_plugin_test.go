@@ -38,10 +38,10 @@ func TestProviderProtocols(t *testing.T) {
 	// actually run it. Here will build the simple and simple6 (built with
 	// protocol v6) providers.
 	simple6Provider := filepath.Join(tf.WorkDir(), "terraform-provider-simple6")
-	simple6ProviderExe := e2e.GoBuild("github.com/opentofu/opentofu/internal/provider-simple-v6/main", simple6Provider)
+	simple6ProviderExe := e2e.GoBuild("github.com/opentofu/opentofu/internal/command/e2etest/provider-simple-v6/main", simple6Provider)
 
 	simpleProvider := filepath.Join(tf.WorkDir(), "terraform-provider-simple")
-	simpleProviderExe := e2e.GoBuild("github.com/opentofu/opentofu/internal/provider-simple/main", simpleProvider)
+	simpleProviderExe := e2e.GoBuild("github.com/opentofu/opentofu/internal/command/e2etest/provider-simple/main", simpleProvider)
 
 	extension := ""
 	if runtime.GOOS == "windows" {

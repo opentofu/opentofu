@@ -16,12 +16,12 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
+	simple5 "github.com/opentofu/opentofu/internal/command/e2etest/provider-simple"
+	simple "github.com/opentofu/opentofu/internal/command/e2etest/provider-simple-v6"
 	"github.com/opentofu/opentofu/internal/e2e"
 	"github.com/opentofu/opentofu/internal/grpcwrap"
 	tfplugin5 "github.com/opentofu/opentofu/internal/plugin"
 	tfplugin "github.com/opentofu/opentofu/internal/plugin6"
-	simple5 "github.com/opentofu/opentofu/internal/provider-simple"
-	simple "github.com/opentofu/opentofu/internal/provider-simple-v6"
 	proto5 "github.com/opentofu/opentofu/internal/tfplugin5"
 	proto "github.com/opentofu/opentofu/internal/tfplugin6"
 )
