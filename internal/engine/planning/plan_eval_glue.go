@@ -131,14 +131,19 @@ func (p *planGlue) planOrphanResourceInstance(ctx context.Context, addr addrs.Ab
 	log.Printf("[TRACE] planContext: planning orphan resource instance %s", addr)
 
 	if p.isTargeting() {
-		// We can only process orphans of *explicit targets*
+		// NOTE: this is broken if A -> B, both are orphaned, B is targeted. A will not be targeted and have a broken dependency.
+		// This *MATCHES* the existing strangeness of the original engine.
+		// Given that fixing it will be non-trivial, we are deferring this until this engine is adopted and stable.
 		if !p.isTargeted(addr) {
 			log.Printf("[TRACE] planContext: resource instance %s not targeted", addr)
+
 			return nil
 		}
 	}
 	if p.isExcluding() {
-		// TODO exclude oprhan deps
+		// NOTE this is broken if A -> B, both are orphaned, A is excluded. A will have a broken dependency.
+		// This *MATCHES* the existing strangeness of the original engine.
+		// Given that fixing it will be non-trivial, we are deferring this until this engine is adopted and stable.
 		if p.isExcluded(addr) {
 			log.Printf("[TRACE] planContext: resource instance %s excluded", addr)
 			return nil
