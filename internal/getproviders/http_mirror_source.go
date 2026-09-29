@@ -217,17 +217,17 @@ func (s *HTTPMirrorSource) PackageMeta(ctx context.Context, provider addrs.Provi
 			if retries == 0 && s.httpClient != nil && s.httpClient.RetryMax != 0 {
 				retries = s.httpClient.RetryMax
 			}
-			client := packageHTTPUrlClientWithRetry(ctx, retries)
-			if s.httpClient != nil && s.httpClient.HTTPClient != nil && s.httpClient.HTTPClient.Transport != nil {
-				client.HTTPClient.Transport = s.httpClient.HTTPClient.Transport
+			var transport http.RoundTripper
+			if s.httpClient != nil && s.httpClient.HTTPClient != nil {
+				transport = s.httpClient.HTTPClient.Transport
 			}
 			if s.creds != nil && archiveMeta.UseMirrorCredentials != nil && *archiveMeta.UseMirrorCredentials {
-				client.HTTPClient.Transport = &mirrorCredentialTransport{
+				transport = &mirrorCredentialTransport{
 					creds: s.creds,
-					base:  client.HTTPClient.Transport,
+					base:  transport,
 				}
 			}
-			return client
+			return packageHTTPUrlClientWithRetry(ctx, retries, transport)
 		}},
 		Filename: path.Base(absURL.Path),
 	}

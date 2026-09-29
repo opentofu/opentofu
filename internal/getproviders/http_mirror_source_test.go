@@ -53,7 +53,7 @@ func TestHTTPMirrorSource(t *testing.T) {
 
 	clientBuilderFromHTTPLocation := func(t *testing.T, expectedRetries int) func(ctx context.Context) *retryablehttp.Client {
 		return func(ctx context.Context) *retryablehttp.Client {
-			return packageHTTPUrlClientWithRetry(ctx, expectedRetries)
+			return packageHTTPUrlClientWithRetry(ctx, expectedRetries, nil)
 		}
 	}
 	// For the PackageHTTPURL.ClientBuilder we are interested strictly in comparing the max retries and nothing else.

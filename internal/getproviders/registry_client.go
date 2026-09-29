@@ -311,18 +311,18 @@ func (c *registryClient) PackageMeta(ctx context.Context, provider addrs.Provide
 			if retries == 0 && c.httpClient != nil && c.httpClient.RetryMax != 0 {
 				retries = c.httpClient.RetryMax
 			}
-			client := packageHTTPUrlClientWithRetry(ctx, retries)
-			if c.httpClient != nil && c.httpClient.HTTPClient != nil && c.httpClient.HTTPClient.Transport != nil {
-				client.HTTPClient.Transport = c.httpClient.HTTPClient.Transport
+			var transport http.RoundTripper
+			if c.httpClient != nil && c.httpClient.HTTPClient != nil {
+				transport = c.httpClient.HTTPClient.Transport
 			}
 			if c.creds != nil && useMirrorCreds {
-				client.HTTPClient.Transport = &registryCredentialTransport{
+				transport = &registryCredentialTransport{
 					creds: c.creds,
 					host:  c.baseURL.Host,
-					base:  client.HTTPClient.Transport,
+					base:  transport,
 				}
 			}
-			return client
+			return packageHTTPUrlClientWithRetry(ctx, retries, transport)
 		}},
 		// "Authentication" is populated below
 	}
