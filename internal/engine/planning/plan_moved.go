@@ -13,7 +13,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"slices"
 	"sort"
 	"strings"
 
@@ -495,10 +494,9 @@ func (p *planGlue) validateMoves(ctx context.Context) tfdiags.Diagnostics {
 	}
 
 	// Check for addresses not included in target or are excluded
-	isTargeting := len(p.targets) != 0
-	isExcluding := len(p.excludes) != 0
+	isTargeting := p.isTargeting()
+	isExcluding := p.isExcluding()
 	if isTargeting || isExcluding {
-		// TODO this is a NOP during destroy due to other changes
 		allEntries := addrs.MakeSet[addrs.AbsResourceInstance]()
 		for _, elem := range p.planCtx.recordedMoves.Elements() {
 			allEntries.Add(elem.Key)
@@ -506,8 +504,7 @@ func (p *planGlue) validateMoves(ctx context.Context) tfdiags.Diagnostics {
 		}
 		var excluded []addrs.AbsResourceInstance
 		for addr := range allEntries.All() {
-			targeter := func(target addrs.Targetable) bool { return target.TargetContains(addr) }
-			if isTargeting && !slices.ContainsFunc(p.targets, targeter) || isExcluding && slices.ContainsFunc(p.excludes, targeter) {
+			if !p.isTargeted(addr) || p.isExcluded(addr) {
 				excluded = append(excluded, addr)
 			}
 		}

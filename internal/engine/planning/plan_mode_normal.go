@@ -48,8 +48,8 @@ func normalPlan(ctx context.Context, opts *PlanOpts, prevRoundState *states.Stat
 		return &planGlue{
 			planCtx:  planCtx,
 			oracle:   oracle,
-			targets:  opts.Targets,
-			excludes: opts.Excludes,
+			targets:  addrs.MakeSet(opts.Targets...),
+			excludes: addrs.MakeSet(opts.Excludes...),
 		}
 	})
 	diags = diags.Append(moreDiags)
