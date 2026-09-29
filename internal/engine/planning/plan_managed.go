@@ -44,7 +44,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 	// of this to a later round. The following is not exhaustive but is a
 	// placeholder to show where deferral might fit in.
 	if p.desiredResourceInstanceMustBeDeferred(inst, meta) {
-		// For now, we emulate the current engine, which treats
+		// For now, we emulate the original engine, which treats
 		// deferral as not-touching the resource at all.
 		// See notes below for potential future enhancements.
 		return &resourceInstanceObject{
