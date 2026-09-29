@@ -80,6 +80,7 @@ func (c VersionCommand) Execute(view views.Version) int {
 
 func readModuleVersions(records []modsdir.Record) map[string]string {
 	moduleVersions := map[string]string{}
+	keyVersion := map[string]string{}
 	slices.SortFunc(records, func(a, b modsdir.Record) int {
 		return cmp.Compare(strings.Count(a.Key, "."), strings.Count(b.Key, "."))
 	})
@@ -107,8 +108,20 @@ func readModuleVersions(records []modsdir.Record) map[string]string {
 
 		if m.Version != nil {
 			moduleVersions[outSrc.String()] = m.Version.String()
+			keyVersion[m.Key] = m.Version.String()
 		} else {
-			moduleVersions[outSrc.String()] = "0.0.0"
+			var ver string
+			parent := parentKey
+			for ver == "" {
+				ver = keyVersion[parent]
+				p := parentModuleKey(parent)
+				if p == parent {
+					ver = "0.0.0"
+				}
+				parent = p
+			}
+			keyVersion[m.Key] = ver
+			moduleVersions[outSrc.String()] = ver
 		}
 	}
 	return moduleVersions
