@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"iter"
 	"log"
+	"sync"
 
 	"github.com/zclconf/go-cty/cty"
 
@@ -46,73 +47,6 @@ func destroyPlan(ctx context.Context, opts *PlanOpts, prevRoundState *states.Sta
 
 	planCtx := newPlanContext(configInst.EvalContext(), prevRoundState, providers, opts)
 
-	// Pre-process targets/excludes based on state dependencies
-	// TODO should we care about the configuration here?
-
-	targetContains := func(list []addrs.Targetable, item addrs.Targetable) bool {
-		// TODO memoize
-		for _, exclude := range list {
-			if exclude.TargetContains(item) {
-				return true
-			}
-		}
-		return false
-	}
-
-	if len(opts.Targets) > 0 {
-		additionalTargets := map[addrs.UniqueKey]addrs.Targetable{}
-	outer:
-		for _, resource := range prevRoundState.AllResourceInstanceObjectAddrs() {
-			if targetContains(opts.Targets, resource.Instance) {
-				// Already targeted
-				continue
-			}
-
-			// If our dependencies are targeted, we are targted as well (FOR DESTROY ONLY)
-			// Assumes flattened dependencies
-			curr := prevRoundState.ResourceInstance(resource.Instance).Current
-			if curr != nil {
-				for _, addr := range curr.DependsOn {
-					if targetContains(opts.Targets, addr) {
-						additionalTargets[addr.UniqueKey()] = resource.Instance
-						continue outer
-					}
-				}
-				for _, addr := range curr.Dependencies {
-					if targetContains(opts.Targets, addr) {
-						additionalTargets[addr.UniqueKey()] = resource.Instance
-						continue outer
-					}
-				}
-			}
-			// TODO do we care about deposed here?
-		}
-		for _, addr := range additionalTargets {
-			opts.Targets = append(opts.Targets, addr)
-		}
-	}
-	if len(opts.Excludes) > 0 {
-		additionalExcludes := map[addrs.UniqueKey]addrs.Targetable{}
-		for _, resource := range prevRoundState.AllResourceInstanceObjectAddrs() {
-			if !targetContains(opts.Excludes, resource.Instance) {
-				continue
-			}
-			curr := prevRoundState.ResourceInstance(resource.Instance).Current
-			if curr != nil {
-				for _, addr := range curr.DependsOn {
-					additionalExcludes[addr.UniqueKey()] = addr
-				}
-				for _, addr := range curr.Dependencies {
-					additionalExcludes[addr.UniqueKey()] = addr
-				}
-			}
-			// TODO do we care about deposed here?
-		}
-		for _, addr := range additionalExcludes {
-			opts.Excludes = append(opts.Excludes, addr)
-		}
-	}
-
 	// This configInst.DrivePlanning call blocks until the evaluator has
 	// visited all expressions in the configuration and calls
 	// [planContext.PlanDesiredResourceInstance] on the [planGlue] object for
@@ -132,11 +66,13 @@ func destroyPlan(ctx context.Context, opts *PlanOpts, prevRoundState *states.Sta
 	evalResult, moreDiags := configInst.DrivePlanning(ctx, func(oracle *eval.PlanningOracle) eval.PlanGlue {
 		closeConfiguredProviders = oracle.Close
 		return &planGlueDestroy{
+			additionalTargets:  addrs.MakeSet[addrs.Targetable](),
+			additionalExcludes: addrs.MakeSet[addrs.Targetable](),
 			normalGlue: planGlue{
 				planCtx:  planCtx,
 				oracle:   oracle,
-				targets:  opts.Targets,
-				excludes: opts.Excludes,
+				targets:  addrs.MakeSet(opts.Targets...),
+				excludes: addrs.MakeSet(opts.Excludes...),
 			},
 		}
 	})
@@ -236,19 +172,16 @@ func destroyPlan(ctx context.Context, opts *PlanOpts, prevRoundState *states.Sta
 // to requests from the evaluator.
 type planGlueDestroy struct {
 	normalGlue planGlue
+
+	targetingMu        sync.Mutex
+	additionalTargets  addrs.Set[addrs.Targetable]
+	additionalExcludes addrs.Set[addrs.Targetable]
 }
 
 var _ eval.PlanGlue = (*planGlueDestroy)(nil)
 
 func (p *planGlueDestroy) PreProcess(ctx context.Context, targeter func(target addrs.Targetable)) {
 	p.normalGlue.PreProcess(ctx, targeter)
-	// Recorded moves are typically used to tell a potentially orphaned piece
-	// of state that there's a desired instance actually using it through a move.
-	// In this scenario, we actually don't want to treat these orphaned pices of state
-	// as "moved and used elsewhere".
-	// TODO this is a hack and is probably broken in some edge cases. We should instead
-	// add a flag to normalGlue that we are operating in a special mode.
-	clear(p.normalGlue.planCtx.recordedMoves.Elems)
 }
 
 // PlanDesiredResourceInstance implements [eval.PlanGlue].
@@ -288,27 +221,8 @@ func (p *planGlueDestroy) PlanDesiredResourceInstance(ctx context.Context, inst 
 	if diags.HasErrors() {
 		return cty.DynamicVal, diags
 	}
-	prevState := prevStateInfo.state
 
-	if prevState == nil {
-		// If this is something that didn't exist at all in the prior state
-		// then we have nothing reasonable to return here, so we'll return
-		// a completely-unknown value.
-		//
-		// In practice this can only occur in the unusual situation where
-		// someone adds both a resource block and an ephemeral object config
-		// (e.g. a provider block) referring to it and then immediately runs
-		// a destroy-mode plan without first applying the change to create the
-		// managed resources, which is not a supported usage pattern. Returning
-		// unknown in that case makes this behave the same as what happens in
-		// normal mode when a provider configuration depends on an unknown value
-		// from a resource instance that hasn't been created yet: the provider
-		// gets sent an unknown value in its configuration and gets to decide
-		// for itself how it wants to handle that situation, including possibly
-		// making our subsequent calls to PlanResourceChange signal that the
-		// provider needs to defer planning that change.
-		return cty.DynamicVal, diags
-	}
+	prevState := prevStateInfo.state
 
 	// TODO: The refreshing and upgrading logic is currently embedded in the
 	// middle of [planGlue.planDesiredManagedResourceInstance] and not callable
@@ -340,9 +254,61 @@ func (p *planGlueDestroy) PlanDesiredResourceInstance(ctx context.Context, inst 
 	configMeta := p.normalGlue.oracle.ResourceInstanceObjectMeta(ctx, inst.Addr.CurrentObject())
 	meta := exec.BuildResourceInstanceObjectMeta(inst.Addr.CurrentObject(), configMeta, refreshedState)
 
+	// FIXME: Once we introduce deferral reasons, we could inspect the deferral reason below
+	if p.normalGlue.isExcluded(inst.Addr) && prevState != nil {
+		// If we are excluded, everything we depend on is excluded
+		p.targetingMu.Lock()
+		for dep := range inst.RequiredResourceInstances.All() {
+			p.additionalExcludes.Add(dep)
+		}
+		// This seems technically redundant with some logic below,
+		// but it may be required due to interactions with moved blocks.
+		for dep := range prevState.TargetDependencies() {
+			p.additionalExcludes.Add(dep)
+		}
+		p.targetingMu.Unlock()
+	}
+
 	if p.normalGlue.desiredResourceInstanceMustBeDeferred(inst, meta) {
 		log.Printf("[TRACE] planGlueDestroy.PlanDesiredResourceInstance for %s DEFERRED", inst.Addr)
+
 		return deferredVal(cty.DynamicVal), nil
+	}
+
+	if p.normalGlue.isTargeting() {
+		// If we are targeted, everything we depend on is targeted
+		p.targetingMu.Lock()
+		// We rely on the config graph to reach all required instances
+		// during PreProcess.
+		p.additionalTargets.Add(inst.Addr)
+		// This seems technically redundant with some logic below,
+		// but it may be required due to interactions with moved blocks.
+		if prevState != nil {
+			for dep := range prevState.TargetDependencies() {
+				p.additionalTargets.Add(dep)
+			}
+		}
+		p.targetingMu.Unlock()
+	}
+
+	if prevState == nil {
+		// If this is something that didn't exist at all in the prior state
+		// then we have nothing reasonable to return here, so we'll return
+		// a completely-unknown value.
+		//
+		// In practice this can only occur in the unusual situation where
+		// someone adds both a resource block and an ephemeral object config
+		// (e.g. a provider block) referring to it and then immediately runs
+		// a destroy-mode plan without first applying the change to create the
+		// managed resources, which is not a supported usage pattern. Returning
+		// unknown in that case makes this behave the same as what happens in
+		// normal mode when a provider configuration depends on an unknown value
+		// from a resource instance that hasn't been created yet: the provider
+		// gets sent an unknown value in its configuration and gets to decide
+		// for itself how it wants to handle that situation, including possibly
+		// making our subsequent calls to PlanResourceChange signal that the
+		// provider needs to defer planning that change.
+		return cty.DynamicVal, diags
 	}
 
 	// FIXME: Ideally we'd use [resources.ManagedResourceType] here to match
@@ -380,6 +346,9 @@ func (p *planGlueDestroy) PlanDesiredResourceInstance(ctx context.Context, inst 
 
 // PlanModuleCallOrphans implements [eval.PlanGlue].
 func (p *planGlueDestroy) PlanModuleCallOrphans(ctx context.Context, callerModuleInstAddr addrs.ModuleInstance, desiredCalls iter.Seq[addrs.ModuleCall]) tfdiags.Diagnostics {
+	p.targetingMu.Lock()
+	defer p.targetingMu.Unlock()
+
 	// The evaluator is designed to call different Plan*Orphans methods for
 	// each container it finds so that it can report which individual objects
 	// are desired and so we could in theory then plan deletion only of the
@@ -400,12 +369,67 @@ func (p *planGlueDestroy) PlanModuleCallOrphans(ctx context.Context, callerModul
 	orphaned := resourceInstancesFilter(p.normalGlue.planCtx.prevRoundState, func(_ addrs.AbsResourceInstance) bool {
 		return true
 	})
+
+	if p.normalGlue.isTargeting() {
+		// Include additionally discovered config targets for orphaning
+		p.normalGlue.targets = p.normalGlue.targets.Union(p.additionalTargets)
+		clear(p.additionalTargets)
+
+		// Include additionally discovered state targets for orphaning
+		for resource, prevState := range orphaned {
+			if p.normalGlue.isTargeted(resource) {
+				// Already targeted
+				continue
+			}
+
+			// If our dependencies are targeted, we are targeted as well
+			// Assumes flattened dependencies
+			for dep := range prevState.TargetDependencies() {
+				if p.normalGlue.isTargeted(dep) {
+					p.additionalTargets.Add(resource)
+					break
+				}
+			}
+		}
+		p.normalGlue.targets = p.normalGlue.targets.Union(p.additionalTargets)
+	}
+	if p.normalGlue.isExcluding() {
+		// Include additionally discovered config excludes for orphaning
+		p.normalGlue.excludes = p.normalGlue.excludes.Union(p.additionalExcludes)
+		clear(p.additionalExcludes)
+
+		// Include additionally discovered state excludes for orphaning
+		for resource, prevState := range orphaned {
+			if !p.normalGlue.isExcluded(resource) {
+				continue
+			}
+
+			// If we are excluded, our dependencies are excluded as well
+			// Assumes flattened dependencies
+			for dep := range prevState.TargetDependencies() {
+				p.additionalExcludes.Add(dep)
+			}
+		}
+		p.normalGlue.excludes = p.normalGlue.excludes.Union(p.additionalExcludes)
+	}
+
+	// Recorded moves are typically used to tell a potentially orphaned piece
+	// of state that there's a desired instance actually using it through a move.
+	// In this scenario, we actually don't want to treat these orphaned pices of state
+	// as "moved and used elsewhere".
+	recordedMoves := p.normalGlue.planCtx.recordedMoves
+	p.normalGlue.planCtx.recordedMoves = addrs.MakeMap[addrs.AbsResourceInstance, addrs.AbsResourceInstance]()
+
 	var diags tfdiags.Diagnostics
 	for addr, state := range orphaned {
 		diags = diags.Append(
 			p.normalGlue.planOrphanResourceInstance(ctx, addr, state),
 		)
 	}
+
+	// Reset recordedMoves for validation purposes and include additionally discovered moves
+	p.normalGlue.planCtx.recordedMoves = recordedMoves.Union(p.normalGlue.planCtx.recordedMoves)
+
 	return diags
 }
 

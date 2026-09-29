@@ -5,6 +5,8 @@
 
 package addrs
 
+import "maps"
+
 // Map represents a mapping whose keys are address types that implement
 // UniqueKeyer.
 //
@@ -129,5 +131,14 @@ func (m Map[K, V]) Values() []V {
 	for _, elem := range m.Elems {
 		ret = append(ret, elem.Value)
 	}
+	return ret
+}
+
+// Union returns a new map which contains the union of all of the elements
+// of both the receiver and the given other map.
+func (s Map[K, V]) Union(other Map[K, V]) Map[K, V] {
+	ret := MakeMap[K, V]()
+	maps.Copy(ret.Elems, s.Elems)
+	maps.Copy(ret.Elems, other.Elems)
 	return ret
 }

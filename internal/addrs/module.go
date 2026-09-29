@@ -120,6 +120,14 @@ func (m Module) AddrType() TargetableAddrType {
 	return ModuleAddrType
 }
 
+type moduleKey string
+
+func (k moduleKey) uniqueKeySigil() {}
+
+func (m Module) UniqueKey() UniqueKey {
+	return moduleKey(m.String())
+}
+
 // Child returns the address of a child call in the receiver, identified by the
 // given name.
 func (m Module) Child(name string) Module {

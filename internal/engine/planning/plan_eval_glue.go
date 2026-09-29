@@ -34,16 +34,30 @@ import (
 type planGlue struct {
 	planCtx  *planContext
 	oracle   *eval.PlanningOracle
-	targets  []addrs.Targetable
-	excludes []addrs.Targetable
+	targets  addrs.Set[addrs.Targetable]
+	excludes addrs.Set[addrs.Targetable]
 
 	allResourcesDeferred bool
 }
 
 var _ eval.PlanGlue = (*planGlue)(nil)
 
+func (p *planGlue) isTargeting() bool {
+	return len(p.targets) != 0
+}
+func (p *planGlue) isTargeted(addr addrs.Targetable) bool {
+	return !p.isTargeting() || p.targets.HasFunc(func(targeter addrs.Targetable) bool { return targeter.TargetContains(addr) })
+}
+
+func (p *planGlue) isExcluding() bool {
+	return len(p.excludes) != 0
+}
+func (p *planGlue) isExcluded(addr addrs.Targetable) bool {
+	return p.excludes.HasFunc(func(excluder addrs.Targetable) bool { return excluder.TargetContains(addr) })
+}
+
 func (p *planGlue) PreProcess(ctx context.Context, targeter func(target addrs.Targetable)) {
-	if len(p.targets) == 0 {
+	if !p.isTargeting() {
 		// Nop
 		return
 	}
@@ -87,20 +101,6 @@ func (p *planGlue) PreProcess(ctx context.Context, targeter func(target addrs.Ta
 func (p *planGlue) PlanDesiredResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance) (cty.Value, tfdiags.Diagnostics) {
 	log.Printf("[TRACE] planContext: planning desired resource instance %s", inst.Addr)
 
-	// Set during targeting after initial targets have been resolved
-	if p.allResourcesDeferred {
-		log.Printf("[TRACE] Deferring untargeted %s", inst.Addr)
-		return deferredVal(cty.DynamicVal), nil
-	}
-
-	// If the resource is excluded, handle it as such
-	for _, exclude := range p.excludes {
-		if exclude.TargetContains(inst.Addr) {
-			log.Printf("[TRACE] Deferring excluded %s", inst.Addr)
-			return deferredVal(cty.DynamicVal), nil
-		}
-	}
-
 	// The details of how we plan vary considerably depending on the resource
 	// mode, so we'll dispatch each one to a separate function after we've
 	// dealt with some common preparation work.
@@ -130,31 +130,16 @@ func (p *planGlue) PlanDesiredResourceInstance(ctx context.Context, inst *eval.D
 func (p *planGlue) planOrphanResourceInstance(ctx context.Context, addr addrs.AbsResourceInstance, state *states.ResourceInstanceObjectFullSrc) tfdiags.Diagnostics {
 	log.Printf("[TRACE] planContext: planning orphan resource instance %s", addr)
 
-	if len(p.targets) != 0 {
+	if p.isTargeting() {
 		// We can only process orphans of *explicit targets*
-		targeted := false
-		for _, target := range p.targets {
-			if target.TargetContains(addr) {
-				targeted = true
-				break
-			}
-		}
-		// Check to see if this resource is targeted or a dependency of targeted
-		if !targeted {
+		if !p.isTargeted(addr) {
 			log.Printf("[TRACE] planContext: resource instance %s not targeted", addr)
 			return nil
 		}
 	}
-	if len(p.excludes) != 0 {
+	if p.isExcluding() {
 		// TODO exclude oprhan deps
-		excluded := false
-		for _, exclude := range p.excludes {
-			if exclude.TargetContains(addr) {
-				excluded = true
-				break
-			}
-		}
-		if excluded {
+		if p.isExcluded(addr) {
 			log.Printf("[TRACE] planContext: resource instance %s excluded", addr)
 			return nil
 		}
@@ -438,6 +423,18 @@ func (p *planGlue) providerClient(ctx context.Context, addr addrs.AbsProviderIns
 }
 
 func (p *planGlue) desiredResourceInstanceMustBeDeferred(inst *eval.DesiredResourceInstance, meta *exec.ResourceInstanceObjectMeta) bool {
+	// Set during targeting after initial targets have been resolved
+	if p.allResourcesDeferred {
+		log.Printf("[TRACE] Deferring untargeted %s", inst.Addr)
+		return true
+	}
+
+	// If the resource is excluded, handle it as such
+	if p.isExcluded(inst.Addr) {
+		log.Printf("[TRACE] Deferring excluded %s", inst.Addr)
+		return true
+	}
+
 	// There are various reasons why we might need to defer final planning
 	// of this to a later round. The following is not exhaustive but is a
 	// placeholder to show where deferral might fit in.
