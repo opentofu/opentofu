@@ -139,7 +139,7 @@ on darwin_arm64
 			},
 			wantStdout: `OpenTofu v0.1.0-dev
 on darwin_arm64
-+ provider registry.opentofu.org/terraform-aws-modules/eks/aws v20.24.0
++ module registry.opentofu.org/terraform-aws-modules/eks/aws v20.24.0
 `,
 			wantStderr: "",
 		},
