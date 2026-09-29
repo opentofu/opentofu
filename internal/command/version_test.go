@@ -206,7 +206,7 @@ func TestModuleVersions(t *testing.T) {
 			},
 			expect: map[string]string{
 				"registry.opentofu.org/terraform-aws-modules/eks/aws":                "0.1.0",
-				"registry.opentofu.org/terraform-aws-modules/eks/aws//modules/hello": "0.0.0",
+				"registry.opentofu.org/terraform-aws-modules/eks/aws//modules/hello": "0.1.0",
 			},
 		},
 		{
