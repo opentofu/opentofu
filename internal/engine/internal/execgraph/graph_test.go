@@ -115,8 +115,8 @@ func TestGraphMarshalUnmarshalValid(t *testing.T) {
 				meta := builder.ResourceInstanceCurrentMeta(instAddrResult, nil)
 				desiredInst := builder.ResourceInstanceDesired(meta)
 
-				plannedVal := builder.ConstantValue(cty.DynamicVal)
-				newState := builder.DataRead(meta, desiredInst, plannedVal, nil)
+				// plannedVal := builder.ConstantValue(cty.DynamicVal)
+				newState := builder.DataRead(desiredInst, nil)
 				builder.SetResourceInstanceFinalStateResult(instAddr, newState)
 				return builder.Finish()
 			},
@@ -143,13 +143,13 @@ func TestGraphMarshalUnmarshalValid(t *testing.T) {
 					Name: "example2",
 				}.Absolute(addrs.RootModuleInstance).Instance(addrs.NoKey)
 
-				plannedVal := builder.ConstantValue(cty.DynamicVal)
+				// plannedVal := builder.ConstantValue(cty.DynamicVal)
 				meta1 := builder.ResourceInstanceCurrentMeta(builder.ConstantResourceInstAddr(instAddr1), nil)
 				desiredInst1 := builder.ResourceInstanceDesired(meta1)
-				newState1 := builder.DataRead(meta1, desiredInst1, plannedVal, nil)
+				newState1 := builder.DataRead(desiredInst1, nil)
 				meta2 := builder.ResourceInstanceCurrentMeta(builder.ConstantResourceInstAddr(instAddr2), nil)
 				desiredInst2 := builder.ResourceInstanceDesired(meta2)
-				newState2 := builder.DataRead(meta2, desiredInst2, plannedVal, builder.Waiter(newState1))
+				newState2 := builder.DataRead(desiredInst2, builder.Waiter(newState1))
 				builder.SetResourceInstanceFinalStateResult(instAddr1, newState1)
 				builder.SetResourceInstanceFinalStateResult(instAddr2, newState2)
 				return builder.Finish()

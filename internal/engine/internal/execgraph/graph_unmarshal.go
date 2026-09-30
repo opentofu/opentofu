@@ -314,26 +314,26 @@ func unmarshalOpManagedChangeAddr(rawOperands []uint64, prevResults []AnyResultR
 }
 
 func unmarshalOpDataRead(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
-	if len(rawOperands) != 4 {
+	if len(rawOperands) != 2 {
 		return nil, fmt.Errorf("wrong number of operands (%d) for opDataRead", len(rawOperands))
 	}
-	metadata, err := unmarshalGetPrevResultOf[*exec.ResourceInstanceObjectMeta](prevResults, rawOperands[0])
-	if err != nil {
-		return nil, fmt.Errorf("invalid opDataRead metadata: %w", err)
-	}
+	// metadata, err := unmarshalGetPrevResultOf[*exec.ResourceInstanceObjectMeta](prevResults, rawOperands[0])
+	// if err != nil {
+	// 	return nil, fmt.Errorf("invalid opDataRead metadata: %w", err)
+	// }
 	desiredInst, err := unmarshalGetPrevResultOf[*eval.DesiredResourceInstance](prevResults, rawOperands[1])
 	if err != nil {
 		return nil, fmt.Errorf("invalid opDataRead desiredInst: %w", err)
 	}
-	plannedVal, err := unmarshalGetPrevResultOf[cty.Value](prevResults, rawOperands[2])
-	if err != nil {
-		return nil, fmt.Errorf("invalid opDataRead plannedVal: %w", err)
-	}
+	// plannedVal, err := unmarshalGetPrevResultOf[cty.Value](prevResults, rawOperands[2])
+	// if err != nil {
+	// 	return nil, fmt.Errorf("invalid opDataRead plannedVal: %w", err)
+	// }
 	waitFor, err := unmarshalGetPrevResultWaiter(prevResults, rawOperands[3])
 	if err != nil {
 		return nil, fmt.Errorf("invalid opDataRead waitFor: %w", err)
 	}
-	return builder.DataRead(metadata, desiredInst, plannedVal, waitFor), nil
+	return builder.DataRead(desiredInst, waitFor), nil
 }
 
 func unmarshalWaiterElem(protoWaiter *execgraphproto.Waiter, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
