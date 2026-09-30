@@ -1,6 +1,6 @@
 The v1.13.x release series is supported until **August 1 2027**.
 
-## 1.13.0 (Unreleased)
+## 1.13.0
 
 UPGRADE NOTES:
 
