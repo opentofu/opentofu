@@ -400,7 +400,7 @@ func (c *compiler) compileOpManagedChangeAddr(operands *compilerOperands) nodeEx
 }
 
 func (c *compiler) compileOpDataRead(operands *compilerOperands) nodeExecuteRaw {
-	// getMetadata := nextOperand[*exec.ResourceInstanceObjectMeta](operands)
+	getMetadata := nextOperand[*exec.ResourceInstanceObjectMeta](operands)
 	getDesired := nextOperand[*eval.DesiredResourceInstance](operands)
 	waitForDeps := operands.OperandWaiter()
 	diags := operands.Finish()
@@ -414,14 +414,21 @@ func (c *compiler) compileOpDataRead(operands *compilerOperands) nodeExecuteRaw 
 		if !waitForDeps(ctx) {
 			return nil, false, diags
 		}
-
+		// We intentionally ask for "desired" before "metadata" here, despite
+		// the argument order, because if both of them would fail then we'd
+		// prefer to return the diagnostics from "desired".
 		desired, ok, moreDiags := getDesired(ctx)
 		diags = diags.Append(moreDiags)
 		if !ok {
 			return nil, false, diags
 		}
+		metadata, ok, moreDiags := getMetadata(ctx)
+		diags = diags.Append(moreDiags)
+		if !ok {
+			return nil, false, diags
+		}
 
-		ret, moreDiags := ops.DataRead(ctx, desired)
+		ret, moreDiags := ops.DataRead(ctx, metadata, desired)
 		diags = diags.Append(moreDiags)
 		// TODO: Also call ops.ResourceInstancePostconditions
 		log.Printf("[WARN] opDataRead doesn't yet handle postconditions")

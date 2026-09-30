@@ -23,10 +23,11 @@ import (
 // DataRead implements [exec.Operations].
 func (ops *execOperations) DataRead(
 	ctx context.Context,
+	metadata *exec.ResourceInstanceObjectMeta,
 	desired *eval.DesiredResourceInstance,
 ) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	log.Printf("[TRACE] apply phase: DataRead %s using %s", desired.Addr, desired.ProviderInstance)
+	log.Printf("[TRACE] apply phase: DataRead %s using %s", desired.Addr, metadata.ProviderInstance)
 	/*
 		// TODO consider adding tracer
 		tracer := contextTracer(ctx)
@@ -40,7 +41,11 @@ func (ops *execOperations) DataRead(
 		}
 	*/
 
-	providerAddr := *desired.ProviderInstance
+	providerAddr, ok := metadata.ProviderInstance.ValueOk()
+	if !ok {
+		// TODO fast fail, but need to return non-nil
+		return nil, diags
+	}
 	providerClient, moreDiags := ops.configOracle.ProviderInstance(ctx, providerAddr)
 	if providerClient == nil {
 		moreDiags = moreDiags.Append(tfdiags.AttributeValue(
@@ -55,7 +60,7 @@ func (ops *execOperations) DataRead(
 		return nil, diags
 	}
 
-	resourceType := resources.NewDataResourceType(desired.Provider, desired.Addr.Resource.Resource.Type, providerClient)
+	resourceType := resources.NewDataResourceType(metadata.Provider, desired.Addr.Resource.Resource.Type, providerClient)
 	schema, schemaDiags := resourceType.LoadSchema(ctx)
 	if schemaDiags.HasErrors() {
 		// TODO handle schema errors

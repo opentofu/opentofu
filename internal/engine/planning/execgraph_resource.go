@@ -239,7 +239,7 @@ func (b *execGraphBuilder) resourceInstanceChangeSubgraph(
 	case addrs.ManagedResourceMode:
 		return b.ManagedResourceInstanceSubgraph(change, effectiveReplaceOrder)
 	case addrs.DataResourceMode:
-		return b.DataResourceInstanceSubgraph(change, effectiveReplaceOrder)
+		return b.DataResourceInstanceSubgraph(change)
 	// TODO: DataResourceMode, and possibly also EphemeralResourceMode if
 	// we decide to handle those as "changes" (but it's currently looking
 	// like they would be better handled in some other special way, since

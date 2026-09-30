@@ -22,7 +22,7 @@ import (
 type mockOperations struct {
 	Calls []mockOperationsCall
 
-	DataReadFunc                       func(ctx context.Context, desired *eval.DesiredResourceInstance) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
+	DataReadFunc                       func(ctx context.Context, metadata *exec.ResourceInstanceObjectMeta, desired *eval.DesiredResourceInstance) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
 	ManagedAlreadyDeposedFunc          func(ctx context.Context, instAddr addrs.AbsResourceInstance, deposedKey states.DeposedKey) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
 	ManagedApplyFunc                   func(ctx context.Context, plan *exec.ManagedResourceObjectFinalPlan, fallback *exec.ResourceInstanceObject) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
 	ManagedChangeAddrFunc              func(ctx context.Context, currentObj *exec.ResourceInstanceObject, newAddr addrs.AbsResourceInstance) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
@@ -40,11 +40,11 @@ type mockOperations struct {
 var _ exec.Operations = (*mockOperations)(nil)
 
 // DataRead implements [exec.Operations].
-func (m *mockOperations) DataRead(ctx context.Context, desired *eval.DesiredResourceInstance) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
+func (m *mockOperations) DataRead(ctx context.Context, metadata *exec.ResourceInstanceObjectMeta, desired *eval.DesiredResourceInstance) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	var result *exec.ResourceInstanceObject
 	if m.DataReadFunc != nil {
-		result, diags = m.DataReadFunc(ctx, desired)
+		result, diags = m.DataReadFunc(ctx, metadata, desired)
 	}
 	m.appendLog("DataRead", []any{desired}, result)
 	return result, diags
