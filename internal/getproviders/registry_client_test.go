@@ -444,7 +444,7 @@ func TestLocationRetriesConfiguredCorrectly(t *testing.T) {
 	}
 }
 
-// TestRegistryProviderDownloadCredentials tests that use_mirror_credentials in
+// TestRegistryProviderDownloadCredentials tests that use_registry_credentials in
 // the registry download metadata response controls whether credentials are
 // forwarded when downloading the provider package archive (ZIP file).
 func TestRegistryProviderDownloadCredentials(t *testing.T) {
@@ -470,9 +470,9 @@ func TestRegistryProviderDownloadCredentials(t *testing.T) {
 		var credsField string
 		if useMirrorCreds != nil {
 			if *useMirrorCreds {
-				credsField = `, "use_mirror_credentials": true`
+				credsField = `, "use_registry_credentials": true`
 			} else {
-				credsField = `, "use_mirror_credentials": false`
+				credsField = `, "use_registry_credentials": false`
 			}
 		}
 		return fmt.Sprintf(`{
@@ -559,7 +559,7 @@ func TestRegistryProviderDownloadCredentials(t *testing.T) {
 		}
 	}
 
-	t.Run("use_mirror_credentials true forwards Authorization header on ZIP download", func(t *testing.T) {
+	t.Run("use_registry_credentials true forwards Authorization header on ZIP download", func(t *testing.T) {
 		lastZipPath, lastZipAuth = "", ""
 		provider := makeProvider("registry", "withcreds")
 		meta, err := client.PackageMeta(t.Context(), provider, MustParseVersion("1.0.0"), platform)
@@ -577,7 +577,7 @@ func TestRegistryProviderDownloadCredentials(t *testing.T) {
 		}
 	})
 
-	t.Run("use_mirror_credentials false omits Authorization header on ZIP download", func(t *testing.T) {
+	t.Run("use_registry_credentials false omits Authorization header on ZIP download", func(t *testing.T) {
 		lastZipPath, lastZipAuth = "", ""
 		provider := makeProvider("registry", "withoutcreds")
 		meta, err := client.PackageMeta(t.Context(), provider, MustParseVersion("1.0.0"), platform)
@@ -592,11 +592,11 @@ func TestRegistryProviderDownloadCredentials(t *testing.T) {
 			t.Fatalf("expected ZIP download path /downloads/public.zip, got %q", lastZipPath)
 		}
 		if lastZipAuth != "" {
-			t.Fatalf("expected NO Authorization header on ZIP download when use_mirror_credentials is false, got %q", lastZipAuth)
+			t.Fatalf("expected NO Authorization header on ZIP download when use_registry_credentials is false, got %q", lastZipAuth)
 		}
 	})
 
-	t.Run("use_mirror_credentials absent omits Authorization header on ZIP download", func(t *testing.T) {
+	t.Run("use_registry_credentials absent omits Authorization header on ZIP download", func(t *testing.T) {
 		lastZipPath, lastZipAuth = "", ""
 		provider := makeProvider("registry", "nocredsfield")
 		meta, err := client.PackageMeta(t.Context(), provider, MustParseVersion("1.0.0"), platform)
@@ -611,7 +611,7 @@ func TestRegistryProviderDownloadCredentials(t *testing.T) {
 			t.Fatalf("expected ZIP download path /downloads/default.zip, got %q", lastZipPath)
 		}
 		if lastZipAuth != "" {
-			t.Fatalf("expected NO Authorization header on ZIP download when use_mirror_credentials is absent, got %q", lastZipAuth)
+			t.Fatalf("expected NO Authorization header on ZIP download when use_registry_credentials is absent, got %q", lastZipAuth)
 		}
 	})
 }
