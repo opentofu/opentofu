@@ -400,8 +400,8 @@ func (c *compiler) compileOpManagedChangeAddr(operands *compilerOperands) nodeEx
 }
 
 func (c *compiler) compileOpDataRead(operands *compilerOperands) nodeExecuteRaw {
+	// getMetadata := nextOperand[*exec.ResourceInstanceObjectMeta](operands)
 	getDesired := nextOperand[*eval.DesiredResourceInstance](operands)
-	getInitialPlanned := nextOperand[cty.Value](operands)
 	waitForDeps := operands.OperandWaiter()
 	diags := operands.Finish()
 	c.diags = c.diags.Append(diags)
@@ -420,13 +420,8 @@ func (c *compiler) compileOpDataRead(operands *compilerOperands) nodeExecuteRaw 
 		if !ok {
 			return nil, false, diags
 		}
-		initialPlanned, ok, moreDiags := getInitialPlanned(ctx)
-		diags = diags.Append(moreDiags)
-		if !ok {
-			return nil, false, diags
-		}
 
-		ret, moreDiags := ops.DataRead(ctx, desired, initialPlanned)
+		ret, moreDiags := ops.DataRead(ctx, desired)
 		diags = diags.Append(moreDiags)
 		// TODO: Also call ops.ResourceInstancePostconditions
 		log.Printf("[WARN] opDataRead doesn't yet handle postconditions")

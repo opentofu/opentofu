@@ -277,15 +277,13 @@ func (b *Builder) ManagedChangeAddr(
 }
 
 func (b *Builder) DataRead(
-	metadata ResultRef[*exec.ResourceInstanceObjectMeta],
 	desiredInst ResultRef[*eval.DesiredResourceInstance],
-	plannedVal ResultRef[cty.Value],
 	waitFor AnyResultRef,
 ) ResourceInstanceResultRef {
 	waiter := b.ensureWaiterRef(waitFor)
 	return operationRef[*exec.ResourceInstanceObject](b, operationDesc{
 		opCode:   opDataRead,
-		operands: []AnyResultRef{metadata, desiredInst, plannedVal, waiter},
+		operands: []AnyResultRef{desiredInst, waiter},
 	})
 }
 

@@ -276,6 +276,5 @@ type Operations interface {
 	DataRead(
 		ctx context.Context,
 		desired *eval.DesiredResourceInstance,
-		plannedVal cty.Value,
 	) (*ResourceInstanceObject, tfdiags.Diagnostics)
 }

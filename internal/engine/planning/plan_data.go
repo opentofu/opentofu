@@ -259,11 +259,9 @@ func (p *planGlue) planDelayedDataResourceInstance(ctx context.Context, inst *ev
 		Addr:         inst.Addr,
 		PrevRunAddr:  inst.Addr,
 		ProviderAddr: providerAddr.Config.Module.ProviderConfigDefault(providerAddr.Config.Config.Provider),
-		Change: plans.Change{
-			Action: plans.Read,
-			Before: cty.NullVal(schema.Block.ImpliedType()),
-			After:  proposedNewVal,
-		},
+		Action:       plans.Read,
+		Before:       cty.NullVal(schema.Block.ImpliedType()),
+		After:        proposedNewVal,
 		ActionReason: reason,
 	}
 	ret.ProviderInst = providerAddr
