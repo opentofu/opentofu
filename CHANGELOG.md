@@ -15,6 +15,7 @@ UPGRADE NOTES:
 ENHANCEMENTS:
 
 - `tofu plan` no longer prints iterative warnings for multiple resources but instead it shows one warning with all of the affected resources. ([#4201](https://github.com/opentofu/opentofu/issues/4201))
+- `tofu providers mirror`: The generated JSON index files now include `use_mirror_credentials: true` for each archive entry, so that consumers using the generated mirror as a network mirror automatically get credential forwarding. ([#4314](https://github.com/opentofu/opentofu/issues/4314))
 
  - `mock_provider` now supports the `source` argument that can get a file or directory with specific provider overrides ([#4532](https://github.com/opentofu/opentofu/pull/4532))
 

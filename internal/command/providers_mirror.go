@@ -31,7 +31,9 @@ func ProvidersMirrorCommander() Command {
 		Short: "Save local copies of all required provider plugins",
 		Long: `Populates a local directory with copies of the provider plugins needed for the current configuration, so that the directory can be used either directly as a filesystem mirror or as the basis for a network mirror and thus obtain  those providers without access to their origin registries in future.
 
-The mirror directory will contain JSON index files that can be published along with the mirrored packages on a static HTTP file server to produce a network mirror. Those index files will be ignored if the directory is used instead as a local filesystem mirror.`,
+The mirror directory will contain JSON index files that can be published along with the mirrored packages on a static HTTP file server to produce a network mirror. Those index files will be ignored if the directory is used instead as a local filesystem mirror.
+
+The generated JSON index files include "use_mirror_credentials": true for each mirrored package, which instructs OpenTofu to forward any configured mirror credentials when downloading the package archive from the network mirror. This is appropriate for mirrors that require authentication.`,
 
 		DiagsWithNewline: true,
 	}
@@ -326,8 +328,9 @@ func (c ProvidersMirrorCommand) Execute(args *arguments.ProvidersMirror, view vi
 				indexArchives[version] = map[string]any{}
 			}
 			indexArchives[version][platform.String()] = map[string]any{
-				"url":    archiveFilename, // a relative URL from the index file's URL
-				"hashes": hashes,          // an array to allow for additional hash formats in future
+				"url":                    archiveFilename, // a relative URL from the index file's URL
+				"hashes":                 hashes,          // an array to allow for additional hash formats in future
+				"use_mirror_credentials": true,            // allow credential forwarding when used as a network mirror
 			}
 		}
 		mainIndex := map[string]any{
