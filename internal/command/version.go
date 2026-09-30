@@ -8,6 +8,7 @@ package command
 import (
 	"cmp"
 	"crypto/fips140"
+	"log"
 	"maps"
 	"slices"
 	"strings"
@@ -88,6 +89,7 @@ func readModuleVersions(records []modsdir.Record) map[string]string {
 	for _, m := range records {
 		rawSrc, err := addrs.ParseModuleSource(m.SourceAddr)
 		if err != nil {
+			log.Printf("[WARN] failed to parse module source: %s", err)
 			continue
 		}
 		if m.Key == "" {
