@@ -53,7 +53,7 @@ func (c ProvidersSchemaCommand) Execute(args *arguments.ProvidersSchema, view vi
 		return 1
 	}
 
-	enc, encDiags := c.Encryption(ctx)
+	ctx, encDiags := c.Encryption(ctx)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		view.Diagnostics(diags)
@@ -61,7 +61,7 @@ func (c ProvidersSchemaCommand) Execute(args *arguments.ProvidersSchema, view vi
 	}
 
 	// Load the backend
-	b, backendDiags := c.Backend(ctx, nil, enc.State())
+	b, backendDiags := c.Backend(ctx, nil)
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
 		view.Diagnostics(diags)
@@ -91,7 +91,7 @@ func (c ProvidersSchemaCommand) Execute(args *arguments.ProvidersSchema, view vi
 	}
 
 	// Build the operation
-	opReq := c.Operation(ctx, b, view.Backend(), enc)
+	opReq := c.Operation(ctx, b, view.Backend())
 	opReq.ConfigDir = cwd
 	opReq.ConfigLoader, err = configload.Initialise(c.configLoader())
 	var callDiags tfdiags.Diagnostics

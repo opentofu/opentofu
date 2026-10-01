@@ -67,7 +67,7 @@ func (c ConsoleCommand) Execute(args *arguments.Console, view views.Console) int
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.EncryptionFromPath(ctx, configPath)
+	ctx, encDiags := c.EncryptionFromPath(ctx, configPath)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		view.Diagnostics(diags)
@@ -85,7 +85,7 @@ func (c ConsoleCommand) Execute(args *arguments.Console, view views.Console) int
 	b, backendDiags := c.Backend(ctx, &BackendOpts{
 		Config: backendConfig,
 		View:   view.Backend(),
-	}, enc.State())
+	})
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
 		view.Diagnostics(diags)
@@ -104,7 +104,7 @@ func (c ConsoleCommand) Execute(args *arguments.Console, view views.Console) int
 	c.ignoreRemoteVersionConflict(b)
 
 	// Build the operation
-	opReq := c.Operation(ctx, b, view.Backend(), enc)
+	opReq := c.Operation(ctx, b, view.Backend())
 	opReq.ConfigDir = configPath
 	opReq.ConfigLoader, err = configload.Initialise(c.configLoader())
 	opReq.AllowUnsetVariables = true // we'll just evaluate them as unknown

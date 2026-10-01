@@ -18,7 +18,6 @@ import (
 
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs"
-	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
@@ -79,7 +78,6 @@ func (b *Remote) LocalRun(ctx context.Context, stopCtx context.Context, op *back
 
 	// Copy set options from the operation
 	opts.UIInput = op.UIIn
-	ctx = encryption.ContextWithEncryption(ctx, op.Encryption)
 
 	// Load the latest state. If we enter contextFromPlanFile below then the
 	// state snapshot in the plan file must match this, or else it'll return

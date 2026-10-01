@@ -57,14 +57,14 @@ func (c StateListCommand) Execute(args *arguments.StateList, view views.State) i
 	ctx := c.CommandContext()
 
 	// Load the encryption configuration
-	enc, encDiags := c.Encryption(ctx)
+	ctx, encDiags := c.Encryption(ctx)
 	if encDiags.HasErrors() {
 		view.Diagnostics(encDiags)
 		return 1
 	}
 
 	// Load the backend
-	b, backendDiags := c.Backend(ctx, nil, enc.State())
+	b, backendDiags := c.Backend(ctx, nil)
 	if backendDiags.HasErrors() {
 		view.Diagnostics(backendDiags)
 		return 1

@@ -205,14 +205,13 @@ To initialize the configuration already in this working directory, omit the
 		return 1
 	}
 
-	var enc encryption.Encryption
 	// If backend flag is explicitly set to false i.e -backend=false, we disable state and plan encryption
 	if args.BackendFlagSet && !args.FlagBackend {
-		enc = encryption.Disabled()
+		ctx = encryption.ContextWithEncryption(ctx, encryption.Disabled())
 	} else {
 		// Load the encryption configuration
 		var encDiags tfdiags.Diagnostics
-		enc, encDiags = c.EncryptionFromModule(ctx, rootModEarly)
+		ctx, encDiags = c.EncryptionFromModule(ctx, rootModEarly)
 		diags = diags.Append(encDiags)
 		if encDiags.HasErrors() {
 			view.Diagnostics(diags)
@@ -238,12 +237,12 @@ To initialize the configuration already in this working directory, omit the
 		// encryption key is intentionally unavailable.
 		back = nil
 	case args.FlagCloud && rootModEarly.CloudConfig != nil:
-		back, backendOutput, backDiags = c.initCloud(ctx, rootModEarly, args.FlagConfigExtra, enc, view.Backend())
+		back, backendOutput, backDiags = c.initCloud(ctx, rootModEarly, args.FlagConfigExtra, view.Backend())
 	case args.FlagBackend:
-		back, backendOutput, backDiags = c.initBackend(ctx, rootModEarly, args.FlagConfigExtra, enc, view.Backend())
+		back, backendOutput, backDiags = c.initBackend(ctx, rootModEarly, args.FlagConfigExtra, view.Backend())
 	default:
 		// load the previously-stored backend config
-		back, backDiags = c.Meta.backendFromState(ctx, enc.State())
+		back, backDiags = c.Meta.backendFromState(ctx)
 	}
 	if backendOutput {
 		header = true
@@ -435,7 +434,7 @@ func (c *InitCommand) getModules(ctx context.Context, path, testsDir string, ear
 	return true, installAbort, diags
 }
 
-func (c *InitCommand) initCloud(ctx context.Context, root *configs.Module, extraConfig flags.RawFlags, enc encryption.Encryption, view views.Backend) (be backend.Backend, output bool, diags tfdiags.Diagnostics) {
+func (c *InitCommand) initCloud(ctx context.Context, root *configs.Module, extraConfig flags.RawFlags, view views.Backend) (be backend.Backend, output bool, diags tfdiags.Diagnostics) {
 	ctx, span := tracing.Tracer().Start(ctx, "Cloud backend init")
 	_ = ctx // prevent staticcheck from complaining to avoid a maintenance hazard of having the wrong ctx in scope here
 	defer span.End()
@@ -458,12 +457,12 @@ func (c *InitCommand) initCloud(ctx context.Context, root *configs.Module, extra
 		View:   view,
 	}
 
-	back, backDiags := c.Backend(ctx, opts, enc.State())
+	back, backDiags := c.Backend(ctx, opts)
 	diags = diags.Append(backDiags)
 	return back, true, diags
 }
 
-func (c *InitCommand) initBackend(ctx context.Context, root *configs.Module, extraConfig flags.RawFlags, enc encryption.Encryption, view views.Backend) (be backend.Backend, output bool, diags tfdiags.Diagnostics) {
+func (c *InitCommand) initBackend(ctx context.Context, root *configs.Module, extraConfig flags.RawFlags, view views.Backend) (be backend.Backend, output bool, diags tfdiags.Diagnostics) {
 	ctx, span := tracing.Tracer().Start(ctx, "Backend init")
 	_ = ctx // prevent staticcheck from complaining to avoid a maintenance hazard of having the wrong ctx in scope here
 	defer span.End()
@@ -544,7 +543,7 @@ the backend configuration is present and valid.
 		View:           view,
 	}
 
-	back, backDiags := c.Backend(ctx, opts, enc.State())
+	back, backDiags := c.Backend(ctx, opts)
 	diags = diags.Append(backDiags)
 	return back, true, diags
 }

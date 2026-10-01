@@ -11,7 +11,6 @@ import (
 
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
-	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -41,14 +40,14 @@ func (c OutputCommand) Execute(args *arguments.Output, view views.Output) int {
 	ctx := c.CommandContext()
 
 	// Load the encryption configuration
-	enc, diags := c.Encryption(ctx)
+	ctx, diags := c.Encryption(ctx)
 	if diags.HasErrors() {
 		c.View.Diagnostics(diags)
 		return 1
 	}
 
 	// Fetch data from state
-	outputs, diags := c.Outputs(ctx, args.State.StatePath, enc)
+	outputs, diags := c.Outputs(ctx, args.State.StatePath)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
 		return 1
@@ -67,11 +66,11 @@ func (c OutputCommand) Execute(args *arguments.Output, view views.Output) int {
 	return 0
 }
 
-func (c *OutputCommand) Outputs(ctx context.Context, statePath string, enc encryption.Encryption) (map[string]*states.OutputValue, tfdiags.Diagnostics) {
+func (c *OutputCommand) Outputs(ctx context.Context, statePath string) (map[string]*states.OutputValue, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// Load the backend
-	b, backendDiags := c.Backend(ctx, nil, enc.State())
+	b, backendDiags := c.Backend(ctx, nil)
 	diags = diags.Append(backendDiags)
 	if diags.HasErrors() {
 		return nil, diags

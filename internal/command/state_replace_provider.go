@@ -76,7 +76,7 @@ func (c StateReplaceProviderCommand) Execute(args *arguments.StateReplaceProvide
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.Encryption(ctx)
+	ctx, encDiags := c.Encryption(ctx)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		view.Diagnostics(diags)
@@ -84,7 +84,7 @@ func (c StateReplaceProviderCommand) Execute(args *arguments.StateReplaceProvide
 	}
 
 	// Initialize the state manager as configured
-	stateMgr, err := c.State(ctx, enc, view)
+	stateMgr, err := c.State(ctx, view)
 	if err != nil {
 		view.StateLoadingFailure(err.Error())
 		return 1
@@ -171,7 +171,7 @@ func (c StateReplaceProviderCommand) Execute(args *arguments.StateReplaceProvide
 		resource.ProviderConfig.Provider = to
 	}
 
-	b, backendDiags := c.Backend(ctx, nil, enc.State())
+	b, backendDiags := c.Backend(ctx, nil)
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
 		view.Diagnostics(diags)

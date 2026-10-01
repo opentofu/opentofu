@@ -128,7 +128,7 @@ func (c ImportCommand) Execute(args *arguments.Import, view views.Import) int {
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.EncryptionFromPath(ctx, args.ConfigPath)
+	ctx, encDiags := c.EncryptionFromPath(ctx, args.ConfigPath)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		view.Diagnostics(diags)
@@ -189,7 +189,7 @@ func (c ImportCommand) Execute(args *arguments.Import, view views.Import) int {
 	b, backendDiags := c.Backend(ctx, &BackendOpts{
 		Config: config.Module.Backend,
 		View:   view.Backend(),
-	}, enc.State())
+	})
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
 		view.Diagnostics(diags)
@@ -208,7 +208,7 @@ func (c ImportCommand) Execute(args *arguments.Import, view views.Import) int {
 	}
 
 	// Build the operation
-	opReq := c.Operation(ctx, b, view.Backend(), enc)
+	opReq := c.Operation(ctx, b, view.Backend())
 	opReq.ConfigDir = args.ConfigPath
 	opReq.ConfigLoader, err = configload.Initialise(c.configLoader())
 	if err != nil {

@@ -66,14 +66,14 @@ func (c TaintCommand) Execute(args *arguments.Taint, view views.Taint) int {
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.Encryption(ctx)
+	ctx, encDiags := c.Encryption(ctx)
 	if encDiags.HasErrors() {
 		view.Diagnostics(encDiags)
 		return 1
 	}
 
 	// Load the backend
-	b, backendDiags := c.Backend(ctx, nil, enc.State())
+	b, backendDiags := c.Backend(ctx, nil)
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
 		view.Diagnostics(diags)

@@ -13,6 +13,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/genconfig"
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/plans"
@@ -206,7 +207,7 @@ func (b *Local) opPlan(
 			DependencyLocks:      op.DependencyLocks,
 			Schemas:              schemasForPlanFile,
 			Config:               lr.Config,
-		}, op.Encryption.Plan())
+		}, encryption.ContextEncryption(ctx).Plan())
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,

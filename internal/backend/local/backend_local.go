@@ -18,7 +18,6 @@ import (
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configload"
-	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/plans/planfile"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statefile"
@@ -85,7 +84,6 @@ func (b *Local) localRun(ctx context.Context, stopCtx context.Context, op *backe
 	}
 	coreOpts.UIInput = op.UIIn
 	coreOpts.Hooks = op.Hooks
-	ctx = encryption.ContextWithEncryption(ctx, op.Encryption)
 
 	var ctxDiags tfdiags.Diagnostics
 	var configSnap *configload.Snapshot

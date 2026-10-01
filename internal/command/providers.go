@@ -88,7 +88,7 @@ func (c ProvidersCommand) Execute(args *arguments.Providers, view views.Provider
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.EncryptionFromPath(ctx, configPath)
+	ctx, encDiags := c.EncryptionFromPath(ctx, configPath)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		view.Diagnostics(diags)
@@ -99,7 +99,7 @@ func (c ProvidersCommand) Execute(args *arguments.Providers, view views.Provider
 	b, backendDiags := c.Backend(ctx, &BackendOpts{
 		Config: config.Module.Backend,
 		View:   view.Backend(),
-	}, enc.State())
+	})
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
 		view.Diagnostics(diags)

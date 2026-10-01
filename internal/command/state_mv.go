@@ -83,14 +83,14 @@ func (c StateMvCommand) Execute(args *arguments.StateMv, view views.State) int {
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.Encryption(ctx)
+	ctx, encDiags := c.Encryption(ctx)
 	if encDiags.HasErrors() {
 		view.Diagnostics(encDiags)
 		return 1
 	}
 
 	if len(setLegacyLocalBackendOptions) > 0 {
-		currentBackend, diags := c.backendFromConfig(ctx, &BackendOpts{View: view.Backend()}, enc.State())
+		currentBackend, diags := c.backendFromConfig(ctx, &BackendOpts{View: view.Backend()})
 		if diags.HasErrors() {
 			view.Diagnostics(diags)
 			return 1
@@ -113,7 +113,7 @@ func (c StateMvCommand) Execute(args *arguments.StateMv, view views.State) int {
 	}
 
 	// Read the from state
-	stateFromMgr, err := c.State(ctx, enc, view)
+	stateFromMgr, err := c.State(ctx, view)
 	if err != nil {
 		view.StateLoadingFailure(err.Error())
 		return 1
@@ -155,7 +155,7 @@ func (c StateMvCommand) Execute(args *arguments.StateMv, view views.State) int {
 		c.stateArgs.StatePath = args.State.StateOutPath
 		c.stateArgs.BackupPath = args.BackupPathOut
 
-		stateToMgr, err = c.State(ctx, enc, view)
+		stateToMgr, err = c.State(ctx, view)
 		if err != nil {
 			view.StateLoadingFailure(err.Error())
 			return 1
@@ -412,7 +412,7 @@ func (c StateMvCommand) Execute(args *arguments.StateMv, view views.State) int {
 		return 0 // This is as far as we go in dry-run mode
 	}
 
-	b, backendDiags := c.Backend(ctx, nil, enc.State())
+	b, backendDiags := c.Backend(ctx, nil)
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
 		view.Diagnostics(diags)

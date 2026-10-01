@@ -74,7 +74,7 @@ func (c WorkspaceNewCommand) Execute(args *arguments.WorkspaceNew, view views.Wo
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.EncryptionFromPath(ctx, configPath)
+	ctx, encDiags := c.EncryptionFromPath(ctx, configPath)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		view.Diagnostics(diags)
@@ -86,7 +86,7 @@ func (c WorkspaceNewCommand) Execute(args *arguments.WorkspaceNew, view views.Wo
 	b, backendDiags := c.Backend(ctx, &BackendOpts{
 		Config: backendConfig,
 		View:   backendView,
-	}, enc.State())
+	})
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
 		view.Diagnostics(diags)

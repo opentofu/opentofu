@@ -53,7 +53,7 @@ func (c UntaintCommand) Execute(args *arguments.Taint, view views.Taint) int {
 	addr := args.TargetAddress
 
 	// Load the encryption configuration
-	enc, encDiags := c.Encryption(ctx)
+	ctx, encDiags := c.Encryption(ctx)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		view.Diagnostics(diags)
@@ -61,7 +61,7 @@ func (c UntaintCommand) Execute(args *arguments.Taint, view views.Taint) int {
 	}
 
 	// Load the backend
-	b, backendDiags := c.Backend(ctx, nil, enc.State())
+	b, backendDiags := c.Backend(ctx, nil)
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
 		view.Diagnostics(diags)

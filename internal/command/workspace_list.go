@@ -47,7 +47,7 @@ func (c WorkspaceListCommand) Execute(args *arguments.WorkspaceList, view views.
 	configPath := c.WorkingDir.NormalizePath(c.WorkingDir.RootModuleDir())
 
 	// Load the encryption configuration
-	enc, encDiags := c.EncryptionFromPath(ctx, configPath)
+	ctx, encDiags := c.EncryptionFromPath(ctx, configPath)
 	if encDiags.HasErrors() {
 		view.Diagnostics(encDiags)
 		return 1
@@ -64,7 +64,7 @@ func (c WorkspaceListCommand) Execute(args *arguments.WorkspaceList, view views.
 	b, backendDiags := c.Backend(ctx, &BackendOpts{
 		Config: backendConfig,
 		View:   view.Backend(),
-	}, enc.State())
+	})
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
 		view.Diagnostics(diags)

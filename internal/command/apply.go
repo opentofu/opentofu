@@ -13,7 +13,6 @@ import (
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/configs/configload"
-	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/plans/planfile"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -82,7 +81,7 @@ func (c ApplyCommand) Execute(args *arguments.Apply, view views.Apply) int {
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.Encryption(ctx)
+	ctx, encDiags := c.Encryption(ctx)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		view.Diagnostics(diags)
@@ -90,7 +89,7 @@ func (c ApplyCommand) Execute(args *arguments.Apply, view views.Apply) int {
 	}
 
 	// Attempt to load the plan file, if specified
-	planFile, planDiags := c.LoadPlanFile(args.PlanPath, enc)
+	planFile, planDiags := c.LoadPlanFile(ctx, args.PlanPath)
 	diags = diags.Append(planDiags)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
@@ -99,7 +98,7 @@ func (c ApplyCommand) Execute(args *arguments.Apply, view views.Apply) int {
 
 	// Prepare the backend, passing the plan file if present, and the
 	// backend-specific arguments
-	be, beDiags := c.PrepareBackend(ctx, planFile, args.State, view.Backend(), enc.State())
+	be, beDiags := c.PrepareBackend(ctx, planFile, args.State, view.Backend())
 	diags = diags.Append(beDiags)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
@@ -107,7 +106,7 @@ func (c ApplyCommand) Execute(args *arguments.Apply, view views.Apply) int {
 	}
 
 	// Build the operation request
-	opReq, opDiags := c.OperationRequest(ctx, be, view, args, planFile, enc)
+	opReq, opDiags := c.OperationRequest(ctx, be, view, args, planFile)
 	diags = diags.Append(opDiags)
 
 	// Before we delegate to the backend, we'll print any warning diagnostics
@@ -148,14 +147,14 @@ func (c ApplyCommand) Execute(args *arguments.Apply, view views.Apply) int {
 	return 0
 }
 
-func (c *ApplyCommand) LoadPlanFile(path string, enc encryption.Encryption) (*planfile.WrappedPlanFile, tfdiags.Diagnostics) {
+func (c *ApplyCommand) LoadPlanFile(ctx context.Context, path string) (*planfile.WrappedPlanFile, tfdiags.Diagnostics) {
 	var planFile *planfile.WrappedPlanFile
 	var diags tfdiags.Diagnostics
 
 	// Try to load plan if path is specified
 	if path != "" {
 		var err error
-		planFile, err = c.PlanFile(path, enc.Plan())
+		planFile, err = c.PlanFile(ctx, path)
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
@@ -192,7 +191,7 @@ func (c *ApplyCommand) LoadPlanFile(path string, enc encryption.Encryption) (*pl
 	return planFile, diags
 }
 
-func (c *ApplyCommand) PrepareBackend(ctx context.Context, planFile *planfile.WrappedPlanFile, args *arguments.State, backendView views.Backend, enc encryption.StateEncryption) (backend.Enhanced, tfdiags.Diagnostics) {
+func (c *ApplyCommand) PrepareBackend(ctx context.Context, planFile *planfile.WrappedPlanFile, args *arguments.State, backendView views.Backend) (backend.Enhanced, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// Load the backend
@@ -217,7 +216,7 @@ func (c *ApplyCommand) PrepareBackend(ctx context.Context, planFile *planfile.Wr
 			))
 			return nil, diags
 		}
-		be, beDiags = c.BackendForLocalPlan(ctx, plan.Backend, enc)
+		be, beDiags = c.BackendForLocalPlan(ctx, plan.Backend)
 	} else {
 		// Both new plans and saved cloud plans load their backend from config.
 		backendConfig, configDiags := c.loadBackendConfig(ctx, ".")
@@ -229,7 +228,7 @@ func (c *ApplyCommand) PrepareBackend(ctx context.Context, planFile *planfile.Wr
 		be, beDiags = c.Backend(ctx, &BackendOpts{
 			Config: backendConfig,
 			View:   backendView,
-		}, enc)
+		})
 	}
 
 	diags = diags.Append(beDiags)
@@ -245,7 +244,6 @@ func (c *ApplyCommand) OperationRequest(
 	view views.Apply,
 	applyArgs *arguments.Apply,
 	planFile *planfile.WrappedPlanFile,
-	enc encryption.Encryption,
 ) (*backend.Operation, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
@@ -255,7 +253,7 @@ func (c *ApplyCommand) OperationRequest(
 	diags = diags.Append(c.providerDevOverrideRuntimeWarnings())
 
 	// Build the operation
-	opReq := c.Operation(ctx, be, view.Backend(), enc)
+	opReq := c.Operation(ctx, be, view.Backend())
 	opReq.AutoApprove = applyArgs.AutoApprove
 	opReq.SuppressForgetErrorsDuringDestroy = applyArgs.SuppressForgetErrorsDuringDestroy
 	opReq.ConfigDir = "."

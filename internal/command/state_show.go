@@ -61,14 +61,14 @@ func (c StateShowCommand) Execute(args *arguments.StateShow, view views.State) i
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.Encryption(ctx)
+	ctx, encDiags := c.Encryption(ctx)
 	if encDiags.HasErrors() {
 		view.Diagnostics(encDiags)
 		return 1
 	}
 
 	// Load the backend
-	b, backendDiags := c.Backend(ctx, nil, enc.State())
+	b, backendDiags := c.Backend(ctx, nil)
 	if backendDiags.HasErrors() {
 		view.Diagnostics(backendDiags)
 		return 1
@@ -95,7 +95,7 @@ func (c StateShowCommand) Execute(args *arguments.StateShow, view views.State) i
 	cwd := c.WorkingDir.NormalizePath(c.WorkingDir.RootModuleDir())
 
 	// Build the operation (required to get the schemas)
-	opReq := c.Operation(ctx, b, view.Backend(), enc)
+	opReq := c.Operation(ctx, b, view.Backend())
 	opReq.AllowUnsetVariables = true
 	opReq.ConfigDir = cwd
 	var callDiags tfdiags.Diagnostics

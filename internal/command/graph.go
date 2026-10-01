@@ -66,7 +66,7 @@ func (c GraphCommand) Execute(args *arguments.Graph, view views.Graph) int {
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.EncryptionFromPath(ctx, configPath)
+	ctx, encDiags := c.EncryptionFromPath(ctx, configPath)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		view.Diagnostics(diags)
@@ -76,7 +76,7 @@ func (c GraphCommand) Execute(args *arguments.Graph, view views.Graph) int {
 	// Try to load plan if path is specified
 	var planFile *planfile.WrappedPlanFile
 	if args.PlanPath != "" {
-		planFile, err = c.PlanFile(args.PlanPath, enc.Plan())
+		planFile, err = c.PlanFile(ctx, args.PlanPath)
 		if err != nil {
 			view.Diagnostics(diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
@@ -111,7 +111,7 @@ func (c GraphCommand) Execute(args *arguments.Graph, view views.Graph) int {
 			return 1
 		}
 		var backendDiags tfdiags.Diagnostics
-		b, backendDiags = c.BackendForLocalPlan(ctx, plan.Backend, enc.State())
+		b, backendDiags = c.BackendForLocalPlan(ctx, plan.Backend)
 		diags = diags.Append(backendDiags)
 		if backendDiags.HasErrors() {
 			view.Diagnostics(diags)
@@ -128,7 +128,7 @@ func (c GraphCommand) Execute(args *arguments.Graph, view views.Graph) int {
 		b, backendDiags = c.Backend(ctx, &BackendOpts{
 			Config: backendConfig,
 			View:   view.Backend(),
-		}, enc.State())
+		})
 		diags = diags.Append(backendDiags)
 		if backendDiags.HasErrors() {
 			view.Diagnostics(diags)
@@ -148,7 +148,7 @@ func (c GraphCommand) Execute(args *arguments.Graph, view views.Graph) int {
 	c.ignoreRemoteVersionConflict(b)
 
 	// Build the operation
-	opReq := c.Operation(ctx, b, view.Backend(), enc)
+	opReq := c.Operation(ctx, b, view.Backend())
 	opReq.ConfigDir = configPath
 	opReq.ConfigLoader, err = configload.Initialise(c.configLoader())
 	opReq.PlanFile = planFile

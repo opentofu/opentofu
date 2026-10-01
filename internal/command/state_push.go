@@ -62,7 +62,7 @@ func (c StatePushCommand) Execute(args *arguments.StatePush, view views.State) i
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.Encryption(ctx)
+	ctx, encDiags := c.Encryption(ctx)
 	if encDiags.HasErrors() {
 		view.Diagnostics(encDiags)
 		return 1
@@ -102,7 +102,7 @@ func (c StatePushCommand) Execute(args *arguments.StatePush, view views.State) i
 	}
 
 	// Load the backend
-	b, backendDiags := c.Backend(ctx, nil, enc.State())
+	b, backendDiags := c.Backend(ctx, nil)
 	if backendDiags.HasErrors() {
 		view.Diagnostics(backendDiags)
 		return 1

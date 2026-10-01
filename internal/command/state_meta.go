@@ -30,7 +30,7 @@ type StateMeta struct {
 // the backend, but changes the way that backups are done. This configures
 // backups to be timestamped rather than just the original state path plus a
 // backup path.
-func (c *StateMeta) State(ctx context.Context, enc encryption.Encryption, view views.State) (statemgr.Full, error) {
+func (c *StateMeta) State(ctx context.Context, view views.State) (statemgr.Full, error) {
 	var realState statemgr.Full
 	backupPath := c.Meta.stateArgs.BackupPath
 	stateOutPath := c.Meta.stateArgs.StatePath
@@ -40,7 +40,7 @@ func (c *StateMeta) State(ctx context.Context, enc encryption.Encryption, view v
 		realState = statemgr.NewFilesystem(c.Meta.stateArgs.StatePath, encryption.StateEncryptionDisabled()) // User specified state file should not be encrypted
 	} else {
 		// Load the backend
-		b, backendDiags := c.Backend(ctx, nil, enc.State())
+		b, backendDiags := c.Backend(ctx, nil)
 		if backendDiags.HasErrors() {
 			return nil, backendDiags.Err()
 		}
@@ -67,7 +67,7 @@ func (c *StateMeta) State(ctx context.Context, enc encryption.Encryption, view v
 		localRaw, backendDiags := c.Backend(ctx, &BackendOpts{
 			ForceLocal: true,
 			View:       view.Backend(),
-		}, enc.State())
+		})
 		if backendDiags.HasErrors() {
 			// This should never fail
 			panic(backendDiags.Err())

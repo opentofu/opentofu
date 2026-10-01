@@ -56,14 +56,14 @@ func (c StateRmCommand) Execute(args *arguments.StateRm, view views.State) int {
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.Encryption(ctx)
+	ctx, encDiags := c.Encryption(ctx)
 	if encDiags.HasErrors() {
 		view.Diagnostics(encDiags)
 		return 1
 	}
 
 	// Get the state
-	stateMgr, err := c.State(ctx, enc, view)
+	stateMgr, err := c.State(ctx, view)
 	if err != nil {
 		view.StateLoadingFailure(err.Error())
 		return 1
@@ -126,7 +126,7 @@ func (c StateRmCommand) Execute(args *arguments.StateRm, view views.State) int {
 		return 0 // This is as far as we go in dry-run mode
 	}
 
-	b, backendDiags := c.Backend(ctx, nil, enc.State())
+	b, backendDiags := c.Backend(ctx, nil)
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
 		view.Diagnostics(diags)
