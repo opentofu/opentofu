@@ -3489,6 +3489,7 @@ func TestContext2Apply_moduleExcludeNonExistent(t *testing.T) {
 	}
 
 	if experimentalRuntimeEnabled() {
+		// Module outputs are not saved in state (other than root) in the new runtime
 		checkStateString(t, state, `
 <no state>
 module.A:

@@ -3462,6 +3462,7 @@ func TestContext2Apply_moduleTarget(t *testing.T) {
 	}
 
 	if experimentalRuntimeEnabled() {
+		// Module outputs are not saved in state (other than root) in the new runtime
 		checkStateString(t, state, `
 <no state>
 module.A:
@@ -7849,6 +7850,7 @@ func TestContext2Apply_targetedModuleDep(t *testing.T) {
 	}
 
 	if experimentalRuntimeEnabled() {
+		// Module outputs are not saved in state (other than root) in the new runtime
 		checkStateString(t, state, `
 aws_instance.foo:
   ID = foo
@@ -7923,6 +7925,7 @@ func TestContext2Apply_targetedModuleUnrelatedOutputs(t *testing.T) {
 	}
 
 	if experimentalRuntimeEnabled() {
+		// Module outputs are not saved in state (other than root) in the new runtime
 		// - module.child1's instance_id output is dropped because we don't preserve
 		//   non-root module outputs between runs (they can be recalculated from config)
 		// - child2_id is updated because if its transitive dependency via module.child2
