@@ -15,6 +15,7 @@ import (
 	"testing"
 	"testing/fstest"
 
+	"github.com/apparentlymart/go-userdirs/userdirs"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -33,6 +34,7 @@ func (tfs *testFileSystem) trim(name string) string {
 
 func TestConfigFileLocations(t *testing.T) {
 	configDir := os.Getenv("APPDATA")
+	userDirs := userdirs.ForApp("OpenTofu", "OpenTofu Project", "org.opentofu")
 	tests := []locationTest{
 		{
 			locationTestParameters: locationTestParameters{
@@ -76,6 +78,35 @@ func TestConfigFileLocations(t *testing.T) {
 						"modules.v1": "https://0and1.example.com/",
 					},
 				},
+			},
+		},
+		{
+			locationTestParameters: locationTestParameters{
+				name:        "tfrc files are loaded from roaming dir",
+				files:       []string{filepath.Join(userDirs.ConfigHome(), "mytofufile.tfrc")},
+				directories: []string{userDirs.ConfigHome()},
+			},
+			expected: map[string]*ConfigHost{
+				"config0.example.com": {
+					Services: map[string]interface{}{
+						"modules.v0": "https://config0.example.com/",
+					},
+				},
+			},
+		},
+		{
+			locationTestParameters: locationTestParameters{
+				name: ".tofurc and application support tfrc files are loaded",
+				files: []string{
+					filepath.Join(userDirs.ConfigHome(), "mytofufile.tfrc"),
+					filepath.Join(configDir, "tofu.rc"),
+				},
+				directories: []string{userDirs.ConfigHome()},
+			},
+			expected: map[string]*ConfigHost{
+				"0and1.example.com":   {Services: map[string]any{"modules.v0": string("https://0and1.example.com/")}},
+				"config0.example.com": {Services: map[string]any{"modules.v0": string("https://config0.example.com/")}},
+				"config1.example.com": {Services: map[string]any{"modules.v1": string("https://config1.example.com/")}},
 			},
 		},
 	}
