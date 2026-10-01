@@ -796,6 +796,23 @@ func buildSimpleProvider(t *testing.T, version string, workdir string, buildOutN
 	}
 }
 
+type outputCheckNumberOfOccurrences struct {
+	token             string
+	wantedOccurrences int
+}
+
+func (oe outputCheckNumberOfOccurrences) check(t *testing.T, hint, in string) {
+	var found int
+	for line := range strings.SplitSeq(in, "\n") {
+		if strings.Contains(line, oe.token) {
+			found++
+		}
+	}
+	if oe.wantedOccurrences != found {
+		t.Errorf("[%s] different number of occurrences %q. Wanted %d but got %d\nout:%s", hint, oe.token, oe.wantedOccurrences, found, in)
+	}
+}
+
 type outputCheckContains struct {
 	variants []string
 	strict   bool
