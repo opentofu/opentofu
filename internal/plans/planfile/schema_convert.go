@@ -236,9 +236,10 @@ func nestingModeFromProto(m planproto.SchemaNestingMode) configschema.NestingMod
 // into its protobuf representation.
 func providerSchemaToProto(s providers.ProviderSchema) *planproto.ProviderSchema {
 	ps := &planproto.ProviderSchema{
-		ProviderConfig:       schemaToProto(s.Provider),
-		ManagedResourceTypes: make(map[string]*planproto.ResourceSchema, len(s.ResourceTypes)),
-		DataSources:          make(map[string]*planproto.ResourceSchema, len(s.DataSources)),
+		ProviderConfig:         schemaToProto(s.Provider),
+		ManagedResourceTypes:   make(map[string]*planproto.ResourceSchema, len(s.ResourceTypes)),
+		DataSources:            make(map[string]*planproto.ResourceSchema, len(s.DataSources)),
+		EphemeralResourceTypes: make(map[string]*planproto.ResourceSchema, len(s.EphemeralResources)),
 	}
 	for name, schema := range s.ResourceTypes {
 		ps.ManagedResourceTypes[name] = resourceSchemaToProto(schema)
@@ -246,20 +247,27 @@ func providerSchemaToProto(s providers.ProviderSchema) *planproto.ProviderSchema
 	for name, schema := range s.DataSources {
 		ps.DataSources[name] = resourceSchemaToProto(schema)
 	}
+	for name, schema := range s.EphemeralResources {
+		ps.EphemeralResourceTypes[name] = resourceSchemaToProto(schema)
+	}
 	return ps
 }
 
 func providerSchemaFromProto(ps *planproto.ProviderSchema) providers.ProviderSchema {
 	s := providers.ProviderSchema{
-		Provider:      schemaFromProto(ps.ProviderConfig),
-		ResourceTypes: make(map[string]providers.Schema, len(ps.ManagedResourceTypes)),
-		DataSources:   make(map[string]providers.Schema, len(ps.DataSources)),
+		Provider:           schemaFromProto(ps.ProviderConfig),
+		ResourceTypes:      make(map[string]providers.Schema, len(ps.ManagedResourceTypes)),
+		DataSources:        make(map[string]providers.Schema, len(ps.DataSources)),
+		EphemeralResources: make(map[string]providers.Schema, len(ps.EphemeralResourceTypes)),
 	}
 	for name, rs := range ps.ManagedResourceTypes {
 		s.ResourceTypes[name] = resourceSchemaFromProto(rs)
 	}
 	for name, rs := range ps.DataSources {
 		s.DataSources[name] = resourceSchemaFromProto(rs)
+	}
+	for name, rs := range ps.EphemeralResourceTypes {
+		s.EphemeralResources[name] = resourceSchemaFromProto(rs)
 	}
 	return s
 }
