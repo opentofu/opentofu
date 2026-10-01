@@ -1,5 +1,11 @@
 The v1.13.x release series is supported until **August 1 2027**.
 
+## 1.13.1
+
+BUG FIXES:
+
+* Fixed an edge case where ephemeral resources would prevent `tofu show -json <planfile>` from functioning ([4623](https://github.com/opentofu/opentofu/pull/4623)).
+
 ## 1.13.0
 
 UPGRADE NOTES:
