@@ -22,9 +22,11 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
+	"github.com/apparentlymart/go-userdirs/userdirs"
 	"github.com/hashicorp/hcl"
 	"github.com/opentofu/svchost"
 
@@ -177,6 +179,14 @@ func (cl *ConfigLoader) LoadConfig(_ context.Context) (*Config, tfdiags.Diagnost
 				config = config.Merge(dirConfig)
 			}
 		}
+		sysSpecificDirs := userdirs.ForApp("OpenTofu", "OpenTofu Project", "org.opentofu")
+		for _, dir := range slices.Backward(sysSpecificDirs.ConfigDirs) {
+			if info, err := cl.Stat(dir); err == nil && info.IsDir() {
+				dirConfig, dirDiags := cl.loadConfigDir(dir)
+				diags = diags.Append(dirDiags)
+				config = config.Merge(dirConfig)
+			}
+		}
 	} else {
 		log.Printf("[DEBUG] Not reading CLI config directory because config location is overridden by environment variable")
 	}
@@ -267,7 +277,7 @@ func (cl *ConfigLoader) loadConfigDir(path string) (*Config, tfdiags.Diagnostics
 		}
 
 		filePath := filepath.Join(path, name)
-		fileConfig, fileDiags := loadConfigFile(filePath)
+		fileConfig, fileDiags := cl.loadConfigFile(filePath)
 		diags = diags.Append(fileDiags)
 		result = result.Merge(fileConfig)
 	}

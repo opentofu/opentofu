@@ -24,6 +24,7 @@ func (tfs *testFileSystem) trim(name string) string {
 
 var commonEnvVars = []string{
 	"XDG_CONFIG_HOME",
+	"XDG_CONFIG_DIRS",
 	"XDG_DATA_HOME",
 	"TF_CLI_CONFIG_FILE",
 }
@@ -138,6 +139,53 @@ func TestConfigFileLocations(t *testing.T) {
 						"modules.v0": "https://0and2.example.com/",
 					},
 				},
+			},
+		},
+		{
+			locationTestParameters: locationTestParameters{
+				name: "tfrc files are loaded from xdg config dirs and config home",
+				files: []string{
+					filepath.Join(xdgDir, "opentofu", "home.tfrc"),
+					filepath.Join(home, "confdir", "opentofu", "conf.tfrc"),
+					filepath.Join(home, "confdir2", "opentofu", "conf.tfrc"),
+				},
+				directories: []string{
+					xdgDir,
+					filepath.Join(home, "confdir", "opentofu"),
+					filepath.Join(home, "confdir2", "opentofu"),
+				},
+				envVars: map[string]string{
+					"XDG_CONFIG_HOME": xdgDir,
+					"XDG_CONFIG_DIRS": filepath.Join(home, "confdir") + ":" + filepath.Join(home, "confdir2"),
+				},
+			},
+			expected: map[string]*ConfigHost{
+				"0and1.example.com":   {Services: map[string]any{"modules.v0": string("https://0and1.example.com/")}},
+				"0and2.example.com":   {Services: map[string]any{"modules.v0": string("https://0and2.example.com/")}},
+				"1and2.example.com":   {Services: map[string]any{"modules.v1": string("https://1and2.example.com/")}},
+				"config0.example.com": {Services: map[string]any{"modules.v0": string("https://config0.example.com/")}},
+				"config1.example.com": {Services: map[string]any{"modules.v1": string("https://config1.example.com/")}},
+				"config2.example.com": {Services: map[string]any{"modules.v2": string("https://config2.example.com/")}},
+			},
+		},
+		{
+			locationTestParameters: locationTestParameters{
+				name: ".tofurc and conf dir tfrc files are loaded",
+				files: []string{
+					filepath.Join(home, ".tofurc"),
+					filepath.Join(home, "confdir", "opentofu", "conf.tfrc"),
+				},
+				directories: []string{
+					filepath.Join(home, "confdir", "opentofu"),
+				},
+				envVars: map[string]string{
+					"XDG_CONFIG_DIRS": filepath.Join(home, "confdir"),
+				},
+			},
+			expected: map[string]*ConfigHost{
+				"0and1.example.com":   {Services: map[string]any{"modules.v1": string("https://0and1.example.com/")}},
+				"config0.example.com": {Services: map[string]any{"modules.v0": string("https://config0.example.com/")}},
+				"config1.example.com": {Services: map[string]any{"modules.v1": string("https://config1.example.com/")}},
 			},
 		},
 	}
