@@ -187,11 +187,13 @@ The highlights are:
 
 </details>
 
-<details><summary>
 
 ### Stable release (`X.Y.0`)
 
-</summary>
+> [!WARNING]
+> Be sure that the blog post and the website banner are updated before publishing the release.
+
+<details><summary>Details</summary>
 
 Create a more elaborate text explaining the flagship features of this release, ideally linking to the blog post and/or video for the release, for example:
 
