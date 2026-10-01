@@ -39,16 +39,6 @@ type ProviderWithEncryption interface {
 // the nature of the failure. Callers should use defensive programming
 // techniques if interacting with a partial response associated with an error.
 func (rt *DataResourceType) Read(ctx context.Context, req *DataResourceReadRequest, dispAddr addrs.AbsResourceInstanceObject, encryption encryption.Encryption) (*DataResourceReadResponse, tfdiags.Diagnostics) {
-	// TODO I can do whatever I want here!
-	// plan_data is the only file using this method
-
-	// Things the OG had that I need, and why:
-	// - encryption.Encryption (for ReadDataSourceEncrypted)
-	// That's it!
-	// Looks like that's obtained during EvalContext() thru ContextGraphWalker,
-	// which in turn gets set in graphWalker for *Context
-	// Which is set by the NewContext function in the tofu package; one of the options is encryption
-
 	var diags tfdiags.Diagnostics
 	var out *DataResourceReadResponse
 

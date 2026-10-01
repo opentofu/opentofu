@@ -60,7 +60,7 @@ func (ops *execOperations) DataRead(
 		return nil, diags
 	}
 
-	resourceType := resources.NewDataResourceType(metadata.Provider, desired.Addr.Resource.Resource.Type, providerClient)
+	resourceType := resources.NewDataResourceType(metadata.Provider, metadata.ResourceType, providerClient)
 	schema, schemaDiags := resourceType.LoadSchema(ctx)
 	if schemaDiags.HasErrors() {
 		// TODO handle schema errors
@@ -103,19 +103,11 @@ func (ops *execOperations) DataRead(
 			status = states.ObjectReady
 		}
 
-		/*
-
-			state := &states.ResourceInstanceObject{
-				Value:  newVal,
-				Status: states.ObjectReady,
-			}
-		*/
-
 		state = &states.ResourceInstanceObjectFull{
 			Status:               status,
 			Value:                resp.Result,
 			ProviderInstanceAddr: providerAddr,
-			ResourceType:         desired.Addr.Resource.Resource.Type,
+			ResourceType:         metadata.ResourceType,
 
 			// TODO what should we get for the schema version????
 			SchemaVersion: uint64(0),

@@ -37,29 +37,14 @@ func (b *execGraphBuilder) DataResourceInstanceSubgraph(plannedChange *plans.Res
 func (b *execGraphBuilder) dataResourceInstanceSubgraphRead(
 	plannedChange *plans.ResourceInstanceChange,
 ) resourceInstanceObjectSubgraph {
-	/*
-		How this is happening:
-		  - for each planned change for each resource instance, we build out the exec graph
-		  - We're here! It's because a data resource needed to do a read.
-		  - When we compile the exec graph, we run into opDataRead as one of the ops in the built exec graph => compileOpDataRead
-		  - Finally, we execute the op: *execOperations.DataRead
-		The upshot: the operands defined here will later be used in the compile and exec op.
-	*/
-	// TODO: Obtain the stuff to do a Data Read:
-	// - desiredInst execgraph.ResultRef[*eval.DesiredResourceInstance]
-	//   - This creates the DesiredResourceInstance, with the Addr, ProviderInstance, ConfigVal, etc. VERY IMPORTANT!
-	// - waitFor (???????) execgraph.AnyResultRef
-
 	waitFor, addReadDep := b.lower.MutableWaiter()
 
-	// Most of these should come from "managedResourceInstanceChangeInputs"
-	// except it's for data resources
-	// hey, how does this function work, anyway?
-	_, desiredRef, _, _ := b.managedResourceInstanceChangeInputs(plannedChange)
+	// TODO replace with "dataResourceInstanceChangeInputs"... perchance
+	metadataRef, desiredRef, _, _ := b.managedResourceInstanceChangeInputs(plannedChange)
 
 	return resourceInstanceObjectSubgraph{
 		valueRef: b.lower.DataRead(
-			// metadataRef,
+			metadataRef,
 			desiredRef,
 			waitFor,
 		),
