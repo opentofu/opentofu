@@ -174,7 +174,7 @@ func (c TestCommand) Execute(args *arguments.Test, view views.Test) int {
 	}
 
 	// Don't use encryption during testing
-	opts.Encryption = encryption.Disabled()
+	ctx = encryption.ContextWithEncryption(ctx, encryption.Disabled())
 
 	// Print out all the diagnostics we have from the setup. These will just be
 	// warnings, and we want them out of the way before we start the actual

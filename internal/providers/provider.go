@@ -11,6 +11,7 @@ import (
 
 	"github.com/zclconf/go-cty/cty"
 
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -674,6 +675,10 @@ type ReadDataSourceRequest struct {
 	// each provider, and it should not be used without coordination with
 	// HashiCorp. It is considered experimental and subject to change.
 	ProviderMeta cty.Value
+
+	// ResourceAddr is a workaround to allow the terraform provider to
+	// perform the required encryption lookup.  This was a poor design decision.
+	ResourceAddr addrs.AbsResourceInstance
 }
 
 type ReadDataSourceResponse struct {

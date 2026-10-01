@@ -21,7 +21,6 @@ import (
 	commShared "github.com/opentofu/opentofu/internal/communicator/shared"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
-	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/lang/evalchecks"
@@ -1925,10 +1924,6 @@ func processIgnoreChangesIndividual(prior, config cty.Value, ignoreChangesPath [
 	return ret, nil
 }
 
-type ProviderWithEncryption interface {
-	ReadDataSourceEncrypted(ctx context.Context, req providers.ReadDataSourceRequest, path addrs.AbsResourceInstance, enc encryption.Encryption) providers.ReadDataSourceResponse
-}
-
 // readDataSource handles everything needed to call ReadDataSource on the provider.
 // A previously evaluated configVal can be passed in, or a new one is generated
 // from the resource configuration.
@@ -1985,14 +1980,10 @@ func (n *NodeAbstractResourceInstance) readDataSource(ctx context.Context, evalC
 		TypeName:     n.Addr.ContainingResource().Resource.Type,
 		Config:       configVal,
 		ProviderMeta: metaConfigVal,
+		// This is a hack for encryption
+		ResourceAddr: n.Addr,
 	}
-	var resp providers.ReadDataSourceResponse
-	if tfp, ok := provider.(ProviderWithEncryption); ok {
-		// Special case for terraform_remote_state
-		resp = tfp.ReadDataSourceEncrypted(ctx, req, n.Addr, evalCtx.GetEncryption())
-	} else {
-		resp = provider.ReadDataSource(ctx, req)
-	}
+	resp := provider.ReadDataSource(ctx, req)
 	diags = diags.Append(resp.Diagnostics.InConfigBody(config.Config, n.Addr.String()))
 	if diags.HasErrors() {
 		return newVal, diags
