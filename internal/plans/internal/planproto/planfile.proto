@@ -452,6 +452,7 @@ message ProviderSchema {
     Schema provider_config = 1;
     map<string, ResourceSchema> managed_resource_types = 2;
     map<string, ResourceSchema> data_sources = 3;
+    map<string, ResourceSchema> ephemeral_resource_types = 4;
 }
 
 // Schemas is the root message for the "tfschemas" entry in the plan file

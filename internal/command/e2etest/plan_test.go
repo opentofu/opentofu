@@ -7,11 +7,14 @@ package e2etest
 
 import (
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/e2e"
+	"github.com/opentofu/opentofu/internal/plans"
 )
 
 // The tests in this file are for the following sequence:
@@ -164,4 +167,87 @@ func TestPlanOnMultipleDeprecatedMarksSliceBug(t *testing.T) {
 			}
 		}
 	})
+}
+
+// TestPlanShowWithEmbeddedSchema is a regression test for [the bug](https://github.com/opentofu/opentofu/issues/4622) where
+// a configuration containing ephemeral is shown correctly in json format with the embedded schema in the plan.
+func TestPlanShowWithEmbeddedSchema(t *testing.T) {
+	t.Parallel()
+
+	workdir := "testdata/plan-with-embedded-ephemeral-config"
+	buildSimpleProvider(t, "6", workdir, "simple")
+	tf := e2e.NewBinary(t, tofuBin, workdir)
+
+	{ // INIT
+		_, stderr, err := tf.Run("init", "-plugin-dir=cache")
+		if err != nil {
+			t.Fatalf("unexpected init error: %s\nstderr:\n%s", err, stderr)
+		}
+	}
+
+	{ // PLAN
+		stdout, stderr, err := tf.Run("plan", "-out=tfplan")
+		if err != nil {
+			t.Fatalf("unexpected plan error: %s\nstderr:\n%s", err, stderr)
+		}
+		expectedChangesOutput := ``
+
+		checker := outputEntriesChecker{
+			outputCheckContains{[]string{"ephemeral.simple_resource.test_ephemeral: Opening..."}, true},
+			outputCheckContains{[]string{"ephemeral.simple_resource.test_ephemeral: Open complete after"}, true},
+			outputCheckContains{[]string{"ephemeral.simple_resource.test_ephemeral: Closing..."}, true},
+			outputCheckContains{[]string{"ephemeral.simple_resource.test_ephemeral: Close complete after"}, true},
+			outputCheckContains{[]string{`+ resource "simple_resource" "test_res"`}, true},
+		}
+		out := stripAnsi(stdout)
+
+		if !strings.Contains(out, expectedChangesOutput) {
+			t.Errorf("wrong plan output:\nstdout:%s\nstderr:%s", stdout, stderr)
+			t.Log(cmp.Diff(out, expectedChangesOutput))
+		}
+		checker.check(t, "plan", out)
+
+		// assert plan file content
+		plan, err := tf.Plan("tfplan")
+		if err != nil {
+			t.Fatalf("failed to read the plan file: %s", err)
+		}
+		idx := slices.IndexFunc(plan.Changes.Resources, func(src *plans.ResourceInstanceChangeSrc) bool {
+			return src.Addr.Resource.Resource.Mode == addrs.EphemeralResourceMode
+		})
+		if idx >= 0 {
+			t.Fatalf("ephemeral resource found in the plan file. expected to have no ephemeral resource")
+		}
+	}
+	{ // SHOW -json
+		stdout, stderr, err := tf.Run("show", "-json", "tfplan")
+		if err != nil {
+			t.Fatalf("unexpected plan error: %s\nstderr:\n%s", err, stderr)
+		}
+		// a better way to do this would be to enhance `jsonconfig` package with capabilities to unmarshal the generated output and do better checks on the structured data.
+		// But to add such a complex logic strictly for this particular test does not worth right now. If we'll find more use cases where that would be useful
+		// we can create that later and replace this assertion.
+		checker := outputEntriesChecker{
+			outputCheckNumberOfOccurrences{
+				token:             `{"address":"ephemeral.simple_resource.test_ephemeral","mode":"ephemeral","type":"simple_resource","name":"test_ephemeral","provider_config_key":"simple"`,
+				wantedOccurrences: 1,
+			},
+		}
+		out := stripAnsi(stdout)
+		checker.check(t, "show -json", out)
+	}
+	{ // SHOW (human)
+		stdout, stderr, err := tf.Run("show", "tfplan")
+		if err != nil {
+			t.Fatalf("unexpected plan error: %s\nstderr:\n%s", err, stderr)
+		}
+		checker := outputEntriesChecker{
+			outputCheckNumberOfOccurrences{
+				token:             `+ resource "simple_resource" "test_res"`,
+				wantedOccurrences: 1,
+			},
+		}
+		out := stripAnsi(stdout)
+		checker.check(t, "show", out)
+	}
 }
