@@ -16,9 +16,9 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/collections"
 	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/lang/eval"
+	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
@@ -101,6 +101,10 @@ func (p *planGlue) PreProcess(ctx context.Context, targeter func(target addrs.Ta
 func (p *planGlue) PlanDesiredResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance) (cty.Value, tfdiags.Diagnostics) {
 	log.Printf("[TRACE] planContext: planning desired resource instance %s", inst.Addr)
 
+	p.planCtx.desiredMu.Lock()
+	p.planCtx.desired.Add(inst.Addr)
+	p.planCtx.desiredMu.Unlock()
+
 	// The details of how we plan vary considerably depending on the resource
 	// mode, so we'll dispatch each one to a separate function after we've
 	// dealt with some common preparation work.
@@ -125,6 +129,159 @@ func (p *planGlue) PlanDesiredResourceInstance(ctx context.Context, inst *eval.D
 		p.planCtx.resourceInstObjs.Put(obj)
 	}
 	return rv, diags
+}
+
+func (p *planGlue) PostProcess(ctx context.Context) tfdiags.Diagnostics {
+	ctx = grapheval.ContextWithNewWorker(ctx)
+	var diags tfdiags.Diagnostics
+
+	p.planCtx.desiredMu.Lock()
+	defer p.planCtx.desiredMu.Unlock()
+
+	// TODO consider porting this logic to the other Orphan paths and extending to match key types.
+	// This only handles one very specific class of errors and should probably be improved at some point.
+	// This is N*N and terrible overall
+	desiredResources := addrs.MakeMap[addrs.AbsResource, []addrs.AbsResourceInstance]()
+	for _, desired := range p.planCtx.desired {
+		key := desired.ContainingResource()
+		desiredResources.Put(key, append(desiredResources.Get(key), desired))
+	}
+
+	for _, resourceAddr := range desiredResources.Keys() {
+		instanceAddrs := desiredResources.Get(resourceAddr)
+
+		replaceNeedsKey := false
+		isPlaceholder := false
+		for _, addr := range instanceAddrs {
+			if addr.Resource.IsPlaceholder() {
+				// can't predict what instances are desired for this resource
+				isPlaceholder = true
+				break
+			}
+			if addr.Resource.Key != addrs.NoKey {
+				replaceNeedsKey = true
+				break
+			}
+		}
+
+		if !replaceNeedsKey || isPlaceholder {
+			continue
+		}
+
+		for _, candidateAddr := range p.planCtx.forceReplace {
+			if candidateAddr.Resource.Resource.Equal(resourceAddr.Resource) && candidateAddr.Module.Equal(resourceAddr.Module) {
+				// Matches without instance key
+				if candidateAddr.Resource.Key == addrs.NoKey {
+					// Copied from nodeExpandPlannableResource.expandResourceInstances
+					switch {
+					case len(instanceAddrs) == 0:
+						// In this case there _are_ no instances to replace, so
+						// there isn't any alternative address for us to suggest.
+						diags = diags.Append(tfdiags.Sourceless(
+							tfdiags.Warning,
+							"Incompletely-matched force-replace resource instance",
+							fmt.Sprintf(
+								"Your force-replace request for %s doesn't match any resource instances because this resource doesn't have any instances.",
+								candidateAddr,
+							),
+						))
+					case len(instanceAddrs) == 1:
+						diags = diags.Append(tfdiags.Sourceless(
+							tfdiags.Warning,
+							"Incompletely-matched force-replace resource instance",
+							fmt.Sprintf(
+								"Your force-replace request for %s doesn't match any resource instances because it lacks an instance key.\n\nTo force replacement of the single declared instance, use the following option instead:\n  -replace=%q",
+								candidateAddr, instanceAddrs[0],
+							),
+						))
+					default:
+						var possibleValidOptions strings.Builder
+						for _, addr := range instanceAddrs {
+							fmt.Fprintf(&possibleValidOptions, "\n  -replace=%q", addr)
+						}
+
+						diags = diags.Append(tfdiags.Sourceless(
+							tfdiags.Warning,
+							"Incompletely-matched force-replace resource instance",
+							fmt.Sprintf(
+								"Your force-replace request for %s doesn't match any resource instances because it lacks an instance key.\n\nTo force replacement of particular instances, use one or more of the following options instead:%s",
+								candidateAddr, possibleValidOptions.String(),
+							),
+						))
+					}
+				}
+			}
+		}
+	}
+
+	// We also need to deal with any "deposed" resource instances that were
+	// in the previous round state. We do this separately afterwards because
+	// these have no direct representation in the configuration at all and
+	// so are not in scope for the config eval system. It's also relatively
+	// rare for a previous round state to include deposed instances, since it
+	// can happen only if the "delete" leg of a create-before-destroy replace
+	// failed in the previous round.
+	//
+	// The provider instance manager should've planned ahead and arranged for
+	// any providers we need for these to still be open, waiting for the
+	// completion reports generated by our planning calls in this loop.
+	//
+	// After we complete this work, planCtx.resourceInstObjs is expanded to
+	// also include any deposed resource instance objects we discovered.
+	// TODO does this need a target filter???
+	for _, moduleState := range p.planCtx.prevRoundState.Modules {
+		for _, resourceState := range moduleState.Resources {
+			for instKey, instState := range resourceState.Instances {
+				instAddr := resourceState.Addr.Instance(instKey)
+				for dk := range instState.Deposed {
+					// We currently have a schism where we do all of the
+					// discovery work using the traditional state model but
+					// we then switch to using our new-style "full" object model
+					// to act on what we've discovered. This is hopefully just
+					// a temporary situation while we're operating in a mixed
+					// world where most of the system doesn't know about the
+					// new runtime yet.
+					objState := p.planCtx.prevRoundState.SyncWrapper().ResourceInstanceObjectFull(instAddr.Object(dk))
+					if objState == nil {
+						// If we get here then there's a bug in the
+						// ResourceInstanceObjectFull function, because we
+						// should only be here if instAddr and dk correspond.
+						// to an actual deposed object.
+						panic(fmt.Sprintf("state has %s deposed object %q, but ResourceInstanceObjectFull didn't return it", instAddr, dk))
+					}
+					diags = diags.Append(
+						p.planDeposedResourceInstanceObject(ctx, instAddr, dk, objState),
+					)
+				}
+
+				if instState.Current != nil && !p.planCtx.desired.HasFunc(func(desired addrs.AbsResourceInstance) bool {
+					if desired.IsPlaceholder() {
+						return desired.PlaceholderContains(instAddr)
+					}
+					return desired.Equal(instAddr)
+				}) {
+					objState := p.planCtx.prevRoundState.SyncWrapper().ResourceInstanceObjectFull(instAddr.CurrentObject())
+					if objState == nil {
+						// If we get here then there's a bug in the
+						// ResourceInstanceObjectFull function, because we
+						// should only be here if instAddr and dk correspond.
+						// to an actual deposed object.
+						panic(fmt.Sprintf("state has %s, but ResourceInstanceObjectFull didn't return it", instAddr))
+					}
+					diags = diags.Append(
+						p.planOrphanResourceInstance(ctx, instAddr, objState),
+					)
+				}
+			}
+		}
+	}
+
+	// We also need to check for invalid moves
+	diags = diags.Append(p.validateMoves(ctx))
+
+	diags = diags.Append(p.planCtx.CheckPreventDestroy(ctx, p.oracle))
+
+	return diags
 }
 
 func (p *planGlue) planOrphanResourceInstance(ctx context.Context, addr addrs.AbsResourceInstance, state *states.ResourceInstanceObjectFullSrc) tfdiags.Diagnostics {
@@ -184,232 +341,6 @@ func (p *planGlue) planDeposedResourceInstanceObject(ctx context.Context, addr a
 	}
 	obj, diags := p.planDeposedManagedResourceInstanceObject(ctx, addr, deposedKey, state)
 	p.planCtx.resourceInstObjs.Put(obj)
-	return diags
-}
-
-// PlanModuleCallInstanceOrphans implements eval.PlanGlue.
-func (p *planGlue) PlanModuleCallInstanceOrphans(ctx context.Context, moduleCallAddr addrs.AbsModuleCall, desiredInstances iter.Seq[addrs.InstanceKey]) tfdiags.Diagnostics {
-	if moduleCallAddr.Module.IsPlaceholder() {
-		// can't predict anything about what might be desired or orphaned
-		// under this module instance.
-		// FIXME: _Something_ still needs to make sure we call
-		// p.planCtx.reportResourceInstancePlanCompletion for any
-		// potentially-matching instances in the previous round state, because
-		// nothing in the desired state is going to match them and so they
-		// won't actually get planned.
-		return nil
-	}
-	desiredSet := collections.CollectSet(desiredInstances)
-	for key := range desiredSet {
-		if _, ok := key.(addrs.WildcardKey); ok {
-			// can't predict what instances are desired for this module call
-			return nil
-		}
-	}
-
-	orphaned := resourceInstancesFilter(p.planCtx.prevRoundState, func(instAddr addrs.AbsResourceInstance) bool {
-		// This should return true for any resource instance in the given
-		// module instance that belongs to a module call not included in
-		// desiredCalls, and false otherwise.
-		if instAddr.Module.IsRoot() {
-			// A resource in the root module cannot possibly belong to a
-			// module call.
-			return false
-		}
-		instCallerModuleInstAddr, instModuleCallInstance := instAddr.Module.CallInstance()
-		if !instCallerModuleInstAddr.Equal(moduleCallAddr.Module) {
-			return false // not in the relevant calling module instance
-		}
-		if !instModuleCallInstance.Call.Equal(moduleCallAddr.Call) {
-			return false // not in the relevant module call
-		}
-		if desiredSet.Has(instModuleCallInstance.Key) {
-			return false
-		}
-		return true
-	})
-	var diags tfdiags.Diagnostics
-	for addr, state := range orphaned {
-		diags = diags.Append(
-			p.planOrphanResourceInstance(ctx, addr, state),
-		)
-	}
-	return diags
-}
-
-// PlanModuleCallOrphans implements eval.PlanGlue.
-func (p *planGlue) PlanModuleCallOrphans(ctx context.Context, callerModuleInstAddr addrs.ModuleInstance, desiredCalls iter.Seq[addrs.ModuleCall]) tfdiags.Diagnostics {
-	if callerModuleInstAddr.IsPlaceholder() {
-		// can't predict anything about what might be desired or orphaned
-		// under this module instance.
-		// FIXME: _Something_ still needs to make sure we call
-		// p.planCtx.reportResourceInstancePlanCompletion for any
-		// potentially-matching instances in the previous round state, because
-		// nothing in the desired state is going to match them and so they
-		// won't actually get planned.
-		return nil
-	}
-	desiredSet := addrs.CollectSet(desiredCalls)
-
-	orphaned := resourceInstancesFilter(p.planCtx.prevRoundState, func(instAddr addrs.AbsResourceInstance) bool {
-		// This should return true for any resource instance in the given
-		// module instance that belongs to a module call not included in
-		// desiredCalls, and false otherwise.
-		if instAddr.Module.IsRoot() {
-			// A resource in the root module cannot possibly belong to a
-			// module call.
-			return false
-		}
-		instCallerModuleInstAddr, instModuleCall := instAddr.Module.Call()
-		if !instCallerModuleInstAddr.Equal(callerModuleInstAddr) {
-			return false // not in the relevant module instance
-		}
-		if desiredSet.Has(instModuleCall) {
-			return false
-		}
-		return true
-	})
-	var diags tfdiags.Diagnostics
-	for addr, state := range orphaned {
-		diags = diags.Append(
-			p.planOrphanResourceInstance(ctx, addr, state),
-		)
-	}
-	return diags
-}
-
-// PlanResourceInstanceOrphans implements eval.PlanGlue.
-func (p *planGlue) PlanResourceInstanceOrphans(ctx context.Context, resourceAddr addrs.AbsResource, desiredInstances iter.Seq[addrs.InstanceKey]) tfdiags.Diagnostics {
-	var diags tfdiags.Diagnostics
-
-	if resourceAddr.IsPlaceholder() {
-		// can't predict anything about what might be desired or orphaned
-		// under this resource.
-		// FIXME: _Something_ still needs to make sure we call
-		// p.planCtx.reportResourceInstancePlanCompletion for any
-		// potentially-matching instances in the previous round state, because
-		// nothing in the desired state is going to match them and so they
-		// won't actually get planned.
-		return nil
-	}
-	desiredSet := collections.CollectSet(desiredInstances)
-	replaceNeedsKey := false
-	for key := range desiredSet {
-		if _, ok := key.(addrs.WildcardKey); ok {
-			// can't predict what instances are desired for this resource
-			return nil
-		}
-		if key != addrs.NoKey {
-			replaceNeedsKey = true
-		}
-	}
-
-	// TODO consider porting this logic to the other Orphan paths and extending to match key types.
-	// This only handles one very specific class of errors and should probably be improved at some point.
-	for _, candidateAddr := range p.planCtx.forceReplace {
-		if candidateAddr.Resource.Resource.Equal(resourceAddr.Resource) && candidateAddr.Module.Equal(resourceAddr.Module) {
-			// Matches without instance key
-			if replaceNeedsKey && candidateAddr.Resource.Key == addrs.NoKey {
-				var instanceAddrs []addrs.AbsResourceInstance
-				for desired := range desiredSet {
-					instanceAddrs = append(instanceAddrs, resourceAddr.Instance(desired))
-				}
-				// Copied from nodeExpandPlannableResource.expandResourceInstances
-				switch {
-				case len(instanceAddrs) == 0:
-					// In this case there _are_ no instances to replace, so
-					// there isn't any alternative address for us to suggest.
-					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Warning,
-						"Incompletely-matched force-replace resource instance",
-						fmt.Sprintf(
-							"Your force-replace request for %s doesn't match any resource instances because this resource doesn't have any instances.",
-							candidateAddr,
-						),
-					))
-				case len(instanceAddrs) == 1:
-					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Warning,
-						"Incompletely-matched force-replace resource instance",
-						fmt.Sprintf(
-							"Your force-replace request for %s doesn't match any resource instances because it lacks an instance key.\n\nTo force replacement of the single declared instance, use the following option instead:\n  -replace=%q",
-							candidateAddr, instanceAddrs[0],
-						),
-					))
-				default:
-					var possibleValidOptions strings.Builder
-					for _, addr := range instanceAddrs {
-						fmt.Fprintf(&possibleValidOptions, "\n  -replace=%q", addr)
-					}
-
-					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Warning,
-						"Incompletely-matched force-replace resource instance",
-						fmt.Sprintf(
-							"Your force-replace request for %s doesn't match any resource instances because it lacks an instance key.\n\nTo force replacement of particular instances, use one or more of the following options instead:%s",
-							candidateAddr, possibleValidOptions.String(),
-						),
-					))
-				}
-			}
-		}
-	}
-
-	orphaned := resourceInstancesFilter(p.planCtx.prevRoundState, func(instAddr addrs.AbsResourceInstance) bool {
-		// This should return true for any resource instance in the given
-		// module instance that belongs to a resource not included in
-		// desiredResources, and false otherwise.
-		if !instAddr.Module.Equal(resourceAddr.Module) {
-			return false // not in the relevant module instance
-		}
-		if !instAddr.Resource.Resource.Equal(resourceAddr.Resource) {
-			return false // not in the relevant resource
-		}
-		if desiredSet.Has(instAddr.Resource.Key) {
-			return false
-		}
-		return true
-	})
-	for addr, state := range orphaned {
-		diags = diags.Append(
-			p.planOrphanResourceInstance(ctx, addr, state),
-		)
-	}
-	return diags
-}
-
-// PlanResourceOrphans implements eval.PlanGlue.
-func (p *planGlue) PlanResourceOrphans(ctx context.Context, moduleInstAddr addrs.ModuleInstance, desiredResources iter.Seq[addrs.Resource]) tfdiags.Diagnostics {
-	if moduleInstAddr.IsPlaceholder() {
-		// can't predict anything about what might be desired or orphaned
-		// under this resource instance.
-		// FIXME: _Something_ still needs to make sure we call
-		// p.planCtx.reportResourceInstancePlanCompletion for any
-		// potentially-matching instances in the previous round state, because
-		// nothing in the desired state is going to match them and so they
-		// won't actually get planned.
-		return nil
-	}
-	desiredSet := addrs.CollectSet(desiredResources)
-
-	orphaned := resourceInstancesFilter(p.planCtx.prevRoundState, func(addr addrs.AbsResourceInstance) bool {
-		// This should return true for any resource instance in the given
-		// module instance that belongs to a resource not included in
-		// desiredResources, and false otherwise.
-		if !addr.Module.Equal(moduleInstAddr) {
-			return false // not in the relevant module instance
-		}
-		if desiredSet.Has(addr.Resource.Resource) {
-			return false
-		}
-		return true
-	})
-	var diags tfdiags.Diagnostics
-	for addr, state := range orphaned {
-		diags = diags.Append(
-			p.planOrphanResourceInstance(ctx, addr, state),
-		)
-	}
 	return diags
 }
 
