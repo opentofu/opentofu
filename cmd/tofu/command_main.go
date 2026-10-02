@@ -11,6 +11,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -127,7 +128,26 @@ func commandMain(
 
 	rootCmd := commandToCli("", root, meta)
 
+	// Internal CLI options
 	rootCmd.EnableShellCompletion = true
+	rootCmd.ConfigureShellCompletionCommand = func(comp *cli.Command) {
+		// This hack rewires the "completion" command into "cli completion"
+		rootCmd.Commands = slices.DeleteFunc(rootCmd.Commands, func(entry *cli.Command) bool {
+			return entry == comp
+		})
+
+		cliCmd := rootCmd.Command("cli")
+		cliCmd.Commands = slices.DeleteFunc(cliCmd.Commands, func(entry *cli.Command) bool {
+			return entry.Name == "completion"
+		})
+		cliCmd.Commands = append(cliCmd.Commands, comp)
+
+		// Rename to "cli completion"
+		comp.Name = "completion"
+		comp.ExtraInfo = func() map[string]string {
+			return map[string]string{"USAGE": strings.ReplaceAll(comp.Description, "tofu completion", "tofu cli completion")}
+		}
+	}
 
 	err = rootCmd.Run(context.Background(), args)
 	if err != nil {
