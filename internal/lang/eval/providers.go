@@ -109,16 +109,19 @@ func (p *managedProviders) ProviderInstance(ctx context.Context, addr addrs.AbsP
 		// This background goroutine deals with closing the provider once it's
 		// no longer needed, and with asking it to gracefully stop if our
 		// given context is cancelled.
+		println("Started provider")
 		go func() {
 			cancelCtx := ctx
 			withoutCancelCtx := context.WithoutCancel(ctx)
 			for {
 				select {
 				case <-closeCh:
+					println("close")
 					// Close() has been called from within the closers
 					// No further actions are nessesary
 					return
 				case <-cancelCtx.Done():
+					println("cancel")
 					log.Printf("[INFO] Stopping Provider %s", addr)
 					// If the context we were given is cancelled then we'll
 					// ask the provider to perform a graceful stop so that

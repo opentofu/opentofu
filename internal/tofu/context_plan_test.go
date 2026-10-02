@@ -1689,7 +1689,6 @@ func TestContext2Plan_preventDestroy_dynamicDeprecated(t *testing.T) {
 }
 
 func TestContext2Plan_preventDestroy_dynamicFromDataResource(t *testing.T) {
-	t.Skip("cam72cam bug")
 	// This test is intentionally a little redundant with
 	// [TestContext2Plan_preventDestroy_dynamic], but intentionally involves
 	// a dependency on another resource so that we're more likely to catch

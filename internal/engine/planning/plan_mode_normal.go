@@ -52,27 +52,18 @@ func normalPlan(ctx context.Context, opts *PlanOpts, prevRoundState *states.Stat
 		}
 	})
 	diags = diags.Append(moreDiags)
-	if moreDiags.HasErrors() {
-		// If we encountered errors during the eval-based phase then we'll halt
-		// here but we'll still produce a best-effort [plans.Plan] describing
-		// the situation because that often gives useful information for debugging
-		// what caused the errors.
-		intermediate, moreDiags := planCtx.Close(ctx)
-		diags = diags.Append(moreDiags)
-		plan, moreDiags := finalizePlan(ctx, intermediate, providers)
-		diags = diags.Append(moreDiags)
-		plan.Errored = true
-		return plan, diags
-	}
 	if evalResult == nil {
-		// This should not happen: we should always have an evalResult if
-		// there weren't any errors.
-		panic(fmt.Sprintf("%T.DrivePlanning returned nil result without any error diagnostics", configInst))
-	}
+		if !moreDiags.HasErrors() {
+			// This should not happen: we should always have an evalResult if
+			// there weren't any errors.
+			panic(fmt.Sprintf("%T.DrivePlanning returned nil result without any error diagnostics", configInst))
+		}
+	} else {
 
-	// Record output values and resource dependencies for the plan
-	planCtx.rootOutput.Previous = prevRoundState.EnsureModule(addrs.RootModuleInstance).OutputValues
-	planCtx.rootOutput.Current = evalResult.RootModuleOutputs
+		// Record output values and resource dependencies for the plan
+		planCtx.rootOutput.Previous = prevRoundState.EnsureModule(addrs.RootModuleInstance).OutputValues
+		planCtx.rootOutput.Current = evalResult.RootModuleOutputs
+	}
 
 	// TODO: Consider factoring most of the work we've done here into a single
 	// function that directly returns the "intermediate" object. Exposing

@@ -76,20 +76,8 @@ func destroyPlan(ctx context.Context, opts *PlanOpts, prevRoundState *states.Sta
 		}
 	})
 	diags = diags.Append(moreDiags)
-	if moreDiags.HasErrors() {
-		// If we encountered errors during the eval-based phase then we'll halt
-		// here but we'll still produce a best-effort [plans.Plan] describing
-		// the situation because that often gives useful information for debugging
-		// what caused the errors.
-		intermediate, moreDiags := planCtx.Close(ctx)
-		diags = diags.Append(moreDiags)
-		intermediate.Destroying = true
-		plan, moreDiags := finalizePlan(ctx, intermediate, providers)
-		diags = diags.Append(moreDiags)
-		plan.Errored = true
-		return plan, diags
-	}
-	if evalResult == nil {
+
+	if evalResult == nil && !moreDiags.HasErrors() {
 		// This should not happen: we should always have an evalResult if
 		// there weren't any errors.
 		panic(fmt.Sprintf("%T.DrivePlanning returned nil result without any error diagnostics", configInst))
