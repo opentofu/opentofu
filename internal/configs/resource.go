@@ -65,7 +65,7 @@ type Resource struct {
 	DeclRange hcl.Range
 	TypeRange hcl.Range
 
-	NoLint []tfdiags.NoLint
+	NoLint []tfdiags.LintingControl
 }
 
 // ManagedResource represents a "resource" block in a module or file.
@@ -140,7 +140,7 @@ func decodeResourceBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagno
 	content, remain, moreDiags := block.Body.PartialContent(ResourceBlockSchema)
 	diags = append(diags, moreDiags...)
 	r.Config = remain
-	r.NoLint = extractNoLint(content.Comments)
+	r.NoLint = extractLintingControls(content.Comments)
 
 	if !hclsyntax.ValidIdentifier(r.Type) {
 		diags = append(diags, &hcl.Diagnostic{
@@ -410,7 +410,7 @@ func decodeDataBlock(block *hcl.Block, override, nested bool) (*Resource, hcl.Di
 	content, remain, moreDiags := block.Body.PartialContent(dataBlockSchema)
 	diags = append(diags, moreDiags...)
 	r.Config = remain
-	r.NoLint = extractNoLint(content.Comments)
+	r.NoLint = extractLintingControls(content.Comments)
 
 	if !hclsyntax.ValidIdentifier(r.Type) {
 		diags = append(diags, &hcl.Diagnostic{
@@ -616,7 +616,7 @@ func decodeEphemeralBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagn
 	content, remain, moreDiags := block.Body.PartialContent(ResourceBlockSchema)
 	diags = append(diags, moreDiags...)
 	r.Config = remain
-	r.NoLint = extractNoLint(content.Comments)
+	r.NoLint = extractLintingControls(content.Comments)
 
 	if !hclsyntax.ValidIdentifier(r.Type) {
 		diags = append(diags, &hcl.Diagnostic{

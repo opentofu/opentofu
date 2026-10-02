@@ -6,12 +6,9 @@
 package configs
 
 import (
-	"bytes"
 	"log"
-	"strings"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/opentofu/opentofu/internal/linting"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 
 	"github.com/opentofu/opentofu/internal/configs/symlib"
@@ -271,50 +268,19 @@ func loadConfigFileBody(body hcl.Body, _ string, override bool) (*File, hcl.Diag
 
 		}
 	}
-	file.NoLint = append(file.NoLint, extractNoLint(content.Comments)...)
+	file.NoLint = append(file.NoLint, extractLintingControls(content.Comments)...)
 
 	return file, diags
 }
 
-func extractNoLint(comments hcl.Comments) []tfdiags.NoLint {
-	const prefix = "nolint("
-	var res []tfdiags.NoLint
+func extractLintingControls(comments hcl.Comments) []tfdiags.LintingControl {
+	var res []tfdiags.LintingControl
 	for _, c := range comments {
-		// cleanup
-		idx := strings.Index(c.Content, "nolint(")
-		if idx < 0 {
+		lc, ok := tfdiags.ParseLintingControl(c.Content, c.StartRange)
+		if !ok {
 			continue
 		}
-		var ruleIdRaw bytes.Buffer
-		var reasonRaw bytes.Buffer
-		var skipNext bool
-		inRuleIdentifier := true
-		for _, r := range c.Content[idx+len(prefix):] {
-			if skipNext {
-				skipNext = false
-				continue
-			}
-			if r == ')' {
-				inRuleIdentifier = false
-				skipNext = true
-				continue
-			}
-			if inRuleIdentifier {
-				ruleIdRaw.WriteRune(r)
-				continue
-			}
-			reasonRaw.WriteRune(r)
-		}
-		ruleId, err := linting.ParseRuleAddr(ruleIdRaw.String())
-		if err != nil {
-			log.Printf("[DEBUG] failed to parse the given ruleID (%q) from the nolint comment so will be skipped: %s", ruleIdRaw.String(), err)
-			continue
-		}
-		res = append(res, tfdiags.NoLint{
-			Decl:    c.StartRange,
-			ForRule: ruleId,
-			Reason:  reasonRaw.String(),
-		})
+		res = append(res, lc)
 	}
 	return res
 }

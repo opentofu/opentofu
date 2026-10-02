@@ -11,6 +11,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"slices"
 	"strings"
 	"sync"
@@ -145,7 +146,7 @@ type lintingRulesCtxValue struct {
 	include collections.Set[linting.RuleAddr]
 	exclude collections.Set[linting.RuleAddr]
 
-	nolint map[string]NoLint
+	lintingControl map[string]LintingControl
 	// lintOnSourceExecution holds the execution container for a specific (linting rule on a specific config source).
 	// This is to ensure that even if it happens to have the same linting rule executed twice for the same configuration
 	// construct, only one will report the final status.
@@ -163,6 +164,7 @@ func (lrcv *lintingRulesCtxValue) executeRule(execKey string, src SourceRange, f
 		success bool
 	}
 	var nolint bool
+	var lintingControl LintingControl
 	loadExec := func(execId string) *lintExecution {
 		// create a new lint rule execution and lock it to store it into the status container
 		exec := &lintExecution{
@@ -178,7 +180,7 @@ func (lrcv *lintingRulesCtxValue) executeRule(execKey string, src SourceRange, f
 				Line: src.Start.Line - 1,
 			},
 		}.String()
-		_, nolint = lrcv.nolint[k]
+		lintingControl, nolint = lrcv.lintingControl[k]
 		// another lint execution for this linting rule and source was created before so we need to work with it instead of
 		// the above created one.
 		if loaded {
@@ -199,7 +201,7 @@ func (lrcv *lintingRulesCtxValue) executeRule(execKey string, src SourceRange, f
 	if exec.success {
 		return nil
 	}
-	if nolint {
+	if nolint && lintingControl.disables() {
 		exec.success = true
 		return nil
 	}
@@ -224,31 +226,8 @@ func ContextWithLintFilterHints(parent context.Context, include, exclude collect
 		include:               include,
 		exclude:               exclude,
 		lintOnSourceExecution: sync.Map{},
-		nolint:                make(map[string]NoLint),
+		lintingControl:        make(map[string]LintingControl),
 	})
-}
-
-type NoLint struct {
-	Decl    hcl.Range
-	ForRule linting.RuleAddr
-	Reason  string
-}
-
-func ContextWithNoLint(parent context.Context, nolint []NoLint) context.Context {
-	v := lintHintsFromContext(parent)
-	if v == nil {
-		return parent
-	}
-	for _, l := range nolint {
-		k := hcl.Range{
-			Filename: l.Decl.Filename,
-			Start: hcl.Pos{
-				Line: l.Decl.Start.Line,
-			},
-		}.String()
-		v.nolint[k] = l
-	}
-	return parent // no need to create a new context. The hints from the context is a pointer so we just store the nolint directives into that.
 }
 
 // lintHintsFromContext returns the *lintingRulesCtxValue from the given context.
@@ -355,4 +334,88 @@ func ExperimentalLintWarn(ctx context.Context) Diagnostics {
 		Detail:   "The linting functionality is under active development and may change or break in future releases. You can provide feedback by opening a new issue.",
 		Subject:  nil,
 	})
+}
+
+type lintingControlType string
+
+const (
+	lintingControlTypeEnable  lintingControlType = "enable"
+	lintingControlTypeDisable lintingControlType = "disable"
+)
+
+func parseControlType(com string) (lintingControlType, string, bool) {
+	for _, d := range []lintingControlType{lintingControlTypeEnable, lintingControlTypeDisable} {
+		// only the comments like "#disable(rule_id)" are allowed. Comments starting with "//" are not processed as control directives.
+		if after, ok := strings.CutPrefix(com, "#"+string(d)+"("); ok {
+			return d, after, true
+		}
+	}
+	return "", "", false
+}
+
+func ParseLintingControl(in string, decl hcl.Range) (LintingControl, bool) {
+	controlType, remaining, ok := parseControlType(in)
+	if !ok {
+		return LintingControl{}, false
+	}
+
+	var ruleIdRaw bytes.Buffer
+	var reasonRaw bytes.Buffer
+	var skipNext bool
+	inRuleIdentifier := true
+	for _, r := range remaining {
+		if skipNext {
+			skipNext = false
+			continue
+		}
+		if r == ')' {
+			inRuleIdentifier = false
+			skipNext = true
+			continue
+		}
+		if inRuleIdentifier {
+			ruleIdRaw.WriteRune(r)
+			continue
+		}
+		reasonRaw.WriteRune(r)
+	}
+	ruleId, err := linting.ParseRuleAddr(ruleIdRaw.String())
+	if err != nil {
+		log.Printf("[DEBUG] failed to parse the given ruleID (%q) from the nolint comment so will be skipped: %s", ruleIdRaw.String(), err)
+		return LintingControl{}, false
+	}
+	return LintingControl{
+		controlType: controlType,
+		Decl:        decl,
+		ForRule:     ruleId,
+		Reason:      reasonRaw.String(),
+	}, true
+}
+
+type LintingControl struct {
+	controlType lintingControlType
+	Decl        hcl.Range
+	ForRule     linting.RuleAddr
+	Reason      string
+}
+
+func (lc *LintingControl) disables() bool {
+	return lc.controlType == lintingControlTypeDisable
+}
+
+func ContextWithNoLint(parent context.Context, nolint []LintingControl) context.Context {
+	v := lintHintsFromContext(parent)
+	if v == nil {
+		return parent
+	}
+	for _, l := range nolint {
+		k := hcl.Range{
+			Filename: l.Decl.Filename,
+			Start: hcl.Pos{
+				Line: l.Decl.Start.Line,
+			},
+		}.String()
+		v.lintingControl[k] = l
+	}
+	return parent // no need to create a new context. The hints from the context is a pointer so we just store the nolint directives into that.
 }

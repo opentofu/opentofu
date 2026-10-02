@@ -76,7 +76,7 @@ type Module struct {
 	LanguageExperiments      experiments.Set
 	LanguageExperimentsRange hcl.Range
 
-	NoLint []tfdiags.NoLint
+	NoLint []tfdiags.LintingControl
 }
 
 // GetProviderConfig uses name and alias to find the respective Provider configuration.
@@ -126,7 +126,7 @@ type File struct {
 	LanguageExperiments      experiments.Set
 	LanguageExperimentsRange hcl.Range
 
-	NoLint []tfdiags.NoLint
+	NoLint []tfdiags.LintingControl
 }
 
 // SelectiveLoader allows the consumer to only load and validate the portions of files needed for the given operations/contexts
