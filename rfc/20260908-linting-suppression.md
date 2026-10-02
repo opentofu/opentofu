@@ -92,6 +92,15 @@ For the moment, the options where such a configuration could be stored are as fo
 ### In-configuration directives
 From the newly introduced keywords, 2 of them can be used as directives: `disable` and `enable`.
 
+A in-configuration directive is a comment that uses the Unix-style shell comment, followed by a keyword and the linting rule that it refers to.
+It has the following format:
+```shell
+#<keyword>(<rule_id>): <comment>
+```
+> [!NOTE]
+> Since HCL exposes the comments with also the leading comment marker, I would recommend to allow only Unix-style shell comments
+> to be considered as "directives".
+
 To silence a particular linting rule warning, `disable` directive can be used:
 ```hcl
 #disable(core:all): in this particular case, this directive supresses 2 possible warnings: core:no-type-variable, core:unused-variable
@@ -207,12 +216,13 @@ One of the most important technical concern is to expose the comments parsed fro
 With the comments exposed, then those will be collected into the [parsed module](https://github.com/opentofu/opentofu/compare/8368dc8f09d8b2863b88d6373c1076f548ac638d...poc-linting-nolint#diff-ae965095e04b6e1ad339db43a381b3873408d5e18f5b0cdaf29853bc7a0d0f64R79) 
 during the configuration parsing and later injected into the [linting context](https://github.com/opentofu/opentofu/compare/8368dc8f09d8b2863b88d6373c1076f548ac638d...poc-linting-nolint#diff-523e4fe1e28b881a87526c2c7c97a796ffe0dc27029816548709479103503167R249):
 ```go
-// LintingControl is a type that describes an instance of a `//<enable/disable>(<for rule>): <reason>` entry.
+// LintingControl is a type that describes an instance of a `#<enable/disable>(<for rule>): <reason>` entry.
 // This holds the declaration place, the rule ID that this is for and the reason
 type LintingControl struct {
-    Decl    hcl.Range
-    ForRule linting.RuleAddr
-    Reason  string
+  controlType lintingControlType
+  Decl        hcl.Range
+  ForRule     linting.RuleAddr
+  Reason      string
 }
 
 // ContextWithLintingControls stores the LintingControl slice into the linting context. These will be later to skip the linting rules execution
@@ -229,7 +239,7 @@ func ContextWithLintingControls(parent context.Context, controls []LintingContro
 
 With that information in the linting context, then the execution can mark the linting rule as executed and generate no diagnostics.
 
-An OpenTofu POC for this can be found [here](https://github.com/opentofu/opentofu/compare/8368dc8f09d8b2863b88d6373c1076f548ac638d...poc-linting-nolint).
+An OpenTofu POC for this can be found [here](https://github.com/opentofu/opentofu/compare/9ffbb1c211bfb36775c5923809a18289396ee0c1...poc-linting-nolint).
 
 In later interations, when in-provider linting will be introduced, the control information will have to be embedded into the
 validation request, per resource, and the provider will be responsible with **not generating** those linting warnings.
