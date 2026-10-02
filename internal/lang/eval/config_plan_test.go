@@ -9,15 +9,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"iter"
 	"sync"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty-debug/ctydebug"
 	"github.com/zclconf/go-cty/cty"
-	"github.com/zclconf/go-cty/cty/function"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
@@ -305,14 +302,10 @@ type planGlueCallLog struct {
 	mu                       sync.Mutex
 }
 
-// ProviderFunction implements eval.PlanGlue
+// PreProcess implements eval.PlanGlue
 func (p *planGlueCallLog) PreProcess(ctx context.Context, targeter func(addrs.Targetable)) {
-	// No targeting enabled for log glue
-}
-
-// ProviderFunction implements eval.PlanGlue
-func (p *planGlueCallLog) ProviderFunction(ctx context.Context, provider addrs.Provider, providerInstance *addrs.AbsProviderInstanceCorrect, pf addrs.ProviderFunction, rng hcl.Range) (function.Function, tfdiags.Diagnostics) {
-	panic("not implemented")
+	// We don't currently do anything with calls to this method, because
+	// no tests we've written so far rely on it.
 }
 
 // PlanDesiredResourceInstance implements eval.PlanGlue.
@@ -343,29 +336,8 @@ func (p *planGlueCallLog) PlanDesiredResourceInstance(ctx context.Context, inst 
 	return plannedVal, diags
 }
 
-// PlanModuleCallInstanceOrphans implements eval.PlanGlue.
-func (p *planGlueCallLog) PlanModuleCallInstanceOrphans(ctx context.Context, moduleCallAddr addrs.AbsModuleCall, desiredInstances iter.Seq[addrs.InstanceKey]) tfdiags.Diagnostics {
-	// We don't currently do anything with calls to this method, because
-	// no tests we've written so far rely on it.
-	return nil
-}
-
-// PlanModuleCallOrphans implements eval.PlanGlue.
-func (p *planGlueCallLog) PlanModuleCallOrphans(ctx context.Context, callerModuleInstAddr addrs.ModuleInstance, desiredCalls iter.Seq[addrs.ModuleCall]) tfdiags.Diagnostics {
-	// We don't currently do anything with calls to this method, because
-	// no tests we've written so far rely on it.
-	return nil
-}
-
-// PlanResourceInstanceOrphans implements eval.PlanGlue.
-func (p *planGlueCallLog) PlanResourceInstanceOrphans(ctx context.Context, resourceAddr addrs.AbsResource, desiredInstances iter.Seq[addrs.InstanceKey]) tfdiags.Diagnostics {
-	// We don't currently do anything with calls to this method, because
-	// no tests we've written so far rely on it.
-	return nil
-}
-
-// PlanResourceOrphans implements eval.PlanGlue.
-func (p *planGlueCallLog) PlanResourceOrphans(ctx context.Context, moduleInstAddr addrs.ModuleInstance, desiredResources iter.Seq[addrs.Resource]) tfdiags.Diagnostics {
+// PostProcess implements eval.PlanGlue.
+func (p *planGlueCallLog) PostProcess(ctx context.Context) tfdiags.Diagnostics {
 	// We don't currently do anything with calls to this method, because
 	// no tests we've written so far rely on it.
 	return nil

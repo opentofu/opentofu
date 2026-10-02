@@ -615,11 +615,10 @@ func (p *planGlue) planOrphanManagedResourceInstance(
 
 func (p *planGlue) planDeposedManagedResourceInstanceObject(
 	ctx context.Context,
-	addr addrs.AbsResourceInstance,
-	deposedKey states.DeposedKey,
+	addr addrs.AbsResourceInstanceObject,
 	stateSrc *states.ResourceInstanceObjectFullSrc,
 ) (*resourceInstanceObject, tfdiags.Diagnostics) {
-	return p.planUnwantedManagedResourceInstanceObject(ctx, addr.Object(deposedKey), stateSrc)
+	return p.planUnwantedManagedResourceInstanceObject(ctx, addr, stateSrc)
 }
 
 func (p *planGlue) planUnwantedManagedResourceInstanceObject(
@@ -699,6 +698,14 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 	// There's another FIXME comment further down the callstack beneath this
 	// function identifying the main location of the problem.
 	providerAddr := meta.Provider
+	// TODO we don't call desired if there's a broken provider or other config issues during compilation
+	// we should change that, but for now we are going to hack it by detecting marks (for some reason)
+	_, hacks := meta.ProviderInstance.Unmark()
+	if len(hacks) > 0 {
+		log.Printf("[TRACE] BUG %s is not orphaned", currentRunAddr)
+		return ret, diags
+	}
+
 	providerInstAddr, ok := meta.ProviderInstance.ValueOk()
 	if !ok {
 		// TODO: Is there anything sensible to do here? It should only be

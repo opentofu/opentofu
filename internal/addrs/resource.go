@@ -126,6 +126,10 @@ func (r ResourceInstance) Equal(o ResourceInstance) bool {
 	return r.Key == o.Key && r.Resource.Equal(o.Resource)
 }
 
+func (r ResourceInstance) PlaceholderContains(o ResourceInstance) bool {
+	return (r.IsPlaceholder() || r.Key == o.Key) && r.Resource.Equal(o.Resource)
+}
+
 func (r ResourceInstance) Less(o ResourceInstance) bool {
 	if !r.Resource.Equal(o.Resource) {
 		return r.Resource.Less(o.Resource)
@@ -392,6 +396,10 @@ func (r AbsResourceInstance) CheckableKind() CheckableKind {
 
 func (r AbsResourceInstance) Equal(o AbsResourceInstance) bool {
 	return r.Module.Equal(o.Module) && r.Resource.Equal(o.Resource)
+}
+
+func (r AbsResourceInstance) PlaceholderContains(o AbsResourceInstance) bool {
+	return r.Module.PlaceholderContains(o.Module) && r.Resource.PlaceholderContains(o.Resource)
 }
 
 // Less returns true if the receiver should sort before the given other value
