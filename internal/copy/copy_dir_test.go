@@ -105,3 +105,48 @@ func TestCopyDir_symlink_file(t *testing.T) {
 		t.Fatal("target/symlink.tf was not created")
 	}
 }
+
+func TestCopyDir_nested_destination(t *testing.T) {
+	for _, paths := range []string{"absolute", "relative"} {
+		t.Run(paths, func(t *testing.T) {
+			src := t.TempDir()
+			dst := filepath.Join(src, "target")
+			if err := os.Mkdir(dst, 0755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(src, "main.tf"), []byte("module contents"), 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			// This file prevents a broken copy from recursively creating target/target/...
+			// and must be left untouched when the destination subtree is skipped.
+			sentinel := filepath.Join(dst, "target")
+			if err := os.WriteFile(sentinel, []byte("existing contents"), 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			source, destination := src, dst
+			if paths == "relative" {
+				t.Chdir(filepath.Dir(src))
+				source = filepath.Base(src)
+				destination = filepath.Join(source, "target")
+			}
+
+			if err := CopyDir(destination, source); err != nil {
+				t.Fatal(err)
+			}
+			for path, want := range map[string]string{
+				filepath.Join(dst, "main.tf"): "module contents",
+				sentinel:                      "existing contents",
+			} {
+				got, err := os.ReadFile(path)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if string(got) != want {
+					t.Errorf("%s: got %q, want %q", path, got, want)
+				}
+			}
+		})
+	}
+}

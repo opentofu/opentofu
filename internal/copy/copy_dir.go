@@ -46,6 +46,10 @@ func CopyDir(dst, src string) error {
 	if err != nil {
 		return fmt.Errorf("failed to evaluate symlinks for source %q: %w", src, err)
 	}
+	dstInfo, err := os.Stat(dst)
+	if err != nil {
+		return fmt.Errorf("failed to stat destination directory %q: %w", dst, err)
+	}
 
 	var errg errgroup.Group
 
@@ -73,9 +77,9 @@ func CopyDir(dst, src string) error {
 		// If we have a directory, make that subdirectory, then continue
 		// the walk.
 		if info.IsDir() {
-			if path == filepath.Join(src, dst) {
+			if os.SameFile(info, dstInfo) {
 				// dst is in src; don't walk it.
-				return nil
+				return filepath.SkipDir
 			}
 
 			if err := os.MkdirAll(dstPath, 0755); err != nil {
