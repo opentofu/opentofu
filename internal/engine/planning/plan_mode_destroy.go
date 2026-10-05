@@ -285,13 +285,8 @@ func (p *planGlueDestroy) PostProcess(ctx context.Context) tfdiags.Diagnostics {
 	p.targetingMu.Lock()
 	defer p.targetingMu.Unlock()
 
-	// Using resourceInstancesFilter here is a little silly since we're
-	// intentionally visiting everything, but it's convenient to reuse its
-	// deep state tree walk and keep this a similar shape to the other
-	// orphan-planning functions in [planGlue].
-	orphaned := resourceInstancesFilter(p.normalGlue.planCtx.prevRoundState, func(_ addrs.AbsResourceInstance) bool {
-		return true
-	})
+	// This includes orphans, which I believe is correct
+	orphaned := resourceInstancesObjects(p.normalGlue.planCtx.prevRoundState)
 
 	if p.normalGlue.isTargeting() {
 		// Include additionally discovered config targets for orphaning
@@ -300,7 +295,7 @@ func (p *planGlueDestroy) PostProcess(ctx context.Context) tfdiags.Diagnostics {
 
 		// Include additionally discovered state targets for orphaning
 		for resource, prevState := range orphaned {
-			if p.normalGlue.isTargeted(resource) {
+			if p.normalGlue.isTargeted(resource.InstanceAddr) {
 				// Already targeted
 				continue
 			}
@@ -309,7 +304,7 @@ func (p *planGlueDestroy) PostProcess(ctx context.Context) tfdiags.Diagnostics {
 			// Assumes flattened dependencies
 			for dep := range prevState.TargetDependencies() {
 				if p.normalGlue.isTargeted(dep) {
-					p.additionalTargets.Add(resource)
+					p.additionalTargets.Add(resource.InstanceAddr)
 					break
 				}
 			}
@@ -323,7 +318,7 @@ func (p *planGlueDestroy) PostProcess(ctx context.Context) tfdiags.Diagnostics {
 
 		// Include additionally discovered state excludes for orphaning
 		for resource, prevState := range orphaned {
-			if !p.normalGlue.isExcluded(resource) {
+			if !p.normalGlue.isExcluded(resource.InstanceAddr) {
 				continue
 			}
 

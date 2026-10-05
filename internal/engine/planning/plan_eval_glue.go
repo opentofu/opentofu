@@ -153,50 +153,20 @@ func (p *planGlue) PostProcess(ctx context.Context) tfdiags.Diagnostics {
 	// After we complete this work, planCtx.resourceInstObjs is expanded to
 	// also include any deposed resource instance objects we discovered.
 	// TODO does this need a target filter???
-	for _, moduleState := range p.planCtx.prevRoundState.Modules {
-		for _, resourceState := range moduleState.Resources {
-			for instKey, instState := range resourceState.Instances {
-				instAddr := resourceState.Addr.Instance(instKey)
-				for dk := range instState.Deposed {
-					// We currently have a schism where we do all of the
-					// discovery work using the traditional state model but
-					// we then switch to using our new-style "full" object model
-					// to act on what we've discovered. This is hopefully just
-					// a temporary situation while we're operating in a mixed
-					// world where most of the system doesn't know about the
-					// new runtime yet.
-					objState := p.planCtx.prevRoundState.SyncWrapper().ResourceInstanceObjectFull(instAddr.Object(dk))
-					if objState == nil {
-						// If we get here then there's a bug in the
-						// ResourceInstanceObjectFull function, because we
-						// should only be here if instAddr and dk correspond.
-						// to an actual deposed object.
-						panic(fmt.Sprintf("state has %s deposed object %q, but ResourceInstanceObjectFull didn't return it", instAddr, dk))
-					}
-					diags = diags.Append(
-						p.planDeposedResourceInstanceObject(ctx, instAddr, dk, objState),
-					)
-				}
-
-				if instState.Current != nil && !p.planCtx.desired.HasFunc(func(desired addrs.AbsResourceInstance) bool {
-					if desired.IsPlaceholder() {
-						return desired.PlaceholderContains(instAddr)
-					}
-					return desired.Equal(instAddr)
-				}) {
-					objState := p.planCtx.prevRoundState.SyncWrapper().ResourceInstanceObjectFull(instAddr.CurrentObject())
-					if objState == nil {
-						// If we get here then there's a bug in the
-						// ResourceInstanceObjectFull function, because we
-						// should only be here if instAddr and dk correspond.
-						// to an actual deposed object.
-						panic(fmt.Sprintf("state has %s, but ResourceInstanceObjectFull didn't return it", instAddr))
-					}
-					diags = diags.Append(
-						p.planOrphanResourceInstance(ctx, instAddr, objState),
-					)
-				}
+	for objAddr, objState := range resourceInstancesObjects(p.planCtx.prevRoundState) {
+		if objAddr.IsDeposed() {
+			diags = diags.Append(
+				p.planDeposedResourceInstanceObject(ctx, objAddr, objState),
+			)
+		} else if !p.planCtx.desired.HasFunc(func(desired addrs.AbsResourceInstance) bool {
+			if desired.IsPlaceholder() {
+				return desired.PlaceholderContains(objAddr.InstanceAddr)
 			}
+			return desired.Equal(objAddr.InstanceAddr)
+		}) {
+			diags = diags.Append(
+				p.planOrphanResourceInstance(ctx, objAddr.InstanceAddr, objState),
+			)
 		}
 	}
 
@@ -256,16 +226,16 @@ func (p *planGlue) planOrphanResourceInstance(ctx context.Context, addr addrs.Ab
 	return diags
 }
 
-func (p *planGlue) planDeposedResourceInstanceObject(ctx context.Context, addr addrs.AbsResourceInstance, deposedKey states.DeposedKey, state *states.ResourceInstanceObjectFullSrc) tfdiags.Diagnostics {
-	log.Printf("[TRACE] planContext: planning deposed resource instance object %s %s", addr, deposedKey)
-	if addr.Resource.Resource.Mode != addrs.ManagedResourceMode {
+func (p *planGlue) planDeposedResourceInstanceObject(ctx context.Context, addr addrs.AbsResourceInstanceObject, state *states.ResourceInstanceObjectFullSrc) tfdiags.Diagnostics {
+	log.Printf("[TRACE] planContext: planning deposed resource instance object %s", addr)
+	if addr.InstanceAddr.Resource.Resource.Mode != addrs.ManagedResourceMode {
 		// Should not be possible because only managed resource instances
 		// support "replace" and so nothing else can have deposed objects.
 		var diags tfdiags.Diagnostics
 		diags = diags.Append(fmt.Errorf("deposed object for non-managed resource instance %s; this is a bug in OpenTofu", addr))
 		return diags
 	}
-	obj, diags := p.planDeposedManagedResourceInstanceObject(ctx, addr, deposedKey, state)
+	obj, diags := p.planDeposedManagedResourceInstanceObject(ctx, addr, state)
 	p.planCtx.resourceInstObjs.Put(obj)
 	return diags
 }
@@ -303,46 +273,43 @@ func (p *planGlue) desiredResourceInstanceMustBeDeferred(inst *eval.DesiredResou
 	return inst.IsPlaceholder() || !meta.ProviderInstance.IsKnown() || derivedFromDeferredVal(inst.ConfigVal)
 }
 
-// resourceInstancesFilter returns a sequence of resource instances from the
-// given state whose addresses caused the "want" function to return true.
-//
-// This is an inefficient way to implement detection of "orphans" with our
-// current state model. If we decide to adopt a design like this then we
-// should adopt a different representation of state which uses a tree structure
-// where we can efficiently scan over subtrees that match a particular prefix,
-// rather than always scanning over everything.
-func resourceInstancesFilter(state *states.State, want func(addrs.AbsResourceInstance) bool) iter.Seq2[addrs.AbsResourceInstance, *states.ResourceInstanceObjectFullSrc] {
-	return func(yield func(addrs.AbsResourceInstance, *states.ResourceInstanceObjectFullSrc) bool) {
+// resourceInstancesObjects returns a sequence of resource instances from the
+// given state.
+func resourceInstancesObjects(state *states.State) iter.Seq2[addrs.AbsResourceInstanceObject, *states.ResourceInstanceObjectFullSrc] {
+	return func(yield func(addrs.AbsResourceInstanceObject, *states.ResourceInstanceObjectFullSrc) bool) {
+		// We currently have a schism where we do all of the
+		// discovery work using the traditional state model but
+		// we then switch to using our new-style "full" object model
+		// to act on what we've discovered. This is hopefully just
+		// a temporary situation while we're operating in a mixed
+		// world where most of the system doesn't know about the
+		// new runtime yet.
+		stateSync := state.SyncWrapper()
+		yieldAddr := func(addr addrs.AbsResourceInstanceObject) bool {
+			objState := stateSync.ResourceInstanceObjectFull(addr)
+			if objState == nil {
+				// If we get here then there's a bug in the
+				// ResourceInstanceObjectFull function, because we
+				// should only be here if instAddr corresponds to a
+				// to an instance with a current object.
+				panic(fmt.Sprintf("state has %s, but ResourceInstanceObjectFull didn't return it", addr))
+			}
+			return yield(addr, objState)
+		}
+
 		for _, modState := range state.Modules {
 			for _, resourceState := range modState.Resources {
 				for instKey, instanceState := range resourceState.Instances {
-					if instanceState.Current == nil {
-						// Only the current object for a resource instance
-						// can be an "orphan". (Deposed objects are handled
-						// elsewhere.)
-						continue
-					}
 					instAddr := resourceState.Addr.Instance(instKey)
-					if !want(instAddr) {
-						continue
+					if instanceState.HasCurrent() {
+						if !yieldAddr(instAddr.CurrentObject()) {
+							continue
+						}
 					}
-					// We currently have a schism where we do all of the
-					// discovery work using the traditional state model but
-					// we then switch to using our new-style "full" object model
-					// to act on what we've discovered. This is hopefully just
-					// a temporary situation while we're operating in a mixed
-					// world where most of the system doesn't know about the
-					// new runtime yet.
-					objState := state.SyncWrapper().ResourceInstanceObjectFull(instAddr.CurrentObject())
-					if objState == nil {
-						// If we get here then there's a bug in the
-						// ResourceInstanceObjectFull function, because we
-						// should only be here if instAddr corresponds to a
-						// to an instance with a current object.
-						panic(fmt.Sprintf("state has %s, but ResourceInstanceObjectFull didn't return it", instAddr))
-					}
-					if !yield(instAddr, objState) {
-						return
+					for deposedKey := range instanceState.Deposed {
+						if !yieldAddr(instAddr.Object(deposedKey)) {
+							continue
+						}
 					}
 				}
 			}
