@@ -127,6 +127,9 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 		// This produces a list of statements which may or may not apply to the given resource,
 		// it's up to the caller to determine applicability.
 		MoveStatements: append([]refactoring.MoveStatement{}, c.moveStatements...),
+
+		// Sane defaults
+		DeletionInvalid: configgraph.DeletionInvalid{Value: exprs.Known(false)},
 	}
 
 	// Check to see if this resource is within the given module
@@ -166,7 +169,7 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 	// methods because our caller is expected to collect them separately
 	// using [CompiledModuleInstance.CheckAll].
 
-	preventDestroy, _, _ := rsrc.PreventDestroy(ctx)
+	preventDestroy, _ := rsrc.PreventDestroy(ctx)
 	ret.DeletionInvalid = preventDestroy
 
 	destroyProvisioners := rsrc.DestroyProvisioners(ctx, addr.InstanceAddr)

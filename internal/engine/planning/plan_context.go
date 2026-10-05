@@ -153,15 +153,9 @@ func (p *planContext) CheckPreventDestroy(ctx context.Context, oracle *eval.Plan
 			// object actually is planned for destroy.
 			continue
 		}
-		preventDestroyV, rng, pdDiags := oracle.PreventDestroy(ctx, objAddr.InstanceAddr)
-		diags = diags.Append(pdDiags)
-		if pdDiags.HasErrors() {
-			// If PreventDestroy is was specified in an invalid way then we'll
-			// assume the diags we just appended already describe the root
-			// problem and we'll avoid adding any new errors that might just
-			// confusingly restate the same problem in a less direct way.
-			continue
-		}
+		meta := oracle.ResourceInstanceObjectMeta(ctx, objAddr)
+		rng := meta.DeletionInvalid.Range
+		preventDestroyV := meta.DeletionInvalid.Value
 		preventDestroyV, preventDestroyMarks := preventDestroyV.Unmark()
 		// FIXME: What should we do with these marks, if anything?
 		_ = preventDestroyMarks
