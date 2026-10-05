@@ -11,6 +11,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/resources"
@@ -68,12 +69,9 @@ type ConfiguredResourceInstanceObjectMeta struct {
 	// plan that involves deleting this object should be considered immediately
 	// invalid. If false then deleting is a valid action to include.
 	//
-	// A nil value represents that there is no information about whether
-	// deletion is allowed for this object.
-	//
-	// This field is relevant only for managed resource mode and should
-	// always be nil for other resource modes.
-	DeletionInvalid *exprs.FromValue[bool]
+	// This field is relevant only for managed resource mode and its value is
+	// unspecified for other resource modes.
+	DeletionInvalid *configgraph.DeletionInvalid
 
 	// TODO: Some representation of "ignore_changes", which the planning engine
 	// will use as part of deciding which action to take.
