@@ -156,6 +156,9 @@ func (o *Output) merge(oo *Output) hcl.Diagnostics {
 	if oo.Expr != nil {
 		o.Expr = oo.Expr
 	}
+	if oo.TypeExpr != nil {
+		o.TypeExpr = oo.TypeExpr
+	}
 	if oo.SensitiveSet {
 		o.Sensitive = oo.Sensitive
 		o.SensitiveSet = oo.SensitiveSet

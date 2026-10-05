@@ -546,14 +546,19 @@ type Output struct {
 	// should be used instead of evaluated expression. It's possible to have no
 	// OverrideValue even with IsOverridden is set to true.
 	OverrideValue *cty.Value
+
+	TypeExpr       hcl.Expression
+	ConstraintType cty.Type
+	TypeDefaults   *typeexpr.Defaults
 }
 
 func decodeOutputBlock(block *hcl.Block, override bool) (*Output, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
 	o := &Output{
-		Name:      block.Labels[0],
-		DeclRange: block.DefRange,
+		Name:           block.Labels[0],
+		DeclRange:      block.DefRange,
+		ConstraintType: cty.DynamicPseudoType,
 	}
 
 	schema := outputBlockSchema
@@ -613,6 +618,10 @@ func decodeOutputBlock(block *hcl.Block, override bool) (*Output, hcl.Diagnostic
 		deps, depsDiags := decodeDependsOn(attr)
 		diags = append(diags, depsDiags...)
 		o.DependsOn = append(o.DependsOn, deps...)
+	}
+
+	if attr, exists := content.Attributes["type"]; exists {
+		o.TypeExpr = attr.Expr
 	}
 
 	for _, block := range content.Blocks {
@@ -751,6 +760,9 @@ var outputBlockSchema = &hcl.BodySchema{
 		},
 		{
 			Name: "deprecated",
+		},
+		{
+			Name: "type",
 		},
 	},
 	Blocks: []hcl.BlockHeaderSchema{
