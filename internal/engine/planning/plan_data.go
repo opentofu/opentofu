@@ -167,7 +167,7 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 	resp, readDiags := resourceType.Read(ctx, &resources.DataResourceReadRequest{
 		ResourceAddress: inst.Addr,
 		ConfigValue:     inst.ConfigVal,
-	}, inst.Addr.CurrentObject(), p.planCtx.evalCtx.Encryption)
+	}, inst.Addr.CurrentObject())
 	diags = diags.Append(readDiags)
 
 	if cb := tracer.EndDataResourceInstanceRead; cb != nil {

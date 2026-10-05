@@ -12,7 +12,6 @@ import (
 
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/resources"
@@ -77,13 +76,10 @@ func (ops *execOperations) DataRead(
 
 	// TODO run PreApply hook here
 
-	// TODO how the hell do we get this????
-	var encryption encryption.Encryption
-
 	resp, readDiags := resourceType.Read(ctx, &resources.DataResourceReadRequest{
 		ResourceAddress: desired.Addr,
 		ConfigValue:     desired.ConfigVal,
-	}, desired.Addr.CurrentObject(), encryption)
+	}, desired.Addr.CurrentObject())
 
 	diags = diags.Append(readDiags)
 

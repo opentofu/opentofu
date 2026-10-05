@@ -12,17 +12,12 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 
 	"github.com/opentofu/opentofu/internal/lang/marks"
 )
-
-type ProviderWithEncryption interface {
-	ReadDataSourceEncrypted(ctx context.Context, req providers.ReadDataSourceRequest, path addrs.AbsResourceInstance, enc encryption.Encryption) providers.ReadDataSourceResponse
-}
 
 // Read encapsulates the logic for reading data for a data resource instance.
 //
@@ -41,7 +36,7 @@ type ProviderWithEncryption interface {
 // either be nil or be a partial description of the invalid plan, depending on
 // the nature of the failure. Callers should use defensive programming
 // techniques if interacting with a partial response associated with an error.
-func (rt *DataResourceType) Read(ctx context.Context, req *DataResourceReadRequest, dispAddr addrs.AbsResourceInstanceObject, encryption encryption.Encryption) (*DataResourceReadResponse, tfdiags.Diagnostics) {
+func (rt *DataResourceType) Read(ctx context.Context, req *DataResourceReadRequest, dispAddr addrs.AbsResourceInstanceObject) (*DataResourceReadResponse, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	var out *DataResourceReadResponse
 
@@ -58,15 +53,12 @@ func (rt *DataResourceType) Read(ctx context.Context, req *DataResourceReadReque
 		TypeName:     rt.typeName,
 		Config:       configVal,
 		ProviderMeta: cty.NullVal(cty.DynamicPseudoType),
+		// This is a hack for terraform_remote_state
+		ResourceAddr: dispAddr.InstanceAddr,
 	}
 
 	var providerResp providers.ReadDataSourceResponse
-	if tfp, ok := rt.client.(ProviderWithEncryption); ok {
-		// handling terraform_remote_state with builtin tf provider
-		providerResp = tfp.ReadDataSourceEncrypted(ctx, providerReq, req.ResourceAddress, encryption)
-	} else {
-		providerResp = rt.client.ReadDataSource(ctx, providerReq)
-	}
+	providerResp = rt.client.ReadDataSource(ctx, providerReq)
 
 	// TODO Attach config to response diagnostics using InConfigBody
 	// FIXME: Our "contextual diagnostics" mechanism, where the callee provides

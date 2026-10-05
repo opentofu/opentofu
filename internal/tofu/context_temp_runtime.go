@@ -19,7 +19,6 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
-	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/engine/applying"
 	"github.com/opentofu/opentofu/internal/engine/planning"
 	"github.com/opentofu/opentofu/internal/engine/plugins"
@@ -99,12 +98,6 @@ func (c *Context) newEngineShim(ctx context.Context, config *configs.Config, inp
 		modules = newRuntimeModulesForTesting{config: config}
 	}
 
-	encryption, cryptoDiags := encryption.New(ctx, encryption.DefaultRegistry, config.Module.Encryption, config.Module.StaticEvaluator)
-	diags = diags.Append(cryptoDiags)
-	if cryptoDiags.HasErrors() {
-		return nil, nil, nil, diags
-	}
-
 	plugins := plugins.NewRuntimePluginsTemp(c.plugins.providers, c.plugins.provisioners)
 	evalCtx := &eval.EvalContext{
 		RootModuleDir:      config.Module.SourceDir,
@@ -115,10 +108,6 @@ func (c *Context) newEngineShim(ctx context.Context, config *configs.Config, inp
 		PlanTimestamp:      planTimestamp,
 		Applying:           applying,
 		Workspace:          workspace,
-
-		// Encryption is only used for a niche case: reading terraform_remote_state data resources
-		// TODO: is there a better way to thread this thru?
-		Encryption: encryption,
 	}
 	done := func() {
 		// We'll call close with a cancel-free context because we do still
