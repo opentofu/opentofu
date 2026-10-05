@@ -335,35 +335,24 @@ func BuildResourceInstanceObjectMeta[SV states.ValueOrJSONEquivalent](
 		// TODO: Everything else
 	}
 
-	if fromConfig != nil {
-		// The provider instance is a little awkward because the config form
-		// of this uses a pointer to represent there being no selection at all
-		// but we can only check the nilness by unwrapping it first.
-		// FIXME: Consider a different way of representing
-		// "no provider specified", such as by making the top-level
-		// exprs.FromValue be a pointer instead of the value inside it being a
-		// pointer.
-		piUnmarked, _ := fromConfig.ProviderInstance.Unmark()
-		pi, ok := piUnmarked.ValueOk()
-		providerSpecified := !ok || pi != nil
-		if providerSpecified {
-			nonPtr, _ := fromConfig.ProviderInstance.Derive(func(addr *addrs.AbsProviderInstanceCorrect) (addrs.AbsProviderInstanceCorrect, error) {
-				return *addr, nil
-			})
-			ret.ProviderInstance = nonPtr
-		}
+	// fromConfig is a bit tricker as it can represent a partial result
+	// TODO some sort of exprs.Fallback() that can more easily unify the two paths
+	// this is pretty dependent on the tofu2024 implementation, which is not great
+	if fromConfig.HasResourceInstance() || state == nil {
+		// Use the configured provider only if the configuration specifies a provider, or take the best guess from config if the state does not exist
+		ret.Provider = fromConfig.Provider
+	}
+	if fromConfig.HasResourceInstance() {
+		ret.ProviderInstance = fromConfig.ProviderInstance
+		ret.PostCreateProvisioners = fromConfig.PostCreateProvisioners
 
-		if providerSpecified || state == nil {
-			// Use the configured provider only if the configuration specifies a provider, or take the best guess from config if the state does not exist
-			ret.Provider = fromConfig.Provider
-		}
-
+		// TODO: Everything else
+	}
+	if fromConfig.HasResource() {
 		ret.ResourceType = fromConfig.ResourceType
 		ret.DeclRange = fromConfig.DeclRange
-
-		ret.PostCreateProvisioners = fromConfig.PostCreateProvisioners
-		ret.PreDeleteProvisioners = fromConfig.PreDestroyProvisioners
 		ret.ReplaceOrder = fromConfig.ReplaceOrder
+		ret.PreDeleteProvisioners = fromConfig.PreDestroyProvisioners
 
 		// TODO: Everything else
 	}

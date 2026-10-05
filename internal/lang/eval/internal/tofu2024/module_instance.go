@@ -106,11 +106,16 @@ func (c *CompiledModuleInstance) ResultValuer(ctx context.Context) exprs.Valuer 
 }
 
 // ResourceInstanceObjectMeta implements [evalglue.CompiledModuleInstance].
-func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context, addr addrs.ResourceInstanceObject) *evalglue.ConfiguredResourceInstanceObjectMeta {
+// TODO handle wildcard keys properly?
+func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context, absAddr addrs.AbsResourceInstanceObject) *evalglue.ConfiguredResourceInstanceObjectMeta {
+	addr := absAddr.ModuleRelative()
+
 	// We'll start with a suitable placeholder to use if there's no mention
 	// of this object in the configuration at all, and then improve it gradually
 	// as we find relevant information in the configuration.
 	ret := &evalglue.ConfiguredResourceInstanceObjectMeta{
+		Status: evalglue.ConfiguredResourceStatusMissing,
+
 		// In this language edition the author-specified resource type always
 		// matches the provider's chosen resource type name, so we can just
 		// derive these directly from the resource address.
@@ -118,11 +123,30 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 		ResourceMode: addr.InstanceAddr.Resource.Mode,
 		ResourceType: addr.InstanceAddr.Resource.Type,
 
-		// An undeclared resource has no configured provider instance, which
-		// means that a caller can know to fall back to an address specified in
-		// the prior state, if any.
-		ProviderInstance: exprs.Known[*addrs.AbsProviderInstanceCorrect](nil),
+		// New slice alloc for later appends
+		// This produces a list of statements which may or may not apply to the given resource,
+		// it's up to the caller to determine applicability.
+		MoveStatements: append([]refactoring.MoveStatement{}, c.moveStatements...),
 	}
+
+	// Check to see if this resource is within the given module
+	if len(absAddr.InstanceAddr.Module) > len(c.moduleInstanceNode.Addr) {
+		// Recurse into a child module
+		childStep := absAddr.InstanceAddr.Module[len(c.moduleInstanceNode.Addr)]
+		childCall := addrs.ModuleCall{Name: childStep.Name}
+
+		if instance := c.ChildModuleInstance(ctx, addrs.ModuleCallInstance{Call: childCall, Key: childStep.InstanceKey}); instance != nil {
+			found := instance.ResourceInstanceObjectMeta(ctx, absAddr)
+			found.MoveStatements = append(ret.MoveStatements, found.MoveStatements...)
+			return found
+		}
+
+		// Implicit placeholder
+		return ret
+	}
+
+	ret.MoveStatements = append(ret.MoveStatements, c.moveStatements...)
+	ret.Status = evalglue.ConfiguredResourceStatusModule
 
 	// TODO: The logic here should also consider whether any "removed" block
 	// matches the requested object, and incorporate information derived from
@@ -134,6 +158,7 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 		return ret
 	}
 
+	ret.Status = evalglue.ConfiguredResourceStatusResource
 	ret.DeclRange = rsrc.DeclRange
 
 	// In the remaining code we intentionally ignore all diagnostics from
@@ -155,6 +180,8 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 		return ret
 	}
 
+	ret.Status = evalglue.ConfiguredResourceStatusResourceInstance
+
 	// TODO: Should ReplaceOrder actually be modeled as a resource-level
 	// setting rather than an instance-level setting? For now assuming not
 	// because for non-desired objects we'll use the value from the prior state
@@ -163,8 +190,8 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 	ret.ReplaceOrder, _, _ = inst.ReplaceOrder(ctx)
 
 	providerInst, _ := inst.ProviderInstance(ctx)
-	ret.ProviderInstance, _ = providerInst.Derive(func(providerInst *configgraph.ProviderInstance) (*addrs.AbsProviderInstanceCorrect, error) {
-		return &providerInst.Addr, nil
+	ret.ProviderInstance, _ = providerInst.Derive(func(providerInst *configgraph.ProviderInstance) (addrs.AbsProviderInstanceCorrect, error) {
+		return providerInst.Addr, nil
 	})
 
 	// TODO: "Provider" should probably be a resource-level setting rather than
@@ -386,24 +413,6 @@ func (c *CompiledModuleInstance) AnnounceAllGraphevalRequests(announce func(work
 	for _, n := range c.providerConfigNodes {
 		n.AnnounceAllGraphevalRequests(announce)
 	}
-}
-
-// GetMoveStatements implements evalglue.CompiledModuleInstance.
-func (c *CompiledModuleInstance) GetMoveStatementsFor(ctx context.Context, addr addrs.Module) []refactoring.MoveStatement {
-	var stmts []refactoring.MoveStatement
-	stmts = append(stmts, c.moveStatements...)
-	if len(addr) > len(c.moduleInstanceNode.Addr) {
-		// Find child and recurse
-		childName := addr[len(c.moduleInstanceNode.Addr)]
-		instances := c.ChildModuleInstancesForCall(ctx, addrs.ModuleCall{Name: childName})
-		for _, instance := range instances {
-			stmts = append(stmts, instance.GetMoveStatementsFor(ctx, addr)...)
-			// Recurse into first instance only, these are not instance key specific
-			break
-		}
-	}
-
-	return stmts
 }
 
 func (c *CompiledModuleInstance) DetectImplicitMoveForAddress(ctx context.Context, addr addrs.AbsResourceInstance) *addrs.AbsResourceInstance {
