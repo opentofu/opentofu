@@ -136,7 +136,10 @@ func (p *planContext) CheckPreventDestroy(ctx context.Context, oracle *eval.Plan
 	var diags tfdiags.Diagnostics
 	const errSummary = "Invalid value for prevent_destroy"
 
-	// TODO lock result
+	// This access to resourceInstObjs is not ideal here, but is the only way to do this
+	// TODO re-work this function contents to be integrated into building the plan instead of a post-processing step
+	p.resourceInstObjs.mu.Lock()
+	defer p.resourceInstObjs.mu.Unlock()
 	for objAddr, obj := range p.resourceInstObjs.result.All() {
 		change := obj.PlannedChange
 
