@@ -370,6 +370,25 @@ func (n *NodeApplyableOutput) Execute(ctx context.Context, evalCtx EvalContext, 
 			val = cty.NilVal
 		}
 
+		if n.Config.ConstraintType != cty.NilType {
+			convertTarget := lang.NewTypeConversionConstraint(n.Config.ConstraintType, n.Config.TypeDefaults)
+			converted, err := convertTarget.ConvertValue(val)
+			if err != nil {
+				subject := n.Config.DeclRange.Ptr()
+				diags = diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Invalid output value",
+					Detail: fmt.Sprintf(
+						"Unsuitable value for %s: %s.",
+						n.Addr.String(), err,
+					),
+					Subject: subject,
+				})
+			} else {
+				val = converted
+			}
+		}
+
 		// We'll handle errors below, after we have loaded the module.
 		// Outputs don't have a separate mode for validation, so validate
 		// depends_on expressions here too

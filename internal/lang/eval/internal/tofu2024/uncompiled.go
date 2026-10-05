@@ -89,11 +89,8 @@ func (u *uncompiledModule) ValidateModuleInputs(ctx context.Context, inputsVal c
 // ModuleOutputsTypeConstraint implements evalglue.UncompiledModule.
 func (u *uncompiledModule) ModuleOutputsTypeConstraint(ctx context.Context) cty.Type {
 	atys := make(map[string]cty.Type)
-	for name := range u.mod.Outputs {
-		// We don't currently support type constraints on output values, so
-		// they are always cty.DynamicPseudoType to represent what the surface
-		// language calls "any".
-		atys[name] = cty.DynamicPseudoType
+	for name, decl := range u.mod.Outputs {
+		atys[name] = decl.ConstraintType
 	}
 	return cty.Object(atys)
 }

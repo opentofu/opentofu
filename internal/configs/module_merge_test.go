@@ -99,6 +99,7 @@ func TestModuleOverrideOutput(t *testing.T) {
 			Name:           "fully_overridden",
 			Description:    "b_override description",
 			DescriptionSet: true,
+			ConstraintType: cty.DynamicPseudoType,
 			Expr: &hclsyntax.TemplateExpr{
 				Parts: []hclsyntax.Expression{
 					&hclsyntax.LiteralValueExpr{
@@ -153,6 +154,7 @@ func TestModuleOverrideOutput(t *testing.T) {
 			Name:           "partially_overridden",
 			Description:    "base description",
 			DescriptionSet: true,
+			ConstraintType: cty.DynamicPseudoType,
 			Expr: &hclsyntax.TemplateExpr{
 				Parts: []hclsyntax.Expression{
 					&hclsyntax.LiteralValueExpr{
