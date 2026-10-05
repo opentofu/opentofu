@@ -702,7 +702,7 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 	// we should change that, but for now we are going to hack it by detecting marks (for some reason)
 	_, hacks := meta.ProviderInstance.Unmark()
 	if len(hacks) > 0 {
-		log.Printf("[TRACE] BUG %s is not orphaned")
+		log.Printf("[TRACE] BUG %s is not orphaned", currentRunAddr)
 		return ret, diags
 	}
 
