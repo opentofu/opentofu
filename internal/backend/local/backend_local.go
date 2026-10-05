@@ -84,7 +84,6 @@ func (b *Local) localRun(ctx context.Context, stopCtx context.Context, op *backe
 	}
 	coreOpts.UIInput = op.UIIn
 	coreOpts.Hooks = op.Hooks
-	coreOpts.Encryption = op.Encryption
 
 	var ctxDiags tfdiags.Diagnostics
 	var configSnap *configload.Snapshot
