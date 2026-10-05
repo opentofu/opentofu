@@ -8,7 +8,6 @@ package planning
 import (
 	"context"
 	"fmt"
-	"iter"
 	"log"
 	"sync"
 
@@ -45,23 +44,7 @@ func destroyPlan(ctx context.Context, opts *PlanOpts, prevRoundState *states.Sta
 
 	planCtx := newPlanContext(configInst.EvalContext(), prevRoundState, providers, opts)
 
-	// This configInst.DrivePlanning call blocks until the evaluator has
-	// visited all expressions in the configuration and calls
-	// [planContext.PlanDesiredResourceInstance] on the [planGlue] object for
-	// each resource instance it discovers so that we can produce a planned
-	// action and result value for each one.
-	//
-	// It also calls the various "Plan*Orphans" methods at different levels
-	// of granularity once it's determined the full set of objects under
-	// a given prefix, which planGlue uses to notice when there are
-	// prevRoundState resource instances that are no longer in the desired
-	// state and so plan to delete or forget them.
-	//
-	// If this completes without returning any error diagnostics then
-	// planCtx.resourceInstObjs should accurately represent the relationships
-	// between all of the "current" resource instance objects we found, but
-	// we won't discover any deposed objects until the next step below.
-	evalResult, moreDiags := configInst.DrivePlanning(ctx, &planGlueDestroy{
+	glue := &planGlueDestroy{
 		additionalTargets:  addrs.MakeSet[addrs.Targetable](),
 		additionalExcludes: addrs.MakeSet[addrs.Targetable](),
 		normalGlue: planGlue{
@@ -69,22 +52,27 @@ func destroyPlan(ctx context.Context, opts *PlanOpts, prevRoundState *states.Sta
 			targets:  addrs.MakeSet(opts.Targets...),
 			excludes: addrs.MakeSet(opts.Excludes...),
 		},
-	})
-	diags = diags.Append(moreDiags)
-
-	if evalResult == nil && !moreDiags.HasErrors() {
-		// This should not happen: we should always have an evalResult if
-		// there weren't any errors.
-		panic(fmt.Sprintf("%T.DrivePlanning returned nil result without any error diagnostics", configInst))
 	}
 
-	// TODO: Consider factoring most of the work we've done here into a single
-	// function that directly returns the "intermediate" object. Exposing
-	// planCtx as a mutable object in this function doesn't seem necessary
-	// anymore since we only actually care about the results from Close here.
-	intermediate, moreDiags := planCtx.Close(ctx)
+	oracle, ctx, diags := configInst.BuildPlanningOracle(ctx, glue)
+	if diags.HasErrors() {
+		return &plans.Plan{Errored: true}, nil
+	}
+
+	moreDiags := glue.normalGlue.CheckTargets(ctx, oracle)
 	diags = diags.Append(moreDiags)
-	intermediate.Destroying = true
+
+	// This CheckAll call blocks until the evaluator has
+	// visited all expressions in the configuration and calls
+	// [planContext.PlanDesiredResourceInstance] on the [planGlue] object for
+	// each resource instance it discovers so that we can produce a planned
+	// action and result value for each one.
+	moreDiags = oracle.CheckAll(ctx)
+	diags = diags.Append(moreDiags)
+
+	intermediate, moreDiags := glue.Finalize(ctx, oracle)
+	diags = diags.Append(moreDiags)
+
 	plan, moreDiags := finalizePlan(ctx, intermediate, providers)
 	diags = diags.Append(moreDiags)
 	if diags.HasErrors() {
@@ -109,10 +97,6 @@ type planGlueDestroy struct {
 }
 
 var _ eval.PlanGlue = (*planGlueDestroy)(nil)
-
-func (p *planGlueDestroy) PreProcess(ctx context.Context, oracle *eval.PlanningOracle, targeter func(target addrs.Targetable)) tfdiags.Diagnostics {
-	return p.normalGlue.PreProcess(ctx, oracle, targeter)
-}
 
 // PlanDesiredResourceInstance implements [eval.PlanGlue].
 func (p *planGlueDestroy) PlanDesiredResourceInstance(ctx context.Context, oracle *eval.PlanningOracle, inst *eval.DesiredResourceInstance) (cty.Value, tfdiags.Diagnostics) {
@@ -274,7 +258,7 @@ func (p *planGlueDestroy) PlanDesiredResourceInstance(ctx context.Context, oracl
 	return obj.Value, diags
 }
 
-func (p *planGlueDestroy) PostProcess(ctx context.Context, oracle *eval.PlanningOracle) tfdiags.Diagnostics {
+func (p *planGlueDestroy) Finalize(ctx context.Context, oracle *eval.PlanningOracle) (*planContextResult, tfdiags.Diagnostics) {
 	p.targetingMu.Lock()
 	defer p.targetingMu.Unlock()
 
@@ -331,28 +315,11 @@ func (p *planGlueDestroy) PostProcess(ctx context.Context, oracle *eval.Planning
 	recordedMoves := p.normalGlue.planCtx.recordedMoves
 	p.normalGlue.planCtx.recordedMoves = addrs.MakeMap[addrs.AbsResourceInstance, addrs.AbsResourceInstance]()
 
-	diags := p.normalGlue.PostProcess(ctx, oracle)
+	intermediate, diags := p.normalGlue.Finalize(ctx, oracle)
+	intermediate.Destroying = true
 
 	// Reset recordedMoves for validation purposes and include additionally discovered moves
 	p.normalGlue.planCtx.recordedMoves = recordedMoves.Union(p.normalGlue.planCtx.recordedMoves)
 
-	return diags
-}
-
-// PlanModuleCallInstanceOrphans implements [eval.PlanGlue].
-func (p *planGlueDestroy) PlanModuleCallInstanceOrphans(ctx context.Context, moduleCallAddr addrs.AbsModuleCall, desiredInstances iter.Seq[addrs.InstanceKey]) tfdiags.Diagnostics {
-	// In this implementation, planGlueDestroy.PlanModuleCallOrphans does all of the work
-	return nil
-}
-
-// PlanResourceInstanceOrphans implements [eval.PlanGlue].
-func (p *planGlueDestroy) PlanResourceInstanceOrphans(ctx context.Context, resourceAddr addrs.AbsResource, desiredInstances iter.Seq[addrs.InstanceKey]) tfdiags.Diagnostics {
-	// In this implementation, planGlueDestroy.PlanModuleCallOrphans does all of the work
-	return nil
-}
-
-// PlanResourceOrphans implements [eval.PlanGlue].
-func (p *planGlueDestroy) PlanResourceOrphans(ctx context.Context, moduleInstAddr addrs.ModuleInstance, desiredResources iter.Seq[addrs.Resource]) tfdiags.Diagnostics {
-	// In this implementation, planGlueDestroy.PlanModuleCallOrphans does all of the work
-	return nil
+	return intermediate, diags
 }

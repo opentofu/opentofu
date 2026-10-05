@@ -7,7 +7,6 @@ package eval
 
 import (
 	"context"
-	"log"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
@@ -28,8 +27,6 @@ import (
 // each other, and so implementations must use suitable synchronization to
 // avoid data races between calls.
 type PlanGlue interface {
-	PreProcess(ctx context.Context, oracle *PlanningOracle, targeter func(target addrs.Targetable)) tfdiags.Diagnostics
-
 	// Creates planned action(s) for the given resource instance and return
 	// the planned new state that would result from those actions.
 	//
@@ -39,8 +36,6 @@ type PlanGlue interface {
 	// prior state) separately as each of the "Plan*Orphans" methods are
 	// called to report what exists in the desired state.
 	PlanDesiredResourceInstance(ctx context.Context, oracle *PlanningOracle, inst *DesiredResourceInstance) (cty.Value, tfdiags.Diagnostics)
-
-	PostProcess(ctx context.Context, oracle *PlanningOracle) tfdiags.Diagnostics
 }
 
 // DrivePlanning uses this configuration instance to drive forward a planning
@@ -59,7 +54,7 @@ type PlanGlue interface {
 // tracked in the prior state and then presumably generate additional planned
 // actions to destroy any instances that are currently tracked but no longer
 // configured.
-func (c *ConfigInstance) DrivePlanning(ctx context.Context, glue PlanGlue) (*PlanningResult, tfdiags.Diagnostics) {
+func (c *ConfigInstance) BuildPlanningOracle(ctx context.Context, glue PlanGlue) (*PlanningOracle, context.Context, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// All of our work will be associated with a workgraph worker that serves
@@ -71,7 +66,6 @@ func (c *ConfigInstance) DrivePlanning(ctx context.Context, glue PlanGlue) (*Pla
 	// so we initially pass an intentionally-invalid oracle to the build
 	// function and then make sure it's valid before we make any use
 	// of the PlanGlue object it returns.
-	// TODO better handling of oracle close
 	oracle := &PlanningOracle{}
 
 	evalGlue := &planningEvalGlue{
@@ -81,7 +75,7 @@ func (c *ConfigInstance) DrivePlanning(ctx context.Context, glue PlanGlue) (*Pla
 	rootModuleInstance, moreDiags := c.newRootModuleInstance(ctx, evalGlue)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
-		return nil, diags.Append(oracle.Close(ctx))
+		return nil, ctx, diags.Append(oracle.Close(ctx))
 	}
 
 	managedProviders := newManagedProviders(c.evalContext.Providers, func(ctx context.Context, addr addrs.AbsProviderInstanceCorrect) (cty.Value, tfdiags.Diagnostics) {
@@ -119,92 +113,8 @@ func (c *ConfigInstance) DrivePlanning(ctx context.Context, glue PlanGlue) (*Pla
 	// anything that might cause calls to the evalGlue object.
 	oracle.root = rootModuleInstance
 	oracle.providers = managedProviders
-	// Inject configured providers
-	evalGlue.providers = managedProviders
 
-	// Tell the glue that we are almost ready to walk the full configuration
-	// and give it a chance to handle target/exclude logic pre-emptively.
-	// We need to give it a way to pre-eval targeted resources before the main walk.
-	glue.PreProcess(ctx, oracle, func(target addrs.Targetable) {
-		ctx := grapheval.ContextWithNewWorker(ctx)
-		ctx = grapheval.ContextWithRequestTracker(ctx, workgraphRequestTracker{rootModuleInstance})
-
-		addTarget := func(ri *configgraph.ResourceInstance) {
-			// Populate the value before the glue disables itself for the rest of processing
-			log.Printf("[TRACE] %s targeting %s", target, ri.Addr)
-			ri.Value(ctx)
-		}
-
-		switch target.AddrType() {
-		case addrs.ConfigResourceAddrType:
-			configResource := target.(addrs.ConfigResource)
-			for _, modInst := range evalglue.ConfigModuleInstances(ctx, rootModuleInstance, configResource.Module) {
-				for resInst := range modInst.ResourceInstancesForResource(ctx, configResource.Resource) {
-					addTarget(resInst)
-				}
-			}
-		case addrs.AbsResourceAddrType:
-			absResource := target.(addrs.AbsResource)
-			modInst := evalglue.ModuleInstance(ctx, rootModuleInstance, absResource.Module)
-			if modInst != nil {
-				for resInst := range modInst.ResourceInstancesForResource(ctx, absResource.Resource) {
-					addTarget(resInst)
-				}
-			}
-		case addrs.AbsResourceInstanceAddrType:
-			absResourceInstance := target.(addrs.AbsResourceInstance)
-			resInst := evalglue.ResourceInstance(ctx, rootModuleInstance, absResourceInstance)
-			if resInst != nil {
-				addTarget(resInst)
-			}
-		case addrs.ModuleAddrType:
-			module := target.(addrs.Module)
-			for _, modInst := range evalglue.ConfigModuleInstances(ctx, rootModuleInstance, module) {
-				for resInst := range evalglue.ResourceInstancesDeep(ctx, modInst) {
-					addTarget(resInst)
-				}
-			}
-		case addrs.ModuleInstanceAddrType:
-			moduleInstance := target.(addrs.ModuleInstance)
-			modInst := evalglue.ModuleInstance(ctx, rootModuleInstance, moduleInstance)
-			if modInst != nil {
-				for resInst := range evalglue.ResourceInstancesDeep(ctx, modInst) {
-					addTarget(resInst)
-				}
-			}
-		}
-	})
-
-	diags = diags.Append(moreDiags)
-	if moreDiags.HasErrors() {
-		return nil, diags.Append(oracle.Close(ctx))
-	}
-
-	// The plan phase is driven forward by us evaluating expressions during
-	// the "checkAll" process, and so we can just run that here and then
-	// it'll cause various calls out to the "glue" object whenever we're
-	// ready to provide configuration for a resource instance and need to
-	// obtain its result for downstream use.
-	checkDiags := checkAll(ctx, rootModuleInstance)
-	diags = diags.Append(checkDiags)
-
-	// Now that we have visited the entire configuration, we can tell the oracle
-	// to PostProcess.  TODO more words here
-	postDiags := glue.PostProcess(ctx, oracle)
-	diags = diags.Append(postDiags)
-
-	// (We intentionally don't return here because we'll make a best effort
-	// to return a partial result even if we encountered errors, so an
-	// operator can potentially use the partial result to help debug
-	// the errors.)
-
-	// Once checkAll has completed we should've either visited and evaluated
-	// everything as much as we can, so we can now just collect the result
-	// value and return.
-
-	return &PlanningResult{
-		RootModuleOutputs: CollectRootModuleOutputs(ctx, rootModuleInstance),
-	}, diags.Append(oracle.Close(ctx))
+	return oracle, ctx, diags
 }
 
 // PlanningResult is the return value of [ConfigInstance.DrivePlanning],
@@ -224,7 +134,6 @@ type planningEvalGlue struct {
 	// planning engine when it called [ConfigInstance.DrivePlanning].
 	planEngineGlue PlanGlue
 	oracle         *PlanningOracle
-	providers      *managedProviders
 }
 
 var _ evalglue.Glue = (*planningEvalGlue)(nil)
@@ -232,10 +141,10 @@ var _ evalglue.Glue = (*planningEvalGlue)(nil)
 // ProviderFunction implements evalglue.Glue.
 func (p *planningEvalGlue) ProviderFunction(ctx context.Context, provider addrs.Provider, providerInst exprs.FromValue[*configgraph.ProviderInstance], pf addrs.ProviderFunction, rng hcl.Range) (function.Function, tfdiags.Diagnostics) {
 	if providerInst, ok := providerInst.ValueOk(); ok {
-		return p.providers.ConfiguredFunction(ctx, providerInst.Addr, pf, rng)
+		return p.oracle.providers.ConfiguredFunction(ctx, providerInst.Addr, pf, rng)
 	}
 
-	return p.providers.BuildFunction(ctx, provider, pf, false, rng)
+	return p.oracle.providers.BuildFunction(ctx, provider, pf, false, rng)
 }
 
 // ResourceInstanceValue implements evalglue.Glue.
@@ -254,7 +163,7 @@ func (p *planningEvalGlue) ResourceInstanceValue(ctx context.Context, ri *config
 		providerInstAddr, _ := providerInst.Derive(func(pi *configgraph.ProviderInstance) (addrs.AbsProviderInstanceCorrect, error) {
 			return pi.Addr, nil
 		})
-		return p.providers.OpenEphemeralResourceInstance(
+		return p.oracle.providers.OpenEphemeralResourceInstance(
 			ctx, desired.Addr, desired.ConfigVal,
 			ri.Provider, providerInstAddr,
 		)
