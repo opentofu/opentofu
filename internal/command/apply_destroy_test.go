@@ -258,6 +258,73 @@ func TestApply_destroyApproveYes(t *testing.T) {
 	}
 }
 
+func TestApply_destroyApproveYep(t *testing.T) {
+	// Create a temporary working directory that is empty
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("apply"), td)
+	t.Chdir(td)
+
+	// Create some existing state
+	originalState := states.BuildState(func(s *states.SyncState) {
+		s.SetResourceInstanceCurrent(
+			addrs.Resource{
+				Mode: addrs.ManagedResourceMode,
+				Type: "test_instance",
+				Name: "foo",
+			}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
+			&states.ResourceInstanceObjectSrc{
+				AttrsJSON: []byte(`{"id":"bar"}`),
+				Status:    states.ObjectReady,
+			},
+			addrs.AbsProviderConfig{
+				Provider: addrs.NewDefaultProvider("test"),
+				Module:   addrs.RootModule,
+			},
+			addrs.NoKey,
+		)
+	})
+	statePath := testStateFile(t, originalState)
+
+	p := applyFixtureProvider()
+
+	defer testInputMap(t, map[string]string{
+		"approve": "yep",
+	})()
+
+	view, done := testView(t)
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
+	}
+
+	args := []string{
+		"-state", statePath,
+	}
+	code := RunCommander(t, DestroyCommander(), meta, args)
+	output := done(t)
+	if code != 0 {
+		t.Log(output.Stdout())
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
+	}
+
+	if _, err := os.Stat(statePath); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	state := testStateRead(t, statePath)
+	if state == nil {
+		t.Fatal("state should not be nil")
+	}
+
+	actualStr := strings.TrimSpace(state.String())
+	expectedStr := strings.TrimSpace(testApplyDestroyStr)
+	if actualStr != expectedStr {
+		t.Fatalf("bad:\n\n%s\n\n%s", actualStr, expectedStr)
+	}
+}
+
 func TestApply_destroyLockedState(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()

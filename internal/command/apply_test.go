@@ -211,6 +211,47 @@ func TestApply_approveYes(t *testing.T) {
 	}
 }
 
+func TestApply_approveYep(t *testing.T) {
+	// Create a temporary working directory that is empty
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("apply"), td)
+	t.Chdir(td)
+
+	statePath := testTempFile(t)
+
+	p := applyFixtureProvider()
+
+	defer testInputMap(t, map[string]string{
+		"approve": "yep",
+	})()
+
+	view, done := testView(t)
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
+	}
+
+	args := []string{
+		"-state", statePath,
+	}
+	code := RunCommander(t, ApplyCommander(), meta, args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
+	}
+
+	if _, err := os.Stat(statePath); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	state := testStateRead(t, statePath)
+	if state == nil {
+		t.Fatal("state should not be nil")
+	}
+}
+
 // test apply with locked state
 func TestApply_lockedState(t *testing.T) {
 	// Create a temporary working directory that is empty
