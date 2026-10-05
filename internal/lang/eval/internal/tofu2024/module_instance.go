@@ -146,11 +146,6 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 		// derive these directly from the resource address.
 		ResourceMode: addr.InstanceAddr.Resource.Mode,
 		ResourceType: addr.InstanceAddr.Resource.Type,
-
-		// We'll populate the provider _instance_ to use only once we have
-		// a specific resource instance below, since the chosen provider
-		// instance is allowed to vary between resource instances.
-		Instance: nil,
 	}
 
 	ret.DeclRange = rsrc.DeclRange
@@ -160,7 +155,7 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 	// methods because our caller is expected to collect them separately
 	// using [CompiledModuleInstance.CheckAll].
 
-	preventDestroy, _, _ := rsrc.PreventDestroy(ctx)
+	preventDestroy, _ := rsrc.PreventDestroy(ctx)
 	ret.DeletionInvalid = &preventDestroy
 
 	destroyProvisioners := rsrc.DestroyProvisioners(ctx, addr.InstanceAddr)
