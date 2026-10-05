@@ -61,10 +61,7 @@ func TestPlan_valuesOnlySuccess(t *testing.T) {
 	}
 
 	logGlue := &planGlueCallLog{}
-	planResult, diags := configInst.DrivePlanning(t.Context(), func(oracle *eval.PlanningOracle) eval.PlanGlue {
-		logGlue.oracle = oracle
-		return logGlue
-	})
+	planResult, diags := configInst.DrivePlanning(t.Context(), logGlue)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %s", diags.Err())
 	}
@@ -151,10 +148,7 @@ func TestPlan_managedResourceSimple(t *testing.T) {
 	logGlue := &planGlueCallLog{
 		providers: providers,
 	}
-	planResult, diags := configInst.DrivePlanning(t.Context(), func(oracle *eval.PlanningOracle) eval.PlanGlue {
-		logGlue.oracle = oracle
-		return logGlue
-	})
+	planResult, diags := configInst.DrivePlanning(t.Context(), logGlue)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %s", diags.Err())
 	}
@@ -253,10 +247,7 @@ func TestPlan_managedResourceUnknownCount(t *testing.T) {
 	logGlue := &planGlueCallLog{
 		providers: providers,
 	}
-	planResult, diags := configInst.DrivePlanning(t.Context(), func(oracle *eval.PlanningOracle) eval.PlanGlue {
-		logGlue.oracle = oracle
-		return logGlue
-	})
+	planResult, diags := configInst.DrivePlanning(t.Context(), logGlue)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %s", diags.Err())
 	}
@@ -295,7 +286,6 @@ func TestPlan_managedResourceUnknownCount(t *testing.T) {
 }
 
 type planGlueCallLog struct {
-	oracle    *eval.PlanningOracle
 	providers eval.ProvidersSchema
 
 	resourceInstanceRequests addrs.Map[addrs.AbsResourceInstance, *eval.DesiredResourceInstance]
@@ -303,13 +293,14 @@ type planGlueCallLog struct {
 }
 
 // PreProcess implements eval.PlanGlue
-func (p *planGlueCallLog) PreProcess(ctx context.Context, targeter func(addrs.Targetable)) {
+func (p *planGlueCallLog) PreProcess(ctx context.Context, oracle *eval.PlanningOracle, targeter func(addrs.Targetable)) tfdiags.Diagnostics {
 	// We don't currently do anything with calls to this method, because
 	// no tests we've written so far rely on it.
+	return nil
 }
 
 // PlanDesiredResourceInstance implements eval.PlanGlue.
-func (p *planGlueCallLog) PlanDesiredResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance) (cty.Value, tfdiags.Diagnostics) {
+func (p *planGlueCallLog) PlanDesiredResourceInstance(ctx context.Context, oracle *eval.PlanningOracle, inst *eval.DesiredResourceInstance) (cty.Value, tfdiags.Diagnostics) {
 	p.mu.Lock()
 	if p.resourceInstanceRequests.Len() == 0 {
 		p.resourceInstanceRequests = addrs.MakeMap[addrs.AbsResourceInstance, *eval.DesiredResourceInstance]()
@@ -322,7 +313,7 @@ func (p *planGlueCallLog) PlanDesiredResourceInstance(ctx context.Context, inst 
 		diags = diags.Append(errors.New("cannot use resources in this test without including an eval.Providers object to the planGlueCallLog object"))
 		return cty.DynamicVal, diags
 	}
-	meta := p.oracle.ResourceInstanceObjectMeta(ctx, inst.Addr.CurrentObject())
+	meta := oracle.ResourceInstanceObjectMeta(ctx, inst.Addr.CurrentObject())
 	if meta == nil {
 		var diags tfdiags.Diagnostics
 		diags = diags.Append(fmt.Errorf("no resource instance object metadata for desired object %s", inst.Addr))
@@ -337,7 +328,7 @@ func (p *planGlueCallLog) PlanDesiredResourceInstance(ctx context.Context, inst 
 }
 
 // PostProcess implements eval.PlanGlue.
-func (p *planGlueCallLog) PostProcess(ctx context.Context) tfdiags.Diagnostics {
+func (p *planGlueCallLog) PostProcess(ctx context.Context, oracle *eval.PlanningOracle) tfdiags.Diagnostics {
 	// We don't currently do anything with calls to this method, because
 	// no tests we've written so far rely on it.
 	return nil

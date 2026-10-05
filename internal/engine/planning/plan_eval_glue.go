@@ -33,7 +33,6 @@ import (
 // each other, so they must use appropriate synchronization to avoid races.
 type planGlue struct {
 	planCtx  *planContext
-	oracle   *eval.PlanningOracle
 	targets  addrs.Set[addrs.Targetable]
 	excludes addrs.Set[addrs.Targetable]
 
@@ -56,10 +55,10 @@ func (p *planGlue) isExcluded(addr addrs.Targetable) bool {
 	return p.excludes.HasFunc(func(excluder addrs.Targetable) bool { return excluder.TargetContains(addr) })
 }
 
-func (p *planGlue) PreProcess(ctx context.Context, targeter func(target addrs.Targetable)) {
+func (p *planGlue) PreProcess(ctx context.Context, oracle *eval.PlanningOracle, targeter func(target addrs.Targetable)) tfdiags.Diagnostics {
 	if !p.isTargeting() {
 		// Nop
-		return
+		return nil
 	}
 
 	allStateResources := p.planCtx.prevRoundState.AllResourceInstanceObjectAddrs()
@@ -80,7 +79,7 @@ func (p *planGlue) PreProcess(ctx context.Context, targeter func(target addrs.Ta
 			}
 			if target.TargetContains(entry.Instance) {
 				// Check for applicable move
-				movedToConfigAddr, _ := p.locateConfigForState(ctx, entry.Instance, true)
+				movedToConfigAddr, _ := p.locateConfigForState(ctx, oracle, entry.Instance, true)
 				if movedToConfigAddr != nil {
 					log.Printf("[TRACE] Processing additional target from state %s", *movedToConfigAddr)
 					targeter(*movedToConfigAddr)
@@ -91,6 +90,8 @@ func (p *planGlue) PreProcess(ctx context.Context, targeter func(target addrs.Ta
 	log.Printf("[TRACE] Completed targeting")
 
 	p.allResourcesDeferred = true
+
+	return nil
 }
 
 // PlanDesiredResourceInstance implements eval.PlanGlue.
@@ -98,7 +99,7 @@ func (p *planGlue) PreProcess(ctx context.Context, targeter func(target addrs.Ta
 // This is called each time the evaluation system discovers a new resource
 // instance in the configuration, and there are likely to be multiple calls
 // active concurrently and so this function must take care to avoid races.
-func (p *planGlue) PlanDesiredResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance) (cty.Value, tfdiags.Diagnostics) {
+func (p *planGlue) PlanDesiredResourceInstance(ctx context.Context, oracle *eval.PlanningOracle, inst *eval.DesiredResourceInstance) (cty.Value, tfdiags.Diagnostics) {
 	log.Printf("[TRACE] planContext: planning desired resource instance %s", inst.Addr)
 
 	p.planCtx.desiredMu.Lock()
@@ -112,9 +113,9 @@ func (p *planGlue) PlanDesiredResourceInstance(ctx context.Context, inst *eval.D
 	var diags tfdiags.Diagnostics
 	switch mode := inst.Addr.Resource.Resource.Mode; mode {
 	case addrs.ManagedResourceMode:
-		obj, diags = p.planDesiredManagedResourceInstance(ctx, inst)
+		obj, diags = p.planDesiredManagedResourceInstance(ctx, oracle, inst)
 	case addrs.DataResourceMode:
-		obj, diags = p.planDesiredDataResourceInstance(ctx, inst)
+		obj, diags = p.planDesiredDataResourceInstance(ctx, oracle, inst)
 	case addrs.EphemeralResourceMode:
 		// Ephemerals are not part of the resource graph
 		panic("unreachable")
@@ -131,7 +132,7 @@ func (p *planGlue) PlanDesiredResourceInstance(ctx context.Context, inst *eval.D
 	return rv, diags
 }
 
-func (p *planGlue) PostProcess(ctx context.Context) tfdiags.Diagnostics {
+func (p *planGlue) PostProcess(ctx context.Context, oracle *eval.PlanningOracle) tfdiags.Diagnostics {
 	ctx = grapheval.ContextWithNewWorker(ctx)
 	var diags tfdiags.Diagnostics
 
@@ -156,7 +157,7 @@ func (p *planGlue) PostProcess(ctx context.Context) tfdiags.Diagnostics {
 	for objAddr, objState := range resourceInstancesObjects(p.planCtx.prevRoundState) {
 		if objAddr.IsDeposed() {
 			diags = diags.Append(
-				p.planDeposedResourceInstanceObject(ctx, objAddr, objState),
+				p.planDeposedResourceInstanceObject(ctx, oracle, objAddr, objState),
 			)
 		} else if !p.planCtx.desired.HasFunc(func(desired addrs.AbsResourceInstance) bool {
 			if desired.IsPlaceholder() {
@@ -165,22 +166,22 @@ func (p *planGlue) PostProcess(ctx context.Context) tfdiags.Diagnostics {
 			return desired.Equal(objAddr.InstanceAddr)
 		}) {
 			diags = diags.Append(
-				p.planOrphanResourceInstance(ctx, objAddr.InstanceAddr, objState),
+				p.planOrphanResourceInstance(ctx, oracle, objAddr.InstanceAddr, objState),
 			)
 		}
 	}
 
 	// We also need to check for invalid moves
-	diags = diags.Append(p.validateMoves(ctx))
+	diags = diags.Append(p.validateMoves(ctx, oracle))
 
 	diags = diags.Append(p.validateForceReplace())
 
-	diags = diags.Append(p.planCtx.CheckPreventDestroy(ctx, p.oracle))
+	diags = diags.Append(p.planCtx.CheckPreventDestroy(ctx, oracle))
 
 	return diags
 }
 
-func (p *planGlue) planOrphanResourceInstance(ctx context.Context, addr addrs.AbsResourceInstance, state *states.ResourceInstanceObjectFullSrc) tfdiags.Diagnostics {
+func (p *planGlue) planOrphanResourceInstance(ctx context.Context, oracle *eval.PlanningOracle, addr addrs.AbsResourceInstance, state *states.ResourceInstanceObjectFullSrc) tfdiags.Diagnostics {
 	log.Printf("[TRACE] planContext: planning orphan resource instance %s", addr)
 
 	if p.isTargeting() {
@@ -207,7 +208,7 @@ func (p *planGlue) planOrphanResourceInstance(ctx context.Context, addr addrs.Ab
 	var diags tfdiags.Diagnostics
 	switch mode := addr.Resource.Resource.Mode; mode {
 	case addrs.ManagedResourceMode:
-		obj, diags = p.planOrphanManagedResourceInstance(ctx, addr, state)
+		obj, diags = p.planOrphanManagedResourceInstance(ctx, oracle, addr, state)
 	case addrs.DataResourceMode:
 		obj, diags = p.planOrphanDataResourceInstance(ctx, addr, state)
 	case addrs.EphemeralResourceMode:
@@ -226,7 +227,7 @@ func (p *planGlue) planOrphanResourceInstance(ctx context.Context, addr addrs.Ab
 	return diags
 }
 
-func (p *planGlue) planDeposedResourceInstanceObject(ctx context.Context, addr addrs.AbsResourceInstanceObject, state *states.ResourceInstanceObjectFullSrc) tfdiags.Diagnostics {
+func (p *planGlue) planDeposedResourceInstanceObject(ctx context.Context, oracle *eval.PlanningOracle, addr addrs.AbsResourceInstanceObject, state *states.ResourceInstanceObjectFullSrc) tfdiags.Diagnostics {
 	log.Printf("[TRACE] planContext: planning deposed resource instance object %s", addr)
 	if addr.InstanceAddr.Resource.Resource.Mode != addrs.ManagedResourceMode {
 		// Should not be possible because only managed resource instances
@@ -235,7 +236,7 @@ func (p *planGlue) planDeposedResourceInstanceObject(ctx context.Context, addr a
 		diags = diags.Append(fmt.Errorf("deposed object for non-managed resource instance %s; this is a bug in OpenTofu", addr))
 		return diags
 	}
-	obj, diags := p.planDeposedManagedResourceInstanceObject(ctx, addr, state)
+	obj, diags := p.planDeposedManagedResourceInstanceObject(ctx, oracle, addr, state)
 	p.planCtx.resourceInstObjs.Put(obj)
 	return diags
 }
@@ -250,8 +251,8 @@ func (p *planGlue) planDeposedResourceInstanceObject(ctx context.Context, addr a
 // of this function will probably want to return a more specialized error saying
 // that the corresponding resource cannot be planned because its associated
 // provider has an invalid configuration.
-func (p *planGlue) providerClient(ctx context.Context, addr addrs.AbsProviderInstanceCorrect) (providers.Configured, tfdiags.Diagnostics) {
-	return p.oracle.ProviderInstance(ctx, addr)
+func (p *planGlue) providerClient(ctx context.Context, oracle *eval.PlanningOracle, addr addrs.AbsProviderInstanceCorrect) (providers.Configured, tfdiags.Diagnostics) {
+	return oracle.ProviderInstance(ctx, addr)
 }
 
 func (p *planGlue) desiredResourceInstanceMustBeDeferred(inst *eval.DesiredResourceInstance, meta *exec.ResourceInstanceObjectMeta) bool {

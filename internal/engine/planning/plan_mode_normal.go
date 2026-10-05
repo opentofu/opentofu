@@ -22,7 +22,6 @@ import (
 // the desired state described by the current configuration.
 func normalPlan(ctx context.Context, opts *PlanOpts, prevRoundState *states.State, configInst *eval.ConfigInstance, providers plugins.Providers) (*plans.Plan, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	var closeConfiguredProviders func(ctx context.Context) tfdiags.Diagnostics
 
 	planCtx := newPlanContext(configInst.EvalContext(), prevRoundState, providers, opts)
 
@@ -42,14 +41,10 @@ func normalPlan(ctx context.Context, opts *PlanOpts, prevRoundState *states.Stat
 	// planCtx.resourceInstObjs should accurately represent the relationships
 	// between all of the "current" resource instance objects we found, but
 	// we won't discover any deposed objects until the next step below.
-	evalResult, moreDiags := configInst.DrivePlanning(ctx, func(oracle *eval.PlanningOracle) eval.PlanGlue {
-		closeConfiguredProviders = oracle.Close
-		return &planGlue{
-			planCtx:  planCtx,
-			oracle:   oracle,
-			targets:  addrs.MakeSet(opts.Targets...),
-			excludes: addrs.MakeSet(opts.Excludes...),
-		}
+	evalResult, moreDiags := configInst.DrivePlanning(ctx, &planGlue{
+		planCtx:  planCtx,
+		targets:  addrs.MakeSet(opts.Targets...),
+		excludes: addrs.MakeSet(opts.Excludes...),
 	})
 	diags = diags.Append(moreDiags)
 	if evalResult == nil {
@@ -72,8 +67,6 @@ func normalPlan(ctx context.Context, opts *PlanOpts, prevRoundState *states.Stat
 	intermediate, moreDiags := planCtx.Close(ctx)
 	diags = diags.Append(moreDiags)
 	plan, moreDiags := finalizePlan(ctx, intermediate, providers)
-	diags = diags.Append(moreDiags)
-	moreDiags = closeConfiguredProviders(ctx)
 	diags = diags.Append(moreDiags)
 	if diags.HasErrors() {
 		plan.Errored = true

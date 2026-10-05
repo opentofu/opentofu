@@ -19,7 +19,7 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance) (*resourceInstanceObject, tfdiags.Diagnostics) {
+func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, oracle *eval.PlanningOracle, inst *eval.DesiredResourceInstance) (*resourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	tracer := contextTracer(ctx)
@@ -32,7 +32,7 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 		}()
 	}
 
-	configMeta := p.oracle.ResourceInstanceObjectMeta(ctx, inst.Addr.CurrentObject())
+	configMeta := oracle.ResourceInstanceObjectMeta(ctx, inst.Addr.CurrentObject())
 	if configMeta == nil {
 		// Should not happen: the evaluator is required to always produce
 		// non-nil metadata for a desired object.
@@ -94,7 +94,7 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 	// to an object using the [plans.Read] action, without writing a new
 	// object into the refreshed state yet.
 
-	providerClient, moreDiags := p.providerClient(ctx, providerInstAddr)
+	providerClient, moreDiags := p.providerClient(ctx, oracle, providerInstAddr)
 	if providerClient == nil {
 		moreDiags = moreDiags.Append(tfdiags.AttributeValue(
 			tfdiags.Error,

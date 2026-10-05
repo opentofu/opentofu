@@ -42,7 +42,6 @@ import (
 // each managed resource instance.
 func destroyPlan(ctx context.Context, opts *PlanOpts, prevRoundState *states.State, configInst *eval.ConfigInstance, providers plugins.Providers) (*plans.Plan, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	var closeConfiguredProviders func(ctx context.Context) tfdiags.Diagnostics
 
 	planCtx := newPlanContext(configInst.EvalContext(), prevRoundState, providers, opts)
 
@@ -62,18 +61,14 @@ func destroyPlan(ctx context.Context, opts *PlanOpts, prevRoundState *states.Sta
 	// planCtx.resourceInstObjs should accurately represent the relationships
 	// between all of the "current" resource instance objects we found, but
 	// we won't discover any deposed objects until the next step below.
-	evalResult, moreDiags := configInst.DrivePlanning(ctx, func(oracle *eval.PlanningOracle) eval.PlanGlue {
-		closeConfiguredProviders = oracle.Close
-		return &planGlueDestroy{
-			additionalTargets:  addrs.MakeSet[addrs.Targetable](),
-			additionalExcludes: addrs.MakeSet[addrs.Targetable](),
-			normalGlue: planGlue{
-				planCtx:  planCtx,
-				oracle:   oracle,
-				targets:  addrs.MakeSet(opts.Targets...),
-				excludes: addrs.MakeSet(opts.Excludes...),
-			},
-		}
+	evalResult, moreDiags := configInst.DrivePlanning(ctx, &planGlueDestroy{
+		additionalTargets:  addrs.MakeSet[addrs.Targetable](),
+		additionalExcludes: addrs.MakeSet[addrs.Targetable](),
+		normalGlue: planGlue{
+			planCtx:  planCtx,
+			targets:  addrs.MakeSet(opts.Targets...),
+			excludes: addrs.MakeSet(opts.Excludes...),
+		},
 	})
 	diags = diags.Append(moreDiags)
 
@@ -91,8 +86,6 @@ func destroyPlan(ctx context.Context, opts *PlanOpts, prevRoundState *states.Sta
 	diags = diags.Append(moreDiags)
 	intermediate.Destroying = true
 	plan, moreDiags := finalizePlan(ctx, intermediate, providers)
-	diags = diags.Append(moreDiags)
-	moreDiags = closeConfiguredProviders(ctx)
 	diags = diags.Append(moreDiags)
 	if diags.HasErrors() {
 		plan.Errored = true
@@ -117,12 +110,12 @@ type planGlueDestroy struct {
 
 var _ eval.PlanGlue = (*planGlueDestroy)(nil)
 
-func (p *planGlueDestroy) PreProcess(ctx context.Context, targeter func(target addrs.Targetable)) {
-	p.normalGlue.PreProcess(ctx, targeter)
+func (p *planGlueDestroy) PreProcess(ctx context.Context, oracle *eval.PlanningOracle, targeter func(target addrs.Targetable)) tfdiags.Diagnostics {
+	return p.normalGlue.PreProcess(ctx, oracle, targeter)
 }
 
 // PlanDesiredResourceInstance implements [eval.PlanGlue].
-func (p *planGlueDestroy) PlanDesiredResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance) (cty.Value, tfdiags.Diagnostics) {
+func (p *planGlueDestroy) PlanDesiredResourceInstance(ctx context.Context, oracle *eval.PlanningOracle, inst *eval.DesiredResourceInstance) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	log.Printf("[TRACE] planGlueDestroy.PlanDesiredResourceInstance for %s", inst.Addr)
 
@@ -153,7 +146,7 @@ func (p *planGlueDestroy) PlanDesiredResourceInstance(ctx context.Context, inst 
 	// runtime's handling of this situation and mimic it as closely as we can
 	// for backward-compatibility.
 
-	prevStateInfo, moveDiags := p.normalGlue.locateStateForConfig(ctx, inst.Addr)
+	prevStateInfo, moveDiags := p.normalGlue.locateStateForConfig(ctx, oracle, inst.Addr)
 	diags = diags.Append(moveDiags)
 	if diags.HasErrors() {
 		return cty.DynamicVal, diags
@@ -188,7 +181,7 @@ func (p *planGlueDestroy) PlanDesiredResourceInstance(ctx context.Context, inst 
 	upgradedState := prevState
 	refreshedState := upgradedState
 
-	configMeta := p.normalGlue.oracle.ResourceInstanceObjectMeta(ctx, inst.Addr.CurrentObject())
+	configMeta := oracle.ResourceInstanceObjectMeta(ctx, inst.Addr.CurrentObject())
 	meta := exec.BuildResourceInstanceObjectMeta(inst.Addr.CurrentObject(), configMeta, refreshedState)
 
 	// FIXME: Once we introduce deferral reasons, we could inspect the deferral reason below
@@ -281,7 +274,7 @@ func (p *planGlueDestroy) PlanDesiredResourceInstance(ctx context.Context, inst 
 	return obj.Value, diags
 }
 
-func (p *planGlueDestroy) PostProcess(ctx context.Context) tfdiags.Diagnostics {
+func (p *planGlueDestroy) PostProcess(ctx context.Context, oracle *eval.PlanningOracle) tfdiags.Diagnostics {
 	p.targetingMu.Lock()
 	defer p.targetingMu.Unlock()
 
@@ -338,7 +331,7 @@ func (p *planGlueDestroy) PostProcess(ctx context.Context) tfdiags.Diagnostics {
 	recordedMoves := p.normalGlue.planCtx.recordedMoves
 	p.normalGlue.planCtx.recordedMoves = addrs.MakeMap[addrs.AbsResourceInstance, addrs.AbsResourceInstance]()
 
-	diags := p.normalGlue.PostProcess(ctx)
+	diags := p.normalGlue.PostProcess(ctx, oracle)
 
 	// Reset recordedMoves for validation purposes and include additionally discovered moves
 	p.normalGlue.planCtx.recordedMoves = recordedMoves.Union(p.normalGlue.planCtx.recordedMoves)

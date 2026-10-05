@@ -25,10 +25,11 @@ import (
 
 func (p *planGlue) planDesiredManagedResourceInstance(
 	ctx context.Context,
+	oracle *eval.PlanningOracle,
 	inst *eval.DesiredResourceInstance,
 ) (ret *resourceInstanceObject, diags tfdiags.Diagnostics) {
 
-	configMeta := p.oracle.ResourceInstanceObjectMeta(ctx, inst.Addr.CurrentObject())
+	configMeta := oracle.ResourceInstanceObjectMeta(ctx, inst.Addr.CurrentObject())
 	if configMeta == nil {
 		// Should not happen: the evaluator is required to always produce
 		// non-nil metadata for a desired object.
@@ -140,7 +141,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		return ret, diags
 	}
 
-	providerClient, moreDiags := p.providerClient(ctx, providerInst)
+	providerClient, moreDiags := p.providerClient(ctx, oracle, providerInst)
 	if providerClient == nil {
 		moreDiags = moreDiags.Append(tfdiags.AttributeValue(
 			tfdiags.Error,
@@ -190,7 +191,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 	var prevRoundVal cty.Value
 	var prevRoundPrivate []byte
 
-	prevStateInfo, moveDiags := p.locateStateForConfig(ctx, inst.Addr)
+	prevStateInfo, moveDiags := p.locateStateForConfig(ctx, oracle, inst.Addr)
 	diags = diags.Append(moveDiags)
 	if diags.HasErrors() {
 		return ret, diags
@@ -607,22 +608,25 @@ func checkAndMarshalUpdatedState(newState cty.Value, schema providers.Schema, in
 
 func (p *planGlue) planOrphanManagedResourceInstance(
 	ctx context.Context,
+	oracle *eval.PlanningOracle,
 	addr addrs.AbsResourceInstance,
 	stateSrc *states.ResourceInstanceObjectFullSrc,
 ) (*resourceInstanceObject, tfdiags.Diagnostics) {
-	return p.planUnwantedManagedResourceInstanceObject(ctx, addr.CurrentObject(), stateSrc)
+	return p.planUnwantedManagedResourceInstanceObject(ctx, oracle, addr.CurrentObject(), stateSrc)
 }
 
 func (p *planGlue) planDeposedManagedResourceInstanceObject(
 	ctx context.Context,
+	oracle *eval.PlanningOracle,
 	addr addrs.AbsResourceInstanceObject,
 	stateSrc *states.ResourceInstanceObjectFullSrc,
 ) (*resourceInstanceObject, tfdiags.Diagnostics) {
-	return p.planUnwantedManagedResourceInstanceObject(ctx, addr, stateSrc)
+	return p.planUnwantedManagedResourceInstanceObject(ctx, oracle, addr, stateSrc)
 }
 
 func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 	ctx context.Context,
+	oracle *eval.PlanningOracle,
 	addr addrs.AbsResourceInstanceObject,
 	stateSrc *states.ResourceInstanceObjectFullSrc,
 ) (*resourceInstanceObject, tfdiags.Diagnostics) {
@@ -634,7 +638,7 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 	// how to factor out as much of this logic as possible into shared functions
 	// so that this'll be easier to maintain in future as requirements change.
 
-	configMeta := p.oracle.ResourceInstanceObjectMeta(ctx, addr)
+	configMeta := oracle.ResourceInstanceObjectMeta(ctx, addr)
 	meta := exec.BuildResourceInstanceObjectMeta(addr, configMeta, stateSrc)
 
 	ret := &resourceInstanceObject{
@@ -665,7 +669,7 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 			return ret, diags
 		}
 	} else {
-		movedToAddr, movedDiags := p.locateConfigForState(ctx, currentRunAddr, addr.IsCurrent())
+		movedToAddr, movedDiags := p.locateConfigForState(ctx, oracle, currentRunAddr, addr.IsCurrent())
 		diags = diags.Append(movedDiags)
 		if diags.HasErrors() {
 			return ret, diags
@@ -680,7 +684,7 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 
 		// Discover true configMeta based on state moves
 		movedObj := movedToAddress.Object(addr.DeposedKey)
-		configMeta = p.oracle.ResourceInstanceObjectMeta(ctx, movedObj)
+		configMeta = oracle.ResourceInstanceObjectMeta(ctx, movedObj)
 		meta = exec.BuildResourceInstanceObjectMeta(movedObj, configMeta, stateSrc)
 
 		// Update fields that rely on meta
@@ -716,7 +720,7 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 		// resource instance is "unwanted".
 		panic(fmt.Sprintf("unknown provider instance address for %s", providerInstAddr))
 	}
-	providerClient, moreDiags := p.providerClient(ctx, meta.ProviderInstance.KnownValue())
+	providerClient, moreDiags := p.providerClient(ctx, oracle, meta.ProviderInstance.KnownValue())
 	if providerClient == nil {
 		moreDiags = moreDiags.Append(tfdiags.AttributeValue(
 			tfdiags.Error,

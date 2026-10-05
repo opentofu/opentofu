@@ -28,7 +28,7 @@ import (
 // each other, and so implementations must use suitable synchronization to
 // avoid data races between calls.
 type PlanGlue interface {
-	PreProcess(ctx context.Context, targeter func(target addrs.Targetable))
+	PreProcess(ctx context.Context, oracle *PlanningOracle, targeter func(target addrs.Targetable)) tfdiags.Diagnostics
 
 	// Creates planned action(s) for the given resource instance and return
 	// the planned new state that would result from those actions.
@@ -38,9 +38,9 @@ type PlanGlue interface {
 	// for "orphaned" resource instances (those which are only present in
 	// prior state) separately as each of the "Plan*Orphans" methods are
 	// called to report what exists in the desired state.
-	PlanDesiredResourceInstance(ctx context.Context, inst *DesiredResourceInstance) (cty.Value, tfdiags.Diagnostics)
+	PlanDesiredResourceInstance(ctx context.Context, oracle *PlanningOracle, inst *DesiredResourceInstance) (cty.Value, tfdiags.Diagnostics)
 
-	PostProcess(ctx context.Context) tfdiags.Diagnostics
+	PostProcess(ctx context.Context, oracle *PlanningOracle) tfdiags.Diagnostics
 }
 
 // DrivePlanning uses this configuration instance to drive forward a planning
@@ -59,9 +59,7 @@ type PlanGlue interface {
 // tracked in the prior state and then presumably generate additional planned
 // actions to destroy any instances that are currently tracked but no longer
 // configured.
-func (c *ConfigInstance) DrivePlanning(ctx context.Context,
-	buildGlue func(*PlanningOracle) PlanGlue,
-) (*PlanningResult, tfdiags.Diagnostics) {
+func (c *ConfigInstance) DrivePlanning(ctx context.Context, glue PlanGlue) (*PlanningResult, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// All of our work will be associated with a workgraph worker that serves
@@ -73,16 +71,17 @@ func (c *ConfigInstance) DrivePlanning(ctx context.Context,
 	// so we initially pass an intentionally-invalid oracle to the build
 	// function and then make sure it's valid before we make any use
 	// of the PlanGlue object it returns.
+	// TODO better handling of oracle close
 	oracle := &PlanningOracle{}
-	glue := buildGlue(oracle)
 
 	evalGlue := &planningEvalGlue{
+		oracle:         oracle,
 		planEngineGlue: glue,
 	}
 	rootModuleInstance, moreDiags := c.newRootModuleInstance(ctx, evalGlue)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
-		return nil, diags
+		return nil, diags.Append(oracle.Close(ctx))
 	}
 
 	managedProviders := newManagedProviders(c.evalContext.Providers, func(ctx context.Context, addr addrs.AbsProviderInstanceCorrect) (cty.Value, tfdiags.Diagnostics) {
@@ -126,7 +125,7 @@ func (c *ConfigInstance) DrivePlanning(ctx context.Context,
 	// Tell the glue that we are almost ready to walk the full configuration
 	// and give it a chance to handle target/exclude logic pre-emptively.
 	// We need to give it a way to pre-eval targeted resources before the main walk.
-	glue.PreProcess(ctx, func(target addrs.Targetable) {
+	glue.PreProcess(ctx, oracle, func(target addrs.Targetable) {
 		ctx := grapheval.ContextWithNewWorker(ctx)
 		ctx = grapheval.ContextWithRequestTracker(ctx, workgraphRequestTracker{rootModuleInstance})
 
@@ -178,7 +177,7 @@ func (c *ConfigInstance) DrivePlanning(ctx context.Context,
 
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
-		return nil, diags
+		return nil, diags.Append(oracle.Close(ctx))
 	}
 
 	// The plan phase is driven forward by us evaluating expressions during
@@ -191,7 +190,7 @@ func (c *ConfigInstance) DrivePlanning(ctx context.Context,
 
 	// Now that we have visited the entire configuration, we can tell the oracle
 	// to PostProcess.  TODO more words here
-	postDiags := glue.PostProcess(ctx)
+	postDiags := glue.PostProcess(ctx, oracle)
 	diags = diags.Append(postDiags)
 
 	// (We intentionally don't return here because we'll make a best effort
@@ -205,7 +204,7 @@ func (c *ConfigInstance) DrivePlanning(ctx context.Context,
 
 	return &PlanningResult{
 		RootModuleOutputs: CollectRootModuleOutputs(ctx, rootModuleInstance),
-	}, diags
+	}, diags.Append(oracle.Close(ctx))
 }
 
 // PlanningResult is the return value of [ConfigInstance.DrivePlanning],
@@ -224,6 +223,7 @@ type planningEvalGlue struct {
 	// planEngineGlue is the planning glue implementation provided by the
 	// planning engine when it called [ConfigInstance.DrivePlanning].
 	planEngineGlue PlanGlue
+	oracle         *PlanningOracle
 	providers      *managedProviders
 }
 
@@ -260,7 +260,7 @@ func (p *planningEvalGlue) ResourceInstanceValue(ctx context.Context, ri *config
 		)
 	}
 
-	ret, moreDiags := p.planEngineGlue.PlanDesiredResourceInstance(ctx, desired)
+	ret, moreDiags := p.planEngineGlue.PlanDesiredResourceInstance(ctx, p.oracle, desired)
 	diags = diags.Append(moreDiags)
 	return ret, diags
 }

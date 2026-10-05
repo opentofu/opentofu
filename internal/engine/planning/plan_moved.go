@@ -18,6 +18,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -61,7 +62,7 @@ func (m *moveStep) isImplicit() bool {
 // If configToState == false, iteration direction is reversed to allow for reverse lookups from state -> config
 // There are a bunch of different algostructures and datarythms that would make sense here, this one made the most sense
 // to me during initial implementation and seems to be reasonably performant
-func (p *planGlue) locateMovesFor(ctx context.Context, addr addrs.AbsResourceInstance, configToState bool, implicit func(addr addrs.AbsResourceInstance) *refactoring.MoveStatement) ([]*moveStep, tfdiags.Diagnostics) {
+func (p *planGlue) locateMovesFor(ctx context.Context, oracle *eval.PlanningOracle, addr addrs.AbsResourceInstance, configToState bool, implicit func(addr addrs.AbsResourceInstance) *refactoring.MoveStatement) ([]*moveStep, tfdiags.Diagnostics) {
 	// Build simple lookup for move statements that have spidering traversals
 	// TODO this cache could live in planContext
 	moveStatementsCache := map[string][]refactoring.MoveStatement{}
@@ -71,7 +72,7 @@ func (p *planGlue) locateMovesFor(ctx context.Context, addr addrs.AbsResourceIns
 		statements, ok := moveStatementsCache[key]
 		if !ok {
 			// TODO replace with with resource config meta (tricky with orphans)
-			statements = p.oracle.MoveStatementsFor(ctx, mod)
+			statements = oracle.MoveStatementsFor(ctx, mod)
 			moveStatementsCache[key] = statements
 		}
 		iMove := implicit(addr)
@@ -190,7 +191,7 @@ type moveWithState struct {
 
 // locateStateForConfig takes a desired resource instance address and locates it's previous location in state
 // This function has the side effect of populating planContext's discovered moves for later validation.
-func (p *planGlue) locateStateForConfig(ctx context.Context, addr addrs.AbsResourceInstance) (moveWithState, tfdiags.Diagnostics) {
+func (p *planGlue) locateStateForConfig(ctx context.Context, oracle *eval.PlanningOracle, addr addrs.AbsResourceInstance) (moveWithState, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	log.Printf("[TRACE] LocateStateForConfig %s", addr)
@@ -198,14 +199,14 @@ func (p *planGlue) locateStateForConfig(ctx context.Context, addr addrs.AbsResou
 	// Start a nop and no state
 	ret := moveWithState{moveStep: &moveStep{from: addr}}
 
-	potentialMoves, moveDiags := p.locateMovesFor(ctx, addr, true, func(addr addrs.AbsResourceInstance) *refactoring.MoveStatement {
+	potentialMoves, moveDiags := p.locateMovesFor(ctx, oracle, addr, true, func(addr addrs.AbsResourceInstance) *refactoring.MoveStatement {
 		implicitAddr := p.planCtx.detectImplicitStateMoveForAddress(addr)
 		if implicitAddr == nil {
 			return nil
 		}
 		log.Printf("[TRACE] ImplicitMove with state %s -> %s", *implicitAddr, addr)
 		var approxSrcRange tfdiags.SourceRange
-		meta := p.oracle.ResourceInstanceObjectMeta(ctx, implicitAddr.CurrentObject())
+		meta := oracle.ResourceInstanceObjectMeta(ctx, implicitAddr.CurrentObject())
 		if meta != nil {
 			approxSrcRange = meta.DeclRange
 		}
@@ -270,7 +271,7 @@ func (p *planGlue) locateExecutedMove(addr addrs.AbsResourceInstance) *addrs.Abs
 
 // locateConfigForState returns the address that a state resource instance may have been moved to.
 // This is primarily used for locating config meta for orphaned and deposed state entries.
-func (p *planGlue) locateConfigForState(ctx context.Context, addr addrs.AbsResourceInstance, isCurrent bool) (*addrs.AbsResourceInstance, tfdiags.Diagnostics) {
+func (p *planGlue) locateConfigForState(ctx context.Context, oracle *eval.PlanningOracle, addr addrs.AbsResourceInstance, isCurrent bool) (*addrs.AbsResourceInstance, tfdiags.Diagnostics) {
 
 	log.Printf("[TRACE] LocateConfigForState %s", addr)
 
@@ -282,14 +283,14 @@ func (p *planGlue) locateConfigForState(ctx context.Context, addr addrs.AbsResou
 		return nil, nil
 	}
 
-	potentialMoves, diags := p.locateMovesFor(ctx, addr, false, func(addr addrs.AbsResourceInstance) *refactoring.MoveStatement {
-		implicitAddr := p.oracle.DetectImplicitMoveForAddress(ctx, addr)
+	potentialMoves, diags := p.locateMovesFor(ctx, oracle, addr, false, func(addr addrs.AbsResourceInstance) *refactoring.MoveStatement {
+		implicitAddr := oracle.DetectImplicitMoveForAddress(ctx, addr)
 		if implicitAddr == nil {
 			return nil
 		}
 		log.Printf("[TRACE] ImplicitMove %s -> %s", *implicitAddr, addr)
 		var approxSrcRange tfdiags.SourceRange
-		meta := p.oracle.ResourceInstanceObjectMeta(ctx, implicitAddr.CurrentObject())
+		meta := oracle.ResourceInstanceObjectMeta(ctx, implicitAddr.CurrentObject())
 		if meta != nil {
 			approxSrcRange = meta.DeclRange
 		}
@@ -334,7 +335,7 @@ func (p *planGlue) locateConfigForState(ctx context.Context, addr addrs.AbsResou
 
 // validateMoves inspects all potential moves discovered during the planning process
 // and reports and potential issues discovered.
-func (p *planGlue) validateMoves(ctx context.Context) tfdiags.Diagnostics {
+func (p *planGlue) validateMoves(ctx context.Context, oracle *eval.PlanningOracle) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	p.planCtx.moveMu.Lock()
@@ -373,7 +374,7 @@ func (p *planGlue) validateMoves(ctx context.Context) tfdiags.Diagnostics {
 				shortNoun := absFrom.ShortNoun()
 
 				declaredAt := ""
-				meta := p.oracle.ResourceInstanceObjectMeta(ctx, nopMove.from.CurrentObject())
+				meta := oracle.ResourceInstanceObjectMeta(ctx, nopMove.from.CurrentObject())
 				if meta != nil {
 					// NOTE: It'd be pretty weird to _not_ have a range, since
 					// we're only in this codepath because the plan phase
