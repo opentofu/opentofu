@@ -39,7 +39,6 @@ func (b *execGraphBuilder) dataResourceInstanceSubgraphRead(
 ) resourceInstanceObjectSubgraph {
 	waitFor, addReadDep := b.lower.MutableWaiter()
 
-	// TODO replace with "dataResourceInstanceChangeInputs"... perchance
 	metadataRef, desiredRef, _, _ := b.managedResourceInstanceChangeInputs(plannedChange)
 
 	return resourceInstanceObjectSubgraph{
@@ -57,7 +56,6 @@ func (b *execGraphBuilder) dataResourceInstanceSubgraphNoOp(
 ) resourceInstanceObjectSubgraph {
 	_, addCreateDep := b.lower.MutableWaiter()
 
-	// TODO replace with "dataResourceInstanceChangeInputs"... perchance
 	_, _, priorStateRef, _ := b.managedResourceInstanceChangeInputs(plannedChange)
 	return resourceInstanceObjectSubgraph{
 		valueRef:      priorStateRef,

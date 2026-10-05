@@ -27,24 +27,28 @@ func (ops *execOperations) DataRead(
 	desired *eval.DesiredResourceInstance,
 ) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
+
+	ret := &exec.ResourceInstanceObject{
+		Addr: desired.Addr.CurrentObject(),
+	}
 	log.Printf("[TRACE] apply phase: DataRead %s using %s", desired.Addr, metadata.ProviderInstance)
-	/*
-		// TODO consider adding tracer
-		tracer := contextTracer(ctx)
-		if cb := tracer.StartDataResourceInstancePlanning; cb != nil {
-			ctx = cb(ctx, inst.Addr)
-		}
-		if cb := tracer.EndDataResourceInstancePlanning; cb != nil {
-			defer func() { // closure to delay evaluating diags until we return
-				cb(ctx, inst.Addr, diags)
-			}()
-		}
-	*/
+	tracer := contextTracer(ctx)
+	if cb := tracer.StartDataResourceInstanceRead; cb != nil {
+		ctx = cb(ctx, desired.Addr)
+	}
+	if cb := tracer.EndDataResourceInstanceRead; cb != nil {
+		defer func() { // closure to delay evaluating diags until we return
+			resultVal := cty.DynamicVal
+			if ret.State != nil {
+				resultVal = ret.State.Value
+			}
+			cb(ctx, desired.Addr, resultVal, diags)
+		}()
+	}
 
 	providerAddr, ok := metadata.ProviderInstance.ValueOk()
 	if !ok {
-		// TODO fast fail, but need to return non-nil
-		return nil, diags
+		return ret, diags
 	}
 	providerClient, moreDiags := ops.configOracle.ProviderInstance(ctx, providerAddr)
 	if providerClient == nil {
@@ -57,17 +61,19 @@ func (ops *execOperations) DataRead(
 	}
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
-		return nil, diags
+		return ret, diags
 	}
 
 	resourceType := resources.NewDataResourceType(metadata.Provider, metadata.ResourceType, providerClient)
 	schema, schemaDiags := resourceType.LoadSchema(ctx)
+	diags = diags.Append(schemaDiags)
 	if schemaDiags.HasErrors() {
-		// TODO handle schema errors
+		return ret, diags
 	}
 
-	// TODO do we actually need to run config validation at this point???
-	// validateDiags := resourceType.ValidateConfig(ctx, inst.ConfigVal)
+	// Note: we do not need to run config validation at this point;
+	// the configuration was validated in the plan phase, which produced
+	// the opcode to trigger this operation.
 
 	// TODO run PreApply hook here
 
@@ -77,23 +83,18 @@ func (ops *execOperations) DataRead(
 	resp, readDiags := resourceType.Read(ctx, &resources.DataResourceReadRequest{
 		ResourceAddress: desired.Addr,
 		ConfigValue:     desired.ConfigVal,
-
-		// TODO: ProviderMeta is a rarely-used feature that only really makes
-		// sense when the module and provider are both written by the same
-		// party and the module author is using the provider as a way to
-		// transport module usage telemetry. We should decide whether we want
-		// to keep supporting that, and if so design a way for the relevant
-		// meta value to get from the evaluator into here.
-		ProviderMetaValue: cty.NullVal(cty.DynamicPseudoType),
 	}, desired.Addr.CurrentObject(), encryption)
 
 	diags = diags.Append(readDiags)
 
 	// TODO run PostApply hook here
 
-	// TODO do stuff with resp and turn it into state, then we return that
 	if resp.Result == cty.NilVal {
-		// TODO handle provider giving us a hard time
+		// TODO handle provider giving us a hard time;
+		// From the OG runtime:
+		// This can happen with incompletely-configured mocks. We'll allow it
+		// and treat it as an alias for a properly-typed null value.
+		// resp.Result = cty.NullVal(schema.Block.ImpliedType())
 	}
 
 	var state *states.ResourceInstanceObjectFull
@@ -109,22 +110,23 @@ func (ops *execOperations) DataRead(
 			ProviderInstanceAddr: providerAddr,
 			ResourceType:         metadata.ResourceType,
 
-			// TODO what should we get for the schema version????
-			SchemaVersion: uint64(0),
+			SchemaVersion: uint64(schema.IdentitySchemaVersion),
 			// TODO Should we get the plan here, so we can get dependencies?
 			// Dependencies: desired.,
 		}
 
-		// TODO handle err
-		stateSrc, _ := states.EncodeResourceInstanceObjectFull(state, schema.Block.ImpliedType())
+		stateSrc, err := states.EncodeResourceInstanceObjectFull(state, schema.Block.ImpliedType())
+		if err != nil {
+			// TODO maybe a more elegant error handling
+			// like, with tfdiags.FormatError(err)
+			diags = diags.Append(err)
+			return ret, diags
+		}
 		ops.workingState.SetResourceInstanceObjectFull(desired.Addr.CurrentObject(), stateSrc)
 
 	}
 
-	ret := &exec.ResourceInstanceObject{
-		Addr:  desired.Addr.CurrentObject(),
-		State: state, // nil if the object was deleted
-	}
+	ret.State = state // nil if the object was deleted
 
 	return ret, diags
 }

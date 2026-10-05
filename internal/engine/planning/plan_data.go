@@ -10,6 +10,7 @@ import (
 	"fmt"
 
 	"github.com/zclconf/go-cty/cty"
+	ctyjson "github.com/zclconf/go-cty/cty/json"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/internal/exec"
@@ -166,42 +167,53 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 	resp, readDiags := resourceType.Read(ctx, &resources.DataResourceReadRequest{
 		ResourceAddress: inst.Addr,
 		ConfigValue:     inst.ConfigVal,
-
-		// TODO: ProviderMeta is a rarely-used feature that only really makes
-		// sense when the module and provider are both written by the same
-		// party and the module author is using the provider as a way to
-		// transport module usage telemetry. We should decide whether we want
-		// to keep supporting that, and if so design a way for the relevant
-		// meta value to get from the evaluator into here.
-		ProviderMetaValue: cty.NullVal(cty.DynamicPseudoType),
 	}, inst.Addr.CurrentObject(), p.planCtx.evalCtx.Encryption)
-
 	diags = diags.Append(readDiags)
+
+	if cb := tracer.EndDataResourceInstanceRead; cb != nil {
+		resultVal := cty.DynamicVal
+		if resp.Result != cty.NilVal {
+			// Note: resourceType.Read applies "sensitive" marks to Result
+			resultVal = resp.Result
+		}
+		cb(readCtx, inst.Addr, resultVal, diags)
+	}
 
 	// TODO run PostApply hook here
 
-	// TODO: is there an equivalent of "workingState" we also need to update?
-	// TODO actually run this write, but with resp.Result as a "ResourceInstanceObjectFullSrc"
-
-	plannedNewState := &states.ResourceInstanceObject{
-		Value:  resp.Result,
-		Status: states.ObjectReady,
-	}
-	// TODO get the schema version properly
-	src, err := plannedNewState.Encode(resp.Result.Type(), 0, 0)
-	if err != nil {
-		diags = diags.Append(fmt.Errorf("failed to encode %s in state: %w", inst.Addr, err))
+	// obtain schema for encoding
+	schema, schemaDiags := resourceType.LoadSchema(ctx)
+	diags = diags.Append(schemaDiags)
+	if schemaDiags.HasErrors() {
 		return ret, diags
 	}
 
-	p.planCtx.refreshedState.SetResourceInstanceCurrent(
-		inst.Addr,
-		src,
-		// TODO: is this the right way to get ProviderConfig?
-		// I also do something similar below in planDelayedDataResourceInstance
-		providerInstAddr.Config.Module.ProviderConfigDefault(meta.Provider),
-		providerInstAddr.Key,
-	)
+	src, err := ctyjson.Marshal(resp.Result, schema.Block.ImpliedType())
+	if err != nil {
+		// We just checked for type conformance in the Read, so getting into this
+		// codepath is probably a bug.
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Failed to encode result of data resource read",
+			fmt.Sprintf("Failed to encode state for %s after data resource read: %s.", inst.Addr, tfdiags.FormatError(err)),
+		))
+	}
+
+	dataResourceState := &states.ResourceInstanceObjectFullSrc{
+		Value: states.ValueJSONWithMetadata{
+			ValueJSON:      src,
+			SensitivePaths: resp.SensitivePaths,
+		},
+		Status:               resp.Status,
+		ProviderInstanceAddr: providerInstAddr,
+		ResourceType:         configMeta.ResourceType,
+		SchemaVersion:        uint64(schema.Version),
+		// TODO derive this from inst.ConfigVal.... somehow...
+		// Dependencies:         resp.Dependencies,
+	}
+
+	p.planCtx.refreshedState.SetResourceInstanceObjectFull(inst.Addr.CurrentObject(), dataResourceState)
+	p.planCtx.upgradedState.SetResourceInstanceObjectFull(inst.Addr.CurrentObject(), dataResourceState)
 
 	// Since we've already read the data source during the planning phase,
 	// we don't need a PlannedChange here and can instead just use the result
@@ -224,8 +236,6 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 // caller is expected to then just return that result verbatim.
 func (p *planGlue) planDelayedDataResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance, providerAddr addrs.AbsProviderInstanceCorrect, providerClient providers.Interface, reason plans.ResourceInstanceChangeActionReason, ret *resourceInstanceObject) (*resourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-
-	// node_resource_abstract_instance.go:L2253
 
 	// TODO: Check if we're doing refresh-only, and skip accordingly
 

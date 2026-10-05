@@ -14,7 +14,10 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+
+	"github.com/opentofu/opentofu/internal/lang/marks"
 )
 
 type ProviderWithEncryption interface {
@@ -49,22 +52,12 @@ func (rt *DataResourceType) Read(ctx context.Context, req *DataResourceReadReque
 		return nil, diags
 	}
 
-	var providerMetaVal cty.Value
-	if req.ProviderMetaValue != cty.NilVal {
-		providerMetaVal = req.ProviderMetaValue
-	} else {
-		// Leaving the ProviderMeta field unpopulated in the provider
-		// request makes some provider clients crash, so we'll substitute an
-		// untyped null just to avoid that.
-		providerMetaVal = cty.NullVal(cty.DynamicPseudoType)
-	}
-
 	configVal, pvm := req.ConfigValue.UnmarkDeepWithPaths()
 
 	providerReq := providers.ReadDataSourceRequest{
 		TypeName:     rt.typeName,
 		Config:       configVal,
-		ProviderMeta: providerMetaVal,
+		ProviderMeta: cty.NullVal(cty.DynamicPseudoType),
 	}
 
 	var providerResp providers.ReadDataSourceResponse
@@ -138,12 +131,21 @@ func (rt *DataResourceType) Read(ctx context.Context, req *DataResourceReadReque
 		newVal = newVal.MarkWithPaths(pvm)
 	}
 
-	// TODO this data resource response doesn't look right, only Result is actually set??? Where do the other values come from?
 	out = &DataResourceReadResponse{
-		ConfigValue:             cty.Value{},
-		Result:                  newVal,
-		DelayedUntilApply:       false,
-		RequiredUpstreamChanges: addrs.Set[addrs.AbsResourceInstance]{},
+		Result: newVal,
+
+		Status: states.ObjectReady,
+	}
+
+	// TODO is this sensible?
+	out.SensitivePaths = make([]cty.Path, 0, len(pvm))
+	for _, p := range pvm {
+		for mark := range p.Marks {
+			if mark != marks.Sensitive {
+				continue
+			}
+			out.SensitivePaths = append(out.SensitivePaths, p.Path)
+		}
 	}
 
 	return out, diags
@@ -158,20 +160,6 @@ type DataResourceReadRequest struct {
 	// resource instance, which is typically the result of evaluating the
 	// arguments in a block in the configuration.
 	ConfigValue cty.Value
-
-	// ProviderMetaValue is an optional value declared in the same module
-	// where the associated resource was declared, which should be sent
-	// to the provider as part of any planning request.
-	//
-	// This is a rarely-used feature that only really makes sense when a
-	// module is written by the same entity that owns a provider it uses,
-	// in which case the module author might want to use the provider as
-	// a covert channel for collecting usage statistics about the module.
-	//
-	// When no metadata was provided for this provider in the current module,
-	// this should be set to the zero value of [cty.Value], which is
-	// [cty.NilVal].
-	ProviderMetaValue cty.Value
 }
 
 // DataResourceReadResponse is the response type for [DataResourceType.Read].
@@ -180,32 +168,13 @@ type DataResourceReadResponse struct {
 	// in here, once we've updated our provider clients to support that,
 	// and then update callers to handle responses with that set.
 
-	// ConfigValue echoes back the value  given in the corresponding request
-	// field, possibly with some normalization such as transforming an absent
-	// value into null.
-	ConfigValue cty.Value
-
 	// Result represents the value returned by the provider, or a placeholder
 	// result if DelayUntilApply is set.
 	Result cty.Value
 
-	// DelayedUntilApply is true if some other changes must be applied before
-	// the requested resource instance can be read.
-	//
-	// When this is true, Result contains a placeholder value which has unknown
-	// values in place of the results that the provider will populate once
-	// the request is actually made.
-	DelayedUntilApply bool
+	// SensitivePaths is an array of paths to mark as sensitive when decoding.
+	SensitivePaths []cty.Path
 
-	// RequiredUpstreamChanges may be set when DelayedUntilApply is true, in
-	// which case it describes a set of specific resource instance addresses
-	// whose changes must be applied before we can make a real call to read this
-	// data.
-	//
-	// Note that this can be empty even when DelayedUntilApply is set, because
-	// not all "delays" are caused by resource instance changes. For example,
-	// if the configuration includes a call to an impure function like
-	// "timestamp" then the read would _always_ be delayed until the apply
-	// phase, since that's when the timestamp would be decided.
-	RequiredUpstreamChanges addrs.Set[addrs.AbsResourceInstance]
+	// Status represents the "readiness" of the object as of the last time it was updated.
+	Status states.ObjectStatus
 }
