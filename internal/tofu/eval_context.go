@@ -14,7 +14,6 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
-	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/plans"
@@ -174,7 +173,4 @@ type EvalContext interface {
 	// WithPath returns a copy of the context with the internal path set to the
 	// path argument.
 	WithPath(path addrs.ModuleInstance) EvalContext
-
-	// Returns the currently configured encryption setup
-	GetEncryption() encryption.Encryption
 }
