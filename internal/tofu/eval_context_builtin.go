@@ -18,7 +18,6 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
-	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/plans"
@@ -75,7 +74,6 @@ type BuiltinEvalContext struct {
 	InstanceExpanderValue   *instances.Expander
 	MoveResultsValue        refactoring.MoveResults
 	ImportResolverValue     *ImportResolver
-	Encryption              encryption.Encryption
 	ProviderFunctionTracker ProviderFunctionMapping
 }
 
@@ -452,8 +450,4 @@ func (c *BuiltinEvalContext) MoveResults() refactoring.MoveResults {
 
 func (c *BuiltinEvalContext) ImportResolver() *ImportResolver {
 	return c.ImportResolverValue
-}
-
-func (c *BuiltinEvalContext) GetEncryption() encryption.Encryption {
-	return c.Encryption
 }
