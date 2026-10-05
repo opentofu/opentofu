@@ -231,15 +231,9 @@ func (ri *ResourceInstance) ReplaceOrder(ctx context.Context) (exprs.FromValue[r
 func (ri *ResourceInstance) Value(ctx context.Context) (v cty.Value, diags tfdiags.Diagnostics) {
 	return ri.valueOnce.Do(ctx, func(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
 		configVal, diags := ri.ConfigValue(ctx)
-		if diags.HasErrors() {
-			return exprs.AsEvalError(cty.DynamicVal), diags
-		}
 
 		providerInst, moreDiags := ri.ProviderInstance(ctx)
 		diags = diags.Append(moreDiags)
-		if moreDiags.HasErrors() {
-			return exprs.AsEvalError(cty.DynamicVal), diags
-		}
 
 		riDeps := addrs.MakeSet[addrs.AbsResourceInstance]()
 		for depInst := range ContributingResourceInstances(configVal) {
@@ -248,12 +242,17 @@ func (ri *ResourceInstance) Value(ctx context.Context) (v cty.Value, diags tfdia
 			}
 		}
 
+		if diags.HasErrors() {
+			configVal = exprs.AsEvalError(cty.DynamicVal)
+		}
+
 		// We also need help from our caller to prepare the final value to
 		// return here, because it should reflect the outcome of whatever
 		// resource-instance-related side effects we're doing this evaluation in
 		// support of. Refer to the documentation of the ResultValue method
 		// for details on what we're expecting this to do.
-		resultVal, diags := ri.Glue.ResultValue(ctx, configVal, providerInst, riDeps)
+		resultVal, moreDiags := ri.Glue.ResultValue(ctx, configVal, providerInst, riDeps)
+		diags = diags.Append(moreDiags)
 
 		// We must pass the marks from the provider instance selection into the
 		// result because the values that were returned may vary depending on
