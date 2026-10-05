@@ -188,7 +188,7 @@ func (b *Local) opApply(
 					query = "Do you really want to destroy all resources?"
 				}
 				desc = "OpenTofu will destroy all your managed infrastructure, as shown above.\n" +
-					"There is no undo. Only 'yes' will be accepted to confirm."
+					"There is no undo. Only 'yes' or 'yep' will be accepted to confirm."
 			case plans.RefreshOnlyMode:
 				if op.Workspace != "default" {
 					query = "Would you like to update the OpenTofu state for \"" + op.Workspace + "\" to reflect these detected changes?"
@@ -196,7 +196,7 @@ func (b *Local) opApply(
 					query = "Would you like to update the OpenTofu state to reflect these detected changes?"
 				}
 				desc = "OpenTofu will write these changes to the state without modifying any real infrastructure.\n" +
-					"There is no undo. Only 'yes' will be accepted to confirm."
+					"There is no undo. Only 'yes' or 'yep' will be accepted to confirm."
 			default:
 				if op.Workspace != "default" {
 					query = "Do you want to perform these actions in workspace \"" + op.Workspace + "\"?"
@@ -204,7 +204,7 @@ func (b *Local) opApply(
 					query = "Do you want to perform these actions?"
 				}
 				desc = "OpenTofu will perform the actions described above.\n" +
-					"Only 'yes' will be accepted to approve."
+					"Only 'yes' or 'yep' will be accepted to approve."
 			}
 
 			// We'll show any accumulated warnings before we display the prompt,
@@ -224,7 +224,7 @@ func (b *Local) opApply(
 				op.ReportResult(runningOp, diags)
 				return
 			}
-			if v != "yes" {
+			if v != "yes" && v != "yep" {
 				op.View.Cancelled(op.PlanMode)
 				runningOp.Result = backend.OperationFailure
 				return
