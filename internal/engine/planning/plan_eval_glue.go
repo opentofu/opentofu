@@ -57,10 +57,10 @@ func (p *planGlue) isExcluded(addr addrs.Targetable) bool {
 	return p.excludes.HasFunc(func(excluder addrs.Targetable) bool { return excluder.TargetContains(addr) })
 }
 
-func (p *planGlue) PreProcess(ctx context.Context, targeter func(target addrs.Targetable)) {
+func (p *planGlue) CheckTargets(ctx context.Context) tfdiags.Diagnostics {
 	if !p.isTargeting() {
 		// Nop
-		return
+		return nil
 	}
 
 	allStateResources := p.planCtx.prevRoundState.AllResourceInstanceObjectAddrs()
@@ -69,7 +69,7 @@ func (p *planGlue) PreProcess(ctx context.Context, targeter func(target addrs.Ta
 	for _, target := range p.targets {
 		log.Printf("[TRACE] Processing target %s", target)
 		// Force config compilation and evaluation of targeted resources
-		targeter(target)
+		p.oracle.CheckTarget(ctx, target)
 
 		// Also locate applicable state entries and check for moves
 		// This ensures that orphaned resources that are targeted and moved
@@ -84,7 +84,7 @@ func (p *planGlue) PreProcess(ctx context.Context, targeter func(target addrs.Ta
 				movedToConfigAddr, _ := p.locateConfigForState(ctx, entry.Instance, true)
 				if movedToConfigAddr != nil {
 					log.Printf("[TRACE] Processing additional target from state %s", *movedToConfigAddr)
-					targeter(*movedToConfigAddr)
+					p.oracle.CheckTarget(ctx, *movedToConfigAddr)
 				}
 			}
 		}
@@ -92,6 +92,8 @@ func (p *planGlue) PreProcess(ctx context.Context, targeter func(target addrs.Ta
 	log.Printf("[TRACE] Completed targeting")
 
 	p.allResourcesDeferred = true
+
+	return nil
 }
 
 // PlanDesiredResourceInstance implements eval.PlanGlue.
@@ -132,7 +134,7 @@ func (p *planGlue) PlanDesiredResourceInstance(ctx context.Context, inst *eval.D
 	return rv, diags
 }
 
-func (p *planGlue) PostProcess(ctx context.Context) tfdiags.Diagnostics {
+func (p *planGlue) Finalize(ctx context.Context) (*planContextResult, tfdiags.Diagnostics) {
 	ctx = grapheval.ContextWithNewWorker(ctx)
 	var diags tfdiags.Diagnostics
 
@@ -178,7 +180,12 @@ func (p *planGlue) PostProcess(ctx context.Context) tfdiags.Diagnostics {
 
 	diags = diags.Append(p.planCtx.CheckPreventDestroy(ctx, p.oracle))
 
-	return diags
+	diags = diags.Append(p.oracle.Close(ctx))
+
+	intermediate, moreDiags := p.planCtx.Close(ctx)
+	diags = diags.Append(moreDiags)
+
+	return intermediate, diags
 }
 
 func (p *planGlue) planOrphanResourceInstance(ctx context.Context, addr addrs.AbsResourceInstance, state *states.ResourceInstanceObjectFullSrc) tfdiags.Diagnostics {
