@@ -30,6 +30,30 @@ import (
 // validation phase through the same exported API that external callers would
 // use.
 
+// Simulate the same steps the planning engine takes
+func planEngineSimulator(t *testing.T, configInst *eval.ConfigInstance, logGlue *planGlueCallLog) (map[string]cty.Value, tfdiags.Diagnostics) {
+	oracle, ctx, diags := configInst.BuildPlanningOracle(t.Context(), logGlue)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+	// Chicken and egg
+	logGlue.oracle = oracle
+
+	diags = oracle.CheckAll(ctx)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	planResult := oracle.PlanningResult(ctx)
+
+	gotOutputs := map[string]cty.Value{}
+	for name, val := range planResult.RootModuleOutputs {
+		gotOutputs[name] = val.Value
+	}
+
+	return gotOutputs, diags
+}
+
 func TestPlan_valuesOnlySuccess(t *testing.T) {
 	// This test has an intentionally limited scope covering just the
 	// basics, so that we don't necessarily need to repeat these basics
@@ -61,17 +85,9 @@ func TestPlan_valuesOnlySuccess(t *testing.T) {
 	}
 
 	logGlue := &planGlueCallLog{}
-	planResult, diags := configInst.DrivePlanning(t.Context(), func(oracle *eval.PlanningOracle) eval.PlanGlue {
-		logGlue.oracle = oracle
-		return logGlue
-	})
+	gotOutputs, diags := planEngineSimulator(t, configInst, logGlue)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %s", diags.Err())
-	}
-
-	gotOutputs := map[string]cty.Value{}
-	for name, val := range planResult.RootModuleOutputs {
-		gotOutputs[name] = val.Value
 	}
 	wantOutputs := map[string]cty.Value{
 		"c": cty.StringVal("true:true/true:true"),
@@ -151,17 +167,9 @@ func TestPlan_managedResourceSimple(t *testing.T) {
 	logGlue := &planGlueCallLog{
 		providers: providers,
 	}
-	planResult, diags := configInst.DrivePlanning(t.Context(), func(oracle *eval.PlanningOracle) eval.PlanGlue {
-		logGlue.oracle = oracle
-		return logGlue
-	})
+	gotOutputs, diags := planEngineSimulator(t, configInst, logGlue)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %s", diags.Err())
-	}
-
-	gotOutputs := map[string]cty.Value{}
-	for name, val := range planResult.RootModuleOutputs {
-		gotOutputs[name] = val.Value
 	}
 	wantOutputs := map[string]cty.Value{
 		"c": cty.StringVal("foo bar name"),
@@ -253,17 +261,9 @@ func TestPlan_managedResourceUnknownCount(t *testing.T) {
 	logGlue := &planGlueCallLog{
 		providers: providers,
 	}
-	planResult, diags := configInst.DrivePlanning(t.Context(), func(oracle *eval.PlanningOracle) eval.PlanGlue {
-		logGlue.oracle = oracle
-		return logGlue
-	})
+	gotOutputs, diags := planEngineSimulator(t, configInst, logGlue)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %s", diags.Err())
-	}
-
-	gotOutputs := map[string]cty.Value{}
-	for name, val := range planResult.RootModuleOutputs {
-		gotOutputs[name] = val.Value
 	}
 	wantOutputs := map[string]cty.Value{
 		"c": cty.DynamicVal, // don't know what instances we have yet

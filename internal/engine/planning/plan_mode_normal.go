@@ -7,7 +7,6 @@ package planning
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/plugins"
@@ -22,58 +21,46 @@ import (
 // the desired state described by the current configuration.
 func normalPlan(ctx context.Context, opts *PlanOpts, prevRoundState *states.State, configInst *eval.ConfigInstance, providers plugins.Providers) (*plans.Plan, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	var closeConfiguredProviders func(ctx context.Context) tfdiags.Diagnostics
 
 	planCtx := newPlanContext(configInst.EvalContext(), prevRoundState, providers, opts)
 
-	// This configInst.DrivePlanning call blocks until the evaluator has
+	glue := &planGlue{
+		planCtx:  planCtx,
+		targets:  addrs.MakeSet(opts.Targets...),
+		excludes: addrs.MakeSet(opts.Excludes...),
+	}
+
+	oracle, ctx, diags := configInst.BuildPlanningOracle(ctx, glue)
+	if diags.HasErrors() {
+		return &plans.Plan{Errored: true}, nil
+	}
+	// Chicken and egg
+	glue.oracle = oracle
+
+	moreDiags := glue.CheckTargets(ctx)
+	diags = diags.Append(moreDiags)
+
+	// This oracle.CheckAll call blocks until the evaluator has
 	// visited all expressions in the configuration and calls
 	// [planContext.PlanDesiredResourceInstance] on the [planGlue] object for
 	// each resource instance it discovers so that we can produce a planned
 	// action and result value for each one.
 	//
-	// It also calls the various "Plan*Orphans" methods at different levels
-	// of granularity once it's determined the full set of objects under
-	// a given prefix, which planGlue uses to notice when there are
-	// prevRoundState resource instances that are no longer in the desired
-	// state and so plan to delete or forget them.
-	//
 	// If this completes without returning any error diagnostics then
 	// planCtx.resourceInstObjs should accurately represent the relationships
 	// between all of the "current" resource instance objects we found, but
 	// we won't discover any deposed objects until the next step below.
-	evalResult, moreDiags := configInst.DrivePlanning(ctx, func(oracle *eval.PlanningOracle) eval.PlanGlue {
-		closeConfiguredProviders = oracle.Close
-		return &planGlue{
-			planCtx:  planCtx,
-			oracle:   oracle,
-			targets:  addrs.MakeSet(opts.Targets...),
-			excludes: addrs.MakeSet(opts.Excludes...),
-		}
-	})
+	moreDiags = oracle.CheckAll(ctx)
 	diags = diags.Append(moreDiags)
-	if evalResult == nil {
-		if !moreDiags.HasErrors() {
-			// This should not happen: we should always have an evalResult if
-			// there weren't any errors.
-			panic(fmt.Sprintf("%T.DrivePlanning returned nil result without any error diagnostics", configInst))
-		}
-	} else {
 
-		// Record output values and resource dependencies for the plan
-		planCtx.rootOutput.Previous = prevRoundState.EnsureModule(addrs.RootModuleInstance).OutputValues
-		planCtx.rootOutput.Current = evalResult.RootModuleOutputs
-	}
+	// Record output values and resource dependencies for the plan
+	planCtx.rootOutput.Previous = prevRoundState.EnsureModule(addrs.RootModuleInstance).OutputValues
+	planCtx.rootOutput.Current = oracle.PlanningResult(ctx).RootModuleOutputs
 
-	// TODO: Consider factoring most of the work we've done here into a single
-	// function that directly returns the "intermediate" object. Exposing
-	// planCtx as a mutable object in this function doesn't seem necessary
-	// anymore since we only actually care about the results from Close here.
-	intermediate, moreDiags := planCtx.Close(ctx)
+	intermediate, moreDiags := glue.Finalize(ctx)
 	diags = diags.Append(moreDiags)
+
 	plan, moreDiags := finalizePlan(ctx, intermediate, providers)
-	diags = diags.Append(moreDiags)
-	moreDiags = closeConfiguredProviders(ctx)
 	diags = diags.Append(moreDiags)
 	if diags.HasErrors() {
 		plan.Errored = true
