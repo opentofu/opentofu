@@ -138,82 +138,6 @@ func (p *planGlue) PostProcess(ctx context.Context) tfdiags.Diagnostics {
 	p.planCtx.desiredMu.Lock()
 	defer p.planCtx.desiredMu.Unlock()
 
-	// TODO consider porting this logic to the other Orphan paths and extending to match key types.
-	// This only handles one very specific class of errors and should probably be improved at some point.
-	// This is N*N and terrible overall
-	desiredResources := addrs.MakeMap[addrs.AbsResource, []addrs.AbsResourceInstance]()
-	for _, desired := range p.planCtx.desired {
-		key := desired.ContainingResource()
-		desiredResources.Put(key, append(desiredResources.Get(key), desired))
-	}
-
-	for _, resourceAddr := range desiredResources.Keys() {
-		instanceAddrs := desiredResources.Get(resourceAddr)
-
-		replaceNeedsKey := false
-		isPlaceholder := false
-		for _, addr := range instanceAddrs {
-			if addr.Resource.IsPlaceholder() {
-				// can't predict what instances are desired for this resource
-				isPlaceholder = true
-				break
-			}
-			if addr.Resource.Key != addrs.NoKey {
-				replaceNeedsKey = true
-				break
-			}
-		}
-
-		if !replaceNeedsKey || isPlaceholder {
-			continue
-		}
-
-		for _, candidateAddr := range p.planCtx.forceReplace {
-			if candidateAddr.Resource.Resource.Equal(resourceAddr.Resource) && candidateAddr.Module.Equal(resourceAddr.Module) {
-				// Matches without instance key
-				if candidateAddr.Resource.Key == addrs.NoKey {
-					// Copied from nodeExpandPlannableResource.expandResourceInstances
-					switch {
-					case len(instanceAddrs) == 0:
-						// In this case there _are_ no instances to replace, so
-						// there isn't any alternative address for us to suggest.
-						diags = diags.Append(tfdiags.Sourceless(
-							tfdiags.Warning,
-							"Incompletely-matched force-replace resource instance",
-							fmt.Sprintf(
-								"Your force-replace request for %s doesn't match any resource instances because this resource doesn't have any instances.",
-								candidateAddr,
-							),
-						))
-					case len(instanceAddrs) == 1:
-						diags = diags.Append(tfdiags.Sourceless(
-							tfdiags.Warning,
-							"Incompletely-matched force-replace resource instance",
-							fmt.Sprintf(
-								"Your force-replace request for %s doesn't match any resource instances because it lacks an instance key.\n\nTo force replacement of the single declared instance, use the following option instead:\n  -replace=%q",
-								candidateAddr, instanceAddrs[0],
-							),
-						))
-					default:
-						var possibleValidOptions strings.Builder
-						for _, addr := range instanceAddrs {
-							fmt.Fprintf(&possibleValidOptions, "\n  -replace=%q", addr)
-						}
-
-						diags = diags.Append(tfdiags.Sourceless(
-							tfdiags.Warning,
-							"Incompletely-matched force-replace resource instance",
-							fmt.Sprintf(
-								"Your force-replace request for %s doesn't match any resource instances because it lacks an instance key.\n\nTo force replacement of particular instances, use one or more of the following options instead:%s",
-								candidateAddr, possibleValidOptions.String(),
-							),
-						))
-					}
-				}
-			}
-		}
-	}
-
 	// We also need to deal with any "deposed" resource instances that were
 	// in the previous round state. We do this separately afterwards because
 	// these have no direct representation in the configuration at all and
@@ -278,6 +202,8 @@ func (p *planGlue) PostProcess(ctx context.Context) tfdiags.Diagnostics {
 
 	// We also need to check for invalid moves
 	diags = diags.Append(p.validateMoves(ctx))
+
+	diags = diags.Append(p.validateForceReplace())
 
 	diags = diags.Append(p.planCtx.CheckPreventDestroy(ctx, p.oracle))
 
@@ -484,4 +410,90 @@ func (p *planGlue) evaluateReplaceTriggeredBy(ref eval.ResourceInstanceAttribute
 		return &ref.ResourceInstance, diags
 	}
 	return nil, diags
+}
+
+func (p *planGlue) validateForceReplace() tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+
+	// TODO consider extending this logic to match key types.
+	// This only handles one very specific class of errors and should probably be improved at some point.
+	desiredResources := addrs.MakeMap[addrs.AbsResource, []addrs.AbsResourceInstance]()
+	for _, desired := range p.planCtx.desired {
+		key := desired.ContainingResource()
+		desiredResources.Put(key, append(desiredResources.Get(key), desired))
+	}
+
+	forcedResources := addrs.MakeSet[addrs.AbsResource]()
+	for _, forced := range p.planCtx.forceReplace {
+		// Matches without instance key
+		if forced.Resource.Key == addrs.NoKey {
+			forcedResources.Add(forced.ContainingResource())
+		}
+	}
+
+	for _, resourceAddr := range desiredResources.Keys() {
+		if !forcedResources.Has(resourceAddr) {
+			continue
+		}
+
+		instanceAddrs := desiredResources.Get(resourceAddr)
+
+		replaceNeedsKey := false
+		isPlaceholder := false
+		for _, addr := range instanceAddrs {
+			if addr.Resource.IsPlaceholder() {
+				// can't predict what instances are desired for this resource
+				isPlaceholder = true
+				break
+			}
+			if addr.Resource.Key != addrs.NoKey {
+				replaceNeedsKey = true
+				break
+			}
+		}
+
+		if !replaceNeedsKey || isPlaceholder {
+			continue
+		}
+
+		// Copied from nodeExpandPlannableResource.expandResourceInstances
+		switch {
+		case len(instanceAddrs) == 0:
+			// In this case there _are_ no instances to replace, so
+			// there isn't any alternative address for us to suggest.
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Warning,
+				"Incompletely-matched force-replace resource instance",
+				fmt.Sprintf(
+					"Your force-replace request for %s doesn't match any resource instances because this resource doesn't have any instances.",
+					resourceAddr,
+				),
+			))
+		case len(instanceAddrs) == 1:
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Warning,
+				"Incompletely-matched force-replace resource instance",
+				fmt.Sprintf(
+					"Your force-replace request for %s doesn't match any resource instances because it lacks an instance key.\n\nTo force replacement of the single declared instance, use the following option instead:\n  -replace=%q",
+					resourceAddr, instanceAddrs[0],
+				),
+			))
+		default:
+			var possibleValidOptions strings.Builder
+			for _, addr := range instanceAddrs {
+				fmt.Fprintf(&possibleValidOptions, "\n  -replace=%q", addr)
+			}
+
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Warning,
+				"Incompletely-matched force-replace resource instance",
+				fmt.Sprintf(
+					"Your force-replace request for %s doesn't match any resource instances because it lacks an instance key.\n\nTo force replacement of particular instances, use one or more of the following options instead:%s",
+					resourceAddr, possibleValidOptions.String(),
+				),
+			))
+		}
+	}
+
+	return diags
 }
