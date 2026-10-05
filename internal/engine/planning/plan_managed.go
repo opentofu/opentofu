@@ -698,14 +698,6 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 	// There's another FIXME comment further down the callstack beneath this
 	// function identifying the main location of the problem.
 	providerAddr := meta.Provider
-	// TODO we don't call desired if there's a broken provider or other config issues during compilation
-	// we should change that, but for now we are going to hack it by detecting marks (for some reason)
-	_, hacks := meta.ProviderInstance.Unmark()
-	if len(hacks) > 0 {
-		log.Printf("[TRACE] BUG %s is not orphaned", currentRunAddr)
-		return ret, diags
-	}
-
 	providerInstAddr, ok := meta.ProviderInstance.ValueOk()
 	if !ok {
 		// TODO: Is there anything sensible to do here? It should only be
