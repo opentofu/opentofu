@@ -163,6 +163,13 @@ func CompileModuleInstance(
 		call.EvaluationGlue.ResourceInstanceValue,
 		call.DependencyMarks,
 	)
+	ret.importNodes = compileImports(
+		ctx,
+		topScope,
+		providersSidechannel,
+		call.EvalContext.Providers,
+		module.Import,
+	)
 	ret.moveStatements = compileMoveStatements(
 		module,
 		call.CalleeAddr,

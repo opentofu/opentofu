@@ -7,6 +7,7 @@ package eval
 
 import (
 	"context"
+	"slices"
 
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -27,6 +28,11 @@ func (c *ConfigInstance) Validate(ctx context.Context) tfdiags.Diagnostics {
 	ctx = grapheval.ContextWithNewWorker(ctx)
 
 	_, diags := c.precheckedModuleInstance(ctx)
+
+	// Filter out ImportStatementAddrUnknown diags.
+	// I don't like this, but it seems like the only reasonable solution here.
+	diags = slices.DeleteFunc(diags, tfdiags.DiagnosticCausedByUnknown)
+
 	// For validation purposes we don't need to do anything more with
 	// the module instance we checked... the check result _is_ the validation
 	// result.

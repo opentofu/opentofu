@@ -117,6 +117,8 @@ type ConfiguredResourceInstanceObjectMeta struct {
 	// MoveStatements are any move statements that may be applicable to this
 	// resource instance.
 	MoveStatements []refactoring.MoveStatement
+
+	ImportStatements []*configgraph.ImportStatement
 }
 
 // ResourceProvisioner represents a single provisioner configured for a

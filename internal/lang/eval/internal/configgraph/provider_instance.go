@@ -7,6 +7,7 @@ package configgraph
 
 import (
 	"context"
+	"fmt"
 	"iter"
 
 	"github.com/apparentlymart/go-workgraph/workgraph"
@@ -48,6 +49,24 @@ type ProviderInstance struct {
 }
 
 var _ exprs.Valuer = (*ProviderInstance)(nil)
+
+func DecodeProviderInstance(ctx context.Context, valuer exprs.Valuer, provider addrs.Provider, addr string) (exprs.FromValue[*ProviderInstance], tfdiags.Diagnostics) {
+	v, diags := valuer.Value(ctx)
+	if diags.HasErrors() {
+		return exprs.Unknown[*ProviderInstance]().Mark(exprs.EvalError), diags
+	}
+	inst, err := ProviderInstanceFromValue(v, provider)
+	if err != nil {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid provider instance reference",
+			Detail:   fmt.Sprintf("Unsuitable provider selection for %s: %s.", addr, tfdiags.FormatError(err)),
+			Subject:  MaybeHCLSourceRange(valuer.ValueSourceRange()),
+		})
+		return inst.Mark(exprs.EvalError), diags
+	}
+	return inst, diags
+}
 
 // StaticCheckTraversal implements exprs.Valuer.
 func (p *ProviderInstance) StaticCheckTraversal(traversal hcl.Traversal) tfdiags.Diagnostics {

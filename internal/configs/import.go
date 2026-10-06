@@ -163,6 +163,27 @@ func decodeImportBlock(block *hcl.Block) (*Import, hcl.Diagnostics) {
 	return imp, diags
 }
 
+// ProviderConfigAddr returns the address for the provider configuration that
+// should be used for this import. This function returns a default provider
+// config addr if an explicit "provider" argument was not provided.
+// TODO remove this function once we improve tofu2024 compileProviderConfigRef
+func (i *Import) ProviderConfigAddr() addrs.LocalProviderConfig {
+	if i.ProviderConfigRef == nil {
+		// If no specific "provider" argument is given, we want to look up the
+		// provider config where the local name matches the implied provider
+		// from the resource type. This may be different from the resource's
+		// provider type.
+		return addrs.LocalProviderConfig{
+			LocalName: i.StaticTo.Resource.ImpliedProvider(),
+		}
+	}
+
+	return addrs.LocalProviderConfig{
+		LocalName: i.ProviderConfigRef.Name,
+		Alias:     i.ProviderConfigRef.Alias,
+	}
+}
+
 var importBlockSchema = &hcl.BodySchema{
 	Attributes: []hcl.AttributeSchema{
 		{
