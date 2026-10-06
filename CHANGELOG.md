@@ -2,12 +2,16 @@ The v1.13.x release series is supported until **August 1 2027**.
 
 ## 1.13.2 (Unreleased)
 
+BUG FIXES:
+
+- Lifecycle destroy will no longer crash when given an expression with references ([#4648](https://github.com/opentofu/opentofu/pull/4648))
+
 
 ## 1.13.1
 
 BUG FIXES:
 
-- `tofu show -json <planfile>` now works again when ephemeral resources are present in the configuration. ([4623](https://github.com/opentofu/opentofu/pull/4623)).
+- `tofu show -json <planfile>` now works again when ephemeral resources are present in the configuration. ([#4623](https://github.com/opentofu/opentofu/pull/4623))
 -  Ephemeral output values are now always re-evaluated during the apply phase, instead of sometimes using stale values from the planning phase. ([#4582](https://github.com/opentofu/opentofu/issues/4582))
 
 ## 1.13.0
