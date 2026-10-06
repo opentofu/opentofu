@@ -17,7 +17,7 @@ The configuration files can be placed in a file ending in `.tfrc` or
 `.tfrc.json` whose location depends on the host operating system:
 
 * On Windows, the configuration files must be placed in `%APPDATA%\Roaming\OpenTofu
-  Project\OpenTofu`.  The physical location of this directory depends on your Windows
+  Project\OpenTofu`. The physical location of this directory depends on your Windows
   version and system configuration; use `$env:APPDATA` in PowerShell to find its location
   on your system. All `.tfrc` files found in the directory will be merged by the cli.
 * On Macos, the configuration files must be placed in `~/Library/Application Support/org.opentofu`.
@@ -40,11 +40,11 @@ Any such file should follow the naming pattern `*.tfrc`.
 ### Note on `.tofurc` and `tofu.rc`
 
 The CLI can also be configured by creating a `%APPDATA%\tofu.rc` or
-`$HOME/.tofurc` file.  For consistency reasons configuring OpenTofu
+`$HOME/.tofurc` file. For consistency reasons configuring OpenTofu
 this way is not recommended and instead using the above system
 standard locations is preferred.
 
-On Windows `terraform.rc` is supported for backward-compatibility purposes.  If both
+On Windows `terraform.rc` is supported for backward-compatibility purposes. If both
 `terraform.rc` and `tofu.rc` files exists, the latter would take precedence.
 
 On other systems `.terraformrc` is supported for backward-compatibility purposes. If both
