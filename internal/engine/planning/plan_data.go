@@ -66,16 +66,6 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 		ret.ConfigDependencies.Add(dep.CurrentObject())
 	}
 
-	unmarkedConfigVal, _ := inst.ConfigVal.UnmarkDeep()
-
-	/// DataResourceType) ValidateConfig
-	// TODO resourceType.ValidateConfig
-	validateDiags := p.planCtx.providers.ValidateResourceConfig(ctx, meta.Provider, addrs.DataResourceMode, meta.ResourceType, unmarkedConfigVal)
-	diags = diags.Append(validateDiags)
-	if diags.HasErrors() {
-		return ret, diags
-	}
-
 	providerInstUnmarked, _ := meta.ProviderInstance.Unmark()
 	providerInstAddr, ok := providerInstUnmarked.ValueOk()
 	if !ok {
@@ -111,10 +101,6 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 	// arguments properly here.
 	p.planCtx.refreshedState.SetResourceInstanceCurrent(inst.Addr, nil, addrs.AbsProviderConfig{}, providerInstAddr.Key)
 
-	readCtx := ctx
-	if cb := tracer.StartDataResourceInstanceRead; cb != nil {
-		readCtx = cb(ctx, inst.Addr)
-	}
 	requiredChanges := addrs.CollectSet(objchange.PrereqChangesForValue(inst.ConfigVal))
 	depsPending := len(requiredChanges) != 0
 	configKnown := inst.ConfigVal.IsWhollyKnown()
@@ -145,14 +131,12 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 		// function to handle when this is derived from something that _is_
 		// being completely deferred in this round, in which case we must also
 		// defer reading this data resource instance to a future round.
-		ret, moreDiags := p.planDelayedDataResourceInstance(readCtx, inst, providerInstAddr, providerClient, reason, ret)
+		ret, moreDiags := p.planDelayedDataResourceInstance(ctx, inst, providerInstAddr, providerClient, reason, ret)
 		diags = diags.Append(moreDiags)
 		return ret, diags
 	}
 
-	// node_resource_abstract_instance.go:L2309
-
-	validateDiags = resourceType.ValidateConfig(ctx, inst.ConfigVal)
+	validateDiags := resourceType.ValidateConfig(ctx, inst.ConfigVal)
 	// FIXME Needs that InConfigBody thing, see resourceType.Read
 	// for more details, that's gotta be fixed too.
 	diags = diags.Append(validateDiags)
@@ -160,9 +144,23 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 		return ret, diags
 	}
 
-	// TODO run PreApply hook here
+	// obtain schema for encoding
+	schema, schemaDiags := resourceType.LoadSchema(ctx)
+	diags = diags.Append(schemaDiags)
+	if schemaDiags.HasErrors() {
+		return ret, diags
+	}
 
-	resp, readDiags := resourceType.Read(ctx, &resources.DataResourceReadRequest{
+	unmarkedConfigVal, _ := inst.ConfigVal.UnmarkDeepWithPaths()
+	proposedNewVal := objchange.PlannedUnknownObject(schema.Block, unmarkedConfigVal)
+
+	readCtx := ctx
+	if cb := tracer.StartDataResourceInstanceRead; cb != nil {
+		// TODO this feels like it belongs in resourceType.Read, but the tracer belongs to the planner...
+		readCtx = cb(ctx, inst.Addr, proposedNewVal)
+	}
+
+	resp, readDiags := resourceType.Read(readCtx, &resources.DataResourceReadRequest{
 		ResourceAddress: inst.Addr,
 		ConfigValue:     inst.ConfigVal,
 	}, inst.Addr.CurrentObject())
@@ -174,16 +172,7 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 			// Note: resourceType.Read applies "sensitive" marks to Result
 			resultVal = resp.Result
 		}
-		cb(readCtx, inst.Addr, resultVal, diags)
-	}
-
-	// TODO run PostApply hook here
-
-	// obtain schema for encoding
-	schema, schemaDiags := resourceType.LoadSchema(ctx)
-	diags = diags.Append(schemaDiags)
-	if schemaDiags.HasErrors() {
-		return ret, diags
+		cb(readCtx, inst.Addr, resultVal, diags.Err())
 	}
 
 	src, err := ctyjson.Marshal(resp.ResultUnmarked, schema.Block.ImpliedType())
