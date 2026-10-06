@@ -3,6 +3,7 @@ output "fully_overridden" {
   description = "b_override description"
   deprecated = "b_override deprecated"
   ephemeral = false
+  type = string
 }
 
 output "partially_overridden" {
