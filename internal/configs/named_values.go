@@ -647,6 +647,23 @@ func decodeOutputBlock(block *hcl.Block, override bool) (*Output, hcl.Diagnostic
 	return o, diags
 }
 
+func (o *Output) finalize(symbols *symlib.Table) hcl.Diagnostics {
+	var diags hcl.Diagnostics
+	if o.TypeExpr == nil {
+		return diags
+	}
+	ty, tyDefaults, _, tyDiags := decodeVariableType(o.TypeExpr, new(symbols.TypeContext()))
+	diags = append(diags, tyDiags...)
+	if ty == cty.NilType {
+		ty = cty.DynamicPseudoType
+	}
+	o.ConstraintType = ty
+	o.TypeDefaults = tyDefaults
+	o.TypeExpr = nil
+
+	return diags
+}
+
 func (o *Output) Addr() addrs.OutputValue {
 	return addrs.OutputValue{Name: o.Name}
 }

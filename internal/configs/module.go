@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/symlib"
@@ -318,17 +317,7 @@ func (m *Module) Finalize(l symlib.Table, call StaticModuleCall) hcl.Diagnostics
 	}
 
 	for _, o := range m.Outputs {
-		if o.TypeExpr == nil {
-			continue
-		}
-		ty, tyDefaults, _, tyDiags := decodeVariableType(o.TypeExpr, new(l.TypeContext()))
-		diags = append(diags, tyDiags...)
-		if ty == cty.NilType {
-			ty = cty.DynamicPseudoType
-		}
-		o.ConstraintType = ty
-		o.TypeDefaults = tyDefaults
-		o.TypeExpr = nil
+		diags = diags.Extend(o.finalize(&l))
 	}
 
 	// Generate the FQN -> LocalProviderName map
