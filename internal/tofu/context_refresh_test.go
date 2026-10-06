@@ -1143,6 +1143,7 @@ func TestContext2Refresh_stateBasic(t *testing.T) {
 }
 
 func TestContext2Refresh_dataCount(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureRefresh)
 	p := testProvider("test")
 	m := testModule(t, "refresh-data-count")
 

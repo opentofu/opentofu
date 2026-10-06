@@ -119,17 +119,17 @@ func (rt *DataResourceType) Read(ctx context.Context, req *DataResourceReadReque
 		newVal = cty.UnknownAsNull(newVal)
 	}
 
-	if len(pvm) > 0 {
-		newVal = newVal.MarkWithPaths(pvm)
-	}
-
 	out = &DataResourceReadResponse{
-		Result: newVal,
+		Result:         newVal,
+		ResultUnmarked: newVal,
 
 		Status: states.ObjectReady,
 	}
 
-	// TODO is this sensible?
+	if len(pvm) > 0 {
+		out.Result = newVal.MarkWithPaths(pvm)
+	}
+
 	out.SensitivePaths = make([]cty.Path, 0, len(pvm))
 	for _, p := range pvm {
 		for mark := range p.Marks {
@@ -161,8 +161,12 @@ type DataResourceReadResponse struct {
 	// and then update callers to handle responses with that set.
 
 	// Result represents the value returned by the provider, or a placeholder
-	// result if DelayUntilApply is set.
+	// result if DelayUntilApply is set. Marks are applied before setting this result.
 	Result cty.Value
+
+	// ResultUnmarked represents the raw value returned by the provider, or a placeholder
+	// result if DelayUntilApply is set.
+	ResultUnmarked cty.Value
 
 	// SensitivePaths is an array of paths to mark as sensitive when decoding.
 	SensitivePaths []cty.Path

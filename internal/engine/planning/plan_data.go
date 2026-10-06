@@ -188,7 +188,7 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 		return ret, diags
 	}
 
-	src, err := ctyjson.Marshal(resp.Result, schema.Block.ImpliedType())
+	src, err := ctyjson.Marshal(resp.ResultUnmarked, schema.Block.ImpliedType())
 	if err != nil {
 		// We just checked for type conformance in the Read, so getting into this
 		// codepath is probably a bug.
