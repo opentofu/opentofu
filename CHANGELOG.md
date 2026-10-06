@@ -2,6 +2,10 @@ The v1.12.x release series is supported until **February 1 2027**.
 
 ## 1.12.8 (Unreleased)
 
+BUG FIXES:
+
+- Lifecycle destroy will no longer crash when given an expression with references ([#4648](https://github.com/opentofu/opentofu/pull/4648))
+
 
 ## 1.12.7
 
