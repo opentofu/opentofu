@@ -416,6 +416,29 @@ func (c *CompiledModuleInstance) ProviderRequirements(ctx context.Context) (getp
 	return c.providerRequirements(ctx)
 }
 
+// ImportStatements implements evalglue.CompiledModuleInstance.
+func (c *CompiledModuleInstance) ImportStatements(ctx context.Context) []*configgraph.ImportStatement {
+	var statements []*configgraph.ImportStatement
+	for _, importNode := range c.importNodes {
+		instances, _ := importNode.Instances(ctx)
+		for _, instance := range instances {
+			statement, _ := instance.Statement(ctx)
+			if statement != nil {
+				statements = append(statements, statement)
+			}
+		}
+	}
+
+	// This is mostly a placeholder for if we ever decide to support imports in child modules
+	for call := range c.ChildModuleCalls(ctx) {
+		for _, child := range c.ChildModuleInstancesForCall(ctx, call) {
+			statements = append(statements, child.ImportStatements(ctx)...)
+		}
+	}
+
+	return statements
+}
+
 // AnnounceAllGraphevalRequests implements evalglue.CompiledModuleInstance.
 func (c *CompiledModuleInstance) AnnounceAllGraphevalRequests(announce func(workgraph.RequestID, grapheval.RequestInfo)) {
 	c.moduleInstanceNode.AnnounceAllGraphevalRequests(announce)

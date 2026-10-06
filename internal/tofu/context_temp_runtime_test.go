@@ -104,7 +104,7 @@ var (
 	ExperimentalFeatureChecks          = ExperimentalFlag{"Missing Checks", false}
 	ExperimentalFeatureChanges         = ExperimentalFlag{"Missing Plan Changes", false}
 	ExperimentalFeatureDeprecated      = ExperimentalFlag{"Missing Deprecated", false}
-	ExperimentalFeatureImport          = ExperimentalFlag{"Missing Importing", false}
+	ExperimentalFeatureImport          = ExperimentalFlag{"Missing Importing", true}
 	ExperimentalFeatureLinting         = ExperimentalFlag{"Missing Linting", false}
 	ExperimentalFeatureRefresh         = ExperimentalFlag{"Missing Refresh", false}
 	ExperimentalFeatureRefreshOnly     = ExperimentalFlag{"Missing Refresh-only Planning Mode", false}

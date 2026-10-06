@@ -129,11 +129,11 @@ func (o *PlanningOracle) ResourceInstanceObjectMeta(ctx context.Context, addr ad
 	return o.root.ResourceInstanceObjectMeta(ctx, addr)
 }
 
-type ImportInstance = configgraph.ImportInstance
+type ImportStatement = configgraph.ImportStatement
 
 // Used for validation
-func (o *PlanningOracle) CollectImports(ctx context.Context) []ImportInstance {
-	panic("TODO")
+func (o *PlanningOracle) CollectImports(ctx context.Context) []*ImportStatement {
+	return o.root.ImportStatements(ctx)
 }
 
 // ProviderInstanceConfig returns a value representing the configuration to

@@ -178,6 +178,8 @@ func (p *planGlue) Finalize(ctx context.Context) (*planContextResult, tfdiags.Di
 
 	diags = diags.Append(p.validateForceReplace())
 
+	diags = diags.Append(p.validateImports(ctx))
+
 	diags = diags.Append(p.planCtx.CheckPreventDestroy(ctx, p.oracle))
 
 	diags = diags.Append(p.oracle.Close(ctx))
@@ -469,6 +471,27 @@ func (p *planGlue) validateForceReplace() tfdiags.Diagnostics {
 			))
 		}
 	}
+	return diags
+}
+
+func (p *planGlue) validateImports(ctx context.Context) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+
+	// Check for duplicates
+	imports := addrs.MakeMap[addrs.AbsResourceInstance, *eval.ImportStatement]()
+	for _, stmt := range p.oracle.CollectImports(ctx) {
+		importAddress := stmt.Addr
+		if existing, exists := imports.GetOk(importAddress); exists {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  fmt.Sprintf("Duplicate import configuration for %q", importAddress),
+				Detail:   fmt.Sprintf("An import block for the resource %q was already declared at %s. A resource can have only one import block.", importAddress, existing.DeclRange.ToHCL()),
+				Subject:  existing.DeclRange.ToHCL().Ptr(),
+			})
+		}
+		imports.Put(importAddress, stmt)
+	}
+	// Check for no corresponding resource
 
 	return diags
 }
