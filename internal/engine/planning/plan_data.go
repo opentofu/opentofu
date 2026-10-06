@@ -76,9 +76,7 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 		return ret, diags
 	}
 
-	providerInstUnmarked, providerInstMarks := meta.ProviderInstance.Unmark()
-	// TODO: What should we do with these marks, if anything?
-	_ = providerInstMarks
+	providerInstUnmarked, _ := meta.ProviderInstance.Unmark()
 	providerInstAddr, ok := providerInstUnmarked.ValueOk()
 	if !ok {
 		// TODO: Record that this was deferred because we don't yet know which
