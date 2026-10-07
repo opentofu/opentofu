@@ -101,6 +101,9 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 	// arguments properly here.
 	p.planCtx.refreshedState.SetResourceInstanceCurrent(inst.Addr, nil, addrs.AbsProviderConfig{}, providerInstAddr.Key)
 
+	// TODO: given ret.ConfigDependencies, a set of addresses, how to obtain "values" for them
+	// and, subsequently, determine whether they're pending?
+	// Or somehow "oracle" it to pending?? Or get the value... somehow???
 	requiredChanges := addrs.CollectSet(objchange.PrereqChangesForValue(inst.ConfigVal))
 	depsPending := len(requiredChanges) != 0
 	configKnown := inst.ConfigVal.IsWhollyKnown()

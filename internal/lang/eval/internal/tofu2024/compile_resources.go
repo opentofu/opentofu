@@ -328,6 +328,12 @@ func compileModuleInstanceResource(
 					if len(instDepMarks) != 0 {
 						v = v.WithMarks(instDepMarks)
 					}
+					// TODO: do we need this? Can derive `depends_on` without it...
+					// sharedDepMarks, moreDiags := sharedDeps.Marks(ctx)
+					// vDiags = vDiags.Append(moreDiags)
+					// if len(sharedDepMarks) != 0 {
+					// 	v = v.WithMarks(sharedDepMarks)
+					// }
 
 					if len(provisionerMarks) != 0 {
 						v = v.WithMarks(provisionerMarks)

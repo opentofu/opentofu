@@ -31,6 +31,8 @@ func (ops *execOperations) DataRead(
 		Addr: desired.Addr.CurrentObject(),
 	}
 	log.Printf("[TRACE] apply phase: DataRead %s using %s", desired.Addr, metadata.ProviderInstance)
+
+	// TODO put this down where we do preapply, postapply hooks; adjust them to actually be preapply/postapply instead of refresh
 	tracer := contextTracer(ctx)
 	if cb := tracer.StartDataResourceInstanceRead; cb != nil {
 		ctx = cb(ctx, desired.Addr)
