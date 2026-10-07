@@ -3411,6 +3411,10 @@ func TestContext2Plan_refreshOnlyMode_orphan(t *testing.T) {
 		}
 		got := outChange.After
 		want := cty.TupleVal([]cty.Value{cty.StringVal("current"), cty.StringVal("current")})
+		if experimentalRuntimeEnabled() {
+			// Even in refresh mode, the new runtime will properly track orphans and treat them as such
+			want = cty.TupleVal([]cty.Value{cty.StringVal("current")})
+		}
 		if !want.RawEquals(got) {
 			t.Errorf("wrong value for output value 'out'\ngot:  %#v\nwant: %#v", got, want)
 		}

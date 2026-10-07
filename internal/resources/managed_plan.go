@@ -24,7 +24,7 @@ import (
 
 type ManagedResourceMoveStateRequest struct {
 	Provider      addrs.Provider
-	Resource      addrs.Resource
+	ResourceType  string
 	SchemaVersion uint64
 	ValueJSON     []byte
 	Private       []byte
@@ -96,7 +96,7 @@ func (rt *ManagedResourceType) MoveState(ctx context.Context, req *ManagedResour
 	// log.Printf("[TRACE] moveResourceStateTransform: new address: %s, previous address: %s", inst.Addr, prevRunAddr)
 	moveReq := providers.MoveResourceStateRequest{
 		SourceProviderAddress: req.Provider.String(),
-		SourceTypeName:        req.Resource.Type,
+		SourceTypeName:        req.ResourceType,
 		SourceSchemaVersion:   req.SchemaVersion,
 		// We'll make the same assumption as [ResourceInstanceObjectFullSrc] and
 		// assume we'll never encounter a legacy state snapshot that uses AttrsFlat.

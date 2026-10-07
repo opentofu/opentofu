@@ -156,22 +156,20 @@ func (p *planGlue) Finalize(ctx context.Context) (*planContextResult, tfdiags.Di
 	// After we complete this work, planCtx.resourceInstObjs is expanded to
 	// also include any deposed resource instance objects we discovered.
 	// TODO does this need a target filter???
-	if !p.planCtx.refreshOnly {
-		for objAddr, objState := range resourceInstancesObjects(p.planCtx.prevRoundState) {
-			if objAddr.IsDeposed() {
-				diags = diags.Append(
-					p.planDeposedResourceInstanceObject(ctx, objAddr, objState),
-				)
-			} else if !p.planCtx.desired.HasFunc(func(desired addrs.AbsResourceInstance) bool {
-				if desired.IsPlaceholder() {
-					return desired.PlaceholderContains(objAddr.InstanceAddr)
-				}
-				return desired.Equal(objAddr.InstanceAddr)
-			}) {
-				diags = diags.Append(
-					p.planOrphanResourceInstance(ctx, objAddr.InstanceAddr, objState),
-				)
+	for objAddr, objState := range resourceInstancesObjects(p.planCtx.prevRoundState) {
+		if objAddr.IsDeposed() {
+			diags = diags.Append(
+				p.planDeposedResourceInstanceObject(ctx, objAddr, objState),
+			)
+		} else if !p.planCtx.desired.HasFunc(func(desired addrs.AbsResourceInstance) bool {
+			if desired.IsPlaceholder() {
+				return desired.PlaceholderContains(objAddr.InstanceAddr)
 			}
+			return desired.Equal(objAddr.InstanceAddr)
+		}) {
+			diags = diags.Append(
+				p.planOrphanResourceInstance(ctx, objAddr.InstanceAddr, objState),
+			)
 		}
 	}
 
