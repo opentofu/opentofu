@@ -244,10 +244,10 @@ func (c *Context) newEnginePlanTracer() *planning.Tracer {
 			})
 			return ctx
 		},
-		EndManagedResourceInstanceObjectImport: func(ctx context.Context, addr addrs.AbsResourceInstanceObject, imported []providers.ImportedResource) {
+		EndManagedResourceInstanceObjectImport: func(ctx context.Context, addr addrs.AbsResourceInstanceObject) {
 			inst := addr.InstanceAddr
 			c.eachHook(func(h Hook) (HookAction, error) {
-				return h.PostPlanImport(inst, imported)
+				return h.PostPlanImport(inst, nil) // Practically speaking passing in the list of potential imports here does not make sense
 			})
 		},
 		StartManagedResourceInstanceObjectPlanChanges: func(ctx context.Context, addr addrs.AbsResourceInstanceObject, priorVal, configVal cty.Value) context.Context {

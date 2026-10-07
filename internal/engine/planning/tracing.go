@@ -95,7 +95,7 @@ type Tracer struct {
 	// StartManagedResourceInstanceObjectPlanning and
 	// EndManagedResourceInstanceObjectPlanning for the same object address.
 	StartManagedResourceInstanceObjectImport func(ctx context.Context, addr addrs.AbsResourceInstanceObject, identity providers.ImportTarget) context.Context
-	EndManagedResourceInstanceObjectImport   func(ctx context.Context, addr addrs.AbsResourceInstanceObject, imported []providers.ImportedResource)
+	EndManagedResourceInstanceObjectImport   func(ctx context.Context, addr addrs.AbsResourceInstanceObject)
 
 	// StartManagedResourceInstanceObjectPlanChanges and
 	// EndManagedResourceInstanceObjectPlanChanges mark the beginning and end
