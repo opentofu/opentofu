@@ -107,6 +107,22 @@ func (p *planContext) Close(ctx context.Context) (*planContextResult, tfdiags.Di
 		RootOutput:              p.rootOutput,
 	}
 
+	// Propogate through the refreshed outputs
+	refreshedOutputs := result.RefreshedState.EnsureModule(addrs.RootModuleInstance).OutputValues
+	clear(refreshedOutputs)
+	for k, v := range p.rootOutput.Current {
+		if v.Value.IsKnown() {
+			refreshedOutputs[k] = &states.OutputValue{
+				Addr:  addrs.AbsOutputValue{OutputValue: addrs.OutputValue{Name: k}},
+				Value: v.Value,
+				// TODO Sensitive  bool
+				// TODO Deprecated string
+			}
+		} else if prev, ok := result.PrevRoundState.EnsureModule(addrs.RootModuleInstance).OutputValues[k]; ok {
+			refreshedOutputs[k] = prev
+		}
+	}
+
 	return result, diags
 }
 

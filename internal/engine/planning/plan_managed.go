@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"slices"
 	"strings"
 
 	"github.com/zclconf/go-cty/cty"
@@ -512,6 +513,14 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		refreshedPrivate = resp.Private
 		//TODO refreshedIdentity = resp.NewIdentity
 
+		refreshedVal := objchange.NormalizeObjectFromLegacySDK(refreshedVal, schema.Block)
+		if !refreshedVal.RawEquals(resp.NewState) {
+			// We had to fix up this object in some way, and we still need to
+			// accept any changes for compatibility, so all we can do is log a
+			// warning about the change.
+			log.Printf("[WARN] Provider %q produced an invalid new value containing null blocks for %q during refresh\n", meta.Provider, inst.Addr)
+		}
+
 		// We have no way to exempt provider using the legacy SDK from this check,
 		// so we can only log inconsistencies with the updated state values.
 		// In most cases these are not errors anyway, and represent "drift" from
@@ -550,46 +559,60 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 			return ret, diags
 		}
 
-		// TODO marks handling
-		refreshedValUnmarked, _ := refreshedVal.UnmarkDeep()
-		src, moreDiags := checkAndMarshalUpdatedState(refreshedValUnmarked, schema, inst)
-		diags = diags.Append(moreDiags)
-		if diags.HasErrors() {
-			return ret, diags
-		}
+		if !refreshedVal.IsNull() {
+			// TODO marks handling
+			refreshedValUnmarked, _ := refreshedVal.UnmarkDeep()
+			src, moreDiags := checkAndMarshalUpdatedState(refreshedValUnmarked, schema, inst)
+			diags = diags.Append(moreDiags)
+			if diags.HasErrors() {
+				return ret, diags
+			}
 
-		refreshedState := &states.ResourceInstanceObjectFullSrc{
-			Value: states.ValueJSONWithMetadata{
-				ValueJSON:      src,
-				SensitivePaths: updatedPrevState.Value.SensitivePaths,
-			},
-			Private:              refreshedPrivate,
-			Status:               updatedPrevState.Status,
-			ProviderInstanceAddr: providerInst, // Update the provider instance for the refreshed state only, not the upgraded state
-			ResourceType:         updatedPrevState.ResourceType,
-			SchemaVersion:        updatedPrevState.SchemaVersion,
-			Dependencies:         updatedPrevState.Dependencies,
-			ConfigDependencies:   updatedPrevState.ConfigDependencies,
-			CreateBeforeDestroy:  updatedPrevState.CreateBeforeDestroy,
-		}
-		p.planCtx.refreshedState.SetResourceInstanceObjectFull(updatedStateAddr, refreshedState)
+			refreshedState := &states.ResourceInstanceObjectFullSrc{
+				Value: states.ValueJSONWithMetadata{
+					ValueJSON:      src,
+					SensitivePaths: updatedPrevState.Value.SensitivePaths,
+				},
+				Private:              refreshedPrivate,
+				Status:               updatedPrevState.Status,
+				ProviderInstanceAddr: providerInst, // Update the provider instance for the refreshed state only, not the upgraded state
+				ResourceType:         updatedPrevState.ResourceType,
+				SchemaVersion:        updatedPrevState.SchemaVersion,
+				CreateBeforeDestroy:  updatedPrevState.CreateBeforeDestroy,
+			}
 
-		obj, err := states.DecodeResourceInstanceObjectFull(refreshedState, schema.Block.ImpliedType())
-		if err != nil {
-			diags = diags.Append(tfdiags.AttributeValue(
-				tfdiags.Error,
-				"Invalid prior state for resource instance",
-				fmt.Sprintf(
-					"Cannot decode the most recent state snapshot for %s: %s.\n\nIs the selected version of %s incompatible with the provider that most recently changed this object?",
-					inst.Addr, tfdiags.FormatError(err), meta.Provider,
-				),
-				nil, // this error belongs to the whole resource config
-			))
-			return ret, diags
-		}
+			dependencies := addrs.MakeSet(updatedPrevState.Dependencies...)
+			configDependencies := addrs.MakeSet(updatedPrevState.ConfigDependencies...)
 
-		refreshedVal = obj.Value
-		refreshedPrivate = obj.Private
+			// Include config dependencies in refreshedState
+			for dep := range inst.RequiredResourceInstances.All() {
+				dependencies.Add(dep)
+				configDependencies.Add(dep.ConfigResource())
+			}
+			refreshedState.Dependencies = slices.Collect(dependencies.All())
+			refreshedState.ConfigDependencies = slices.Collect(configDependencies.All())
+
+			p.planCtx.refreshedState.SetResourceInstanceObjectFull(updatedStateAddr, refreshedState)
+
+			obj, err := states.DecodeResourceInstanceObjectFull(refreshedState, schema.Block.ImpliedType())
+			if err != nil {
+				diags = diags.Append(tfdiags.AttributeValue(
+					tfdiags.Error,
+					"Invalid prior state for resource instance",
+					fmt.Sprintf(
+						"Cannot decode the most recent state snapshot for %s: %s.\n\nIs the selected version of %s incompatible with the provider that most recently changed this object?",
+						inst.Addr, tfdiags.FormatError(err), meta.Provider,
+					),
+					nil, // this error belongs to the whole resource config
+				))
+				return ret, diags
+			}
+
+			refreshedVal = obj.Value
+			refreshedPrivate = obj.Private
+		} else {
+			p.planCtx.refreshedState.RemoveResourceInstanceObjectFull(updatedStateAddr, providerInst)
+		}
 	}
 
 	// TODO: ProviderMeta is a rarely-used feature that only really makes
