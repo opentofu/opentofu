@@ -273,21 +273,7 @@ func (ri *ResourceInstance) Value(ctx context.Context) (v cty.Value, diags tfdia
 }
 
 func (ri *ResourceInstance) ProviderInstance(ctx context.Context) (exprs.FromValue[*ProviderInstance], tfdiags.Diagnostics) {
-	v, diags := ri.ProviderInstanceValuer.Value(ctx)
-	if diags.HasErrors() {
-		return exprs.Unknown[*ProviderInstance]().Mark(exprs.EvalError), diags
-	}
-	inst, err := ProviderInstanceFromValue(v, ri.Provider)
-	if err != nil {
-		diags = diags.Append(&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Invalid provider instance reference",
-			Detail:   fmt.Sprintf("Unsuitable provider selection for %s: %s.", ri.Addr, tfdiags.FormatError(err)),
-			Subject:  MaybeHCLSourceRange(ri.ProviderInstanceValuer.ValueSourceRange()),
-		})
-		return inst.Mark(exprs.EvalError), diags
-	}
-	return inst, diags
+	return DecodeProviderInstance(ctx, ri.ProviderInstanceValuer, ri.Provider, ri.Addr.String())
 }
 
 // ResourceInstanceDependencies returns a sequence of any other resource

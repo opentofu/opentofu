@@ -8134,6 +8134,7 @@ func TestContext2Plan_skipRefresh(t *testing.T) {
 resource "test_instance" "a" {
 }
 `})
+	SkipExperimental(t, ExperimentalFeatureRefresh)
 
 	state := states.NewState()
 	root := state.EnsureModule(addrs.RootModuleInstance)

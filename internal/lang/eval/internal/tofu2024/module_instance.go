@@ -40,6 +40,7 @@ type CompiledModuleInstance struct {
 	providerConfigNodes map[addrs.LocalProviderConfig]*configgraph.ProviderConfig
 	providerLocalNames  map[addrs.Provider]string
 
+	importNodes    []*configgraph.Import
 	moveStatements []refactoring.MoveStatement
 
 	missingProviders rootMissingProviders
@@ -89,6 +90,9 @@ func (c *CompiledModuleInstance) CheckAll(ctx context.Context) tfdiags.Diagnosti
 	for _, n := range c.providerConfigNodes {
 		cg.CheckChild(ctx, n)
 	}
+	for _, n := range c.importNodes {
+		cg.CheckChild(ctx, n)
+	}
 	// TODO: Once we have support for module calls we'll need to check both
 	// the calls _and_ the nested [evalglue.CompiledModuleInstance] objects
 	// that encapsulate the child contents, which might potentially use a
@@ -132,6 +136,22 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 		DeletionInvalid: configgraph.DeletionInvalid{Value: exprs.Known(false)},
 	}
 
+	// Add all applicable import identities from this module
+	configAddr := absAddr.InstanceAddr.ConfigResource()
+	for _, importNode := range c.importNodes {
+		if !importNode.Addr.Equal(configAddr) {
+			break
+		}
+		instances, _ := importNode.Instances(ctx)
+		for _, instance := range instances {
+			statement, _ := instance.Statement(ctx)
+			if statement != nil && statement.Addr.Equal(absAddr.InstanceAddr) {
+				// Conflicts are handled elsewhere
+				ret.ImportStatement = statement
+			}
+		}
+	}
+
 	// Check to see if this resource is within the given module
 	if len(absAddr.InstanceAddr.Module) > len(c.moduleInstanceNode.Addr) {
 		// Recurse into a child module
@@ -140,7 +160,11 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 
 		if instance := c.ChildModuleInstance(ctx, addrs.ModuleCallInstance{Call: childCall, Key: childStep.InstanceKey}); instance != nil {
 			found := instance.ResourceInstanceObjectMeta(ctx, absAddr)
+			// Merge the found meta and the current module's meta
 			found.MoveStatements = append(ret.MoveStatements, found.MoveStatements...)
+			if ret.ImportStatement != nil {
+				found.ImportStatement = ret.ImportStatement
+			}
 			return found
 		}
 
@@ -393,6 +417,29 @@ func (c *CompiledModuleInstance) ResourceInstancesForResource(ctx context.Contex
 // ResourceInstancesForResource implements evalglue.CompiledModuleInstance.
 func (c *CompiledModuleInstance) ProviderRequirements(ctx context.Context) (getproviders.Requirements, *getproviders.ProvidersQualification, tfdiags.Diagnostics) {
 	return c.providerRequirements(ctx)
+}
+
+// ImportStatements implements evalglue.CompiledModuleInstance.
+func (c *CompiledModuleInstance) ImportStatements(ctx context.Context) []*configgraph.ImportStatement {
+	var statements []*configgraph.ImportStatement
+	for _, importNode := range c.importNodes {
+		instances, _ := importNode.Instances(ctx)
+		for _, instance := range instances {
+			statement, _ := instance.Statement(ctx)
+			if statement != nil {
+				statements = append(statements, statement)
+			}
+		}
+	}
+
+	// This is mostly a placeholder for if we ever decide to support imports in child modules
+	for call := range c.ChildModuleCalls(ctx) {
+		for _, child := range c.ChildModuleInstancesForCall(ctx, call) {
+			statements = append(statements, child.ImportStatements(ctx)...)
+		}
+	}
+
+	return statements
 }
 
 // AnnounceAllGraphevalRequests implements evalglue.CompiledModuleInstance.

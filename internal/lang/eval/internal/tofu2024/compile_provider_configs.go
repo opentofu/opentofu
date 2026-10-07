@@ -87,7 +87,7 @@ func compileProviderConfig(
 			},
 		},
 		ProviderAddr:     providerAddr,
-		InstanceSelector: compileInstanceSelector(ctx, declScope, config.ForEach, nil, nil, sharedDeps),
+		InstanceSelector: compileInstanceSelector(ctx, declScope, config.ForEach, nil, nil, sharedDeps, instanceSelectorForEachTupleDisallowed),
 		CompileProviderInstance: func(ctx context.Context, key addrs.InstanceKey, repData instances.RepetitionData) *configgraph.ProviderInstance {
 			instanceScope := instanceLocalScope(declScope, repData)
 			instanceDeps := compileInstanceDeps(instanceScope)

@@ -195,7 +195,7 @@ func compileModuleInstanceResource(
 		// Our instance selector depends on which of the repetition metaarguments
 		// are set, if any. We assume that package configs allows at most one
 		// of these to be set for each resource config.
-		InstanceSelector: compileInstanceSelector(ctx, declScope, config.ForEach, config.Count, config.Enabled, sharedDeps),
+		InstanceSelector: compileInstanceSelector(ctx, declScope, config.ForEach, config.Count, config.Enabled, sharedDeps, instanceSelectorForEachTupleDisallowed),
 
 		// The [configgraph.Resource] implementation will call back to this
 		// for each child instance it discovers through [InstanceSelector],

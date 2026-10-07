@@ -68,6 +68,10 @@ type planContext struct {
 	rootOutput rootOutput
 
 	providers plugins.Providers
+
+	skipRefresh bool
+	refreshOnly bool
+	skipImport  bool
 }
 
 func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, providers plugins.Providers, opts *PlanOpts) *planContext {
@@ -89,6 +93,8 @@ func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, pro
 		refreshedState:   refreshedState.SyncWrapper(),
 		upgradedState:    upgradedState.SyncWrapper(),
 		providers:        providers,
+		skipRefresh:      opts.SkipRefresh,
+		refreshOnly:      opts.Mode == plans.RefreshOnlyMode,
 	}
 }
 
@@ -105,6 +111,22 @@ func (p *planContext) Close(ctx context.Context) (*planContextResult, tfdiags.Di
 		PrevRoundState:          p.upgradedState.Close(),
 		RefreshedState:          p.refreshedState.Close(),
 		RootOutput:              p.rootOutput,
+	}
+
+	// Propogate through the refreshed outputs
+	refreshedOutputs := result.RefreshedState.EnsureModule(addrs.RootModuleInstance).OutputValues
+	clear(refreshedOutputs)
+	for k, v := range p.rootOutput.Current {
+		if v.Value.IsKnown() {
+			refreshedOutputs[k] = &states.OutputValue{
+				Addr:  addrs.AbsOutputValue{OutputValue: addrs.OutputValue{Name: k}},
+				Value: v.Value,
+				// TODO Sensitive  bool
+				// TODO Deprecated string
+			}
+		} else if prev, ok := result.PrevRoundState.EnsureModule(addrs.RootModuleInstance).OutputValues[k]; ok {
+			refreshedOutputs[k] = prev
+		}
 	}
 
 	return result, diags

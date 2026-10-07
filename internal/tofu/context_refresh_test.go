@@ -163,7 +163,7 @@ func TestContext2Refresh_dynamicAttr(t *testing.T) {
 }
 
 func TestContext2Refresh_dataComputedModuleVar(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureRefresh)
+	SkipExperimental(t, ExperimentalFeatureRefresh, ExperimentalBugDataResource)
 
 	p := testProvider("aws")
 	m := testModule(t, "refresh-data-module-var")
@@ -1235,7 +1235,7 @@ func TestContext2Refresh_dataState(t *testing.T) {
 
 	mod := s.RootModule()
 
-	SkipExperimental(t, ExperimentalFeatureRefresh)
+	SkipExperimental(t, ExperimentalBugDataResource)
 
 	newState, err := mod.Resources["data.null_data_source.testing"].Instances[addrs.NoKey].Current.Decode(schema.ImpliedType())
 	if err != nil {
@@ -1248,7 +1248,7 @@ func TestContext2Refresh_dataState(t *testing.T) {
 }
 
 func TestContext2Refresh_dataStateRefData(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureRefresh)
+	SkipExperimental(t, ExperimentalFeatureRefresh, ExperimentalBugDataResource)
 
 	p := testProvider("null")
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{

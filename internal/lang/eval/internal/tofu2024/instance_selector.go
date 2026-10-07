@@ -27,7 +27,14 @@ import (
 
 const maxCount = int64(math.MaxInt32)
 
-func compileInstanceSelector(ctx context.Context, declScope exprs.Scope, forEachExpr hcl.Expression, countExpr hcl.Expression, enabledExpr hcl.Expression, deps dependsOn) configgraph.InstanceSelector {
+type instanceSelectorForEachTuple bool
+
+const (
+	instanceSelectorForEachTupleDisallowed = instanceSelectorForEachTuple(false)
+	instanceSelectorForEachTupleAllowed    = instanceSelectorForEachTuple(true)
+)
+
+func compileInstanceSelector(ctx context.Context, declScope exprs.Scope, forEachExpr hcl.Expression, countExpr hcl.Expression, enabledExpr hcl.Expression, deps dependsOn, allowTuple instanceSelectorForEachTuple) configgraph.InstanceSelector {
 	// We don't current verify that only one of the given expressions is set
 	// because we expect the configs package to check that.
 
@@ -35,7 +42,7 @@ func compileInstanceSelector(ctx context.Context, declScope exprs.Scope, forEach
 		return compileInstanceSelectorForEach(ctx, exprs.NewClosure(
 			exprs.EvalableHCLExpression(forEachExpr),
 			declScope,
-		), deps)
+		), deps, allowTuple)
 	}
 	if countExpr != nil {
 		return compileInstanceSelectorCount(ctx, exprs.NewClosure(
@@ -198,7 +205,7 @@ func compileInstanceSelectorEnabled(_ context.Context, enabledValuer exprs.Value
 	}
 }
 
-func compileInstanceSelectorForEach(_ context.Context, forEachValuer exprs.Valuer, deps dependsOn) configgraph.InstanceSelector {
+func compileInstanceSelectorForEach(_ context.Context, forEachValuer exprs.Valuer, deps dependsOn, allowTuple instanceSelectorForEachTuple) configgraph.InstanceSelector {
 	forEachValuer = configgraph.ValuerOnce(forEachValuer)
 	return &instanceSelector{
 		keyType:     addrs.StringKeyType,
@@ -237,6 +244,20 @@ func compileInstanceSelectorForEach(_ context.Context, forEachValuer exprs.Value
 			}
 
 			typ := rawVal.Type()
+
+			// This is a weird hack for import
+			if allowTuple == instanceSelectorForEachTupleAllowed && typ.IsTupleType() {
+				if !rawVal.IsKnown() {
+					return exprs.Unknown[configgraph.InstancesSeq]().WithMarks(marks), diags
+				}
+				obj := map[string]cty.Value{}
+				for i, v := range rawVal.AsValueSlice() {
+					obj[fmt.Sprintf("%v", i)] = v
+				}
+				rawVal = cty.ObjectVal(obj)
+				typ = rawVal.Type()
+			}
+
 			if typ.IsSetType() {
 				// We accept only sets of string or of unknown element type.
 				// We must accept unknown element type so that it's valid to

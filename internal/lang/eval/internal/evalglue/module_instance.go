@@ -206,6 +206,8 @@ type CompiledModuleInstance interface {
 
 	ProviderRequirements(ctx context.Context) (getproviders.Requirements, *getproviders.ProvidersQualification, tfdiags.Diagnostics)
 
+	ImportStatements(ctx context.Context) []*configgraph.ImportStatement
+
 	// AnnounceAllGraphevalRequests calls announce for each [grapheval.Once],
 	// [OnceValuer], or other [workgraph.RequestID] anywhere in the tree under this
 	// object.

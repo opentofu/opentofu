@@ -27,7 +27,7 @@ import (
 
 func TestCompileInstanceSelectorSingleton(t *testing.T) {
 	ctx := grapheval.ContextWithNewWorker(t.Context())
-	selector := compileInstanceSelector(ctx, exprs.FlatScopeForTesting(nil), nil, nil, nil, dependsOn{})
+	selector := compileInstanceSelector(ctx, exprs.FlatScopeForTesting(nil), nil, nil, nil, dependsOn{}, instanceSelectorForEachTupleDisallowed)
 	instsSeq, diags := selector.Instances(ctx)
 	instsSeq, marks := instsSeq.Unmark()
 	insts, _ := instsSeq.Derive(func(s configgraph.InstancesSeq) (map[addrs.InstanceKey]instances.RepetitionData, error) {
@@ -392,7 +392,7 @@ func TestCompileInstanceSelectorForEach(t *testing.T) {
 			},
 		},
 		func(ctx context.Context, e hcl.Expression, deps dependsOn) configgraph.InstanceSelector {
-			return compileInstanceSelector(ctx, scope, e, nil, nil, deps)
+			return compileInstanceSelector(ctx, scope, e, nil, nil, deps, instanceSelectorForEachTupleDisallowed)
 		},
 	)
 }
@@ -552,7 +552,7 @@ func TestCompileInstanceSelectorCount(t *testing.T) {
 			},
 		},
 		func(ctx context.Context, e hcl.Expression, deps dependsOn) configgraph.InstanceSelector {
-			return compileInstanceSelector(ctx, scope, nil, e, nil, deps)
+			return compileInstanceSelector(ctx, scope, nil, e, nil, deps, instanceSelectorForEachTupleDisallowed)
 		},
 	)
 }
@@ -664,7 +664,7 @@ func TestCompileInstanceSelectorEnabled(t *testing.T) {
 			},
 		},
 		func(ctx context.Context, e hcl.Expression, deps dependsOn) configgraph.InstanceSelector {
-			return compileInstanceSelector(ctx, scope, nil, nil, e, deps)
+			return compileInstanceSelector(ctx, scope, nil, nil, e, deps, instanceSelectorForEachTupleDisallowed)
 		},
 	)
 }

@@ -25,6 +25,7 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/shared"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -195,6 +196,7 @@ func (c *Context) newEnginePlan(ctx context.Context, config *configs.Config, pre
 	newOpts := &planning.PlanOpts{
 		Mode:         opts.Mode,
 		ForceReplace: opts.ForceReplace,
+		SkipRefresh:  opts.SkipRefresh,
 		// TODO: Most other things that are in this package's [PlanOpts]
 		// package, though notably not "SetVariables" because the new runtime
 		// deals with input variables during the module compilation step, rather
@@ -233,6 +235,19 @@ func (c *Context) newEnginePlanTracer() *planning.Tracer {
 			gen := addr.DeposedKey.Generation()
 			c.eachHook(func(h Hook) (HookAction, error) {
 				return h.PostRefresh(inst, gen, prevRoundVal, refreshedVal)
+			})
+		},
+		StartManagedResourceInstanceObjectImport: func(ctx context.Context, addr addrs.AbsResourceInstanceObject, identity providers.ImportTarget) context.Context {
+			inst := addr.InstanceAddr
+			c.eachHook(func(h Hook) (HookAction, error) {
+				return h.PrePlanImport(inst, identity)
+			})
+			return ctx
+		},
+		EndManagedResourceInstanceObjectImport: func(ctx context.Context, addr addrs.AbsResourceInstanceObject) {
+			inst := addr.InstanceAddr
+			c.eachHook(func(h Hook) (HookAction, error) {
+				return h.PostPlanImport(inst, nil) // Practically speaking passing in the list of potential imports here does not make sense
 			})
 		},
 		StartManagedResourceInstanceObjectPlanChanges: func(ctx context.Context, addr addrs.AbsResourceInstanceObject, priorVal, configVal cty.Value) context.Context {

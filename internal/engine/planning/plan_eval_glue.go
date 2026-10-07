@@ -178,6 +178,8 @@ func (p *planGlue) Finalize(ctx context.Context) (*planContextResult, tfdiags.Di
 
 	diags = diags.Append(p.validateForceReplace())
 
+	diags = diags.Append(p.validateImports(ctx))
+
 	diags = diags.Append(p.planCtx.CheckPreventDestroy(ctx, p.oracle))
 
 	diags = diags.Append(p.oracle.Close(ctx))
@@ -467,6 +469,47 @@ func (p *planGlue) validateForceReplace() tfdiags.Diagnostics {
 					resourceAddr, possibleValidOptions.String(),
 				),
 			))
+		}
+	}
+	return diags
+}
+
+func (p *planGlue) validateImports(ctx context.Context) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+
+	// Check for duplicates
+	imports := addrs.MakeMap[addrs.AbsResourceInstance, *eval.ImportStatement]()
+	for _, stmt := range p.oracle.CollectImports(ctx) {
+		importAddress := stmt.Addr
+		if existing, exists := imports.GetOk(importAddress); exists {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  fmt.Sprintf("Duplicate import configuration for %q", importAddress),
+				Detail:   fmt.Sprintf("An import block for the resource %q was already declared at %s. A resource can have only one import block.", importAddress, existing.DeclRange.ToHCL()),
+				Subject:  existing.DeclRange.ToHCL().Ptr(),
+			})
+		}
+		imports.Put(importAddress, stmt)
+	}
+
+	if p.planCtx.skipImport {
+		return diags
+	}
+
+	// Check for no corresponding resource
+	for _, addr := range imports.Keys() {
+		if !p.planCtx.desired.Has(addr) { // TODO wildcard
+			config := imports.Get(addr)
+			var subject *hcl.Range
+			if config != nil {
+				subject = config.DeclRange.ToHCL().Ptr()
+			}
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Configuration for import target does not exist",
+				Detail:   fmt.Sprintf("The configuration for the given import %s does not exist. All target instances must have an associated configuration to be imported.", addr),
+				Subject:  subject,
+			})
 		}
 	}
 
