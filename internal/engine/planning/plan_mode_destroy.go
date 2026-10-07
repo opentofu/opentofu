@@ -17,8 +17,8 @@ import (
 	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/engine/plugins"
 	"github.com/opentofu/opentofu/internal/lang/eval"
-	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/resources"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -43,6 +43,7 @@ func destroyPlan(ctx context.Context, opts *PlanOpts, prevRoundState *states.Sta
 	var diags tfdiags.Diagnostics
 
 	planCtx := newPlanContext(configInst.EvalContext(), prevRoundState, providers, opts)
+	planCtx.skipImport = true
 
 	glue := &planGlueDestroy{
 		additionalTargets:  addrs.MakeSet[addrs.Targetable](),
@@ -138,7 +139,69 @@ func (p *planGlueDestroy) PlanDesiredResourceInstance(ctx context.Context, inst 
 		return cty.DynamicVal, diags
 	}
 
-	prevState := prevStateInfo.state
+	configMeta := p.normalGlue.oracle.ResourceInstanceObjectMeta(ctx, inst.Addr.CurrentObject())
+	// For a desired object we never pass a prior state object in here because
+	// the configuration is expected to be authoritative. We blend configuration
+	// and state metadata only for non-desired objects where the configuration
+	// tends to be incomplete and so we rely on prior state to fill gaps.
+	meta := exec.BuildResourceInstanceObjectMeta(inst.Addr.CurrentObject(), configMeta, (*states.ResourceInstanceObjectFullSrc)(nil))
+
+	// FIXME: Once we introduce deferral reasons, we could inspect the deferral reason below
+	if p.normalGlue.isExcluded(inst.Addr) && prevStateInfo.state != nil {
+		// If we are excluded, everything we depend on is excluded
+		p.targetingMu.Lock()
+		for dep := range inst.RequiredResourceInstances.All() {
+			p.additionalExcludes.Add(dep)
+		}
+		// This seems technically redundant with some logic below,
+		// but it may be required due to interactions with moved blocks.
+		for dep := range prevStateInfo.state.TargetDependencies() {
+			p.additionalExcludes.Add(dep)
+		}
+		p.targetingMu.Unlock()
+	}
+
+	if p.normalGlue.desiredResourceInstanceMustBeDeferred(inst, meta) {
+		log.Printf("[TRACE] planGlueDestroy.PlanDesiredResourceInstance for %s DEFERRED", inst.Addr)
+
+		return deferredVal(cty.DynamicVal), nil
+	}
+
+	if p.normalGlue.isTargeting() {
+		// If we are targeted, everything we depend on is targeted
+		p.targetingMu.Lock()
+		// We rely on the config graph to reach all required instances
+		// during PreProcess.
+		p.additionalTargets.Add(inst.Addr)
+		// This seems technically redundant with some logic below,
+		// but it may be required due to interactions with moved blocks.
+		if prevStateInfo.state != nil {
+			for dep := range prevStateInfo.state.TargetDependencies() {
+				p.additionalTargets.Add(dep)
+			}
+		}
+		p.targetingMu.Unlock()
+	}
+
+	if prevStateInfo.state == nil {
+		// If this is something that didn't exist at all in the prior state
+		// then we have nothing reasonable to return here, so we'll return
+		// a completely-unknown value.
+		//
+		// In practice this can only occur in the unusual situation where
+		// someone adds both a resource block and an ephemeral object config
+		// (e.g. a provider block) referring to it and then immediately runs
+		// a destroy-mode plan without first applying the change to create the
+		// managed resources, which is not a supported usage pattern. Returning
+		// unknown in that case makes this behave the same as what happens in
+		// normal mode when a provider configuration depends on an unknown value
+		// from a resource instance that hasn't been created yet: the provider
+		// gets sent an unknown value in its configuration and gets to decide
+		// for itself how it wants to handle that situation, including possibly
+		// making our subsequent calls to PlanResourceChange signal that the
+		// provider needs to defer planning that change.
+		return cty.DynamicVal, diags
+	}
 
 	// TODO: The refreshing and upgrading logic is currently embedded in the
 	// middle of [planGlue.planDesiredManagedResourceInstance] and not callable
@@ -164,100 +227,80 @@ func (p *planGlueDestroy) PlanDesiredResourceInstance(ctx context.Context, inst 
 	// the updates to old-style state models that we currently do so that we
 	// can return a plan shaped roughly like what the old runtime shims are
 	// expecting, instead of doing it inline in the main planning function.)
-	upgradedState := prevState
-	refreshedState := upgradedState
 
-	configMeta := p.normalGlue.oracle.ResourceInstanceObjectMeta(ctx, inst.Addr.CurrentObject())
-	meta := exec.BuildResourceInstanceObjectMeta(inst.Addr.CurrentObject(), configMeta, refreshedState)
+	// Begin unfortunate copy-pasta from plan_managed.go
 
-	// FIXME: Once we introduce deferral reasons, we could inspect the deferral reason below
-	if p.normalGlue.isExcluded(inst.Addr) && prevState != nil {
-		// If we are excluded, everything we depend on is excluded
-		p.targetingMu.Lock()
-		for dep := range inst.RequiredResourceInstances.All() {
-			p.additionalExcludes.Add(dep)
-		}
-		// This seems technically redundant with some logic below,
-		// but it may be required due to interactions with moved blocks.
-		for dep := range prevState.TargetDependencies() {
-			p.additionalExcludes.Add(dep)
-		}
-		p.targetingMu.Unlock()
-	}
-
-	if p.normalGlue.desiredResourceInstanceMustBeDeferred(inst, meta) {
-		log.Printf("[TRACE] planGlueDestroy.PlanDesiredResourceInstance for %s DEFERRED", inst.Addr)
-
-		return deferredVal(cty.DynamicVal), nil
-	}
-
-	if p.normalGlue.isTargeting() {
-		// If we are targeted, everything we depend on is targeted
-		p.targetingMu.Lock()
-		// We rely on the config graph to reach all required instances
-		// during PreProcess.
-		p.additionalTargets.Add(inst.Addr)
-		// This seems technically redundant with some logic below,
-		// but it may be required due to interactions with moved blocks.
-		if prevState != nil {
-			for dep := range prevState.TargetDependencies() {
-				p.additionalTargets.Add(dep)
-			}
-		}
-		p.targetingMu.Unlock()
-	}
-
-	if prevState == nil {
-		// If this is something that didn't exist at all in the prior state
-		// then we have nothing reasonable to return here, so we'll return
-		// a completely-unknown value.
-		//
-		// In practice this can only occur in the unusual situation where
-		// someone adds both a resource block and an ephemeral object config
-		// (e.g. a provider block) referring to it and then immediately runs
-		// a destroy-mode plan without first applying the change to create the
-		// managed resources, which is not a supported usage pattern. Returning
-		// unknown in that case makes this behave the same as what happens in
-		// normal mode when a provider configuration depends on an unknown value
-		// from a resource instance that hasn't been created yet: the provider
-		// gets sent an unknown value in its configuration and gets to decide
-		// for itself how it wants to handle that situation, including possibly
-		// making our subsequent calls to PlanResourceChange signal that the
-		// provider needs to defer planning that change.
+	providerInstUnmarked, providerInstMarks := meta.ProviderInstance.Unmark()
+	// TODO: What should we do with these marks, if anything?
+	_ = providerInstMarks
+	providerInst, ok := providerInstUnmarked.ValueOk()
+	if !ok {
+		// If we don't even know which provider instance we're supposed to be
+		// talking to then we can't proceed any further.
 		return cty.DynamicVal, diags
 	}
 
-	// FIXME: Ideally we'd use [resources.ManagedResourceType] here to match
-	// how [planGlue.planDesiredManagedResourceInstance] gets schema, but
-	// we want to avoid starting up a "configured" provider here just to fetch
-	// the schema, since that would increase the risk of this failing due
-	// to the provider config referring to something that isn't available in
-	// this weird destroy mode.
-	schema, moreDiags := p.normalGlue.planCtx.providers.ResourceTypeSchema(ctx, meta.Provider, inst.Addr.Resource.Resource.Mode, meta.ResourceType)
+	providerClient, moreDiags := p.normalGlue.providerClient(ctx, providerInst)
+	if providerClient == nil {
+		moreDiags = moreDiags.Append(tfdiags.AttributeValue(
+			tfdiags.Error,
+			"Provider instance not available",
+			fmt.Sprintf("Cannot plan %s because its associated provider instance %s cannot initialize.", inst.Addr, providerInst),
+			nil,
+		))
+	}
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
-		return exprs.AsEvalError(cty.DynamicVal), diags
+		return cty.DynamicVal, diags
 	}
 
-	obj, err := states.DecodeResourceInstanceObjectFull(refreshedState, schema.Block.ImpliedType())
-	if err != nil {
-		diags = diags.Append(tfdiags.AttributeValue(
-			tfdiags.Error,
-			"Invalid prior state for resource instance",
-			fmt.Sprintf(
-				"Cannot decode the most recent state snapshot for %s: %s.\n\nIs the selected version of %s incompatible with the provider that most recently changed this object?",
-				inst.Addr, tfdiags.FormatError(err), meta.Provider,
-			),
-			nil, // this error belongs to the whole resource config
-		))
-		return cty.UnknownVal(schema.Block.ImpliedType()), diags
+	resourceType := resources.NewManagedResourceType(meta.Provider, meta.ResourceType, providerClient)
+
+	updatedStateAddr := inst.Addr.CurrentObject()
+	if prevStateInfo.isImplicit() {
+		// due to a quirk in how moves are handled,
+		// if it's an implied move, we save state
+		// in the prevAddr instead of current.
+		updatedStateAddr = prevStateInfo.from.CurrentObject()
+	}
+
+	var prevValue *resources.EncodedValueWithPrivate
+	prevValue, prevStateFull, moreDiags := p.normalGlue.processMoveOrUpgrade(
+		ctx,
+		inst.Addr.CurrentObject(),
+		updatedStateAddr,
+		meta.Provider,
+		resourceType,
+		prevStateInfo.state,
+		prevStateInfo.isMove() && !prevStateInfo.isImplicit(),
+	)
+	diags = diags.Append(moreDiags)
+	if diags.HasErrors() {
+		return cty.DynamicVal, diags
+	}
+	// TODO Identity passthrough
+	prevState := &resources.ManagedResourceStateWithIdentity{EncodedValueWithPrivate: *prevValue}
+
+	prevState, prevStateFull, moreDiags = p.normalGlue.processRefresh(
+		ctx,
+		inst.Addr.CurrentObject(),
+		updatedStateAddr,
+		providerInst,
+		resourceType,
+		inst.RequiredResourceInstances,
+		prevState,
+		prevStateFull,
+	)
+	diags = diags.Append(moreDiags)
+	if diags.HasErrors() {
+		return cty.DynamicVal, diags
 	}
 
 	// TODO: Do we need to add any dependency-related marks to this? We're
 	// primarily relying on state-based dependencies in destroy mode, but maybe
 	// we need to add marks here too so that dependencies can propagate through
 	// ephemeral objects that would still be working in terms of configuration.
-	return obj.Value, diags
+	return prevState.Value, diags
 }
 
 func (p *planGlueDestroy) Finalize(ctx context.Context) (*planContextResult, tfdiags.Diagnostics) {

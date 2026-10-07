@@ -374,7 +374,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		ret.PlaceholderValue = prevState.Value
 	}
 
-	importing := prevState == nil && !p.planCtx.refreshOnly && configMeta.ImportStatement != nil
+	importing := prevState == nil && !p.planCtx.refreshOnly && !p.planCtx.skipImport && configMeta.ImportStatement != nil
 
 	var planImport *plans.Importing
 	if importing {

@@ -491,6 +491,11 @@ func (p *planGlue) validateImports(ctx context.Context) tfdiags.Diagnostics {
 		}
 		imports.Put(importAddress, stmt)
 	}
+
+	if p.planCtx.skipImport {
+		return diags
+	}
+
 	// Check for no corresponding resource
 	for _, addr := range imports.Keys() {
 		if !p.planCtx.desired.Has(addr) { // TODO wildcard

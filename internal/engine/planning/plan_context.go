@@ -71,6 +71,7 @@ type planContext struct {
 
 	skipRefresh bool
 	refreshOnly bool
+	skipImport  bool
 }
 
 func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, providers plugins.Providers, opts *PlanOpts) *planContext {
