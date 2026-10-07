@@ -351,7 +351,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		prevRoundVal = cty.NullVal(schema.Block.ImpliedType())
 	}
 
-	importing := updatedPrevState == nil && configMeta.ImportStatement != nil && !(configMeta.ImportStatement.ID == "" &&
+	importing := updatedPrevState == nil && !p.planCtx.refreshOnly && configMeta.ImportStatement != nil && !(configMeta.ImportStatement.ID == "" &&
 		(configMeta.ImportStatement.Identity == cty.NilVal || configMeta.ImportStatement.Identity.IsNull()))
 
 	var planImport *plans.Importing
@@ -623,166 +623,169 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 	// meta value to get from the evaluator into here.
 	providerMetaValue := cty.NilVal
 
-	planChangesCtx := ctx
-	if cb := tracer.StartManagedResourceInstanceObjectPlanChanges; cb != nil {
-		planChangesCtx = cb(ctx, inst.Addr.CurrentObject(), refreshedVal, unmarkedConfigVal)
-	}
-	planResp, planDiags := resourceType.PlanChanges(planChangesCtx, &resources.ManagedResourcePlanRequest{
-		Current: resources.ValueWithPrivate{
-			Value:   refreshedVal,
-			Private: refreshedPrivate,
-		},
-		DesiredValue:       unmarkedConfigVal,
-		ProviderMetaValue:  providerMetaValue,
-		IgnoreChangesPaths: inst.IgnoreChangesPaths,
-	}, ret.Addr)
-	diags = diags.Append(planDiags)
-	if planDiags.HasErrors() {
-		if cb := tracer.EndManagedResourceInstanceObjectPlanChanges; cb != nil {
-			cb(planChangesCtx, inst.Addr.CurrentObject(), plans.NoOp, refreshedVal, cty.DynamicVal, diags)
+	ret.PlaceholderValue = refreshedVal
+	ret.ProviderInst = providerInst
+
+	if !p.planCtx.refreshOnly {
+		planChangesCtx := ctx
+		if cb := tracer.StartManagedResourceInstanceObjectPlanChanges; cb != nil {
+			planChangesCtx = cb(ctx, inst.Addr.CurrentObject(), refreshedVal, unmarkedConfigVal)
 		}
-		return ret, diags
-	}
-
-	// Incomplete
-	actionReason := plans.ResourceInstanceChangeNoReason
-
-	// Check for if replacement is required
-	forceReplace := false
-	for _, tb := range inst.ReplaceTriggeredBy {
-		replaceAddr, replaceDiags := p.evaluateReplaceTriggeredBy(tb)
-		diags = diags.Append(replaceDiags)
-		if replaceDiags.HasErrors() {
-			return ret, diags
-		}
-
-		if replaceAddr != nil {
-			log.Printf("[DEBUG] ReplaceTriggeredBy forcing replacement of %s due to change in %s", inst.Addr, replaceAddr)
-			forceReplace = true
-			actionReason = plans.ResourceInstanceReplaceByTriggers
-		}
-	}
-
-	// The user might also ask us to force replacing a particular resource
-	// instance, regardless of whether the provider thinks it needs replacing.
-	// For example, users typically do this if they learn a particular object
-	// has become degraded in an immutable infrastructure scenario and so
-	// replacing it with a new object is a viable repair path.
-	for _, addr := range p.planCtx.forceReplace {
-		if addr.Equal(inst.Addr) {
-			log.Printf("[DEBUG] Forcing replacement of %s per user request", inst.Addr)
-			forceReplace = true
-			actionReason = plans.ResourceInstanceReplaceByRequest
-		}
-
-		// For "force replace" purposes we require an exact resource instance
-		// address to match. If a user forgets to include the instance key
-		// for a multi-instance resource then it won't match here, but we
-		// have an earlier check in ????? that should
-		// prevent us from getting here in that case.
-	}
-
-	// TODO: Check for resp.Deferred once we've updated package providers to
-	// include it. If that's set then the _provider_ is telling us we must
-	// defer planning any action for this resource instance. We'd still
-	// return the planned new state as a placeholder for downstream planning in
-	// that case, but we would need to mark it as deferred and _not_ record a
-	// proposed change for it.
-
-	plannedAction := plans.Update
-	if refreshedVal.IsNull() {
-		plannedAction = plans.Create
-	} else if !planResp.RequiresReplace.Empty() || forceReplace {
-		// For "replace" actions the execution graph will include two separate
-		// plan and apply operations, where one handles deletion and the other
-		// handles creation. There is therefore an implicit third intermediate
-		// state between those two, but in our plan model we have a convention
-		// to model it as if it were just a direct transition from the old
-		// object to the new object.
-		//
-		// Our current planResp.Planned.Value describes the situation as if
-		// we were performing an in-place update though, so we need to now
-		// ask the provider to plan each of the parts separately so that we
-		// can match how the apply engine will ask the provider these questions.
-		createPlanResp, planDiags := resourceType.PlanChanges(ctx, &resources.ManagedResourcePlanRequest{
-			// "Current" is intentionally not set here, because we're asking
-			// for a plan to create a new object matching the configuration.
-			DesiredValue:      unmarkedConfigVal,
-			ProviderMetaValue: providerMetaValue,
-		}, ret.Addr)
-		diags = diags.Append(planDiags)
-		if planDiags.HasErrors() {
-			return ret, diags
-		}
-		deletePlanResp, planDiags := resourceType.PlanChanges(ctx, &resources.ManagedResourcePlanRequest{
+		planResp, planDiags := resourceType.PlanChanges(planChangesCtx, &resources.ManagedResourcePlanRequest{
 			Current: resources.ValueWithPrivate{
 				Value:   refreshedVal,
 				Private: refreshedPrivate,
 			},
-			// DesiredValue is intentionally not set here, because we're asking
-			// asking for a plan to just destroy what currently exists.
-			ProviderMetaValue: providerMetaValue,
+			DesiredValue:       unmarkedConfigVal,
+			ProviderMetaValue:  providerMetaValue,
+			IgnoreChangesPaths: inst.IgnoreChangesPaths,
 		}, ret.Addr)
 		diags = diags.Append(planDiags)
 		if planDiags.HasErrors() {
+			if cb := tracer.EndManagedResourceInstanceObjectPlanChanges; cb != nil {
+				cb(planChangesCtx, inst.Addr.CurrentObject(), plans.NoOp, refreshedVal, cty.DynamicVal, diags)
+			}
 			return ret, diags
 		}
-		// Now we'll update the original plan response with these newly-chosen
-		// before/after values, to match what the rest of the system expects.
-		planResp.Current = deletePlanResp.Current
-		planResp.DesiredValue = createPlanResp.DesiredValue
-		planResp.Planned = createPlanResp.Planned
 
-		// We'll select a reasonable initial planned action here but this
-		// might be overridden later once we propagate ordering constraints
-		// through the dependency graph.
-		if replaceOrder == resources.ReplaceCreateFirst {
-			plannedAction = plans.CreateThenDelete
-		} else {
-			plannedAction = plans.DeleteThenCreate
+		// Incomplete
+		actionReason := plans.ResourceInstanceChangeNoReason
+
+		// Check for if replacement is required
+		forceReplace := false
+		for _, tb := range inst.ReplaceTriggeredBy {
+			replaceAddr, replaceDiags := p.evaluateReplaceTriggeredBy(tb)
+			diags = diags.Append(replaceDiags)
+			if replaceDiags.HasErrors() {
+				return ret, diags
+			}
+
+			if replaceAddr != nil {
+				log.Printf("[DEBUG] ReplaceTriggeredBy forcing replacement of %s due to change in %s", inst.Addr, replaceAddr)
+				forceReplace = true
+				actionReason = plans.ResourceInstanceReplaceByTriggers
+			}
 		}
-	} else if eq, _ := planResp.Planned.Value.Equals(refreshedVal).Unmark(); eq.IsKnown() && eq.True() {
-		ret.PlaceholderValue = refreshedVal
-		plannedAction = plans.NoOp
-	}
-	// (a "desired" object cannot have a Delete action; we handle those cases
-	// in planOrphanManagedResourceInstance and planDeposedManagedResourceInstanceObject below.)
-	ret.PlannedChange = &plans.ResourceInstanceChange{
-		Addr:        inst.Addr,
-		PrevRunAddr: prevRunAddr,
-		ProviderAddr: addrs.AbsProviderConfig{
-			// FIXME: This is a lossy shim to the old-style provider instance
-			// address representation, since our old models aren't yet updated
-			// to support the modern one. It cannot handle a provider config
-			// inside a module call that uses count or for_each.
-			Module:   providerInst.Config.Module.Module(),
-			Provider: providerInst.Config.Config.Provider,
-			Alias:    providerInst.Config.Config.Alias,
-		},
-		RequiredReplace: planResp.RequiresReplace,
-		Private:         planResp.Planned.Private,
-		Action:          plannedAction,
-		Before:          planResp.Current.Value,
-		After:           planResp.Planned.Value,
 
-		Importing: planImport,
+		// The user might also ask us to force replacing a particular resource
+		// instance, regardless of whether the provider thinks it needs replacing.
+		// For example, users typically do this if they learn a particular object
+		// has become degraded in an immutable infrastructure scenario and so
+		// replacing it with a new object is a viable repair path.
+		for _, addr := range p.planCtx.forceReplace {
+			if addr.Equal(inst.Addr) {
+				log.Printf("[DEBUG] Forcing replacement of %s per user request", inst.Addr)
+				forceReplace = true
+				actionReason = plans.ResourceInstanceReplaceByRequest
+			}
 
-		// TODO: ActionReason, but need to figure out how to get the information
-		// we'd need for that into here since most of the reasons are
-		// configuration-related and so would need to be driven by stuff in
-		// [eval.DesiredResourceInstance].
-		ActionReason: actionReason,
-	}
-	ret.ProviderInst = providerInst
-
-	if cb := tracer.EndManagedResourceInstanceObjectPlanChanges; cb != nil {
-		plannedVal := cty.DynamicVal
-		if planResp.Planned.Value != cty.NilVal {
-			// TODO: Should apply "sensitive" marks here where appropriate in
-			// case the tracer is reporting events in the UI.
-			plannedVal = planResp.Planned.Value
+			// For "force replace" purposes we require an exact resource instance
+			// address to match. If a user forgets to include the instance key
+			// for a multi-instance resource then it won't match here, but we
+			// have an earlier check in ????? that should
+			// prevent us from getting here in that case.
 		}
-		cb(planChangesCtx, inst.Addr.CurrentObject(), plannedAction, refreshedVal, plannedVal, diags)
+
+		// TODO: Check for resp.Deferred once we've updated package providers to
+		// include it. If that's set then the _provider_ is telling us we must
+		// defer planning any action for this resource instance. We'd still
+		// return the planned new state as a placeholder for downstream planning in
+		// that case, but we would need to mark it as deferred and _not_ record a
+		// proposed change for it.
+
+		plannedAction := plans.Update
+		if planResp.Current.Value.IsNull() {
+			plannedAction = plans.Create
+		} else if !planResp.RequiresReplace.Empty() || forceReplace {
+			// For "replace" actions the execution graph will include two separate
+			// plan and apply operations, where one handles deletion and the other
+			// handles creation. There is therefore an implicit third intermediate
+			// state between those two, but in our plan model we have a convention
+			// to model it as if it were just a direct transition from the old
+			// object to the new object.
+			//
+			// Our current planResp.Planned.Value describes the situation as if
+			// we were performing an in-place update though, so we need to now
+			// ask the provider to plan each of the parts separately so that we
+			// can match how the apply engine will ask the provider these questions.
+			createPlanResp, planDiags := resourceType.PlanChanges(ctx, &resources.ManagedResourcePlanRequest{
+				// "Current" is intentionally not set here, because we're asking
+				// for a plan to create a new object matching the configuration.
+				DesiredValue:      unmarkedConfigVal,
+				ProviderMetaValue: providerMetaValue,
+			}, ret.Addr)
+			diags = diags.Append(planDiags)
+			if planDiags.HasErrors() {
+				return ret, diags
+			}
+			deletePlanResp, planDiags := resourceType.PlanChanges(ctx, &resources.ManagedResourcePlanRequest{
+				Current: resources.ValueWithPrivate{
+					Value:   refreshedVal,
+					Private: refreshedPrivate,
+				},
+				// DesiredValue is intentionally not set here, because we're asking
+				// asking for a plan to just destroy what currently exists.
+				ProviderMetaValue: providerMetaValue,
+			}, ret.Addr)
+			diags = diags.Append(planDiags)
+			if planDiags.HasErrors() {
+				return ret, diags
+			}
+			// Now we'll update the original plan response with these newly-chosen
+			// before/after values, to match what the rest of the system expects.
+			planResp.Current = deletePlanResp.Current
+			planResp.DesiredValue = createPlanResp.DesiredValue
+			planResp.Planned = createPlanResp.Planned
+
+			// We'll select a reasonable initial planned action here but this
+			// might be overridden later once we propagate ordering constraints
+			// through the dependency graph.
+			if replaceOrder == resources.ReplaceCreateFirst {
+				plannedAction = plans.CreateThenDelete
+			} else {
+				plannedAction = plans.DeleteThenCreate
+			}
+		} else if eq, _ := planResp.Planned.Value.Equals(refreshedVal).Unmark(); eq.IsKnown() && eq.True() {
+			plannedAction = plans.NoOp
+		}
+		// (a "desired" object cannot have a Delete action; we handle those cases
+		// in planOrphanManagedResourceInstance and planDeposedManagedResourceInstanceObject below.)
+		ret.PlannedChange = &plans.ResourceInstanceChange{
+			Addr:        inst.Addr,
+			PrevRunAddr: prevRunAddr,
+			ProviderAddr: addrs.AbsProviderConfig{
+				// FIXME: This is a lossy shim to the old-style provider instance
+				// address representation, since our old models aren't yet updated
+				// to support the modern one. It cannot handle a provider config
+				// inside a module call that uses count or for_each.
+				Module:   providerInst.Config.Module.Module(),
+				Provider: providerInst.Config.Config.Provider,
+				Alias:    providerInst.Config.Config.Alias,
+			},
+			RequiredReplace: planResp.RequiresReplace,
+			Private:         planResp.Planned.Private,
+			Action:          plannedAction,
+			Before:          planResp.Current.Value,
+			After:           planResp.Planned.Value,
+
+			Importing: planImport,
+
+			// TODO: ActionReason, but need to figure out how to get the information
+			// we'd need for that into here since most of the reasons are
+			// configuration-related and so would need to be driven by stuff in
+			// [eval.DesiredResourceInstance].
+			ActionReason: actionReason,
+		}
+
+		if cb := tracer.EndManagedResourceInstanceObjectPlanChanges; cb != nil {
+			plannedVal := cty.DynamicVal
+			if planResp.Planned.Value != cty.NilVal {
+				// TODO: Should apply "sensitive" marks here where appropriate in
+				// case the tracer is reporting events in the UI.
+				plannedVal = planResp.Planned.Value
+			}
+			cb(planChangesCtx, inst.Addr.CurrentObject(), plannedAction, refreshedVal, plannedVal, diags)
+		}
 	}
 
 	return ret, diags

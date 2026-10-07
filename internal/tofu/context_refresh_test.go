@@ -163,7 +163,7 @@ func TestContext2Refresh_dynamicAttr(t *testing.T) {
 }
 
 func TestContext2Refresh_dataComputedModuleVar(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureRefresh)
+	SkipExperimental(t, ExperimentalFeatureRefresh, ExperimentalBugDataResource)
 
 	p := testProvider("aws")
 	m := testModule(t, "refresh-data-module-var")

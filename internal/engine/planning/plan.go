@@ -69,11 +69,7 @@ func PlanChanges(ctx context.Context, opts *PlanOpts, prevRoundState *states.Sta
 		// (Undecided yet whether it will get its own function, as with
 		// DestroyMode, or if it'll share the normalPlan function and just force
 		// the resource instance handling to generate no changes for anything.)
-		return nil, tfdiags.New(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Refresh-only mode not available yet",
-			"The new language runtime does not yet support the \"refresh-only\" planning mode.",
-		))
+		return normalPlan(ctx, opts, prevRoundState, configInst, providers)
 	default:
 		// Should not get here because the cases above should be exhaustive
 		// for all possible planning modes.
