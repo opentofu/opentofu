@@ -205,10 +205,17 @@ func (p *planGlue) locateStateForConfig(ctx context.Context, addr addrs.AbsResou
 		}
 		log.Printf("[TRACE] ImplicitMove with state %s -> %s", *implicitAddr, addr)
 		var approxSrcRange tfdiags.SourceRange
-		meta := p.oracle.ResourceInstanceObjectMeta(ctx, implicitAddr.CurrentObject())
-		if meta != nil {
-			approxSrcRange = meta.DeclRange
-		}
+		// FIXME: Decide how exactly we're going to deal with DeclRange in
+		// meta now that it's a slice of opinions from different modules
+		// instead of a single object. Probably we should standardize on only
+		// using the overall effective (merged) metadata in the planning engine
+		// anyway, and so maybe this becomes a moot point.
+		/*
+			meta := p.oracle.ResourceInstanceObjectMeta(ctx, implicitAddr.CurrentObject())
+			if meta != nil {
+				approxSrcRange = meta.DeclRange
+			}
+		*/
 		return &refactoring.MoveStatement{
 			From:      addrs.ImpliedMoveStatementEndpoint(*implicitAddr, approxSrcRange),
 			To:        addrs.ImpliedMoveStatementEndpoint(addr, approxSrcRange),
@@ -289,10 +296,17 @@ func (p *planGlue) locateConfigForState(ctx context.Context, addr addrs.AbsResou
 		}
 		log.Printf("[TRACE] ImplicitMove %s -> %s", *implicitAddr, addr)
 		var approxSrcRange tfdiags.SourceRange
-		meta := p.oracle.ResourceInstanceObjectMeta(ctx, implicitAddr.CurrentObject())
-		if meta != nil {
-			approxSrcRange = meta.DeclRange
-		}
+		// FIXME: Decide how exactly we're going to deal with DeclRange in
+		// meta now that it's a slice of opinions from different modules
+		// instead of a single object. Probably we should standardize on only
+		// using the overall effective (merged) metadata in the planning engine
+		// anyway, and so maybe this becomes a moot point.
+		/*
+			meta := p.oracle.ResourceInstanceObjectMeta(ctx, implicitAddr.CurrentObject())
+			if meta != nil {
+				approxSrcRange = meta.DeclRange
+			}
+		*/
 		return &refactoring.MoveStatement{
 			To:        addrs.ImpliedMoveStatementEndpoint(*implicitAddr, approxSrcRange),
 			From:      addrs.ImpliedMoveStatementEndpoint(addr, approxSrcRange),
@@ -372,14 +386,21 @@ func (p *planGlue) validateMoves(ctx context.Context) tfdiags.Diagnostics {
 				noun := absFrom.Noun()
 				shortNoun := absFrom.ShortNoun()
 
-				declaredAt := ""
-				meta := p.oracle.ResourceInstanceObjectMeta(ctx, nopMove.from.CurrentObject())
-				if meta != nil {
-					// NOTE: It'd be pretty weird to _not_ have a range, since
-					// we're only in this codepath because the plan phase
-					// thought this object existed in the configuration.
-					declaredAt = fmt.Sprintf(" at %s", meta.DeclRange.StartString())
-				}
+				declaredAt := "TODO"
+				// FIXME: Decide how exactly we're going to deal with DeclRange in
+				// meta now that it's a slice of opinions from different modules
+				// instead of a single object. Probably we should standardize on only
+				// using the overall effective (merged) metadata in the planning engine
+				// anyway, and so maybe this becomes a moot point.
+				/*
+					meta := p.oracle.ResourceInstanceObjectMeta(ctx, nopMove.from.CurrentObject())
+					if meta != nil {
+						// NOTE: It'd be pretty weird to _not_ have a range, since
+						// we're only in this codepath because the plan phase
+						// thought this object existed in the configuration.
+						declaredAt = fmt.Sprintf(" at %s", meta.DeclRange.StartString())
+					}
+				*/
 
 				diags = diags.Append(&hcl.Diagnostic{
 					Severity: hcl.DiagError,
