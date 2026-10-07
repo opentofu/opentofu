@@ -342,7 +342,10 @@ func (ri *ResourceInstance) CheckAll(ctx context.Context) tfdiags.Diagnostics {
 	var cg CheckGroup
 	cg.CheckValuer(ctx, ri)
 	if ri.CreateBeforeDestroyValuer != nil {
-		cg.CheckValuer(ctx, ri.CreateBeforeDestroyValuer)
+		cg.CheckDiagsFunc(ctx, func(ctx context.Context) tfdiags.Diagnostics {
+			_, _, diags := ri.ReplaceOrder(ctx)
+			return diags
+		})
 	}
 	return cg.Complete(ctx)
 }

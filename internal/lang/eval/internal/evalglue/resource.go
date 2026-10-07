@@ -11,6 +11,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/resources"
@@ -97,7 +98,7 @@ type ConfiguredResourceInstanceObjectMeta struct {
 	//
 	// This field is relevant only for managed resource mode and its value is
 	// unspecified for other resource modes.
-	DeletionInvalid exprs.FromValue[bool]
+	DeletionInvalid configgraph.DeletionInvalid
 
 	// TODO: Some representation of "ignore_changes", which the planning engine
 	// will use as part of deciding which action to take.

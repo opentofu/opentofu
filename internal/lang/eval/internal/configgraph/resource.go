@@ -135,19 +135,20 @@ func (r *Resource) decideInstances(ctx context.Context) (*compiledInstances[*Res
 	})
 }
 
+type DeletionInvalid struct {
+	// Value has the following meaning:
+	//   - true means that this resource instance MUST NOT be destroyed.
+	//   - false means that this resource instance MAY be destroyed.
+	Value exprs.FromValue[bool]
+
+	Range *tfdiags.SourceRange
+}
+
 // PreventDestroy returns a value-based representation of the "prevent destroy"
 // setting for this resource.
-//
-// The result is guaranteed to be a [cty.Bool] value, but it could potentially
-// be unknown or marked and it's the caller's responsibility to handle those
-// situations.
-//
-// The different possible known boolean results have the following meaning:
-//   - true means that this resource instance MUST NOT be destroyed.
-//   - false means that this resource instance MAY be destroyed.
-func (r *Resource) PreventDestroy(ctx context.Context) (exprs.FromValue[bool], *tfdiags.SourceRange, tfdiags.Diagnostics) {
+func (r *Resource) PreventDestroy(ctx context.Context) (DeletionInvalid, tfdiags.Diagnostics) {
 	if r.PreventDestroyValuer == nil {
-		return exprs.Known(false), nil, nil
+		return DeletionInvalid{Value: exprs.Known(false)}, nil
 	}
 	rng := r.PreventDestroyValuer.ValueSourceRange()
 
@@ -171,7 +172,7 @@ func (r *Resource) PreventDestroy(ctx context.Context) (exprs.FromValue[bool], *
 			),
 			Subject: rng.ToHCL().Ptr(),
 		})
-		return exprs.Unknown[bool](), rng, diags
+		return DeletionInvalid{Value: exprs.Unknown[bool](), Range: rng}, diags
 	}
 	// TODO deprecated handling
 	//preventDestroyVal, moreDiags := marks.ExtractDeprecatedDiagnosticsWithExpr(preventDestroyVal, preventDestroyExpr)
@@ -245,7 +246,7 @@ func (r *Resource) PreventDestroy(ctx context.Context) (exprs.FromValue[bool], *
 	ret, _ := exprs.DeriveFromValue(preventDestroyVal, func(v cty.Value) (bool, error) {
 		return v.True(), nil
 	})
-	return ret, rng, diags
+	return DeletionInvalid{Value: ret, Range: rng}, diags
 }
 
 // CheckAll implements allChecker.
@@ -263,7 +264,10 @@ func (r *Resource) CheckAll(ctx context.Context) tfdiags.Diagnostics {
 	// (e.g. this is where an invalid for_each expression would be reported)
 	cg.CheckValuer(ctx, r)
 	if r.PreventDestroyValuer != nil {
-		cg.CheckValuer(ctx, r.PreventDestroyValuer)
+		cg.CheckDiagsFunc(ctx, func(ctx context.Context) tfdiags.Diagnostics {
+			_, diags := r.PreventDestroy(ctx)
+			return diags
+		})
 	}
 	return cg.Complete(ctx)
 }

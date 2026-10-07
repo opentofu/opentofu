@@ -12,7 +12,6 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
-	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -150,18 +149,6 @@ func (o *PlanningOracle) ResourceInstanceObjectMeta(ctx context.Context, addr ad
 // unless its provider instance is re-added to the configuration.
 func (o *PlanningOracle) ProviderInstance(ctx context.Context, addr addrs.AbsProviderInstanceCorrect) (providers.Interface, tfdiags.Diagnostics) {
 	return o.providers.ProviderInstance(ctx, addr)
-}
-
-func (o *PlanningOracle) PreventDestroy(ctx context.Context, addr addrs.AbsResourceInstance) (exprs.FromValue[bool], *tfdiags.SourceRange, tfdiags.Diagnostics) {
-	mod := evalglue.ModuleInstance(ctx, o.root, addr.Module)
-	if mod == nil {
-		return exprs.Known(false), nil, nil
-	}
-	resource := mod.Resource(ctx, addr.Resource.Resource)
-	if resource == nil {
-		return exprs.Known(false), nil, nil
-	}
-	return resource.PreventDestroy(ctx)
 }
 
 func (o *PlanningOracle) Close(ctx context.Context) tfdiags.Diagnostics {
