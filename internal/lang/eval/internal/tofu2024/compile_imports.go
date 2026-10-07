@@ -38,7 +38,7 @@ func compileImports(
 		imports = append(imports, &configgraph.Import{
 			Addr:             config.StaticTo,
 			DeclRange:        tfdiags.SourceRangeFromHCL(config.DeclRange),
-			InstanceSelector: compileInstanceSelector(ctx, declScope, config.ForEach, nil, nil, dependsOn{}),
+			InstanceSelector: compileInstanceSelector(ctx, declScope, config.ForEach, nil, nil, dependsOn{}, instanceSelectorForEachTupleAllowed),
 			CompileImportInstance: func(ctx context.Context, key addrs.InstanceKey, repData instances.RepetitionData) *configgraph.ImportInstance {
 				localScope := instanceLocalScope(declScope, repData)
 
