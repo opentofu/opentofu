@@ -77,7 +77,8 @@ type CompiledModuleInstance interface {
 
 	// ResourceInstanceObjectMeta returns whatever metadata applies to the
 	// given resource instance object based only on information available in
-	// the configuration.
+	// the configuration, including annotations that were previously collected
+	// from ancestor modules and provided in the "annotations" argument.
 	//
 	// Calling this function is likely to force parts of the configuration to
 	// be evaluated, but no diagnostics are returned since callers are expected
@@ -93,6 +94,9 @@ type CompiledModuleInstance interface {
 	// on a per-resource or per-resource-instance basis instead, but that
 	// decision is an implementation detail of the specific language
 	// implementation so that it can potentially vary between language editions.
+	// Implementers must incorporate all of the provided annotations into
+	// the result; some annotations may be provided by module instances
+	// implemented in a different edition of the language.
 	//
 	// This method never returns a nil result. If the configuration contains no
 	// metadata at all for the requested object then the implementer is expected
@@ -108,7 +112,25 @@ type CompiledModuleInstance interface {
 	// sources of metadata you probably shouldn't be using the result of this
 	// method directly. Use higher-level wrappers in the planning and applying
 	// engines instead.
-	ResourceInstanceObjectMeta(ctx context.Context, addr addrs.ResourceInstanceObject) *ConfiguredResourceInstanceObjectMeta
+	ResourceInstanceObjectMeta(ctx context.Context, addr addrs.ResourceInstanceObject, annotations *ResourceInstanceObjectAnnotations) *ConfiguredResourceInstanceObjectMeta
+
+	// ResourceInstanceObjectAnnotations describes a subset of the information
+	// that can be in a [ConfiguredResourceInstanceObjectMeta] for an object
+	// that is actually declared in a descendent of the this module instance,
+	// rather than directly within it.
+	//
+	// This is used by the evaluator in preparation for calling
+	// [CompiledModuleInstance.ResourceInstanceObjectMeta], to populate the
+	// "annotations" argument. Unless you are the code performing that
+	// collection you probably shouldn't be using this method directly: use
+	// the metadata-related methods of PlanningOracle or ApplyOracle instead
+	// to obtain the merged result.
+	//
+	// Implementers are allowed to return nil if they have no annotations to
+	// report for the requested object. If the result is not nil then callers
+	// must not modify anything reachable through it; annotations objects
+	// are treated as immutable by convention.
+	ResourceInstanceObjectAnnotations(ctx context.Context, relativeModuleInst []addrs.ModuleInstanceStep, objAddr addrs.ResourceInstanceObject) *ResourceInstanceObjectAnnotations
 
 	// ChildModuleCalls returns a sequence of addresses of all of the module
 	// calls that are declared in this module instance.
@@ -228,6 +250,9 @@ type CompiledModuleInstance interface {
 // The decision about which instances exist can be made dynamically by arbitrary
 // expressions, so this call will block until the necessary information is
 // resolved.
+//
+// If you instead need to visit each of the instances on the chain to the given
+// module instance, consider [ModuleInstanceSteps].
 func ModuleInstance(ctx context.Context, root CompiledModuleInstance, addr addrs.ModuleInstance) CompiledModuleInstance {
 	current := root
 	for _, step := range addr {
@@ -241,6 +266,64 @@ func ModuleInstance(ctx context.Context, root CompiledModuleInstance, addr addrs
 		}
 	}
 	return current
+}
+
+// ModuleInstanceSteps returns a sequence of all of the module instances from
+// the root to the given module instance address, yielding nil for any steps
+// that are not actually declared in the configuration.
+//
+// The decision about which instances exist can be made dynamically by arbitrary
+// expressions, so each iteration of the resulting sequence will block until
+// the necessary information is resolved. That information is retrieved using
+// the context given in the initial call, so no special handling is required
+// as long as the loop body runs synchronously on the same goroutine as the
+// initial call, but if multiple goroutines are involved then the provided
+// context must represent the workgraph worker where the loop itself will
+// execute.
+//
+// If you only need the specific module instance specified and not its
+// ancestors along the way, use [ModuleInstance] instead.
+func ModuleInstanceSteps(ctx context.Context, root CompiledModuleInstance, addr addrs.ModuleInstance) iter.Seq2[addrs.ModuleInstance, CompiledModuleInstance] {
+	return func(yield func(addrs.ModuleInstance, CompiledModuleInstance) bool) {
+		if !yield(addrs.RootModuleInstance, root) {
+			return
+		}
+		current := root
+		remain := []addrs.ModuleInstanceStep(addr)
+		stepIdx := 0
+		for len(remain) != 0 {
+			next := remain[0]
+			callInstAddr := addrs.ModuleCallInstance{
+				Call: addrs.ModuleCall{Name: next.Name},
+				Key:  next.InstanceKey,
+			}
+			// This call is the place where we can potentially block to fetch
+			// additional data if that's needed to decide which instances of
+			// this module call are declared in the configuration.
+			current = current.ChildModuleInstance(ctx, callInstAddr)
+			if current == nil {
+				// This and any other remaining steps are not in the
+				// configuration, so we'll yield nils for them all in
+				// the other loop below.
+				break
+			}
+			if !yield(addr[:stepIdx+1], current) {
+				return
+			}
+			remain = remain[1:]
+			stepIdx++
+		}
+		// If there's anything left in "remain" when we get here then each
+		// step is something not declared in the configuration, so we'll
+		// keep reporting those as nil until the caller stops asking.
+		for len(remain) != 0 {
+			if !yield(addr[:stepIdx+1], nil) {
+				return
+			}
+			remain = remain[1:]
+			stepIdx++
+		}
+	}
 }
 
 // ModuleInstancesDeep produces all of the module instances from the given root

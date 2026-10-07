@@ -130,3 +130,19 @@ type ResourceProvisionerConfig struct {
 	// be finalized before the provisioner is executed.
 	RequiredResourceInstances addrs.Set[addrs.AbsResourceInstance]
 }
+
+// ResourceInstanceObjectAnntations represents various statements a module
+// instance is allowed to make about resource instances that belong to its
+// descendents in the module instance tree, which can therefore contribute
+// to the [ConfiguredResourceInstanceObjectMeta] for that resource instance.
+type ResourceInstanceObjectAnnotations struct {
+}
+
+// MergeResourceInstanceObjectAnnotations modifies dst to include all of the
+// annotations from src, in addition to whatever was already in dst.
+func MergeResourceInstanceObjectAnnotations(dst, src *ResourceInstanceObjectAnnotations) {
+	if src == nil {
+		// nil represents no annotations at all
+		return
+	}
+}

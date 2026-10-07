@@ -6,6 +6,8 @@
 package eval
 
 import (
+	"context"
+
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -37,6 +39,18 @@ import (
 // for other resource modes and just leave the irrelevant fields unpopulated
 // for objects of those modes.
 type ConfiguredResourceInstanceObjectMeta = evalglue.ConfiguredResourceInstanceObjectMeta
+
+// ResourceInstanceObjectAnntations represents various statements a module
+// instance is allowed to make about resource instances that belong to its
+// descendents in the module instance tree, which can therefore contribute
+// to the [ConfiguredResourceInstanceObjectMeta] for that resource instance.
+//
+// For example, this is how an ancestor module can report that it contains a
+// "moved" statement relating to a resource instance in one of its descendent
+// module instances. This type is used only during the process of constructing
+// [ConfiguredResourceInstanceObjectMeta], representing some of the components
+// that the final object is built from.
+type ResourceInstanceObjectAnnotations = evalglue.ResourceInstanceObjectAnnotations
 
 // DesiredResourceInstance describes a resource instance that is part of
 // the desired state (i.e. declared in the configuration).
@@ -157,3 +171,35 @@ type ResourceProvisioner = evalglue.ResourceProvisioner
 // is supposed to be an implementation detail of tofu2024 and any other future
 // HCL-based language editions.
 type ResourceInstanceAttributePath = configgraph.ResourceInstanceAttributePath
+
+func buildResourceInstanceObjectMeta(ctx context.Context, addr addrs.AbsResourceInstanceObject, rootModInst evalglue.CompiledModuleInstance) *ConfiguredResourceInstanceObjectMeta {
+	var annots ResourceInstanceObjectAnnotations
+	leafModuleInstAddr := addr.InstanceAddr.Module
+	leafObjAddr := addr.ModuleRelative()
+	for moduleInstAddr, moduleInst := range evalglue.ModuleInstanceSteps(ctx, rootModInst, leafModuleInstAddr) {
+		if moduleInst == nil {
+			// The relevant module instance is not currently configured at all,
+			// so we'll return a placeholder that contains only the annotations
+			// we collected from ancestor modules.
+			// TODO: Actually implement this, rather than returning nil, once
+			// ResourceInstanceObjectAnnotations has useful fields and those
+			// fields are also present on ConfiguredResourceInstanceObjectMeta.
+			return nil
+		}
+		if len(moduleInstAddr) == len(leafModuleInstAddr) {
+			// The module instance that this object actually belongs to gets
+			// the final say on what we return, incorporating any annotations
+			// we've collected from ancestor modules along the way.
+			return moduleInst.ResourceInstanceObjectMeta(ctx, leafObjAddr, &annots)
+		}
+		// For all of the intermediate steps we just collect up any annotations
+		// the ancestor has for the resource instance object we're interested in.
+		// We ask this question using a relative module instance address because
+		// compiled module instances don't know their own absolute address.
+		relativeModuleInst := []addrs.ModuleInstanceStep(leafModuleInstAddr[len(moduleInstAddr):])
+		currentAnnots := moduleInst.ResourceInstanceObjectAnnotations(ctx, relativeModuleInst, leafObjAddr)
+		evalglue.MergeResourceInstanceObjectAnnotations(&annots, currentAnnots)
+	}
+	// It should not be possible to get here unless evalglue.ModuleInstanceSteps has a bug.
+	panic("incomplete sequence from evalglue.ModuleInstanceSteps")
+}

@@ -106,7 +106,7 @@ func (c *CompiledModuleInstance) ResultValuer(ctx context.Context) exprs.Valuer 
 }
 
 // ResourceInstanceObjectMeta implements [evalglue.CompiledModuleInstance].
-func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context, addr addrs.ResourceInstanceObject) *evalglue.ConfiguredResourceInstanceObjectMeta {
+func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context, addr addrs.ResourceInstanceObject, annotations *evalglue.ResourceInstanceObjectAnnotations) *evalglue.ConfiguredResourceInstanceObjectMeta {
 	// We'll start with a suitable placeholder to use if there's no mention
 	// of this object in the configuration at all, and then improve it gradually
 	// as we find relevant information in the configuration.
@@ -206,6 +206,12 @@ func prepareResourceProvisioners(pcs []configgraph.Provisioner) []*evalglue.Reso
 		ret = append(ret, provisioner)
 	}
 	return ret
+}
+
+// ResourceInstanceObjectAnnotations implements [evalglue.CompiledModuleInstance].
+func (c *CompiledModuleInstance) ResourceInstanceObjectAnnotations(ctx context.Context, relativeModuleInst []addrs.ModuleInstanceStep, objAddr addrs.ResourceInstanceObject) *evalglue.ResourceInstanceObjectAnnotations {
+	// TODO: Implement
+	return nil
 }
 
 // ChildModuleCalls implements evalglue.CompiledModuleInstance.

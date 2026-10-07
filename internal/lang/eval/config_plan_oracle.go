@@ -67,13 +67,7 @@ func (o *PlanningOracle) DetectImplicitMoveForAddress(ctx context.Context, addr 
 // the same problem to be reported more than once in different ways and that's
 // confusing.
 func (o *PlanningOracle) ResourceInstanceObjectMeta(ctx context.Context, addr addrs.AbsResourceInstanceObject) *ConfiguredResourceInstanceObjectMeta {
-	moduleInst := evalglue.ModuleInstance(ctx, o.root, addr.InstanceAddr.Module)
-	if moduleInst == nil {
-		// The relevant module instance is not currently configured at all,
-		// so the caller will need to rely on the state exclusively for this one.
-		return nil
-	}
-	return moduleInst.ResourceInstanceObjectMeta(ctx, addr.ModuleRelative())
+	return buildResourceInstanceObjectMeta(ctx, addr, o.root)
 }
 
 // ProviderInstanceConfig returns a value representing the configuration to
