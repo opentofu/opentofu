@@ -69,6 +69,7 @@ type planContext struct {
 
 	providers plugins.Providers
 
+	skipRefresh bool
 	refreshOnly bool
 }
 
@@ -91,6 +92,7 @@ func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, pro
 		refreshedState:   refreshedState.SyncWrapper(),
 		upgradedState:    upgradedState.SyncWrapper(),
 		providers:        providers,
+		skipRefresh:      opts.SkipRefresh,
 		refreshOnly:      opts.Mode == plans.RefreshOnlyMode,
 	}
 }

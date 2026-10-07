@@ -460,7 +460,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 
 	refreshedVal := prevRoundVal
 	refreshedPrivate := prevRoundPrivate
-	if !refreshedVal.IsNull() {
+	if !refreshedVal.IsNull() && !p.planCtx.skipRefresh {
 		refreshCtx := ctx
 		if cb := tracer.StartManagedResourceInstanceObjectRefresh; cb != nil {
 			refreshCtx = cb(ctx, inst.Addr.CurrentObject(), prevRoundVal)

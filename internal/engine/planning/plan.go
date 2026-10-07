@@ -37,6 +37,8 @@ type PlanOpts struct {
 	// has a far more drastic, cross-cutting effect.
 	Mode plans.Mode
 
+	SkipRefresh bool
+
 	ForceReplace []addrs.AbsResourceInstance
 
 	Targets  []addrs.Targetable
