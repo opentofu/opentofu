@@ -379,7 +379,7 @@ func (n *NodeApplyableOutput) Execute(ctx context.Context, evalCtx EvalContext, 
 					Severity: hcl.DiagError,
 					Summary:  "Invalid output value",
 					Detail: fmt.Sprintf(
-						"Unsuitable value for %s: %s.",
+						"Value for %q does not match the type definition: %s.",
 						n.Addr.String(), err,
 					),
 					Subject: subject,

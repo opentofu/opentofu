@@ -56,7 +56,8 @@ func TestModuleOutputTypeMismatchError(t *testing.T) {
   on main.tf line 5:
    5: output "result" {
 
-Unsuitable value for output.result: a number is required.
+Value for "output.result" does not match the type definition: a number is
+required.
 `
 	if !strings.Contains(stderr, expectOutput) {
 		t.Errorf("expected invalid output error, got %s", stderr)
