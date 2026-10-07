@@ -154,6 +154,16 @@ func (rt *ManagedResourceType) UpgradeState(ctx context.Context, req *ManagedRes
 		))
 	}
 
+	// Remove any attributes from state that are not present in the schema.
+	// This was previously taken care of by the provider, but data sources do
+	// not go through the UpgradeResourceState process.
+	//
+	// Required for upgrade not for move,
+	// since the deprecated fields might still be relevant for the migration.
+	if req.SchemaVersion == uint64(schema.Version) {
+		req.ValueJSON = stripRemovedStateAttributes(req.ValueJSON, schema.Block.ImpliedType())
+	}
+
 	upgradeReq := providers.UpgradeResourceStateRequest{
 		TypeName: rt.typeName,
 
