@@ -155,8 +155,9 @@ type ApplyOracle struct {
 	providers *managedProviders
 }
 
-// ResourceInstanceObjectMeta returns the subset of metadata for the given
-// resource instance that's defined in the configuration.
+// ResourceInstanceObjectMeta collects all of the metadata provided by modules
+// on the path to the specified resource instance object, ordered by module
+// instance depth with the shallowest module instance first.
 //
 // The apply engine will generally need to combine the result with information
 // from the prior state to produce the full set of metadata for a resource
@@ -165,23 +166,17 @@ type ApplyOracle struct {
 // for non-desired objects.
 //
 // If the given address identifies an object in a module instance that is not
-// currently in the configuration then the result is nil. Otherwise, whatever
-// language edition implementation is responsible for the relevant module
-// instance uses its own rules to decide the metadata for the requested object.
+// currently in the configuration then the result only includes information from
+// the prefix module instances that are currently declared, including possibly
+// no results at all.
 //
 // This function always succeeds but may include unknown values as placeholders
 // for metadata whose configuration is defined in an invalid way. The caller
 // is expected to concurrently connect diagnostics from module instances in
 // the configuration, which would then include any errors related to with the
 // metadata settings.
-func (o *ApplyOracle) ResourceInstanceObjectMeta(ctx context.Context, addr addrs.AbsResourceInstanceObject) *ConfiguredResourceInstanceObjectMeta {
-	moduleInst := evalglue.ModuleInstance(ctx, o.root, addr.InstanceAddr.Module)
-	if moduleInst == nil {
-		// The relevant module instance is not currently configured at all,
-		// so the caller will need to rely on the state exclusively for this one.
-		return nil
-	}
-	return moduleInst.ResourceInstanceObjectMeta(ctx, addr.ModuleRelative())
+func (o *ApplyOracle) ResourceInstanceObjectMeta(ctx context.Context, addr addrs.AbsResourceInstanceObject) []ModuleConfiguredResourceInstanceObjectMeta {
+	return collectResourceInstanceObjectMeta(ctx, addr, o.root)
 }
 
 // DesiredResourceInstance returns the [DesiredResourceInstance] object

@@ -323,12 +323,31 @@ func (p *planGlueCallLog) PlanDesiredResourceInstance(ctx context.Context, inst 
 		return cty.DynamicVal, diags
 	}
 	meta := p.oracle.ResourceInstanceObjectMeta(ctx, inst.Addr.CurrentObject())
-	if meta == nil {
+	if len(meta) == 0 {
 		var diags tfdiags.Diagnostics
 		diags = diags.Append(fmt.Errorf("no resource instance object metadata for desired object %s", inst.Addr))
 		return cty.DynamicVal, diags
 	}
-	schema, diags := p.providers.ResourceTypeSchema(ctx, meta.Provider, inst.Addr.Resource.Resource.Mode, inst.Addr.Resource.Resource.Type)
+	// Normally something outside of this package would decide the effective
+	// provider based on both all of our config-meta objects _and_ on the
+	// previous run state, but for the sake of this test we'll just approximate
+	// that by taking the opinion of the deepest meta that has one.
+	var providerAddr addrs.Provider
+	for i := len(meta) - 1; i >= 0; i-- {
+		if p := meta[i].Provider; p != nil {
+			providerAddr = p.Provider
+			break
+		}
+	}
+	if providerAddr.IsZero() {
+		// we apparently didn't choose a provider at all, which is unexpected
+		// because a "desired" object should _always_ have a provider chosen
+		// in the configuration. (It should only be undecided for non-desired
+		// objects whose only metadata exists in the previous run state.)
+		diags := tfdiags.New(fmt.Errorf("no provider chosen in metadata for desired object %s", inst.Addr))
+		return cty.DynamicVal, diags
+	}
+	schema, diags := p.providers.ResourceTypeSchema(ctx, providerAddr, inst.Addr.Resource.Resource.Mode, inst.Addr.Resource.Resource.Type)
 	if diags.HasErrors() {
 		return cty.DynamicVal, diags
 	}
