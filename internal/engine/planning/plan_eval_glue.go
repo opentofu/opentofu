@@ -492,6 +492,21 @@ func (p *planGlue) validateImports(ctx context.Context) tfdiags.Diagnostics {
 		imports.Put(importAddress, stmt)
 	}
 	// Check for no corresponding resource
+	for _, addr := range imports.Keys() {
+		if !p.planCtx.desired.Has(addr) { // TODO wildcard
+			config := imports.Get(addr)
+			var subject *hcl.Range
+			if config != nil {
+				subject = config.DeclRange.ToHCL().Ptr()
+			}
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Configuration for import target does not exist",
+				Detail:   fmt.Sprintf("The configuration for the given import %s does not exist. All target instances must have an associated configuration to be imported.", addr),
+				Subject:  subject,
+			})
+		}
+	}
 
 	return diags
 }

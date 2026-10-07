@@ -1069,7 +1069,7 @@ resource "test_object" "a" {
 }
 
 func TestContext2Plan_destroyWithRefresh_skipImport(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureImport)
+	SkipExperimental(t, ExperimentalFeatureImport, ExperimentalFeatureRefresh)
 
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
@@ -6579,6 +6579,7 @@ func TestContext2Plan_importWithInvalidForEach(t *testing.T) {
 	type TestConfiguration struct {
 		Description         string
 		expectedError       string
+		expectedNewError    string
 		inlineConfiguration map[string]string
 	}
 	configurations := []TestConfiguration{
@@ -6633,8 +6634,9 @@ import {
 			},
 		},
 		{
-			Description:   "for_each expression is null",
-			expectedError: `Invalid for_each argument: The given "for_each" argument value is unsuitable: the given "for_each" argument value is null.`,
+			Description:      "for_each expression is null",
+			expectedError:    `Invalid for_each argument: The given "for_each" argument value is unsuitable: the given "for_each" argument value is null.`,
+			expectedNewError: `Invalid for_each argument: The for_each value must not be null.`,
 			inlineConfiguration: map[string]string{
 				"main.tf": `
 variable "map" {
@@ -6653,8 +6655,9 @@ import {
 			},
 		},
 		{
-			Description:   "for_each key is unknown",
-			expectedError: `The "for_each" value includes keys or set values from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine what will identify the instances of this resource.`,
+			Description:      "for_each key is unknown",
+			expectedError:    `The "for_each" value includes keys or set values from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine what will identify the instances of this resource.`,
+			expectedNewError: "Import block contained a resource address using an index that will only be known after apply. Please ensure to use expressions that are known at plan time for the index of an import target address",
 			inlineConfiguration: map[string]string{
 				"main.tf": `
 resource "test_object" "reference" {
@@ -6705,8 +6708,9 @@ import {
 			},
 		},
 		{
-			Description:   "for_each expression is unknown",
-			expectedError: `Invalid for_each argument: The "for_each" set includes values derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.`,
+			Description:      "for_each expression is unknown",
+			expectedError:    `Invalid for_each argument: The "for_each" set includes values derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.`,
+			expectedNewError: `Import block 'to' address contains an invalid key: Import block contained a resource address using an index that will only be known after apply. Please ensure to use expressions that are known at plan time for the index of an import target address`,
 			inlineConfiguration: map[string]string{
 				"main.tf": `
 resource "test_object" "reference" {
@@ -6753,8 +6757,9 @@ import {
 			},
 		},
 		{
-			Description:   "for_each key is sensitive",
-			expectedError: "Invalid for_each argument: Sensitive values, or values derived from sensitive values, cannot be used as for_each arguments. If used, the sensitive value could be exposed as a resource instance key.",
+			Description:      "for_each key is sensitive",
+			expectedError:    "Invalid for_each argument: Sensitive values, or values derived from sensitive values, cannot be used as for_each arguments. If used, the sensitive value could be exposed as a resource instance key.",
+			expectedNewError: `Import block 'to' address contains an invalid key: Import block contained a resource address using an index which is sensitive. Please ensure indexes used in the resource address of an import target are not sensitive`,
 			inlineConfiguration: map[string]string{
 				"main.tf": `
 locals {
@@ -6777,8 +6782,9 @@ import {
 			},
 		},
 		{
-			Description:   "for_each expression is sensitive",
-			expectedError: "Invalid for_each argument: Sensitive values, or values derived from sensitive values, cannot be used as for_each arguments. If used, the sensitive value could be exposed as a resource instance key.",
+			Description:      "for_each expression is sensitive",
+			expectedError:    "Invalid for_each argument: Sensitive values, or values derived from sensitive values, cannot be used as for_each arguments. If used, the sensitive value could be exposed as a resource instance key.",
+			expectedNewError: `Import block 'to' address contains an invalid key: Import block contained a resource address using an index which is sensitive. Please ensure indexes used in the resource address of an import target are not sensitive`,
 			inlineConfiguration: map[string]string{
 				"main.tf": `
 resource "test_object" "reference" {
@@ -6870,8 +6876,14 @@ import {
 			if !diags.HasErrors() {
 				t.Fatal("succeeded; want errors")
 			}
-			if got, want := diags.Err().Error(), configuration.expectedError; !strings.Contains(got, want) {
-				t.Fatalf("wrong error:\ngot:  %s\nwant: message containing %q", got, want)
+			if configuration.expectedNewError != "" && experimentalRuntimeEnabled() {
+				if got, want := diags.Err().Error(), configuration.expectedNewError; !strings.Contains(got, want) {
+					t.Fatalf("wrong error:\ngot:  %s\nwant: message containing %q", got, want)
+				}
+			} else {
+				if got, want := diags.Err().Error(), configuration.expectedError; !strings.Contains(got, want) {
+					t.Fatalf("wrong error:\ngot:  %s\nwant: message containing %q", got, want)
+				}
 			}
 		})
 	}
@@ -7607,6 +7619,7 @@ resource "test_object" "a" {
 		},
 	}
 
+	SkipExperimental(t, ExperimentalFeatureImportGenConfig)
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode:               plans.NormalMode,
 		GenerateConfigPath: "generated.tf", // Actual value here doesn't matter, as long as it is not empty.
@@ -7958,6 +7971,7 @@ import {
 		},
 	}
 
+	SkipExperimental(t, ExperimentalFeatureImportGenConfig)
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode:               plans.NormalMode,
 		GenerateConfigPath: "generated.tf", // Actual value here doesn't matter, as long as it is not empty.
@@ -8042,6 +8056,7 @@ import {
 		},
 	}
 
+	SkipExperimental(t, ExperimentalFeatureImportGenConfig)
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode:               plans.NormalMode,
 		GenerateConfigPath: "generated.tf", // Actual value here doesn't matter, as long as it is not empty.
@@ -8306,6 +8321,7 @@ resource "test_object" "a" {
 				}, nil),
 			})
 
+			SkipExperimental(t, ExperimentalFeatureImportGenConfig)
 			_, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 				Mode:               plans.NormalMode,
 				GenerateConfigPath: "generated.tf",
@@ -8366,6 +8382,7 @@ import {
 		},
 	}
 
+	SkipExperimental(t, ExperimentalFeatureImportGenConfig)
 	_, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode:               plans.NormalMode,
 		GenerateConfigPath: "generated.tf",
@@ -8418,6 +8435,7 @@ import {
 		},
 	}
 
+	SkipExperimental(t, ExperimentalFeatureImportGenConfig)
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode:               plans.NormalMode,
 		GenerateConfigPath: "generated.tf", // Actual value here doesn't matter, as long as it is not empty.

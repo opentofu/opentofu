@@ -118,7 +118,7 @@ type ConfiguredResourceInstanceObjectMeta struct {
 	// resource instance.
 	MoveStatements []refactoring.MoveStatement
 
-	ImportStatements []*configgraph.ImportStatement
+	ImportStatement *configgraph.ImportStatement
 }
 
 // ResourceProvisioner represents a single provisioner configured for a

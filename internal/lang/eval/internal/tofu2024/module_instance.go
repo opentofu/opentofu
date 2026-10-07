@@ -146,7 +146,8 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 		for _, instance := range instances {
 			statement, _ := instance.Statement(ctx)
 			if statement != nil && statement.Addr.Equal(absAddr.InstanceAddr) {
-				ret.ImportStatements = append(ret.ImportStatements, statement)
+				// Conflicts are handled elsewhere
+				ret.ImportStatement = statement
 			}
 		}
 	}
@@ -161,7 +162,9 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 			found := instance.ResourceInstanceObjectMeta(ctx, absAddr)
 			// Merge the found meta and the current module's meta
 			found.MoveStatements = append(ret.MoveStatements, found.MoveStatements...)
-			found.ImportStatements = append(ret.ImportStatements, found.ImportStatements...)
+			if ret.ImportStatement != nil {
+				found.ImportStatement = ret.ImportStatement
+			}
 			return found
 		}
 
