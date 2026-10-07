@@ -271,6 +271,27 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		ret.ReplaceOrder = resources.ReplaceAnyOrder
 	}
 
+	var prevState *resources.ManagedResourceStateWithIdentity
+	var prevStateFull *states.ResourceInstanceObjectFullSrc
+
+	prevStateInfo, moveDiags := p.locateStateForConfig(ctx, inst.Addr)
+	diags = diags.Append(moveDiags)
+	if diags.HasErrors() {
+		return ret, diags
+	}
+
+	if prevStateInfo.state != nil {
+		for instAddr := range prevStateInfo.state.FlattenedDependencies(p.planCtx.prevRoundState) {
+			ret.StateDependencies.Add(instAddr.CurrentObject())
+		}
+	}
+
+	if p.planCtx.refreshOnly && prevStateInfo.state == nil {
+		// This both saves CPU cycles as well as allowing destroy mode planning to utilize
+		// most of the normal path
+		return ret, diags
+	}
+
 	providerInstUnmarked, providerInstMarks := meta.ProviderInstance.Unmark()
 	// TODO: What should we do with these marks, if anything?
 	_ = providerInstMarks
@@ -329,21 +350,6 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 	diags = diags.Append(validateDiags)
 	if diags.HasErrors() {
 		return ret, diags
-	}
-
-	var prevState *resources.ManagedResourceStateWithIdentity
-	var prevStateFull *states.ResourceInstanceObjectFullSrc
-
-	prevStateInfo, moveDiags := p.locateStateForConfig(ctx, inst.Addr)
-	diags = diags.Append(moveDiags)
-	if diags.HasErrors() {
-		return ret, diags
-	}
-
-	if prevStateInfo.state != nil {
-		for instAddr := range prevStateInfo.state.FlattenedDependencies(p.planCtx.prevRoundState) {
-			ret.StateDependencies.Add(instAddr.CurrentObject())
-		}
 	}
 
 	updatedStateAddr := inst.Addr.CurrentObject()
