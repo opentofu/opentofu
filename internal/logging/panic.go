@@ -7,6 +7,7 @@ package logging
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"runtime/debug"
@@ -41,13 +42,6 @@ var panicMutex sync.Mutex
 // PanicHandler must be called as a deferred function, and must be the first
 // defer called at the start of a new goroutine.
 func PanicHandler() {
-	// Have all managed goroutines checkin here, and prevent them from exiting
-	// if there's a panic in progress. While this can't lock the entire runtime
-	// to block progress, we can prevent some cases where OpenTofu may return
-	// early before the panic has been printed out.
-	panicMutex.Lock()
-	defer panicMutex.Unlock()
-
 	recovered := recover()
 	panicHandler(recovered, nil, "", nil)
 }
@@ -79,24 +73,40 @@ func PanicHandlerWithTraceFn() func() {
 // PanicHandlerWithTraceHandlerFn is an enhanced version of PanicHandlerWithTraceFn
 // that supports providing information about the caller
 func PanicHandlerWithTraceHandlerFn() func(caller string, handler func()) {
-	trace := debug.Stack()
+	traces := [][]byte{debug.Stack()}
 	return func(caller string, handler func()) {
-		// Have all managed goroutines checkin here, and prevent them from exiting
-		// if there's a panic in progress. While this can't lock the entire runtime
-		// to block progress, we can prevent some cases where OpenTofu may return
-		// early before the panic has been printed out.
-		panicMutex.Lock()
-		defer panicMutex.Unlock()
-
 		recovered := recover()
-		panicHandler(recovered, trace, caller, handler)
+		panicHandler(recovered, traces, caller, handler)
 	}
 }
 
-func panicHandler(recovered interface{}, trace []byte, caller string, handler func()) {
+// PanicHandlerWithContext adds the current stack to the context and builds
+// a panicHandler in case a recover() is possible.
+func PanicHandlerWithContext(ctx context.Context) (context.Context, func()) {
+	if !IsDebugOrHigher() {
+		// Due to the sheer number of go-routines the new runtime
+		// deals with, we only enable this panic handler if a high
+		// log level has been requested
+		return ctx, func() {}
+	}
+	ctx = ContextWithStack(ctx)
+	return ctx, func() {
+		recovered := recover()
+		panicHandler(recovered, StacksFromContext(ctx), "", nil)
+	}
+}
+
+func panicHandler(recovered interface{}, traces [][]byte, caller string, handler func()) {
 	if recovered == nil {
 		return
 	}
+
+	// Have all managed goroutines checkin here, and prevent them from exiting
+	// if there's a panic in progress. While this can't lock the entire runtime
+	// to block progress, we can prevent some cases where OpenTofu may return
+	// early before the panic has been printed out.
+	panicMutex.Lock()
+	defer panicMutex.Unlock()
 
 	// Given that multiple routines may be spewing to stderr at the same time
 	// buffer our message to prevent it being split.
@@ -111,7 +121,7 @@ func panicHandler(recovered interface{}, trace []byte, caller string, handler fu
 	// When called from a deferred function, debug.PrintStack will include the
 	// full stack from the point of the pending panic.
 	buffer.Write(debug.Stack())
-	if trace != nil {
+	for _, trace := range traces {
 		fmt.Fprint(buffer, "With go-routine called from:\n")
 		buffer.Write(trace)
 	}
@@ -238,4 +248,19 @@ func (l *logPanicWrapper) Debug(msg string, args ...interface{}) {
 	}
 
 	l.Logger.Debug(msg, args...)
+}
+
+type contextKey rune
+
+const stackContextKey = contextKey('S')
+
+func ContextWithStack(ctx context.Context) context.Context {
+	currentStacks := StacksFromContext(ctx)
+	stacks := append([][]byte{debug.Stack()}, currentStacks...)
+	return context.WithValue(ctx, stackContextKey, stacks)
+}
+
+func StacksFromContext(ctx context.Context) [][]byte {
+	value, _ := ctx.Value(stackContextKey).([][]byte)
+	return value
 }
