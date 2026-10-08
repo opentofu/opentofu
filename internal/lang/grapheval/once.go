@@ -7,6 +7,7 @@ package grapheval
 
 import (
 	"context"
+	"runtime/pprof"
 	"sync"
 
 	"github.com/apparentlymart/go-workgraph/workgraph"
@@ -58,6 +59,7 @@ func (o *Once[T]) Do(ctx context.Context, f func(ctx context.Context) (T, tfdiag
 		o.promise = &promise
 		o.requestID = resolver.RequestID()
 		workgraph.WithNewAsyncWorker(func(w *workgraph.Worker) {
+			pprof.SetGoroutineLabels(ctx) // Just in case the caller uses pprof labels to describe what this worker's goal is
 			ctx := ContextWithWorker(ctx, w)
 			ret, diags := f(ctx)
 			resolver.Report(w, withDiagnostics[T]{ret, diags}, nil)

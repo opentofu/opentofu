@@ -139,6 +139,8 @@ func (ri *ResourceInstance) StaticCheckTraversal(traversal hcl.Traversal) tfdiag
 // instance, which should be used to represent the "desired state" when planning
 // changes to this resource instance.
 func (ri *ResourceInstance) ConfigValue(ctx context.Context) (v cty.Value, diags tfdiags.Diagnostics) {
+	ctx = withDebugAddr(ctx, ri.Addr, "ConfigValue")
+
 	// TODO: Preconditions? Or should that be handled in the parent [Resource]
 	// before we even attempt instance expansion? (Need to check the current
 	// behavior in the existing system, to see whether preconditions guard
@@ -172,6 +174,7 @@ func (ri *ResourceInstance) ConfigValue(ctx context.Context) (v cty.Value, diags
 // depending on the context where the resource instance is being used. This
 // function only checks the basic validity rules.)
 func (ri *ResourceInstance) ReplaceOrder(ctx context.Context) (exprs.FromValue[resources.ReplaceOrder], *tfdiags.SourceRange, tfdiags.Diagnostics) {
+	ctx = withDebugAddr(ctx, ri.Addr, "ReplaceOrder")
 	if ri.CreateBeforeDestroyValuer == nil {
 		// Not setting this is equivalent to setting it to null.
 		return exprs.Known(resources.ReplaceAnyOrder), nil, nil
@@ -229,6 +232,7 @@ func (ri *ResourceInstance) ReplaceOrder(ctx context.Context) (exprs.FromValue[r
 
 // Value implements exprs.Valuer.
 func (ri *ResourceInstance) Value(ctx context.Context) (v cty.Value, diags tfdiags.Diagnostics) {
+	ctx = withDebugAddr(ctx, ri.Addr, "Value")
 	return ri.valueOnce.Do(ctx, func(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
 		configVal, diags := ri.ConfigValue(ctx)
 
@@ -273,6 +277,7 @@ func (ri *ResourceInstance) Value(ctx context.Context) (v cty.Value, diags tfdia
 }
 
 func (ri *ResourceInstance) ProviderInstance(ctx context.Context) (exprs.FromValue[*ProviderInstance], tfdiags.Diagnostics) {
+	ctx = withDebugAddr(ctx, ri.Addr, "ProviderInstance")
 	v, diags := ri.ProviderInstanceValuer.Value(ctx)
 	if diags.HasErrors() {
 		return exprs.Unknown[*ProviderInstance]().Mark(exprs.EvalError), diags

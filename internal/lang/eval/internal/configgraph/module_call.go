@@ -93,6 +93,7 @@ var _ exprs.Valuer = (*ModuleCall)(nil)
 // Instances returns the instances that are selected for this module call in
 // its configuration, without evaluating their configuration objects yet.
 func (c *ModuleCall) Instances(ctx context.Context) map[addrs.InstanceKey]*ModuleCallInstance {
+	ctx = withDebugAddr(ctx, c.Addr, "Instances")
 	// We ignore the diagnostics here because they will be returned by
 	// the Value method instead.
 	result, diags := c.decideInstances(ctx)
@@ -110,6 +111,7 @@ func (c *ModuleCall) Instances(ctx context.Context) map[addrs.InstanceKey]*Modul
 }
 
 func (c *ModuleCall) SourceArguments(ctx context.Context) (exprs.FromValue[ModuleSourceArguments], tfdiags.Diagnostics) {
+	ctx = withDebugAddr(ctx, c.Addr, "SourceArguments")
 	var diags tfdiags.Diagnostics
 
 	sourceVal, moreDiags := c.SourceAddrValuer.Value(ctx)
@@ -287,6 +289,7 @@ func (c *ModuleCall) StaticCheckTraversal(traversal hcl.Traversal) tfdiags.Diagn
 
 // Value implements exprs.Valuer.
 func (c *ModuleCall) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+	ctx = withDebugAddr(ctx, c.Addr, "Value")
 	// We'll first check whether the arguments specifying which module to
 	// call are valid, because we can't really do anything else if not.
 	maybeSourceArgs, diags := c.SourceArguments(ctx)
