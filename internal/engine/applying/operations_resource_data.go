@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"slices"
 
 	"github.com/zclconf/go-cty/cty"
 
@@ -102,15 +103,17 @@ func (ops *execOperations) DataRead(
 			status = states.ObjectReady
 		}
 
+		// TODO unsure if we should unmark it here, if we're saving it into state...
+		unmarkedVal, _ := resp.Result.UnmarkDeep()
+
 		state = &states.ResourceInstanceObjectFull{
 			Status:               status,
-			Value:                resp.Result,
+			Value:                unmarkedVal,
 			ProviderInstanceAddr: providerAddr,
 			ResourceType:         metadata.ResourceType,
 
 			SchemaVersion: uint64(schema.IdentitySchemaVersion),
-			// TODO Should we get the plan here, so we can get dependencies?
-			// Dependencies: desired.,
+			Dependencies:  slices.Collect(desired.RequiredResourceInstances.All()),
 		}
 
 		stateSrc, err := states.EncodeResourceInstanceObjectFull(state, schema.Block.ImpliedType())

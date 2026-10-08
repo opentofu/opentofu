@@ -329,7 +329,7 @@ func unmarshalOpDataRead(rawOperands []uint64, prevResults []AnyResultRef, build
 	// if err != nil {
 	// 	return nil, fmt.Errorf("invalid opDataRead plannedVal: %w", err)
 	// }
-	waitFor, err := unmarshalGetPrevResultWaiter(prevResults, rawOperands[3])
+	waitFor, err := unmarshalGetPrevResultWaiter(prevResults, rawOperands[2])
 	if err != nil {
 		return nil, fmt.Errorf("invalid opDataRead waitFor: %w", err)
 	}
