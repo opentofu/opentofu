@@ -317,7 +317,7 @@ func (m *Module) Finalize(l symlib.Table, call StaticModuleCall) hcl.Diagnostics
 	}
 
 	for _, o := range m.Outputs {
-		diags = diags.Extend(o.finalize(&l))
+		diags = diags.Extend(o.finalize(l))
 	}
 
 	// Generate the FQN -> LocalProviderName map
