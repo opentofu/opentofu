@@ -647,7 +647,7 @@ func decodeOutputBlock(block *hcl.Block, override bool) (*Output, hcl.Diagnostic
 	return o, diags
 }
 
-func (o *Output) finalize(symbols *symlib.Table) hcl.Diagnostics {
+func (o *Output) finalize(symbols symlib.Table) hcl.Diagnostics {
 	var diags hcl.Diagnostics
 	if o.TypeExpr == nil {
 		return diags

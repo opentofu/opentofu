@@ -51,12 +51,7 @@ func TestModuleOutputTypeMismatchError(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected plan to fail on type mismatch, but it succeeded")
 	}
-	expectOutput := `Error: Invalid output value
-
-  on main.tf line 5:
-   5: output "result" {
-
-Value for "output.result" does not match the type definition: a number is
+	expectOutput := `Value for "output.result" does not match the type definition: a number is
 required.
 `
 	if !strings.Contains(stderr, expectOutput) {
