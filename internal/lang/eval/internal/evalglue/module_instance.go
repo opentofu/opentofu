@@ -8,6 +8,7 @@ package evalglue
 import (
 	"context"
 	"iter"
+	"slices"
 
 	"github.com/apparentlymart/go-workgraph/workgraph"
 
@@ -108,7 +109,7 @@ type CompiledModuleInstance interface {
 	// sources of metadata you probably shouldn't be using the result of this
 	// method directly. Use higher-level wrappers in the planning and applying
 	// engines instead.
-	ResourceInstanceObjectMeta(ctx context.Context, addr addrs.ResourceInstanceObject) *ConfiguredResourceInstanceObjectMeta
+	ResourceInstanceObjectMeta(ctx context.Context, addr addrs.AbsResourceInstance) *ConfiguredResourceInstanceObjectMeta
 
 	// ChildModuleCalls returns a sequence of addresses of all of the module
 	// calls that are declared in this module instance.
@@ -377,6 +378,54 @@ func ProviderInstancesDeep(ctx context.Context, root CompiledModuleInstance) ite
 			}
 		}
 	}
+}
+
+func ResourceInstanceObjectMeta(ctx context.Context, root CompiledModuleInstance, addr addrs.AbsResourceInstance) *ConfiguredResourceInstanceObjectMeta {
+	// Start with the root instance
+	currentModule := root
+	modMeta := []*ConfiguredResourceInstanceObjectMeta{
+		currentModule.ResourceInstanceObjectMeta(ctx, addr),
+	}
+	for _, step := range addr.Module {
+		childCall := addrs.ModuleCallInstance{Call: addrs.ModuleCall{Name: step.Name}, Key: step.InstanceKey}
+		currentModule = currentModule.ChildModuleInstance(ctx, childCall)
+		if currentModule == nil {
+			// We have reached the end of the config module chain
+			// NOTE: this does *not* handle mixes of wildcards and normal addresses
+			break
+		}
+		modMeta = append(modMeta, currentModule.ResourceInstanceObjectMeta(ctx, addr))
+	}
+
+	// Start with the deepest module
+	slices.Reverse(modMeta)
+
+	// We always have at least one meta due to the root
+	meta := modMeta[0]
+	modMeta = modMeta[1:]
+
+	// Merge remaining modMeta into meta (where applicable)
+	for _, mergeMeta := range modMeta {
+		if meta.DeclRange.Filename == "" {
+			meta.DeclRange = mergeMeta.DeclRange
+		}
+		if meta.ProviderInstance == nil {
+			meta.ProviderInstance = mergeMeta.ProviderInstance
+		}
+		if meta.ReplaceOrder == nil {
+			meta.ReplaceOrder = mergeMeta.ReplaceOrder
+		}
+		if meta.DeleteWhenRemoved == nil {
+			meta.DeleteWhenRemoved = mergeMeta.DeleteWhenRemoved
+		}
+		if meta.DeletionInvalid == nil {
+			meta.DeletionInvalid = mergeMeta.DeletionInvalid
+		}
+		meta.PostCreateProvisioners = append(meta.PostCreateProvisioners, mergeMeta.PostCreateProvisioners...)
+		meta.PreDestroyProvisioners = append(meta.PreDestroyProvisioners, mergeMeta.PreDestroyProvisioners...)
+	}
+
+	return meta
 }
 
 // ProviderInstance digs through the tree of module instances with the given

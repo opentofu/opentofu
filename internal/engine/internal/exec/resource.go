@@ -336,21 +336,9 @@ func BuildResourceInstanceObjectMeta[SV states.ValueOrJSONEquivalent](
 	}
 
 	if fromConfig != nil {
-		// The provider instance is a little awkward because the config form
-		// of this uses a pointer to represent there being no selection at all
-		// but we can only check the nilness by unwrapping it first.
-		// FIXME: Consider a different way of representing
-		// "no provider specified", such as by making the top-level
-		// exprs.FromValue be a pointer instead of the value inside it being a
-		// pointer.
-		piUnmarked, _ := fromConfig.ProviderInstance.Unmark()
-		pi, ok := piUnmarked.ValueOk()
-		providerSpecified := !ok || pi != nil
+		providerSpecified := fromConfig.ProviderInstance != nil
 		if providerSpecified {
-			nonPtr, _ := fromConfig.ProviderInstance.Derive(func(addr *addrs.AbsProviderInstanceCorrect) (addrs.AbsProviderInstanceCorrect, error) {
-				return *addr, nil
-			})
-			ret.ProviderInstance = nonPtr
+			ret.ProviderInstance = *fromConfig.ProviderInstance
 		}
 
 		if providerSpecified || state == nil {
@@ -363,7 +351,9 @@ func BuildResourceInstanceObjectMeta[SV states.ValueOrJSONEquivalent](
 
 		ret.PostCreateProvisioners = fromConfig.PostCreateProvisioners
 		ret.PreDeleteProvisioners = fromConfig.PreDestroyProvisioners
-		ret.ReplaceOrder = fromConfig.ReplaceOrder
+		if fromConfig.ReplaceOrder != nil {
+			ret.ReplaceOrder = *fromConfig.ReplaceOrder
+		}
 
 		// TODO: Everything else
 	}

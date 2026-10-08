@@ -106,7 +106,7 @@ func (c *CompiledModuleInstance) ResultValuer(ctx context.Context) exprs.Valuer 
 }
 
 // ResourceInstanceObjectMeta implements [evalglue.CompiledModuleInstance].
-func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context, addr addrs.ResourceInstanceObject) *evalglue.ConfiguredResourceInstanceObjectMeta {
+func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context, addr addrs.AbsResourceInstance) *evalglue.ConfiguredResourceInstanceObjectMeta {
 	// We'll start with a suitable placeholder to use if there's no mention
 	// of this object in the configuration at all, and then improve it gradually
 	// as we find relevant information in the configuration.
@@ -114,21 +114,21 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 		// In this language edition the author-specified resource type always
 		// matches the provider's chosen resource type name, so we can just
 		// derive these directly from the resource address.
-		Provider:     addrs.ImpliedProviderForUnqualifiedType(addr.InstanceAddr.Resource.ImpliedProvider()),
-		ResourceMode: addr.InstanceAddr.Resource.Mode,
-		ResourceType: addr.InstanceAddr.Resource.Type,
+		Provider:     addrs.ImpliedProviderForUnqualifiedType(addr.Resource.Resource.ImpliedProvider()),
+		ResourceMode: addr.Resource.Resource.Mode,
+		ResourceType: addr.Resource.Resource.Type,
 
 		// An undeclared resource has no configured provider instance, which
 		// means that a caller can know to fall back to an address specified in
 		// the prior state, if any.
-		ProviderInstance: exprs.Known[*addrs.AbsProviderInstanceCorrect](nil),
+		ProviderInstance: nil,
 	}
 
 	// TODO: The logic here should also consider whether any "removed" block
 	// matches the requested object, and incorporate information derived from
 	// that block if so.
 
-	rsrc, ok := c.resourceNodes[addr.InstanceAddr.Resource]
+	rsrc, ok := c.resourceNodes[addr.Resource.Resource]
 	if !ok {
 		// We'll just return the placeholder, then!
 		return ret
@@ -142,13 +142,13 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 	// using [CompiledModuleInstance.CheckAll].
 
 	preventDestroy, _, _ := rsrc.PreventDestroy(ctx)
-	ret.DeletionInvalid = preventDestroy
+	ret.DeletionInvalid = &preventDestroy
 
-	destroyProvisioners := rsrc.DestroyProvisioners(ctx, addr.InstanceAddr)
+	destroyProvisioners := rsrc.DestroyProvisioners(ctx, addr.Resource)
 	ret.PreDestroyProvisioners = prepareResourceProvisioners(destroyProvisioners)
 
 	insts := rsrc.Instances(ctx)
-	inst, ok := insts[addr.InstanceAddr.Key]
+	inst, ok := insts[addr.Resource.Key]
 	if !ok {
 		// Only the resource-level settings are used when we're dealing with
 		// a resource instance that is not currently declared in the configuration.
@@ -160,12 +160,14 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 	// because for non-desired objects we'll use the value from the prior state
 	// instead anyway, but we should check whether the old runtime let the
 	// resource-level config "win" for an orphaned resource instance.
-	ret.ReplaceOrder, _, _ = inst.ReplaceOrder(ctx)
+	replaceOrder, _, _ := inst.ReplaceOrder(ctx)
+	ret.ReplaceOrder = &replaceOrder
 
 	providerInst, _ := inst.ProviderInstance(ctx)
-	ret.ProviderInstance, _ = providerInst.Derive(func(providerInst *configgraph.ProviderInstance) (*addrs.AbsProviderInstanceCorrect, error) {
-		return &providerInst.Addr, nil
+	providerInstAddr, _ := providerInst.Derive(func(providerInst *configgraph.ProviderInstance) (addrs.AbsProviderInstanceCorrect, error) {
+		return providerInst.Addr, nil
 	})
+	ret.ProviderInstance = &providerInstAddr
 
 	// TODO: "Provider" should probably be a resource-level setting rather than
 	// an instance-level setting, because all instances of a resource are

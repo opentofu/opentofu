@@ -39,10 +39,9 @@ type ConfiguredResourceInstanceObjectMeta struct {
 	// this object is currently configured to belong to.
 	//
 	// This value is unknown if the configured selection is derived from
-	// an unknown value, or nil if there is no configured selection at all. In
-	// the absence of a configured selection, callers should probably try to
-	// fall back to a selection from the prior state instead.
-	ProviderInstance exprs.FromValue[*addrs.AbsProviderInstanceCorrect]
+	// an unknown value. In the absence of a configured selection, callers should
+	// probably try to fall back to a selection from the prior state instead.
+	ProviderInstance *exprs.FromValue[addrs.AbsProviderInstanceCorrect]
 
 	// ReplaceOrder describes the configured constraint on what order the
 	// create and delete steps of a  "replace" action for this resource instance
@@ -60,7 +59,7 @@ type ConfiguredResourceInstanceObjectMeta struct {
 	//
 	// This field is relevant only for managed resource mode and its value is
 	// unspecified for other resource modes.
-	ReplaceOrder exprs.FromValue[resources.ReplaceOrder]
+	ReplaceOrder *exprs.FromValue[resources.ReplaceOrder]
 
 	// DeleteWhenRemoved is true if the expected treatment for a non-desired
 	// object at this address is to ask the associated provider to delete it,
@@ -69,7 +68,7 @@ type ConfiguredResourceInstanceObjectMeta struct {
 	//
 	// This field is relevant only for managed resource mode and its value is
 	// unspecified for other resource modes.
-	DeleteWhenRemoved exprs.FromValue[bool]
+	DeleteWhenRemoved *exprs.FromValue[bool]
 
 	// DeletionInvalid is true if the author has configured that any execution
 	// plan that involves deleting this object should be considered immediately
@@ -77,7 +76,7 @@ type ConfiguredResourceInstanceObjectMeta struct {
 	//
 	// This field is relevant only for managed resource mode and its value is
 	// unspecified for other resource modes.
-	DeletionInvalid exprs.FromValue[bool]
+	DeletionInvalid *exprs.FromValue[bool]
 
 	// TODO: Some representation of "ignore_changes", which the planning engine
 	// will use as part of deciding which action to take.
