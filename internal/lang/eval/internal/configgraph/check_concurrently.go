@@ -11,6 +11,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
+	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -39,7 +40,9 @@ type CheckGroup struct {
 }
 
 func (g *CheckGroup) CheckChild(ctx context.Context, child allChecker) {
+	ctx, panicHandler := logging.PanicHandlerWithContext(ctx)
 	g.wg.Go(func() {
+		defer panicHandler()
 		diags := child.CheckAll(grapheval.ContextWithNewWorker(ctx))
 		g.mu.Lock()
 		g.diags = g.diags.Append(diags)
@@ -48,7 +51,9 @@ func (g *CheckGroup) CheckChild(ctx context.Context, child allChecker) {
 }
 
 func (g *CheckGroup) CheckValuer(ctx context.Context, v exprs.Valuer) {
+	ctx, panicHandler := logging.PanicHandlerWithContext(ctx)
 	g.wg.Go(func() {
+		defer panicHandler()
 		// We use Value to make sure we're running the same codepath that
 		// normal evaluation would use, but we only care about the diags.
 		_, diags := v.Value(grapheval.ContextWithNewWorker(ctx))
@@ -59,7 +64,9 @@ func (g *CheckGroup) CheckValuer(ctx context.Context, v exprs.Valuer) {
 }
 
 func (g *CheckGroup) CheckDiagsFunc(ctx context.Context, f func(ctx context.Context) tfdiags.Diagnostics) {
+	ctx, panicHandler := logging.PanicHandlerWithContext(ctx)
 	g.wg.Go(func() {
+		defer panicHandler()
 		diags := f(grapheval.ContextWithNewWorker(ctx))
 		g.mu.Lock()
 		g.diags = g.diags.Append(diags)
@@ -73,7 +80,9 @@ func (g *CheckGroup) CheckDiagsFunc(ctx context.Context, f func(ctx context.Cont
 // but should eventually make zero or more calls to Check* methods on the
 // same [checkGroup] before it returns.
 func (g *CheckGroup) Await(ctx context.Context, cb func(ctx context.Context)) {
+	ctx, panicHandler := logging.PanicHandlerWithContext(ctx)
 	g.wg.Go(func() {
+		defer panicHandler()
 		// We give the waiter its own worker since it may run concurrently
 		// with other Awaits or with Check* calls.
 		cb(grapheval.ContextWithNewWorker(ctx))
