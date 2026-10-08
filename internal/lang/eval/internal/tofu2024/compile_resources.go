@@ -190,6 +190,7 @@ func compileModuleInstanceResource(
 
 	ret := &configgraph.Resource{
 		Addr:      absAddr,
+		Provider:  config.Provider,
 		DeclRange: tfdiags.SourceRangeFromHCL(config.DeclRange),
 
 		// Our instance selector depends on which of the repetition metaarguments
@@ -342,7 +343,7 @@ func compileModuleInstanceResource(
 
 			inst := &configgraph.ResourceInstance{
 				Addr:                      absAddr.Instance(key),
-				Provider:                  config.Provider,
+				Provider:                  config.Provider, // must match the corresponding field in the parent configgraph.Resource
 				ConfigValuer:              configValuer,
 				ProviderInstanceValuer:    configgraph.ValuerOnce(providerRef),
 				CreateBeforeDestroyValuer: cbdValuer,

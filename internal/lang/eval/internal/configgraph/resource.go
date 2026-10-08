@@ -34,6 +34,13 @@ type Resource struct {
 	// and addresses we cannot determine yet.
 	Addr addrs.AbsResource
 
+	// Provider is the provider that this resource's type belongs to. This
+	// is the provider to use when asking for config validation, etc.
+	//
+	// Each instance of the resource is required to have the same provider,
+	// but they are allowed to use different instances of that provider.
+	Provider addrs.Provider
+
 	// InstanceSelector represents a rule for deciding which instances of
 	// this resource have been declared.
 	InstanceSelector InstanceSelector
