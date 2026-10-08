@@ -65,6 +65,7 @@ func (p *ProviderInstance) StaticCheckTraversal(traversal hcl.Traversal) tfdiags
 
 // Value implements exprs.Valuer.
 func (p *ProviderInstance) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+	ctx = withDebugAddr(ctx, p.Addr, "Value")
 	// The value for a provider instance as used in expressions is just an
 	// opaque reference to this object represented as a cty capsule type,
 	// but we do still evaluate the configuration first because that ensures
@@ -101,6 +102,7 @@ func (p *ProviderInstance) Value(ctx context.Context) (cty.Value, tfdiags.Diagno
 // in the configuration. The result is considered private to the provider
 // process that is configured with it.
 func (p *ProviderInstance) ConfigValue(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+	ctx = withDebugAddr(ctx, p.Addr, "ConfigValue")
 	// We use a "Once" here to coalesce to just one ValidateConfig call per
 	// ProviderInstance object, even when multiple callers ask for the
 	// configuration for this instance.
