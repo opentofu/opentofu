@@ -99,6 +99,7 @@ func TestModuleOverrideOutput(t *testing.T) {
 			Name:           "fully_overridden",
 			Description:    "b_override description",
 			DescriptionSet: true,
+			ConstraintType: cty.String,
 			Expr: &hclsyntax.TemplateExpr{
 				Parts: []hclsyntax.Expression{
 					&hclsyntax.LiteralValueExpr{
@@ -153,6 +154,7 @@ func TestModuleOverrideOutput(t *testing.T) {
 			Name:           "partially_overridden",
 			Description:    "base description",
 			DescriptionSet: true,
+			ConstraintType: cty.DynamicPseudoType,
 			Expr: &hclsyntax.TemplateExpr{
 				Parts: []hclsyntax.Expression{
 					&hclsyntax.LiteralValueExpr{
@@ -160,14 +162,14 @@ func TestModuleOverrideOutput(t *testing.T) {
 						SrcRange: hcl.Range{
 							Filename: filepath.FromSlash("testdata/valid-modules/override-output/b_override.tf"),
 							Start: hcl.Pos{
-								Line:   9,
+								Line:   10,
 								Column: 12,
-								Byte:   197,
+								Byte:   213,
 							},
 							End: hcl.Pos{
-								Line:   9,
+								Line:   10,
 								Column: 30,
-								Byte:   215,
+								Byte:   231,
 							},
 						},
 					},
@@ -175,14 +177,14 @@ func TestModuleOverrideOutput(t *testing.T) {
 				SrcRange: hcl.Range{
 					Filename: filepath.FromSlash("testdata/valid-modules/override-output/b_override.tf"),
 					Start: hcl.Pos{
-						Line:   9,
+						Line:   10,
 						Column: 11,
-						Byte:   196,
+						Byte:   212,
 					},
 					End: hcl.Pos{
-						Line:   9,
+						Line:   10,
 						Column: 31,
-						Byte:   216,
+						Byte:   232,
 					},
 				},
 			},

@@ -43,13 +43,8 @@ func compileModuleInstanceOutputValues(
 			Addr:     moduleInstAddr.OutputValue(name),
 			RawValue: value,
 
-			// Our current language doesn't allow specifying a type constraint
-			// for an output value, so these are always the most liberal
-			// possible constraint. Making these customizable could be part
-			// of a solution to:
-			//     https://github.com/opentofu/opentofu/issues/2831
-			TargetType:     cty.DynamicPseudoType,
-			TargetDefaults: nil,
+			TargetType:     vc.ConstraintType,
+			TargetDefaults: vc.TypeDefaults,
 
 			ForceSensitive: vc.Sensitive,
 			ForceEphemeral: vc.Ephemeral,
