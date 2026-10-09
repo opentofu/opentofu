@@ -28,7 +28,7 @@ type PlanningOracle struct {
 
 func (o *PlanningOracle) CheckTarget(ctx context.Context, target addrs.Targetable) {
 	ctx = grapheval.ContextWithNewWorker(ctx)
-	ctx = grapheval.ContextWithRequestTracker(ctx, workgraphRequestTracker{o.root})
+	ctx = grapheval.ContextWithRequestTracker(ctx, newWorkgraphRequestTracker())
 
 	addTarget := func(ri *configgraph.ResourceInstance) {
 		// Populate the value before the glue disables itself for the rest of processing

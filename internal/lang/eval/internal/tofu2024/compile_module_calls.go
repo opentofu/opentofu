@@ -62,10 +62,10 @@ func compileModuleInstanceModuleCalls(
 			SourceAddrValuer: configgraph.ValuerOnce(exprs.NewClosure(
 				exprs.EvalableHCLExpression(config.Source),
 				declScope,
-			)),
+			), addr.Absolute(moduleInstanceAddr).String()+" source address"),
 			VersionConstraintValuer: configgraph.ValuerOnce(
 				versionConstraintValuer,
-			),
+				addr.Absolute(moduleInstanceAddr).String()+" version constraint"),
 			ValidateSourceArguments: func(ctx context.Context, sourceArgs configgraph.ModuleSourceArguments) tfdiags.Diagnostics {
 				// We'll try to use the given source address with our
 				// [ExternalModules] object, and consider the arguments to be
@@ -97,7 +97,7 @@ func compileModuleInstanceModuleCalls(
 					// soon as it tries to evaluate its inputs.
 					inst := &configgraph.ModuleCallInstance{
 						ModuleInstanceAddr: addr.Absolute(moduleInstanceAddr).Instance(key),
-						InputsValuer:       configgraph.ValuerOnce(exprs.ForcedErrorValuer(diags)),
+						InputsValuer:       configgraph.ValuerOnce(exprs.ForcedErrorValuer(diags), addr.Absolute(moduleInstanceAddr).Instance(key).String()+" module inputs (errored)"),
 					}
 					inst.Glue = &moduleCallInstanceGlue{
 						callInstNode: inst,
@@ -131,7 +131,7 @@ func compileModuleInstanceModuleCalls(
 					InputsValuer: configgraph.ValuerOnce(exprs.NewClosure(
 						exprs.EvalableHCLBodyJustAttributes(config.Config),
 						instanceScope,
-					)),
+					), addr.Absolute(moduleInstanceAddr).Instance(key).String()+" module inputs"),
 					ProvidersFromParent: proxyProviderCompiler,
 				}
 				inst.Glue = &moduleCallInstanceGlue{
@@ -187,10 +187,6 @@ type moduleCallInstanceGlue struct {
 	validateInputs func(context.Context, cty.Value) tfdiags.Diagnostics
 	compileChild   func(ctx context.Context, inputs cty.Value, providersFromParent configgraph.CompileProviderConfigRef) (exprs.FromValue[evalglue.CompiledModuleInstance], tfdiags.Diagnostics)
 
-	// FIXME: This isn't exposed in the tree of AnnounceAllGraphevalRequests
-	// method calls we use to collect up user-friendly names for all of our
-	// workgraph requests, so if a self-reference error occurs across this
-	// boundary there will be an unnamed item in the resulting error message.
 	compiledChild grapheval.Once[exprs.FromValue[evalglue.CompiledModuleInstance]]
 }
 
@@ -219,7 +215,7 @@ func (g *moduleCallInstanceGlue) OutputsValue(ctx context.Context) (cty.Value, t
 // of [evalglue.CompiledModuleInstance] to give the caller direct access to the
 // child module instance objects for recursive tree walks.
 func (g *moduleCallInstanceGlue) compiledModuleInstance(ctx context.Context) (exprs.FromValue[evalglue.CompiledModuleInstance], tfdiags.Diagnostics) {
-	return g.compiledChild.Do(ctx, func(ctx context.Context) (exprs.FromValue[evalglue.CompiledModuleInstance], tfdiags.Diagnostics) {
+	return g.compiledChild.Do(ctx, grapheval.RequestInfo{Name: g.callInstNode.ModuleInstanceAddr.String() + " glue", SourceRange: nil}, func(ctx context.Context) (exprs.FromValue[evalglue.CompiledModuleInstance], tfdiags.Diagnostics) {
 		configVal, diags := g.callInstNode.InputsValue(ctx)
 		if !configVal.IsKnown() {
 			return exprs.Unknown[evalglue.CompiledModuleInstance](), diags

@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"iter"
 
-	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/convert"
@@ -233,7 +232,7 @@ func (ri *ResourceInstance) ReplaceOrder(ctx context.Context) (exprs.FromValue[r
 // Value implements exprs.Valuer.
 func (ri *ResourceInstance) Value(ctx context.Context) (v cty.Value, diags tfdiags.Diagnostics) {
 	ctx = withDebugAddr(ctx, ri.Addr, "Value")
-	return ri.valueOnce.Do(ctx, func(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+	return ri.valueOnce.Do(ctx, grapheval.RequestInfo{Name: ri.Addr.String() + " value", SourceRange: ri.ConfigValuer.ValueSourceRange()}, func(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
 		configVal, diags := ri.ConfigValue(ctx)
 
 		providerInst, moreDiags := ri.ProviderInstance(ctx)
@@ -350,25 +349,4 @@ func (ri *ResourceInstance) CheckAll(ctx context.Context) tfdiags.Diagnostics {
 		cg.CheckValuer(ctx, ri.CreateBeforeDestroyValuer)
 	}
 	return cg.Complete(ctx)
-}
-
-func (ri *ResourceInstance) AnnounceAllGraphevalRequests(announce func(workgraph.RequestID, grapheval.RequestInfo)) {
-	announce(ri.ConfigValuer.RequestID(), grapheval.RequestInfo{
-		Name:        fmt.Sprintf("configuration for %s", ri.Addr),
-		SourceRange: ri.ConfigValuer.ValueSourceRange(),
-	})
-	if ri.CreateBeforeDestroyValuer != nil {
-		announce(ri.CreateBeforeDestroyValuer.RequestID(), grapheval.RequestInfo{
-			Name:        fmt.Sprintf("create_before_destroy argument for %s", ri.Addr),
-			SourceRange: ri.CreateBeforeDestroyValuer.ValueSourceRange(),
-		})
-	}
-	announce(ri.valueOnce.RequestID(), grapheval.RequestInfo{
-		Name:        fmt.Sprintf("final value for %s", ri.Addr),
-		SourceRange: ri.ConfigValuer.ValueSourceRange(),
-	})
-	announce(ri.ProviderInstanceValuer.RequestID(), grapheval.RequestInfo{
-		Name:        fmt.Sprintf("provider instance selection for %s", ri.Addr),
-		SourceRange: ri.ProviderInstanceValuer.ValueSourceRange(),
-	})
 }

@@ -114,7 +114,7 @@ func compileProviderConfig(
 					}
 					return v, diags
 				},
-			))
+			), providerAddr.String())
 
 			return &configgraph.ProviderInstance{
 				Addr: addrs.AbsProviderInstanceCorrect{

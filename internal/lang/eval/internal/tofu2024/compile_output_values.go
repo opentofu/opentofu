@@ -38,7 +38,7 @@ func compileModuleInstanceOutputValues(
 				diags = diags.Append(markDiags)
 				return v.WithMarks(marks), diags
 			},
-		))
+		), moduleInstAddr.OutputValue(name).String())
 		ret[addr] = &configgraph.OutputValue{
 			Addr:     moduleInstAddr.OutputValue(name),
 			RawValue: value,

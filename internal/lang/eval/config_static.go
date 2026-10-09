@@ -43,7 +43,7 @@ func (c *ConfigInstance) StaticCheck(ctx context.Context) tfdiags.Diagnostics {
 	// If the grapheval package detects a self-dependency problem during
 	// evaluation then it'll use this tracker to find human-friendly names
 	// for all of the requests involved in the error.
-	ctx = grapheval.ContextWithRequestTracker(ctx, workgraphRequestTracker{rootModuleInstance})
+	ctx = grapheval.ContextWithRequestTracker(ctx, newWorkgraphRequestTracker())
 
 	moreDiags = checkAll(ctx, rootModuleInstance)
 	diags = diags.Append(moreDiags)
@@ -69,7 +69,7 @@ func (c *ConfigInstance) ProviderRequirements(ctx context.Context) (getproviders
 	// If the grapheval package detects a self-dependency problem during
 	// evaluation then it'll use this tracker to find human-friendly names
 	// for all of the requests involved in the error.
-	ctx = grapheval.ContextWithRequestTracker(ctx, workgraphRequestTracker{rootModuleInstance})
+	ctx = grapheval.ContextWithRequestTracker(ctx, newWorkgraphRequestTracker())
 
 	reqs, quals, moreDiags := rootModuleInstance.ProviderRequirements(ctx)
 	diags = diags.Append(moreDiags)

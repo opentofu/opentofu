@@ -181,7 +181,7 @@ func compileModuleInstanceResource(
 		// See https://github.com/opentofu/opentofu/issues/2522 for more details
 		pdValuer = configgraph.ValuerOnce(
 			exprs.NewClosure(exprs.EvalableHCLExpression(config.Managed.PreventDestroy), declScope),
-		)
+			absAddr.String()+" prevent destroy")
 	}
 
 	if diags.HasErrors() {
@@ -208,6 +208,9 @@ func compileModuleInstanceResource(
 			providerRef := compileProviderConfigRef(ctx, moduleProviders, config.ProviderConfigAddr(), config.ProviderConfigRef, localScope)
 			instanceDeps := compileInstanceDeps(localScope)
 
+			// HACK
+			providerRef.Value(ctx)
+
 			// For now we require a literal boolean constant in
 			// create_before_destroy to match how the old implementation treated
 			// this, but this is designed to grow to support arbitrary
@@ -231,6 +234,7 @@ func compileModuleInstanceResource(
 				// the expression's source range will be used here instead.
 				cbdValuer = configgraph.ValuerOnce(
 					exprs.ConstantValuerWithSourceRange(cbdVal, tfdiags.SourceRangeFromHCL(config.DeclRange)),
+					absAddr.Instance(key).String()+" create_before_destroy",
 				)
 			}
 
@@ -338,13 +342,13 @@ func compileModuleInstanceResource(
 
 					return v, vDiags
 				},
-			))
+			), absAddr.Instance(key).String()+" config")
 
 			inst := &configgraph.ResourceInstance{
 				Addr:                      absAddr.Instance(key),
 				Provider:                  config.Provider,
 				ConfigValuer:              configValuer,
-				ProviderInstanceValuer:    configgraph.ValuerOnce(providerRef),
+				ProviderInstanceValuer:    configgraph.ValuerOnce(providerRef, absAddr.Instance(key).String()+" provider"),
 				CreateBeforeDestroyValuer: cbdValuer,
 				CreateProvisioners:        provisionerConfigs,
 				IgnoreChangesPaths:        ignoreChanges,

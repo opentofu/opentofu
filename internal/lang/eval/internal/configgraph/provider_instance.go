@@ -9,7 +9,6 @@ import (
 	"context"
 	"iter"
 
-	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
@@ -106,7 +105,7 @@ func (p *ProviderInstance) ConfigValue(ctx context.Context) (cty.Value, tfdiags.
 	// We use a "Once" here to coalesce to just one ValidateConfig call per
 	// ProviderInstance object, even when multiple callers ask for the
 	// configuration for this instance.
-	return p.validatedConfig.Do(ctx, func(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+	return p.validatedConfig.Do(ctx, grapheval.RequestInfo{Name: p.Addr.String() + " config value", SourceRange: p.ConfigValuer.ValueSourceRange()}, func(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
 		v, diags := p.ConfigValuer.Value(ctx)
 		if diags.HasErrors() {
 			return cty.DynamicVal, diags
@@ -162,11 +161,4 @@ func (p *ProviderInstance) CheckAll(ctx context.Context) tfdiags.Diagnostics {
 		return diags
 	})
 	return cg.Complete(ctx)
-}
-
-func (p *ProviderInstance) AnnounceAllGraphevalRequests(announce func(workgraph.RequestID, grapheval.RequestInfo)) {
-	announce(p.ConfigValuer.RequestID(), grapheval.RequestInfo{
-		Name:        p.Addr.String() + " configuration",
-		SourceRange: p.ConfigValuer.ValueSourceRange(),
-	})
 }

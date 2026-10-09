@@ -9,7 +9,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/convert"
@@ -132,7 +131,7 @@ func (r *Resource) ValueSourceRange() *tfdiags.SourceRange {
 }
 
 func (r *Resource) decideInstances(ctx context.Context) (*compiledInstances[*ResourceInstance], tfdiags.Diagnostics) {
-	return r.instancesResult.Do(ctx, func(ctx context.Context) (*compiledInstances[*ResourceInstance], tfdiags.Diagnostics) {
+	return r.instancesResult.Do(ctx, grapheval.RequestInfo{Name: r.Addr.String() + " decide instances", SourceRange: &r.DeclRange}, func(ctx context.Context) (*compiledInstances[*ResourceInstance], tfdiags.Diagnostics) {
 		return compileInstances(ctx, r.InstanceSelector, r.CompileResourceInstance)
 	})
 }
@@ -269,30 +268,4 @@ func (r *Resource) CheckAll(ctx context.Context) tfdiags.Diagnostics {
 		cg.CheckValuer(ctx, r.PreventDestroyValuer)
 	}
 	return cg.Complete(ctx)
-}
-
-func (r *Resource) AnnounceAllGraphevalRequests(announce func(workgraph.RequestID, grapheval.RequestInfo)) {
-	// There might be other grapheval requests in our dynamic instances, but
-	// they are hidden behind another request themselves so we'll try to
-	// report them only if that request was already started.
-	instancesReqId := r.instancesResult.RequestID()
-	if instancesReqId == workgraph.NoRequest {
-		return
-	}
-	announce(instancesReqId, grapheval.RequestInfo{
-		Name:        fmt.Sprintf("decide instances for %s", r.Addr),
-		SourceRange: r.InstanceSelector.InstancesSourceRange(),
-	})
-	if r.PreventDestroyValuer != nil {
-		announce(r.PreventDestroyValuer.RequestID(), grapheval.RequestInfo{
-			Name:        fmt.Sprintf("prevent_destroy argument for %s", r.Addr),
-			SourceRange: r.PreventDestroyValuer.ValueSourceRange(),
-		})
-	}
-	// The Instances method potentially starts a new request, but we already
-	// confirmed above that this request was already started and so we
-	// can safely just await its result here.
-	for _, inst := range r.Instances(grapheval.ContextWithNewWorker(context.Background())) {
-		inst.AnnounceAllGraphevalRequests(announce)
-	}
 }

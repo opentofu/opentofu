@@ -49,7 +49,7 @@ type Once[T any] struct {
 // Once object in the program MUST pass a context derived from the one passed
 // into the callback function, because it includes internal tracking
 // information.
-func (o *Once[T]) Do(ctx context.Context, f func(ctx context.Context) (T, tfdiags.Diagnostics)) (T, tfdiags.Diagnostics) {
+func (o *Once[T]) Do(ctx context.Context, info RequestInfo, f func(ctx context.Context) (T, tfdiags.Diagnostics)) (T, tfdiags.Diagnostics) {
 	worker := WorkerFromContext(ctx)
 	o.mu.Lock()
 	if o.promise == nil {
@@ -58,6 +58,7 @@ func (o *Once[T]) Do(ctx context.Context, f func(ctx context.Context) (T, tfdiag
 		resolver, promise := workgraph.NewRequest[withDiagnostics[T]](worker)
 		o.promise = &promise
 		o.requestID = resolver.RequestID()
+		ReportRequestInContext(ctx, o.requestID, info)
 		workgraph.WithNewAsyncWorker(func(w *workgraph.Worker) {
 			pprof.SetGoroutineLabels(ctx) // Just in case the caller uses pprof labels to describe what this worker's goal is
 			ctx := ContextWithWorker(ctx, w)

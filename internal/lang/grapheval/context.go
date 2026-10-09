@@ -63,6 +63,16 @@ func RequestTrackerFromContext(ctx context.Context) RequestTracker {
 	return tracker
 }
 
+func ReportRequestInContext(ctx context.Context, reqID workgraph.RequestID, info RequestInfo) {
+	if reqID == workgraph.NoRequest {
+		panic("Recording request that has not yet started")
+	}
+	tracker := RequestTrackerFromContext(ctx)
+	if tracker != nil {
+		tracker.AddRequest(reqID, info)
+	}
+}
+
 type contextKey rune
 
 const workerContextKey = contextKey('W')

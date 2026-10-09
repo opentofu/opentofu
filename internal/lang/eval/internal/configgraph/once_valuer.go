@@ -30,11 +30,12 @@ import (
 // The StaticCheckTraversal method is _not_ wrapped and so should be a
 // relatively cheap operation as usual and must not interact (directly or
 // indirectly) with any grapheval helpers.
-func ValuerOnce(valuer exprs.Valuer) *OnceValuer {
-	return &OnceValuer{inner: valuer}
+func ValuerOnce(valuer exprs.Valuer, name string) *OnceValuer {
+	return &OnceValuer{inner: valuer, name: name}
 }
 
 type OnceValuer struct {
+	name  string
 	once  grapheval.Once[cty.Value]
 	inner exprs.Valuer
 }
@@ -46,7 +47,8 @@ func (v *OnceValuer) StaticCheckTraversal(traversal hcl.Traversal) tfdiags.Diagn
 
 // Value implements exprs.Valuer.
 func (v *OnceValuer) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
-	return v.once.Do(ctx, func(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+	info := grapheval.RequestInfo{Name: v.name, SourceRange: v.inner.ValueSourceRange()}
+	return v.once.Do(ctx, info, func(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
 		return v.inner.Value(ctx)
 	})
 }

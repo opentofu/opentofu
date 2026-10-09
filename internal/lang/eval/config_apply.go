@@ -9,7 +9,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
@@ -236,22 +235,6 @@ func (o *ApplyOracle) DesiredResourceInstance(ctx context.Context, addr addrs.Ab
 // engine, causing it to create an incorrect execution graph.
 func (o *ApplyOracle) ProviderInstance(ctx context.Context, addr addrs.AbsProviderInstanceCorrect) (providers.Interface, tfdiags.Diagnostics) {
 	return o.providers.ProviderInstance(ctx, addr)
-}
-
-// AnnounceAllGraphevalRequests calls the given function once for each internal
-// workgraph request that has previously been started by requests to this
-// oracle.
-//
-// This is used by the apply engine as part of its implementation of
-// [grapheval.RequestTracker], so that promise-resolution-related diagnostics
-// can include information about which requests were involved in the problem.
-//
-// This information is collected as a separate step only when needed because
-// that avoids us needing to keep track of this metadata on the happy path,
-// so that we only pay the cost of gathering this data when we're actually
-// going to use it for something.
-func (o *ApplyOracle) AnnounceAllGraphevalRequests(announce func(workgraph.RequestID, grapheval.RequestInfo)) {
-	o.root.AnnounceAllGraphevalRequests(announce)
 }
 
 func (o *ApplyOracle) RootOutputs(ctx context.Context) RootModuleOutputs {

@@ -29,6 +29,9 @@ type execRequestTracker struct {
 
 	promiseReqsMu sync.Mutex
 	promiseReqs   map[execgraph.PromiseDrivenResultKey]workgraph.RequestID
+
+	graphReqsMu sync.Mutex
+	graphReqs   map[workgraph.RequestID]grapheval.RequestInfo
 }
 
 var _ grapheval.RequestTracker = (*execRequestTracker)(nil)
@@ -39,28 +42,29 @@ func newRequestTracker(graph *execgraph.Graph, ops *execOperations) *execRequest
 		configOracle: ops.configOracle,
 		graph:        graph,
 		promiseReqs:  make(map[execgraph.PromiseDrivenResultKey]workgraph.RequestID),
+		graphReqs:    make(map[workgraph.RequestID]grapheval.RequestInfo),
 	}
+}
+
+func (e *execRequestTracker) AddRequest(reqID workgraph.RequestID, info grapheval.RequestInfo) {
+	e.graphReqsMu.Lock()
+	defer e.graphReqsMu.Unlock()
+	e.graphReqs[reqID] = info
 }
 
 // ActiveRequests implements [grapheval.RequestTracker].
 func (e *execRequestTracker) ActiveRequests() iter.Seq2[workgraph.RequestID, grapheval.RequestInfo] {
 	return func(yield func(workgraph.RequestID, grapheval.RequestInfo) bool) {
-		// To make the downstream implementations of this simpler we
-		// always visit all of the requests known to the evaluator and just
-		// discard them if the caller has stopped consuming our sequence.
-		// In practice we should always read the whole sequence to completion
-		// in the error reporting path anyway, so this is really just to
-		// honor the general expectations of [iter.Seq2].
-		keepGoing := true
-		e.configOracle.AnnounceAllGraphevalRequests(func(reqID workgraph.RequestID, info grapheval.RequestInfo) {
-			if !keepGoing {
+		e.graphReqsMu.Lock()
+		activeRequests := map[workgraph.RequestID]grapheval.RequestInfo{}
+		maps.Copy(activeRequests, e.graphReqs)
+		e.graphReqsMu.Unlock()
+		for req, info := range activeRequests {
+			if !yield(req, info) {
 				return
 			}
-			keepGoing = yield(reqID, info)
-		})
-		if !keepGoing {
-			return
 		}
+
 		// We'll also report any requests that execgraph has announced to us
 		// using [execRequestTracker.TrackExecutionGraphRequest].
 		//

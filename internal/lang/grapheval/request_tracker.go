@@ -27,6 +27,7 @@ import (
 // request detection to allow those operations to return better diagnostic
 // messages when those situations occur.
 type RequestTracker interface {
+	AddRequest(reqID workgraph.RequestID, info RequestInfo)
 	// ActiveRequests returns an iterable sequence of all active requests
 	// known to the tracker, along with the [RequestInfo] for each one.
 	ActiveRequests() iter.Seq2[workgraph.RequestID, RequestInfo]

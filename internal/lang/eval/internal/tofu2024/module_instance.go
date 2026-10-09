@@ -10,7 +10,6 @@ import (
 	"iter"
 	"maps"
 
-	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -29,8 +28,7 @@ import (
 // uses to interact with tofu2024-edition modules.
 type CompiledModuleInstance struct {
 	// Any other kinds of "node" we add in future will likely need coverage
-	// added in both [CompiledModuleInstance.CheckAll] and
-	// [CompiledModuleInstance.AnnounceAllGraphevalRequests].
+	// added in [CompiledModuleInstance.CheckAll]
 	moduleInstanceNode  *configgraph.ModuleInstance
 	inputVariableNodes  map[addrs.InputVariable]*configgraph.InputVariable
 	localValueNodes     map[addrs.LocalValue]*configgraph.LocalValue
@@ -363,29 +361,6 @@ func (c *CompiledModuleInstance) ResourceInstancesForResource(ctx context.Contex
 // ResourceInstancesForResource implements evalglue.CompiledModuleInstance.
 func (c *CompiledModuleInstance) ProviderRequirements(ctx context.Context) (getproviders.Requirements, *getproviders.ProvidersQualification, tfdiags.Diagnostics) {
 	return c.providerRequirements(ctx)
-}
-
-// AnnounceAllGraphevalRequests implements evalglue.CompiledModuleInstance.
-func (c *CompiledModuleInstance) AnnounceAllGraphevalRequests(announce func(workgraph.RequestID, grapheval.RequestInfo)) {
-	c.moduleInstanceNode.AnnounceAllGraphevalRequests(announce)
-	for _, n := range c.inputVariableNodes {
-		n.AnnounceAllGraphevalRequests(announce)
-	}
-	for _, n := range c.localValueNodes {
-		n.AnnounceAllGraphevalRequests(announce)
-	}
-	for _, n := range c.outputValueNodes {
-		n.AnnounceAllGraphevalRequests(announce)
-	}
-	for _, n := range c.resourceNodes {
-		n.AnnounceAllGraphevalRequests(announce)
-	}
-	for _, n := range c.moduleCallNodes {
-		n.AnnounceAllGraphevalRequests(announce)
-	}
-	for _, n := range c.providerConfigNodes {
-		n.AnnounceAllGraphevalRequests(announce)
-	}
 }
 
 // GetMoveStatements implements evalglue.CompiledModuleInstance.

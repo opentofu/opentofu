@@ -9,8 +9,6 @@ import (
 	"context"
 	"iter"
 
-	"github.com/apparentlymart/go-workgraph/workgraph"
-
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
@@ -206,16 +204,6 @@ type CompiledModuleInstance interface {
 	ProviderInstance(ctx context.Context, addr addrs.ProviderInstanceCorrect) *configgraph.ProviderInstance
 
 	ProviderRequirements(ctx context.Context) (getproviders.Requirements, *getproviders.ProvidersQualification, tfdiags.Diagnostics)
-
-	// AnnounceAllGraphevalRequests calls announce for each [grapheval.Once],
-	// [OnceValuer], or other [workgraph.RequestID] anywhere in the tree under this
-	// object.
-	//
-	// This is used only when [workgraph] detects a self-dependency or failure to
-	// resolve and we want to find a nice human-friendly name and optional source
-	// range to use to describe each of the requests that were involved in the
-	// problem.
-	AnnounceAllGraphevalRequests(announce func(workgraph.RequestID, grapheval.RequestInfo))
 
 	// GetMoveStatementsFor obtains the move statements for this module and the child module
 	// if specified by the given address.

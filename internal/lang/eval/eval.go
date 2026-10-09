@@ -8,6 +8,8 @@ package eval
 import (
 	"context"
 	"iter"
+	"maps"
+	"sync"
 
 	"github.com/apparentlymart/go-workgraph/workgraph"
 
@@ -30,7 +32,7 @@ func checkAll(ctx context.Context, rootModuleInstance evalglue.CompiledModuleIns
 	// If the grapheval package detects a self-dependency problem during
 	// evaluation then it'll use this tracker to find human-friendly names
 	// for all of the requests involved in the error.
-	ctx = grapheval.ContextWithRequestTracker(ctx, workgraphRequestTracker{rootModuleInstance})
+	ctx = grapheval.ContextWithRequestTracker(ctx, newWorkgraphRequestTracker())
 	return rootModuleInstance.CheckAll(ctx)
 }
 
@@ -44,30 +46,32 @@ func checkAll(ctx context.Context, rootModuleInstance evalglue.CompiledModuleIns
 // to do this request-tracking work unless a grapheval-related error actually
 // occurs, since such errors ought to be rare.
 type workgraphRequestTracker struct {
-	rootModuleInstance evalglue.CompiledModuleInstance
+	lock           sync.Mutex
+	activeRequests map[workgraph.RequestID]grapheval.RequestInfo
+}
+
+func newWorkgraphRequestTracker() grapheval.RequestTracker {
+	return &workgraphRequestTracker{activeRequests: map[workgraph.RequestID]grapheval.RequestInfo{}}
+}
+
+func (w *workgraphRequestTracker) AddRequest(reqID workgraph.RequestID, info grapheval.RequestInfo) {
+	w.lock.Lock()
+	defer w.lock.Unlock()
+	w.activeRequests[reqID] = info
 }
 
 // ActiveRequests implements grapheval.RequestTracker.
-func (w workgraphRequestTracker) ActiveRequests() iter.Seq2[workgraph.RequestID, grapheval.RequestInfo] {
+func (w *workgraphRequestTracker) ActiveRequests() iter.Seq2[workgraph.RequestID, grapheval.RequestInfo] {
+	w.lock.Lock()
+	defer w.lock.Unlock()
+	activeRequests := map[workgraph.RequestID]grapheval.RequestInfo{}
+	maps.Copy(activeRequests, w.activeRequests)
+
 	return func(yield func(workgraph.RequestID, grapheval.RequestInfo) bool) {
-		// Since we only call into AnnounceAllGraphevalRequests on an error
-		// path anyway, we'll make the code in there a little simpler by
-		// always announcing every request and just ignore any announcements
-		// that come after the consumer of our sequence has asked us to stop.
-		// (In practice the caller in grapheval always consumes the full
-		// sequence anyway, so this is just for completeness to make sure
-		// we always follow the [iter.Seq2] conventions.)
-		callerDone := false
-		w.rootModuleInstance.AnnounceAllGraphevalRequests(func(reqID workgraph.RequestID, info grapheval.RequestInfo) {
-			if callerDone {
-				return // caller doesn't want to hear from us anymore
+		for req, info := range activeRequests {
+			if !yield(req, info) {
+				return
 			}
-			if reqID == workgraph.NoRequest {
-				return // ignore announcements of requests that haven't actually started
-			}
-			if !yield(reqID, info) {
-				callerDone = true // all future announcements will be silently discarded
-			}
-		})
+		}
 	}
 }

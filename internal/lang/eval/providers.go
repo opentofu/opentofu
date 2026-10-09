@@ -67,7 +67,7 @@ func (p *managedProviders) ProviderInstance(ctx context.Context, addr addrs.AbsP
 	once := p.active.Get(addr)
 	p.activeMu.Unlock()
 
-	return once.Do(ctx, func(ctx context.Context) (ret providers.Configured, diags tfdiags.Diagnostics) {
+	return once.Do(ctx, grapheval.RequestInfo{Name: addr.String() + " open", SourceRange: nil}, func(ctx context.Context) (ret providers.Configured, diags tfdiags.Diagnostics) {
 		log.Printf("[INFO] Opening Provider %s", addr)
 
 		closeCh := make(chan struct{})
