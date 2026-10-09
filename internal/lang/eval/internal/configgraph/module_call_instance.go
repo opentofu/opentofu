@@ -161,4 +161,8 @@ func (m *ModuleCallInstance) AnnounceAllGraphevalRequests(announce func(workgrap
 		Name:        m.ModuleInstanceAddr.String() + " input variable values",
 		SourceRange: m.InputsValuer.ValueSourceRange(),
 	})
+	announce(m.validatedInputs.RequestID(), grapheval.RequestInfo{
+		Name:        m.ModuleInstanceAddr.String() + " input variable value conversion and validation",
+		SourceRange: m.InputsValuer.ValueSourceRange(),
+	})
 }
