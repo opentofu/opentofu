@@ -89,7 +89,6 @@ func (r *Resource) IsExpansionPlaceholder() bool {
 // that it needs to produce a result value for a particular resource instance
 // before we actually request that value.
 func (r *Resource) Instances(ctx context.Context) map[addrs.InstanceKey]*ResourceInstance {
-	ctx = withDebugAddr(ctx, r.Addr, "Instances")
 	// We ignore the diagnostics here because they will be returned by
 	// the Value method instead.
 	result, diags := r.decideInstances(ctx)
@@ -113,7 +112,6 @@ func (r *Resource) StaticCheckTraversal(traversal hcl.Traversal) tfdiags.Diagnos
 
 // Value implements exprs.Valuer.
 func (r *Resource) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
-	ctx = withDebugAddr(ctx, r.Addr, "Value")
 	selection, diags := r.decideInstances(ctx)
 	if diags.HasErrors() && selection == nil {
 		// If decideInstances fails for grapheval-related reasons, such as a
@@ -147,7 +145,6 @@ func (r *Resource) decideInstances(ctx context.Context) (*compiledInstances[*Res
 //   - true means that this resource instance MUST NOT be destroyed.
 //   - false means that this resource instance MAY be destroyed.
 func (r *Resource) PreventDestroy(ctx context.Context) (exprs.FromValue[bool], *tfdiags.SourceRange, tfdiags.Diagnostics) {
-	ctx = withDebugAddr(ctx, r.Addr, "PreventDestroy")
 	if r.PreventDestroyValuer == nil {
 		return exprs.Known(false), nil, nil
 	}

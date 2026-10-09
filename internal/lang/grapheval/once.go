@@ -50,6 +50,8 @@ type Once[T any] struct {
 // into the callback function, because it includes internal tracking
 // information.
 func (o *Once[T]) Do(ctx context.Context, info RequestInfo, f func(ctx context.Context) (T, tfdiags.Diagnostics)) (T, tfdiags.Diagnostics) {
+	ctx = pprof.WithLabels(ctx, pprof.Labels("evaluate", info.Name))
+
 	worker := WorkerFromContext(ctx)
 	o.mu.Lock()
 	if o.promise == nil {

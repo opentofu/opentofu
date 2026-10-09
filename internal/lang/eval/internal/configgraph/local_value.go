@@ -30,7 +30,6 @@ func (l *LocalValue) StaticCheckTraversal(traversal hcl.Traversal) tfdiags.Diagn
 
 // Value implements exprs.Valuer.
 func (l *LocalValue) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
-	ctx = withDebugAddr(ctx, l.Addr, "Value")
 	// There aren't really any special rules for a local value: it just
 	// allows authors to associate a value with a name so they can reuse
 	// it multiple places.

@@ -71,7 +71,6 @@ var _ exprs.Valuer = (*ProviderConfig)(nil)
 // that it needs to produce a result value for a particular provider instance
 // before we actually request that value.
 func (p *ProviderConfig) Instances(ctx context.Context) map[addrs.InstanceKey]*ProviderInstance {
-	ctx = withDebugAddr(ctx, p.Addr, "Instances")
 	// We ignore the diagnostics here because they will be returned by
 	// the Value method instead.
 	result, diags := p.decideInstances(ctx)
@@ -101,7 +100,6 @@ func (p *ProviderConfig) StaticCheckTraversal(traversal hcl.Traversal) tfdiags.D
 
 // Value implements exprs.Valuer.
 func (p *ProviderConfig) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
-	ctx = withDebugAddr(ctx, p.Addr, "Value")
 	selection, diags := p.decideInstances(ctx)
 	if diags.HasErrors() && selection == nil {
 		// If decideInstances fails for grapheval-related reasons, such as a
