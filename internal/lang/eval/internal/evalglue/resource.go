@@ -12,6 +12,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
+	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/resources"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -21,28 +22,14 @@ import (
 // defined here to avoid import cycles when this is used by language edition
 // and configgraph code.
 type ConfiguredResourceInstanceObjectMeta struct {
-	// Provider, ResourceMode, and ResourceType together identify a specific
-	// resource type in the terms expected by the provider.
-	//
-	// In particular the resource type given here is the one to send in requests
-	// to the identified provider, and not for use elsewhere. Use
-	// [addrs.Resource.Type] (from an address value describing the same object)
-	// as the resource type internally within the language runtime and execution
-	// engines.
-	Provider     addrs.Provider
-	ResourceMode addrs.ResourceMode
-	ResourceType string
-
 	DeclRange tfdiags.SourceRange
 
-	// ProviderInstance is the address of the specific provider instance that
-	// this object is currently configured to belong to.
-	//
-	// This value is unknown if the configured selection is derived from
-	// an unknown value, or nil if there is no configured selection at all. In
-	// the absence of a configured selection, callers should probably try to
-	// fall back to a selection from the prior state instead.
-	ProviderInstance exprs.FromValue[*addrs.AbsProviderInstanceCorrect]
+	// Provider describes what is known about this resource instance object's
+	// relationship with a provider: which provider it belongs to, what name
+	// that provider uses for its resource type, and optionally which specific
+	// instance of the provider should be used when a configured instance of
+	// the provider is needed.
+	Provider *ResourceInstanceObjectProvider
 
 	// ReplaceOrder describes the configured constraint on what order the
 	// create and delete steps of a  "replace" action for this resource instance
@@ -58,26 +45,35 @@ type ConfiguredResourceInstanceObjectMeta struct {
 	// produce a well-defined execution order when this object's actions are
 	// combined with actions of other objects in the apply-time execution graph.
 	//
-	// This field is relevant only for managed resource mode and its value is
-	// unspecified for other resource modes.
-	ReplaceOrder exprs.FromValue[resources.ReplaceOrder]
+	// A nil value represents that there is no information about the required
+	// replace order for this object.
+	//
+	// This field is relevant only for managed resource mode and should be nil
+	// for other resource modes.
+	ReplaceOrder *exprs.FromValue[resources.ReplaceOrder]
 
 	// DeleteWhenRemoved is true if the expected treatment for a non-desired
 	// object at this address is to ask the associated provider to delete it,
 	// or false if the expected treatment is just to "forget" it by removing
 	// the binding from the state without notifying the provider.
 	//
-	// This field is relevant only for managed resource mode and its value is
-	// unspecified for other resource modes.
-	DeleteWhenRemoved exprs.FromValue[bool]
+	// An nil value represents that there is no information about how this
+	// object should be treated when removed.
+	//
+	// This field is relevant only for managed resource mode and should always
+	// be nil for other resource modes.
+	DeleteWhenRemoved *exprs.FromValue[bool]
 
 	// DeletionInvalid is true if the author has configured that any execution
 	// plan that involves deleting this object should be considered immediately
 	// invalid. If false then deleting is a valid action to include.
 	//
-	// This field is relevant only for managed resource mode and its value is
-	// unspecified for other resource modes.
-	DeletionInvalid exprs.FromValue[bool]
+	// A nil value represents that there is no information about whether
+	// deletion is allowed for this object.
+	//
+	// This field is relevant only for managed resource mode and should
+	// always be nil for other resource modes.
+	DeletionInvalid *exprs.FromValue[bool]
 
 	// TODO: Some representation of "ignore_changes", which the planning engine
 	// will use as part of deciding which action to take.
@@ -86,12 +82,51 @@ type ConfiguredResourceInstanceObjectMeta struct {
 	// engine will use to force a "replace" action where an "update" might
 	// otherwise have been sufficient.
 
-	// PostCreateProvisioners and PreDestroyProvisioners both represent a
+	// PostCreateProvisioners and PreDeleteProvisioners both represent a
 	// sequence of provisioners configured for this resource instance object.
 	//
-	// These fields are relevant only for managed resource mode and their
-	// content is unspecified for other resource modes.
-	PostCreateProvisioners, PreDestroyProvisioners []*ResourceProvisioner
+	// These fields are relevant only for managed resource mode and the
+	// should always be nil for other resource modes.
+	PostCreateProvisioners, PreDeleteProvisioners []*ResourceProvisioner
+
+	// MoveStatements describes the subset of move statements where either
+	// endpoint directly refers to the requested resource instance object.
+	//
+	// Unlike the other fields of this type, these ones are intentionally
+	// _not_ aggregated into the final effective ResourceInstanceObjectMeta
+	// for an object because they are used in a special way by the planning
+	// engine to resolve the which addresses objects are moving between,
+	// which must happen before we can know which address an object is expected
+	// to have in the previous round state.
+	MoveStatements []*refactoring.MoveStatement
+}
+
+// ResourceInstanceObjectProvider describes the provider-related metadata
+// for a resource instance object, as part of
+// [ConfiguredResourceInstanceObjectMeta]
+type ResourceInstanceObjectProvider struct {
+	// Provider, ResourceMode, and ResourceType together identify a specific
+	// resource type in the terms expected by the provider.
+	//
+	// In particular the resource type given here is the one to send in requests
+	// to the identified provider, and not for use elsewhere. Use
+	// [addrs.Resource.Type] (from an address value describing the same object)
+	// as the resource type internally within the language runtime and execution
+	// engines.
+	Provider     addrs.Provider
+	ResourceMode addrs.ResourceMode
+	ResourceType string
+
+	// Instance optionally specifies a specific instance of the provider
+	// specified in [ResourceInstanceObjectProvider.Provider] that operations
+	// requiring a configured provider should be performed with.
+	//
+	// This is nil when we know which provider and resource type the object
+	// has but we don't know of any specific instance of the provider it
+	// belongs to. If no module in the configuration has an opinion on which
+	// provider instance to use then the caller will typically need to rely on
+	// information from the previous run state instead.
+	Instance *exprs.FromValue[addrs.AbsProviderInstanceCorrect]
 }
 
 // ResourceProvisioner represents a single provisioner configured for a

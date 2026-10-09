@@ -280,6 +280,17 @@ type ResourceInstanceObjectMeta struct {
 	// This field is relevant only for managed resource mode and its value is
 	// unspecified for other resource modes.
 	ReplaceOrder exprs.FromValue[resources.ReplaceOrder]
+
+	// Note that we intentionally do not aggregate
+	// [eval.ConfiguredResourceInstanceObjectMeta.MoveStatements] elements
+	// here because by the time the caller knows enough to ask for the
+	// final aggregate metadata they must already have processed all of the
+	// relevant moved statements in order to know which previous run and
+	// desired object addresses to specify. There is a separate function in
+	// the planning engine that deals with aggregating those, and no other
+	// part of the system should be interacting with individual move statements
+	// because the planning engine should already have resolved them into a
+	// more convenient, finalized form.
 }
 
 // BuildResourceInstanceObjectMeta constructs a [ResourceInstanceObjectMeta]
@@ -297,19 +308,24 @@ type ResourceInstanceObjectMeta struct {
 // address will be the value of [ResourceInstanceObjectMeta.Addr] and so must
 // be consistent with the documentation of that field.
 //
-// At least one of fromConfig and state must be non-nil, or this function will
-// panic. There is no reason to ask for metadata for an object that exists in
-// neither the desired nor the prior state.
+// If there are no configuration objects and no the state object is nil then
+// this function will panic. There is no reason to ask for metadata for an
+// object that exists in neither the desired nor the prior state.
 func BuildResourceInstanceObjectMeta[SV states.ValueOrJSONEquivalent](
 	addr addrs.AbsResourceInstanceObject,
-	fromConfig *eval.ConfiguredResourceInstanceObjectMeta,
+	fromConfig []eval.ModuleConfiguredResourceInstanceObjectMeta,
 	state *states.ResourceInstanceObjectRepr[SV], // We only care about metadata, so either the decoded or encoded variant is acceptable
 ) *ResourceInstanceObjectMeta {
-	if fromConfig == nil && state == nil {
+	if len(fromConfig) == 0 && state == nil {
 		panic(fmt.Sprintf("cannot build resource instance object metadata for %s with neither configured nor prior state metadata", addr))
 	}
 	ret := &ResourceInstanceObjectMeta{
 		Addr: addr,
+
+		// We'll start with the usual implied provider based on the resource
+		// type, but hopefully at least one of the sources we consider below
+		// will override this with something more explicit.
+		Provider: addrs.ImpliedProviderForUnqualifiedType(addr.InstanceAddr.Resource.Resource.ImpliedProvider()),
 	}
 
 	// If both state and fromConfig are present then we'll start with state
@@ -335,35 +351,29 @@ func BuildResourceInstanceObjectMeta[SV states.ValueOrJSONEquivalent](
 		// TODO: Everything else
 	}
 
-	if fromConfig != nil {
-		// The provider instance is a little awkward because the config form
-		// of this uses a pointer to represent there being no selection at all
-		// but we can only check the nilness by unwrapping it first.
-		// FIXME: Consider a different way of representing
-		// "no provider specified", such as by making the top-level
-		// exprs.FromValue be a pointer instead of the value inside it being a
-		// pointer.
-		piUnmarked, _ := fromConfig.ProviderInstance.Unmark()
-		pi, ok := piUnmarked.ValueOk()
-		providerSpecified := !ok || pi != nil
-		if providerSpecified {
-			nonPtr, _ := fromConfig.ProviderInstance.Derive(func(addr *addrs.AbsProviderInstanceCorrect) (addrs.AbsProviderInstanceCorrect, error) {
-				return *addr, nil
-			})
-			ret.ProviderInstance = nonPtr
+	for _, fromModule := range fromConfig {
+		if p := fromModule.Provider; p != nil {
+			ret.Provider = p.Provider
+			ret.ResourceType = p.ResourceType
+			if p.Instance != nil {
+				ret.ProviderInstance = *p.Instance
+			}
 		}
 
-		if providerSpecified || state == nil {
-			// Use the configured provider only if the configuration specifies a provider, or take the best guess from config if the state does not exist
-			ret.Provider = fromConfig.Provider
+		// FIXME: This is currently just taking the range from whatever is
+		// the deepest module that has any opinion about this resource instance,
+		// which doesn't seem right. We should probably refine what
+		// [eval.ConfiguredResourceInstanceMeta.DeclRange] actually means --
+		// e.g. specifying that it should only be populated when a module
+		// instance includes a declaration that the object is desired --
+		// and let it be nil for module instances where that isn't true.
+		ret.DeclRange = fromModule.DeclRange
+
+		ret.PostCreateProvisioners = append(ret.PostCreateProvisioners, fromModule.PostCreateProvisioners...)
+		ret.PreDeleteProvisioners = append(ret.PreDeleteProvisioners, fromModule.PreDeleteProvisioners...)
+		if fromModule.ReplaceOrder != nil {
+			ret.ReplaceOrder = *fromModule.ReplaceOrder
 		}
-
-		ret.ResourceType = fromConfig.ResourceType
-		ret.DeclRange = fromConfig.DeclRange
-
-		ret.PostCreateProvisioners = fromConfig.PostCreateProvisioners
-		ret.PreDeleteProvisioners = fromConfig.PreDestroyProvisioners
-		ret.ReplaceOrder = fromConfig.ReplaceOrder
 
 		// TODO: Everything else
 	}

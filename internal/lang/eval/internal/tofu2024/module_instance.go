@@ -7,6 +7,7 @@ package tofu2024
 
 import (
 	"context"
+	"fmt"
 	"iter"
 	"maps"
 
@@ -106,32 +107,44 @@ func (c *CompiledModuleInstance) ResultValuer(ctx context.Context) exprs.Valuer 
 }
 
 // ResourceInstanceObjectMeta implements [evalglue.CompiledModuleInstance].
-func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context, addr addrs.ResourceInstanceObject) *evalglue.ConfiguredResourceInstanceObjectMeta {
+func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context, relativeModuleInst []addrs.ModuleInstanceStep, addr addrs.ResourceInstanceObject) *evalglue.ConfiguredResourceInstanceObjectMeta {
+	if len(relativeModuleInst) != 0 {
+		// TODO: Implement collection of ancillary metadata like "removed",
+		// "moved", and "import" blocks that relate to the requested object
+		// in a descendent module instance.
+		return nil
+	}
+
+	rsrc, ok := c.resourceNodes[addr.InstanceAddr.Resource]
+	if !ok {
+		// If there's no mention of this resource in this module at all then
+		// we have nothing to say about it, and so any metadata will need to
+		// come either from an ancestor module or from the previous run state.
+		//
+		// TODO: The logic here should also consider whether any "removed" block
+		// matches the requested object, and return a non-nil object with
+		// information derived from that block if so.
+		return nil
+	}
+
 	// We'll start with a suitable placeholder to use if there's no mention
 	// of this object in the configuration at all, and then improve it gradually
 	// as we find relevant information in the configuration.
 	ret := &evalglue.ConfiguredResourceInstanceObjectMeta{
-		// In this language edition the author-specified resource type always
-		// matches the provider's chosen resource type name, so we can just
-		// derive these directly from the resource address.
-		Provider:     addrs.ImpliedProviderForUnqualifiedType(addr.InstanceAddr.Resource.ImpliedProvider()),
-		ResourceMode: addr.InstanceAddr.Resource.Mode,
-		ResourceType: addr.InstanceAddr.Resource.Type,
+		Provider: &evalglue.ResourceInstanceObjectProvider{
+			Provider: rsrc.Provider,
 
-		// An undeclared resource has no configured provider instance, which
-		// means that a caller can know to fall back to an address specified in
-		// the prior state, if any.
-		ProviderInstance: exprs.Known[*addrs.AbsProviderInstanceCorrect](nil),
-	}
+			// In this language edition the author-specified resource type always
+			// matches the provider's chosen resource type name, so we can just
+			// derive these directly from the resource address.
+			ResourceMode: addr.InstanceAddr.Resource.Mode,
+			ResourceType: addr.InstanceAddr.Resource.Type,
 
-	// TODO: The logic here should also consider whether any "removed" block
-	// matches the requested object, and incorporate information derived from
-	// that block if so.
-
-	rsrc, ok := c.resourceNodes[addr.InstanceAddr.Resource]
-	if !ok {
-		// We'll just return the placeholder, then!
-		return ret
+			// We'll populate the provider _instance_ to use only once we have
+			// a specific resource instance below, since the chosen provider
+			// instance is allowed to vary between resource instances.
+			Instance: nil,
+		},
 	}
 
 	ret.DeclRange = rsrc.DeclRange
@@ -142,10 +155,10 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 	// using [CompiledModuleInstance.CheckAll].
 
 	preventDestroy, _, _ := rsrc.PreventDestroy(ctx)
-	ret.DeletionInvalid = preventDestroy
+	ret.DeletionInvalid = &preventDestroy
 
 	destroyProvisioners := rsrc.DestroyProvisioners(ctx, addr.InstanceAddr)
-	ret.PreDestroyProvisioners = prepareResourceProvisioners(destroyProvisioners)
+	ret.PreDeleteProvisioners = prepareResourceProvisioners(destroyProvisioners)
 
 	insts := rsrc.Instances(ctx)
 	inst, ok := insts[addr.InstanceAddr.Key]
@@ -160,24 +173,41 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 	// because for non-desired objects we'll use the value from the prior state
 	// instead anyway, but we should check whether the old runtime let the
 	// resource-level config "win" for an orphaned resource instance.
-	ret.ReplaceOrder, _, _ = inst.ReplaceOrder(ctx)
+	replaceOrder, _, _ := inst.ReplaceOrder(ctx)
+	ret.ReplaceOrder = &replaceOrder
 
+	if !inst.Provider.Equals(rsrc.Provider) {
+		// If this happens then it's a bug in the code that constructed this
+		// pair of Resource and ResourceInstance, because all instances of a
+		// resource are required to agree about which provider and resource
+		// type they are associated with.
+		panic(fmt.Sprintf("resource %s uses %s, but its instance %s uses %s", rsrc.Addr, rsrc.Provider, inst.Addr, inst.Provider))
+	}
 	providerInst, _ := inst.ProviderInstance(ctx)
-	ret.ProviderInstance, _ = providerInst.Derive(func(providerInst *configgraph.ProviderInstance) (*addrs.AbsProviderInstanceCorrect, error) {
-		return &providerInst.Addr, nil
+	providerInstAddr, _ := providerInst.Derive(func(providerInst *configgraph.ProviderInstance) (addrs.AbsProviderInstanceCorrect, error) {
+		if !providerInst.Addr.Config.Config.Provider.Equals(rsrc.Provider) {
+			// If this happens then it's a bug in [ResourceInstance.ProviderInstance],
+			// because it's supposed to treat a user selecting a different
+			// provider for each instance as an evaluation error and thus return
+			// an unknown value with diagnostics, which would prevent us from
+			// getting into this callback. (This matching is also statically
+			// enforced by how the "providers sidechannel" in tofu2024 works,
+			// so even that dynamic failure is not possible in that case.)
+			panic(fmt.Sprintf("resource %s uses %s, but its instance %s selects an instance of %s", rsrc.Addr, rsrc.Provider, inst.Addr, inst.Provider))
+		}
+		return providerInst.Addr, nil
 	})
-
-	// TODO: "Provider" should probably be a resource-level setting rather than
-	// an instance-level setting, because all instances of a resource are
-	// required to have the same resource type and therefore the same provider
-	// even if they belong to different instances of that provider. Without
-	// this we can only rely on the state for determining the provider of
-	// something that is "orphaned", which'll make it harder for folks to get
-	// themselves out of a trap where the provider instance they most recently
-	// used is no longer present and cannot be re-added in place.
-	ret.Provider = inst.Provider
+	ret.Provider.Instance = &providerInstAddr
 
 	ret.PostCreateProvisioners = prepareResourceProvisioners(inst.CreateProvisioners)
+
+	// TODO: Also collect up any "moved" blocks that directly mention the
+	// resource instance address of the requested object (if it's a "current"
+	// object) and report them in
+	// [evalglue.ConfiguredResourceInstanceObjectMeta.MoveStatements], as
+	// a replacement for [CompiledModuleInstance.GetMoveStatementsFor] once
+	// once the planning engine is updated to expect move statements to arrive
+	// this way instead.
 
 	// TODO: All of the other fields of ConfiguredResourceInstanceObjectMeta
 
@@ -390,6 +420,11 @@ func (c *CompiledModuleInstance) AnnounceAllGraphevalRequests(announce func(work
 
 // GetMoveStatements implements evalglue.CompiledModuleInstance.
 func (c *CompiledModuleInstance) GetMoveStatementsFor(ctx context.Context, addr addrs.Module) []refactoring.MoveStatement {
+	// TODO: Incorporate the logic from here into
+	// [CompiledModuleInstance.ResourceInstanceObjectMeta], once the planning
+	// engine is updated to expect move statements to arrive by that channel
+	// instead. At that point this dedicated method will no longer be required
+	// for [evalglue.CompiledModuleInstance].
 	var stmts []refactoring.MoveStatement
 	stmts = append(stmts, c.moveStatements...)
 	if len(addr) > len(c.moduleInstanceNode.Addr) {
