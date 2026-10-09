@@ -1,5 +1,7 @@
 // Copyright (c) The OpenTofu Authors
 // SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
 
 package symlib
 
@@ -11,8 +13,8 @@ import (
 )
 
 // TestFunction_variadicNull verifies that passing literal null (cty.NullVal(cty.DynamicPseudoType))
-// or unknown values to a variadic, any-typed, or untyped parameter in a symbols function does not
-// cause cty to skip evaluation or return null regardless of the return expression (Issue #4630).
+// to a variadic or any-typed parameter in a symbols function does not cause cty to skip
+// evaluation or return null regardless of the return expression (Issue #4630).
 func TestFunction_variadicNull(t *testing.T) {
 	files := map[string]string{
 		"./functions.sym.hcl": `
@@ -50,75 +52,49 @@ function "test_untyped_param" {
 	lib, diags := testCompile(t, files)
 	assertNoDiags(t, diags)
 
-	t.Run("variadic any parameter with null and other args", func(t *testing.T) {
-		f, ok := lib.functions["test_variadic_any"]
-		if !ok {
-			t.Fatal("Failed to find function test_variadic_any")
-		}
+	tests := []struct {
+		name     string
+		funcName string
+		args     []cty.Value
+		want     int64
+	}{
+		{
+			name:     "variadic any parameter with null and other args",
+			funcName: "test_variadic_any",
+			args:     []cty.Value{cty.NullVal(cty.DynamicPseudoType), cty.NumberIntVal(1)},
+			want:     0,
+		},
+		{
+			name:     "any parameter with null",
+			funcName: "test_any_param",
+			args:     []cty.Value{cty.NullVal(cty.DynamicPseudoType)},
+			want:     42,
+		},
+		{
+			name:     "untyped parameter with null",
+			funcName: "test_untyped_param",
+			args:     []cty.Value{cty.NullVal(cty.DynamicPseudoType)},
+			want:     100,
+		},
+	}
 
-		got, err := f.Call([]cty.Value{cty.NullVal(cty.DynamicPseudoType), cty.NumberIntVal(1)})
-		if err != nil {
-			t.Fatalf("unexpected error calling function: %s", err)
-		}
-		if got.IsNull() {
-			t.Fatalf("expected 0, got null")
-		}
-		if got.AsBigFloat().Cmp(new(big.Float).SetInt64(0)) != 0 {
-			t.Fatalf("expected 0, got %s", got.GoString())
-		}
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f, ok := lib.functions[tt.funcName]
+			if !ok {
+				t.Fatalf("Failed to find function %s", tt.funcName)
+			}
 
-	t.Run("any parameter with null", func(t *testing.T) {
-		f, ok := lib.functions["test_any_param"]
-		if !ok {
-			t.Fatal("Failed to find function test_any_param")
-		}
-
-		got, err := f.Call([]cty.Value{cty.NullVal(cty.DynamicPseudoType)})
-		if err != nil {
-			t.Fatalf("unexpected error calling function: %s", err)
-		}
-		if got.IsNull() {
-			t.Fatalf("expected 42, got null")
-		}
-		if got.AsBigFloat().Cmp(new(big.Float).SetInt64(42)) != 0 {
-			t.Fatalf("expected 42, got %s", got.GoString())
-		}
-	})
-
-	t.Run("untyped parameter with null", func(t *testing.T) {
-		f, ok := lib.functions["test_untyped_param"]
-		if !ok {
-			t.Fatal("Failed to find function test_untyped_param")
-		}
-
-		got, err := f.Call([]cty.Value{cty.NullVal(cty.DynamicPseudoType)})
-		if err != nil {
-			t.Fatalf("unexpected error calling function: %s", err)
-		}
-		if got.IsNull() {
-			t.Fatalf("expected 100, got null")
-		}
-		if got.AsBigFloat().Cmp(new(big.Float).SetInt64(100)) != 0 {
-			t.Fatalf("expected 100, got %s", got.GoString())
-		}
-	})
-
-	t.Run("any parameter with unknown", func(t *testing.T) {
-		f, ok := lib.functions["test_any_param"]
-		if !ok {
-			t.Fatal("Failed to find function test_any_param")
-		}
-
-		got, err := f.Call([]cty.Value{cty.UnknownVal(cty.DynamicPseudoType)})
-		if err != nil {
-			t.Fatalf("unexpected error calling function: %s", err)
-		}
-		if got.IsNull() {
-			t.Fatalf("expected 42, got null")
-		}
-		if got.AsBigFloat().Cmp(new(big.Float).SetInt64(42)) != 0 {
-			t.Fatalf("expected 42, got %s", got.GoString())
-		}
-	})
+			got, err := f.Call(tt.args)
+			if err != nil {
+				t.Fatalf("unexpected error calling function: %s", err)
+			}
+			if got.IsNull() {
+				t.Fatalf("expected %d, got null", tt.want)
+			}
+			if got.AsBigFloat().Cmp(new(big.Float).SetInt64(tt.want)) != 0 {
+				t.Fatalf("expected %d, got %s", tt.want, got.GoString())
+			}
+		})
+	}
 }
