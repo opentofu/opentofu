@@ -514,6 +514,12 @@ func (p *Parser) loadTestFile(body hcl.Body, baseDir string) (*TestFile, hcl.Dia
 	return &tf, diags
 }
 
+// decodeVerifyBlock it decode a verify block in a block that "run" test.
+// is not like other checkrules error_message is actually optional in here; if it is ignored the response CheckRule's error message will be nothing (nill).
+func decodeVerifyBlock(block *hcl.Block) (*CheckRule, hcl.Diagnostics) {
+	return decodeCheckRuleBlockSchema(block, false, testVerifyBlockSchema)
+}
+
 func decodeTestRunBlock(block *hcl.Block) (*TestRun, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
@@ -538,7 +544,7 @@ func decodeTestRunBlock(block *hcl.Block) (*TestRun, hcl.Diagnostics) {
 	for _, block := range content.Blocks {
 		switch block.Type {
 		case "assert":
-			cr, crDiags := decodeCheckRuleBlock(block, false)
+			cr, crDiags := decodeVerifyBlock(block)
 			diags = append(diags, crDiags...)
 			if !crDiags.HasErrors() {
 				r.CheckRules = append(r.CheckRules, cr)
@@ -1344,6 +1350,16 @@ var testRunBlockSchema = &hcl.BodySchema{
 		{
 			Type: blockNameOverrideModule,
 		},
+	},
+}
+
+// testVerifyBlockSchema this explain the shape of a verify block in a
+// block that is test run. It mirrors checkRuleBlockSchema, aside for that error_message
+// is optional.
+var testVerifyBlockSchema = &hcl.BodySchema{
+	Attributes: []hcl.AttributeSchema{
+		{Name: "condition", Required: true},
+		{Name: "error_message", Required: false},
 	},
 }
 

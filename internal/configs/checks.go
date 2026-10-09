@@ -82,6 +82,12 @@ func (cr *CheckRule) validateSelfReferences(checkType string, addr addrs.Resourc
 	return diags
 }
 
+// decodeCheckRuleBlock this decode the messages of what the block is given as rule to check,
+// demanding both error_message & condition to be filled.
+func decodeCheckRuleBlock(block *hcl.Block, override bool) (*CheckRule, hcl.Diagnostics) {
+	return decodeCheckRuleBlockSchema(block, override, checkRuleBlockSchema)
+}
+
 // decodeCheckRuleBlock decodes the contents of the given block as a check rule.
 //
 // Unlike most of our "decode..." functions, this one can be applied to blocks
@@ -89,7 +95,7 @@ func (cr *CheckRule) validateSelfReferences(checkType string, addr addrs.Resourc
 // function takes the containing block only because some error messages will
 // refer to its location, and the returned object's DeclRange will be the
 // block's header.
-func decodeCheckRuleBlock(block *hcl.Block, override bool) (*CheckRule, hcl.Diagnostics) {
+func decodeCheckRuleBlockSchema(block *hcl.Block, override bool, checkSchema *hcl.BodySchema) (*CheckRule, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	cr := &CheckRule{
 		DeclRange: block.DefRange,
@@ -109,7 +115,8 @@ func decodeCheckRuleBlock(block *hcl.Block, override bool) (*CheckRule, hcl.Diag
 		return cr, diags
 	}
 
-	content, moreDiags := block.Body.Content(checkRuleBlockSchema)
+	// content, moreDiags := block.Body.Content(checkRuleBlockSchema)
+	content, moreDiags := block.Body.Content(checkSchema)
 	diags = append(diags, moreDiags...)
 
 	if attr, exists := content.Attributes["condition"]; exists {
