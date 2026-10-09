@@ -60,7 +60,7 @@ func (m *moveStep) isImplicit() bool {
 // this sub-move graph.  Cycles are detected and rejected, which effectively produces a flattened tree of moveSteps.
 // If configToState == false, iteration direction is reversed to allow for reverse lookups from state -> config
 // There are a bunch of different algostructures and datarythms that would make sense here, this one made the most sense
-// to me during initial implementation and seems to be reasonably performant
+// to cam72cam during initial implementation and seems to be reasonably performant
 func (p *planGlue) locateMovesFor(ctx context.Context, addr addrs.AbsResourceInstance, configToState bool, implicit func(addr addrs.AbsResourceInstance) *refactoring.MoveStatement) ([]*moveStep, tfdiags.Diagnostics) {
 	// Build simple lookup for move statements that have spidering traversals
 	// TODO this cache could live in planContext
@@ -70,7 +70,10 @@ func (p *planGlue) locateMovesFor(ctx context.Context, addr addrs.AbsResourceIns
 		key := mod.String()
 		statements, ok := moveStatementsCache[key]
 		if !ok {
-			// TODO replace with with resource config meta (tricky with orphans)
+			// TODO: Use p.ResourceInstanceObjectMoveStatements here instead,
+			// once the evaluator codepaths are updated to report move statements
+			// by that channel instead of this one, and then remove
+			// the MoveStatementsFor method.
 			statements = p.oracle.MoveStatementsFor(ctx, mod)
 			moveStatementsCache[key] = statements
 		}

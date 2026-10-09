@@ -228,6 +228,10 @@ type CompiledModuleInstance interface {
 
 	// GetMoveStatementsFor obtains the move statements for this module and the child module
 	// if specified by the given address.
+	//
+	// TODO: Remove this once the planning engine is updated to get this
+	// information as part of [CompiledModuleInstance.ResourceInstanceObjectMeta]
+	// instead.
 	GetMoveStatementsFor(ctx context.Context, addr addrs.Module) []refactoring.MoveStatement
 }
 

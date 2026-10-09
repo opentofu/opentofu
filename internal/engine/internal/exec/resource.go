@@ -280,6 +280,17 @@ type ResourceInstanceObjectMeta struct {
 	// This field is relevant only for managed resource mode and its value is
 	// unspecified for other resource modes.
 	ReplaceOrder exprs.FromValue[resources.ReplaceOrder]
+
+	// Note that we intentionally do not aggregate
+	// [eval.ConfiguredResourceInstanceObjectMeta.MoveStatements] elements
+	// here because by the time the caller knows enough to ask for the
+	// final aggregate metadata they must already have processed all of the
+	// relevant moved statements in order to know which previous run and
+	// desired object addresses to specify. There is a separate function in
+	// the planning engine that deals with aggregating those, and no other
+	// part of the system should be interacting with individual move statements
+	// because the planning engine should already have resolved them into a
+	// more convenient, finalized form.
 }
 
 // BuildResourceInstanceObjectMeta constructs a [ResourceInstanceObjectMeta]

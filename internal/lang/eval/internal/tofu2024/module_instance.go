@@ -201,6 +201,14 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 
 	ret.PostCreateProvisioners = prepareResourceProvisioners(inst.CreateProvisioners)
 
+	// TODO: Also collect up any "moved" blocks that directly mention the
+	// resource instance address of the requested object (if it's a "current"
+	// object) and report them in
+	// [evalglue.ConfiguredResourceInstanceObjectMeta.MoveStatements], as
+	// a replacement for [CompiledModuleInstance.GetMoveStatementsFor] once
+	// once the planning engine is updated to expect move statements to arrive
+	// this way instead.
+
 	// TODO: All of the other fields of ConfiguredResourceInstanceObjectMeta
 
 	return ret
@@ -412,6 +420,11 @@ func (c *CompiledModuleInstance) AnnounceAllGraphevalRequests(announce func(work
 
 // GetMoveStatements implements evalglue.CompiledModuleInstance.
 func (c *CompiledModuleInstance) GetMoveStatementsFor(ctx context.Context, addr addrs.Module) []refactoring.MoveStatement {
+	// TODO: Incorporate the logic from here into
+	// [CompiledModuleInstance.ResourceInstanceObjectMeta], once the planning
+	// engine is updated to expect move statements to arrive by that channel
+	// instead. At that point this dedicated method will no longer be required
+	// for [evalglue.CompiledModuleInstance].
 	var stmts []refactoring.MoveStatement
 	stmts = append(stmts, c.moveStatements...)
 	if len(addr) > len(c.moduleInstanceNode.Addr) {

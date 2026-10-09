@@ -10,7 +10,9 @@ import (
 	"fmt"
 	"iter"
 	"log"
+	"runtime/pprof"
 	"strings"
+	"sync"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
@@ -22,6 +24,7 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -39,6 +42,17 @@ type planGlue struct {
 	excludes addrs.Set[addrs.Targetable]
 
 	allResourcesDeferred bool
+
+	// rioMetaConfigOnce is used to coalesce and memoize requests to fetch
+	// the configuration-sourced subset of the metadata for a resource instance
+	// object, as an implementation detail of both
+	// [planGlue.resourceInstanceObjectMeta] and
+	// [planGlue.resourceInstanceObjectMoveStatements] which both rely on this
+	// information in slightly different ways. We don't also memoize the
+	// state-based portion of the metadata because the construction of that is
+	// trivial based on information already in the previous run state.
+	rioMetaConfigOnce addrs.Map[addrs.AbsResourceInstanceObject, *grapheval.Once[[]eval.ModuleConfiguredResourceInstanceObjectMeta]]
+	rioMetaConfigMu   sync.Mutex // Used only for fast map modifications, and not held over blocking evaluation work
 }
 
 var _ eval.PlanGlue = (*planGlue)(nil)
@@ -471,4 +485,133 @@ func (p *planGlue) validateForceReplace() tfdiags.Diagnostics {
 	}
 
 	return diags
+}
+
+// ResourceInstanceObjectMeta gathers and assembles the metadata for a resource
+// instance object based on both its previous run and current desired addresses,
+// using a mixture of configuration-based and previous-run-state-based
+// information.
+//
+// This function is appropriate to use only any "moves" have been resolved,
+// so the caller can specify a different previous run address and desired
+// address describing that move. In the common case where an object is not
+// moving between addresses, callers should pass the same address in both
+// arguments. For codepaths that are collecting data to discover which "moves"
+// are actually required, use [planGlue.ResourceInstanceMovedStatements]
+// instead.
+//
+// Use this method only for objects that are either desired, have previous round
+// state, or both. It will panic if both prevRunAddr does not exist in the
+// previous round state and desiredAddr is not declared as desired in the
+// current configuration.
+//
+// Fetching resource instance metadata is likely to cause evaluation of
+// expressions in the configuration. In particular, if the requested resource
+// instance address is in a non-root module then this process forces deciding
+// which instances are declared for each module call along the path, and then
+// various expressions related to the requested resource will be evalauted
+// in each of the relevant module instances.
+func (p *planGlue) ResourceInstanceObjectMeta(ctx context.Context, prevRunAddr, desiredAddr addrs.AbsResourceInstanceObject) *exec.ResourceInstanceObjectMeta {
+	// We currently have a schism where we do all of the
+	// discovery work using the traditional state model but
+	// we then switch to using our new-style "full" object model
+	// to act on what we've discovered. This is hopefully just
+	// a temporary situation while we're operating in a mixed
+	// world where most of the system doesn't know about the
+	// new runtime yet.
+	stateSync := p.planCtx.prevRoundState.SyncWrapper()
+
+	configMeta := p.configuredResourceInstanceObjectMeta(ctx, desiredAddr)
+	prevRoundState := stateSync.ResourceInstanceObjectFull(prevRunAddr)
+	return exec.BuildResourceInstanceObjectMeta(desiredAddr, configMeta, prevRoundState)
+}
+
+// ResourceInstanceMoveStatements is a specialized variant of
+// [planGlue.ResourceInstanceObjectMeta] intended only for the work of
+// resolving which objects need to move between addresses in the current
+// round.
+//
+// This only returns moved statements that have the given resource instance
+// address directly as one of their endpoints. It's a caller's responsibility
+// to chase those references and make further calls to this function for
+// the resource instance at the opposing endpoint of each statement.
+//
+// Move statements identify their endpoints relative to the module instance
+// where the statement was declared, and so each result is returned with the
+// address of the module instance that declared it so the caller can determine
+// the corresponding absolute address using
+// [addrs.MoveEndpointInModule.InModuleInstance].
+//
+// Calling this has similar expression evaluation consequences as documented for
+// ResourceInstanceObjectMeta, but any work done for a current resource instance
+// by one of these two functions is coalesced with that same work in the other
+// so each is resolved at most once regardless of which function is called
+// first.
+func (p *planGlue) ResourceInstanceObjectMoveStatements(ctx context.Context, addr addrs.AbsResourceInstance) iter.Seq2[addrs.ModuleInstance, *refactoring.MoveStatement] {
+	// Unlike all of the other uses of metadata, we rely exclusively on the
+	// configuration to discover the effective graph of moved statements. This
+	// is because we need to resolve where an object is moving from before
+	// we can know which address it would've had in the previous run state.
+
+	// We do the potentially-blocking work here _before_ returning and use
+	// the iter.Seq only to do the trivial work to flatten the sequence of
+	// statements, so callers don't need to consider the workgraph
+	// rules when working with this function's result.
+	configMeta := p.configuredResourceInstanceObjectMeta(ctx, addr.CurrentObject())
+	return func(yield func(addrs.ModuleInstance, *refactoring.MoveStatement) bool) {
+		for _, moduleInstMeta := range configMeta {
+			for _, stmt := range moduleInstMeta.MoveStatements {
+				if !yield(moduleInstMeta.ModuleInstance, stmt) {
+					return
+				}
+			}
+		}
+	}
+}
+
+// configuredResourceInstanceObjectMeta is the internal config-loading
+// implementation shared by both [planGlue.ResourceInstanceObjectMeta] and
+// [planGlue.ResourceInstanceMoveStatements]. Use one of those two functions
+// instead of calling this directly.
+func (p *planGlue) configuredResourceInstanceObjectMeta(ctx context.Context, addr addrs.AbsResourceInstanceObject) []eval.ModuleConfiguredResourceInstanceObjectMeta {
+	ctx = pprof.WithLabels(ctx, pprof.Labels("RIOMeta", addr.String()))
+
+	// We hold p.rioMetaConfigMu _only_ during the fast map manipulation here,
+	// and then rely on grapheval.Once to manage the main blocking work so
+	// that the main work for two distinct objects can run concurrently.
+	p.rioMetaConfigMu.Lock()
+	if p.rioMetaConfigOnce.Len() == 0 {
+		p.rioMetaConfigOnce = addrs.MakeMap[addrs.AbsResourceInstanceObject, *grapheval.Once[[]eval.ModuleConfiguredResourceInstanceObjectMeta]]()
+	}
+	once, ok := p.rioMetaConfigOnce.GetOk(addr)
+	if !ok {
+		once = &grapheval.Once[[]eval.ModuleConfiguredResourceInstanceObjectMeta]{}
+		p.rioMetaConfigOnce.Put(addr, once)
+	}
+	p.rioMetaConfigMu.Unlock()
+
+	// FIXME: The workgraph requests embedded in the grapheval.Once objects
+	// we're creating here aren't currently visible to the
+	// [grapheval.RequestTracker] that's active during planning, because that
+	// lives inside the eval package instead of here in the planning engine.
+	// This situation already arose for the applying engine which uses
+	// workgraph directly to manage execution graph processing, and so it
+	// seems like the appropriate design is for each engine to be in charge
+	// of its own [grapheval.RequestTracker] implementation and delegate to
+	// helpers in eval as necessary, so that they can both report their own
+	// requests _and_ the evaluator's requests together when needed.
+	//
+	// Once that's done we should have the planning engine's request tracker
+	// report a name like "metadata for <object-address>" for each element
+	// of p.rioMetaConfigOnce and then that'll show up in the chain of
+	// requests when we report a self-dependency problem to the user.
+
+	// We intentionally discard the diagnostics here because we assume that
+	// any problems this could return would also be reported through other parts
+	// of the "CheckAll" process that drives the planning engine forward.
+	oracle := p.oracle
+	ret, _ := once.Do(ctx, func(ctx context.Context) ([]eval.ModuleConfiguredResourceInstanceObjectMeta, tfdiags.Diagnostics) {
+		return oracle.ResourceInstanceObjectMeta(ctx, addr), nil
+	})
+	return ret
 }
