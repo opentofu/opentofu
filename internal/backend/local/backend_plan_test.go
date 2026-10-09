@@ -224,6 +224,8 @@ Changes to Outputs:
   + added            = "after"
   ~ changed          = "before" -> "after"
   - removed          = "before" -> null
+  # Warning: this attribute value will be marked as sensitive and will not
+  # display in UI output after applying this change.
   ~ sensitive_after  = (sensitive value)
   ~ sensitive_before = (sensitive value)
 
