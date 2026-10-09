@@ -165,4 +165,7 @@ func (m *ModuleCallInstance) AnnounceAllGraphevalRequests(announce func(workgrap
 		Name:        m.ModuleInstanceAddr.String() + " input variable value conversion and validation",
 		SourceRange: m.InputsValuer.ValueSourceRange(),
 	})
+	if m.Glue != nil {
+		m.Glue.AnnounceAllGraphevalRequests(announce)
+	}
 }

@@ -9,9 +9,11 @@ import (
 	"context"
 
 	"github.com/apparentlymart/go-versions/versions"
+	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -46,6 +48,14 @@ type ModuleCallInstanceGlue interface {
 	// that this glue object belongs to, but exactly what happens between
 	// those two is outside of this package's scope of responsibility.
 	OutputsValue(ctx context.Context) (cty.Value, tfdiags.Diagnostics)
+
+	// AnnounceAllGraphevalRequests calls announce for any active grapheval
+	// request the reciever is tracking, as part of gathering context before
+	// we report a self-dependency error to the end user.
+	//
+	// An implementation that does not use any grapheval functionality can
+	// just do nothing in its implementation of this function.
+	AnnounceAllGraphevalRequests(announce func(workgraph.RequestID, grapheval.RequestInfo))
 }
 
 type ModuleSourceArguments struct {

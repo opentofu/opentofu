@@ -8,8 +8,11 @@ package configgraph
 import (
 	"context"
 
-	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/zclconf/go-cty/cty"
+
+	"github.com/opentofu/opentofu/internal/lang/grapheval"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 type moduleInstanceGlueForTesting struct {
@@ -31,4 +34,8 @@ func (g *moduleInstanceGlueForTesting) OutputsValue(ctx context.Context) (cty.Va
 	return cty.ObjectVal(map[string]cty.Value{
 		"source": cty.StringVal(g.sourceAddr),
 	}), nil
+}
+
+func (g *moduleInstanceGlueForTesting) AnnounceAllGraphevalRequests(announce func(workgraph.RequestID, grapheval.RequestInfo)) {
+	// this stub implementation does not use grapheval, so nothing to report here
 }
