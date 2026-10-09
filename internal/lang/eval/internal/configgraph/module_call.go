@@ -253,7 +253,7 @@ func (c *ModuleCall) SourceArguments(ctx context.Context) (exprs.FromValue[Modul
 }
 
 func (c *ModuleCall) decideInstances(ctx context.Context) (*compiledInstances[*ModuleCallInstance], tfdiags.Diagnostics) {
-	return c.instancesResult.Do(ctx, grapheval.RequestInfo{Name: c.Addr.String() + " decide instances", SourceRange: &c.DeclRange}, func(ctx context.Context) (*compiledInstances[*ModuleCallInstance], tfdiags.Diagnostics) {
+	return c.instancesResult.Do(ctx, c.Addr, "DecideInstances", &c.DeclRange, func(ctx context.Context) (*compiledInstances[*ModuleCallInstance], tfdiags.Diagnostics) {
 		// We intentionally ignore diagnostics and marks here because Value
 		// deals with those and skips calling this function at all when
 		// the arguments are too invalid.

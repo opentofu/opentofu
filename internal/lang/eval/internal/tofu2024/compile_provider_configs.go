@@ -78,16 +78,18 @@ func compileProviderConfig(
 		configEvalable = exprs.EvalableHCLBodyWithDynamicBlocks(config.Config, spec)
 	}
 
-	return &configgraph.ProviderConfig{
-		Addr: addrs.AbsProviderConfigCorrect{
-			Module: moduleInstanceAddr,
-			Config: addrs.ProviderConfigCorrect{
-				Provider: providerAddr,
-				Alias:    config.Alias,
-			},
+	addr := addrs.AbsProviderConfigCorrect{
+		Module: moduleInstanceAddr,
+		Config: addrs.ProviderConfigCorrect{
+			Provider: providerAddr,
+			Alias:    config.Alias,
 		},
+	}
+
+	return &configgraph.ProviderConfig{
+		Addr:             addr,
 		ProviderAddr:     providerAddr,
-		InstanceSelector: compileInstanceSelector(ctx, declScope, config.ForEach, nil, nil, sharedDeps),
+		InstanceSelector: compileInstanceSelector(ctx, addr, declScope, config.ForEach, nil, nil, sharedDeps),
 		CompileProviderInstance: func(ctx context.Context, key addrs.InstanceKey, repData instances.RepetitionData) *configgraph.ProviderInstance {
 			instanceScope := instanceLocalScope(declScope, repData)
 			instanceDeps := compileInstanceDeps(instanceScope)
@@ -114,7 +116,7 @@ func compileProviderConfig(
 					}
 					return v, diags
 				},
-			), providerAddr.String())
+			), providerAddr, "ConfigValuer")
 
 			return &configgraph.ProviderInstance{
 				Addr: addrs.AbsProviderInstanceCorrect{

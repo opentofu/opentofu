@@ -181,7 +181,7 @@ func compileModuleInstanceResource(
 		// See https://github.com/opentofu/opentofu/issues/2522 for more details
 		pdValuer = configgraph.ValuerOnce(
 			exprs.NewClosure(exprs.EvalableHCLExpression(config.Managed.PreventDestroy), declScope),
-			absAddr.String()+" prevent destroy")
+			absAddr, "PreventDestroy")
 	}
 
 	if diags.HasErrors() {
@@ -195,7 +195,7 @@ func compileModuleInstanceResource(
 		// Our instance selector depends on which of the repetition metaarguments
 		// are set, if any. We assume that package configs allows at most one
 		// of these to be set for each resource config.
-		InstanceSelector: compileInstanceSelector(ctx, declScope, config.ForEach, config.Count, config.Enabled, sharedDeps),
+		InstanceSelector: compileInstanceSelector(ctx, absAddr, declScope, config.ForEach, config.Count, config.Enabled, sharedDeps),
 
 		// The [configgraph.Resource] implementation will call back to this
 		// for each child instance it discovers through [InstanceSelector],
@@ -234,7 +234,7 @@ func compileModuleInstanceResource(
 				// the expression's source range will be used here instead.
 				cbdValuer = configgraph.ValuerOnce(
 					exprs.ConstantValuerWithSourceRange(cbdVal, tfdiags.SourceRangeFromHCL(config.DeclRange)),
-					absAddr.Instance(key).String()+" create_before_destroy",
+					absAddr.Instance(key), "CreateBeforeDestroy",
 				)
 			}
 
@@ -342,13 +342,13 @@ func compileModuleInstanceResource(
 
 					return v, vDiags
 				},
-			), absAddr.Instance(key).String()+" config")
+			), absAddr.Instance(key), "ConfigValuer")
 
 			inst := &configgraph.ResourceInstance{
 				Addr:                      absAddr.Instance(key),
 				Provider:                  config.Provider,
 				ConfigValuer:              configValuer,
-				ProviderInstanceValuer:    configgraph.ValuerOnce(providerRef, absAddr.Instance(key).String()+" provider"),
+				ProviderInstanceValuer:    configgraph.ValuerOnce(providerRef, absAddr.Instance(key), "ProviderInstance"),
 				CreateBeforeDestroyValuer: cbdValuer,
 				CreateProvisioners:        provisionerConfigs,
 				IgnoreChangesPaths:        ignoreChanges,

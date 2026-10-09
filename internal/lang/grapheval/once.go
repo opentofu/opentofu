@@ -7,6 +7,7 @@ package grapheval
 
 import (
 	"context"
+	"fmt"
 	"runtime/pprof"
 	"sync"
 
@@ -49,8 +50,8 @@ type Once[T any] struct {
 // Once object in the program MUST pass a context derived from the one passed
 // into the callback function, because it includes internal tracking
 // information.
-func (o *Once[T]) Do(ctx context.Context, info RequestInfo, f func(ctx context.Context) (T, tfdiags.Diagnostics)) (T, tfdiags.Diagnostics) {
-	ctx = pprof.WithLabels(ctx, pprof.Labels("evaluate", info.Name))
+func (o *Once[T]) Do(ctx context.Context, addr fmt.Stringer, method string, rng *tfdiags.SourceRange, f func(ctx context.Context) (T, tfdiags.Diagnostics)) (T, tfdiags.Diagnostics) {
+	ctx = pprof.WithLabels(ctx, pprof.Labels(method, addr.String()))
 
 	worker := WorkerFromContext(ctx)
 	o.mu.Lock()
@@ -60,7 +61,10 @@ func (o *Once[T]) Do(ctx context.Context, info RequestInfo, f func(ctx context.C
 		resolver, promise := workgraph.NewRequest[withDiagnostics[T]](worker)
 		o.promise = &promise
 		o.requestID = resolver.RequestID()
-		ReportRequestInContext(ctx, o.requestID, info)
+		ReportRequestInContext(ctx, o.requestID, RequestInfo{
+			Name:        method + " " + addr.String(),
+			SourceRange: rng,
+		})
 		workgraph.WithNewAsyncWorker(func(w *workgraph.Worker) {
 			pprof.SetGoroutineLabels(ctx) // Just in case the caller uses pprof labels to describe what this worker's goal is
 			ctx := ContextWithWorker(ctx, w)

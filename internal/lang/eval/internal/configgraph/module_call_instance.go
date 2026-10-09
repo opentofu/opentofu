@@ -95,7 +95,7 @@ func (m *ModuleCallInstance) InputsValue(ctx context.Context) (cty.Value, tfdiag
 	// We perform the config validation in a [grapheval.Once] so that we
 	// can coalesce around a single call to m.Glue.ValidateInputs, which is
 	// likely to cause a provider RPC request.
-	return m.validatedInputs.Do(ctx, grapheval.RequestInfo{Name: m.ModuleInstanceAddr.String() + " inputs value", SourceRange: m.InputsValuer.ValueSourceRange()}, func(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+	return m.validatedInputs.Do(ctx, m.ModuleInstanceAddr, "InputsValue", m.InputsValuer.ValueSourceRange(), func(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
 		inputsVal, diags := m.InputsValuer.Value(ctx)
 		if diags.HasErrors() {
 			return cty.DynamicVal, diags

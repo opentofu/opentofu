@@ -32,7 +32,7 @@ func compileModuleInstanceInputVariables(_ context.Context, configs map[string]*
 		rawValuer := compileInputVariableValuer(values, vc, moduleInstAddr, missingDefRange)
 		ret[addr] = &configgraph.InputVariable{
 			Addr:           moduleInstAddr.InputVariable(name),
-			RawValue:       configgraph.ValuerOnce(rawValuer, moduleInstAddr.InputVariable(name).String()),
+			RawValue:       configgraph.ValuerOnce(rawValuer, moduleInstAddr.InputVariable(name), "compileInputs"),
 			TargetType:     vc.ConstraintType,
 			TargetDefaults: vc.TypeDefaults,
 			FinalizeValue: func(_ context.Context, v cty.Value) (cty.Value, tfdiags.Diagnostics) {

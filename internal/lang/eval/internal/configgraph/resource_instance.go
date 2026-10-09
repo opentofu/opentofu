@@ -228,7 +228,7 @@ func (ri *ResourceInstance) ReplaceOrder(ctx context.Context) (exprs.FromValue[r
 
 // Value implements exprs.Valuer.
 func (ri *ResourceInstance) Value(ctx context.Context) (v cty.Value, diags tfdiags.Diagnostics) {
-	return ri.valueOnce.Do(ctx, grapheval.RequestInfo{Name: ri.Addr.String() + " value", SourceRange: ri.ConfigValuer.ValueSourceRange()}, func(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+	return ri.valueOnce.Do(ctx, ri.Addr, "Value", ri.ConfigValuer.ValueSourceRange(), func(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
 		configVal, diags := ri.ConfigValue(ctx)
 
 		providerInst, moreDiags := ri.ProviderInstance(ctx)

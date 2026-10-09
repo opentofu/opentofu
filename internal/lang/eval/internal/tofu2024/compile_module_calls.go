@@ -58,14 +58,14 @@ func compileModuleInstanceModuleCalls(
 			Addr:             addr.Absolute(moduleInstanceAddr),
 			DeclRange:        tfdiags.SourceRangeFromHCL(config.DeclRange),
 			ParentSourceAddr: parentSourceAddr,
-			InstanceSelector: compileInstanceSelector(ctx, declScope, config.ForEach, config.Count, config.Enabled, sharedDeps),
+			InstanceSelector: compileInstanceSelector(ctx, addr.Absolute(moduleInstanceAddr), declScope, config.ForEach, config.Count, config.Enabled, sharedDeps),
 			SourceAddrValuer: configgraph.ValuerOnce(exprs.NewClosure(
 				exprs.EvalableHCLExpression(config.Source),
 				declScope,
-			), addr.Absolute(moduleInstanceAddr).String()+" source address"),
+			), addr.Absolute(moduleInstanceAddr), "SourceAddrValuer"),
 			VersionConstraintValuer: configgraph.ValuerOnce(
 				versionConstraintValuer,
-				addr.Absolute(moduleInstanceAddr).String()+" version constraint"),
+				addr.Absolute(moduleInstanceAddr), "VersionConstraint"),
 			ValidateSourceArguments: func(ctx context.Context, sourceArgs configgraph.ModuleSourceArguments) tfdiags.Diagnostics {
 				// We'll try to use the given source address with our
 				// [ExternalModules] object, and consider the arguments to be
@@ -97,7 +97,7 @@ func compileModuleInstanceModuleCalls(
 					// soon as it tries to evaluate its inputs.
 					inst := &configgraph.ModuleCallInstance{
 						ModuleInstanceAddr: addr.Absolute(moduleInstanceAddr).Instance(key),
-						InputsValuer:       configgraph.ValuerOnce(exprs.ForcedErrorValuer(diags), addr.Absolute(moduleInstanceAddr).Instance(key).String()+" module inputs (errored)"),
+						InputsValuer:       configgraph.ValuerOnce(exprs.ForcedErrorValuer(diags), addr.Absolute(moduleInstanceAddr).Instance(key), "ModuleInputsErrored"),
 					}
 					inst.Glue = &moduleCallInstanceGlue{
 						callInstNode: inst,
@@ -131,7 +131,7 @@ func compileModuleInstanceModuleCalls(
 					InputsValuer: configgraph.ValuerOnce(exprs.NewClosure(
 						exprs.EvalableHCLBodyJustAttributes(config.Config),
 						instanceScope,
-					), addr.Absolute(moduleInstanceAddr).Instance(key).String()+" module inputs"),
+					), addr.Absolute(moduleInstanceAddr).Instance(key), "ModuleInputs"),
 					ProvidersFromParent: proxyProviderCompiler,
 				}
 				inst.Glue = &moduleCallInstanceGlue{
@@ -215,7 +215,7 @@ func (g *moduleCallInstanceGlue) OutputsValue(ctx context.Context) (cty.Value, t
 // of [evalglue.CompiledModuleInstance] to give the caller direct access to the
 // child module instance objects for recursive tree walks.
 func (g *moduleCallInstanceGlue) compiledModuleInstance(ctx context.Context) (exprs.FromValue[evalglue.CompiledModuleInstance], tfdiags.Diagnostics) {
-	return g.compiledChild.Do(ctx, grapheval.RequestInfo{Name: g.callInstNode.ModuleInstanceAddr.String() + " glue", SourceRange: nil}, func(ctx context.Context) (exprs.FromValue[evalglue.CompiledModuleInstance], tfdiags.Diagnostics) {
+	return g.compiledChild.Do(ctx, g.callInstNode.ModuleInstanceAddr, "ModuleCallGlue", nil, func(ctx context.Context) (exprs.FromValue[evalglue.CompiledModuleInstance], tfdiags.Diagnostics) {
 		configVal, diags := g.callInstNode.InputsValue(ctx)
 		if !configVal.IsKnown() {
 			return exprs.Unknown[evalglue.CompiledModuleInstance](), diags

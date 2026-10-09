@@ -27,24 +27,24 @@ import (
 
 const maxCount = int64(math.MaxInt32)
 
-func compileInstanceSelector(ctx context.Context, declScope exprs.Scope, forEachExpr hcl.Expression, countExpr hcl.Expression, enabledExpr hcl.Expression, deps dependsOn) configgraph.InstanceSelector {
+func compileInstanceSelector(ctx context.Context, addr fmt.Stringer, declScope exprs.Scope, forEachExpr hcl.Expression, countExpr hcl.Expression, enabledExpr hcl.Expression, deps dependsOn) configgraph.InstanceSelector {
 	// We don't current verify that only one of the given expressions is set
 	// because we expect the configs package to check that.
 
 	if forEachExpr != nil {
-		return compileInstanceSelectorForEach(ctx, exprs.NewClosure(
+		return compileInstanceSelectorForEach(ctx, addr, exprs.NewClosure(
 			exprs.EvalableHCLExpression(forEachExpr),
 			declScope,
 		), deps)
 	}
 	if countExpr != nil {
-		return compileInstanceSelectorCount(ctx, exprs.NewClosure(
+		return compileInstanceSelectorCount(ctx, addr, exprs.NewClosure(
 			exprs.EvalableHCLExpression(countExpr),
 			declScope,
 		), deps)
 	}
 	if enabledExpr != nil {
-		return compileInstanceSelectorEnabled(ctx, exprs.NewClosure(
+		return compileInstanceSelectorEnabled(ctx, addr, exprs.NewClosure(
 			exprs.EvalableHCLExpression(enabledExpr),
 			declScope,
 		), deps)
@@ -66,8 +66,8 @@ func compileInstanceSelectorSingleton(_ context.Context, deps dependsOn) configg
 	}
 }
 
-func compileInstanceSelectorCount(_ context.Context, countValuer exprs.Valuer, deps dependsOn) configgraph.InstanceSelector {
-	countValuer = configgraph.ValuerOnce(countValuer, "count instance selector")
+func compileInstanceSelectorCount(_ context.Context, addr fmt.Stringer, countValuer exprs.Valuer, deps dependsOn) configgraph.InstanceSelector {
+	countValuer = configgraph.ValuerOnce(countValuer, addr, "count instance selector")
 	return &instanceSelector{
 		keyType:     addrs.IntKeyType,
 		sourceRange: countValuer.ValueSourceRange(),
@@ -144,8 +144,8 @@ func compileInstanceSelectorCount(_ context.Context, countValuer exprs.Valuer, d
 	}
 }
 
-func compileInstanceSelectorEnabled(_ context.Context, enabledValuer exprs.Valuer, deps dependsOn) configgraph.InstanceSelector {
-	enabledValuer = configgraph.ValuerOnce(enabledValuer, "enabled instance selector")
+func compileInstanceSelectorEnabled(_ context.Context, addr fmt.Stringer, enabledValuer exprs.Valuer, deps dependsOn) configgraph.InstanceSelector {
+	enabledValuer = configgraph.ValuerOnce(enabledValuer, addr, "enabled instance selector")
 	return &instanceSelector{
 		keyType:     addrs.NoKeyType,
 		sourceRange: nil,
@@ -198,8 +198,8 @@ func compileInstanceSelectorEnabled(_ context.Context, enabledValuer exprs.Value
 	}
 }
 
-func compileInstanceSelectorForEach(_ context.Context, forEachValuer exprs.Valuer, deps dependsOn) configgraph.InstanceSelector {
-	forEachValuer = configgraph.ValuerOnce(forEachValuer, "for_each instance selector")
+func compileInstanceSelectorForEach(_ context.Context, addr fmt.Stringer, forEachValuer exprs.Valuer, deps dependsOn) configgraph.InstanceSelector {
+	forEachValuer = configgraph.ValuerOnce(forEachValuer, addr, "for_each instance selector")
 	return &instanceSelector{
 		keyType:     addrs.StringKeyType,
 		sourceRange: forEachValuer.ValueSourceRange(),

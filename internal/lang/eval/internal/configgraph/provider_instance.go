@@ -103,7 +103,7 @@ func (p *ProviderInstance) ConfigValue(ctx context.Context) (cty.Value, tfdiags.
 	// We use a "Once" here to coalesce to just one ValidateConfig call per
 	// ProviderInstance object, even when multiple callers ask for the
 	// configuration for this instance.
-	return p.validatedConfig.Do(ctx, grapheval.RequestInfo{Name: p.Addr.String() + " config value", SourceRange: p.ConfigValuer.ValueSourceRange()}, func(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+	return p.validatedConfig.Do(ctx, p.Addr, "ConfigValue", p.ConfigValuer.ValueSourceRange(), func(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
 		v, diags := p.ConfigValuer.Value(ctx)
 		if diags.HasErrors() {
 			return cty.DynamicVal, diags

@@ -88,7 +88,7 @@ func (p *ProviderConfig) Instances(ctx context.Context) map[addrs.InstanceKey]*P
 }
 
 func (p *ProviderConfig) decideInstances(ctx context.Context) (*compiledInstances[*ProviderInstance], tfdiags.Diagnostics) {
-	return p.instancesResult.Do(ctx, grapheval.RequestInfo{Name: p.Addr.String() + " decide instances", SourceRange: &p.DeclRange}, func(ctx context.Context) (*compiledInstances[*ProviderInstance], tfdiags.Diagnostics) {
+	return p.instancesResult.Do(ctx, p.Addr, "decideInstances", &p.DeclRange, func(ctx context.Context) (*compiledInstances[*ProviderInstance], tfdiags.Diagnostics) {
 		return compileInstances(ctx, p.InstanceSelector, p.CompileProviderInstance)
 	})
 }

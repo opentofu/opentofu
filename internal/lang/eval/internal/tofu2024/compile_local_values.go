@@ -21,7 +21,7 @@ func compileModuleInstanceLocalValues(_ context.Context, configs map[string]*con
 		value := configgraph.ValuerOnce(exprs.NewClosure(
 			exprs.EvalableHCLExpression(vc.Expr),
 			declScope,
-		), moduleInstAddr.LocalValue(name).String())
+		), moduleInstAddr.LocalValue(name), "compileLocal")
 		ret[addr] = &configgraph.LocalValue{
 			Addr:     moduleInstAddr.LocalValue(name),
 			RawValue: value,

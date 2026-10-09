@@ -174,7 +174,7 @@ func CompileModuleInstance(
 	// instance.
 	ret.moduleInstanceNode.OutputValuers = make(map[addrs.OutputValue]*configgraph.OnceValuer, len(ret.outputValueNodes))
 	for addr, node := range ret.outputValueNodes {
-		ret.moduleInstanceNode.OutputValuers[addr] = configgraph.ValuerOnce(node, node.Addr.String())
+		ret.moduleInstanceNode.OutputValuers[addr] = configgraph.ValuerOnce(node, node.Addr, "OutputValuers")
 	}
 
 	return ret

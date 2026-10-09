@@ -129,7 +129,7 @@ func (r *Resource) ValueSourceRange() *tfdiags.SourceRange {
 }
 
 func (r *Resource) decideInstances(ctx context.Context) (*compiledInstances[*ResourceInstance], tfdiags.Diagnostics) {
-	return r.instancesResult.Do(ctx, grapheval.RequestInfo{Name: r.Addr.String() + " decide instances", SourceRange: &r.DeclRange}, func(ctx context.Context) (*compiledInstances[*ResourceInstance], tfdiags.Diagnostics) {
+	return r.instancesResult.Do(ctx, r.Addr, "DecideInstances", &r.DeclRange, func(ctx context.Context) (*compiledInstances[*ResourceInstance], tfdiags.Diagnostics) {
 		return compileInstances(ctx, r.InstanceSelector, r.CompileResourceInstance)
 	})
 }
