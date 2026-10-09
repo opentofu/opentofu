@@ -26,7 +26,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/zclconf/go-cty/cty"
-	"github.com/zclconf/go-cty/cty/ctymarks"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -3006,7 +3005,7 @@ func TestContext2Plan_countZero(t *testing.T) {
 
 	expected := cty.TupleVal(nil)
 
-	foo := removePendingChangesMark(ric.After.GetAttr("foo"))
+	foo := objchange.RemovePendingChangesMark(ric.After.GetAttr("foo"))
 
 	if !cmp.Equal(expected, foo, valueComparer) {
 		t.Fatal(cmp.Diff(expected, foo, valueComparer))
@@ -7155,7 +7154,7 @@ func TestContext2Plan_variableSensitivityModule(t *testing.T) {
 }
 
 func checkVals(t *testing.T, expected, got cty.Value) {
-	got = removePendingChangesMark(got)
+	got = objchange.RemovePendingChangesMark(got)
 	t.Helper()
 	// The GoStringer format seems to result in the closest thing to a useful
 	// diff for values with marks.
@@ -7167,19 +7166,6 @@ func checkVals(t *testing.T, expected, got cty.Value) {
 	if !cmp.Equal(expected, got, valueComparer, typeComparer, equateEmpty) {
 		t.Fatal(cmp.Diff(expected, got, valueTrans, equateEmpty))
 	}
-}
-
-// We are probably not interested in the PendingChange mark here;
-// strip it before doing any comparisons
-func removePendingChangesMark(val cty.Value) cty.Value {
-	wrangledVal, _ := val.WrangleMarksDeep(func(mark any, path cty.Path) (ctymarks.WrangleAction, error) {
-		if _, isOurMark := mark.(objchange.PendingChange); isOurMark {
-			return ctymarks.WrangleDrop, nil
-		}
-		return nil, nil // leave all other marks alone
-
-	})
-	return wrangledVal
 }
 
 func objectVal(t *testing.T, schema *configschema.Block, m map[string]cty.Value) cty.Value {

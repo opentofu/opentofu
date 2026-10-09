@@ -10,6 +10,7 @@ import (
 	"iter"
 
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/ctymarks"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -460,4 +461,14 @@ func markPendingChangesLeaf(prior, planned cty.Value, instAddr addrs.AbsResource
 		return ValuePendingChange(planned, instAddr)
 	}
 	return planned
+}
+
+func RemovePendingChangesMark(val cty.Value) cty.Value {
+	wrangledVal, _ := val.WrangleMarksDeep(func(mark any, path cty.Path) (ctymarks.WrangleAction, error) {
+		if _, isOurMark := mark.(PendingChange); isOurMark {
+			return ctymarks.WrangleDrop, nil
+		}
+		return nil, nil // leave all other marks alone
+	})
+	return wrangledVal
 }
