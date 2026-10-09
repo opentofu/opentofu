@@ -12,6 +12,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
+	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/resources"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -87,6 +88,17 @@ type ConfiguredResourceInstanceObjectMeta struct {
 	// These fields are relevant only for managed resource mode and the
 	// should always be nil for other resource modes.
 	PostCreateProvisioners, PreDeleteProvisioners []*ResourceProvisioner
+
+	// MoveStatements describes the subset of move statements where either
+	// endpoint directly refers to the requested resource instance object.
+	//
+	// Unlike the other fields of this type, these ones are intentionally
+	// _not_ aggregated into the final effective ResourceInstanceObjectMeta
+	// for an object because they are used in a special way by the planning
+	// engine to resolve the which addresses objects are moving between,
+	// which must happen before we can know which address an object is expected
+	// to have in the previous round state.
+	MoveStatements []*refactoring.MoveStatement
 }
 
 // ResourceInstanceObjectProvider describes the provider-related metadata

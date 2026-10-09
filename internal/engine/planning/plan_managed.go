@@ -28,16 +28,26 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 	inst *eval.DesiredResourceInstance,
 ) (ret *resourceInstanceObject, diags tfdiags.Diagnostics) {
 
+	// TODO: Resolve any relevant moves up front here and then use
+	// p.ResourceInstanceObjectMeta directly to request the aggregate metadata.
+	//
+	// This means we'd then be consistently building metadata in the same way
+	// for all objects desired or not, instead of having the current special
+	// case where we ignore the previous state for desired objects.
+	//
+	// (In practice currently that cheat works out okay because the config
+	// metadata for a desired object generally overrides everything from the
+	// previous state anyway, but the intention is to standardize on one
+	// approach everywhere so that there are fewer cases to consider under
+	// future maintenence and we'll have the option of using some state metadata
+	// even for desired objects, which would be useful e.g. for
+	// https://github.com/opentofu/opentofu/issues/4585 .
 	configMeta := p.oracle.ResourceInstanceObjectMeta(ctx, inst.Addr.CurrentObject())
 	if configMeta == nil {
 		// Should not happen: the evaluator is required to always produce
 		// non-nil metadata for a desired object.
 		panic(fmt.Sprintf("no metadata available for desired object %s", inst.Addr))
 	}
-	// For a desired object we never pass a prior state object in here because
-	// the configuration is expected to be authoritative. We blend configuration
-	// and state metadata only for non-desired objects where the configuration
-	// tends to be incomplete and so we rely on prior state to fill gaps.
 	meta := exec.BuildResourceInstanceObjectMeta(inst.Addr.CurrentObject(), configMeta, (*states.ResourceInstanceObjectFullSrc)(nil))
 
 	// There are various reasons why we might need to defer final planning
@@ -189,12 +199,12 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 
 	var prevRoundVal cty.Value
 	var prevRoundPrivate []byte
-
 	prevStateInfo, moveDiags := p.locateStateForConfig(ctx, inst.Addr)
 	diags = diags.Append(moveDiags)
 	if diags.HasErrors() {
 		return ret, diags
 	}
+
 	prevRoundState := prevStateInfo.state
 
 	prevRunAddr := prevStateInfo.from
@@ -634,6 +644,17 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 	// how to factor out as much of this logic as possible into shared functions
 	// so that this'll be easier to maintain in future as requirements change.
 
+	// TODO: Resolve any relevant moves up front here and then use
+	// p.ResourceInstanceObjectMeta directly to request the aggregate metadata.
+	//
+	// Now that we've reworked the main planning flow to complete all of the
+	// "desired" objects first and only then begin handling unwanted objects,
+	// we should be able to handle this all in one step instead of re-fetching
+	// a different metadata conditionally below based on whether there was
+	// a moved statement or not. In particular this'll make it easier to support
+	// the situation where a chain of moves ends at a "removed" statement, and
+	// thus we need to use metadata from that statement to decide how to delete
+	// the unwanted object.
 	configMeta := p.oracle.ResourceInstanceObjectMeta(ctx, addr)
 	meta := exec.BuildResourceInstanceObjectMeta(addr, configMeta, stateSrc)
 
