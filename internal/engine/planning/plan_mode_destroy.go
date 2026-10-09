@@ -61,6 +61,7 @@ func destroyPlan(ctx context.Context, opts *PlanOpts, prevRoundState *states.Sta
 	// Chicken and egg
 	glue.normalGlue.oracle = oracle
 
+	ctx = contextWithRequestTracker(ctx, &glue.normalGlue)
 	moreDiags := glue.normalGlue.CheckTargets(ctx)
 	diags = diags.Append(moreDiags)
 

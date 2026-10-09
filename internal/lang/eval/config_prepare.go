@@ -7,7 +7,9 @@ package eval
 
 import (
 	"context"
+	"iter"
 
+	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
@@ -16,6 +18,7 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
+	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/plans/objchange"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -42,10 +45,17 @@ func (c *ConfigInstance) precheckedModuleInstance(ctx context.Context) (evalglue
 		return nil, diags
 	}
 
+	// During pre-checking any grapheval-related errors are always confined
+	// to requests managed by the evaluator, because nothing outside of the
+	// evaluator can access this until we've checked it, so we'll use our
+	// eval-only request tracker here to report any self-reference problems
+	// that are visible immediately even without any outside information.
+	ctx = grapheval.ContextWithRequestTracker(ctx, evalOnlyRequestTracker{rootModuleInstance})
+
 	// For validation purposes we don't need to do anything other than the
 	// full-tree check that would normally run alongside the driving of
 	// some other operation.
-	moreDiags = checkAll(ctx, rootModuleInstance)
+	moreDiags = rootModuleInstance.CheckAll(ctx)
 	diags = diags.Append(moreDiags)
 	return rootModuleInstance, diags
 }
@@ -126,4 +136,27 @@ func (v *preparationGlue) ResourceInstanceValue(ctx context.Context, ri *configg
 	// TODO validate destroy provisioners
 
 	return proposed, diags
+}
+
+// evalOnlyRequestTracker is our internal implementation of
+// [grapheval.RequestTracker] for situations where the evaluator is owning the
+// entire process and therefore there will never be any outside grapheval
+// requests to track.
+//
+// In particular the plan and apply processes _don't_ use this because the
+// planning and applying engines have their own broader request trackers that
+// also consider requests made within the codepaths of those engines in addition
+// to the ones in the evaluator. The general rule is that the operations where
+// the caller and the evaluator collaborate using "glue" and "oracle" objects
+// likely need the caller to provide their own request tracker, but simpler
+// operations where the evaluator handles everything can just use this type.
+type evalOnlyRequestTracker struct {
+	root evalglue.CompiledModuleInstance
+}
+
+var _ grapheval.RequestTracker = (*evalOnlyRequestTracker)(nil)
+
+// ActiveRequests implements [grapheval.RequestTracker].
+func (e evalOnlyRequestTracker) ActiveRequests() iter.Seq2[workgraph.RequestID, grapheval.RequestInfo] {
+	return grapheval.PushActiveRequests(e.root.AnnounceAllGraphevalRequests)
 }

@@ -43,3 +43,28 @@ type RequestInfo struct {
 	// the given configuration.
 	SourceRange *tfdiags.SourceRange
 }
+
+// PushActiveRequests is a helper for implementers of
+// [RequestTracker.ActiveRequests] that implements its [iter.Seq2]-based
+// "pull" API in terms of callback-based "push" implementation that's generally
+// more convenient for implementations to offer as they collect information
+// across many different child subsystems.
+//
+// Since this is intended to be called only while handling an error, it makes
+// the compromise of presenting the illusion that it's always absorbing the
+// entire set reported by the push function but immediately discarding any
+// that show up after the sequence is no longer being consumed.
+func PushActiveRequests(push func(announce func(workgraph.RequestID, RequestInfo))) iter.Seq2[workgraph.RequestID, RequestInfo] {
+	return func(yield func(workgraph.RequestID, RequestInfo) bool) {
+		keepGoing := true
+		push(func(reqID workgraph.RequestID, info RequestInfo) {
+			if !keepGoing {
+				// We just ignore any calls that arrive after the yield
+				// function has returned false, since nobody is reading
+				// the sequence anymore in that case.
+				return
+			}
+			keepGoing = yield(reqID, info)
+		})
+	}
+}

@@ -37,6 +37,7 @@ func normalPlan(ctx context.Context, opts *PlanOpts, prevRoundState *states.Stat
 	// Chicken and egg
 	glue.oracle = oracle
 
+	ctx = contextWithRequestTracker(ctx, glue)
 	moreDiags := glue.CheckTargets(ctx)
 	diags = diags.Append(moreDiags)
 

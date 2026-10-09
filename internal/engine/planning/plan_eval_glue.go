@@ -12,6 +12,7 @@ import (
 	"log"
 	"strings"
 
+	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 
@@ -471,4 +472,15 @@ func (p *planGlue) validateForceReplace() tfdiags.Diagnostics {
 	}
 
 	return diags
+}
+
+// AnnounceAllGraphevalRequests calls "announce" for each grapheval request
+// this planGlue object is responsible for.
+func (p *planGlue) AnnounceAllGraphevalRequests(announce func(workgraph.RequestID, grapheval.RequestInfo)) {
+	// First we'll delegate to the planning oracle to report whatever requests
+	// the evaluator itself is using to process the configuration.
+	p.oracle.AnnounceAllGraphevalRequests(announce)
+
+	// Any other grapheval stuff we use directly in the planning engine would
+	// need to be announced here too, but there aren't any yet!
 }

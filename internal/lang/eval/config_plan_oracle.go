@@ -9,6 +9,8 @@ import (
 	"context"
 	"log"
 
+	"github.com/apparentlymart/go-workgraph/workgraph"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
@@ -28,7 +30,6 @@ type PlanningOracle struct {
 
 func (o *PlanningOracle) CheckTarget(ctx context.Context, target addrs.Targetable) {
 	ctx = grapheval.ContextWithNewWorker(ctx)
-	ctx = grapheval.ContextWithRequestTracker(ctx, workgraphRequestTracker{o.root})
 
 	addTarget := func(ri *configgraph.ResourceInstance) {
 		// Populate the value before the glue disables itself for the rest of processing
@@ -75,13 +76,25 @@ func (o *PlanningOracle) CheckTarget(ctx context.Context, target addrs.Targetabl
 		}
 	}
 }
+
+// CheckAll visits everything in the configuration and gathers up any
+// diagnostics that are reported. This has the important side-effect of forcing
+// evaluation of everything in the configuration and therefore should cause
+// the associated [PlanGlue] implementation to get called for each desired
+// resource instance found in the configuration.
+//
+// The caller is expected to provide a context which has a
+// [grapheval.RequestTracker] that at least calls
+// [PlanningOracle.AnnounceAllGraphevalRequests] when asked for requests,
+// along with announcing any other grapheval requests the caller is managing
+// directly itself.
 func (o *PlanningOracle) CheckAll(ctx context.Context) tfdiags.Diagnostics {
 	// The plan phase is driven forward by us evaluating expressions during
-	// the "checkAll" process, and so we can just run that here and then
+	// the "CheckAll" process, and so we can just run that here and then
 	// it'll cause various calls out to the "glue" object whenever we're
 	// ready to provide configuration for a resource instance and need to
 	// obtain its result for downstream use.
-	return checkAll(ctx, o.root)
+	return o.root.CheckAll(ctx)
 }
 
 func (o *PlanningOracle) PlanningResult(ctx context.Context) *PlanningResult {
@@ -175,6 +188,22 @@ func (o *PlanningOracle) PreventDestroy(ctx context.Context, addr addrs.AbsResou
 		return exprs.Known(false), nil, nil
 	}
 	return resource.PreventDestroy(ctx)
+}
+
+// AnnounceAllGraphevalRequests calls the given function once for each internal
+// workgraph request that has previously been started by requests to this
+// oracle.
+//
+// This is used by the planning engine as part of its implementation of
+// [grapheval.RequestTracker], so that promise-resolution-related diagnostics
+// can include information about which requests were involved in the problem.
+//
+// This information is collected as a separate step only when needed because
+// that avoids us needing to keep track of this metadata on the happy path,
+// so that we only pay the cost of gathering this data when we're actually
+// going to use it for something.
+func (o *PlanningOracle) AnnounceAllGraphevalRequests(announce func(workgraph.RequestID, grapheval.RequestInfo)) {
+	o.root.AnnounceAllGraphevalRequests(announce)
 }
 
 func (o *PlanningOracle) Close(ctx context.Context) tfdiags.Diagnostics {
