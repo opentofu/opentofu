@@ -24,7 +24,7 @@ import (
 
 var NewStaticPlugins = evalglue.NewStaticPlugins
 
-// StaticCheck performs a CheckAll, but using static glue (no providers or state)
+// StaticCheck performs a CheckAll, but using static glue (no providers or state).
 func (c *ConfigInstance) StaticCheck(ctx context.Context) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
@@ -43,9 +43,9 @@ func (c *ConfigInstance) StaticCheck(ctx context.Context) tfdiags.Diagnostics {
 	// If the grapheval package detects a self-dependency problem during
 	// evaluation then it'll use this tracker to find human-friendly names
 	// for all of the requests involved in the error.
-	ctx = grapheval.ContextWithRequestTracker(ctx, workgraphRequestTracker{rootModuleInstance})
+	ctx = grapheval.ContextWithRequestTracker(ctx, evalOnlyRequestTracker{rootModuleInstance})
 
-	moreDiags = checkAll(ctx, rootModuleInstance)
+	moreDiags = rootModuleInstance.CheckAll(ctx)
 	diags = diags.Append(moreDiags)
 	return diags
 }
@@ -69,7 +69,7 @@ func (c *ConfigInstance) ProviderRequirements(ctx context.Context) (getproviders
 	// If the grapheval package detects a self-dependency problem during
 	// evaluation then it'll use this tracker to find human-friendly names
 	// for all of the requests involved in the error.
-	ctx = grapheval.ContextWithRequestTracker(ctx, workgraphRequestTracker{rootModuleInstance})
+	ctx = grapheval.ContextWithRequestTracker(ctx, evalOnlyRequestTracker{rootModuleInstance})
 
 	reqs, quals, moreDiags := rootModuleInstance.ProviderRequirements(ctx)
 	diags = diags.Append(moreDiags)
@@ -82,7 +82,7 @@ func (c *ConfigInstance) ProviderRequirements(ctx context.Context) (getproviders
 		quals = quals.Merge(moreQuals)
 	}
 
-	moreDiags = checkAll(ctx, rootModuleInstance)
+	moreDiags = rootModuleInstance.CheckAll(ctx)
 	diags = diags.Append(moreDiags)
 
 	return reqs, quals, diags

@@ -44,39 +44,27 @@ func newRequestTracker(graph *execgraph.Graph, ops *execOperations) *execRequest
 
 // ActiveRequests implements [grapheval.RequestTracker].
 func (e *execRequestTracker) ActiveRequests() iter.Seq2[workgraph.RequestID, grapheval.RequestInfo] {
-	return func(yield func(workgraph.RequestID, grapheval.RequestInfo) bool) {
-		// To make the downstream implementations of this simpler we
-		// always visit all of the requests known to the evaluator and just
-		// discard them if the caller has stopped consuming our sequence.
-		// In practice we should always read the whole sequence to completion
-		// in the error reporting path anyway, so this is really just to
-		// honor the general expectations of [iter.Seq2].
-		keepGoing := true
-		e.configOracle.AnnounceAllGraphevalRequests(func(reqID workgraph.RequestID, info grapheval.RequestInfo) {
-			if !keepGoing {
-				return
-			}
-			keepGoing = yield(reqID, info)
-		})
-		if !keepGoing {
-			return
-		}
-		// We'll also report any requests that execgraph has announced to us
-		// using [execRequestTracker.TrackExecutionGraphRequest].
-		//
-		// We copy the map of requests here just so we don't hold this lock
-		// across yields to the caller. We should only end up in here when
-		// we're handling an error so it's okay to spend this extra time.
-		e.promiseReqsMu.Lock()
-		promiseReqs := make(map[execgraph.PromiseDrivenResultKey]workgraph.RequestID, len(e.promiseReqs))
-		maps.Copy(promiseReqs, e.promiseReqs)
-		e.promiseReqsMu.Unlock()
-		for key, reqID := range promiseReqs {
-			info := e.graph.PromiseDrivenRequestInfo(key)
-			if !yield(reqID, info) {
-				return
-			}
-		}
+	return grapheval.PushActiveRequests(e.announceActiveRequests)
+}
+
+func (e *execRequestTracker) announceActiveRequests(announce func(workgraph.RequestID, grapheval.RequestInfo)) {
+	// First we'll let the evaluator announce whatever it was doing internally
+	// to process the configuration itself.
+	e.configOracle.AnnounceAllGraphevalRequests(announce)
+
+	// We'll also report any requests that execgraph has announced to us
+	// using [execRequestTracker.TrackExecutionGraphRequest].
+	//
+	// We copy the map of requests here just so we don't hold this lock
+	// across yields to the caller. We should only end up in here when
+	// we're handling an error so it's okay to spend this extra time.
+	e.promiseReqsMu.Lock()
+	promiseReqs := make(map[execgraph.PromiseDrivenResultKey]workgraph.RequestID, len(e.promiseReqs))
+	maps.Copy(promiseReqs, e.promiseReqs)
+	e.promiseReqsMu.Unlock()
+	for key, reqID := range promiseReqs {
+		info := e.graph.PromiseDrivenRequestInfo(key)
+		announce(reqID, info)
 	}
 }
 

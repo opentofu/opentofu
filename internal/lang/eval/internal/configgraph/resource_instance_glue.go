@@ -8,10 +8,12 @@ package configgraph
 import (
 	"context"
 
+	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
+	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -40,4 +42,12 @@ type ResourceInstanceGlue interface {
 	// If there's not enough information to return anything more precise
 	// then returning [cty.DynamicVal] is an acceptable last resort.
 	ResultValue(ctx context.Context, configVal cty.Value, providerInst exprs.FromValue[*ProviderInstance], riDeps addrs.Set[addrs.AbsResourceInstance]) (cty.Value, tfdiags.Diagnostics)
+
+	// AnnounceAllGraphevalRequests calls announce for any active grapheval
+	// request the reciever is tracking, as part of gathering context before
+	// we report a self-dependency error to the end user.
+	//
+	// An implementation that does not use any grapheval functionality can
+	// just do nothing in its implementation of this function.
+	AnnounceAllGraphevalRequests(announce func(workgraph.RequestID, grapheval.RequestInfo))
 }

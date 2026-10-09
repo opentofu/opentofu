@@ -169,4 +169,8 @@ func (p *ProviderInstance) AnnounceAllGraphevalRequests(announce func(workgraph.
 		Name:        p.Addr.String() + " configuration",
 		SourceRange: p.ConfigValuer.ValueSourceRange(),
 	})
+	announce(p.validatedConfig.RequestID(), grapheval.RequestInfo{
+		Name:        p.Addr.String() + " config validation",
+		SourceRange: p.ConfigValuer.ValueSourceRange(),
+	})
 }

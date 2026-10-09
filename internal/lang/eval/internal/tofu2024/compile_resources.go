@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
@@ -20,6 +21,7 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
+	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -401,6 +403,11 @@ type resourceInstanceGlue struct {
 // ResultValue implements [configgraph.ResourceInstanceGlue].
 func (r *resourceInstanceGlue) ResultValue(ctx context.Context, configVal cty.Value, providerInst exprs.FromValue[*configgraph.ProviderInstance], riDeps addrs.Set[addrs.AbsResourceInstance]) (cty.Value, tfdiags.Diagnostics) {
 	return r.getResultValue(ctx, configVal, providerInst, riDeps)
+}
+
+// AnnounceAllGraphevalRequests implements [configgraph.ResourceInstanceGlue].
+func (r *resourceInstanceGlue) AnnounceAllGraphevalRequests(announce func(workgraph.RequestID, grapheval.RequestInfo)) {
+	// This glue doesn't currently directly use grapheval at all, so nothing to announce.
 }
 
 // From node_resource_abstract_instance.go

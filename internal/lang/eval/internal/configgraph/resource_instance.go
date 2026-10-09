@@ -371,4 +371,7 @@ func (ri *ResourceInstance) AnnounceAllGraphevalRequests(announce func(workgraph
 		Name:        fmt.Sprintf("provider instance selection for %s", ri.Addr),
 		SourceRange: ri.ProviderInstanceValuer.ValueSourceRange(),
 	})
+	if ri.Glue != nil {
+		ri.Glue.AnnounceAllGraphevalRequests(announce)
+	}
 }

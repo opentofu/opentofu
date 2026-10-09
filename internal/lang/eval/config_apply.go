@@ -174,6 +174,12 @@ type ApplyOracle struct {
 // is expected to concurrently connect diagnostics from module instances in
 // the configuration, which would then include any errors related to with the
 // metadata settings.
+//
+// The caller is expected to provide a context which has a
+// [grapheval.RequestTracker] that at least calls
+// [ApplyOracle.AnnounceAllGraphevalRequests] when asked for requests,
+// along with announcing any other grapheval requests the caller is managing
+// directly itself.
 func (o *ApplyOracle) ResourceInstanceObjectMeta(ctx context.Context, addr addrs.AbsResourceInstanceObject) *ConfiguredResourceInstanceObjectMeta {
 	moduleInst := evalglue.ModuleInstance(ctx, o.root, addr.InstanceAddr.Module)
 	if moduleInst == nil {
@@ -194,6 +200,12 @@ func (o *ApplyOracle) ResourceInstanceObjectMeta(ctx context.Context, addr addrs
 // this should never return nil. If this _does_ return nil then that suggests
 // a bug in the planning engine, which caused it to create an incorrect
 // execution graph.
+//
+// The caller is expected to provide a context which has a
+// [grapheval.RequestTracker] that at least calls
+// [ApplyOracle.AnnounceAllGraphevalRequests] when asked for requests,
+// along with announcing any other grapheval requests the caller is managing
+// directly itself.
 func (o *ApplyOracle) DesiredResourceInstance(ctx context.Context, addr addrs.AbsResourceInstance) (*DesiredResourceInstance, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
@@ -234,6 +246,12 @@ func (o *ApplyOracle) DesiredResourceInstance(ctx context.Context, addr addrs.Ab
 // to refer only to provider instances that are present ni the configuration.
 // If this _does_ return cty.NilVal then that suggests a bug in the planning
 // engine, causing it to create an incorrect execution graph.
+//
+// The caller is expected to provide a context which has a
+// [grapheval.RequestTracker] that at least calls
+// [ApplyOracle.AnnounceAllGraphevalRequests] when asked for requests,
+// along with announcing any other grapheval requests the caller is managing
+// directly itself.
 func (o *ApplyOracle) ProviderInstance(ctx context.Context, addr addrs.AbsProviderInstanceCorrect) (providers.Interface, tfdiags.Diagnostics) {
 	return o.providers.ProviderInstance(ctx, addr)
 }
@@ -261,5 +279,5 @@ func (o *ApplyOracle) RootOutputs(ctx context.Context) RootModuleOutputs {
 }
 
 func (o *ApplyOracle) Close(ctx context.Context) tfdiags.Diagnostics {
-	return checkAll(ctx, o.root).Append(o.providers.Close(ctx))
+	return o.root.CheckAll(ctx).Append(o.providers.Close(ctx))
 }

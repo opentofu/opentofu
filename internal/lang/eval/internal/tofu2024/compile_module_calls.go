@@ -7,8 +7,10 @@ package tofu2024
 
 import (
 	"context"
+	"fmt"
 	"maps"
 
+	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -186,12 +188,7 @@ type moduleCallInstanceGlue struct {
 
 	validateInputs func(context.Context, cty.Value) tfdiags.Diagnostics
 	compileChild   func(ctx context.Context, inputs cty.Value, providersFromParent configgraph.CompileProviderConfigRef) (exprs.FromValue[evalglue.CompiledModuleInstance], tfdiags.Diagnostics)
-
-	// FIXME: This isn't exposed in the tree of AnnounceAllGraphevalRequests
-	// method calls we use to collect up user-friendly names for all of our
-	// workgraph requests, so if a self-reference error occurs across this
-	// boundary there will be an unnamed item in the resulting error message.
-	compiledChild grapheval.Once[exprs.FromValue[evalglue.CompiledModuleInstance]]
+	compiledChild  grapheval.Once[exprs.FromValue[evalglue.CompiledModuleInstance]]
 }
 
 func (g *moduleCallInstanceGlue) ValidateInputs(ctx context.Context, inputsVal cty.Value) tfdiags.Diagnostics {
@@ -228,5 +225,12 @@ func (g *moduleCallInstanceGlue) compiledModuleInstance(ctx context.Context) (ex
 		ret, moreDiags := g.compileChild(ctx, configVal, providersFromParent)
 		diags = diags.Append(moreDiags)
 		return ret, diags
+	})
+}
+
+// AnnounceAllGraphevalRequests implements [configgraph.ModuleCallInstanceGlue].
+func (g *moduleCallInstanceGlue) AnnounceAllGraphevalRequests(announce func(workgraph.RequestID, grapheval.RequestInfo)) {
+	announce(g.compiledChild.RequestID(), grapheval.RequestInfo{
+		Name: fmt.Sprintf("%s evaluation and output values", g.callInstNode.ModuleInstanceAddr),
 	})
 }
