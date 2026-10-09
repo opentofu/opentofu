@@ -148,8 +148,11 @@ func TestCompiler_resourceInstanceBasics(t *testing.T) {
 		t.Fatal("unexpected compile errors\n" + diags.Err().Error())
 	}
 
+	ctx := t.Context()
+	ctx = grapheval.ContextWithRequestTracker(ctx, grapheval.NewRequestTracker())
+
 	// Simulate asking for a resource that is not in the plan
-	gotValue := compiledGraph.ResourceInstanceValue(grapheval.ContextWithNewWorker(t.Context()), resourceInstAddrMissing)
+	gotValue := compiledGraph.ResourceInstanceValue(grapheval.ContextWithNewWorker(ctx), resourceInstAddrMissing)
 	wantValue := cty.DynamicVal.Mark(ResourceInstanceDependencyMissingMark{Target: resourceInstAddrMissing.String()})
 	if diff := gcmp.Diff(wantValue, gotValue, ctydebug.CmpOptions); diff != "" {
 		t.Errorf("wrong result for %s: %s", resourceInstAddr, diff)
@@ -158,13 +161,13 @@ func TestCompiler_resourceInstanceBasics(t *testing.T) {
 	var wg sync.WaitGroup
 	diagsCh := make(chan tfdiags.Diagnostics, 1)
 	wg.Go(func() {
-		diagsCh <- compiledGraph.Execute(t.Context())
+		diagsCh <- compiledGraph.Execute(ctx)
 		close(diagsCh)
 	})
 
 	wg.Wait()
 
-	gotValue = compiledGraph.ResourceInstanceValue(grapheval.ContextWithNewWorker(t.Context()), resourceInstAddr)
+	gotValue = compiledGraph.ResourceInstanceValue(grapheval.ContextWithNewWorker(ctx), resourceInstAddr)
 	wantValue = cty.ObjectVal(map[string]cty.Value{
 		"name": cty.StringVal("thingy"),
 	})

@@ -27,7 +27,6 @@ type PlanningOracle struct {
 
 func (o *PlanningOracle) CheckTarget(ctx context.Context, target addrs.Targetable) {
 	ctx = grapheval.ContextWithNewWorker(ctx)
-	ctx = grapheval.ContextWithRequestTracker(ctx, workgraphRequestTracker{o.root})
 
 	addTarget := func(ri *configgraph.ResourceInstance) {
 		// Populate the value before the glue disables itself for the rest of processing
@@ -80,7 +79,7 @@ func (o *PlanningOracle) CheckAll(ctx context.Context) tfdiags.Diagnostics {
 	// it'll cause various calls out to the "glue" object whenever we're
 	// ready to provide configuration for a resource instance and need to
 	// obtain its result for downstream use.
-	return checkAll(ctx, o.root)
+	return o.root.CheckAll(ctx)
 }
 
 func (o *PlanningOracle) PlanningResult(ctx context.Context) *PlanningResult {

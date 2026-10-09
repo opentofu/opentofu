@@ -621,28 +621,12 @@ func (p *planGlue) configuredResourceInstanceObjectMeta(ctx context.Context, add
 	}
 	p.rioMetaConfigMu.Unlock()
 
-	// FIXME: The workgraph requests embedded in the grapheval.Once objects
-	// we're creating here aren't currently visible to the
-	// [grapheval.RequestTracker] that's active during planning, because that
-	// lives inside the eval package instead of here in the planning engine.
-	// This situation already arose for the applying engine which uses
-	// workgraph directly to manage execution graph processing, and so it
-	// seems like the appropriate design is for each engine to be in charge
-	// of its own [grapheval.RequestTracker] implementation and delegate to
-	// helpers in eval as necessary, so that they can both report their own
-	// requests _and_ the evaluator's requests together when needed.
-	//
-	// Once that's done we should have the planning engine's request tracker
-	// report a name like "metadata for <object-address>" for each element
-	// of p.rioMetaConfigOnce and then that'll show up in the chain of
-	// requests when we report a self-dependency problem to the user.
-
 	// We intentionally discard the diagnostics here because we assume that
 	// any problems this could return would also be reported through other parts
 	// of the "CheckAll" process that drives the planning engine forward.
 	oracle := p.oracle
 	ret, _ := once.Do(ctx, func(ctx context.Context) ([]eval.ModuleConfiguredResourceInstanceObjectMeta, tfdiags.Diagnostics) {
 		return oracle.ResourceInstanceObjectMeta(ctx, addr), nil
-	})
+	}, nil, "Metadata of %s", addr)
 	return ret
 }

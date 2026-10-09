@@ -58,9 +58,19 @@ func ContextWithRequestTracker(parent context.Context, tracker RequestTracker) c
 func RequestTrackerFromContext(ctx context.Context) RequestTracker {
 	tracker, ok := ctx.Value(trackerContextKey).(RequestTracker)
 	if !ok {
-		return nil
+		panic("RequestTracker not in Context, this is a bug in OpenTofu and should be reported")
 	}
 	return tracker
+}
+
+func ReportRequestInContext(ctx context.Context, reqID workgraph.RequestID, info RequestInfoFunc) {
+	if reqID == workgraph.NoRequest {
+		panic("Recording request that has not yet started")
+	}
+	tracker := RequestTrackerFromContext(ctx)
+	if tracker != nil {
+		tracker.AddRequest(reqID, info)
+	}
 }
 
 type contextKey rune
