@@ -64,7 +64,19 @@ func commandMain(
 		// Inject the version subcommand, this is a
 		// odd legacy hack to match the old cli.
 		subcommand = "version"
-		args = append([]string{subcommand}, args...)
+		// extract the chdir if specified to be injected in front of the 'version' subcommand
+		chdirVal, otherArgs, err := extractChdirOption(args)
+		if err != nil {
+			rv.Error(err.Error())
+			return 1
+		}
+		var newArgs []string
+		if chdirArg != "" {
+			newArgs = append(newArgs, fmt.Sprintf("-chdir=%s", chdirVal))
+		}
+		newArgs = append(newArgs, subcommand)
+		newArgs = append(newArgs, otherArgs...)
+		args = newArgs
 	}
 	args, err := mergeEnvArgs(EnvCLI, subcommand, args)
 	if err != nil {
@@ -358,4 +370,57 @@ func checkAndRunCompletion(root *command.Command) bool {
 		return true
 	}
 	return false
+}
+
+// extractChdirOption extracts the -chdir flag together with the associated flag value, from the given args,
+// if any provided.
+//
+// It returns back the list of arguments without the -chdir flag and value to be used later by the invoked command.
+// This returns also an error in case the -chdir flag is given with the wrong values.
+//
+// This is a function inherited from the old CLI implementation but it's used here because the
+func extractChdirOption(args []string) (string, []string, error) {
+	if len(args) == 0 {
+		return "", args, nil
+	}
+
+	const argName = "-chdir"
+	const argPrefix = argName + "="
+	var argValue string
+	var argPos int
+
+	for i, arg := range args {
+		if !strings.HasPrefix(arg, "-") {
+			// Because the chdir option is a subcommand-agnostic one, we require
+			// it to appear before any subcommand argument, so if we find a
+			// non-option before we find -chdir then we are finished.
+			break
+		}
+		if arg == argName || arg == argPrefix {
+			return "", args, fmt.Errorf("must include an equals sign followed by a directory path, like -chdir=example")
+		}
+		if strings.HasPrefix(arg, argPrefix) {
+			argPos = i
+			argValue = arg[len(argPrefix):]
+		}
+	}
+
+	// When we fall out here, we'll have populated argValue with a non-empty
+	// string if the -chdir=... option was present and valid, or left it
+	// empty if it wasn't present.
+	if argValue == "" {
+		return "", args, nil
+	}
+
+	// If we did find the option then we'll need to produce a new args that
+	// doesn't include it anymore.
+	if argPos == 0 {
+		// Easy case: we can just slice off the front
+		return argValue, args[1:], nil
+	}
+	// Otherwise we need to construct a new array and copy to it.
+	newArgs := make([]string, len(args)-1)
+	copy(newArgs, args[:argPos])
+	copy(newArgs[argPos:], args[argPos+1:])
+	return argValue, newArgs, nil
 }
