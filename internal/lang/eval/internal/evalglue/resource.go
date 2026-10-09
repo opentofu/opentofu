@@ -12,15 +12,35 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
+	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/resources"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
+
+type ConfiguredResourceStatus int
+
+const (
+	ConfiguredResourceStatusMissing ConfiguredResourceStatus = iota
+	ConfiguredResourceStatusModule
+	ConfiguredResourceStatusResource
+	ConfiguredResourceStatusResourceInstance
+)
+
+func (m *ConfiguredResourceInstanceObjectMeta) HasResource() bool {
+	return m.Status >= ConfiguredResourceStatusResource
+}
+func (m *ConfiguredResourceInstanceObjectMeta) HasResourceInstance() bool {
+	return m.Status == ConfiguredResourceStatusResourceInstance
+}
 
 // ConfiguredResourceInstanceObjectMeta is the true internal name of what
 // external packages know as [eval.ConfiguredResourceInstanceObjectMeta],
 // defined here to avoid import cycles when this is used by language edition
 // and configgraph code.
 type ConfiguredResourceInstanceObjectMeta struct {
+	// Defaults to Missing
+	Status ConfiguredResourceStatus
+
 	// Provider, ResourceMode, and ResourceType together identify a specific
 	// resource type in the terms expected by the provider.
 	//
@@ -39,10 +59,10 @@ type ConfiguredResourceInstanceObjectMeta struct {
 	// this object is currently configured to belong to.
 	//
 	// This value is unknown if the configured selection is derived from
-	// an unknown value, or nil if there is no configured selection at all. In
-	// the absence of a configured selection, callers should probably try to
-	// fall back to a selection from the prior state instead.
-	ProviderInstance exprs.FromValue[*addrs.AbsProviderInstanceCorrect]
+	// an unknown value. In the absence of a configured selection, callers
+	// should probably try to fall back to a selection from the prior state
+	// instead.
+	ProviderInstance exprs.FromValue[addrs.AbsProviderInstanceCorrect]
 
 	// ReplaceOrder describes the configured constraint on what order the
 	// create and delete steps of a  "replace" action for this resource instance
@@ -92,6 +112,10 @@ type ConfiguredResourceInstanceObjectMeta struct {
 	// These fields are relevant only for managed resource mode and their
 	// content is unspecified for other resource modes.
 	PostCreateProvisioners, PreDestroyProvisioners []*ResourceProvisioner
+
+	// MoveStatements are any move statements that may be applicable to this
+	// resource instance.
+	MoveStatements []refactoring.MoveStatement
 }
 
 // ResourceProvisioner represents a single provisioner configured for a

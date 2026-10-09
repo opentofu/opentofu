@@ -175,13 +175,7 @@ type ApplyOracle struct {
 // the configuration, which would then include any errors related to with the
 // metadata settings.
 func (o *ApplyOracle) ResourceInstanceObjectMeta(ctx context.Context, addr addrs.AbsResourceInstanceObject) *ConfiguredResourceInstanceObjectMeta {
-	moduleInst := evalglue.ModuleInstance(ctx, o.root, addr.InstanceAddr.Module)
-	if moduleInst == nil {
-		// The relevant module instance is not currently configured at all,
-		// so the caller will need to rely on the state exclusively for this one.
-		return nil
-	}
-	return moduleInst.ResourceInstanceObjectMeta(ctx, addr.ModuleRelative())
+	return o.root.ResourceInstanceObjectMeta(ctx, addr)
 }
 
 // DesiredResourceInstance returns the [DesiredResourceInstance] object

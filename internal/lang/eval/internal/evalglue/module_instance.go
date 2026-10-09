@@ -16,7 +16,6 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
-	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -108,7 +107,7 @@ type CompiledModuleInstance interface {
 	// sources of metadata you probably shouldn't be using the result of this
 	// method directly. Use higher-level wrappers in the planning and applying
 	// engines instead.
-	ResourceInstanceObjectMeta(ctx context.Context, addr addrs.ResourceInstanceObject) *ConfiguredResourceInstanceObjectMeta
+	ResourceInstanceObjectMeta(ctx context.Context, addr addrs.AbsResourceInstanceObject) *ConfiguredResourceInstanceObjectMeta
 
 	// ChildModuleCalls returns a sequence of addresses of all of the module
 	// calls that are declared in this module instance.
@@ -216,10 +215,6 @@ type CompiledModuleInstance interface {
 	// range to use to describe each of the requests that were involved in the
 	// problem.
 	AnnounceAllGraphevalRequests(announce func(workgraph.RequestID, grapheval.RequestInfo))
-
-	// GetMoveStatementsFor obtains the move statements for this module and the child module
-	// if specified by the given address.
-	GetMoveStatementsFor(ctx context.Context, addr addrs.Module) []refactoring.MoveStatement
 }
 
 // ModuleInstance finds the [CompiledModuleInstance] representation of the

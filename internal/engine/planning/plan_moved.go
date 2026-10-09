@@ -64,15 +64,14 @@ func (m *moveStep) isImplicit() bool {
 func (p *planGlue) locateMovesFor(ctx context.Context, addr addrs.AbsResourceInstance, configToState bool, implicit func(addr addrs.AbsResourceInstance) *refactoring.MoveStatement) ([]*moveStep, tfdiags.Diagnostics) {
 	// Build simple lookup for move statements that have spidering traversals
 	// TODO this cache could live in planContext
-	moveStatementsCache := map[string][]refactoring.MoveStatement{}
+	moveStatementsCache := addrs.MakeMap[addrs.AbsResourceInstance, []refactoring.MoveStatement]()
 	getMoveStatementsFor := func(addr addrs.AbsResourceInstance) []refactoring.MoveStatement {
-		mod := addr.Module.Module()
-		key := mod.String()
-		statements, ok := moveStatementsCache[key]
+		statements, ok := moveStatementsCache.GetOk(addr)
 		if !ok {
 			// TODO replace with with resource config meta (tricky with orphans)
-			statements = p.oracle.MoveStatementsFor(ctx, mod)
-			moveStatementsCache[key] = statements
+			meta := p.oracle.ResourceInstanceObjectMeta(ctx, addr.CurrentObject())
+			statements = meta.MoveStatements
+			moveStatementsCache.Put(addr, statements)
 		}
 		iMove := implicit(addr)
 		if iMove != nil {
