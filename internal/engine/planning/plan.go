@@ -15,6 +15,7 @@ import (
 	"github.com/opentofu/opentofu/internal/collections"
 	"github.com/opentofu/opentofu/internal/engine/plugins"
 	"github.com/opentofu/opentofu/internal/lang/eval"
+	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/plans"
@@ -55,6 +56,11 @@ func PlanChanges(ctx context.Context, opts *PlanOpts, prevRoundState *states.Sta
 	// We'll make the "shared" tracer also available to everything we call.
 	tracer := contextTracer(ctx)
 	ctx = shared.ContextWithTracer(ctx, &tracer.Tracer)
+
+	// If the grapheval package detects a self-dependency problem during
+	// evaluation then it'll use this tracker to find human-friendly names
+	// for all of the requests involved in the error.
+	ctx = grapheval.ContextWithRequestTracker(ctx, grapheval.NewRequestTracker())
 
 	switch opts.Mode {
 	case plans.NormalMode:

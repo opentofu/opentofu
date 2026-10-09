@@ -146,7 +146,13 @@ func (c *compiler) Compile() (*CompiledGraph, tfdiags.Diagnostics) {
 			resolver := opResolvers[opIdx]
 			worker := workgraph.NewWorker(resolver)
 			ctx := grapheval.ContextWithWorker(parentCtx, worker)
-			trackWorkgraphRequest(ctx, opIdx, resolver.RequestID())
+
+			grapheval.ReportRequestInContext(ctx, resolver.RequestID(), func() grapheval.RequestInfo {
+				return grapheval.RequestInfo{
+					Name: "internal operation: " + c.sourceGraph.operationDebugSummary(opDesc),
+				}
+			})
+
 			ret, ok, diags := mainExec(ctx)
 			// Resolving the promise might allow dependent operations to begin.
 			resolver.ReportSuccess(worker, nodeResultRaw{

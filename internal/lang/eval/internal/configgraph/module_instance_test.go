@@ -23,6 +23,8 @@ func TestModuleInstance_Value(t *testing.T) {
 		ProviderAddr: addrs.NewBuiltInProvider("test"),
 	}
 
+	testAddr := addrs.ModuleInstance{{Name: "for_testing"}}
+
 	testValuer(t, map[string]valuerTest[*ModuleInstance]{
 		"no output values": {
 			&ModuleInstance{
@@ -37,7 +39,7 @@ func TestModuleInstance_Value(t *testing.T) {
 					{Name: "string"}:       cty.StringVal("hello"),
 					{Name: "number"}:       cty.Zero,
 					{Name: "unknown_list"}: cty.UnknownVal(cty.List(cty.String)),
-				}),
+				}, "Outputs %s", testAddr),
 			},
 			cty.ObjectVal(map[string]cty.Value{
 				"string":       cty.StringVal("hello"),
@@ -59,7 +61,7 @@ func TestModuleInstance_Value(t *testing.T) {
 					{Name: "list"}: cty.UnknownVal(cty.List(cty.String)).Refine().
 						CollectionLength(4).
 						NewValue(),
-				}),
+				}, "Outputs %s", testAddr),
 			},
 			cty.ObjectVal(map[string]cty.Value{
 				"string": cty.UnknownVal(cty.String).Refine().
@@ -81,7 +83,7 @@ func TestModuleInstance_Value(t *testing.T) {
 					{Name: "sensitive"}:              cty.StringVal("boop").Mark(marks.Sensitive),
 					{Name: "from_resource_instance"}: cty.StringVal("beep").Mark(ResourceInstanceMark{resourceInstancePlaceholder}),
 					{Name: "eval_error"}:             exprs.AsEvalError(cty.StringVal("oops")),
-				}),
+				}, "Outputs %s", testAddr),
 			},
 			cty.ObjectVal(map[string]cty.Value{
 				"sensitive":              cty.StringVal("boop").Mark(marks.Sensitive),
@@ -94,7 +96,7 @@ func TestModuleInstance_Value(t *testing.T) {
 			&ModuleInstance{
 				OutputValuers: constantOnceValuerMap(map[addrs.OutputValue]cty.Value{
 					{Name: "provider_inst"}: ProviderInstanceRefValue(providerInstancePlaceholder),
-				}),
+				}, "Outputs %s", testAddr),
 			},
 			cty.ObjectVal(map[string]cty.Value{
 				"provider_inst": ProviderInstanceRefValue(providerInstancePlaceholder),

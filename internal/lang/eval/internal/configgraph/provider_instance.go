@@ -9,7 +9,6 @@ import (
 	"context"
 	"iter"
 
-	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
@@ -117,7 +116,7 @@ func (p *ProviderInstance) ConfigValue(ctx context.Context) (cty.Value, tfdiags.
 			return cty.DynamicVal, diags
 		}
 		return v, diags
-	})
+	}, p.ConfigValuer.ValueSourceRange(), "Configured Value for %s", p.Addr)
 }
 
 // ResourceInstanceDependencies returns a sequence of any resource instances
@@ -162,11 +161,4 @@ func (p *ProviderInstance) CheckAll(ctx context.Context) tfdiags.Diagnostics {
 		return diags
 	})
 	return cg.Complete(ctx)
-}
-
-func (p *ProviderInstance) AnnounceAllGraphevalRequests(announce func(workgraph.RequestID, grapheval.RequestInfo)) {
-	announce(p.ConfigValuer.RequestID(), grapheval.RequestInfo{
-		Name:        p.Addr.String() + " configuration",
-		SourceRange: p.ConfigValuer.ValueSourceRange(),
-	})
 }

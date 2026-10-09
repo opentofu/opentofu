@@ -8,7 +8,6 @@ package configgraph
 import (
 	"context"
 
-	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 
@@ -116,7 +115,7 @@ func (m *ModuleCallInstance) InputsValue(ctx context.Context) (cty.Value, tfdiag
 			return cty.DynamicVal, diags
 		}
 		return inputsVal, diags
-	})
+	}, m.InputsValuer.ValueSourceRange(), "Input values of %s", m.ModuleInstanceAddr)
 }
 
 // Value implements exprs.Valuer.
@@ -154,11 +153,4 @@ func (m *ModuleCallInstance) CheckAll(ctx context.Context) tfdiags.Diagnostics {
 	var cg CheckGroup
 	cg.CheckValuer(ctx, m)
 	return cg.Complete(ctx)
-}
-
-func (m *ModuleCallInstance) AnnounceAllGraphevalRequests(announce func(workgraph.RequestID, grapheval.RequestInfo)) {
-	announce(m.InputsValuer.RequestID(), grapheval.RequestInfo{
-		Name:        m.ModuleInstanceAddr.String() + " input variable values",
-		SourceRange: m.InputsValuer.ValueSourceRange(),
-	})
 }

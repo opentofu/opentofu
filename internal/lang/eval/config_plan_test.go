@@ -21,6 +21,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
+	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/plans/objchange"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -32,7 +33,10 @@ import (
 
 // Simulate the same steps the planning engine takes
 func planEngineSimulator(t *testing.T, configInst *eval.ConfigInstance, logGlue *planGlueCallLog) (map[string]cty.Value, tfdiags.Diagnostics) {
-	oracle, ctx, diags := configInst.BuildPlanningOracle(t.Context(), logGlue)
+	ctx := t.Context()
+	ctx = grapheval.ContextWithRequestTracker(ctx, grapheval.NewRequestTracker())
+
+	oracle, ctx, diags := configInst.BuildPlanningOracle(ctx, logGlue)
 	if diags.HasErrors() {
 		return nil, diags
 	}

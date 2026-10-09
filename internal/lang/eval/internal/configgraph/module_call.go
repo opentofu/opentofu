@@ -14,7 +14,6 @@ import (
 	"strings"
 
 	"github.com/apparentlymart/go-versions/versions"
-	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/convert"
@@ -279,7 +278,7 @@ func (c *ModuleCall) decideInstances(ctx context.Context) (*compiledInstances[*M
 		return compileInstances(ctx, c.InstanceSelector, func(ctx context.Context, key addrs.InstanceKey, repData instances.RepetitionData) *ModuleCallInstance {
 			return c.CompileCallInstance(ctx, sourceArgs, key, repData)
 		})
-	})
+	}, &c.DeclRange, "Decide instances of %s", c.Addr)
 }
 
 // StaticCheckTraversal implements exprs.Valuer.
@@ -347,35 +346,6 @@ func (c *ModuleCall) CheckAll(ctx context.Context) tfdiags.Diagnostics {
 	// This is where an invalid for_each expression would be reported.
 	cg.CheckValuer(ctx, c)
 	return cg.Complete(ctx)
-}
-
-func (c *ModuleCall) AnnounceAllGraphevalRequests(announce func(workgraph.RequestID, grapheval.RequestInfo)) {
-	announce(c.SourceAddrValuer.RequestID(), grapheval.RequestInfo{
-		Name:        c.Addr.String() + " source address",
-		SourceRange: c.SourceAddrValuer.ValueSourceRange(),
-	})
-	announce(c.VersionConstraintValuer.RequestID(), grapheval.RequestInfo{
-		Name:        c.Addr.String() + " version constraint",
-		SourceRange: c.VersionConstraintValuer.ValueSourceRange(),
-	})
-
-	// There might be other grapheval requests in our dynamic instances, but
-	// they are hidden behind another request themselves so we'll try to
-	// report them only if that request was already started.
-	instancesReqId := c.instancesResult.RequestID()
-	if instancesReqId == workgraph.NoRequest {
-		return
-	}
-	announce(instancesReqId, grapheval.RequestInfo{
-		Name:        fmt.Sprintf("decide instances for %s", c.Addr),
-		SourceRange: c.InstanceSelector.InstancesSourceRange(),
-	})
-	// The Instances method potentially starts a new request, but we already
-	// confirmed above that this request was already started and so we
-	// can safely just await its result here.
-	for _, inst := range c.Instances(grapheval.ContextWithNewWorker(context.Background())) {
-		inst.AnnounceAllGraphevalRequests(announce)
-	}
 }
 
 // decodeModuleCallSourceArgumentString deals with the various requirements

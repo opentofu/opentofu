@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/ext/typeexpr"
 	"github.com/zclconf/go-cty/cty"
@@ -19,7 +18,6 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
-	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -156,17 +154,4 @@ func (o *OutputValue) CheckAll(ctx context.Context) tfdiags.Diagnostics {
 	// including the preconditions.
 	cg.CheckValuer(ctx, o)
 	return cg.Complete(ctx)
-}
-
-func (o *OutputValue) AnnounceAllGraphevalRequests(announce func(workgraph.RequestID, grapheval.RequestInfo)) {
-	announce(o.RawValue.RequestID(), grapheval.RequestInfo{
-		// FIXME: Have the "compiler" in package eval put an
-		// addrs.AbsOutputValue in here so we can generate a useful name.
-		Name:        o.Addr.String(),
-		SourceRange: o.RawValue.ValueSourceRange(),
-	})
-	// FIXME: This doesn't currently cover any of the preconditions because
-	// we're not currently using a distinct workgraph request for each of
-	// those. Should our Value method be evaluating those through a
-	// grapheval.Once so that they can have their own RequestInfo values?
 }

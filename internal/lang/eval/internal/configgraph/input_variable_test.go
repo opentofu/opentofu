@@ -21,10 +21,11 @@ import (
 )
 
 func TestInputVariable_Value(t *testing.T) {
+	testAddr := addrs.InputVariable{}
 	testValuer(t, map[string]valuerTest[*InputVariable]{
 		"no constraints whatsoever": {
 			&InputVariable{
-				RawValue:   constantOnceValuer(cty.StringVal("Hello, world!")),
+				RawValue:   constantOnceValuer(cty.StringVal("Hello, world!"), "RawValue %s", testAddr),
 				TargetType: cty.DynamicPseudoType, // like "type = any" in the surface language
 			},
 			cty.StringVal("Hello, world!"),
@@ -32,7 +33,7 @@ func TestInputVariable_Value(t *testing.T) {
 		},
 		"valid type conversion": {
 			&InputVariable{
-				RawValue:   constantOnceValuer(cty.True),
+				RawValue:   constantOnceValuer(cty.True, "RawValue %s", testAddr),
 				TargetType: cty.String,
 			},
 			cty.StringVal("true"),
@@ -41,7 +42,7 @@ func TestInputVariable_Value(t *testing.T) {
 		"invalid type conversion": {
 			&InputVariable{
 				Addr:       addrs.InputVariable{Name: "foo"}.Absolute(addrs.RootModuleInstance),
-				RawValue:   constantOnceValuerWithSource(cty.EmptyObjectVal, tfdiags.SourceRange{Filename: "test.tf"}),
+				RawValue:   constantOnceValuerWithSource(cty.EmptyObjectVal, tfdiags.SourceRange{Filename: "test.tf"}, "RawValue %s", testAddr),
 				TargetType: cty.String,
 			},
 			exprs.AsEvalError(cty.UnknownVal(cty.String)),
@@ -54,7 +55,7 @@ func TestInputVariable_Value(t *testing.T) {
 		},
 		"object type with optional attributes": {
 			&InputVariable{
-				RawValue: constantOnceValuer(cty.EmptyObjectVal),
+				RawValue: constantOnceValuer(cty.EmptyObjectVal, "RawValue %s", testAddr),
 				TargetType: cty.ObjectWithOptionalAttrs(map[string]cty.Type{
 					"a": cty.String,
 					"b": cty.Bool,
@@ -78,7 +79,7 @@ func TestInputVariable_Value(t *testing.T) {
 		"failing custom validation rule": {
 			&InputVariable{
 				Addr:       addrs.InputVariable{Name: "foo"}.Absolute(addrs.RootModuleInstance),
-				RawValue:   constantOnceValuerWithSource(cty.EmptyObjectVal, tfdiags.SourceRange{Filename: "parent.tf"}),
+				RawValue:   constantOnceValuerWithSource(cty.EmptyObjectVal, tfdiags.SourceRange{Filename: "parent.tf"}, "RawValue %s", testAddr),
 				TargetType: cty.EmptyObject,
 				CompileValidationRules: func(ctx context.Context, value cty.Value) iter.Seq[*CheckRule] {
 					return func(yield func(*CheckRule) bool) {
@@ -86,11 +87,11 @@ func TestInputVariable_Value(t *testing.T) {
 							// Marks from the condition should carry over to the result
 							// because the condition was used in the decision for whether
 							// to let the value pass through or not.
-							ConditionValuer: constantOnceValuer(cty.False.Mark("beep boop")),
+							ConditionValuer: constantOnceValuer(cty.False.Mark("beep boop"), "ValidationCondition %s", testAddr),
 							// Marks from the error message DO NOT carry over, because they
 							// are used only in the error message when things fail, and not
 							// as part of the decision.
-							ErrorMessageValuer: constantOnceValuer(cty.StringVal(fmt.Sprintf("The value was %#v.", value)).Mark("oh no")),
+							ErrorMessageValuer: constantOnceValuer(cty.StringVal(fmt.Sprintf("The value was %#v.", value)).Mark("oh no"), "ValidationError %s", testAddr),
 							DeclSourceRange:    tfdiags.SourceRange{Filename: "child.tf"},
 						})
 					}
@@ -114,7 +115,7 @@ This problem was reported by the validation rule at child.tf:0,0.`,
 		"passing custom validation rule": {
 			&InputVariable{
 				Addr:       addrs.InputVariable{Name: "foo"}.Absolute(addrs.RootModuleInstance),
-				RawValue:   constantOnceValuerWithSource(cty.EmptyObjectVal, tfdiags.SourceRange{Filename: "parent.tf"}),
+				RawValue:   constantOnceValuerWithSource(cty.EmptyObjectVal, tfdiags.SourceRange{Filename: "parent.tf"}, "RawValue %s", testAddr),
 				TargetType: cty.EmptyObject,
 				CompileValidationRules: func(ctx context.Context, value cty.Value) iter.Seq[*CheckRule] {
 					return func(yield func(*CheckRule) bool) {
@@ -122,11 +123,11 @@ This problem was reported by the validation rule at child.tf:0,0.`,
 							// Marks from the condition should carry over to the result
 							// because the condition was used in the decision for whether
 							// to let the value pass through or not.
-							ConditionValuer: constantOnceValuer(cty.True.Mark("beep boop")),
+							ConditionValuer: constantOnceValuer(cty.True.Mark("beep boop"), "ValidationCondition %s", testAddr),
 							// Marks from the error message DO NOT carry over, because they
 							// are used only in the error message when things fail, and not
 							// as part of the decision.
-							ErrorMessageValuer: constantOnceValuer(cty.StringVal(fmt.Sprintf("The value was %#v.", value)).Mark("oh no")),
+							ErrorMessageValuer: constantOnceValuer(cty.StringVal(fmt.Sprintf("The value was %#v.", value)).Mark("oh no"), "ValidationError %s", testAddr),
 							DeclSourceRange:    tfdiags.SourceRange{Filename: "child.tf"},
 						})
 					}

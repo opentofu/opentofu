@@ -9,13 +9,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
-	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -125,21 +123,4 @@ func (m *ModuleInstance) ValueSourceRange() *tfdiags.SourceRange {
 // doing something in future.
 func (m *ModuleInstance) CheckAll(ctx context.Context) tfdiags.Diagnostics {
 	return nil
-}
-
-// AnnounceAllGraphevalRequests calls announce for each [grapheval.Once],
-// [OnceValuer], or other [workgraph.RequestID] anywhere in the tree under this
-// object.
-//
-// This is used only when [workgraph] detects a self-dependency or failure to
-// resolve and we want to find a nice human-friendly name and optional source
-// range to use to describe each of the requests that were involved in the
-// problem.
-func (m *ModuleInstance) AnnounceAllGraphevalRequests(announce func(workgraph.RequestID, grapheval.RequestInfo)) {
-	for addr, valuer := range m.OutputValuers {
-		announce(valuer.RequestID(), grapheval.RequestInfo{
-			Name:        fmt.Sprintf("%s value for %s", m.Addr, addr),
-			SourceRange: m.ValueSourceRange(),
-		})
-	}
 }
