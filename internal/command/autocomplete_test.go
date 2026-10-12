@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/command/workdir"
-	"github.com/posener/complete"
 )
 
 func TestMetaCompletePredictWorkspaceName(t *testing.T) {
@@ -32,11 +31,8 @@ func TestMetaCompletePredictWorkspaceName(t *testing.T) {
 		View:       view,
 	}
 
-	predictor := meta.completePredictWorkspaceName(t.Context())
+	got := meta.completePredictWorkspaceName(t.Context())
 
-	got := predictor.Predict(complete.Args{
-		Last: "",
-	})
 	want := []string{"default"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("wrong result\ngot:  %#v\nwant: %#v", got, want)
