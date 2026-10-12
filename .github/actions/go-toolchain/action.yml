@@ -1,0 +1,49 @@
+# This is a shared GitHub Action we use across all of our jobs that run Go
+# toolchain commands in the root of the repository, using the main go.mod/go.sum.
+#
+# DO NOT USE THIS WHEN YOU INTEND TO USE GO TOOLCHAIN COMMANDS IN A DIFFERENT
+# MODULE DIRECTORY -- that'll end up putting the wrong entries in the module
+# cache and thus make the cache ineffective.
+#
+# This is written under the assumption that all of the GitHub Actions worker
+# images we use have at least one version of Go preinstalled in the tool cache
+# and that it'll be Go 1.21 or later so it's capable of automatically installing
+# and delegating to whatever version is currently specified in our go.mod file.
+# The goal is to do this in a way that's as similar as possible to how we'd
+# do it locally in our dev environments, aside from relying on a preinstalled
+# Go toolchain to get started with instead of explicitly installing one.
+
+name: "Install Go Toolchain"
+runs:
+  using: "composite"
+  steps:
+    - name: "Find pre-cached Go toolchain in worker image"
+      shell: bash
+      # We're forcing bash here to make this compatible across all of the OSes
+      # we run tests on, but despite that note that macOS has an ancient version
+      # of bash and relatively-incapable versions of most typical Unix tools
+      # and so we can't rely on anything added to these tools in the last
+      # few decades.
+      run: |
+        export RUNNER_ARCH_LOWER=$(echo "$RUNNER_ARCH" | tr '[:upper:]' '[:lower:]')
+        export INITIAL_GO_TOOLCHAIN_VERSION=$(ls "${RUNNER_TOOL_CACHE}/go/" | sort -V | tail -1)
+        echo "Using ${INITIAL_GO_TOOLCHAIN_VERSION} as our initial toolchain, which we'll use only to access the toolchain we actually want."
+        export INITIAL_GO_TOOLCHAIN_DIR="${RUNNER_TOOL_CACHE}/go/${INITIAL_GO_TOOLCHAIN_VERSION}/${RUNNER_ARCH_LOWER}/bin"
+        echo "${INITIAL_GO_TOOLCHAIN_DIR}" >> "${GITHUB_PATH}"
+        mkdir "${RUNNER_TEMP}/go-modules"
+        echo "GOMODCACHE=${RUNNER_TEMP}/go-modules" >> "${GITHUB_ENV}"
+
+    - name: "Go module cache"
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: "${{ runner.temp }}/go-modules"
+        key: "${{ runner.os }}-gomodcache-${{ hashFiles('**/go.mod') }}-${{ hashFiles('**/go.sum') }}"
+        restore-keys: |
+          ${{ runner.os }}-gomodcache-
+
+    # Running "go" commands after this should cause the "initial" toolchain
+    # to check go.mod and find out which toolchain we actually wanted to use,
+    # and then it'll try to use it from the module cache, installing it into
+    # the module cache if it wasn't already there, and then run _that_ toolchain
+    # instead. Future runs should then find the toolchain already in the updated
+    # cache and so skip installing it again.
