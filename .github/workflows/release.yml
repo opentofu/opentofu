@@ -75,10 +75,8 @@ jobs:
             exit 1
           fi
 
-      - name: Set up Go
-        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
-        with:
-          go-version-file: 'go.mod'
+      - name: "Configure Go toolchain"
+        uses: ./.github/actions/go-toolchain
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@6524bf65af31da8d45b59e8c27de4bd072b392f5 # v3.8.0
