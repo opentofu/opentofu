@@ -615,11 +615,10 @@ func (p *planGlue) planOrphanManagedResourceInstance(
 
 func (p *planGlue) planDeposedManagedResourceInstanceObject(
 	ctx context.Context,
-	addr addrs.AbsResourceInstance,
-	deposedKey states.DeposedKey,
+	addr addrs.AbsResourceInstanceObject,
 	stateSrc *states.ResourceInstanceObjectFullSrc,
 ) (*resourceInstanceObject, tfdiags.Diagnostics) {
-	return p.planUnwantedManagedResourceInstanceObject(ctx, addr.Object(deposedKey), stateSrc)
+	return p.planUnwantedManagedResourceInstanceObject(ctx, addr, stateSrc)
 }
 
 func (p *planGlue) planUnwantedManagedResourceInstanceObject(

@@ -82,6 +82,7 @@ func (o *OutputValue) StaticCheckTraversal(traversal hcl.Traversal) tfdiags.Diag
 
 // Value implements exprs.Valuer.
 func (o *OutputValue) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+	ctx = withDebugAddr(ctx, o.Addr, "Value")
 	var diags tfdiags.Diagnostics
 
 	// The preconditions "guard" the evaluation of the output value's

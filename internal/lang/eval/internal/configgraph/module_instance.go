@@ -94,6 +94,7 @@ func (m *ModuleInstance) StaticCheckTraversal(traversal hcl.Traversal) tfdiags.D
 
 // Value implements exprs.Valuer.
 func (m *ModuleInstance) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+	ctx = withDebugAddr(ctx, m.Addr, "Value")
 	// The following is mechanically similar to evaluating an object constructor
 	// expression gathering all of the output value results into a single
 	// object, but because we're not using the expression evaluator to do it

@@ -93,6 +93,7 @@ func (m *ModuleCallInstance) StaticCheckTraversal(traversal hcl.Traversal) tfdia
 // Glue field, after indirection through whatever the compilation layer does
 // to compile and evaluate the child module instance.
 func (m *ModuleCallInstance) InputsValue(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+	ctx = withDebugAddr(ctx, m.ModuleInstanceAddr, "InputsValue")
 	// We perform the config validation in a [grapheval.Once] so that we
 	// can coalesce around a single call to m.Glue.ValidateInputs, which is
 	// likely to cause a provider RPC request.
@@ -120,6 +121,7 @@ func (m *ModuleCallInstance) InputsValue(ctx context.Context) (cty.Value, tfdiag
 
 // Value implements exprs.Valuer.
 func (m *ModuleCallInstance) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+	ctx = withDebugAddr(ctx, m.ModuleInstanceAddr, "Value")
 	// The actual result value is decided by our caller, which is expected
 	// to know how to actually find, compile, and evaluate the target module.
 	//

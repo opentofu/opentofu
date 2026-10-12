@@ -41,6 +41,11 @@ type planContext struct {
 	// current experiment we'll just keep this boolean for now.
 	deferred addrs.Map[addrs.AbsResourceInstance, struct{}]
 
+	// TODO once deferred is fully functional, we might be able to use that
+	// combined with resourceInstanceObjs to replace these fields
+	desiredMu sync.Mutex
+	desired   addrs.Set[addrs.AbsResourceInstance]
+
 	forceReplace []addrs.AbsResourceInstance
 
 	moveMu          sync.Mutex
@@ -76,6 +81,7 @@ func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, pro
 		evalCtx:          evalCtx,
 		resourceInstObjs: newResourceInstanceObjectsBuilder(),
 		deferred:         addrs.MakeMap[addrs.AbsResourceInstance, struct{}](),
+		desired:          addrs.MakeSet[addrs.AbsResourceInstance](),
 		forceReplace:     opts.ForceReplace,
 		recordedMoves:    addrs.MakeMap[addrs.AbsResourceInstance, addrs.AbsResourceInstance](),
 		configuredMoves:  addrs.MakeMap[addrs.AbsResourceInstance, []*moveStep](),
@@ -126,11 +132,15 @@ type planContextResult struct {
 // Handle "prevent_destroy" arguments once the changes have been built,
 // generating error diagnostics for anything that is proposed for deletion
 // when deletion is prohibited.
-func (p *planContextResult) CheckPreventDestroy(ctx context.Context, oracle *eval.PlanningOracle) tfdiags.Diagnostics {
+func (p *planContext) CheckPreventDestroy(ctx context.Context, oracle *eval.PlanningOracle) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 	const errSummary = "Invalid value for prevent_destroy"
 
-	for objAddr, obj := range p.ResourceInstanceObjects.All() {
+	// This access to resourceInstObjs is not ideal here, but is the only way to do this
+	// TODO re-work this function contents to be integrated into building the plan instead of a post-processing step
+	p.resourceInstObjs.mu.Lock()
+	defer p.resourceInstObjs.mu.Unlock()
+	for objAddr, obj := range p.resourceInstObjs.result.All() {
 		change := obj.PlannedChange
 
 		if change == nil {

@@ -81,6 +81,7 @@ func (i *InputVariable) StaticCheckTraversal(traversal hcl.Traversal) tfdiags.Di
 
 // Value implements exprs.Valuer.
 func (i *InputVariable) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+	ctx = withDebugAddr(ctx, i.Addr, "Value")
 	var diags tfdiags.Diagnostics
 
 	rawV, moreDiags := i.RawValue.Value(ctx)

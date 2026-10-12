@@ -7,10 +7,13 @@ package eval
 
 import (
 	"context"
+	"log"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
+	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -21,6 +24,70 @@ import (
 type PlanningOracle struct {
 	root      evalglue.CompiledModuleInstance
 	providers *managedProviders
+}
+
+func (o *PlanningOracle) CheckTarget(ctx context.Context, target addrs.Targetable) {
+	ctx = grapheval.ContextWithNewWorker(ctx)
+	ctx = grapheval.ContextWithRequestTracker(ctx, workgraphRequestTracker{o.root})
+
+	addTarget := func(ri *configgraph.ResourceInstance) {
+		// Populate the value before the glue disables itself for the rest of processing
+		log.Printf("[TRACE] %s targeting %s", target, ri.Addr)
+		ri.Value(ctx)
+	}
+
+	switch target.AddrType() {
+	case addrs.ConfigResourceAddrType:
+		configResource := target.(addrs.ConfigResource)
+		for _, modInst := range evalglue.ConfigModuleInstances(ctx, o.root, configResource.Module) {
+			for resInst := range modInst.ResourceInstancesForResource(ctx, configResource.Resource) {
+				addTarget(resInst)
+			}
+		}
+	case addrs.AbsResourceAddrType:
+		absResource := target.(addrs.AbsResource)
+		modInst := evalglue.ModuleInstance(ctx, o.root, absResource.Module)
+		if modInst != nil {
+			for resInst := range modInst.ResourceInstancesForResource(ctx, absResource.Resource) {
+				addTarget(resInst)
+			}
+		}
+	case addrs.AbsResourceInstanceAddrType:
+		absResourceInstance := target.(addrs.AbsResourceInstance)
+		resInst := evalglue.ResourceInstance(ctx, o.root, absResourceInstance)
+		if resInst != nil {
+			addTarget(resInst)
+		}
+	case addrs.ModuleAddrType:
+		module := target.(addrs.Module)
+		for _, modInst := range evalglue.ConfigModuleInstances(ctx, o.root, module) {
+			for resInst := range evalglue.ResourceInstancesDeep(ctx, modInst) {
+				addTarget(resInst)
+			}
+		}
+	case addrs.ModuleInstanceAddrType:
+		moduleInstance := target.(addrs.ModuleInstance)
+		modInst := evalglue.ModuleInstance(ctx, o.root, moduleInstance)
+		if modInst != nil {
+			for resInst := range evalglue.ResourceInstancesDeep(ctx, modInst) {
+				addTarget(resInst)
+			}
+		}
+	}
+}
+func (o *PlanningOracle) CheckAll(ctx context.Context) tfdiags.Diagnostics {
+	// The plan phase is driven forward by us evaluating expressions during
+	// the "checkAll" process, and so we can just run that here and then
+	// it'll cause various calls out to the "glue" object whenever we're
+	// ready to provide configuration for a resource instance and need to
+	// obtain its result for downstream use.
+	return checkAll(ctx, o.root)
+}
+
+func (o *PlanningOracle) PlanningResult(ctx context.Context) *PlanningResult {
+	return &PlanningResult{
+		RootModuleOutputs: CollectRootModuleOutputs(ctx, o.root),
+	}
 }
 
 // MoveStatementsFor queries the root module for any move statements along the given path.

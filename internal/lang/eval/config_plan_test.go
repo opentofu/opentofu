@@ -9,15 +9,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"iter"
 	"sync"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty-debug/ctydebug"
 	"github.com/zclconf/go-cty/cty"
-	"github.com/zclconf/go-cty/cty/function"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
@@ -32,6 +29,30 @@ import (
 // This file is in "package eval_test" in order to integration-test the
 // validation phase through the same exported API that external callers would
 // use.
+
+// Simulate the same steps the planning engine takes
+func planEngineSimulator(t *testing.T, configInst *eval.ConfigInstance, logGlue *planGlueCallLog) (map[string]cty.Value, tfdiags.Diagnostics) {
+	oracle, ctx, diags := configInst.BuildPlanningOracle(t.Context(), logGlue)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+	// Chicken and egg
+	logGlue.oracle = oracle
+
+	diags = oracle.CheckAll(ctx)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	planResult := oracle.PlanningResult(ctx)
+
+	gotOutputs := map[string]cty.Value{}
+	for name, val := range planResult.RootModuleOutputs {
+		gotOutputs[name] = val.Value
+	}
+
+	return gotOutputs, diags
+}
 
 func TestPlan_valuesOnlySuccess(t *testing.T) {
 	// This test has an intentionally limited scope covering just the
@@ -64,17 +85,9 @@ func TestPlan_valuesOnlySuccess(t *testing.T) {
 	}
 
 	logGlue := &planGlueCallLog{}
-	planResult, diags := configInst.DrivePlanning(t.Context(), func(oracle *eval.PlanningOracle) eval.PlanGlue {
-		logGlue.oracle = oracle
-		return logGlue
-	})
+	gotOutputs, diags := planEngineSimulator(t, configInst, logGlue)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %s", diags.Err())
-	}
-
-	gotOutputs := map[string]cty.Value{}
-	for name, val := range planResult.RootModuleOutputs {
-		gotOutputs[name] = val.Value
 	}
 	wantOutputs := map[string]cty.Value{
 		"c": cty.StringVal("true:true/true:true"),
@@ -154,17 +167,9 @@ func TestPlan_managedResourceSimple(t *testing.T) {
 	logGlue := &planGlueCallLog{
 		providers: providers,
 	}
-	planResult, diags := configInst.DrivePlanning(t.Context(), func(oracle *eval.PlanningOracle) eval.PlanGlue {
-		logGlue.oracle = oracle
-		return logGlue
-	})
+	gotOutputs, diags := planEngineSimulator(t, configInst, logGlue)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %s", diags.Err())
-	}
-
-	gotOutputs := map[string]cty.Value{}
-	for name, val := range planResult.RootModuleOutputs {
-		gotOutputs[name] = val.Value
 	}
 	wantOutputs := map[string]cty.Value{
 		"c": cty.StringVal("foo bar name"),
@@ -256,17 +261,9 @@ func TestPlan_managedResourceUnknownCount(t *testing.T) {
 	logGlue := &planGlueCallLog{
 		providers: providers,
 	}
-	planResult, diags := configInst.DrivePlanning(t.Context(), func(oracle *eval.PlanningOracle) eval.PlanGlue {
-		logGlue.oracle = oracle
-		return logGlue
-	})
+	gotOutputs, diags := planEngineSimulator(t, configInst, logGlue)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %s", diags.Err())
-	}
-
-	gotOutputs := map[string]cty.Value{}
-	for name, val := range planResult.RootModuleOutputs {
-		gotOutputs[name] = val.Value
 	}
 	wantOutputs := map[string]cty.Value{
 		"c": cty.DynamicVal, // don't know what instances we have yet
@@ -305,14 +302,10 @@ type planGlueCallLog struct {
 	mu                       sync.Mutex
 }
 
-// ProviderFunction implements eval.PlanGlue
+// PreProcess implements eval.PlanGlue
 func (p *planGlueCallLog) PreProcess(ctx context.Context, targeter func(addrs.Targetable)) {
-	// No targeting enabled for log glue
-}
-
-// ProviderFunction implements eval.PlanGlue
-func (p *planGlueCallLog) ProviderFunction(ctx context.Context, provider addrs.Provider, providerInstance *addrs.AbsProviderInstanceCorrect, pf addrs.ProviderFunction, rng hcl.Range) (function.Function, tfdiags.Diagnostics) {
-	panic("not implemented")
+	// We don't currently do anything with calls to this method, because
+	// no tests we've written so far rely on it.
 }
 
 // PlanDesiredResourceInstance implements eval.PlanGlue.
@@ -343,29 +336,8 @@ func (p *planGlueCallLog) PlanDesiredResourceInstance(ctx context.Context, inst 
 	return plannedVal, diags
 }
 
-// PlanModuleCallInstanceOrphans implements eval.PlanGlue.
-func (p *planGlueCallLog) PlanModuleCallInstanceOrphans(ctx context.Context, moduleCallAddr addrs.AbsModuleCall, desiredInstances iter.Seq[addrs.InstanceKey]) tfdiags.Diagnostics {
-	// We don't currently do anything with calls to this method, because
-	// no tests we've written so far rely on it.
-	return nil
-}
-
-// PlanModuleCallOrphans implements eval.PlanGlue.
-func (p *planGlueCallLog) PlanModuleCallOrphans(ctx context.Context, callerModuleInstAddr addrs.ModuleInstance, desiredCalls iter.Seq[addrs.ModuleCall]) tfdiags.Diagnostics {
-	// We don't currently do anything with calls to this method, because
-	// no tests we've written so far rely on it.
-	return nil
-}
-
-// PlanResourceInstanceOrphans implements eval.PlanGlue.
-func (p *planGlueCallLog) PlanResourceInstanceOrphans(ctx context.Context, resourceAddr addrs.AbsResource, desiredInstances iter.Seq[addrs.InstanceKey]) tfdiags.Diagnostics {
-	// We don't currently do anything with calls to this method, because
-	// no tests we've written so far rely on it.
-	return nil
-}
-
-// PlanResourceOrphans implements eval.PlanGlue.
-func (p *planGlueCallLog) PlanResourceOrphans(ctx context.Context, moduleInstAddr addrs.ModuleInstance, desiredResources iter.Seq[addrs.Resource]) tfdiags.Diagnostics {
+// PostProcess implements eval.PlanGlue.
+func (p *planGlueCallLog) PostProcess(ctx context.Context) tfdiags.Diagnostics {
 	// We don't currently do anything with calls to this method, because
 	// no tests we've written so far rely on it.
 	return nil

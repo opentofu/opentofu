@@ -7,6 +7,8 @@ package configgraph
 
 import (
 	"context"
+	"fmt"
+	"runtime/pprof"
 
 	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/hashicorp/hcl/v2"
@@ -59,4 +61,14 @@ func (v *OnceValuer) ValueSourceRange() *tfdiags.SourceRange {
 // called the Value method yet.
 func (v *OnceValuer) RequestID() workgraph.RequestID {
 	return v.once.RequestID()
+}
+
+// withDebugAddr returns a new context annotated with a method name the address
+// of the object the method is being called on.
+//
+// Using the returned context with [OnceValuer], or any other
+// [grapheval.Once.Do] execution, causes the worker goroutine to be annotated
+// with this information in stack traces and pprof profiles.
+func withDebugAddr(ctx context.Context, addr fmt.Stringer, methodName string) context.Context {
+	return pprof.WithLabels(ctx, pprof.Labels(methodName, addr.String()))
 }
