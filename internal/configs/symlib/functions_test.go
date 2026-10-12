@@ -49,7 +49,7 @@ function "test_untyped_param" {
 `,
 	}
 
-	lib, diags := testCompile(t, files)
+	lib, diags := testCompile(files)
 	assertNoDiags(t, diags)
 
 	tests := []struct {
