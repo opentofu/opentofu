@@ -77,10 +77,8 @@ jobs:
       - name: "Fetch source code"
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Install Go toolchain
-        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
-        with:
-          go-version-file: 'go.mod'
+      - name: "Configure Go toolchain"
+        uses: ./.github/actions/go-toolchain
 
       - name: "Unit tests"
         run: |
@@ -96,10 +94,8 @@ jobs:
       - name: "Fetch source code"
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Install Go toolchain
-        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
-        with:
-          go-version-file: 'go.mod'
+      - name: "Configure Go toolchain"
+        uses: ./.github/actions/go-toolchain
 
       # The race detector add significant time to the unit tests, so only run
       # it for select packages.
@@ -121,10 +117,8 @@ jobs:
       - name: "Fetch source code"
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Install Go toolchain
-        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
-        with:
-          go-version-file: 'go.mod'
+      - name: "Configure Go toolchain"
+        uses: ./.github/actions/go-toolchain
 
       - name: "End-to-end tests"
         run: |
@@ -150,10 +144,8 @@ jobs:
         with:
           fetch-depth: 0 # We need to do comparisons against the main branch.
 
-      - name: Install Go toolchain
-        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
-        with:
-          go-version-file: 'go.mod'
+      - name: "Configure Go toolchain"
+        uses: ./.github/actions/go-toolchain
 
       - name: "go.mod and go.sum consistency check"
         run: |
@@ -202,6 +194,9 @@ jobs:
       - name: "Fetch source code"
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
+      - name: "Configure Go toolchain"
+        uses: ./.github/actions/go-toolchain
+
       - name: Install licensei
         run: |
           make deps
@@ -213,11 +208,6 @@ jobs:
           key: licensei-cache-${{ hashFiles('go.sum') }}
           restore-keys: |
             licensei-cache-
-
-      - name: Install Go toolchain
-        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
-        with:
-          go-version-file: 'go.mod'
 
       - name: Run licensei
         env:
