@@ -13,6 +13,7 @@ import (
 
 	"github.com/apparentlymart/go-workgraph/workgraph"
 
+	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -51,6 +52,8 @@ type Once[T any] struct {
 // into the callback function, because it includes internal tracking
 // information.
 func (o *Once[T]) Do(ctx context.Context, f func(ctx context.Context) (T, tfdiags.Diagnostics), rng *tfdiags.SourceRange, label string, labelArgs ...any) (T, tfdiags.Diagnostics) {
+	ctx, panicHandler := logging.PanicHandlerWithContext(ctx, label, labelArgs...)
+
 	worker := WorkerFromContext(ctx)
 	o.mu.Lock()
 	if o.promise == nil {
@@ -69,6 +72,8 @@ func (o *Once[T]) Do(ctx context.Context, f func(ctx context.Context) (T, tfdiag
 			}
 		})
 		workgraph.WithNewAsyncWorker(func(w *workgraph.Worker) {
+			defer panicHandler()
+
 			pprof.SetGoroutineLabels(ctx) // Just in case the caller uses pprof labels to describe what this worker's goal is
 			ctx := ContextWithWorker(ctx, w)
 			ret, diags := f(ctx)
