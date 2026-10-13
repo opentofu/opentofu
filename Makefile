@@ -60,7 +60,7 @@ protobuf:
 # Golangci-lint is installed first and then run twice to cover all platforms.
 .PHONY: golangci-lint
 golangci-lint:
-	GOBIN=$(PWD)/tools go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2
+	GOBIN=$(PWD)/tools go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
 	GOOS=windows tools/golangci-lint${EXT} run --timeout 60m ./...
 	GOOS=linux tools/golangci-lint${EXT} run --timeout 60m ./...
 
