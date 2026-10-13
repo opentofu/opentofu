@@ -16,7 +16,6 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
-	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -225,14 +224,6 @@ type CompiledModuleInstance interface {
 	// range to use to describe each of the requests that were involved in the
 	// problem.
 	AnnounceAllGraphevalRequests(announce func(workgraph.RequestID, grapheval.RequestInfo))
-
-	// GetMoveStatementsFor obtains the move statements for this module and the child module
-	// if specified by the given address.
-	//
-	// TODO: Remove this once the planning engine is updated to get this
-	// information as part of [CompiledModuleInstance.ResourceInstanceObjectMeta]
-	// instead.
-	GetMoveStatementsFor(ctx context.Context, addr addrs.Module) []refactoring.MoveStatement
 }
 
 // ModuleInstance finds the [CompiledModuleInstance] representation of the

@@ -547,7 +547,7 @@ func (p *planGlue) ResourceInstanceObjectMeta(ctx context.Context, prevRunAddr, 
 // by one of these two functions is coalesced with that same work in the other
 // so each is resolved at most once regardless of which function is called
 // first.
-func (p *planGlue) ResourceInstanceObjectMoveStatements(ctx context.Context, addr addrs.AbsResourceInstance) iter.Seq2[addrs.ModuleInstance, *refactoring.MoveStatement] {
+func (p *planGlue) ResourceInstanceObjectMoveStatements(ctx context.Context, addr addrs.AbsResourceInstance) iter.Seq2[addrs.ModuleInstance, refactoring.MoveStatement] {
 	// Unlike all of the other uses of metadata, we rely exclusively on the
 	// configuration to discover the effective graph of moved statements. This
 	// is because we need to resolve where an object is moving from before
@@ -558,7 +558,7 @@ func (p *planGlue) ResourceInstanceObjectMoveStatements(ctx context.Context, add
 	// statements, so callers don't need to consider the workgraph
 	// rules when working with this function's result.
 	configMeta := p.configuredResourceInstanceObjectMeta(ctx, addr.CurrentObject())
-	return func(yield func(addrs.ModuleInstance, *refactoring.MoveStatement) bool) {
+	return func(yield func(addrs.ModuleInstance, refactoring.MoveStatement) bool) {
 		for _, moduleInstMeta := range configMeta {
 			for _, stmt := range moduleInstMeta.MoveStatements {
 				if !yield(moduleInstMeta.ModuleInstance, stmt) {
@@ -567,6 +567,37 @@ func (p *planGlue) ResourceInstanceObjectMoveStatements(ctx context.Context, add
 			}
 		}
 	}
+}
+
+// ResourceInstanceObjectApproxDeclRange is a specialized variant of
+// [planGlue.ResourceInstanceObjectMeta] intended only for the work of
+// resolving an approximate source location for the given resource address.
+//
+// Calling this has similar expression evaluation consequences as documented for
+// ResourceInstanceObjectMeta, but any work done for a current resource instance
+// by one of these two functions is coalesced with that same work in the other
+// so each is resolved at most once regardless of which function is called
+// first.
+func (p *planGlue) ResourceInstanceObjectApproxDeclRange(ctx context.Context, addr addrs.AbsResourceInstance) tfdiags.SourceRange {
+	// Unlike all of the other uses of metadata, we rely exclusively on the
+	// configuration to discover the effective graph of moved statements. This
+	// is because we need to resolve where an object is moving from before
+	// we can know which address it would've had in the previous run state.
+
+	var rng tfdiags.SourceRange
+
+	for _, configMeta := range p.configuredResourceInstanceObjectMeta(ctx, addr.CurrentObject()) {
+		// FIXME: This is currently just taking the range from whatever is
+		// the deepest module that has any opinion about this resource instance,
+		// which doesn't seem right. We should probably refine what
+		// [eval.ConfiguredResourceInstanceMeta.DeclRange] actually means --
+		// e.g. specifying that it should only be populated when a module
+		// instance includes a declaration that the object is desired --
+		// and let it be nil for module instances where that isn't true.
+		// This same problem exists within [exec.BuildResourceInstanceObjectMeta]
+		rng = configMeta.DeclRange
+	}
+	return rng
 }
 
 // configuredResourceInstanceObjectMeta is the internal config-loading

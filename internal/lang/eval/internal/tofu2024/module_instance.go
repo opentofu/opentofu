@@ -108,11 +108,20 @@ func (c *CompiledModuleInstance) ResultValuer(ctx context.Context) exprs.Valuer 
 
 // ResourceInstanceObjectMeta implements [evalglue.CompiledModuleInstance].
 func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context, relativeModuleInst []addrs.ModuleInstanceStep, addr addrs.ResourceInstanceObject) *evalglue.ConfiguredResourceInstanceObjectMeta {
+	// Start with everything we know about the resource from the module context
+	var ret *evalglue.ConfiguredResourceInstanceObjectMeta
+
+	if len(c.moveStatements) != 0 {
+		if ret == nil {
+			ret = new(evalglue.ConfiguredResourceInstanceObjectMeta)
+		}
+		ret.MoveStatements = c.moveStatements
+	}
+	// TODO: Implement collection of ancillary metadata like "removed" and "import"
+	// blocks that relate to the requested object.
+
 	if len(relativeModuleInst) != 0 {
-		// TODO: Implement collection of ancillary metadata like "removed",
-		// "moved", and "import" blocks that relate to the requested object
-		// in a descendent module instance.
-		return nil
+		return ret
 	}
 
 	rsrc, ok := c.resourceNodes[addr.InstanceAddr.Resource]
@@ -120,31 +129,30 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 		// If there's no mention of this resource in this module at all then
 		// we have nothing to say about it, and so any metadata will need to
 		// come either from an ancestor module or from the previous run state.
-		//
-		// TODO: The logic here should also consider whether any "removed" block
-		// matches the requested object, and return a non-nil object with
-		// information derived from that block if so.
-		return nil
+		return ret
+	}
+
+	// Ensure that ret exists, regarless of module statements
+	if ret == nil {
+		ret = new(evalglue.ConfiguredResourceInstanceObjectMeta)
 	}
 
 	// We'll start with a suitable placeholder to use if there's no mention
 	// of this object in the configuration at all, and then improve it gradually
 	// as we find relevant information in the configuration.
-	ret := &evalglue.ConfiguredResourceInstanceObjectMeta{
-		Provider: &evalglue.ResourceInstanceObjectProvider{
-			Provider: rsrc.Provider,
+	ret.Provider = &evalglue.ResourceInstanceObjectProvider{
+		Provider: rsrc.Provider,
 
-			// In this language edition the author-specified resource type always
-			// matches the provider's chosen resource type name, so we can just
-			// derive these directly from the resource address.
-			ResourceMode: addr.InstanceAddr.Resource.Mode,
-			ResourceType: addr.InstanceAddr.Resource.Type,
+		// In this language edition the author-specified resource type always
+		// matches the provider's chosen resource type name, so we can just
+		// derive these directly from the resource address.
+		ResourceMode: addr.InstanceAddr.Resource.Mode,
+		ResourceType: addr.InstanceAddr.Resource.Type,
 
-			// We'll populate the provider _instance_ to use only once we have
-			// a specific resource instance below, since the chosen provider
-			// instance is allowed to vary between resource instances.
-			Instance: nil,
-		},
+		// We'll populate the provider _instance_ to use only once we have
+		// a specific resource instance below, since the chosen provider
+		// instance is allowed to vary between resource instances.
+		Instance: nil,
 	}
 
 	ret.DeclRange = rsrc.DeclRange
@@ -200,14 +208,6 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 	ret.Provider.Instance = &providerInstAddr
 
 	ret.PostCreateProvisioners = prepareResourceProvisioners(inst.CreateProvisioners)
-
-	// TODO: Also collect up any "moved" blocks that directly mention the
-	// resource instance address of the requested object (if it's a "current"
-	// object) and report them in
-	// [evalglue.ConfiguredResourceInstanceObjectMeta.MoveStatements], as
-	// a replacement for [CompiledModuleInstance.GetMoveStatementsFor] once
-	// once the planning engine is updated to expect move statements to arrive
-	// this way instead.
 
 	// TODO: All of the other fields of ConfiguredResourceInstanceObjectMeta
 
@@ -416,29 +416,6 @@ func (c *CompiledModuleInstance) AnnounceAllGraphevalRequests(announce func(work
 	for _, n := range c.providerConfigNodes {
 		n.AnnounceAllGraphevalRequests(announce)
 	}
-}
-
-// GetMoveStatements implements evalglue.CompiledModuleInstance.
-func (c *CompiledModuleInstance) GetMoveStatementsFor(ctx context.Context, addr addrs.Module) []refactoring.MoveStatement {
-	// TODO: Incorporate the logic from here into
-	// [CompiledModuleInstance.ResourceInstanceObjectMeta], once the planning
-	// engine is updated to expect move statements to arrive by that channel
-	// instead. At that point this dedicated method will no longer be required
-	// for [evalglue.CompiledModuleInstance].
-	var stmts []refactoring.MoveStatement
-	stmts = append(stmts, c.moveStatements...)
-	if len(addr) > len(c.moduleInstanceNode.Addr) {
-		// Find child and recurse
-		childName := addr[len(c.moduleInstanceNode.Addr)]
-		instances := c.ChildModuleInstancesForCall(ctx, addrs.ModuleCall{Name: childName})
-		for _, instance := range instances {
-			stmts = append(stmts, instance.GetMoveStatementsFor(ctx, addr)...)
-			// Recurse into first instance only, these are not instance key specific
-			break
-		}
-	}
-
-	return stmts
 }
 
 func (c *CompiledModuleInstance) DetectImplicitMoveForAddress(ctx context.Context, addr addrs.AbsResourceInstance) *addrs.AbsResourceInstance {
