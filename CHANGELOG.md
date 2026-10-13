@@ -14,6 +14,7 @@ UPGRADE NOTES:
 
 ENHANCEMENTS:
 
+- Added the `oracle-oci` (Oracle Cloud Infrastructure Object Storage) state backend with independent authentication, workspaces, conditional state updates, and object-based locking. The `oci` backend name is accepted as a compatibility alias.
 - `tofu plan` no longer prints iterative warnings for multiple resources but instead it shows one warning with all of the affected resources. ([#4201](https://github.com/opentofu/opentofu/issues/4201))
 - For provider installation, registry and network mirror sources can now optionally forward authentication credentials to the package download URL if the server explicitly opts in. Previously the package download requests were always made without any credentials. ([#4584](https://github.com/opentofu/opentofu/issues/4584))
 - `mock_provider` now supports the `source` argument that can get a file or directory with specific provider overrides ([#4532](https://github.com/opentofu/opentofu/pull/4532))

@@ -1280,6 +1280,10 @@
                 "path": "language/settings/backends/kubernetes"
               },
               {
+                "title": "oracle-oci",
+                "path": "language/settings/backends/oracle-oci"
+              },
+              {
                 "title": "oss",
                 "path": "language/settings/backends/oss"
               },
@@ -1332,6 +1336,11 @@
             "title": "Kubernetes",
             "hidden": true,
             "path": "language/settings/backends/kubernetes"
+          },
+          {
+            "title": "oracle-oci",
+            "hidden": true,
+            "path": "language/settings/backends/oracle-oci"
           },
           {
             "title": "oss",
