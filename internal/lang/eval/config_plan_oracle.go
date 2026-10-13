@@ -15,7 +15,6 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/providers"
-	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -88,12 +87,6 @@ func (o *PlanningOracle) PlanningResult(ctx context.Context) *PlanningResult {
 	return &PlanningResult{
 		RootModuleOutputs: CollectRootModuleOutputs(ctx, o.root),
 	}
-}
-
-// MoveStatementsFor queries the root module for any move statements along the given path.
-// This should eventually be replaced with ResourceInstanceObjectMeta.
-func (o *PlanningOracle) MoveStatementsFor(ctx context.Context, addr addrs.Module) []refactoring.MoveStatement {
-	return o.root.GetMoveStatementsFor(ctx, addr)
 }
 
 // DetectImplicitMoveForAddress spiders the configuration, attempting to determine if there is an implicit

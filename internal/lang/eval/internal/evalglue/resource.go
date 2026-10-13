@@ -98,7 +98,7 @@ type ConfiguredResourceInstanceObjectMeta struct {
 	// engine to resolve the which addresses objects are moving between,
 	// which must happen before we can know which address an object is expected
 	// to have in the previous round state.
-	MoveStatements []*refactoring.MoveStatement
+	MoveStatements []refactoring.MoveStatement
 }
 
 // ResourceInstanceObjectProvider describes the provider-related metadata
