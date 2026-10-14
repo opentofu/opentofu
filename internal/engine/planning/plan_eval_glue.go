@@ -20,7 +20,6 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/lang/eval"
-	"github.com/opentofu/opentofu/internal/lang/evalchecks"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/plans"
@@ -193,12 +192,10 @@ func (p *planGlue) Finalize(ctx context.Context) (*planContextResult, tfdiags.Di
 
 	diags = diags.Append(p.validateForceReplace())
 
+	diags = diags.Append(p.oracle.Close(ctx))
+
 	intermediate, moreDiags := p.planCtx.Close(ctx)
 	diags = diags.Append(moreDiags)
-
-	diags = diags.Append(p.checkPreventDestroy(ctx, intermediate))
-
-	diags = diags.Append(p.oracle.Close(ctx))
 
 	return intermediate, diags
 }
@@ -630,68 +627,4 @@ func (p *planGlue) configuredResourceInstanceObjectMeta(ctx context.Context, add
 		return oracle.ResourceInstanceObjectMeta(ctx, addr), nil
 	}, nil, "Metadata of %s", addr)
 	return ret
-}
-
-// Handle "prevent_destroy" arguments once the changes have been built,
-// generating error diagnostics for anything that is proposed for deletion
-// when deletion is prohibited.
-func (p *planGlue) checkPreventDestroy(ctx context.Context, planResult *planContextResult) tfdiags.Diagnostics {
-	var diags tfdiags.Diagnostics
-	const errSummary = "Invalid value for prevent_destroy"
-
-	// This access to resourceInstObjs is not ideal here, but is the only way to do this
-	// TODO re-work this function contents to be integrated into building the plan instead of a post-processing step
-	for objAddr, obj := range planResult.ResourceInstanceObjects.All() {
-		change := obj.PlannedChange
-
-		if change == nil {
-			continue
-		}
-		if change.Action != plans.Delete && !change.Action.IsReplace() {
-			// If we're not attempting to destroy then we'll skip the remaining
-			// checks because they are likely to fail dynamically in non-destroy
-			// situations even though they could be valid by the time this
-			// object actually is planned for destroy.
-			continue
-		}
-		metas := p.configuredResourceInstanceObjectMeta(ctx, objAddr)
-		for _, meta := range metas {
-			if meta.DeletionInvalid == nil {
-				continue
-			}
-			rng := meta.DeletionInvalid.Range
-			preventDestroyV := meta.DeletionInvalid.Value
-			preventDestroyV, preventDestroyMarks := preventDestroyV.Unmark()
-			// FIXME: What should we do with these marks, if anything?
-			_ = preventDestroyMarks
-
-			preventDestroy, ok := preventDestroyV.ValueOk()
-			if !ok {
-				diags = diags.Append(&hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  errSummary,
-					Detail: fmt.Sprintf(
-						"Resource instance %s has a prevent_destroy argument but its value will not be known until the apply step, so OpenTofu can't predict whether destroying this is acceptable.\n\nTo proceed, exclude instances of this resource from this round using:\n    -exclude=%q",
-						objAddr.InstanceAddr.String(), objAddr.InstanceAddr.ContainingResource().String(),
-					),
-					Subject: rng.ToHCL().Ptr(),
-					Extra:   evalchecks.DiagnosticCausedByUnknown(true),
-				})
-				continue
-			}
-
-			if preventDestroy {
-				diags = diags.Append(&hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Resource instance cannot be destroyed",
-					Detail: fmt.Sprintf(
-						"Resource instance %s has prevent_destroy set, but the plan calls for it to be destroyed.\n\nTo proceed, either disable prevent_destroy for this resource or exclude instances of this resource from this round using:\n    -exclude=%q",
-						objAddr.InstanceAddr.String(), objAddr.InstanceAddr.ContainingResource().String(),
-					),
-					Subject: rng.ToHCL().Ptr(),
-				})
-			}
-		}
-	}
-	return diags
 }

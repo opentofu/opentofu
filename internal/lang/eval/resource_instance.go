@@ -185,6 +185,7 @@ type ResourceProvisioner = evalglue.ResourceProvisioner
 // is supposed to be an implementation detail of tofu2024 and any other future
 // HCL-based language editions.
 type ResourceInstanceAttributePath = configgraph.ResourceInstanceAttributePath
+type DeletionInvalid = configgraph.DeletionInvalid
 
 func collectResourceInstanceObjectMeta(ctx context.Context, addr addrs.AbsResourceInstanceObject, rootModInst evalglue.CompiledModuleInstance) []ModuleConfiguredResourceInstanceObjectMeta {
 	leafModuleInstAddr := addr.InstanceAddr.Module
