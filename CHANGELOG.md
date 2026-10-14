@@ -10,6 +10,7 @@ BUG FIXES:
 
 - Lifecycle destroy will no longer crash when given an expression with references ([#4648](https://github.com/opentofu/opentofu/pull/4648))
 - `tofu workspace select` and `tofu workspace delete` autocompletion predicts from the existing workspaces. This restores the behavior pre-v1.13 ([#4706](https://github.com/opentofu/opentofu/pull/4706))
+- Combined usage of `-chdir` and `-version` flags does not show an error anymore but instead shows the version of the `tofu` binary ([#4707](https://github.com/opentofu/opentofu/pull/4707))
 
 ## 1.13.1
 
