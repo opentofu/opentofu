@@ -96,11 +96,20 @@ func (m *ModuleInstance) Value(ctx context.Context) (cty.Value, tfdiags.Diagnost
 	// The following is mechanically similar to evaluating an object constructor
 	// expression gathering all of the output value results into a single
 	// object, but because we're not using the expression evaluator to do it
-	// we need to explicitly discard indirect diagnostics with
-	// [diagsHandledElsewhere].
+	// we need to explicitly handle output diagnostics in the case of an evaluation
+	// error.
 	attrs := make(map[string]cty.Value, len(m.OutputValuers))
 	for addr, valuer := range m.OutputValuers {
-		attrs[addr.Name] = diagsHandledElsewhere(valuer.Value(ctx))
+		val, diags := valuer.Value(ctx)
+		if diags.HasErrors() {
+			// Error diagnostics will be reported via CompiledModuleInstance.CheckAll,
+			// but we still need to handle errors here in order to not produce objects
+			// containing cty.NilVal
+			// Alternatively, we could check for the EvalError mark deep, but that is more
+			// expensive
+			val = cty.DynamicVal.Mark(exprs.EvalError)
+		}
+		attrs[addr.Name] = val
 	}
 	return cty.ObjectVal(attrs), nil
 }
