@@ -12,7 +12,6 @@ import (
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/posener/complete"
 )
 
 func WorkspaceShowCommander() Command {
@@ -54,14 +53,6 @@ func (c WorkspaceShowCommand) Execute(args *arguments.WorkspaceShow, view views.
 	view.WorkspaceShow(workspace)
 
 	return 0
-}
-
-func (c *WorkspaceShowCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictNothing
-}
-
-func (c *WorkspaceShowCommand) AutocompleteFlags() complete.Flags {
-	return nil
 }
 
 func (c *WorkspaceShowCommand) Help() string {
