@@ -10,12 +10,14 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/lang/eval"
+	"github.com/opentofu/opentofu/internal/lang/evalchecks"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/resources"
@@ -572,6 +574,8 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 	}
 	ret.ProviderInst = providerInst
 
+	diags = diags.Append(checkPreventDestroy(ctx, meta, ret))
+
 	if cb := tracer.EndManagedResourceInstanceObjectPlanChanges; cb != nil {
 		plannedVal := cty.DynamicVal
 		if planResp.Planned.Value != cty.NilVal {
@@ -613,6 +617,60 @@ func checkAndMarshalUpdatedState(newState cty.Value, schema providers.Schema, in
 		))
 	}
 	return src, diags
+}
+
+// Handle "prevent_destroy" arguments once the changes have been built,
+// generating error diagnostics for anything that is proposed for deletion
+// when deletion is prohibited.
+func checkPreventDestroy(ctx context.Context, meta *exec.ResourceInstanceObjectMeta, obj *resourceInstanceObject) tfdiags.Diagnostics {
+	change := obj.PlannedChange
+	if change == nil {
+		return nil
+	}
+	if change.Action != plans.Delete && !change.Action.IsReplace() {
+		// If we're not attempting to destroy then we'll skip the remaining
+		// checks because they are likely to fail dynamically in non-destroy
+		// situations even though they could be valid by the time this
+		// object actually is planned for destroy.
+		return nil
+	}
+
+	if meta.DeletionInvalid == nil {
+		return nil
+	}
+
+	rng := meta.DeletionInvalid.Range
+	preventDestroyV := meta.DeletionInvalid.Value
+	preventDestroyV, preventDestroyMarks := preventDestroyV.Unmark()
+	// FIXME: What should we do with these marks, if anything?
+	_ = preventDestroyMarks
+
+	preventDestroy, ok := preventDestroyV.ValueOk()
+	if !ok {
+		return tfdiags.New(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid value for prevent_destroy",
+			Detail: fmt.Sprintf(
+				"Resource instance %s has a prevent_destroy argument but its value will not be known until the apply step, so OpenTofu can't predict whether destroying this is acceptable.\n\nTo proceed, exclude instances of this resource from this round using:\n    -exclude=%q",
+				change.Addr.String(), change.Addr.ContainingResource().String(),
+			),
+			Subject: rng.ToHCL().Ptr(),
+			Extra:   evalchecks.DiagnosticCausedByUnknown(true),
+		})
+	}
+
+	if preventDestroy {
+		return tfdiags.New(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Resource instance cannot be destroyed",
+			Detail: fmt.Sprintf(
+				"Resource instance %s has prevent_destroy set, but the plan calls for it to be destroyed.\n\nTo proceed, either disable prevent_destroy for this resource or exclude instances of this resource from this round using:\n    -exclude=%q",
+				change.Addr.String(), change.Addr.ContainingResource().String(),
+			),
+			Subject: rng.ToHCL().Ptr(),
+		})
+	}
+	return nil
 }
 
 func (p *planGlue) planOrphanManagedResourceInstance(
@@ -860,5 +918,8 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 		// this address is "orphaned".
 	}
 	ret.ProviderInst = providerInstAddr
+
+	diags = diags.Append(checkPreventDestroy(ctx, meta, ret))
+
 	return ret, diags
 }

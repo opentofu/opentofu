@@ -281,6 +281,14 @@ type ResourceInstanceObjectMeta struct {
 	// unspecified for other resource modes.
 	ReplaceOrder exprs.FromValue[resources.ReplaceOrder]
 
+	// DeletionInvalid is true if the author has configured that any execution
+	// plan that involves deleting this object should be considered immediately
+	// invalid. If false then deleting is a valid action to include.
+	//
+	// This field is relevant only for managed resource mode and its value is
+	// unspecified for other resource modes.
+	DeletionInvalid *eval.DeletionInvalid
+
 	// Note that we intentionally do not aggregate
 	// [eval.ConfiguredResourceInstanceObjectMeta.MoveStatements] elements
 	// here because by the time the caller knows enough to ask for the
@@ -373,6 +381,10 @@ func BuildResourceInstanceObjectMeta[SV states.ValueOrJSONEquivalent](
 		ret.PreDeleteProvisioners = append(ret.PreDeleteProvisioners, fromModule.PreDeleteProvisioners...)
 		if fromModule.ReplaceOrder != nil {
 			ret.ReplaceOrder = *fromModule.ReplaceOrder
+		}
+
+		if fromModule.DeletionInvalid != nil {
+			ret.DeletionInvalid = fromModule.DeletionInvalid
 		}
 
 		// TODO: Everything else
