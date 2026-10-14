@@ -22,12 +22,14 @@ func BindVersion(cli *CommandLine) *Version {
 	}
 
 	// Enable but ignore the global version cli. In main.go, if any of the
-	// arguments are -v, -version, or --version, this command will be called
+	// arguments are -v, -version, --version, or -chdir, this command will be called
 	// with the rest of the arguments, so we need to be able to cope with
 	// those.
 	var nop bool
+	var noopChdir string
 	cli.BoolVar(&nop, "v", true, "version").SetHidden(true)
 	cli.BoolVar(&nop, "version", true, "version").SetHidden(true)
+	cli.StringVar(&noopChdir, "chdir", "", "chdir").SetHidden(true)
 
 	return &ret
 }
