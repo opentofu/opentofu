@@ -16,7 +16,6 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/svchost"
-	"github.com/posener/complete"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -1194,10 +1193,6 @@ func (c *InitCommand) backendConfigOverrideBody(flags flags.RawFlags, schema *co
 	return ret, diags
 }
 
-func (c *InitCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictDirs("")
-}
-
 func (c *InitCommand) platformSupportWarnings() tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 	if !tfversion.IsOfficialBuild() {
@@ -1217,25 +1212,6 @@ func (c *InitCommand) platformSupportWarnings() tfdiags.Diagnostics {
 		))
 	}
 	return diags
-}
-
-func (c *InitCommand) AutocompleteFlags() complete.Flags {
-	return complete.Flags{
-		"-backend":        completePredictBoolean,
-		"-cloud":          completePredictBoolean,
-		"-backend-config": complete.PredictFiles("*.tfvars"), // can also be key=value, but we can't "predict" that
-		"-force-copy":     complete.PredictNothing,
-		"-from-module":    completePredictModuleSource,
-		"-get":            completePredictBoolean,
-		"-input":          completePredictBoolean,
-		"-lock":           completePredictBoolean,
-		"-lock-timeout":   complete.PredictAnything,
-		"-no-color":       complete.PredictNothing,
-		"-plugin-dir":     complete.PredictDirs(""),
-		"-reconfigure":    complete.PredictNothing,
-		"-migrate-state":  complete.PredictNothing,
-		"-upgrade":        completePredictBoolean,
-	}
 }
 
 func (c *InitCommand) Help() string {

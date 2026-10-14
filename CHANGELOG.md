@@ -9,6 +9,7 @@ SECURITY ADVISORIES:
 BUG FIXES:
 
 - Lifecycle destroy will no longer crash when given an expression with references ([#4648](https://github.com/opentofu/opentofu/pull/4648))
+- `tofu workspace select` and `tofu workspace delete` autocompletion predicts from the existing workspaces. This restores the behavior pre-v1.13 ([#4706](https://github.com/opentofu/opentofu/pull/4706))
 
 ## 1.13.1
 

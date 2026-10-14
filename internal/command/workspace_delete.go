@@ -11,8 +11,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/posener/complete"
-
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/clistate"
 	"github.com/opentofu/opentofu/internal/command/views"
@@ -32,6 +30,14 @@ func WorkspaceDeleteCommander(legacyName bool) Command {
 	args := arguments.BindWorkspaceDelete(&cmd.CommandLine)
 	cmd.Run = func(meta Meta) int {
 		return WorkspaceDeleteCommand{meta, legacyName}.Execute(args, views.NewWorkspace(args.View, meta.View))
+	}
+	cmd.AutocompleteArgs = func(meta Meta) func(int) []string {
+		return func(nargs int) []string {
+			if nargs > 0 {
+				return []string{}
+			}
+			return WorkspaceDeleteCommand{meta, legacyName}.AutocompleteArgs()
+		}
 	}
 
 	return cmd
@@ -207,17 +213,8 @@ func (c WorkspaceDeleteCommand) Execute(args *arguments.WorkspaceDelete, view vi
 	return 0
 }
 
-func (c *WorkspaceDeleteCommand) AutocompleteArgs() complete.Predictor {
-	return completePredictSequence{
-		c.completePredictWorkspaceName(c.CommandContext()),
-		complete.PredictDirs(""),
-	}
-}
-
-func (c *WorkspaceDeleteCommand) AutocompleteFlags() complete.Flags {
-	return complete.Flags{
-		"-force": complete.PredictNothing,
-	}
+func (c WorkspaceDeleteCommand) AutocompleteArgs() []string {
+	return c.completePredictWorkspaceName(c.CommandContext())
 }
 
 func (c *WorkspaceDeleteCommand) Help() string {
