@@ -62,7 +62,8 @@ func commandMain(
 	subcommand := detectSubcommand(command.RootCommander(&help, &version, &chdirArg))
 	if version {
 		// Inject the version subcommand, this is a
-		// odd legacy hack to match the old cli.
+		// odd legacy hack to match the old cli. This hack bleeds also into arguments/version.go where the root flags
+		// are also defined to not add more heavy processing here to reorder the flags.
 		subcommand = "version"
 		args = append([]string{subcommand}, args...)
 	}
