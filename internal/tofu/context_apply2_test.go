@@ -2812,7 +2812,7 @@ locals {
 }
 
 func TestContext2Apply_forgetOrphanAndDeposed(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureDeposed)
+	SkipExperimental(t, ExperimentalFeatureRemoved)
 
 	desposedKey := states.DeposedKey("deposed")
 	addr := "aws_instance.baz"
