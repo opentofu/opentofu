@@ -121,7 +121,8 @@ type Command struct {
 	// CommandLine defines what flags and arguments are available to this command.
 	CommandLine arguments.CommandLine
 	// Run is the action that will be executed if this command is selected.
-	Run func(Meta) int
+	Run              func(Meta) int
+	AutocompleteArgs func(Meta) func(nargs int) []string
 
 	// A legacy option that will be removed at some point
 	// This was introduced during the migration to proper
