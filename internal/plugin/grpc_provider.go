@@ -178,6 +178,8 @@ func (p *GRPCProvider) getProviderSchema(ctx context.Context) (resp providers.Ge
 	if protoResp.ServerCapabilities != nil {
 		resp.ServerCapabilities.PlanDestroy = protoResp.ServerCapabilities.PlanDestroy
 		resp.ServerCapabilities.GetProviderSchemaOptional = protoResp.ServerCapabilities.GetProviderSchemaOptional
+		resp.ServerCapabilities.MoveResourceState = protoResp.ServerCapabilities.MoveResourceState
+		resp.ServerCapabilities.GenerateResourceConfig = protoResp.ServerCapabilities.GenerateResourceConfig
 	}
 
 	return resp

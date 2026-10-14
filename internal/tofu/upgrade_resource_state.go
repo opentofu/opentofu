@@ -137,6 +137,23 @@ func moveResourceState(params stateTransformArgs) (*states.ResourceInstanceObjec
 // moveResourceStateTransform is a providerStateTransform that moves the state via provider move logic
 func moveResourceStateTransform(args stateTransformArgs) (cty.Value, []byte, tfdiags.Diagnostics) {
 	log.Printf("[TRACE] moveResourceStateTransform: new address: %s, previous address: %s", args.currentAddr, args.prevAddr)
+	schema := args.provider.GetProviderSchema(context.TODO())
+	if !schema.ServerCapabilities.MoveResourceState {
+		// For providers that don't support this operation at all we'll produce
+		// a more relevant error message because otherwise we'd just return
+		// the generic "Not implemented" error message, which isn't very helpful.
+		// Unfortunately we don't have source information for the "moved" block
+		// in here, so we'll just accept a sourceless diagnostic for now.
+		return cty.NilVal, nil, tfdiags.New(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Unsupported move between resource types",
+			fmt.Sprintf(
+				"Cannot automatically move %s into %s: provider %s does not support migrating this resource type from provider %s.",
+				args.prevAddr, args.currentAddr,
+				args.currentProviderAddr, args.prevProviderAddr,
+			),
+		))
+	}
 	req := providers.MoveResourceStateRequest{
 		SourceProviderAddress: args.prevProviderAddr.String(),
 		SourceTypeName:        args.prevAddr.Resource.Resource.Type,

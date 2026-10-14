@@ -178,6 +178,9 @@ func getMoveStateArgs() stateTransformArgs {
 				},
 			}),
 		},
+		ServerCapabilities: providers.ServerCapabilities{
+			MoveResourceState: true,
+		},
 	}
 	return stateTransformArgs{
 		currentAddr:         mustResourceInstanceAddr("foo2_instance.cur"),

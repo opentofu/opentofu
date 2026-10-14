@@ -235,6 +235,16 @@ type ServerCapabilities struct {
 	// In other words, the providers for which GetProviderSchemaOptional is false
 	// require their schema to be read after EVERY instantiation to function normally.
 	GetProviderSchemaOptional bool
+
+	// MoveResourceState is true for providers that support the MoveResourceState
+	// RPC function generally, meaning that OpenTofu can assume that they'll
+	// return a good error message if asked to perform a migration between
+	// resource types where no migration logic is available.
+	MoveResourceState bool
+
+	// GenerateResourceConfig is true for providers that support the
+	// GenerateResourceConfig RPC function.
+	GenerateResourceConfig bool
 }
 
 type FunctionSpec struct {

@@ -1575,6 +1575,47 @@ func TestContext2Plan_movedResourceToDifferentType(t *testing.T) {
 			wantErrStr: `unsupported attribute "test_string"`,
 		},
 		{
+			name:    "provider without move support at all",
+			oldType: "test_object0",
+			newType: "test_object",
+			config: map[string]string{
+				"main.tf": `
+					resource "test_object" "new" {}
+					moved {
+						from = test_object0.old
+						to   = test_object.new
+					}
+				`,
+			},
+			attrsJSON: []byte(`{}`),
+			mockProvider: &MockProvider{
+				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+					ResourceTypes: map[string]providers.Schema{
+						"test_object": constructProviderSchemaForTesting(map[string]*configschema.Attribute{
+							"test_number": {
+								Type:     cty.Number,
+								Optional: true,
+							},
+						}),
+						"test_object0": constructProviderSchemaForTesting(map[string]*configschema.Attribute{
+							"test_number": {
+								Type:     cty.Number,
+								Optional: true,
+							},
+						}),
+					},
+					ServerCapabilities: providers.ServerCapabilities{
+						MoveResourceState: false,
+					},
+				},
+			},
+			// this error message is built in to OpenTofu to prevent exposing
+			// the generic "not implemented" error from a provider that was
+			// built for an earlier version of the protocol that didn't have
+			// this operation at all.
+			wantErrStr: "Unsupported move between resource types",
+		},
+		{
 			name:    "provider failure",
 			oldType: "test_object0",
 			newType: "test_object",
@@ -1603,6 +1644,9 @@ func TestContext2Plan_movedResourceToDifferentType(t *testing.T) {
 								Optional: true,
 							},
 						}),
+					},
+					ServerCapabilities: providers.ServerCapabilities{
+						MoveResourceState: true,
 					},
 				},
 				MoveResourceStateResponse: &providers.MoveResourceStateResponse{
@@ -1662,6 +1706,9 @@ func TestContext2Plan_movedResourceToDifferentType(t *testing.T) {
 								Required: true,
 							},
 						}),
+					},
+					ServerCapabilities: providers.ServerCapabilities{
+						MoveResourceState: true,
 					},
 				},
 				MoveResourceStateResponse: &providers.MoveResourceStateResponse{
@@ -1723,6 +1770,9 @@ func TestContext2Plan_movedResourceToDifferentType(t *testing.T) {
 							},
 						}),
 					},
+					ServerCapabilities: providers.ServerCapabilities{
+						MoveResourceState: true,
+					},
 				},
 				MoveResourceStateResponse: &providers.MoveResourceStateResponse{
 					TargetState: cty.ObjectVal(map[string]cty.Value{
@@ -1777,6 +1827,9 @@ func TestContext2Plan_movedResourceToDifferentType(t *testing.T) {
 								Required: true,
 							},
 						}),
+					},
+					ServerCapabilities: providers.ServerCapabilities{
+						MoveResourceState: true,
 					},
 				},
 				MoveResourceStateResponse: &providers.MoveResourceStateResponse{
@@ -1833,6 +1886,9 @@ func TestContext2Plan_movedResourceToDifferentType(t *testing.T) {
 							},
 						}),
 					},
+					ServerCapabilities: providers.ServerCapabilities{
+						MoveResourceState: true,
+					},
 				},
 				UpgradeResourceStateResponse: &providers.UpgradeResourceStateResponse{
 					Diagnostics: tfdiags.New(tfdiags.Sourceless(tfdiags.Error, "Showing Upgrade instead of moved", "contrived test")),
@@ -1873,6 +1929,9 @@ func TestContext2Plan_movedResourceToDifferentType(t *testing.T) {
 					ResourceTypes: map[string]providers.Schema{
 						tt.newType: tt.newSchema,
 						tt.oldType: tt.oldSchema,
+					},
+					ServerCapabilities: providers.ServerCapabilities{
+						MoveResourceState: true,
 					},
 				},
 			}
@@ -1934,6 +1993,7 @@ func TestContext2Plan_movedResourceToDifferentType(t *testing.T) {
 		})
 	}
 }
+
 func TestContext2Plan_movedResourceToDifferentProvider(t *testing.T) {
 	// This tests a rare scenario where providers might
 	// change during a move, as brought up here:
@@ -2019,6 +2079,9 @@ func TestContext2Plan_movedResourceToDifferentProvider(t *testing.T) {
 					ResourceTypes: map[string]providers.Schema{
 						tt.resType: tt.schema,
 					},
+					ServerCapabilities: providers.ServerCapabilities{
+						MoveResourceState: true,
+					},
 				},
 			}
 
@@ -2027,6 +2090,9 @@ func TestContext2Plan_movedResourceToDifferentProvider(t *testing.T) {
 				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 					ResourceTypes: map[string]providers.Schema{
 						tt.resType: tt.schema,
+					},
+					ServerCapabilities: providers.ServerCapabilities{
+						MoveResourceState: true,
 					},
 				},
 			}
