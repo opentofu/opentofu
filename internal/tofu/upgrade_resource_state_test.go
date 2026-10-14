@@ -7,6 +7,8 @@ package tofu
 
 import (
 	"bytes"
+	"encoding/json"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -205,16 +207,22 @@ func getMoveStateArgs() stateTransformArgs {
 		},
 		currentSchema:        &configschema.Block{},
 		currentSchemaVersion: 3,
+
+		// TODO: This test was written before we supported resource identity
+		// upgrading and it's not clear yet how to retrofit it without
+		// completely redesigning this test.
+		currentIdentitySchema: nil,
 	}
 }
 
 func TestMoveResourceStateTransform(t *testing.T) {
 	type test struct {
-		name        string
-		args        stateTransformArgs
-		wantRequest *providers.MoveResourceStateRequest
-		wantState   cty.Value
-		wantPrivate []byte
+		name         string
+		args         stateTransformArgs
+		wantRequest  *providers.MoveResourceStateRequest
+		wantState    cty.Value
+		wantPrivate  []byte
+		wantIdentity cty.Value
 	}
 
 	tests := []test{
@@ -245,7 +253,7 @@ func TestMoveResourceStateTransform(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotState, gotPrivate, diags := moveResourceStateTransform(tt.args)
+			gotState, gotPrivate, gotIdentity, diags := moveResourceStateTransform(tt.args)
 			if tt.wantRequest != nil {
 				mockProvider, ok := tt.args.provider.(*MockProvider)
 				if !ok {
@@ -264,6 +272,9 @@ func TestMoveResourceStateTransform(t *testing.T) {
 			}
 			if !bytes.Equal(gotPrivate, tt.wantPrivate) {
 				t.Fatalf("unexpected private: got %#v, want %#v", gotPrivate, tt.wantPrivate)
+			}
+			if !gotIdentity.RawEquals(tt.wantIdentity) {
+				t.Fatalf("unexpected identity: got %#v, want %#v", gotIdentity, tt.wantIdentity)
 			}
 		})
 	}
@@ -311,18 +322,24 @@ func getUpgradeStateArgs() stateTransformArgs {
 		},
 		currentSchema:        sch,
 		currentSchemaVersion: 2,
+
+		// TODO: This test was written before we supported resource identity
+		// upgrading and it's not clear yet how to retrofit it without
+		// completely redesigning this test.
+		currentIdentitySchema: nil,
 	}
 	return args
 }
 
 func TestUpgradeResourceStateTransform(t *testing.T) {
 	type test struct {
-		name        string
-		args        stateTransformArgs
-		wantRequest *providers.UpgradeResourceStateRequest
-		wantState   cty.Value
-		wantPrivate []byte
-		wantErr     string
+		name         string
+		args         stateTransformArgs
+		wantRequest  *providers.UpgradeResourceStateRequest
+		wantState    cty.Value
+		wantPrivate  []byte
+		wantIdentity cty.Value
+		wantErr      string
 	}
 
 	argsForDowngrade := getUpgradeStateArgs()
@@ -358,7 +375,7 @@ func TestUpgradeResourceStateTransform(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotState, gotPrivate, diags := upgradeResourceStateTransform(tt.args)
+			gotState, gotPrivate, gotIdentity, diags := upgradeResourceStateTransform(tt.args)
 			if tt.wantErr != "" {
 				if !diags.HasErrors() {
 					t.Fatalf("expected error: %s", tt.wantErr)
@@ -386,6 +403,9 @@ func TestUpgradeResourceStateTransform(t *testing.T) {
 			}
 			if !bytes.Equal(gotPrivate, tt.wantPrivate) {
 				t.Fatalf("unexpected private: got %#v, want %#v", gotPrivate, tt.wantPrivate)
+			}
+			if !gotIdentity.RawEquals(tt.wantIdentity) {
+				t.Fatalf("unexpected identity: got %#v, want %#v", gotIdentity, tt.wantIdentity)
 			}
 		})
 	}
@@ -425,10 +445,10 @@ func TestTransformResourceState(t *testing.T) {
 					},
 				},
 			},
-			stateTransform: func(args stateTransformArgs) (cty.Value, []byte, tfdiags.Diagnostics) {
+			stateTransform: func(args stateTransformArgs) (cty.Value, []byte, cty.Value, tfdiags.Diagnostics) {
 				return cty.ObjectVal(map[string]cty.Value{
 					"foo": cty.StringVal("bar"),
-				}), nil, nil
+				}), nil, cty.NilVal, nil
 			},
 			objectSrcValidator: func(t *testing.T, got *states.ResourceInstanceObjectSrc) {
 				if got.AttrsFlat != nil {
@@ -453,10 +473,10 @@ func TestTransformResourceState(t *testing.T) {
 					},
 				},
 			},
-			stateTransform: func(args stateTransformArgs) (cty.Value, []byte, tfdiags.Diagnostics) {
+			stateTransform: func(args stateTransformArgs) (cty.Value, []byte, cty.Value, tfdiags.Diagnostics) {
 				return cty.ObjectVal(map[string]cty.Value{
 					"foo": cty.StringVal("bar"), // doesn't match schema
-				}), nil, nil
+				}), nil, cty.NilVal, nil
 			},
 			wantErr: "Invalid resource state transformation",
 		},
@@ -469,9 +489,9 @@ func TestTransformResourceState(t *testing.T) {
 					AttrsJSON: []byte(`{"foo":"bar"}`),
 				},
 			},
-			stateTransform: func(args stateTransformArgs) (cty.Value, []byte, tfdiags.Diagnostics) {
+			stateTransform: func(args stateTransformArgs) (cty.Value, []byte, cty.Value, tfdiags.Diagnostics) {
 				t.Error("stateTransform should not be called for data sources")
-				return cty.NilVal, nil, nil
+				return cty.NilVal, nil, cty.NilVal, nil
 			},
 			objectSrcValidator: func(t *testing.T, got *states.ResourceInstanceObjectSrc) {
 				if !bytes.Equal(got.AttrsJSON, []byte(`{"foo":"bar"}`)) {
@@ -497,14 +517,89 @@ func TestTransformResourceState(t *testing.T) {
 					},
 				},
 			},
-			stateTransform: func(args stateTransformArgs) (cty.Value, []byte, tfdiags.Diagnostics) {
+			stateTransform: func(args stateTransformArgs) (cty.Value, []byte, cty.Value, tfdiags.Diagnostics) {
 				return cty.ObjectVal(map[string]cty.Value{
 					"foo": cty.StringVal("bar"),
-				}), []byte("new-private"), nil
+				}), []byte("new-private"), cty.NilVal, nil
 			},
 			objectSrcValidator: func(t *testing.T, got *states.ResourceInstanceObjectSrc) {
 				if !bytes.Equal(got.Private, []byte("new-private")) {
 					t.Error("private state not updated")
+				}
+			},
+		},
+
+		{
+			name: "updated resource identity information should be saved",
+			args: stateTransformArgs{
+				currentProviderAddr: addrs.MustParseProviderSourceString("example.com/foo/test"),
+				currentAddr:         mustResourceInstanceAddr("test_instance.foo"),
+				provider: &MockProvider{
+					GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+						ResourceTypes: map[string]providers.Schema{
+							"test_instance": {
+								Block: &configschema.Block{
+									Attributes: map[string]*configschema.Attribute{
+										"foo": {
+											Type:     cty.String,
+											Optional: true,
+										},
+									},
+								},
+								IdentitySchemaVersion: 2,
+								IdentitySchema: &configschema.Object{
+									Attributes: map[string]*configschema.Attribute{
+										"id2": {
+											Type:     cty.String,
+											Optional: true,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				objectSrc: &states.ResourceInstanceObjectSrc{
+					AttrsJSON:             []byte(`{"foo":"bar"}`),
+					Private:               []byte("old-private"),
+					IdentityJSON:          []byte(`{"id1":"hello"}`),
+					IdentitySchemaVersion: new(uint64(1)),
+				},
+				currentSchema: &configschema.Block{
+					Attributes: map[string]*configschema.Attribute{
+						"foo": {Type: cty.String, Optional: true},
+					},
+				},
+				currentIdentitySchema: &configschema.Object{
+					Nesting: configschema.NestingSingle,
+					Attributes: map[string]*configschema.Attribute{
+						"id2": {Type: cty.String, Optional: true},
+					},
+				},
+			},
+			stateTransform: func(args stateTransformArgs) (cty.Value, []byte, cty.Value, tfdiags.Diagnostics) {
+				if args.objectSrc.IdentitySchemaVersion == nil || *args.objectSrc.IdentitySchemaVersion != 1 {
+					return cty.NilVal, nil, cty.NilVal, tfdiags.New(fmt.Errorf("wrong initial identity schema version"))
+				}
+				if !bytes.Contains(args.objectSrc.IdentityJSON, []byte("hello")) {
+					return cty.NilVal, nil, cty.NilVal, tfdiags.New(fmt.Errorf("wrong initial identity JSON %s", args.objectSrc.IdentityJSON))
+				}
+				newState := cty.ObjectVal(map[string]cty.Value{
+					"foo": cty.StringVal("bar"),
+				})
+				newIdentity := cty.ObjectVal(map[string]cty.Value{
+					"id2": cty.StringVal("howdy"),
+				})
+				return newState, nil, newIdentity, nil
+			},
+			objectSrcValidator: func(t *testing.T, got *states.ResourceInstanceObjectSrc) {
+				type Identity struct {
+					ID2 string `json:"id2"`
+				}
+				var identity Identity
+				err := json.Unmarshal(got.IdentityJSON, &identity)
+				if err != nil || identity.ID2 != "howdy" {
+					t.Errorf("identity JSON not updated: %s", got.IdentityJSON)
 				}
 			},
 		},
@@ -530,179 +625,6 @@ func TestTransformResourceState(t *testing.T) {
 
 			if tt.objectSrcValidator != nil {
 				tt.objectSrcValidator(t, got)
-			}
-		})
-	}
-}
-
-func TestUpgradeResourceIdentity(t *testing.T) {
-	uint64Ptr := func(i uint64) *uint64 {
-		return &i
-	}
-	boolPtr := func(b bool) *bool {
-		return &b
-	}
-	tests := []struct {
-		name           string
-		currentAddr    addrs.AbsResourceInstance
-		src            *states.ResourceInstanceObjectSrc
-		provider       *MockProvider
-		providerSchema providers.ProviderSchema
-
-		wantIdentityJSON    []byte
-		wantIdentityVersion *uint64
-		wantErr             string
-		wantUpgradeCalled   *bool
-	}{
-		{
-			name:        "no upgrade needed, same versions",
-			currentAddr: mustResourceInstanceAddr("test_instance.foo"),
-			src: &states.ResourceInstanceObjectSrc{
-				IdentityJSON:          []byte(`{"id":"1234"}`),
-				IdentitySchemaVersion: uint64Ptr(2),
-			},
-			provider: &MockProvider{
-				GetProviderSchemaResponse: testProviderSchema("test"),
-			},
-			providerSchema: providers.ProviderSchema{
-				ResourceTypes: map[string]providers.Schema{
-					"test_instance": {
-						IdentitySchemaVersion: 2,
-					},
-				},
-			},
-			wantIdentityJSON:    []byte(`{"id":"1234"}`),
-			wantIdentityVersion: uint64Ptr(2),
-			wantUpgradeCalled:   boolPtr(false),
-		},
-		{
-			name:        "v1 to v2 upgrade",
-			currentAddr: mustResourceInstanceAddr("test_instance.foo"),
-			src: &states.ResourceInstanceObjectSrc{
-				IdentityJSON:          []byte(`{"id":"1234"}`),
-				IdentitySchemaVersion: uint64Ptr(1),
-			},
-			provider: &MockProvider{
-				UpgradeResourceIdentityResponse: &providers.UpgradeResourceIdentityResponse{
-					UpgradedIdentity: cty.ObjectVal(map[string]cty.Value{"id": cty.StringVal("1234"), "new_field": cty.StringVal("value")}),
-				},
-				GetProviderSchemaResponse: testProviderSchema("test"),
-			},
-			providerSchema: providers.ProviderSchema{
-				ResourceTypes: map[string]providers.Schema{
-					"test_instance": {
-						IdentitySchema: &configschema.Object{
-							Attributes: map[string]*configschema.Attribute{
-								"id":        {Type: cty.String, Required: true},
-								"new_field": {Type: cty.String, Required: true},
-							},
-							Nesting: configschema.NestingSingle,
-						},
-						IdentitySchemaVersion: 2,
-					},
-				},
-			},
-			wantIdentityJSON:    []byte(`{"id":"1234","new_field":"value"}`),
-			wantIdentityVersion: uint64Ptr(2),
-			wantUpgradeCalled:   boolPtr(true),
-		},
-		{
-			name:        "downgrade attempt - should error",
-			currentAddr: mustResourceInstanceAddr("test_instance.foo"),
-			src: &states.ResourceInstanceObjectSrc{
-				IdentityJSON:          []byte(`{"id":"test-123"}`),
-				IdentitySchemaVersion: uint64Ptr(3),
-			},
-			provider: &MockProvider{
-				GetProviderSchemaResponse: testProviderSchema("test"),
-			},
-			providerSchema: providers.ProviderSchema{
-				ResourceTypes: map[string]providers.Schema{
-					"test_instance": {
-						IdentitySchema: &configschema.Object{
-							Attributes: map[string]*configschema.Attribute{
-								"id": {Type: cty.String, Required: true},
-							},
-							Nesting: configschema.NestingSingle,
-						},
-						IdentitySchemaVersion: 2,
-					},
-				},
-			},
-			wantErr: "Resource identity managed by newer provider version",
-		},
-		{
-			name:        "provider returns error during upgrade",
-			currentAddr: mustResourceInstanceAddr("test_instance.foo"),
-			src: &states.ResourceInstanceObjectSrc{
-				IdentityJSON:          []byte(`{"id":"test-123"}`),
-				IdentitySchemaVersion: uint64Ptr(1),
-			},
-			provider: &MockProvider{
-				UpgradeResourceIdentityResponse: &providers.UpgradeResourceIdentityResponse{
-					Diagnostics: tfdiags.Diagnostics{
-						tfdiags.Sourceless(
-							tfdiags.Error,
-							"Upgrade failed",
-							"Could not upgrade identity",
-						),
-					},
-				},
-				GetProviderSchemaResponse: testProviderSchema("test"),
-			},
-			providerSchema: providers.ProviderSchema{
-				ResourceTypes: map[string]providers.Schema{
-					"test_instance": {
-						IdentitySchema: &configschema.Object{
-							Attributes: map[string]*configschema.Attribute{
-								"id": {Type: cty.String, Required: true},
-							},
-							Nesting: configschema.NestingSingle,
-						},
-						IdentitySchemaVersion: 2,
-					},
-				},
-			},
-			wantErr: "Upgrade failed",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			gotSrc, diags := upgradeResourceIdentity(t.Context(), tt.currentAddr, tt.src, tt.provider, addrs.NewDefaultProvider("test"), tt.providerSchema, nil)
-
-			if tt.wantErr != "" {
-				if !diags.HasErrors() {
-					t.Fatal("expected error diagnostics")
-				}
-				if !strings.Contains(diags.Err().Error(), tt.wantErr) {
-					t.Errorf("expected error containing %q, got %q", tt.wantErr, diags.Err())
-				}
-				return
-			}
-
-			if diags.HasErrors() {
-				t.Fatalf("unexpected errors: %s", diags.Err())
-			}
-
-			// Check if UpgradeResourceIdentity was called (or not called) as expected
-			if tt.wantUpgradeCalled != nil {
-				if tt.provider.UpgradeResourceIdentityCalled != *tt.wantUpgradeCalled {
-					t.Errorf("expected UpgradeResourceIdentity called=%v, got called=%v",
-						*tt.wantUpgradeCalled, tt.provider.UpgradeResourceIdentityCalled)
-				}
-			}
-
-			if !bytes.Equal(gotSrc.IdentityJSON, tt.wantIdentityJSON) {
-				t.Errorf("unexpected identity JSON: got %q, want %q", gotSrc.IdentityJSON, tt.wantIdentityJSON)
-			}
-
-			if tt.wantIdentityVersion != nil {
-				if gotSrc.IdentitySchemaVersion == nil {
-					t.Errorf("expected identity version %d, got nil", *tt.wantIdentityVersion)
-				} else if *gotSrc.IdentitySchemaVersion != *tt.wantIdentityVersion {
-					t.Errorf("unexpected identity version: got %d, want %d", *gotSrc.IdentitySchemaVersion, *tt.wantIdentityVersion)
-				}
 			}
 		})
 	}

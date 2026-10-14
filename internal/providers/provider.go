@@ -658,6 +658,13 @@ type MoveResourceStateRequest struct {
 	// The private state of the resource being moved.
 	SourcePrivate []byte
 
+	// SourceIdentityJSON and SourceIdentitySchemaVersion together represent
+	// the resource identity information for the source object and the
+	// information the target provider would need to recognize which schema
+	// to use to decode it.
+	SourceIdentityJSON          []byte
+	SourceIdentitySchemaVersion uint64
+
 	// The resource type that the resource is being moved to.
 	TargetTypeName string
 }
@@ -667,6 +674,10 @@ type MoveResourceStateResponse struct {
 	TargetState cty.Value
 	// The private state of the resource after it has been moved.
 	TargetPrivate []byte
+	// TargetIdentity is the resource identity information for the new object,
+	// represented as a value of an object type derived from the target type's
+	// resource identity schema.
+	TargetIdentity cty.Value
 
 	// Diagnostics contains any warnings or errors from the method call.
 	Diagnostics tfdiags.Diagnostics

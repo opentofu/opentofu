@@ -639,24 +639,21 @@ func (n *NodeAbstractResourceInstance) readResourceInstanceState(ctx context.Con
 	prevAddr := n.prevRunAddr(evalCtx)
 	providerAddr, prevProviderAddr := n.getResourceProviderAddrs(evalCtx, addr)
 	transformArgs := stateTransformArgs{
-		currentAddr:          addr,
-		currentProviderAddr:  providerAddr,
-		prevAddr:             prevAddr,
-		prevProviderAddr:     prevProviderAddr,
-		provider:             provider,
-		objectSrc:            src,
-		currentSchema:        schema.Block,
-		currentSchemaVersion: currentVersion,
+		currentAddr:                  addr,
+		currentProviderAddr:          providerAddr,
+		prevAddr:                     prevAddr,
+		prevProviderAddr:             prevProviderAddr,
+		provider:                     provider,
+		objectSrc:                    src,
+		currentSchema:                schema.Block,
+		currentSchemaVersion:         currentVersion,
+		currentIdentitySchema:        schema.IdentitySchema,
+		currentIdentitySchemaVersion: uint64(schema.IdentitySchemaVersion),
 	}
 	if evalCtx.MoveResults().AddrMovedExplicit(addr) && isResourceMovedToDifferentType(addr, prevAddr, providerAddr, prevProviderAddr) {
 		src, diags = moveResourceState(transformArgs)
 	} else {
 		src, diags = upgradeResourceState(transformArgs)
-	}
-
-	// Upgrade identity if needed
-	if src != nil && src.IdentityJSON != nil {
-		src, diags = upgradeResourceIdentity(ctx, addr, src, provider, prevProviderAddr, providerSchema, diags)
 	}
 
 	if n.Config != nil {
@@ -718,24 +715,21 @@ func (n *NodeAbstractResourceInstance) readResourceInstanceStateDeposed(ctx cont
 	prevAddr := n.prevRunAddr(evalCtx)
 	providerAddr, prevProviderAddr := n.getResourceProviderAddrs(evalCtx, addr)
 	transformArgs := stateTransformArgs{
-		currentAddr:          addr,
-		currentProviderAddr:  providerAddr,
-		prevAddr:             prevAddr,
-		prevProviderAddr:     prevProviderAddr,
-		provider:             provider,
-		objectSrc:            src,
-		currentSchema:        schema.Block,
-		currentSchemaVersion: currentVersion,
+		currentAddr:                  addr,
+		currentProviderAddr:          providerAddr,
+		prevAddr:                     prevAddr,
+		prevProviderAddr:             prevProviderAddr,
+		provider:                     provider,
+		objectSrc:                    src,
+		currentSchema:                schema.Block,
+		currentSchemaVersion:         currentVersion,
+		currentIdentitySchema:        schema.IdentitySchema,
+		currentIdentitySchemaVersion: uint64(schema.IdentitySchemaVersion),
 	}
 	if evalCtx.MoveResults().AddrMovedExplicit(addr) && isResourceMovedToDifferentType(addr, prevAddr, providerAddr, prevProviderAddr) {
 		src, diags = moveResourceState(transformArgs)
 	} else {
 		src, diags = upgradeResourceState(transformArgs)
-	}
-
-	// Upgrade identity if needed
-	if src != nil && src.IdentityJSON != nil {
-		src, diags = upgradeResourceIdentity(ctx, addr, src, provider, prevProviderAddr, providerSchema, diags)
 	}
 
 	if n.Config != nil {
