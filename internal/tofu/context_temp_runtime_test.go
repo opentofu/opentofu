@@ -98,7 +98,7 @@ var (
 	ExperimentalChangeCursedSelfRef   = ExperimentalFlag{"Change Cursed Self Reference (legacy race condition)", false}
 	ExperimentalChangeMoved           = ExperimentalFlag{"Moved blocks that are not \"active\" are not processed", false}
 
-	ExperimentalFeatureDeposed         = ExperimentalFlag{"Missing Deposed", false}
+	ExperimentalFeatureDeposed         = ExperimentalFlag{"Missing Deposed", true}
 	ExperimentalFeatureCondition       = ExperimentalFlag{"Missing Pre/Post Conditions", false}
 	ExperimentalFeatureLocalState      = ExperimentalFlag{"Missing Store locals in state", false}
 	ExperimentalFeatureChecks          = ExperimentalFlag{"Missing Checks", false}
