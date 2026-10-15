@@ -62,7 +62,6 @@ func (ops *execOperations) DataRead(
 	// the configuration was validated in the plan phase, which produced
 	// the opcode to trigger this operation.
 
-	// TODO adjust these tracers to actually be preapply/postapply instead of refresh
 	tracer := contextTracer(ctx)
 	if cb := tracer.StartDataResourceInstanceRead; cb != nil {
 		ctx = cb(ctx, desired.Addr)
