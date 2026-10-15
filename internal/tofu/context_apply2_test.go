@@ -7395,7 +7395,7 @@ func TestContext2Apply_ephemeralInModuleWithExpansion(t *testing.T) {
 			if diags.HasErrors() {
 				t.Fatal(diags.Err())
 			}
-			fmt.Println(newState)
+			t.Log(newState)
 		})
 
 	}
