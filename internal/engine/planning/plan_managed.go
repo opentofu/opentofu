@@ -140,31 +140,16 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		ret.ReplaceOrder = resources.ReplaceAnyOrder
 	}
 
-	providerInstUnmarked, providerInstMarks := meta.ProviderInstance.Unmark()
-	// TODO: What should we do with these marks, if anything?
-	_ = providerInstMarks
-	providerInst, ok := providerInstUnmarked.ValueOk()
-	if !ok {
+	resourceType, providerInst, moreDiags := p.managedResourceType(ctx, meta)
+	diags = diags.Append(moreDiags)
+	if diags.HasErrors() {
+		return ret, diags
+	}
+	if resourceType == nil {
 		// If we don't even know which provider instance we're supposed to be
 		// talking to then we can't proceed any further.
 		return ret, diags
 	}
-
-	providerClient, moreDiags := p.providerClient(ctx, providerInst)
-	if providerClient == nil {
-		moreDiags = moreDiags.Append(tfdiags.AttributeValue(
-			tfdiags.Error,
-			"Provider instance not available",
-			fmt.Sprintf("Cannot plan %s because its associated provider instance %s cannot initialize.", inst.Addr, providerInst),
-			nil,
-		))
-	}
-	diags = diags.Append(moreDiags)
-	if moreDiags.HasErrors() {
-		return ret, diags
-	}
-
-	resourceType := resources.NewManagedResourceType(meta.Provider, meta.ResourceType, providerClient)
 
 	// Improve what we know about the potential value
 	ret.PlaceholderValue, moreDiags = resourceType.NullValue(ctx)
@@ -519,9 +504,12 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 	//
 	// There's another FIXME comment further down the callstack beneath this
 	// function identifying the main location of the problem.
-	providerAddr := meta.Provider
-	providerInstAddr, ok := meta.ProviderInstance.ValueOk()
-	if !ok {
+	resourceType, providerInstAddr, moreDiags := p.managedResourceType(ctx, meta)
+	diags = diags.Append(moreDiags)
+	if diags.HasErrors() {
+		return ret, diags
+	}
+	if resourceType == nil {
 		// TODO: Is there anything sensible to do here? It should only be
 		// possible to get into this situation if the unwanted object still
 		// has configuration, but we specify the provider instance using a
@@ -530,21 +518,6 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 		// resource instance is "unwanted".
 		panic(fmt.Sprintf("unknown provider instance address for %s", providerInstAddr))
 	}
-	providerClient, moreDiags := p.providerClient(ctx, meta.ProviderInstance.KnownValue())
-	if providerClient == nil {
-		moreDiags = moreDiags.Append(tfdiags.AttributeValue(
-			tfdiags.Error,
-			"Provider instance not available",
-			fmt.Sprintf("Cannot plan %s because its associated provider instance %s cannot initialize.", addr, providerInstAddr),
-			nil,
-		))
-	}
-	diags = diags.Append(moreDiags)
-	if moreDiags.HasErrors() {
-		return ret, diags
-	}
-
-	resourceType := resources.NewManagedResourceType(providerAddr, meta.ResourceType, providerClient)
 
 	prevValue, prevStateFull, moreDiags := processMoveOrUpgrade(ctx, addr, meta.Provider, resourceType, stateSrc, movedToAddress != nil)
 	diags = diags.Append(moreDiags)
@@ -628,6 +601,34 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 	diags = diags.Append(checkPreventDestroy(ctx, meta, ret))
 
 	return ret, diags
+}
+
+func (p *planGlue) managedResourceType(ctx context.Context, meta *exec.ResourceInstanceObjectMeta) (*resources.ManagedResourceType, addrs.AbsProviderInstanceCorrect, tfdiags.Diagnostics) {
+	providerInstUnmarked, providerInstMarks := meta.ProviderInstance.Unmark()
+	// TODO: What should we do with these marks, if anything?
+	_ = providerInstMarks
+	providerInst, ok := providerInstUnmarked.ValueOk()
+	if !ok {
+		// If we don't even know which provider instance we're supposed to be
+		// talking to then we can't proceed any further.
+		return nil, providerInst, nil
+	}
+
+	providerClient, diags := p.providerClient(ctx, providerInst)
+	if providerClient == nil {
+		diags = diags.Append(tfdiags.AttributeValue(
+			tfdiags.Error,
+			"Provider instance not available",
+			fmt.Sprintf("Cannot plan %s because its associated provider instance %s cannot initialize.", meta.Addr, providerInst),
+			nil,
+		))
+	}
+	if diags.HasErrors() {
+		return nil, providerInst, diags
+	}
+
+	return resources.NewManagedResourceType(meta.Provider, meta.ResourceType, providerClient), providerInst, diags
+
 }
 
 func processMoveOrUpgrade(
