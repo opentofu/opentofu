@@ -206,12 +206,12 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		ret.RefreshedState = new(*prevStateFull)
 		ret.RefreshedState.ProviderInstanceAddr = providerInst
 
-		ret.StateAddr = ret.Addr
+		ret.PrevRoundAddr = ret.Addr
 		if prevStateInfo.isImplicit() {
 			// due to a quirk in how moves are handled,
 			// if it's an implied move, we save state
 			// in the prevAddr instead of current.
-			ret.StateAddr = prevStateInfo.from.CurrentObject()
+			ret.PrevRoundAddr = prevStateInfo.from.CurrentObject()
 		}
 
 	}
@@ -437,7 +437,7 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 
 	ret := &resourceInstanceObject{
 		Addr:              addr,
-		StateAddr:         addr,
+		PrevRoundAddr:     addr,
 		StateDependencies: addrs.MakeSet[addrs.AbsResourceInstanceObject](),
 		Provider:          meta.Provider,
 
@@ -483,7 +483,7 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 
 		// Update the currentRunAddress to match the move
 		currentRunAddr = *movedToAddress
-		ret.StateAddr = currentRunAddr.Object(addr.DeposedKey)
+		ret.PrevRoundAddr = currentRunAddr.Object(addr.DeposedKey)
 
 		// Discover true configMeta based on state moves
 		movedObj := movedToAddress.Object(addr.DeposedKey)

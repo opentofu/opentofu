@@ -43,7 +43,7 @@ type resourceInstanceObject struct {
 	// [resourceInstanceObject].
 	Addr addrs.AbsResourceInstanceObject
 
-	StateAddr addrs.AbsResourceInstanceObject
+	PrevRoundAddr addrs.AbsResourceInstanceObject
 
 	// UpgradedState is the previous state value after processing
 	// Upgrades and Moves.
