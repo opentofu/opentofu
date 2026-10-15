@@ -90,6 +90,25 @@ func PlanChanges(ctx context.Context, opts *PlanOpts, prevRoundState *states.Sta
 func finalizePlan(ctx context.Context, intermediate *planContextResult, providers plugins.Providers) (*plans.Plan, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
+	// Collect all of the upgraded and refreshed stateObjects
+	upgradedStateSync := intermediate.PrevRoundState.DeepCopy().SyncWrapper()
+	refreshedStateSync := intermediate.PrevRoundState.DeepCopy().SyncWrapper()
+
+	for _, obj := range intermediate.ResourceInstanceObjects.All() {
+		writeAddr := obj.StateAddr
+		if obj.UpgradedState != nil {
+			upgradedStateSync.SetResourceInstanceObjectFull(writeAddr, obj.UpgradedState)
+		}
+		if obj.RefreshedState != nil {
+			refreshedStateSync.SetResourceInstanceObjectFull(writeAddr, obj.RefreshedState)
+		} else {
+			refreshedStateSync.RemoveResourceInstanceObjectFull(writeAddr, obj.ProviderInst)
+		}
+	}
+
+	upgradedState := upgradedStateSync.Close()
+	refreshedState := refreshedStateSync.Close()
+
 	effectiveReplaceOrders, selfDeps := findEffectiveReplaceOrders(intermediate.ResourceInstanceObjects)
 	if len(selfDeps) != 0 {
 		// TODO: _Should_ we return this error here? In principle we should only
@@ -140,7 +159,7 @@ func finalizePlan(ctx context.Context, intermediate *planContextResult, provider
 
 			var existingDeposed map[addrs.DeposedKey]*states.ResourceInstanceObjectSrc
 			newDeposed := newDeposedKeys.Get(instAddr)
-			inst := intermediate.RefreshedState.ResourceInstance(instAddr)
+			inst := refreshedState.ResourceInstance(instAddr)
 			if inst != nil {
 				existingDeposed = inst.Deposed
 			}
@@ -183,8 +202,8 @@ func finalizePlan(ctx context.Context, intermediate *planContextResult, provider
 	return &plans.Plan{
 		UIMode:       plans.NormalMode, // TODO: [PlanChanges] needs something analogous to [tofu.PlanOpts] for planning mode/options
 		Changes:      changes,
-		PrevRunState: intermediate.PrevRoundState,
-		PriorState:   intermediate.RefreshedState,
+		PrevRunState: upgradedState,
+		PriorState:   refreshedState,
 		// TODO: various other fields that we need to actually make use
 		// of this plan result. But this is intentionally just a partial
 		// result for now because it's not clear that we'd even be using

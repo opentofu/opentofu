@@ -50,15 +50,6 @@ type planContext struct {
 	// prevRoundState MUST be treated as immutable
 	prevRoundState *states.State
 
-	// refreshedState is where we record the results of refreshing
-	// resource instances as we visit them. This starts as a deep copy
-	// of prevRoundState.
-	refreshedState *states.SyncState
-
-	// upgradedState is the state returned by UpgradeResourceState.
-	// Each resource instance should modify it once.
-	upgradedState *states.SyncState
-
 	// rootOutput is the values and dependencies of the root module outputs
 	rootOutput rootOutput
 
@@ -69,9 +60,6 @@ func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, pro
 	if prevRoundState == nil {
 		prevRoundState = states.NewState()
 	}
-	refreshedState := prevRoundState.DeepCopy()
-	upgradedState := prevRoundState.DeepCopy()
-
 	return &planContext{
 		evalCtx:          evalCtx,
 		resourceInstObjs: newResourceInstanceObjectsBuilder(),
@@ -81,8 +69,6 @@ func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, pro
 		recordedMoves:    addrs.MakeMap[addrs.AbsResourceInstance, addrs.AbsResourceInstance](),
 		configuredMoves:  addrs.MakeMap[addrs.AbsResourceInstance, []*moveStep](),
 		prevRoundState:   prevRoundState,
-		refreshedState:   refreshedState.SyncWrapper(),
-		upgradedState:    upgradedState.SyncWrapper(),
 		providers:        providers,
 	}
 }
@@ -97,8 +83,7 @@ func (p *planContext) Close(ctx context.Context) (*planContextResult, tfdiags.Di
 
 	result := &planContextResult{
 		ResourceInstanceObjects: p.resourceInstObjs.Close(),
-		PrevRoundState:          p.upgradedState.Close(),
-		RefreshedState:          p.refreshedState.Close(),
+		PrevRoundState:          p.prevRoundState,
 		RootOutput:              p.rootOutput,
 	}
 
@@ -116,7 +101,6 @@ type rootOutput struct {
 type planContextResult struct {
 	ResourceInstanceObjects *resourceInstanceObjects
 	PrevRoundState          *states.State
-	RefreshedState          *states.State
 	RootOutput              rootOutput
 
 	// Unfortunately, we need to signal to the apply engine that some things
