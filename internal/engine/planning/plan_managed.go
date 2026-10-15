@@ -236,6 +236,13 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		}
 	}
 
+	if p.planCtx.refreshOnly {
+		if ret.PlaceholderValue.IsNull() {
+			ret.PlaceholderValue = cty.UnknownVal(ret.PlaceholderValue.Type())
+		}
+		return ret, diags
+	}
+
 	// Our best guess as to what the current value is (probably cty.NullVal)
 	current := resources.ValueWithPrivate{Value: ret.PlaceholderValue}
 	if prevState != nil {
@@ -578,6 +585,10 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 	if prevState.Value.IsNull() {
 		// The orphan object seems to have already been deleted outside of
 		// OpenTofu, so we've got nothing more to do here.
+		return ret, diags
+	}
+
+	if p.planCtx.refreshOnly {
 		return ret, diags
 	}
 

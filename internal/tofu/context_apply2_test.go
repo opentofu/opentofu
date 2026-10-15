@@ -2203,7 +2203,7 @@ output "from_resource" {
 
 // -refresh-only should update checks
 func TestContext2Apply_refreshApplyUpdatesChecks(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureRefreshOnly)
+	SkipExperimental(t, ExperimentalFeatureRefreshOnly, ExperimentalFeatureChecks)
 
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
