@@ -17,10 +17,10 @@ import (
 // ValidateConfig asks the provider whether the given value is valid.
 //
 // The given value should already conform to the schema of the resource type.
-func (rt *DataResourceType) ValidateConfig(ctx context.Context, configVal cty.Value) tfdiags.Diagnostics {
+func (dt *DataResourceType) ValidateConfig(ctx context.Context, configVal cty.Value) tfdiags.Diagnostics {
 	configValUnmarked, _ := configVal.UnmarkDeep()
-	resp := rt.client.ValidateDataResourceConfig(ctx, providers.ValidateDataResourceConfigRequest{
-		TypeName: rt.typeName,
+	resp := dt.client.ValidateDataResourceConfig(ctx, providers.ValidateDataResourceConfigRequest{
+		TypeName: dt.typeName,
 		Config:   configValUnmarked,
 	})
 	return resp.Diagnostics

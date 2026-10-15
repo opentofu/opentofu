@@ -10,7 +10,6 @@ import (
 	"fmt"
 
 	"github.com/zclconf/go-cty/cty"
-	ctyjson "github.com/zclconf/go-cty/cty/json"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/internal/exec"
@@ -66,9 +65,10 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 		ret.ConfigDependencies.Add(dep.CurrentObject())
 	}
 
-	providerInstUnmarked, providerMarks := meta.ProviderInstance.Unmark()
+	providerInstUnmarked, providerInstMarks := meta.ProviderInstance.Unmark()
+	// TODO: What should we do with these marks, if anything?
+	_ = providerInstMarks
 	providerInstAddr, ok := providerInstUnmarked.ValueOk()
-	_ = providerMarks
 	if !ok {
 		// TODO: Record that this was deferred because we don't yet know which
 		// provider instance it belongs to.
@@ -89,7 +89,7 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 		return ret, diags
 	}
 
-	resourceType := resources.NewDataResourceType(meta.Provider, inst.Addr.Resource.Resource.Type, providerClient)
+	resourceType := resources.NewDataResourceType(meta.Provider, meta.ResourceType, providerClient)
 
 	requiredChanges := addrs.CollectSet(objchange.PrereqChangesForValue(inst.ConfigVal))
 	depsPending := len(requiredChanges) != 0
@@ -121,28 +121,28 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 		// function to handle when this is derived from something that _is_
 		// being completely deferred in this round, in which case we must also
 		// defer reading this data resource instance to a future round.
+
+		// We only do this if we're not in refresh-only mode!
 		ret, moreDiags := p.planDelayedDataResourceInstance(ctx, inst, providerInstAddr, providerClient, reason, ret)
 		diags = diags.Append(moreDiags)
 		return ret, diags
 	}
 
 	validateDiags := resourceType.ValidateConfig(ctx, inst.ConfigVal)
-	// FIXME Needs that InConfigBody thing, see resourceType.Read
+	// FIXME Needs that InConfigBody thing, see (*DataResourceType).Read
 	// for more details, that's gotta be fixed too.
 	diags = diags.Append(validateDiags)
 	if diags.HasErrors() {
 		return ret, diags
 	}
 
-	// obtain schema for encoding
-	schema, schemaDiags := resourceType.LoadSchema(ctx)
-	diags = diags.Append(schemaDiags)
-	if schemaDiags.HasErrors() {
+	unmarkedConfigVal, _ := inst.ConfigVal.UnmarkDeepWithPaths()
+	proposedNewVal, unkDiags := resourceType.UnknownValue(ctx, unmarkedConfigVal)
+	diags = diags.Append(unkDiags)
+	if diags.HasErrors() {
+		// This only happens when there's issues getting the schema
 		return ret, diags
 	}
-
-	unmarkedConfigVal, _ := inst.ConfigVal.UnmarkDeepWithPaths()
-	proposedNewVal := objchange.PlannedUnknownObject(schema.Block, unmarkedConfigVal)
 
 	readCtx := ctx
 	if cb := tracer.StartDataResourceInstanceRead; cb != nil {
@@ -165,26 +165,23 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 		cb(readCtx, inst.Addr, resultVal, diags.Err())
 	}
 
-	src, err := ctyjson.Marshal(resp.ResultUnmarked, schema.Block.ImpliedType())
-	if err != nil {
-		// We just checked for type conformance in the Read, so getting into this
-		// codepath is probably a bug.
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to encode result of data resource read",
-			fmt.Sprintf("Failed to encode state for %s after data resource read: %s.", inst.Addr, tfdiags.FormatError(err)),
-		))
+	encodedVal, encodeDiags := resourceType.EncodeValue(ctx, resp.ResultUnmarked, inst.Addr.CurrentObject())
+	diags = diags.Append(encodeDiags)
+	if diags.HasErrors() {
+		return ret, diags
 	}
+
+	// no errors means encodedVal is non-nil!
 
 	dataResourceState := &states.ResourceInstanceObjectFullSrc{
 		Value: states.ValueJSONWithMetadata{
-			ValueJSON:      src,
+			ValueJSON:      encodedVal.ValueJSON,
 			SensitivePaths: resp.SensitivePaths,
 		},
 		Status:               resp.Status,
 		ProviderInstanceAddr: providerInstAddr,
 		ResourceType:         meta.ResourceType,
-		SchemaVersion:        uint64(schema.Version),
+		SchemaVersion:        encodedVal.SchemaVersion,
 		// TODO: Populate these Dependencies based on the dependencies in the state
 		// See plan_managed.go for a similar problem
 		// Dependencies:         resp.Dependencies,
@@ -214,8 +211,6 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 // caller is expected to then just return that result verbatim.
 func (p *planGlue) planDelayedDataResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance, providerAddr addrs.AbsProviderInstanceCorrect, providerClient providers.Interface, reason plans.ResourceInstanceChangeActionReason, ret *resourceInstanceObject) (*resourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-
-	// TODO: Check if we're doing refresh-only, and skip accordingly
 
 	resourceType := resources.NewDataResourceType(providerAddr.Config.Config.Provider, inst.Addr.Resource.Resource.Type, providerClient)
 

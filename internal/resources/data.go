@@ -10,8 +10,11 @@ import (
 	"fmt"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/plans/objchange"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/zclconf/go-cty/cty"
+	ctyjson "github.com/zclconf/go-cty/cty/json"
 )
 
 // DataResourceType represents a named resource type in a specific provider,
@@ -49,17 +52,17 @@ func NewDataResourceType(providerAddr addrs.Provider, typeName string, client pr
 }
 
 // ResourceMode implements [ResourceType].
-func (rt *DataResourceType) ResourceMode() addrs.ResourceMode {
+func (dt *DataResourceType) ResourceMode() addrs.ResourceMode {
 	return addrs.DataResourceMode
 }
 
 // ResourceTypeName implements [ResourceType].
-func (rt *DataResourceType) ResourceTypeName() string {
-	return rt.typeName
+func (dt *DataResourceType) ResourceTypeName() string {
+	return dt.typeName
 }
 
 // LoadSchema implements [ResourceType].
-func (rt *DataResourceType) LoadSchema(ctx context.Context) (providers.Schema, tfdiags.Diagnostics) {
+func (dt *DataResourceType) LoadSchema(ctx context.Context) (providers.Schema, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// This is awkward because we already have higher-level objects that
@@ -77,20 +80,63 @@ func (rt *DataResourceType) LoadSchema(ctx context.Context) (providers.Schema, t
 	// in a single object we can pass around, similar to how exprs.Valuer
 	// encapsulates everything needed to evaluate something.
 
-	resp := rt.client.GetProviderSchema(ctx)
+	resp := dt.client.GetProviderSchema(ctx)
 	diags = diags.Append(resp.Diagnostics)
 	if resp.Diagnostics.HasErrors() {
 		return providers.Schema{}, diags
 	}
-	ret, ok := resp.DataSources[rt.typeName]
+	ret, ok := resp.DataSources[dt.typeName]
 	if !ok {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Unsupported resource type",
-			fmt.Sprintf("Provider %s does not support a data resource type named %q.", rt.providerAddr.String(), rt.typeName),
+			fmt.Sprintf("Provider %s does not support a data resource type named %q.", dt.providerAddr.String(), dt.typeName),
 		))
 		return providers.Schema{}, diags
 	}
 
 	return ret, diags
+}
+
+func (dt *DataResourceType) EncodeValue(ctx context.Context, value cty.Value, dispAddr addrs.AbsResourceInstanceObject) (encodedVal *EncodedValue, diags tfdiags.Diagnostics) {
+
+	// obtain schema for encoding
+	schema, schemaDiags := dt.LoadSchema(ctx)
+	diags = diags.Append(schemaDiags)
+	if schemaDiags.HasErrors() {
+		return
+	}
+
+	src, err := ctyjson.Marshal(value, schema.Block.ImpliedType())
+	if err != nil {
+		// We should have just checked for type conformance in the Read, so getting into this
+		// codepath is probably a bug.
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Failed to encode result of data resource read",
+			fmt.Sprintf("Failed to encode state for %s after data resource read: %s.", dispAddr, tfdiags.FormatError(err)),
+		))
+		return
+	}
+
+	encodedVal = &EncodedValue{
+		ValueJSON:     src,
+		SchemaVersion: uint64(schema.Version),
+	}
+
+	return
+}
+
+func (dt *DataResourceType) UnknownValue(ctx context.Context, unmarkedConfigVal cty.Value) (unknownVal cty.Value, diags tfdiags.Diagnostics) {
+	// obtain schema for encoding
+	// TODO this feels a bit wasteful; we're gonna do it more than once while managing data....
+	schema, schemaDiags := dt.LoadSchema(ctx)
+	diags = diags.Append(schemaDiags)
+	if schemaDiags.HasErrors() {
+		// This should never happen....
+		return
+	}
+
+	unknownVal = objchange.PlannedUnknownObject(schema.Block, unmarkedConfigVal)
+	return
 }

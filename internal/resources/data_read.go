@@ -36,11 +36,11 @@ import (
 // either be nil or be a partial description of the invalid plan, depending on
 // the nature of the failure. Callers should use defensive programming
 // techniques if interacting with a partial response associated with an error.
-func (rt *DataResourceType) Read(ctx context.Context, req *DataResourceReadRequest, dispAddr addrs.AbsResourceInstanceObject) (*DataResourceReadResponse, tfdiags.Diagnostics) {
+func (dt *DataResourceType) Read(ctx context.Context, req *DataResourceReadRequest, dispAddr addrs.AbsResourceInstanceObject) (*DataResourceReadResponse, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	var out *DataResourceReadResponse
 
-	schema, schemaDiags := rt.LoadSchema(ctx)
+	schema, schemaDiags := dt.LoadSchema(ctx)
 	if schemaDiags.HasErrors() {
 		// Should be caught during validation, so we don't bother with a pretty error here
 		diags = diags.Append(schemaDiags)
@@ -50,7 +50,7 @@ func (rt *DataResourceType) Read(ctx context.Context, req *DataResourceReadReque
 	configVal, pvm := req.ConfigValue.UnmarkDeepWithPaths()
 
 	providerReq := providers.ReadDataSourceRequest{
-		TypeName:     rt.typeName,
+		TypeName:     dt.typeName,
 		Config:       configVal,
 		ProviderMeta: cty.NullVal(cty.DynamicPseudoType),
 		// This is a hack for terraform_remote_state
@@ -58,7 +58,7 @@ func (rt *DataResourceType) Read(ctx context.Context, req *DataResourceReadReque
 	}
 
 	var providerResp providers.ReadDataSourceResponse
-	providerResp = rt.client.ReadDataSource(ctx, providerReq)
+	providerResp = dt.client.ReadDataSource(ctx, providerReq)
 
 	// TODO Attach config to response diagnostics using InConfigBody
 	// FIXME: Our "contextual diagnostics" mechanism, where the callee provides
@@ -84,7 +84,7 @@ func (rt *DataResourceType) Read(ctx context.Context, req *DataResourceReadReque
 			"Provider produced invalid object",
 			fmt.Sprintf(
 				"Provider %q produced an invalid value for %s.\n\nThis is a bug in the provider, which should be reported in the provider's own issue tracker.",
-				rt.providerAddr.String(), tfdiags.FormatErrorPrefixed(err, req.ResourceAddress.String()),
+				dt.providerAddr.String(), tfdiags.FormatErrorPrefixed(err, req.ResourceAddress.String()),
 			),
 		))
 	}
@@ -95,7 +95,7 @@ func (rt *DataResourceType) Read(ctx context.Context, req *DataResourceReadReque
 			"Provider produced null object",
 			fmt.Sprintf(
 				"Provider %q produced a null value for %s.\n\nThis is a bug in the provider, which should be reported in the provider's own issue tracker.",
-				rt.providerAddr.String(), req.ResourceAddress.String(),
+				dt.providerAddr.String(), req.ResourceAddress.String(),
 			),
 		))
 	}
@@ -106,7 +106,7 @@ func (rt *DataResourceType) Read(ctx context.Context, req *DataResourceReadReque
 			"Provider produced invalid object",
 			fmt.Sprintf(
 				"Provider %q produced a value for %s that is not wholly known.\n\nThis is a bug in the provider, which should be reported in the provider's own issue tracker.",
-				rt.providerAddr.String(), req.ResourceAddress.String(),
+				dt.providerAddr.String(), req.ResourceAddress.String(),
 			),
 		))
 
