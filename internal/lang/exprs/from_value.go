@@ -13,6 +13,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // FromValue is a wrapper type that adds some of the special abilities of
@@ -290,3 +291,14 @@ var FromValueCmpOptions = cmp.Options{
 		}),
 	),
 }
+
+
+// WithSourceRange is a T annotated with an optional source range representing something
+// in the configuration that the T was derived from. A nil SourceRange represents that the
+// T was not actually derived from the configuration, even though it potentially could've been
+// in some other situation.
+type WithSourceRange[T any] struct {
+	FromValue[T]
+	SourceRange *tfdiags.SourceRange
+}
+

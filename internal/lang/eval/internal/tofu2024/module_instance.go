@@ -108,6 +108,8 @@ func (c *CompiledModuleInstance) ResultValuer(ctx context.Context) exprs.Valuer 
 func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context, relativeModuleInst []addrs.ModuleInstanceStep, addr addrs.ResourceInstanceObject) *evalglue.ConfiguredResourceInstanceObjectMeta {
 	// Start with everything we know about the resource from the module context
 	var ret *evalglue.ConfiguredResourceInstanceObjectMeta
+	// We'll populate the Provider fields below only once we have
+	// a specific resource and resource instance in mind.
 
 	if len(c.moveStatements) != 0 {
 		if ret == nil {

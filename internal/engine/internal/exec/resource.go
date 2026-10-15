@@ -287,7 +287,7 @@ type ResourceInstanceObjectMeta struct {
 	//
 	// This field is relevant only for managed resource mode and its value is
 	// unspecified for other resource modes.
-	DeletionInvalid *eval.DeletionInvalid
+	DeletionInvalid *exprs.WithSourceRange[bool]
 
 	// Note that we intentionally do not aggregate
 	// [eval.ConfiguredResourceInstanceObjectMeta.MoveStatements] elements

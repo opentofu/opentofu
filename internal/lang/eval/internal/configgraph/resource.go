@@ -143,20 +143,13 @@ func (r *Resource) decideInstances(ctx context.Context) (*compiledInstances[*Res
 	}, &r.DeclRange, "Decide instances of %s", r.Addr)
 }
 
-type DeletionInvalid struct {
-	// Value has the following meaning:
-	//   - true means that this resource instance MUST NOT be destroyed.
-	//   - false means that this resource instance MAY be destroyed.
-	Value exprs.FromValue[bool]
-
-	Range *tfdiags.SourceRange
-}
-
 // PreventDestroy returns a value-based representation of the "prevent destroy"
 // setting for this resource.
-func (r *Resource) PreventDestroy(ctx context.Context) (DeletionInvalid, tfdiags.Diagnostics) {
+//   - true means that this resource instance MUST NOT be destroyed.
+//   - false means that this resource instance MAY be destroyed.
+func (r *Resource) PreventDestroy(ctx context.Context) (exprs.WithSourceRange[bool], tfdiags.Diagnostics) {
 	if r.PreventDestroyValuer == nil {
-		return DeletionInvalid{Value: exprs.Known(false)}, nil
+		return exprs.WithSourceRange[bool]{FromValue: exprs.Known(false)}, nil
 	}
 	rng := r.PreventDestroyValuer.ValueSourceRange()
 
@@ -180,7 +173,7 @@ func (r *Resource) PreventDestroy(ctx context.Context) (DeletionInvalid, tfdiags
 			),
 			Subject: rng.ToHCL().Ptr(),
 		})
-		return DeletionInvalid{Value: exprs.Unknown[bool](), Range: rng}, diags
+		return exprs.WithSourceRange[bool]{FromValue: exprs.Unknown[bool](), SourceRange: rng}, diags
 	}
 	// TODO deprecated handling
 	//preventDestroyVal, moreDiags := marks.ExtractDeprecatedDiagnosticsWithExpr(preventDestroyVal, preventDestroyExpr)
@@ -254,7 +247,7 @@ func (r *Resource) PreventDestroy(ctx context.Context) (DeletionInvalid, tfdiags
 	ret, _ := exprs.DeriveFromValue(preventDestroyVal, func(v cty.Value) (bool, error) {
 		return v.True(), nil
 	})
-	return DeletionInvalid{Value: ret, Range: rng}, diags
+	return exprs.WithSourceRange[bool]{FromValue: ret, SourceRange: rng}, diags
 }
 
 // CheckAll implements allChecker.

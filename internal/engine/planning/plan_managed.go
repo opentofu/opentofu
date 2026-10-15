@@ -639,9 +639,8 @@ func checkPreventDestroy(ctx context.Context, meta *exec.ResourceInstanceObjectM
 		return nil
 	}
 
-	rng := meta.DeletionInvalid.Range
-	preventDestroyV := meta.DeletionInvalid.Value
-	preventDestroyV, preventDestroyMarks := preventDestroyV.Unmark()
+	rng := meta.DeletionInvalid.SourceRange
+	preventDestroyV, preventDestroyMarks := meta.DeletionInvalid.Unmark()
 	// FIXME: What should we do with these marks, if anything?
 	_ = preventDestroyMarks
 
