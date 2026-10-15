@@ -135,11 +135,6 @@ func (p *GRPCProvider) getProviderSchema(ctx context.Context) (resp providers.Ge
 	// We want to allow "provider" blocks to work with ephemeral variables, so we
 	// just mark its schema as able to get such values.
 	resp.Provider = convert.ProtoToEphemeralProviderSchema(protoResp.Provider)
-	if protoResp.ProviderMeta == nil {
-		logger.Debug("No provider meta schema returned")
-	} else {
-		resp.ProviderMeta = convert.ProtoToProviderSchema(protoResp.ProviderMeta)
-	}
 
 	for name, res := range protoResp.ResourceSchemas {
 		resp.ResourceTypes[name] = convert.ProtoToProviderSchema(res)
@@ -552,8 +547,6 @@ func (p *GRPCProvider) ReadResource(ctx context.Context, r providers.ReadResourc
 		return resp
 	}
 
-	metaSchema := schema.ProviderMeta
-
 	mp, err := msgpack.Marshal(r.PriorState, resSchema.Block.ImpliedType())
 	if err != nil {
 		resp.Diagnostics = resp.Diagnostics.Append(err)
@@ -579,14 +572,7 @@ func (p *GRPCProvider) ReadResource(ctx context.Context, r providers.ReadResourc
 		}
 	}
 
-	if metaSchema.Block != nil {
-		metaMP, err := msgpack.Marshal(r.ProviderMeta, metaSchema.Block.ImpliedType())
-		if err != nil {
-			resp.Diagnostics = resp.Diagnostics.Append(err)
-			return resp
-		}
-		protoReq.ProviderMeta = &proto.DynamicValue{Msgpack: metaMP}
-	}
+	protoReq.ProviderMeta = providerMetaStubValue
 
 	protoResp, err := p.client.ReadResource(ctx, protoReq)
 	if err != nil {
@@ -633,7 +619,6 @@ func (p *GRPCProvider) PlanResourceChange(ctx context.Context, r providers.PlanR
 		return resp
 	}
 
-	metaSchema := schema.ProviderMeta
 	capabilities := schema.ServerCapabilities
 
 	// If the provider doesn't support planning a destroy operation, we can
@@ -682,14 +667,7 @@ func (p *GRPCProvider) PlanResourceChange(ctx context.Context, r providers.PlanR
 		}
 	}
 
-	if metaSchema.Block != nil {
-		metaMP, err := msgpack.Marshal(r.ProviderMeta, metaSchema.Block.ImpliedType())
-		if err != nil {
-			resp.Diagnostics = resp.Diagnostics.Append(err)
-			return resp
-		}
-		protoReq.ProviderMeta = &proto.DynamicValue{Msgpack: metaMP}
-	}
+	protoReq.ProviderMeta = providerMetaStubValue
 
 	protoResp, err := p.client.PlanResourceChange(ctx, protoReq)
 	if err != nil {
@@ -749,8 +727,6 @@ func (p *GRPCProvider) ApplyResourceChange(ctx context.Context, r providers.Appl
 		return resp
 	}
 
-	metaSchema := schema.ProviderMeta
-
 	priorMP, err := msgpack.Marshal(r.PriorState, resSchema.Block.ImpliedType())
 	if err != nil {
 		resp.Diagnostics = resp.Diagnostics.Append(err)
@@ -787,14 +763,7 @@ func (p *GRPCProvider) ApplyResourceChange(ctx context.Context, r providers.Appl
 		}
 	}
 
-	if metaSchema.Block != nil {
-		metaMP, err := msgpack.Marshal(r.ProviderMeta, metaSchema.Block.ImpliedType())
-		if err != nil {
-			resp.Diagnostics = resp.Diagnostics.Append(err)
-			return resp
-		}
-		protoReq.ProviderMeta = &proto.DynamicValue{Msgpack: metaMP}
-	}
+	protoReq.ProviderMeta = providerMetaStubValue
 
 	protoResp, err := p.client.ApplyResourceChange(ctx, protoReq)
 	if err != nil {
@@ -972,8 +941,6 @@ func (p *GRPCProvider) ReadDataSource(ctx context.Context, r providers.ReadDataS
 		schema.Diagnostics = schema.Diagnostics.Append(fmt.Errorf("unknown data source %q", r.TypeName))
 	}
 
-	metaSchema := schema.ProviderMeta
-
 	config, err := msgpack.Marshal(r.Config, dataSchema.Block.ImpliedType())
 	if err != nil {
 		resp.Diagnostics = resp.Diagnostics.Append(err)
@@ -988,14 +955,7 @@ func (p *GRPCProvider) ReadDataSource(ctx context.Context, r providers.ReadDataS
 		ClientCapabilities: clientCapabilities,
 	}
 
-	if metaSchema.Block != nil {
-		metaMP, err := msgpack.Marshal(r.ProviderMeta, metaSchema.Block.ImpliedType())
-		if err != nil {
-			resp.Diagnostics = resp.Diagnostics.Append(err)
-			return resp
-		}
-		protoReq.ProviderMeta = &proto.DynamicValue{Msgpack: metaMP}
-	}
+	protoReq.ProviderMeta = providerMetaStubValue
 
 	protoResp, err := p.client.ReadDataSource(ctx, protoReq)
 	if err != nil {
@@ -1276,4 +1236,16 @@ func decodeDynamicValue(v *proto.DynamicValue, ty cty.Type) (cty.Value, error) {
 		res, err = ctyjson.Unmarshal(v.Json, ty)
 	}
 	return res, err
+}
+
+// providerMetaStubValue is the value we unconditionally place in the various
+// "ProviderMeta" fields in the underlying protocol, which describes a null
+// value meaning that provider metadata is not specified at all.
+//
+// This is a feature of the Terraform-team-managed protocol that OpenTofu
+// intentionally does not include in its abstract provider protocol because it
+// is used only for module authors to collaborate with provider authors to
+// covertly track usage of their modules.
+var providerMetaStubValue = &proto.DynamicValue{
+	Msgpack: []byte{0xc0},
 }
