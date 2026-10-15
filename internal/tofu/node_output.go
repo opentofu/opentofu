@@ -380,7 +380,7 @@ func (n *NodeApplyableOutput) Execute(ctx context.Context, evalCtx EvalContext, 
 					Summary:  "Invalid output value",
 					Detail: fmt.Sprintf(
 						"Value for %q does not match the type definition: %s.",
-						n.Addr.String(), err,
+						n.Addr.String(), tfdiags.FormatError(err),
 					),
 					Subject: subject,
 				})
