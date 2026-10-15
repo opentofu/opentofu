@@ -560,3 +560,69 @@ func TestDecodeMockProviderBlock_DuplicateMockResourceAcrossSourceFiles(t *testi
 		t.Fatalf("Expected a duplicate mock_resource diagnostic across source files in a directory, got none")
 	}
 }
+
+func TestDecodeTestRunBlock_verifyErrorMessageOptional(t *testing.T) {
+	tests := map[string]struct {
+		src         string
+		wantErr     bool
+		wantMessage bool
+	}{
+		"no error_message": {
+			src: `
+		run "test" {
+		assert {
+			condition = var.x == 1
+		}
+		}`,
+			wantErr:     false,
+			wantMessage: false,
+		},
+		"with error_message": {
+			src: `
+		run "test" {
+		assert {
+			condition     = var.x == 1
+			error_message = "x must be 1"
+		}
+		}`,
+			wantErr:     false,
+			wantMessage: true,
+		},
+		"missing condition still fails": {
+			src: `
+		run "test" {
+		assert {
+			error_message = "oops"
+		}
+		}`,
+			wantErr: true,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			file, diags := hclsyntax.ParseConfig([]byte(tc.src), "test.tftest.hcl", hcl.InitialPos)
+			if diags.HasErrors() {
+				t.Fatalf("unexpected parse error: %s", diags)
+			}
+			content, diags := file.Body.Content(testFileSchema)
+			if diags.HasErrors() {
+				t.Fatalf("unexpected content error: %s", diags)
+			}
+
+			run, diags := decodeTestRunBlock(content.Blocks[0])
+			if got := diags.HasErrors(); got != tc.wantErr {
+				t.Fatalf("wantErr=%v, got diags: %s", tc.wantErr, diags)
+			}
+			if tc.wantErr {
+				return
+			}
+			if len(run.CheckRules) != 1 {
+				t.Fatalf("expected 1 check rule, got %d", len(run.CheckRules))
+			}
+			if got := run.CheckRules[0].ErrorMessage != nil; got != tc.wantMessage {
+				t.Errorf("wantMessage=%v, got ErrorMessage=%v", tc.wantMessage, run.CheckRules[0].ErrorMessage)
+			}
+		})
+	}
+}
