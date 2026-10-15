@@ -12,6 +12,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/plugins"
 	"github.com/opentofu/opentofu/internal/lang/eval"
+	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -56,6 +57,7 @@ type planContext struct {
 	providers plugins.Providers
 
 	skipRefresh bool
+	refreshOnly bool
 }
 
 func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, providers plugins.Providers, opts *PlanOpts) *planContext {
@@ -73,6 +75,7 @@ func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, pro
 		prevRoundState:   prevRoundState,
 		providers:        providers,
 		skipRefresh:      opts.SkipRefresh,
+		refreshOnly:      opts.Mode == plans.RefreshOnlyMode,
 	}
 }
 

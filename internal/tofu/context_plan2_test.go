@@ -2926,7 +2926,7 @@ resource "test_object" "b" {
 }
 
 func TestContext2Plan_movedResourceRefreshOnly(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureMoved, ExperimentalFeatureRefreshOnly)
+	SkipExperimental(t, ExperimentalFeatureMoved, ExperimentalFeatureRefreshOnly, ExperimentalFeatureDriftedResource)
 	addrA := mustResourceInstanceAddr("test_object.a")
 	addrB := mustResourceInstanceAddr("test_object.b")
 	m := testModuleInline(t, map[string]string{
@@ -3214,9 +3214,7 @@ func TestContext2Plan_refreshOnlyMode_deposed(t *testing.T) {
 	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.RefreshOnlyMode,
 	})
-	if diags.HasErrors() {
-		t.Fatalf("unexpected errors\n%s", diags.Err().Error())
-	}
+	assertNoErrors(t, diags)
 
 	if !p.UpgradeResourceStateCalled {
 		t.Errorf("Provider's UpgradeResourceState wasn't called; should've been")
@@ -3411,6 +3409,10 @@ func TestContext2Plan_refreshOnlyMode_orphan(t *testing.T) {
 		}
 		got := outChange.After
 		want := cty.TupleVal([]cty.Value{cty.StringVal("current"), cty.StringVal("current")})
+		if experimentalRuntimeEnabled() {
+			// Even in refresh mode, the new runtime will properly track orphans and treat them as such
+			want = cty.TupleVal([]cty.Value{cty.StringVal("current")})
+		}
 		if !want.RawEquals(got) {
 			t.Errorf("wrong value for output value 'out'\ngot:  %#v\nwant: %#v", got, want)
 		}

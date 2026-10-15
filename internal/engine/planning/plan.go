@@ -66,23 +66,13 @@ func PlanChanges(ctx context.Context, opts *PlanOpts, prevRoundState *states.Sta
 	ctx = grapheval.ContextWithRequestTracker(ctx, grapheval.NewRequestTracker())
 
 	switch opts.Mode {
-	case plans.NormalMode:
+	case plans.NormalMode, plans.RefreshOnlyMode:
 		return normalPlan(ctx, opts, prevRoundState, configInst, providers)
 	case plans.DestroyMode:
 		// "Destroy" mode is pretty different in that it focuses mainly on
 		// prevRoundState and only uses the config for preparing ephemeral
 		// objects, so it has its own separate planning function.
 		return destroyPlan(ctx, opts, prevRoundState, configInst, providers)
-	case plans.RefreshOnlyMode:
-		// TODO: Implement this mode
-		// (Undecided yet whether it will get its own function, as with
-		// DestroyMode, or if it'll share the normalPlan function and just force
-		// the resource instance handling to generate no changes for anything.)
-		return nil, tfdiags.New(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Refresh-only mode not available yet",
-			"The new language runtime does not yet support the \"refresh-only\" planning mode.",
-		))
 	default:
 		// Should not get here because the cases above should be exhaustive
 		// for all possible planning modes.
@@ -134,6 +124,23 @@ func finalizePlan(ctx context.Context, intermediate *planContextResult, provider
 
 	upgradedState := upgradedStateSync.Close()
 	refreshedState := refreshedStateSync.Close()
+
+	// Propogate through the refreshed outputs
+	upgradedOutputs := upgradedState.EnsureModule(addrs.RootModuleInstance).OutputValues
+	refreshedOutputs := refreshedState.EnsureModule(addrs.RootModuleInstance).OutputValues
+	clear(refreshedOutputs)
+	for k, v := range intermediate.RootOutput.Current {
+		if v.Value.IsKnown() {
+			refreshedOutputs[k] = &states.OutputValue{
+				Addr:  addrs.AbsOutputValue{OutputValue: addrs.OutputValue{Name: k}},
+				Value: v.Value,
+				// TODO Sensitive  bool
+				// TODO Deprecated string
+			}
+		} else if prev, ok := upgradedOutputs[k]; ok {
+			refreshedOutputs[k] = prev
+		}
+	}
 
 	effectiveReplaceOrders, selfDeps := findEffectiveReplaceOrders(intermediate.ResourceInstanceObjects)
 	if len(selfDeps) != 0 {
