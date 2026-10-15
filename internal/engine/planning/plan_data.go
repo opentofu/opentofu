@@ -195,7 +195,8 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 		ProviderInstanceAddr: providerInstAddr,
 		ResourceType:         configMeta.ResourceType,
 		SchemaVersion:        uint64(schema.Version),
-		// TODO derive this from inst.ConfigVal.... somehow...
+		// TODO: Populate these Dependencies based on the dependencies in the state
+		// See plan_managed.go for a similar problem
 		// Dependencies:         resp.Dependencies,
 	}
 
@@ -206,6 +207,27 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 	// we don't need a PlannedChange here and can instead just use the result
 	// as the PlaceholderValue.
 	ret.PlaceholderValue = resp.Result
+
+	// Set up a NoOp "planned change" to propagate the pre-read value to the execute phase
+
+	ret.PlannedChange = &plans.ResourceInstanceChange{
+		Addr:        inst.Addr,
+		PrevRunAddr: inst.Addr,
+		ProviderAddr: addrs.AbsProviderConfig{
+			// FIXME: This is a lossy shim to the old-style provider instance
+			// address representation, since our old models aren't yet updated
+			// to support the modern one. It cannot handle a provider config
+			// inside a module call that uses count or for_each.
+			Module:   providerInstAddr.Config.Module.Module(),
+			Provider: providerInstAddr.Config.Config.Provider,
+			Alias:    providerInstAddr.Config.Config.Alias,
+		},
+		Action: plans.NoOp,
+		Before: proposedNewVal, // this is provided to the execgraph_data during NoOp as "priorStateRef"
+		After:  proposedNewVal,
+		// TODO add action reason
+		// ActionReason: reason,
+	}
 
 	return ret, diags
 }

@@ -87,6 +87,7 @@ var (
 	ExperimentalBugProviderPrivate   = ExperimentalFlag{"Bug Provider Private Data Not Preserved", false}
 	ExperimentalBugCircularReference = ExperimentalFlag{"Bug Circular Reference", false}
 
+	ExperimentalBugProviderDepsInExecgraph     = ExperimentalFlag{"Bug Provider Dependencies Must Compile Into Execgraph", false}
 	ExperimentalBugStripRemovedStateAttributes = ExperimentalFlag{"Bug State Attributes Removed on State Upgrade", false}
 
 	ExperimentalChangeDiagWording     = ExperimentalFlag{"Change Different Diagnostic Wording", false}
