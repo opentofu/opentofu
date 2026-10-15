@@ -2999,7 +2999,7 @@ func TestContext2Plan_movedResourceRefreshOnly(t *testing.T) {
 }
 
 func TestContext2Plan_refreshOnlyMode(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureRefresh)
+	SkipExperimental(t, ExperimentalFeatureRefreshOnly)
 
 	addr := mustResourceInstanceAddr("test_object.a")
 
@@ -3274,7 +3274,7 @@ func TestContext2Plan_refreshOnlyMode_deposed(t *testing.T) {
 }
 
 func TestContext2Plan_refreshOnlyMode_orphan(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureRefresh)
+	SkipExperimental(t, ExperimentalFeatureRefreshOnly)
 
 	addr := mustAbsResourceAddr("test_object.a")
 

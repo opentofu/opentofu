@@ -54,6 +54,8 @@ type planContext struct {
 	rootOutput rootOutput
 
 	providers plugins.Providers
+
+	skipRefresh bool
 }
 
 func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, providers plugins.Providers, opts *PlanOpts) *planContext {
@@ -70,6 +72,7 @@ func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, pro
 		configuredMoves:  addrs.MakeMap[addrs.AbsResourceInstance, []*moveStep](),
 		prevRoundState:   prevRoundState,
 		providers:        providers,
+		skipRefresh:      opts.SkipRefresh,
 	}
 }
 
