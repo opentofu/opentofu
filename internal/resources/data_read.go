@@ -57,8 +57,7 @@ func (dt *DataResourceType) Read(ctx context.Context, req *DataResourceReadReque
 		ResourceAddr: dispAddr.InstanceAddr,
 	}
 
-	var providerResp providers.ReadDataSourceResponse
-	providerResp = dt.client.ReadDataSource(ctx, providerReq)
+	providerResp := dt.client.ReadDataSource(ctx, providerReq)
 
 	// TODO Attach config to response diagnostics using InConfigBody
 	// FIXME: Our "contextual diagnostics" mechanism, where the callee provides

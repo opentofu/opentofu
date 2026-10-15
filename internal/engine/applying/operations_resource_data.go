@@ -31,12 +31,12 @@ func (ops *execOperations) DataRead(
 	ret := &exec.ResourceInstanceObject{
 		Addr: desired.Addr.CurrentObject(),
 	}
-	log.Printf("[TRACE] apply phase: DataRead %s using %s", desired.Addr, metadata.ProviderInstance)
 
 	providerAddr, ok := metadata.ProviderInstance.ValueOk()
 	if !ok {
 		return ret, diags
 	}
+	log.Printf("[TRACE] apply phase: DataRead %s using %s", desired.Addr, providerAddr)
 	providerClient, moreDiags := ops.configOracle.ProviderInstance(ctx, providerAddr)
 	if providerClient == nil {
 		moreDiags = moreDiags.Append(tfdiags.AttributeValue(
@@ -89,7 +89,7 @@ func (ops *execOperations) DataRead(
 		// From the OG runtime:
 		// This can happen with incompletely-configured mocks. We'll allow it
 		// and treat it as an alias for a properly-typed null value.
-		// resp.Result = cty.NullVal(schema.Block.ImpliedType())
+		resp.Result = cty.NullVal(schema.Block.ImpliedType())
 	}
 
 	var state *states.ResourceInstanceObjectFull
