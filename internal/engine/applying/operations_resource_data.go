@@ -33,21 +33,6 @@ func (ops *execOperations) DataRead(
 	}
 	log.Printf("[TRACE] apply phase: DataRead %s using %s", desired.Addr, metadata.ProviderInstance)
 
-	// TODO put this down where we do preapply, postapply hooks; adjust them to actually be preapply/postapply instead of refresh
-	tracer := contextTracer(ctx)
-	if cb := tracer.StartDataResourceInstanceRead; cb != nil {
-		ctx = cb(ctx, desired.Addr)
-	}
-	if cb := tracer.EndDataResourceInstanceRead; cb != nil {
-		defer func() { // closure to delay evaluating diags until we return
-			resultVal := cty.DynamicVal
-			if ret.State != nil {
-				resultVal = ret.State.Value
-			}
-			cb(ctx, desired.Addr, resultVal, diags)
-		}()
-	}
-
 	providerAddr, ok := metadata.ProviderInstance.ValueOk()
 	if !ok {
 		return ret, diags
@@ -77,7 +62,11 @@ func (ops *execOperations) DataRead(
 	// the configuration was validated in the plan phase, which produced
 	// the opcode to trigger this operation.
 
-	// TODO run PreApply hook here
+	// TODO adjust these tracers to actually be preapply/postapply instead of refresh
+	tracer := contextTracer(ctx)
+	if cb := tracer.StartDataResourceInstanceRead; cb != nil {
+		ctx = cb(ctx, desired.Addr)
+	}
 
 	resp, readDiags := resourceType.Read(ctx, &resources.DataResourceReadRequest{
 		ResourceAddress: desired.Addr,
@@ -86,7 +75,15 @@ func (ops *execOperations) DataRead(
 
 	diags = diags.Append(readDiags)
 
-	// TODO run PostApply hook here
+	if cb := tracer.EndDataResourceInstanceRead; cb != nil {
+		defer func() { // closure to delay evaluating diags until we return
+			resultVal := cty.DynamicVal
+			if ret.State != nil {
+				resultVal = ret.State.Value
+			}
+			cb(ctx, desired.Addr, resultVal, diags)
+		}()
+	}
 
 	if resp.Result == cty.NilVal {
 		// TODO handle provider giving us a hard time;

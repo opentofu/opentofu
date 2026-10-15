@@ -17,19 +17,14 @@ import (
 // subgraphs.
 func (b *execGraphBuilder) DataResourceInstanceSubgraph(plannedChange *plans.ResourceInstanceChange) resourceInstanceObjectSubgraph {
 	// This is fairly simple, as the data resource will either
-	// already have been read, and so the plan is a NoOp, or
+	// already have been read, and so there is no plan, or
 	// we execute a read action now.
-
-	// The shape of execution subgraph we generate here varies depending on
-	// which change action was planned.
 	switch plannedChange.Action {
 	case plans.Read:
 		return b.dataResourceInstanceSubgraphRead(plannedChange)
-	case plans.NoOp:
-		return b.dataResourceInstanceSubgraphNoOp(plannedChange)
 	default:
 		// We should not get here: the cases above should cover every action
-		// that [planGlue.planDesiredManagedResourceInstance] can possibly
+		// that [planGlue.planDesiredDataResourceInstance] can possibly
 		// produce.
 		panic(fmt.Sprintf("unsupported change action %s for %s", plannedChange.Action, plannedChange.Addr))
 	}
@@ -48,17 +43,5 @@ func (b *execGraphBuilder) dataResourceInstanceSubgraphRead(
 			waitFor,
 		),
 		addDesiredDep: addReadDep,
-	}
-}
-
-func (b *execGraphBuilder) dataResourceInstanceSubgraphNoOp(
-	plannedChange *plans.ResourceInstanceChange,
-) resourceInstanceObjectSubgraph {
-	_, addCreateDep := b.lower.MutableWaiter()
-
-	_, _, priorStateRef, _ := b.managedResourceInstanceChangeInputs(plannedChange)
-	return resourceInstanceObjectSubgraph{
-		valueRef:      priorStateRef,
-		addDesiredDep: addCreateDep,
 	}
 }

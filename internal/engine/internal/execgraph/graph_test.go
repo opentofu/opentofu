@@ -115,7 +115,6 @@ func TestGraphMarshalUnmarshalValid(t *testing.T) {
 				meta := builder.ResourceInstanceCurrentMeta(instAddrResult, nil)
 				desiredInst := builder.ResourceInstanceDesired(meta)
 
-				// plannedVal := builder.ConstantValue(cty.DynamicVal)
 				newState := builder.DataRead(meta, desiredInst, nil)
 				builder.SetResourceInstanceFinalStateResult(instAddr, newState)
 				return builder.Finish()
@@ -143,7 +142,6 @@ func TestGraphMarshalUnmarshalValid(t *testing.T) {
 					Name: "example2",
 				}.Absolute(addrs.RootModuleInstance).Instance(addrs.NoKey)
 
-				// plannedVal := builder.ConstantValue(cty.DynamicVal)
 				meta1 := builder.ResourceInstanceCurrentMeta(builder.ConstantResourceInstAddr(instAddr1), nil)
 				desiredInst1 := builder.ResourceInstanceDesired(meta1)
 				newState1 := builder.DataRead(meta1, desiredInst1, nil)
