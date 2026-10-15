@@ -123,8 +123,10 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 		// defer reading this data resource instance to a future round.
 
 		// We only do this if we're not in refresh-only mode!
-		ret, moreDiags := p.planDelayedDataResourceInstance(ctx, inst, providerInstAddr, providerClient, reason, ret)
-		diags = diags.Append(moreDiags)
+		if !p.planCtx.refreshOnly {
+			ret, moreDiags = p.planDelayedDataResourceInstance(ctx, inst, providerInstAddr, providerClient, reason, ret)
+			diags = diags.Append(moreDiags)
+		}
 		return ret, diags
 	}
 
@@ -233,6 +235,7 @@ func (p *planGlue) planDelayedDataResourceInstance(ctx context.Context, inst *ev
 	}
 
 	unmarkedConfigVal, configMarkPaths := inst.ConfigVal.UnmarkDeepWithPaths()
+	// TODO replace with (*DataResourceType).UnknownValue
 	proposedNewVal := objchange.PlannedUnknownObject(schema.Block, unmarkedConfigVal)
 	proposedNewVal = proposedNewVal.MarkWithPaths(configMarkPaths)
 
