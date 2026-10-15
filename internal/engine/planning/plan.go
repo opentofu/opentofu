@@ -95,7 +95,7 @@ func finalizePlan(ctx context.Context, intermediate *planContextResult, provider
 	refreshedStateSync := intermediate.PrevRoundState.DeepCopy().SyncWrapper()
 
 	for _, obj := range intermediate.ResourceInstanceObjects.All() {
-		writeAddr := obj.StateAddr
+		writeAddr := obj.PrevRoundAddr
 		if obj.UpgradedState != nil {
 			upgradedStateSync.SetResourceInstanceObjectFull(writeAddr, obj.UpgradedState)
 		}

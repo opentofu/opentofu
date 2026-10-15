@@ -86,7 +86,7 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 	// data resource instances persist between rounds and they cannot because
 	// the protocol doesn't include any way to "upgrade" them if the provider
 	// schema has changed since previous round.
-	ret.StateAddr = ret.Addr
+	ret.PrevRoundAddr = ret.Addr
 
 	// TODO: If the config value is not wholly known, or if any resource
 	// instance in inst.RequiredResourceInstances already has a planned change,
@@ -155,7 +155,7 @@ func (p *planGlue) planOrphanDataResourceInstance(_ context.Context, addr addrs.
 
 	return &resourceInstanceObject{
 		Addr:               addr.CurrentObject(),
-		StateAddr:          addr.CurrentObject(),
+		PrevRoundAddr:      addr.CurrentObject(),
 		ConfigDependencies: addrs.MakeSet[addrs.AbsResourceInstanceObject](),
 		Provider:           state.ProviderInstanceAddr.Config.Config.Provider,
 		PlaceholderValue:   cty.NullVal(cty.DynamicPseudoType),
