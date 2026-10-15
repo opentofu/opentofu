@@ -28,6 +28,14 @@ type ValueWithPrivate struct {
 	Private []byte
 }
 
+func (rt *ManagedResourceType) NullValue(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+	schema, diags := rt.LoadSchema(ctx)
+	if diags.HasErrors() {
+		return cty.NilVal, diags
+	}
+	return cty.NullVal(schema.Block.ImpliedType()), diags
+}
+
 func (rt *ManagedResourceType) TestValueConformance(ctx context.Context, value cty.Value, dispAddr addrs.AbsResourceInstanceObject) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
