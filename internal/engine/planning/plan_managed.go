@@ -141,6 +141,23 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		ret.ReplaceOrder = resources.ReplaceAnyOrder
 	}
 
+	prevStateInfo, moveDiags := p.locateStateForConfig(ctx, inst.Addr)
+	diags = diags.Append(moveDiags)
+	if diags.HasErrors() {
+		return ret, diags
+	}
+
+	if prevStateInfo.state == nil && p.planCtx.refreshOnly {
+		// Nothing to do here, improve the guess and return
+		schema, moreDiags := p.planCtx.providers.ResourceTypeSchema(ctx, meta.Provider, inst.Addr.Resource.Resource.Mode, inst.Addr.Resource.Resource.Type)
+		diags = diags.Append(moreDiags)
+		if diags.HasErrors() {
+			return ret, diags
+		}
+		ret.PlaceholderValue = cty.UnknownVal(schema.Block.ImpliedType())
+		return ret, diags
+	}
+
 	resourceType, providerInst, moreDiags := p.managedResourceType(ctx, meta)
 	diags = diags.Append(moreDiags)
 	if diags.HasErrors() {
@@ -171,12 +188,6 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 
 	validateDiags = p.planCtx.providers.ValidateResourceConfig(ctx, meta.Provider, addrs.ManagedResourceMode, meta.ResourceType, unmarkedConfigVal)
 	diags = diags.Append(validateDiags)
-	if diags.HasErrors() {
-		return ret, diags
-	}
-
-	prevStateInfo, moveDiags := p.locateStateForConfig(ctx, inst.Addr)
-	diags = diags.Append(moveDiags)
 	if diags.HasErrors() {
 		return ret, diags
 	}
