@@ -1299,6 +1299,11 @@ func TestContext2Refresh_dataStateRefData(t *testing.T) {
 
 	actual := strings.TrimSpace(s.String())
 	expected := strings.TrimSpace(testTofuRefreshDataRefDataStr)
+	// Note: if we're using the new engine, the dependency is tracked
+	// Fun fact! This is what was originally in the test when it was written!
+	if experimentalRuntimeEnabled() {
+		expected = strings.TrimSpace(testTofuRefreshDataRefExperimentalEngineDataStr)
+	}
 	if actual != expected {
 		t.Fatalf("wrong result\n\ngot:\n%s\n\nwant:\n%s", actual, expected)
 	}
