@@ -851,12 +851,6 @@ func (n *NodeAbstractResourceInstance) planDestroy(ctx context.Context, evalCtx 
 		return plan, diags.Append(err)
 	}
 
-	metaConfigVal, metaDiags := n.providerMetas(ctx, evalCtx)
-	diags = diags.Append(metaDiags)
-	if diags.HasErrors() {
-		return plan, diags
-	}
-
 	// Allow the provider to check the destroy plan, and insert any necessary
 	// private data.
 	resp := provider.PlanResourceChange(ctx, providers.PlanResourceChangeRequest{
@@ -865,7 +859,6 @@ func (n *NodeAbstractResourceInstance) planDestroy(ctx context.Context, evalCtx 
 		PriorState:       unmarkedPriorVal,
 		ProposedNewState: nullVal,
 		PriorPrivate:     currentState.Private,
-		ProviderMeta:     metaConfigVal,
 		PriorIdentity:    currentState.Identity,
 	})
 
@@ -998,12 +991,6 @@ func (n *NodeAbstractResourceInstance) refresh(ctx context.Context, evalCtx Eval
 		return state, diags
 	}
 
-	metaConfigVal, metaDiags := n.providerMetas(ctx, evalCtx)
-	diags = diags.Append(metaDiags)
-	if diags.HasErrors() {
-		return state, diags
-	}
-
 	hookGen := states.CurrentGen
 	if deposedKey != states.NotDeposed {
 		hookGen = deposedKey
@@ -1030,7 +1017,6 @@ func (n *NodeAbstractResourceInstance) refresh(ctx context.Context, evalCtx Eval
 		TypeName:      n.Addr.Resource.Resource.Type,
 		PriorState:    priorVal,
 		Private:       state.Private,
-		ProviderMeta:  metaConfigVal,
 		PriorIdentity: state.Identity,
 	}
 
@@ -1195,12 +1181,6 @@ func (n *NodeAbstractResourceInstance) plan(
 		return nil, nil, keyData, diags
 	}
 
-	metaConfigVal, metaDiags := n.providerMetas(ctx, evalCtx)
-	diags = diags.Append(metaDiags)
-	if diags.HasErrors() {
-		return nil, nil, keyData, diags
-	}
-
 	var priorVal cty.Value
 	var priorValTainted cty.Value
 	var priorPrivate []byte
@@ -1286,7 +1266,6 @@ func (n *NodeAbstractResourceInstance) plan(
 		PriorState:       unmarkedPriorVal,
 		ProposedNewState: proposedNewVal,
 		PriorPrivate:     priorPrivate,
-		ProviderMeta:     metaConfigVal,
 		PriorIdentity:    priorIdentity,
 	})
 
@@ -1554,7 +1533,6 @@ func (n *NodeAbstractResourceInstance) plan(
 			PriorState:       nullPriorVal,
 			ProposedNewState: proposedNewVal,
 			PriorPrivate:     plannedPrivate,
-			ProviderMeta:     metaConfigVal,
 			PriorIdentity:    cty.NullVal(identitySchemaType), // null for create portion of replace
 		})
 		// We need to tread carefully here, since if there are any warnings
@@ -1950,12 +1928,6 @@ func (n *NodeAbstractResourceInstance) readDataSource(ctx context.Context, evalC
 		return newVal, diags
 	}
 
-	metaConfigVal, metaDiags := n.providerMetas(ctx, evalCtx)
-	diags = diags.Append(metaDiags)
-	if diags.HasErrors() {
-		return newVal, diags
-	}
-
 	// Unmark before sending to provider, will re-mark before returning
 	var pvm []cty.PathValueMarks
 	configVal, pvm = configVal.UnmarkDeepWithPaths()
@@ -1982,9 +1954,8 @@ func (n *NodeAbstractResourceInstance) readDataSource(ctx context.Context, evalC
 	}
 
 	req := providers.ReadDataSourceRequest{
-		TypeName:     n.Addr.ContainingResource().Resource.Type,
-		Config:       configVal,
-		ProviderMeta: metaConfigVal,
+		TypeName: n.Addr.ContainingResource().Resource.Type,
+		Config:   configVal,
 	}
 	var resp providers.ReadDataSourceResponse
 	if tfp, ok := provider.(ProviderWithEncryption); ok {
@@ -2057,34 +2028,6 @@ func (n *NodeAbstractResourceInstance) readDataSource(ctx context.Context, evalC
 	}))
 
 	return newVal, diags
-}
-
-func (n *NodeAbstractResourceInstance) providerMetas(ctx context.Context, evalCtx EvalContext) (cty.Value, tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-	metaConfigVal := cty.NullVal(cty.DynamicPseudoType)
-
-	_, providerSchema, err := n.getProvider(ctx, evalCtx)
-	if err != nil {
-		return metaConfigVal, diags.Append(err)
-	}
-	if n.ProviderMetas != nil {
-		if m, ok := n.ProviderMetas[n.ResolvedProvider.ProviderConfig.Provider]; ok && m != nil {
-			// if the provider doesn't support this feature, throw an error
-			if providerSchema.ProviderMeta.Block == nil {
-				diags = diags.Append(&hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  fmt.Sprintf("Provider %s doesn't support provider_meta", n.ResolvedProvider.ProviderConfig.Provider.String()),
-					Detail:   fmt.Sprintf("The resource %s belongs to a provider that doesn't support provider_meta blocks", n.Addr.Resource),
-					Subject:  &m.ProviderRange,
-				})
-			} else {
-				var configDiags tfdiags.Diagnostics
-				metaConfigVal, _, configDiags = evalCtx.EvaluateBlock(ctx, m.Config, providerSchema.ProviderMeta.Block, nil, EvalDataForNoInstanceKey)
-				diags = diags.Append(configDiags)
-			}
-		}
-	}
-	return metaConfigVal, diags
 }
 
 func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context, evalCtx EvalContext, configVal cty.Value) (cty.Value, tfdiags.Diagnostics) {
@@ -2913,12 +2856,6 @@ func (n *NodeAbstractResourceInstance) apply(
 		return nil, diags
 	}
 
-	metaConfigVal, metaDiags := n.providerMetas(ctx, evalCtx)
-	diags = diags.Append(metaDiags)
-	if diags.HasErrors() {
-		return nil, diags
-	}
-
 	log.Printf("[DEBUG] %s: applying the planned %s change", n.Addr, change.Action)
 
 	// If our config, Before or After value contain any marked values,
@@ -2956,7 +2893,6 @@ func (n *NodeAbstractResourceInstance) apply(
 		PlannedState:    unmarkedAfter,
 		PlannedPrivate:  change.Private,
 		PlannedIdentity: change.Change.AfterIdentity,
-		ProviderMeta:    metaConfigVal,
 	})
 
 	applyDiags := resp.Diagnostics
