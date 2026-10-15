@@ -589,6 +589,9 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 	}
 
 	if p.planCtx.refreshOnly {
+		// TODO: We may still want to produce a NoOp Change in this scenario, it depends
+		// on what the expectations are for refresh only plans as we get deeper into
+		// integration and e2e testing
 		return ret, diags
 	}
 
