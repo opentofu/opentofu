@@ -132,9 +132,6 @@ func (ops *execOperations) ManagedFinalPlan(
 			Private: currentPrivate,
 		},
 		DesiredValue: desiredVal,
-		// TODO: Do we want to still support ProviderMeta? If so, who is
-		// responsible for propagating its value into here?
-		ProviderMetaValue: cty.NilVal,
 	}, objAddr)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
@@ -294,9 +291,6 @@ func (ops *execOperations) ManagedApply(
 		Config:         configValUnmarked,
 		PlannedState:   plannedValUnmarked,
 		PlannedPrivate: plan.ProviderPrivate,
-		// TODO: Do we want to still support ProviderMeta? If so, who is
-		// responsible for propagating its value into here?
-		ProviderMeta: cty.NullVal(cty.DynamicPseudoType),
 	})
 	diags = diags.Append(resp.Diagnostics)
 	if resp.NewState == cty.NilVal {

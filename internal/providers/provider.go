@@ -170,9 +170,6 @@ type GetProviderSchemaResponse struct {
 	// Provider is the schema for the provider itself.
 	Provider Schema
 
-	// ProviderMeta is the schema for the provider's meta info in a module
-	ProviderMeta Schema
-
 	// ResourceTypes map the resource type name to that type's schema.
 	ResourceTypes map[string]Schema
 
@@ -405,12 +402,6 @@ type ReadResourceRequest struct {
 	// resource. It is intended only for interpretation by the provider itself.
 	Private []byte
 
-	// ProviderMeta is the configuration for the provider_meta block for the
-	// module and provider this resource belongs to. Its use is defined by
-	// each provider, and it should not be used without coordination with
-	// HashiCorp. It is considered experimental and subject to change.
-	ProviderMeta cty.Value
-
 	// PriorIdentity contains the identity of the resource prior to the read.
 	PriorIdentity cty.Value
 }
@@ -452,12 +443,6 @@ type PlanResourceChangeRequest struct {
 	// PriorPrivate is the previously saved private data returned from the
 	// provider during the last apply.
 	PriorPrivate []byte
-
-	// ProviderMeta is the configuration for the provider_meta block for the
-	// module and provider this resource belongs to. Its use is defined by
-	// each provider, and it should not be used without coordination with
-	// HashiCorp. It is considered experimental and subject to change.
-	ProviderMeta cty.Value
 
 	PriorIdentity cty.Value
 }
@@ -508,12 +493,6 @@ type ApplyResourceChangeRequest struct {
 
 	// PlannedPrivate is the same value as returned by PlanResourceChange.
 	PlannedPrivate []byte
-
-	// ProviderMeta is the configuration for the provider_meta block for the
-	// module and provider this resource belongs to. Its use is defined by
-	// each provider, and it should not be used without coordination with
-	// HashiCorp. It is considered experimental and subject to change.
-	ProviderMeta cty.Value
 
 	// Planned identity is the identity returned from PlanResourceChange.
 	PlannedIdentity cty.Value
@@ -668,12 +647,6 @@ type ReadDataSourceRequest struct {
 
 	// Config is the complete configuration for the requested data source.
 	Config cty.Value
-
-	// ProviderMeta is the configuration for the provider_meta block for the
-	// module and provider this resource belongs to. Its use is defined by
-	// each provider, and it should not be used without coordination with
-	// HashiCorp. It is considered experimental and subject to change.
-	ProviderMeta cty.Value
 }
 
 type ReadDataSourceResponse struct {

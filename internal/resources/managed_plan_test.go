@@ -279,38 +279,6 @@ func TestManagedResourceTypePlanChanges(t *testing.T) {
 				},
 			},
 		},
-		"absent ProviderMeta given as null": {
-			Schema: emptySchema,
-			PlanImpl: func(_ context.Context, req providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
-				var diags tfdiags.Diagnostics
-				// Real-world providers crash if given a nil ProviderMeta,
-				// so our PlanChanges implementation must automatically
-				// substitute a null value when the input is nil.
-				if req.ProviderMeta == cty.NilVal || !req.ProviderMeta.IsNull() {
-					diags = diags.Append(fmt.Errorf("provider meta is %#v; want null", req.ProviderMeta))
-				}
-				return providers.PlanResourceChangeResponse{
-					PlannedState: req.ProposedNewState,
-					Diagnostics:  diags,
-				}
-			},
-			Request: &ManagedResourcePlanRequest{
-				Current: ValueWithPrivate{
-					Value: cty.EmptyObjectVal,
-				},
-				DesiredValue:      cty.EmptyObjectVal,
-				ProviderMetaValue: cty.NilVal, // zero value of cty.Value
-			},
-			WantResponse: &ManagedResourcePlanResponse{
-				Current: ValueWithPrivate{
-					Value: cty.EmptyObjectVal,
-				},
-				DesiredValue: cty.EmptyObjectVal,
-				Planned: ValueWithPrivate{
-					Value: cty.EmptyObjectVal,
-				},
-			},
-		},
 		"requires replacement when updating": {
 			Schema: nameSchema,
 			PlanImpl: func(_ context.Context, req providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {

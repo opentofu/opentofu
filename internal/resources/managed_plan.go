@@ -63,15 +63,6 @@ func (rt *ManagedResourceType) PlanChanges(ctx context.Context, req *ManagedReso
 	} else {
 		desiredVal = cty.NullVal(ty)
 	}
-	var providerMetaVal cty.Value
-	if req.ProviderMetaValue != cty.NilVal {
-		providerMetaVal = req.ProviderMetaValue
-	} else {
-		// Leaving the ProviderMeta field unpopulated in the provider
-		// request makes some provider clients crash, so we'll substitute an
-		// untyped null just to avoid that.
-		providerMetaVal = cty.NullVal(cty.DynamicPseudoType)
-	}
 
 	// If inst.IgnoreChangesPaths has any entries then we need to
 	// transform desiredVal so that any paths specified in there are
@@ -94,7 +85,6 @@ func (rt *ManagedResourceType) PlanChanges(ctx context.Context, req *ManagedReso
 	currentValUnmarked, currentMarks := currentVal.UnmarkDeepWithPaths()
 	desiredValUnmarked, desiredMarks := desiredVal.UnmarkDeepWithPaths()
 	proposedValUnmarked, _ := proposedVal.UnmarkDeep()
-	providerMetaValUnmarked, _ := providerMetaVal.UnmarkDeep()
 
 	var resp providers.PlanResourceChangeResponse
 	if !desiredValUnmarked.IsNull() || rt.providerCanPlanDestroy(ctx) {
@@ -104,7 +94,6 @@ func (rt *ManagedResourceType) PlanChanges(ctx context.Context, req *ManagedReso
 			PriorPrivate:     currentPrivate,
 			Config:           desiredValUnmarked,
 			ProposedNewState: proposedValUnmarked,
-			ProviderMeta:     providerMetaValUnmarked,
 		})
 		diags = diags.Append(resp.Diagnostics)
 		if resp.Diagnostics.HasErrors() {
@@ -282,20 +271,6 @@ type ManagedResourcePlanRequest struct {
 	// this should be set to the zero value of [cty.Value], which is
 	// [cty.NilVal].
 	DesiredValue cty.Value
-
-	// ProviderMetaValue is an optional value declared in the same module
-	// where the associated resource was declared, which should be sent
-	// to the provider as part of any planning request.
-	//
-	// This is a rarely-used feature that only really makes sense when a
-	// module is written by the same entity that owns a provider it uses,
-	// in which case the module author might want to use the provider as
-	// a covert channel for collecting usage statistics about the module.
-	//
-	// When no metadata was provided for this provider in the current module,
-	// this should be set to the zero value of [cty.Value], which is
-	// [cty.NilVal].
-	ProviderMetaValue cty.Value
 
 	IgnoreChangesPaths []cty.Path
 }

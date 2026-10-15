@@ -117,7 +117,6 @@ var (
 	ExperimentalFeaturePlannedState    = ExperimentalFlag{"Missing Planned State", false}
 	ExperimentalFeatureSensitivity     = ExperimentalFlag{"Missing Sensitivity Handling", false}
 	ExperimentalFeatureSelfReference   = ExperimentalFlag{"Missing Self Reference", false}
-	ExperimentalFeatureProviderMeta    = ExperimentalFlag{"Missing Provider Meta", false}
 	ExperimentalFeatureTaint           = ExperimentalFlag{"Missing Taint", false}
 	ExperimentalFeatureErrorHandling   = ExperimentalFlag{"Missing Error Handling", false}
 	ExperimentalFeatureProviderInput   = ExperimentalFlag{"Missing Provider Input Prompting", false}
