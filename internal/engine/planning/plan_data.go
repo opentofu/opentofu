@@ -91,17 +91,6 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 
 	resourceType := resources.NewDataResourceType(meta.Provider, inst.Addr.Resource.Resource.Type, providerClient)
 
-	// The equivalent of "refreshing" a data resource is just to discard it
-	// completely, because we only retain the previous result in state snapshots
-	// to support unusual situations like "tofu console"; it's not expected that
-	// data resource instances persist between rounds and they cannot because
-	// the protocol doesn't include any way to "upgrade" them if the provider
-	// schema has changed since previous round.
-	// FIXME: State is still using the weird old representation of provider
-	// instance addresses, so we can't actually populate the provider instance
-	// arguments properly here.
-	p.planCtx.refreshedState.SetResourceInstanceCurrent(inst.Addr, nil, addrs.AbsProviderConfig{}, providerInstAddr.Key)
-
 	requiredChanges := addrs.CollectSet(objchange.PrereqChangesForValue(inst.ConfigVal))
 	depsPending := len(requiredChanges) != 0
 	configKnown := inst.ConfigVal.IsWhollyKnown()
@@ -194,15 +183,15 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 		},
 		Status:               resp.Status,
 		ProviderInstanceAddr: providerInstAddr,
-		ResourceType:         configMeta.ResourceType,
+		ResourceType:         meta.ResourceType,
 		SchemaVersion:        uint64(schema.Version),
 		// TODO: Populate these Dependencies based on the dependencies in the state
 		// See plan_managed.go for a similar problem
 		// Dependencies:         resp.Dependencies,
 	}
 
-	p.planCtx.refreshedState.SetResourceInstanceObjectFull(inst.Addr.CurrentObject(), dataResourceState)
-	p.planCtx.upgradedState.SetResourceInstanceObjectFull(inst.Addr.CurrentObject(), dataResourceState)
+	ret.RefreshedState = dataResourceState
+	ret.UpgradedState = dataResourceState
 
 	// Since we've already read the data source during the planning phase,
 	// we don't need a PlannedChange here and can instead just use the result
