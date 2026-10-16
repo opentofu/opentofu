@@ -328,6 +328,13 @@ func compileModuleInstanceResource(
 					if len(instDepMarks) != 0 {
 						v = v.WithMarks(instDepMarks)
 					}
+					// This is necessary to obtain module-based depends_on information,
+					// particularly PendingChange marks
+					sharedDepMarks, moreDiags := sharedDeps.Marks(ctx)
+					vDiags = vDiags.Append(moreDiags)
+					if len(sharedDepMarks) != 0 {
+						v = v.WithMarks(sharedDepMarks)
+					}
 
 					if len(provisionerMarks) != 0 {
 						v = v.WithMarks(provisionerMarks)

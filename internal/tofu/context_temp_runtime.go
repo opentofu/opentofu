@@ -259,7 +259,7 @@ func (c *Context) newEnginePlanTracer() *planning.Tracer {
 				return h.PostDiff(inst, gen, action, priorVal, plannedVal)
 			})
 		},
-		StartDataResourceInstanceRead: func(ctx context.Context, addr addrs.AbsResourceInstance) context.Context {
+		StartDataResourceInstanceRead: func(ctx context.Context, addr addrs.AbsResourceInstance, plannedNewState cty.Value) context.Context {
 			c.eachHook(func(h Hook) (HookAction, error) {
 				// The prior value for a data resource instance is always null
 				// because conceptually it is always read anew for each round.
@@ -267,13 +267,13 @@ func (c *Context) newEnginePlanTracer() *planning.Tracer {
 				// situations like "tofu console", but the prior state value
 				// cannot be used in the main codepath because the protocol
 				// includes no way to "upgrade" when the provider schema changes.)
-				return h.PreRefresh(addr, addrs.CurrentResourceInstanceObjectGeneration, cty.NullVal(cty.DynamicPseudoType))
+				return h.PreApply(addr, states.Generation(states.CurrentGen), plans.Read, cty.NullVal(cty.DynamicPseudoType), plannedNewState)
 			})
 			return ctx
 		},
-		EndDataResourceInstanceRead: func(ctx context.Context, addr addrs.AbsResourceInstance, resultVal cty.Value, diags tfdiags.Diagnostics) {
+		EndDataResourceInstanceRead: func(ctx context.Context, addr addrs.AbsResourceInstance, resultVal cty.Value, err error) {
 			c.eachHook(func(h Hook) (HookAction, error) {
-				return h.PostRefresh(addr, addrs.CurrentResourceInstanceObjectGeneration, cty.NullVal(cty.DynamicPseudoType), resultVal)
+				return h.PostApply(addr, addrs.CurrentResourceInstanceObjectGeneration, resultVal, err)
 			})
 		},
 

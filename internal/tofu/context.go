@@ -15,7 +15,6 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/configs"
-	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/plugins"
@@ -43,7 +42,6 @@ type ContextOpts struct {
 	Hooks       []Hook
 	Parallelism int
 	Plugins     plugins.Library
-	Encryption  encryption.Encryption
 	Modules     eval.ExternalModules
 
 	UIInput UIInput
@@ -92,8 +90,6 @@ type Context struct {
 	runCond             *sync.Cond
 	runContext          context.Context
 	runContextCancel    context.CancelFunc
-
-	encryption encryption.Encryption
 }
 
 // (additional methods on Context can be found in context_*.go files.)
@@ -150,8 +146,6 @@ func NewContext(opts *ContextOpts) (*Context, tfdiags.Diagnostics) {
 		parallelSem:         NewSemaphore(par),
 		providerInputConfig: make(map[string]map[string]cty.Value),
 		sh:                  sh,
-
-		encryption: opts.Encryption,
 	}, diags
 }
 

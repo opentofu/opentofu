@@ -122,8 +122,8 @@ type Tracer struct {
 	// These events always occur between calls to
 	// StartDataResourceInstancePlanning and EndDataResourceInstancePlanning for
 	// the same instance address.
-	StartDataResourceInstanceRead func(ctx context.Context, addr addrs.AbsResourceInstance) context.Context
-	EndDataResourceInstanceRead   func(ctx context.Context, addr addrs.AbsResourceInstance, resultVal cty.Value, diags tfdiags.Diagnostics)
+	StartDataResourceInstanceRead func(ctx context.Context, addr addrs.AbsResourceInstance, plannedNewState cty.Value) context.Context
+	EndDataResourceInstanceRead   func(ctx context.Context, addr addrs.AbsResourceInstance, resultVal cty.Value, err error)
 
 	// We also embed [shared.Tracer] for some events that are common across
 	// plan and apply. [PlanChanges] automatically ensures that this nested
