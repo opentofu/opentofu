@@ -84,7 +84,7 @@ Refer to [Custom Condition Checks](../../language/expressions/custom-conditions.
 
 ## Optional Arguments
 
-`output` blocks can optionally include `description`, `sensitive`, `ephemeral` and `depends_on` arguments, which are described in the following sections.
+`output` blocks can optionally include `description`, `sensitive`, `ephemeral`, `type` and `depends_on` arguments, which are described in the following sections.
 
 <a id="description"></a>
 
@@ -233,6 +233,37 @@ OpenTofu will perform the following actions:
 
 Plan: 1 to add, 0 to change, 0 to destroy.
 ```
+
+<a id="type"></a>
+
+### `type` — Type constraints
+
+The `type` argument in an `output` block allows you to restrict the
+[type of value](../../language/expressions/types.mdx) that will be accepted as the
+value for an output. If no type constraint then a value of any type is
+accepted.
+
+Type constraints are created from a mixture of type keywords and type
+constructors. The supported type keywords are:
+
+* `string`
+* `number`
+* `bool`
+
+The type constructors allow you to specify complex types such as
+collections:
+
+* `list(<TYPE>)`
+* `set(<TYPE>)`
+* `map(<TYPE>)`
+* `object({<ATTR NAME> = <TYPE>, ... })`
+* `tuple([<TYPE>, ...])`
+
+The keyword `any` may be used to indicate that any type is acceptable. For
+more information on the meaning and behavior of these different types, as well
+as detailed information about automatic conversion of complex types, see
+[Type Constraints](../../language/expressions/types.mdx).
+
 <a id="depends_on"></a>
 
 ### `depends_on` — Explicit Output Dependencies
