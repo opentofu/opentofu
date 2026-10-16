@@ -30,7 +30,9 @@ const (
 	opResourceInstancePrior
 
 	opManagedFinalPlan
+	opManagedFinalPlanForget
 	opManagedApply
+	opManagedForget
 	opManagedPrepareDepose
 	opManagedPerformDepose
 	opManagedDesposedMeta

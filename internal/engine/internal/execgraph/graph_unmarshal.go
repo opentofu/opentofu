@@ -129,8 +129,12 @@ func unmarshalOperationElem(protoOp *execgraphproto.Operation, prevResults []Any
 		return unmarshalOpResourceInstancePrior(protoOp.GetOperands(), prevResults, builder)
 	case opManagedFinalPlan:
 		return unmarshalOpManagedFinalPlan(protoOp.GetOperands(), prevResults, builder)
+	case opManagedFinalPlanForget:
+		return unmarshalOpManagedFinalPlanForget(protoOp.GetOperands(), prevResults, builder)
 	case opManagedApply:
 		return unmarshalOpManagedApply(protoOp.GetOperands(), prevResults, builder)
+	case opManagedForget:
+		return unmarshalOpManagedForget(protoOp.GetOperands(), prevResults, builder)
 	case opManagedPrepareDepose:
 		return unmarshalOpManagedPrepareDepose(protoOp.GetOperands(), prevResults, builder)
 	case opManagedPerformDepose:
@@ -211,23 +215,53 @@ func unmarshalOpManagedFinalPlan(rawOperands []uint64, prevResults []AnyResultRe
 	return builder.ManagedFinalPlan(metadata, desiredInst, priorState, plannedVal), nil
 }
 
+func unmarshalOpManagedFinalPlanForget(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
+	if len(rawOperands) != 2 {
+		return nil, fmt.Errorf("wrong number of operands (%d) for opManagedFinalPlanForget", len(rawOperands))
+	}
+	metadata, err := unmarshalGetPrevResultOf[*exec.ResourceInstanceObjectMeta](prevResults, rawOperands[0])
+	if err != nil {
+		return nil, fmt.Errorf("invalid opManagedFinalPlanForget metadata: %w", err)
+	}
+	priorState, err := unmarshalGetPrevResultOf[*exec.ResourceInstanceObject](prevResults, rawOperands[1])
+	if err != nil {
+		return nil, fmt.Errorf("invalid opManagedFinalPlanForget priorState: %w", err)
+	}
+	return builder.ManagedFinalPlanForget(metadata, priorState), nil
+}
+
 func unmarshalOpManagedApply(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
 	if len(rawOperands) != 3 {
-		return nil, fmt.Errorf("wrong number of operands (%d) for opManagedApplyChanges", len(rawOperands))
+		return nil, fmt.Errorf("wrong number of operands (%d) for opManagedApply", len(rawOperands))
 	}
 	finalPlan, err := unmarshalGetPrevResultOf[*exec.ManagedResourceObjectFinalPlan](prevResults, rawOperands[0])
 	if err != nil {
-		return nil, fmt.Errorf("invalid opManagedApplyChanges finalPlan: %w", err)
+		return nil, fmt.Errorf("invalid opManagedApply finalPlan: %w", err)
 	}
 	fallbackObj, err := unmarshalGetPrevResultOf[*exec.ResourceInstanceObject](prevResults, rawOperands[1])
 	if err != nil {
-		return nil, fmt.Errorf("invalid opManagedApplyChanges fallbackObj: %w", err)
+		return nil, fmt.Errorf("invalid opManagedApply fallbackObj: %w", err)
 	}
 	waitFor, err := unmarshalGetPrevResultWaiter(prevResults, rawOperands[2])
 	if err != nil {
-		return nil, fmt.Errorf("invalid opManagedApplyChanges waitFor: %w", err)
+		return nil, fmt.Errorf("invalid opManagedApply waitFor: %w", err)
 	}
 	return builder.ManagedApply(finalPlan, fallbackObj, waitFor), nil
+}
+
+func unmarshalOpManagedForget(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
+	if len(rawOperands) != 2 {
+		return nil, fmt.Errorf("wrong number of operands (%d) for opManagedForget", len(rawOperands))
+	}
+	finalPlan, err := unmarshalGetPrevResultOf[*exec.ManagedResourceObjectFinalPlan](prevResults, rawOperands[0])
+	if err != nil {
+		return nil, fmt.Errorf("invalid opManagedForget finalPlan: %w", err)
+	}
+	waitFor, err := unmarshalGetPrevResultWaiter(prevResults, rawOperands[1])
+	if err != nil {
+		return nil, fmt.Errorf("invalid opManagedForget waitFor: %w", err)
+	}
+	return builder.ManagedForget(finalPlan, waitFor), nil
 }
 
 func unmarshalOpManagedPrepareDepose(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {

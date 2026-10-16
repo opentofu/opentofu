@@ -110,8 +110,12 @@ func (c *compiler) Compile() (*CompiledGraph, tfdiags.Diagnostics) {
 			compileFunc = c.compileOpResourceInstancePrior
 		case opManagedFinalPlan:
 			compileFunc = c.compileOpManagedFinalPlan
+		case opManagedFinalPlanForget:
+			compileFunc = c.compileOpManagedFinalPlanForget
 		case opManagedApply:
 			compileFunc = c.compileOpManagedApply
+		case opManagedForget:
+			compileFunc = c.compileOpManagedForget
 		case opManagedPrepareDepose:
 			compileFunc = c.compileOpManagedPrepareDepose
 		case opManagedPerformDepose:

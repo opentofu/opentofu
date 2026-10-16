@@ -137,18 +137,73 @@ func (b *execGraphBuilder) managedResourceInstanceSubgraphDelete(
 func (b *execGraphBuilder) managedResourceInstanceSubgraphForget(
 	plannedChange *plans.ResourceInstanceChange,
 ) resourceInstanceObjectSubgraph {
-	// TODO: Add a new execgraph opcode ManagedForget and use that here.
-	panic("execgraph for Forget not yet implemented")
+	metadataRef, _, priorRef, _ := b.managedResourceInstanceChangeInputs(plannedChange)
+	waitFor, addDeleteDep := b.lower.MutableWaiter()
+	finalPlanRef := b.lower.ManagedFinalPlanForget(
+		metadataRef,
+		priorRef,
+	)
+	deletionRef := b.lower.ManagedForget(
+		finalPlanRef,
+		waitFor,
+	)
+	return resourceInstanceObjectSubgraph{
+		// We report the prior state reference as the "valueRef" for a forget,
+		// for the same reason as in
+		// [execGraphBuilder.managedResourceInstanceSubgraphDelete] above.
+		valueRef:     priorRef,
+		deletionRef:  deletionRef,
+		addOrphanDep: addDeleteDep,
+	}
 }
 
 func (b *execGraphBuilder) managedResourceInstanceSubgraphDeleteOrForgetThenCreate(
 	plannedChange *plans.ResourceInstanceChange,
 ) resourceInstanceObjectSubgraph {
-	if plannedChange.Action == plans.ForgetThenCreate {
-		// TODO: Implement this action too, which is similar but with the
-		// "delete" let replaced with something like what
-		// managedResourceInstanceSubgraphForget would generate.
-		panic("execgraph for ForgetThenCreate not yet implemented")
+	// Other than the exact operations we use, the general flow here is the
+	// same for both "delete" and "forget" as the first leg of these compound actions.
+	var unwantedPlan func(meta execgraph.ResultRef[*exec.ResourceInstanceObjectMeta], prior execgraph.ResourceInstanceResultRef) execgraph.ResultRef[*exec.ManagedResourceObjectFinalPlan]
+	var unwantedApply func(plan execgraph.ResultRef[*exec.ManagedResourceObjectFinalPlan], waitFor execgraph.AnyResultRef) execgraph.ResourceInstanceResultRef
+	switch plannedChange.Action {
+	case plans.DeleteThenCreate:
+		unwantedPlan = func(metadataRef execgraph.ResultRef[*exec.ResourceInstanceObjectMeta], priorRef execgraph.ResourceInstanceResultRef) execgraph.ResultRef[*exec.ManagedResourceObjectFinalPlan] {
+			return b.lower.ManagedFinalPlan(
+				metadataRef,
+				execgraph.NilResultRef[*eval.DesiredResourceInstance](),
+				priorRef,
+				b.lower.ConstantValue(cty.NullVal(
+					// TODO: is this okay or do we need to use the type constraint derived from the schema?
+					// The two could differ for resource types that have cty.DynamicPseudoType
+					// attributes, like in kubernetes_manifest from the hashicorp/kubernetes provider,
+					// where here we'd capture the type of the current manifest instead of recording
+					// that the manifest's type is unknown. However, we don't typically fuss too much
+					// about the exact type of a null, so this is probably fine.
+					plannedChange.After.Type(),
+				)),
+			)
+		}
+		unwantedApply = func(deletePlanRef execgraph.ResultRef[*exec.ManagedResourceObjectFinalPlan], deleteWaitFor execgraph.AnyResultRef) execgraph.ResourceInstanceResultRef {
+			return b.lower.ManagedApply(
+				deletePlanRef,
+				execgraph.NilResultRef[*exec.ResourceInstanceObject](),
+				deleteWaitFor,
+			)
+		}
+	case plans.ForgetThenCreate:
+		unwantedPlan = func(metadataRef execgraph.ResultRef[*exec.ResourceInstanceObjectMeta], priorRef execgraph.ResourceInstanceResultRef) execgraph.ResultRef[*exec.ManagedResourceObjectFinalPlan] {
+			return b.lower.ManagedFinalPlanForget(
+				metadataRef,
+				priorRef,
+			)
+		}
+		unwantedApply = func(deletePlanRef execgraph.ResultRef[*exec.ManagedResourceObjectFinalPlan], deleteWaitFor execgraph.AnyResultRef) execgraph.ResourceInstanceResultRef {
+			return b.lower.ManagedForget(
+				deletePlanRef,
+				deleteWaitFor,
+			)
+		}
+	default:
+		panic(fmt.Sprintf("unexpected action %s for delete or forget then create", plannedChange.Action))
 	}
 
 	desiredWaitFor, addCreateDep := b.lower.MutableWaiter()
@@ -170,26 +225,9 @@ func (b *execGraphBuilder) managedResourceInstanceSubgraphDeleteOrForgetThenCrea
 		execgraph.NilResultRef[*exec.ResourceInstanceObject](),
 		plannedValueRef,
 	)
-	destroyPlanRef := b.lower.ManagedFinalPlan(
-		metadataRef,
-		execgraph.NilResultRef[*eval.DesiredResourceInstance](),
-		priorRef,
-		b.lower.ConstantValue(cty.NullVal(
-			// TODO: is this okay or do we need to use the type constraint derived from the schema?
-			// The two could differ for resource types that have cty.DynamicPseudoType
-			// attributes, like in kubernetes_manifest from the hashicorp/kubernetes provider,
-			// where here we'd capture the type of the current manifest instead of recording
-			// that the manifest's type is unknown. However, we don't typically fuss too much
-			// about the exact type of a null, so this is probably fine.
-			plannedChange.After.Type(),
-		)),
-	)
+	destroyPlanRef := unwantedPlan(metadataRef, priorRef)
 	addDeleteDep(createPlanRef) // must successfully plan for creation before applying deletion
-	destroyResultRef := b.lower.ManagedApply(
-		destroyPlanRef,
-		execgraph.NilResultRef[*exec.ResourceInstanceObject](),
-		deleteWaitFor,
-	)
+	destroyResultRef := unwantedApply(destroyPlanRef, deleteWaitFor)
 	addCreateDep(destroyResultRef) // must finish deleting before creating
 	createResultRef := b.lower.ManagedApply(
 		createPlanRef,
@@ -316,11 +354,18 @@ func (b *execGraphBuilder) managedResourceInstanceChangeInputs(
 	plannedValue execgraph.ResultRef[cty.Value],
 ) {
 	unmarkedAfter, _ := plannedChange.After.UnmarkDeep()
-	plannedValue = b.lower.ConstantValue(unmarkedAfter)
+	if plannedChange.Action != plans.Forget {
+		// The ManagedFinalPlanForget action doesn't take an expected value
+		// because it's always expected to be null and forgetting is implemented
+		// entirely inside OpenTofu anyway so we have no need to compare the
+		// planned result with the final result as we would for a
+		// provider-driven change.
+		plannedValue = b.lower.ConstantValue(unmarkedAfter)
+	}
 	if plannedChange.DeposedKey != states.NotDeposed {
 		// We use different operations to access deposed objects.
-		if plannedChange.Action != plans.Delete {
-			// Delete is the only reasonable action for a deposed object.
+		if plannedChange.Action != plans.Delete && plannedChange.Action != plans.Forget {
+			// Delete or forget are the only reasonable actions for a deposed object.
 			panic(fmt.Sprintf("cannot perform %s on %s", plannedChange.Action, plannedChange.PrevRunAddr))
 		}
 		prevAddrRef := b.lower.ConstantResourceInstAddr(plannedChange.PrevRunAddr)
@@ -335,7 +380,7 @@ func (b *execGraphBuilder) managedResourceInstanceChangeInputs(
 		newAddrRef := b.lower.ConstantResourceInstAddr(plannedChange.Addr)
 		metadata = b.lower.ResourceInstanceCurrentMeta(newAddrRef, execgraph.NilResultRef[*exec.ResourceInstanceObject]())
 		desired = b.lower.ResourceInstanceDesired(metadata)
-	case plans.Delete:
+	case plans.Delete, plans.Forget:
 		prevAddrRef := b.lower.ConstantResourceInstAddr(plannedChange.PrevRunAddr)
 		prior = b.lower.ResourceInstancePrior(prevAddrRef)
 		metadata = b.lower.ResourceInstanceCurrentMeta(prevAddrRef, prior)

@@ -186,6 +186,34 @@ func (b *Builder) ManagedFinalPlan(
 	})
 }
 
+// ManagedFinalPlanForget is a variant of [Builder.ManagedFinalPlan] producing
+// a plan suitable [Builder.ManagedForget], rather than [Builder.ManagedApply].
+//
+// This is a different operation because planning to forget is intentionally
+// done without interacting with the associated provider at all: one use of
+// "forgetting" is to help get rid of something that has become completely
+// unplannable, such as because the API it belonged to doesn't exist at all
+// anymore.
+//
+// We deal with "forgetting" as a separate plan and apply step purely because
+// that keeps the execution graph topology the same as normal plan/apply
+// sequences across all operations, and thus the planning engine is less likely
+// to get itself into trouble producing something that works in the normal case
+// but not in the (much-less-often-used) "forget" case.
+//
+// Although we don't give the Go compiler enough information to enforce this
+// statically, a result from this operation must ONLY be used with
+// [Builder.ManagedForget], and never with [Builder.ManagedApply].
+func (b *Builder) ManagedFinalPlanForget(
+	metadata ResultRef[*exec.ResourceInstanceObjectMeta],
+	priorState ResourceInstanceResultRef,
+) ResultRef[*exec.ManagedResourceObjectFinalPlan] {
+	return operationRef[*exec.ManagedResourceObjectFinalPlan](b, operationDesc{
+		opCode:   opManagedFinalPlanForget,
+		operands: []AnyResultRef{metadata, priorState},
+	})
+}
+
 // ManagedApply registers an operation to apply a "final plan" for a managed
 // resource instance object.
 //
@@ -206,6 +234,34 @@ func (b *Builder) ManagedApply(
 	return operationRef[*exec.ResourceInstanceObject](b, operationDesc{
 		opCode:   opManagedApply,
 		operands: []AnyResultRef{finalPlan, fallbackObj, waiter},
+	})
+}
+
+// ManagedForget registers an operation to "forget" a managed resource instance
+// object.
+//
+// This is intended as a replacement for [Builder.ManagedApply] when forgetting,
+// designed to work within the same overall graph shape overall subgraph shape
+// so that the planning engine can still follow the overall same approach for
+// forgetting as for deleting.
+//
+// Just like applying a deletion plan, a successful result always describes the
+// absence of an object by reporting a nil state. Although the actual "forget"
+// step is infallible, if the plan includes pre-destroy provisioners then their
+// failure can still cause this operation to fail.
+//
+// Although we don't give the Go compiler enough information to enforce this
+// statically, a the finalPlan provided here MUST be a result from
+// [Builder.ManagedFinalPlanForget], and not from the normal
+// [Builder.ManagedFinalPlan].
+func (b *Builder) ManagedForget(
+	finalPlan ResultRef[*exec.ManagedResourceObjectFinalPlan],
+	waitFor AnyResultRef,
+) ResourceInstanceResultRef {
+	waiter := b.ensureWaiterRef(waitFor)
+	return operationRef[*exec.ResourceInstanceObject](b, operationDesc{
+		opCode:   opManagedForget,
+		operands: []AnyResultRef{finalPlan, waiter},
 	})
 }
 
