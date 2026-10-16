@@ -2689,7 +2689,7 @@ import {
 		return providers.ImportResourceStateResponse{
 			ImportedResources: []providers.ImportedResource{
 				{
-					TypeName: "test_instance",
+					TypeName: "test_resource",
 					State: cty.ObjectVal(map[string]cty.Value{
 						"id": cty.StringVal("importable"),
 					}),

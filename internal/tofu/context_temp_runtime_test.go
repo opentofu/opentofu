@@ -106,7 +106,6 @@ var (
 	ExperimentalFeatureChanges         = ExperimentalFlag{"Missing Plan Changes", false}
 	ExperimentalFeatureDeprecated      = ExperimentalFlag{"Missing Deprecated", false}
 	ExperimentalFeatureImport          = ExperimentalFlag{"Missing Importing", true}
-	ExperimentalFeatureImportMulti     = ExperimentalFlag{"Missing Importing Multi (cli only)", false}
 	ExperimentalFeatureImportGenConfig = ExperimentalFlag{"Missing Import GenConfig", false}
 	ExperimentalFeatureLinting         = ExperimentalFlag{"Missing Linting", false}
 	ExperimentalFeatureRefresh         = ExperimentalFlag{"Missing Refresh", true}
@@ -133,6 +132,7 @@ var (
 	ExperimentalObsoleteFlatAttrs        = ExperimentalFlag{"Obsolete Flat Mapped Attributes", false}
 	ExperimentalObsoleteDestroyData      = ExperimentalFlag{"Obsolete Explicit Destroy of Data Resource Instances", false}
 	ExperimentalObsoleteEphemeralInState = ExperimentalFlag{"Obsolete Ephemeral Resource Instances in State", false}
+	ExperimentalObsoleteImportMulti      = ExperimentalFlag{"Obsilete Importing Multi (cli only)", false}
 
 	// ExperimentalNewStrategyNeeded is a special experimental flag that
 	// represents that a test is failing not because the underlying behavior
