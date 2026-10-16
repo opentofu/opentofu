@@ -116,6 +116,15 @@ type CompiledModuleInstance interface {
 	// engines instead.
 	ResourceInstanceObjectMeta(ctx context.Context, relativeModuleInst []addrs.ModuleInstanceStep, addr addrs.ResourceInstanceObject) *ConfiguredResourceInstanceObjectMeta
 
+	// CompileEvalable returns an [exprs.Valuer] that associates the given
+	// [exprs.Evalable] with the top-level scope of this module instance, so
+	// that subsequently taking its value would cause it to be treated like
+	// an expression defined somewhere inside the module instance.
+	//
+	// This operation is infallible, but the returned valuer might return
+	// errors itself when asked for its value.
+	CompileEvalable(evalable exprs.Evalable) exprs.Valuer
+
 	// ChildModuleCalls returns a sequence of addresses of all of the module
 	// calls that are declared in this module instance.
 	//
