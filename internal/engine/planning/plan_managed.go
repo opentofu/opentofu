@@ -18,6 +18,7 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/lang/evalchecks"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/resources"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -227,6 +228,30 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		ret.PlaceholderValue = prevState.Value
 	}
 
+	var planImport *plans.Importing
+	importing := prevState == nil && !p.planCtx.refreshOnly && !p.planCtx.skipImport && meta.ImportStatement != nil
+	if importing {
+		prevState, ret.UpgradedState, moreDiags = processImport(
+			ctx,
+			inst.Addr.CurrentObject(),
+			providerInst,
+			resourceType,
+			meta.ImportStatement,
+		)
+		diags = diags.Append(moreDiags)
+		if diags.HasErrors() {
+			return ret, diags
+		}
+		if prevState != nil {
+			ret.PlaceholderValue = prevState.Value
+
+			planImport = &plans.Importing{
+				ID:       meta.ImportStatement.ID,
+				Identity: meta.ImportStatement.Identity,
+			}
+		}
+	}
+
 	if !p.planCtx.skipRefresh {
 		prevState, ret.RefreshedState, moreDiags = processRefresh(
 			ctx,
@@ -244,6 +269,25 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		if prevState != nil {
 			// Improve what we know about the potential value
 			ret.PlaceholderValue = prevState.Value
+		}
+
+		// verify the existence of the imported resource
+		if importing && (prevState == nil || prevState.Value.IsNull()) {
+			var diags tfdiags.Diagnostics
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Cannot import non-existent remote object",
+				fmt.Sprintf(
+					"While attempting to import an existing object to %q, "+
+						"the provider detected that no object exists with the given id or identity. "+
+						"Only pre-existing objects can be imported; check that the id or identity "+
+						"is correct and that it is associated with the provider's "+
+						"configured region or endpoint, or use \"tofu apply\" to "+
+						"create a new remote object for this resource.",
+					inst.Addr,
+				),
+			))
+			return ret, diags
 		}
 	}
 
@@ -403,6 +447,8 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		Action:          plannedAction,
 		Before:          planResp.Current.Value,
 		After:           planResp.Planned.Value,
+
+		Importing: planImport,
 
 		// TODO: ActionReason, but need to figure out how to get the information
 		// we'd need for that into here since most of the reasons are
@@ -762,6 +808,55 @@ func processMoveOrUpgrade(
 	prevRoundState.SchemaVersion = encodedValue.SchemaVersion
 
 	return updatedState, prevRoundState, diags
+}
+
+func processImport(
+	ctx context.Context,
+	addr addrs.AbsResourceInstanceObject,
+	providerInst addrs.AbsProviderInstanceCorrect,
+	resourceType *resources.ManagedResourceType,
+	stmt *eval.ImportStatement,
+) (*resources.ManagedResourceStateWithIdentity, *states.ResourceInstanceObjectFullSrc, tfdiags.Diagnostics) {
+	tracer := contextTracer(ctx)
+
+	importTarget := providers.ImportTarget{
+		ID:       stmt.ID,
+		Identity: stmt.Identity,
+	}
+
+	importCtx := ctx
+	if cb := tracer.StartManagedResourceInstanceObjectImport; cb != nil {
+		importCtx = cb(ctx, addr, importTarget)
+	}
+	importState, diags := resourceType.ImportState(importCtx, &resources.ManagedResourceImportStateRequest{Target: importTarget}, addr)
+	if diags.HasErrors() {
+		return nil, nil, diags
+	}
+
+	if cb := tracer.EndManagedResourceInstanceObjectImport; cb != nil {
+		cb(importCtx, addr)
+	}
+
+	encodedValue, moreDiags := resourceType.EncodeValue(ctx, importState.Value, addr)
+	diags = diags.Append(moreDiags)
+	if diags.HasErrors() {
+		return nil, nil, diags
+	}
+
+	// Fake updatedState for refresh
+	importStateFull := &states.ResourceInstanceObjectFullSrc{
+		Value: states.ValueJSONWithMetadata{
+			ValueJSON:      encodedValue.ValueJSON,
+			SensitivePaths: nil, // TODO sensitive handling
+		},
+		Private: importState.Private,
+		Status:  states.ObjectReady,
+		//TODO ProviderInstanceAddr: providerInst,
+		ResourceType: addr.InstanceAddr.Resource.Resource.Type,
+		//TODO SchemaVersion:        uint64(schema.Version),
+	}
+
+	return importState, importStateFull, diags
 }
 
 func processRefresh(

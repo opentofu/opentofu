@@ -114,7 +114,7 @@ type CompiledModuleInstance interface {
 	// metadata you probably shouldn't be using the result of this method
 	// directly. Use higher-level wrappers in the planning and applying
 	// engines instead.
-	ResourceInstanceObjectMeta(ctx context.Context, relativeModuleInst []addrs.ModuleInstanceStep, addr addrs.ResourceInstanceObject) *ConfiguredResourceInstanceObjectMeta
+	ResourceInstanceObjectMeta(ctx context.Context, relativeModuleInst []addrs.ModuleInstanceStep, addr addrs.AbsResourceInstanceObject) *ConfiguredResourceInstanceObjectMeta
 
 	// ChildModuleCalls returns a sequence of addresses of all of the module
 	// calls that are declared in this module instance.
@@ -212,6 +212,8 @@ type CompiledModuleInstance interface {
 	ProviderInstance(ctx context.Context, addr addrs.ProviderInstanceCorrect) *configgraph.ProviderInstance
 
 	ProviderRequirements(ctx context.Context) (getproviders.Requirements, *getproviders.ProvidersQualification, tfdiags.Diagnostics)
+
+	ImportStatements(ctx context.Context) []*configgraph.ImportStatement
 }
 
 // ModuleInstance finds the [CompiledModuleInstance] representation of the

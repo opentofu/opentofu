@@ -185,10 +185,10 @@ type ResourceProvisioner = evalglue.ResourceProvisioner
 // is supposed to be an implementation detail of tofu2024 and any other future
 // HCL-based language editions.
 type ResourceInstanceAttributePath = configgraph.ResourceInstanceAttributePath
+type ImportStatement = evalglue.ImportStatement
 
 func collectResourceInstanceObjectMeta(ctx context.Context, addr addrs.AbsResourceInstanceObject, rootModInst evalglue.CompiledModuleInstance) []ModuleConfiguredResourceInstanceObjectMeta {
 	leafModuleInstAddr := addr.InstanceAddr.Module
-	leafObjAddr := addr.ModuleRelative()
 	ret := make([]ModuleConfiguredResourceInstanceObjectMeta, 0, len(leafModuleInstAddr))
 	for moduleInstAddr, moduleInst := range evalglue.ModuleInstanceSteps(ctx, rootModInst, leafModuleInstAddr) {
 		if moduleInst == nil {
@@ -199,7 +199,7 @@ func collectResourceInstanceObjectMeta(ctx context.Context, addr addrs.AbsResour
 			break
 		}
 		relativeModuleInst := []addrs.ModuleInstanceStep(leafModuleInstAddr[len(moduleInstAddr):])
-		meta := moduleInst.ResourceInstanceObjectMeta(ctx, relativeModuleInst, leafObjAddr)
+		meta := moduleInst.ResourceInstanceObjectMeta(ctx, relativeModuleInst, addr)
 		if meta != nil {
 			ret = append(ret, ModuleConfiguredResourceInstanceObjectMeta{
 				ModuleInstance:                       moduleInstAddr,

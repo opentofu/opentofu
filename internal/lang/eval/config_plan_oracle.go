@@ -152,6 +152,22 @@ func (o *PlanningOracle) ProviderInstance(ctx context.Context, addr addrs.AbsPro
 	return o.providers.ProviderInstance(ctx, addr)
 }
 
+// CollectImports returns all import statements in the configuration. Currently it only
+// checks the root module as import statements are not allowed in modules. This will need
+// to be re-written to use ModuleInstances deep if we ever decide to add support for it.
+func (o *PlanningOracle) CollectImports(ctx context.Context) []*ImportStatement {
+	var statements []*ImportStatement
+	for _, statement := range o.root.ImportStatements(ctx) {
+		statements = append(statements, &ImportStatement{
+			Addr:      statement.Addr,
+			DeclRange: statement.DeclRange,
+			ID:        statement.ID,
+			Identity:  statement.Identity,
+		})
+	}
+	return statements
+}
+
 func (o *PlanningOracle) Close(ctx context.Context) tfdiags.Diagnostics {
 	return o.providers.Close(ctx)
 }
