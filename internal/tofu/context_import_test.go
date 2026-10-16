@@ -982,7 +982,7 @@ func TestContextImport_moduleDiff(t *testing.T) {
 }
 
 func TestContextImport_multiState(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureImportMulti)
+	SkipExperimental(t, ExperimentalObsoleteImportMulti)
 	p := testProvider("aws")
 	m := testModule(t, "import-provider")
 
@@ -1053,7 +1053,7 @@ func TestContextImport_multiState(t *testing.T) {
 }
 
 func TestContextImport_multiStateSame(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureImportMulti)
+	SkipExperimental(t, ExperimentalObsoleteImportMulti)
 	p := testProvider("aws")
 	m := testModule(t, "import-provider")
 
