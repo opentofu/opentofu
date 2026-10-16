@@ -61,8 +61,8 @@ func destroyPlan(ctx context.Context, opts *PlanOpts, prevRoundState *states.Sta
 	// Treat Checks as refreshOnly planing to build enough config to
 	// start providers from refreshed/updated state values, but not
 	// actually make any changes
-	// TODO remember to disable imports here as well
 	planCtx.refreshOnly = true
+	planCtx.skipImport = true
 
 	moreDiags := glue.normalGlue.CheckTargets(ctx)
 	diags = diags.Append(moreDiags)

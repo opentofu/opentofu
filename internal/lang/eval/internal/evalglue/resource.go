@@ -96,6 +96,8 @@ type ConfiguredResourceInstanceObjectMeta struct {
 	// which must happen before we can know which address an object is expected
 	// to have in the previous round state.
 	MoveStatements []refactoring.MoveStatement
+
+	ImportStatement *ImportStatement
 }
 
 // ResourceInstanceObjectProvider describes the provider-related metadata
@@ -142,6 +144,13 @@ type ResourceProvisioner struct {
 	// not block any other work that is blocked until the provisioner has
 	// finished running.
 	ContinueOnFailure bool
+}
+
+type ImportStatement struct {
+	Addr      addrs.AbsResourceInstance
+	DeclRange tfdiags.SourceRange
+	ID        string
+	Identity  cty.Value
 }
 
 // ResourceProvisionerConfig represents the fully-evaluated configuration for

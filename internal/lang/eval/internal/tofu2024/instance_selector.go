@@ -28,6 +28,13 @@ import (
 const maxCount = int64(math.MaxInt32)
 
 func compileInstanceSelector(ctx context.Context, addr fmt.Stringer, declScope exprs.Scope, forEachExpr hcl.Expression, countExpr hcl.Expression, enabledExpr hcl.Expression, deps dependsOn) configgraph.InstanceSelector {
+	return compileInstanceSelectorInternal(ctx, addr, declScope, forEachExpr, countExpr, enabledExpr, deps, false)
+}
+func compileInstanceSelectorAllowTuple(ctx context.Context, addr fmt.Stringer, declScope exprs.Scope, forEachExpr hcl.Expression, countExpr hcl.Expression, enabledExpr hcl.Expression, deps dependsOn) configgraph.InstanceSelector {
+	return compileInstanceSelectorInternal(ctx, addr, declScope, forEachExpr, countExpr, enabledExpr, deps, true)
+}
+
+func compileInstanceSelectorInternal(ctx context.Context, addr fmt.Stringer, declScope exprs.Scope, forEachExpr hcl.Expression, countExpr hcl.Expression, enabledExpr hcl.Expression, deps dependsOn, allowTuple bool) configgraph.InstanceSelector {
 	// We don't current verify that only one of the given expressions is set
 	// because we expect the configs package to check that.
 
@@ -35,7 +42,7 @@ func compileInstanceSelector(ctx context.Context, addr fmt.Stringer, declScope e
 		return compileInstanceSelectorForEach(ctx, addr, exprs.NewClosure(
 			exprs.EvalableHCLExpression(forEachExpr),
 			declScope,
-		), deps)
+		), deps, allowTuple)
 	}
 	if countExpr != nil {
 		return compileInstanceSelectorCount(ctx, addr, exprs.NewClosure(
@@ -198,7 +205,7 @@ func compileInstanceSelectorEnabled(_ context.Context, addr fmt.Stringer, enable
 	}
 }
 
-func compileInstanceSelectorForEach(_ context.Context, addr fmt.Stringer, forEachValuer exprs.Valuer, deps dependsOn) configgraph.InstanceSelector {
+func compileInstanceSelectorForEach(_ context.Context, addr fmt.Stringer, forEachValuer exprs.Valuer, deps dependsOn, allowTuple bool) configgraph.InstanceSelector {
 	forEachValuer = configgraph.ValuerOnce(forEachValuer, "For each of %s", addr)
 	return &instanceSelector{
 		keyType:     addrs.StringKeyType,
@@ -237,6 +244,20 @@ func compileInstanceSelectorForEach(_ context.Context, addr fmt.Stringer, forEac
 			}
 
 			typ := rawVal.Type()
+
+			// This is a weird hack for allowTuple (import)
+			if allowTuple && typ.IsTupleType() {
+				if !rawVal.IsKnown() {
+					return exprs.Unknown[configgraph.InstancesSeq]().WithMarks(marks), diags
+				}
+				obj := map[string]cty.Value{}
+				for i, v := range rawVal.AsValueSlice() {
+					obj[fmt.Sprintf("%v", i)] = v
+				}
+				rawVal = cty.ObjectVal(obj)
+				typ = rawVal.Type()
+			}
+
 			if typ.IsSetType() {
 				// We accept only sets of string or of unknown element type.
 				// We must accept unknown element type so that it's valid to
