@@ -137,7 +137,7 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 				// Conflicts are handled by callers of c.ImportStatements()
 				ret.ImportStatement = &evalglue.ImportStatement{
 					Addr:      statement.Addr,
-					DeclRange: statement.DeclRange,
+					DeclRange: &statement.DeclRange,
 					ID:        statement.ID,
 					Identity:  statement.Identity,
 				}

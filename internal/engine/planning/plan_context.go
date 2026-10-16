@@ -56,9 +56,11 @@ type planContext struct {
 
 	providers plugins.Providers
 
-	skipImport  bool
 	skipRefresh bool
 	refreshOnly bool
+
+	skipImport           bool
+	importCommandTargets []*eval.ImportStatement
 }
 
 func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, providers plugins.Providers, opts *PlanOpts) *planContext {
@@ -77,6 +79,8 @@ func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, pro
 		providers:        providers,
 		skipRefresh:      opts.SkipRefresh,
 		refreshOnly:      opts.Mode == plans.RefreshOnlyMode,
+
+		importCommandTargets: opts.ImportCommandTargets,
 	}
 }
 

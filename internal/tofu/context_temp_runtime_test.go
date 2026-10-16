@@ -97,6 +97,7 @@ var (
 	ExperimentalChangeModuleOutput    = ExperimentalFlag{"Change Module Outputs (test only)", false}
 	ExperimentalChangeCursedSelfRef   = ExperimentalFlag{"Change Cursed Self Reference (legacy race condition)", false}
 	ExperimentalChangeMoved           = ExperimentalFlag{"Moved blocks that are not \"active\" are not processed", false}
+	ExperimentalChangeImportValid     = ExperimentalFlag{"Import command requires a configuration that can pass validate", false}
 
 	ExperimentalFeatureDeposed         = ExperimentalFlag{"Missing Deposed", true}
 	ExperimentalFeatureCondition       = ExperimentalFlag{"Missing Pre/Post Conditions", false}
@@ -105,6 +106,7 @@ var (
 	ExperimentalFeatureChanges         = ExperimentalFlag{"Missing Plan Changes", false}
 	ExperimentalFeatureDeprecated      = ExperimentalFlag{"Missing Deprecated", false}
 	ExperimentalFeatureImport          = ExperimentalFlag{"Missing Importing", true}
+	ExperimentalFeatureImportMulti     = ExperimentalFlag{"Missing Importing Multi (cli only)", false}
 	ExperimentalFeatureImportGenConfig = ExperimentalFlag{"Missing Import GenConfig", false}
 	ExperimentalFeatureLinting         = ExperimentalFlag{"Missing Linting", false}
 	ExperimentalFeatureRefresh         = ExperimentalFlag{"Missing Refresh", true}

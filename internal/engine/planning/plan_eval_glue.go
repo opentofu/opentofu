@@ -490,17 +490,25 @@ func (p *planGlue) validateForceReplace() tfdiags.Diagnostics {
 func (p *planGlue) validateImports(ctx context.Context) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
+	allStatements := p.oracle.CollectImports(ctx)
+	allStatements = append(allStatements, p.planCtx.importCommandTargets...)
+
 	// Check for duplicates
 	imports := addrs.MakeMap[addrs.AbsResourceInstance, *eval.ImportStatement]()
-	for _, stmt := range p.oracle.CollectImports(ctx) {
+	for _, stmt := range allStatements {
 		importAddress := stmt.Addr
 		if existing, exists := imports.GetOk(importAddress); exists {
+			var subject *hcl.Range
+			if existing.DeclRange != nil {
+				subject = existing.DeclRange.ToHCL().Ptr()
+			}
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  fmt.Sprintf("Duplicate import configuration for %q", importAddress),
-				Detail:   fmt.Sprintf("An import block for the resource %q was already declared at %s. A resource can have only one import block.", importAddress, existing.DeclRange.ToHCL()),
-				Subject:  existing.DeclRange.ToHCL().Ptr(),
+				Detail:   fmt.Sprintf("An import block for the resource %q was already declared at %s. A resource can have only one import block.", importAddress, subject),
+				Subject:  subject,
 			})
+			continue
 		}
 		imports.Put(importAddress, stmt)
 	}
@@ -514,7 +522,7 @@ func (p *planGlue) validateImports(ctx context.Context) tfdiags.Diagnostics {
 		if !p.planCtx.desired.Has(addr) { // TODO wildcard
 			config := imports.Get(addr)
 			var subject *hcl.Range
-			if config != nil {
+			if config.DeclRange != nil {
 				subject = config.DeclRange.ToHCL().Ptr()
 			}
 			diags = diags.Append(&hcl.Diagnostic{
