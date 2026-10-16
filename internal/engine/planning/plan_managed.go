@@ -28,7 +28,6 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 	ctx context.Context,
 	inst *eval.DesiredResourceInstance,
 ) (ret *resourceInstanceObject, diags tfdiags.Diagnostics) {
-
 	// TODO: Resolve any relevant moves up front here and then use
 	// p.ResourceInstanceObjectMeta directly to request the aggregate metadata.
 	//
@@ -48,6 +47,16 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		// Should not happen: the evaluator is required to always produce
 		// non-nil metadata for a desired object.
 		panic(fmt.Sprintf("no metadata available for desired object %s", inst.Addr))
+	}
+	// Inject import command address if applicable
+	for _, stmt := range p.planCtx.importCommandTargets {
+		if stmt.Addr.Equal(inst.Addr) {
+			configMeta = append(configMeta, eval.ModuleConfiguredResourceInstanceObjectMeta{
+				ConfiguredResourceInstanceObjectMeta: &eval.ConfiguredResourceInstanceObjectMeta{
+					ImportStatement: stmt,
+				},
+			})
+		}
 	}
 	meta := exec.BuildResourceInstanceObjectMeta(inst.Addr.CurrentObject(), configMeta, (*states.ResourceInstanceObjectFullSrc)(nil))
 
@@ -148,7 +157,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		return ret, diags
 	}
 
-	if prevStateInfo.state == nil && p.planCtx.refreshOnly {
+	if prevStateInfo.state == nil && p.planCtx.refreshOnly && meta.ImportStatement == nil {
 		// Nothing to do here, improve the guess and return
 		schema, moreDiags := p.planCtx.providers.ResourceTypeSchema(ctx, meta.Provider, inst.Addr.Resource.Resource.Mode, inst.Addr.Resource.Resource.Type)
 		diags = diags.Append(moreDiags)
@@ -229,7 +238,20 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 	}
 
 	var planImport *plans.Importing
-	importing := prevState == nil && !p.planCtx.refreshOnly && !p.planCtx.skipImport && meta.ImportStatement != nil
+	importing := !p.planCtx.skipImport && meta.ImportStatement != nil
+	if importing && prevState != nil {
+		if meta.ImportStatement.DeclRange == nil {
+			// Config import statement conflict
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Resource already managed by OpenTofu",
+				fmt.Sprintf("OpenTofu is already managing a remote object for %s. To import to this address you must first remove the existing object from the state.", inst.Addr),
+			))
+			return ret, diags
+		}
+		importing = false
+	}
+
 	if importing {
 		prevState, ret.UpgradedState, moreDiags = processImport(
 			ctx,

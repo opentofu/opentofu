@@ -45,6 +45,9 @@ type PlanOpts struct {
 
 	Targets  []addrs.Targetable
 	Excludes []addrs.Targetable
+
+	// ImportCommandTargets specified on the command line
+	ImportCommandTargets []*eval.ImportStatement
 }
 
 // PlanChanges is the main entry point, taking a state snapshot from the end
