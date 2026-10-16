@@ -56,6 +56,7 @@ type planContext struct {
 
 	providers plugins.Providers
 
+	skipImport  bool
 	skipRefresh bool
 	refreshOnly bool
 }

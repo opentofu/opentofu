@@ -40,6 +40,7 @@ type CompiledModuleInstance struct {
 	providerLocalNames  map[addrs.Provider]string
 
 	moveStatements []refactoring.MoveStatement
+	importNodes    []*configgraph.Import
 
 	missingProviders rootMissingProviders
 
@@ -88,6 +89,9 @@ func (c *CompiledModuleInstance) CheckAll(ctx context.Context) tfdiags.Diagnosti
 	for _, n := range c.providerConfigNodes {
 		cg.CheckChild(ctx, n)
 	}
+	for _, n := range c.importNodes {
+		cg.CheckChild(ctx, n)
+	}
 	// TODO: Once we have support for module calls we'll need to check both
 	// the calls _and_ the nested [evalglue.CompiledModuleInstance] objects
 	// that encapsulate the child contents, which might potentially use a
@@ -105,7 +109,7 @@ func (c *CompiledModuleInstance) ResultValuer(ctx context.Context) exprs.Valuer 
 }
 
 // ResourceInstanceObjectMeta implements [evalglue.CompiledModuleInstance].
-func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context, relativeModuleInst []addrs.ModuleInstanceStep, addr addrs.ResourceInstanceObject) *evalglue.ConfiguredResourceInstanceObjectMeta {
+func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context, relativeModuleInst []addrs.ModuleInstanceStep, addr addrs.AbsResourceInstanceObject) *evalglue.ConfiguredResourceInstanceObjectMeta {
 	// Start with everything we know about the resource from the module context
 	var ret *evalglue.ConfiguredResourceInstanceObjectMeta
 	// We'll populate the Provider fields below only once we have
@@ -117,6 +121,29 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 		}
 		ret.MoveStatements = c.moveStatements
 	}
+	// Add all applicable import identities from this module
+	configAddr := addr.InstanceAddr.ConfigResource()
+	for _, importNode := range c.importNodes {
+		if !importNode.Addr.Equal(configAddr) {
+			break
+		}
+		instances, _ := importNode.Instances(ctx)
+		for _, instance := range instances {
+			statement, _ := instance.Statement(ctx)
+			if statement != nil && statement.Addr.Equal(addr.InstanceAddr) {
+				if ret == nil {
+					ret = new(evalglue.ConfiguredResourceInstanceObjectMeta)
+				}
+				// Conflicts are handled by callers of c.ImportStatements()
+				ret.ImportStatement = &evalglue.ImportStatement{
+					Addr:      statement.Addr,
+					DeclRange: statement.DeclRange,
+					ID:        statement.ID,
+					Identity:  statement.Identity,
+				}
+			}
+		}
+	}
 	// TODO: Implement collection of ancillary metadata like "removed" and "import"
 	// blocks that relate to the requested object.
 
@@ -124,7 +151,7 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 		return ret
 	}
 
-	rsrc, ok := c.resourceNodes[addr.InstanceAddr.Resource]
+	rsrc, ok := c.resourceNodes[addr.InstanceAddr.Resource.Resource]
 	if !ok {
 		// If there's no mention of this resource in this module at all then
 		// we have nothing to say about it, and so any metadata will need to
@@ -146,8 +173,8 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 		// In this language edition the author-specified resource type always
 		// matches the provider's chosen resource type name, so we can just
 		// derive these directly from the resource address.
-		ResourceMode: addr.InstanceAddr.Resource.Mode,
-		ResourceType: addr.InstanceAddr.Resource.Type,
+		ResourceMode: addr.InstanceAddr.Resource.Resource.Mode,
+		ResourceType: addr.InstanceAddr.Resource.Resource.Type,
 	}
 
 	ret.DeclRange = rsrc.DeclRange
@@ -160,11 +187,11 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 	preventDestroy, _ := rsrc.PreventDestroy(ctx)
 	ret.DeletionInvalid = &preventDestroy
 
-	destroyProvisioners := rsrc.DestroyProvisioners(ctx, addr.InstanceAddr)
+	destroyProvisioners := rsrc.DestroyProvisioners(ctx, addr.InstanceAddr.Resource)
 	ret.PreDeleteProvisioners = prepareResourceProvisioners(destroyProvisioners)
 
 	insts := rsrc.Instances(ctx)
-	inst, ok := insts[addr.InstanceAddr.Key]
+	inst, ok := insts[addr.InstanceAddr.Resource.Key]
 	if !ok {
 		// Only the resource-level settings are used when we're dealing with
 		// a resource instance that is not currently declared in the configuration.
@@ -388,6 +415,22 @@ func (c *CompiledModuleInstance) ResourceInstancesForResource(ctx context.Contex
 // ResourceInstancesForResource implements evalglue.CompiledModuleInstance.
 func (c *CompiledModuleInstance) ProviderRequirements(ctx context.Context) (getproviders.Requirements, *getproviders.ProvidersQualification, tfdiags.Diagnostics) {
 	return c.providerRequirements(ctx)
+}
+
+// ImportStatements implements evalglue.CompiledModuleInstance.
+func (c *CompiledModuleInstance) ImportStatements(ctx context.Context) []*configgraph.ImportStatement {
+	var statements []*configgraph.ImportStatement
+	for _, importNode := range c.importNodes {
+		instances, _ := importNode.Instances(ctx)
+		for _, instance := range instances {
+			statement, _ := instance.Statement(ctx)
+			if statement != nil {
+				statements = append(statements, statement)
+			}
+		}
+	}
+
+	return statements
 }
 
 func (c *CompiledModuleInstance) DetectImplicitMoveForAddress(ctx context.Context, addr addrs.AbsResourceInstance) *addrs.AbsResourceInstance {
