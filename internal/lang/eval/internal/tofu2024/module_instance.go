@@ -38,12 +38,19 @@ type CompiledModuleInstance struct {
 	moduleCallNodes     map[addrs.ModuleCall]*configgraph.ModuleCall
 	providerConfigNodes map[addrs.LocalProviderConfig]*configgraph.ProviderConfig
 	providerLocalNames  map[addrs.Provider]string
+	moveStatements      []refactoring.MoveStatement
 
-	moveStatements []refactoring.MoveStatement
-
-	missingProviders rootMissingProviders
-
+	missingProviders     rootMissingProviders
 	providerRequirements func(ctx context.Context) (getproviders.Requirements, *getproviders.ProvidersQualification, tfdiags.Diagnostics)
+
+	// topScope is the scope that was used to compile the top-level objects
+	// in the configuration, which is retained only for use by
+	// [CompiledModuleInstance.CompileEvalable] so callers like "tofu console"
+	// can evaluate additional arbitrary expressions as if they had appeared
+	// inside this module. All expressions that are actually part of the module
+	// ought to be pre-bound to an appropriate scope during the compilation
+	// step, rather than late-bound only during evaluation.
+	topScope *moduleInstanceScope
 }
 
 var _ evalglue.CompiledModuleInstance = (*CompiledModuleInstance)(nil)
@@ -231,6 +238,11 @@ func prepareResourceProvisioners(pcs []configgraph.Provisioner) []*evalglue.Reso
 		ret = append(ret, provisioner)
 	}
 	return ret
+}
+
+// CompileEvalable implements [evalglue.CompiledModuleInstance].
+func (c *CompiledModuleInstance) CompileEvalable(evalable exprs.Evalable) exprs.Valuer {
+	return exprs.NewClosure(evalable, c.topScope)
 }
 
 // ChildModuleCalls implements evalglue.CompiledModuleInstance.
