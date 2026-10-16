@@ -52,6 +52,12 @@ type Tracer struct {
 	StartManagedResourceInstanceObjectApply func(ctx context.Context, addr addrs.AbsResourceInstanceObject, priorVal, plannedVal cty.Value) context.Context
 	EndManagedResourceInstanceObjectApply   func(ctx context.Context, addr addrs.AbsResourceInstanceObject, resultVal cty.Value, diags tfdiags.Diagnostics)
 
+	// StartManagedResourceInstanceObjectForget and
+	// EndManagedResourceInstanceObjectForget mark the beginning and end of
+	// the work to "forget" the identified managed resource/ instance object.
+	StartManagedResourceInstanceObjectForget func(ctx context.Context, addr addrs.AbsResourceInstanceObject, priorVal cty.Value) context.Context
+	EndManagedResourceInstanceObjectForget   func(ctx context.Context, addr addrs.AbsResourceInstanceObject, diags tfdiags.Diagnostics)
+
 	// Provisioner Hooks for Managed Resources
 	StartProvisionInstanceStep func(ctx context.Context, addr addrs.AbsResourceInstance, typeName string) context.Context
 	ProvisionOutput            func(ctx context.Context, addr addrs.AbsResourceInstance, typeName string, line string, configMarks cty.ValueMarks)
