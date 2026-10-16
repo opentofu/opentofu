@@ -48,7 +48,7 @@ func CountInsteadEnabled(
 				),
 			)
 		}
-		diags = diags.Append(tfdiags.ExecuteLintRule(ctx, exec, tfdiags.SourceRangeFromHCL(rc.DeclRange), ruleIDCountInsteadOfEnabled, GroupIDAll, GroupIDImprovement))
+		diags = diags.Append(tfdiags.ExecuteLintRule(ctx, exec, tfdiags.SourceRangeFromHCL(rc.Count.Range()), ruleIDCountInsteadOfEnabled, GroupIDAll, GroupIDImprovement))
 	}
 	return diags
 }

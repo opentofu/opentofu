@@ -11,6 +11,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"slices"
 	"strings"
 	"sync"
@@ -145,6 +146,7 @@ type lintingRulesCtxValue struct {
 	include collections.Set[linting.RuleAddr]
 	exclude collections.Set[linting.RuleAddr]
 
+	lintingControl map[string]LintingControl
 	// lintOnSourceExecution holds the execution container for a specific (linting rule on a specific config source).
 	// This is to ensure that even if it happens to have the same linting rule executed twice for the same configuration
 	// construct, only one will report the final status.
@@ -156,7 +158,7 @@ type lintingRulesCtxValue struct {
 
 // executeRule gets an execution key and the execution function of a linting rule and executes it
 // if it doesn't yet have a successful execution cached.
-func (lrcv *lintingRulesCtxValue) executeRule(execKey string, f func() Diagnostics) Diagnostics {
+func (lrcv *lintingRulesCtxValue) executeRule(execKey string, src SourceRange, ruleID linting.RuleAddr, groupIDs []linting.RuleAddr, f func() Diagnostics) Diagnostics {
 	type lintExecution struct {
 		m       sync.Mutex
 		success bool
@@ -190,6 +192,10 @@ func (lrcv *lintingRulesCtxValue) executeRule(execKey string, f func() Diagnosti
 	if exec.success {
 		return nil
 	}
+	if lrcv.disabledByDirective(src, ruleID, groupIDs) {
+		exec.success = true
+		return nil
+	}
 	diags := f()
 	if !diags.HasErrors() {
 		// safe to set this here since the lock was acquired when this was created, before being stored into the
@@ -211,6 +217,7 @@ func ContextWithLintFilterHints(parent context.Context, include, exclude collect
 		include:               include,
 		exclude:               exclude,
 		lintOnSourceExecution: sync.Map{},
+		lintingControl:        make(map[string]LintingControl),
 	})
 }
 
@@ -251,7 +258,7 @@ func ExecuteLintRule(ctx context.Context, f func(ruleID linting.RuleAddr, groupI
 	// this is executed
 	k := keyForLintCall(src, ruleID, groupIDs...)
 
-	return lintCtx.executeRule(k, func() Diagnostics {
+	return lintCtx.executeRule(k, src, ruleID, groupIDs, func() Diagnostics {
 		return f(ruleID, groupIDs...)
 	})
 }
@@ -318,4 +325,118 @@ func ExperimentalLintWarn(ctx context.Context) Diagnostics {
 		Detail:   "The linting functionality is under active development and may change or break in future releases. You can provide feedback by opening a new issue.",
 		Subject:  nil,
 	})
+}
+
+type lintingControlType string
+
+const (
+	lintingControlTypeEnable  lintingControlType = "enable"
+	lintingControlTypeDisable lintingControlType = "disable"
+)
+
+func parseControlType(com string) (lintingControlType, string, bool) {
+	for _, d := range []lintingControlType{lintingControlTypeEnable, lintingControlTypeDisable} {
+		// only the comments like "#disable(rule_id)" are allowed. Comments starting with "//" are not processed as control directives.
+		if after, ok := strings.CutPrefix(com, "#"+string(d)+"("); ok {
+			return d, after, true
+		}
+	}
+	return "", "", false
+}
+
+func ParseLintingControl(in string, decl hcl.Range) (LintingControl, bool) {
+	controlType, remaining, ok := parseControlType(in)
+	if !ok {
+		return LintingControl{}, false
+	}
+
+	var ruleIdRaw bytes.Buffer
+	var reasonRaw bytes.Buffer
+	var skipNext bool
+	inRuleIdentifier := true
+	for _, r := range remaining {
+		if skipNext {
+			skipNext = false
+			continue
+		}
+		if r == ')' {
+			inRuleIdentifier = false
+			skipNext = true
+			continue
+		}
+		if inRuleIdentifier {
+			ruleIdRaw.WriteRune(r)
+			continue
+		}
+		reasonRaw.WriteRune(r)
+	}
+	ruleId, err := linting.ParseRuleAddr(ruleIdRaw.String())
+	if err != nil {
+		log.Printf("[DEBUG] failed to parse the given ruleID (%q) from the nolint comment so will be skipped: %s", ruleIdRaw.String(), err)
+		return LintingControl{}, false
+	}
+	return LintingControl{
+		controlType: controlType,
+		Decl:        decl,
+		ForRule:     ruleId,
+		Reason:      reasonRaw.String(),
+	}, true
+}
+
+type LintingControl struct {
+	controlType lintingControlType
+	Decl        hcl.Range
+	ForRule     linting.RuleAddr
+	Reason      string
+}
+
+func (lc *LintingControl) disables() bool {
+	return lc.controlType == lintingControlTypeDisable
+}
+
+
+// matches reports whether this directive refers to the given rule, either directly or through one of the groups
+// that the rule belongs to (for example, "core:all").
+func (lc *LintingControl) matches(ruleID linting.RuleAddr, groupIDs []linting.RuleAddr) bool {
+	return lc.ForRule == ruleID || slices.Contains(groupIDs, lc.ForRule)
+}
+
+// disabledByDirective reports whether a "disable" directive that is written directly above the given source
+// range refers to the given rule or to one of its groups.
+//
+// Directives written on consecutive lines are all considered, so multiple rules can be disabled for the same
+// construct by stacking directives. The search stops at the first line above that has no directive, so a directive
+// never reaches past other content.
+func (lrcv *lintingRulesCtxValue) disabledByDirective(src SourceRange, ruleID linting.RuleAddr, groupIDs []linting.RuleAddr) bool {
+	for line := src.Start.Line - 1; line > 0; line-- {
+		k := hcl.Range{
+			Filename: src.Filename,
+			Start:    hcl.Pos{Line: line},
+		}.String()
+		control, found := lrcv.lintingControl[k]
+		if !found {
+			return false
+		}
+		if control.disables() && control.matches(ruleID, groupIDs) {
+			return true
+		}
+	}
+	return false
+}
+
+func ContextWithNoLint(parent context.Context, nolint []LintingControl) context.Context {
+	v := lintHintsFromContext(parent)
+	if v == nil {
+		return parent
+	}
+	for _, l := range nolint {
+		k := hcl.Range{
+			Filename: l.Decl.Filename,
+			Start: hcl.Pos{
+				Line: l.Decl.Start.Line,
+			},
+		}.String()
+		v.lintingControl[k] = l
+	}
+	return parent // no need to create a new context. The hints from the context is a pointer so we just store the nolint directives into that.
 }

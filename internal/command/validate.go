@@ -98,6 +98,7 @@ func (c *ValidateCommand) validate(ctx context.Context, dir, testDir string, noT
 	if diags.HasErrors() {
 		return diags
 	}
+	ctx = tfdiags.ContextWithNoLint(ctx, cfg.Module.NoLint)
 
 	validate := func(cfg *configs.Config) tfdiags.Diagnostics {
 		var diags tfdiags.Diagnostics

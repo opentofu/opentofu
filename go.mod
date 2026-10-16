@@ -266,7 +266,7 @@ require (
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
 
-replace github.com/hashicorp/hcl/v2 v2.25.0 => github.com/opentofu/hcl/v2 v2.20.2-0.20260930170621-c565166b0b3d
+replace github.com/hashicorp/hcl/v2 v2.25.0 => github.com/opentofu/hcl/v2 v2.20.2-0.20260914142128-d5b704bb159a
 
 tool (
 	github.com/mitchellh/gox

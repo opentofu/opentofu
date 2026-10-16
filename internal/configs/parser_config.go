@@ -9,6 +9,7 @@ import (
 	"log"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 
 	"github.com/opentofu/opentofu/internal/configs/symlib"
 	"github.com/opentofu/opentofu/internal/encryption/config"
@@ -208,6 +209,7 @@ func loadConfigFileBody(body hcl.Body, _ string, override bool) (*File, hcl.Diag
 			diags = append(diags, cfgDiags...)
 			if cfg != nil {
 				file.ManagedResources = append(file.ManagedResources, cfg)
+				file.NoLint = append(file.NoLint, cfg.NoLint...)
 			}
 
 		case "data":
@@ -215,6 +217,7 @@ func loadConfigFileBody(body hcl.Body, _ string, override bool) (*File, hcl.Diag
 			diags = append(diags, cfgDiags...)
 			if cfg != nil {
 				file.DataResources = append(file.DataResources, cfg)
+				file.NoLint = append(file.NoLint, cfg.NoLint...)
 			}
 
 		case "ephemeral":
@@ -222,6 +225,7 @@ func loadConfigFileBody(body hcl.Body, _ string, override bool) (*File, hcl.Diag
 			diags = append(diags, cfgDiags...)
 			if cfg != nil {
 				file.EphemeralResources = append(file.EphemeralResources, cfg)
+				file.NoLint = append(file.NoLint, cfg.NoLint...)
 			}
 
 		case "moved":
@@ -264,8 +268,21 @@ func loadConfigFileBody(body hcl.Body, _ string, override bool) (*File, hcl.Diag
 
 		}
 	}
+	file.NoLint = append(file.NoLint, extractLintingControls(content.Comments)...)
 
 	return file, diags
+}
+
+func extractLintingControls(comments hcl.Comments) []tfdiags.LintingControl {
+	var res []tfdiags.LintingControl
+	for _, c := range comments {
+		lc, ok := tfdiags.ParseLintingControl(c.Content, c.StartRange)
+		if !ok {
+			continue
+		}
+		res = append(res, lc)
+	}
+	return res
 }
 
 // configFileSchema is the schema for the top-level of a config file. We use
