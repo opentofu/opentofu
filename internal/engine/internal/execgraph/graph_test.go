@@ -120,11 +120,9 @@ func TestGraphMarshalUnmarshalValid(t *testing.T) {
 				return builder.Finish()
 			},
 			`
-				v[0] = cty.UnknownVal(cty.DynamicPseudoType);
-
 				r[0] = ResourceInstanceCurrentMeta(data.test.example, nil);
 				r[1] = ResourceInstanceDesired(r[0]);
-				r[2] = DataRead(r[0], r[1], v[0], await());
+				r[2] = DataRead(r[0], r[1], await());
 
 				data.test.example = r[2];
 			`,
@@ -153,14 +151,12 @@ func TestGraphMarshalUnmarshalValid(t *testing.T) {
 				return builder.Finish()
 			},
 			`
-				v[0] = cty.UnknownVal(cty.DynamicPseudoType);
-
 				r[0] = ResourceInstanceCurrentMeta(data.test.example1, nil);
 				r[1] = ResourceInstanceDesired(r[0]);
-				r[2] = DataRead(r[0], r[1], v[0], await());
+				r[2] = DataRead(r[0], r[1], await());
 				r[3] = ResourceInstanceCurrentMeta(data.test.example2, nil);
 				r[4] = ResourceInstanceDesired(r[3]);
-				r[5] = DataRead(r[3], r[4], v[0], await(r[2]));
+				r[5] = DataRead(r[3], r[4], await(r[2]));
 
 				data.test.example1 = r[2];
 				data.test.example2 = r[5];

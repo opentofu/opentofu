@@ -16,6 +16,11 @@ func ContextWithEncryption(parent context.Context, enc Encryption) context.Conte
 }
 
 func ContextEncryption(ctx context.Context) Encryption {
-	ret, _ := ctx.Value(ctxEncryptionKey{}).(Encryption)
+	ret, ok := ctx.Value(ctxEncryptionKey{}).(Encryption)
+	if !ok {
+		// we ALWAYS need to return something for encryption
+		// if this was not set in the context, set to disabled
+		ret = Disabled()
+	}
 	return ret
 }
