@@ -158,13 +158,11 @@ type lintingRulesCtxValue struct {
 
 // executeRule gets an execution key and the execution function of a linting rule and executes it
 // if it doesn't yet have a successful execution cached.
-func (lrcv *lintingRulesCtxValue) executeRule(execKey string, src SourceRange, f func() Diagnostics) Diagnostics {
+func (lrcv *lintingRulesCtxValue) executeRule(execKey string, src SourceRange, ruleID linting.RuleAddr, groupIDs []linting.RuleAddr, f func() Diagnostics) Diagnostics {
 	type lintExecution struct {
 		m       sync.Mutex
 		success bool
 	}
-	var nolint bool
-	var lintingControl LintingControl
 	loadExec := func(execId string) *lintExecution {
 		// create a new lint rule execution and lock it to store it into the status container
 		exec := &lintExecution{
@@ -174,13 +172,6 @@ func (lrcv *lintingRulesCtxValue) executeRule(execKey string, src SourceRange, f
 		exec.m.Lock()
 		loadedExec, loaded := lrcv.lintOnSourceExecution.LoadOrStore(execId, exec)
 		currentExec := exec
-		k := hcl.Range{
-			Filename: src.Filename,
-			Start: hcl.Pos{
-				Line: src.Start.Line - 1,
-			},
-		}.String()
-		lintingControl, nolint = lrcv.lintingControl[k]
 		// another lint execution for this linting rule and source was created before so we need to work with it instead of
 		// the above created one.
 		if loaded {
@@ -201,7 +192,7 @@ func (lrcv *lintingRulesCtxValue) executeRule(execKey string, src SourceRange, f
 	if exec.success {
 		return nil
 	}
-	if nolint && lintingControl.disables() {
+	if lrcv.disabledByDirective(src, ruleID, groupIDs) {
 		exec.success = true
 		return nil
 	}
@@ -267,7 +258,7 @@ func ExecuteLintRule(ctx context.Context, f func(ruleID linting.RuleAddr, groupI
 	// this is executed
 	k := keyForLintCall(src, ruleID, groupIDs...)
 
-	return lintCtx.executeRule(k, src, func() Diagnostics {
+	return lintCtx.executeRule(k, src, ruleID, groupIDs, func() Diagnostics {
 		return f(ruleID, groupIDs...)
 	})
 }
@@ -401,6 +392,36 @@ type LintingControl struct {
 
 func (lc *LintingControl) disables() bool {
 	return lc.controlType == lintingControlTypeDisable
+}
+
+
+// matches reports whether this directive refers to the given rule, either directly or through one of the groups
+// that the rule belongs to (for example, "core:all").
+func (lc *LintingControl) matches(ruleID linting.RuleAddr, groupIDs []linting.RuleAddr) bool {
+	return lc.ForRule == ruleID || slices.Contains(groupIDs, lc.ForRule)
+}
+
+// disabledByDirective reports whether a "disable" directive that is written directly above the given source
+// range refers to the given rule or to one of its groups.
+//
+// Directives written on consecutive lines are all considered, so multiple rules can be disabled for the same
+// construct by stacking directives. The search stops at the first line above that has no directive, so a directive
+// never reaches past other content.
+func (lrcv *lintingRulesCtxValue) disabledByDirective(src SourceRange, ruleID linting.RuleAddr, groupIDs []linting.RuleAddr) bool {
+	for line := src.Start.Line - 1; line > 0; line-- {
+		k := hcl.Range{
+			Filename: src.Filename,
+			Start:    hcl.Pos{Line: line},
+		}.String()
+		control, found := lrcv.lintingControl[k]
+		if !found {
+			return false
+		}
+		if control.disables() && control.matches(ruleID, groupIDs) {
+			return true
+		}
+	}
+	return false
 }
 
 func ContextWithNoLint(parent context.Context, nolint []LintingControl) context.Context {
