@@ -289,6 +289,8 @@ type ResourceInstanceObjectMeta struct {
 	// unspecified for other resource modes.
 	DeletionInvalid *exprs.WithSourceRange[bool]
 
+	ImportStatement *eval.ImportStatement
+
 	// Note that we intentionally do not aggregate
 	// [eval.ConfiguredResourceInstanceObjectMeta.MoveStatements] elements
 	// here because by the time the caller knows enough to ask for the
@@ -385,6 +387,11 @@ func BuildResourceInstanceObjectMeta[SV states.ValueOrJSONEquivalent](
 
 		if fromModule.DeletionInvalid != nil {
 			ret.DeletionInvalid = fromModule.DeletionInvalid
+		}
+
+		if fromModule.ImportStatement != nil {
+			// Conflicts are handled during plan finalize
+			ret.ImportStatement = fromModule.ImportStatement
 		}
 
 		// TODO: Everything else
