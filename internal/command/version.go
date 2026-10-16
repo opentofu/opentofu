@@ -6,11 +6,18 @@
 package command
 
 import (
+	"cmp"
 	"crypto/fips140"
+	"log"
+	"maps"
+	"slices"
+	"strings"
 
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/getproviders"
+	"github.com/opentofu/opentofu/internal/modsdir"
 )
 
 func VersionCommander(version string, versionPrerelease string, platform getproviders.Platform) Command {
@@ -59,8 +66,72 @@ func (c VersionCommand) Execute(view views.Version) int {
 			providerVersions[providerAddr.String()] = lock.Version().String()
 		}
 	}
-	if !view.PrintVersion(c.Version, c.VersionPrerelease, c.Platform.String(), fips140.Enabled(), providerVersions) {
+
+	var moduleVersions map[string]string
+	if mani, err := modsdir.ReadManifestSnapshotForDir(c.WorkingDir.ModulesDir()); err == nil {
+		vals := slices.Collect(maps.Values(mani))
+		moduleVersions = readModuleVersions(vals)
+	}
+
+	if !view.PrintVersion(c.Version, c.VersionPrerelease, c.Platform.String(), fips140.Enabled(), providerVersions, moduleVersions) {
 		return 1
 	}
 	return 0
+}
+
+func readModuleVersions(records []modsdir.Record) map[string]string {
+	moduleVersions := map[string]string{}
+	keyVersion := map[string]string{}
+	slices.SortFunc(records, func(a, b modsdir.Record) int {
+		return cmp.Compare(strings.Count(a.Key, "."), strings.Count(b.Key, "."))
+	})
+	resolved := map[string]addrs.ModuleSource{}
+	for _, m := range records {
+		rawSrc, err := addrs.ParseModuleSource(m.SourceAddr)
+		if err != nil {
+			log.Printf("[WARN] failed to parse module source: %s", err)
+			continue
+		}
+		if m.Key == "" {
+			resolved[m.Key] = rawSrc
+			continue
+		}
+		parentKey := parentModuleKey(m.Key)
+		parentMS, hasParent := resolved[parentKey]
+
+		var outSrc addrs.ModuleSource
+		if hasParent && parentMS.String() != "" {
+			outSrc, _ = addrs.ResolveRelativeModuleSource(parentMS, rawSrc)
+		} else {
+			outSrc = rawSrc
+		}
+
+		resolved[m.Key] = outSrc
+
+		if m.Version != nil {
+			moduleVersions[outSrc.String()] = m.Version.String()
+			keyVersion[m.Key] = m.Version.String()
+		} else {
+			var ver string
+			parent := parentKey
+			for ver == "" {
+				ver = keyVersion[parent]
+				p := parentModuleKey(parent)
+				if p == parent {
+					ver = "0.0.0"
+				}
+				parent = p
+			}
+			keyVersion[m.Key] = ver
+			moduleVersions[outSrc.String()] = ver
+		}
+	}
+	return moduleVersions
+}
+
+func parentModuleKey(key string) string {
+	if i := strings.LastIndex(key, "."); i >= 0 {
+		return key[:i]
+	}
+	return ""
 }
