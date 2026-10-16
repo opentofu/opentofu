@@ -193,10 +193,23 @@ func (c *Context) newEnginePlan(ctx context.Context, config *configs.Config, pre
 
 	defer done()
 
+	var importTargets []*eval.ImportStatement
+	for _, target := range opts.ImportTargets {
+		if target.IsFromImportCommandLine() {
+			importTargets = append(importTargets, &eval.ImportStatement{
+				Addr: target.Addr,
+				ID:   target.ID,
+			})
+		}
+	}
+
 	newOpts := &planning.PlanOpts{
 		Mode:         opts.Mode,
 		ForceReplace: opts.ForceReplace,
 		SkipRefresh:  opts.SkipRefresh,
+
+		ImportCommandTargets: importTargets,
+
 		// TODO: Most other things that are in this package's [PlanOpts]
 		// package, though notably not "SetVariables" because the new runtime
 		// deals with input variables during the module compilation step, rather

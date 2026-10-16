@@ -97,6 +97,7 @@ var (
 	ExperimentalChangeModuleOutput    = ExperimentalFlag{"Change Module Outputs (test only)", false}
 	ExperimentalChangeCursedSelfRef   = ExperimentalFlag{"Change Cursed Self Reference (legacy race condition)", false}
 	ExperimentalChangeMoved           = ExperimentalFlag{"Moved blocks that are not \"active\" are not processed", false}
+	ExperimentalChangeImportValid     = ExperimentalFlag{"Import command requires a configuration that can pass validate", false}
 
 	ExperimentalFeatureDeposed         = ExperimentalFlag{"Missing Deposed", true}
 	ExperimentalFeatureCondition       = ExperimentalFlag{"Missing Pre/Post Conditions", false}
@@ -131,6 +132,7 @@ var (
 	ExperimentalObsoleteFlatAttrs        = ExperimentalFlag{"Obsolete Flat Mapped Attributes", false}
 	ExperimentalObsoleteDestroyData      = ExperimentalFlag{"Obsolete Explicit Destroy of Data Resource Instances", false}
 	ExperimentalObsoleteEphemeralInState = ExperimentalFlag{"Obsolete Ephemeral Resource Instances in State", false}
+	ExperimentalObsoleteImportMulti      = ExperimentalFlag{"Obsilete Importing Multi (cli only)", false}
 
 	// ExperimentalNewStrategyNeeded is a special experimental flag that
 	// represents that a test is failing not because the underlying behavior

@@ -148,7 +148,7 @@ type ResourceProvisioner struct {
 
 type ImportStatement struct {
 	Addr      addrs.AbsResourceInstance
-	DeclRange tfdiags.SourceRange
+	DeclRange *tfdiags.SourceRange
 	ID        string
 	Identity  cty.Value
 }

@@ -160,7 +160,7 @@ func (o *PlanningOracle) CollectImports(ctx context.Context) []*ImportStatement 
 	for _, statement := range o.root.ImportStatements(ctx) {
 		statements = append(statements, &ImportStatement{
 			Addr:      statement.Addr,
-			DeclRange: statement.DeclRange,
+			DeclRange: &statement.DeclRange,
 			ID:        statement.ID,
 			Identity:  statement.Identity,
 		})

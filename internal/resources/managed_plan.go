@@ -169,6 +169,10 @@ func (rt *ManagedResourceType) ImportState(ctx context.Context, req *ManagedReso
 		log.Printf("[TRACE] graphNodeImportState: import %s %q produced instance object of type %s", dispAddr, req.Target, obj.TypeName)
 	}
 	if len(imported) > 1 {
+		// Note: This was previously supported, but only through the `tofu import` command and not through
+		// import blocks. The plugin sdk still technically allows this, but the plugin framework forbids it.
+		// Additionally, any providers which decide to try to make this work, will be fundimentally incompatible
+		// with import blocks, the preferred method if interacting with the import feature.
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Multiple import states not supported",
@@ -186,6 +190,12 @@ func (rt *ManagedResourceType) ImportState(ctx context.Context, req *ManagedReso
 		return nil, diags
 	}
 
+	if rt.typeName != imported[0].TypeName {
+		// See above comment on multiple imports
+		diags = diags.Append(fmt.Errorf("import of %s expected to produce resoure type %s, but instead produced %s.  This is likely a provider bug and should be reported", dispAddr, rt.typeName, imported[0].TypeName))
+		return nil, diags
+	}
+
 	if imported[0].State.IsNull() {
 		importDesc := req.Target.ID
 		if importDesc == "" {
@@ -200,8 +210,6 @@ func (rt *ManagedResourceType) ImportState(ctx context.Context, req *ManagedReso
 			),
 		))
 	}
-
-	// TODO we don't validate imported TypeName against rt.typeName
 
 	return &ManagedResourceStateWithIdentity{
 		ValueWithPrivate: ValueWithPrivate{Value: imported[0].State, Private: imported[0].Private},
