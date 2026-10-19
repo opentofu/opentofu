@@ -165,7 +165,7 @@ func (l *loader) makeModuleWalkerSnapshot(snap *Snapshot) configs.ModuleWalker {
 func (l *loader) addModuleToSnapshot(snap *Snapshot, key string, dir string, sourceAddr string, v *version.Version) hcl.Diagnostics {
 	var diags hcl.Diagnostics
 
-	primaryFiles, overrideFiles, moreDiags := l.parser.ConfigDirFiles(dir)
+	primaryFiles, overrideFiles, symbolFiles, moreDiags := l.parser.ConfigDirFiles(dir)
 	if moreDiags.HasErrors() {
 		// Any diagnostics we get here should be already present
 		// in diags, so it's weird if we get here but we'll allow it
@@ -185,9 +185,10 @@ func (l *loader) addModuleToSnapshot(snap *Snapshot, key string, dir string, sou
 		Version:    v,
 	}
 
-	files := make([]string, 0, len(primaryFiles)+len(overrideFiles))
+	files := make([]string, 0, len(primaryFiles)+len(overrideFiles)+len(symbolFiles))
 	files = append(files, primaryFiles...)
 	files = append(files, overrideFiles...)
+	files = append(files, symbolFiles...)
 	sources := l.Sources() // should be populated with all the files we need by now
 	for _, filePath := range files {
 		filename := filepath.Base(filePath)
