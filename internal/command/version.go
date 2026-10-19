@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/collections"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/getproviders"
@@ -67,7 +68,7 @@ func (c VersionCommand) Execute(view views.Version) int {
 		}
 	}
 
-	var moduleVersions map[string]string
+	var moduleVersions []views.ModuleVersions
 	if mani, err := modsdir.ReadManifestSnapshotForDir(c.WorkingDir.ModulesDir()); err == nil {
 		vals := slices.Collect(maps.Values(mani))
 		moduleVersions = readModuleVersions(vals)
@@ -79,8 +80,8 @@ func (c VersionCommand) Execute(view views.Version) int {
 	return 0
 }
 
-func readModuleVersions(records []modsdir.Record) map[string]string {
-	moduleVersions := map[string]string{}
+func readModuleVersions(records []modsdir.Record) []views.ModuleVersions {
+	moduleVersions := collections.NewSet[views.ModuleVersions]()
 	keyVersion := map[string]string{}
 	slices.SortFunc(records, func(a, b modsdir.Record) int {
 		return cmp.Compare(strings.Count(a.Key, "."), strings.Count(b.Key, "."))
@@ -109,7 +110,7 @@ func readModuleVersions(records []modsdir.Record) map[string]string {
 		resolved[m.Key] = outSrc
 
 		if m.Version != nil {
-			moduleVersions[outSrc.String()] = m.Version.String()
+			moduleVersions[views.ModuleVersions{Source: outSrc.String(), Version: m.Version.String()}] = struct{}{}
 			keyVersion[m.Key] = m.Version.String()
 		} else {
 			var ver string
@@ -123,10 +124,12 @@ func readModuleVersions(records []modsdir.Record) map[string]string {
 				parent = p
 			}
 			keyVersion[m.Key] = ver
-			moduleVersions[outSrc.String()] = ver
+			moduleVersions[views.ModuleVersions{Source: outSrc.String(), Version: ver}] = struct{}{}
 		}
 	}
-	return moduleVersions
+	mv := slices.Collect(maps.Keys(moduleVersions))
+	slices.SortFunc(mv, func(a, b views.ModuleVersions) int { return cmp.Compare(a.Source, b.Source) })
+	return mv
 }
 
 func parentModuleKey(key string) string {

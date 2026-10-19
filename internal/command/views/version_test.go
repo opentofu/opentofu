@@ -115,17 +115,20 @@ on darwin_arm64
 		"json printVersion with modules": {
 			viewType: arguments.ViewJSON,
 			viewCall: func(v Version) {
-				v.PrintVersion("0.1.0", "dev", "darwin_arm64", false, map[string]string{}, map[string]string{
-					"registry.opentofu.org/terraform-aws-modules/eks/aws": "20.24.0",
+				v.PrintVersion("0.1.0", "dev", "darwin_arm64", false, map[string]string{}, []ModuleVersions{
+					{Source: "registry.opentofu.org/terraform-aws-modules/eks/aws", Version: "20.24.0"},
 				})
 			},
 			wantStdout: `{
   "terraform_version": "0.1.0-dev",
   "platform": "darwin_arm64",
   "provider_selections": {},
-  "module_selections": {
-    "registry.opentofu.org/terraform-aws-modules/eks/aws": "20.24.0"
-  }
+  "module_selections": [
+    {
+      "source": "registry.opentofu.org/terraform-aws-modules/eks/aws",
+      "version": "20.24.0"
+    }
+  ]
 }
 `,
 			wantStderr: "",
@@ -133,8 +136,8 @@ on darwin_arm64
 		"human printVersion with modules": {
 			viewType: arguments.ViewHuman,
 			viewCall: func(v Version) {
-				v.PrintVersion("0.1.0", "dev", "darwin_arm64", false, map[string]string{}, map[string]string{
-					"registry.opentofu.org/terraform-aws-modules/eks/aws": "20.24.0",
+				v.PrintVersion("0.1.0", "dev", "darwin_arm64", false, map[string]string{}, []ModuleVersions{
+					{Source: "registry.opentofu.org/terraform-aws-modules/eks/aws", Version: "20.24.0"},
 				})
 			},
 			wantStdout: `OpenTofu v0.1.0-dev
@@ -146,15 +149,15 @@ on darwin_arm64
 		"human printVersion with nested modules": {
 			viewType: arguments.ViewHuman,
 			viewCall: func(v Version) {
-				v.PrintVersion("0.1.0", "dev", "darwin_arm64", false, map[string]string{}, map[string]string{
-					"registry.opentofu.org/terraform-aws-modules/eks/aws":                                  "20.24.0",
-					"registry.opentofu.org/terraform-aws-modules/eks/aws//modules/_user_data":              "20.24.0",
-					"registry.opentofu.org/terraform-aws-modules/eks/aws//modules/eks-managed-node-group":  "20.24.0",
-					"registry.opentofu.org/terraform-aws-modules/eks/aws//modules/fargate-profile":         "20.24.0",
-					"registry.opentofu.org/terraform-aws-modules/eks/aws//modules/self-managed-node-group": "20.24.0",
-					"registry.opentofu.org/terraform-aws-modules/iam/aws//modules/iam-policy":              "6.8.1",
-					"registry.opentofu.org/terraform-aws-modules/kms/aws":                                  "2.1.0",
-					"registry.opentofu.org/terraform-aws-modules/vpc/aws":                                  "6.7.2",
+				v.PrintVersion("0.1.0", "dev", "darwin_arm64", false, map[string]string{}, []ModuleVersions{
+					{Source: "registry.opentofu.org/terraform-aws-modules/eks/aws", Version: "20.24.0"},
+					{Source: "registry.opentofu.org/terraform-aws-modules/eks/aws//modules/_user_data", Version: "20.24.0"},
+					{Source: "registry.opentofu.org/terraform-aws-modules/eks/aws//modules/eks-managed-node-group", Version: "20.24.0"},
+					{Source: "registry.opentofu.org/terraform-aws-modules/eks/aws//modules/fargate-profile", Version: "20.24.0"},
+					{Source: "registry.opentofu.org/terraform-aws-modules/eks/aws//modules/self-managed-node-group", Version: "20.24.0"},
+					{Source: "registry.opentofu.org/terraform-aws-modules/iam/aws//modules/iam-policy", Version: "6.8.1"},
+					{Source: "registry.opentofu.org/terraform-aws-modules/kms/aws", Version: "2.1.0"},
+					{Source: "registry.opentofu.org/terraform-aws-modules/vpc/aws", Version: "6.7.2"},
 				})
 			},
 			wantStdout: `OpenTofu v0.1.0-dev
@@ -173,31 +176,55 @@ on darwin_arm64
 		"json printVersion with nested modules": {
 			viewType: arguments.ViewJSON,
 			viewCall: func(v Version) {
-				v.PrintVersion("0.1.0", "dev", "darwin_arm64", false, map[string]string{}, map[string]string{
-					"registry.opentofu.org/terraform-aws-modules/eks/aws":                                  "20.24.0",
-					"registry.opentofu.org/terraform-aws-modules/eks/aws//modules/_user_data":              "20.24.0",
-					"registry.opentofu.org/terraform-aws-modules/eks/aws//modules/eks-managed-node-group":  "20.24.0",
-					"registry.opentofu.org/terraform-aws-modules/eks/aws//modules/fargate-profile":         "20.24.0",
-					"registry.opentofu.org/terraform-aws-modules/eks/aws//modules/self-managed-node-group": "20.24.0",
-					"registry.opentofu.org/terraform-aws-modules/iam/aws//modules/iam-policy":              "6.8.1",
-					"registry.opentofu.org/terraform-aws-modules/kms/aws":                                  "2.1.0",
-					"registry.opentofu.org/terraform-aws-modules/vpc/aws":                                  "6.7.2",
+				v.PrintVersion("0.1.0", "dev", "darwin_arm64", false, map[string]string{}, []ModuleVersions{
+					{Source: "registry.opentofu.org/terraform-aws-modules/eks/aws", Version: "20.24.0"},
+					{Source: "registry.opentofu.org/terraform-aws-modules/eks/aws//modules/_user_data", Version: "20.24.0"},
+					{Source: "registry.opentofu.org/terraform-aws-modules/eks/aws//modules/eks-managed-node-group", Version: "20.24.0"},
+					{Source: "registry.opentofu.org/terraform-aws-modules/eks/aws//modules/fargate-profile", Version: "20.24.0"},
+					{Source: "registry.opentofu.org/terraform-aws-modules/eks/aws//modules/self-managed-node-group", Version: "20.24.0"},
+					{Source: "registry.opentofu.org/terraform-aws-modules/iam/aws//modules/iam-policy", Version: "6.8.1"},
+					{Source: "registry.opentofu.org/terraform-aws-modules/kms/aws", Version: "2.1.0"},
+					{Source: "registry.opentofu.org/terraform-aws-modules/vpc/aws", Version: "6.7.2"},
 				})
 			},
 			wantStdout: `{
   "terraform_version": "0.1.0-dev",
   "platform": "darwin_arm64",
   "provider_selections": {},
-  "module_selections": {
-    "registry.opentofu.org/terraform-aws-modules/eks/aws": "20.24.0",
-    "registry.opentofu.org/terraform-aws-modules/eks/aws//modules/_user_data": "20.24.0",
-    "registry.opentofu.org/terraform-aws-modules/eks/aws//modules/eks-managed-node-group": "20.24.0",
-    "registry.opentofu.org/terraform-aws-modules/eks/aws//modules/fargate-profile": "20.24.0",
-    "registry.opentofu.org/terraform-aws-modules/eks/aws//modules/self-managed-node-group": "20.24.0",
-    "registry.opentofu.org/terraform-aws-modules/iam/aws//modules/iam-policy": "6.8.1",
-    "registry.opentofu.org/terraform-aws-modules/kms/aws": "2.1.0",
-    "registry.opentofu.org/terraform-aws-modules/vpc/aws": "6.7.2"
-  }
+  "module_selections": [
+    {
+      "source": "registry.opentofu.org/terraform-aws-modules/eks/aws",
+      "version": "20.24.0"
+    },
+    {
+      "source": "registry.opentofu.org/terraform-aws-modules/eks/aws//modules/_user_data",
+      "version": "20.24.0"
+    },
+    {
+      "source": "registry.opentofu.org/terraform-aws-modules/eks/aws//modules/eks-managed-node-group",
+      "version": "20.24.0"
+    },
+    {
+      "source": "registry.opentofu.org/terraform-aws-modules/eks/aws//modules/fargate-profile",
+      "version": "20.24.0"
+    },
+    {
+      "source": "registry.opentofu.org/terraform-aws-modules/eks/aws//modules/self-managed-node-group",
+      "version": "20.24.0"
+    },
+    {
+      "source": "registry.opentofu.org/terraform-aws-modules/iam/aws//modules/iam-policy",
+      "version": "6.8.1"
+    },
+    {
+      "source": "registry.opentofu.org/terraform-aws-modules/kms/aws",
+      "version": "2.1.0"
+    },
+    {
+      "source": "registry.opentofu.org/terraform-aws-modules/vpc/aws",
+      "version": "6.7.2"
+    }
+  ]
 }
 `,
 			wantStderr: "",
