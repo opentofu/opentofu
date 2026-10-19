@@ -72,6 +72,19 @@ func compileDependsOn(
 		// and we're returning this function only as a placeholder for future
 		// expansion once we change package configs to represent depends_on
 		// as a list of arbitrary expressions, instead of forcing traversals.
+		//
+		// If you're here with the intention of implementing the more general
+		// form of depends_on which would support per-instance dependencies,
+		// please first ensure that all callers of compileDependsOn are
+		// actually making use of this second return value (since not doing
+		// so would previously have not been observable as a bug). We may need
+		// to change the API here slightly at that point to allow callers
+		// to choose whether they want to allow per-instance dependencies at
+		// all, since "depends_on" is supported for some types of object where
+		// symbols like "each.key" are never valid, such as for output values.
+		// However, it could also be reasonable to just let that fail
+		// dynamically when someone eventually calls [dependsOn.Marks] on the
+		// result... we'll decide when we get there.
 		return emptyDependsOn
 	}
 
