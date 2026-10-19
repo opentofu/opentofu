@@ -101,9 +101,9 @@ func (p *Parser) LoadConfigDirWithTests(path string, testDirectory string) (*Mod
 //
 // If the given directory does not exist or cannot be read, error diagnostics
 // are returned. If errors are returned, the resulting lists may be incomplete.
-func (p Parser) ConfigDirFiles(dir string) (primary, override []string, diags hcl.Diagnostics) {
-	primary, override, _, _, diags = p.dirFiles(dir, "")
-	return primary, override, diags
+func (p Parser) ConfigDirFiles(dir string) (primary, override []string, symbols []string, diags hcl.Diagnostics) {
+	primary, override, _, symbols, diags = p.dirFiles(dir, "")
+	return primary, override, symbols, diags
 }
 
 // ConfigDirFilesWithTests matches ConfigDirFiles except it also returns the
