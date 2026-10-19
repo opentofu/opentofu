@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/go-version"
+	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/opentofu/opentofu/internal/modsdir"
 
@@ -176,7 +177,7 @@ func TestModuleVersions(t *testing.T) {
 	for _, tc := range []struct {
 		name    string
 		records []modsdir.Record
-		expect  map[string]string
+		expect  []views.ModuleVersions
 	}{
 		{
 			name: "one module",
@@ -187,8 +188,11 @@ func TestModuleVersions(t *testing.T) {
 					Version:    version.Must(version.NewVersion("0.1.0")),
 				},
 			},
-			expect: map[string]string{
-				"registry.opentofu.org/terraform-aws-modules/eks/aws": "0.1.0",
+			expect: []views.ModuleVersions{
+				{
+					Source:  "registry.opentofu.org/terraform-aws-modules/eks/aws",
+					Version: "0.1.0",
+				},
 			},
 		},
 		{
@@ -204,9 +208,15 @@ func TestModuleVersions(t *testing.T) {
 					SourceAddr: "./modules/hello",
 				},
 			},
-			expect: map[string]string{
-				"registry.opentofu.org/terraform-aws-modules/eks/aws":                "0.1.0",
-				"registry.opentofu.org/terraform-aws-modules/eks/aws//modules/hello": "0.1.0",
+			expect: []views.ModuleVersions{
+				{
+					Source:  "registry.opentofu.org/terraform-aws-modules/eks/aws",
+					Version: "0.1.0",
+				},
+				{
+					Source:  "registry.opentofu.org/terraform-aws-modules/eks/aws//modules/hello",
+					Version: "0.1.0",
+				},
 			},
 		},
 		{
@@ -217,14 +227,14 @@ func TestModuleVersions(t *testing.T) {
 					SourceAddr: "./modules/hello",
 				},
 			},
-			expect: map[string]string{
-				"./modules/hello": "0.0.0",
+			expect: []views.ModuleVersions{
+				{Source: "./modules/hello", Version: "0.0.0"},
 			},
 		},
 		{
 			name:    "no modules",
 			records: []modsdir.Record{},
-			expect:  map[string]string{},
+			expect:  nil,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
