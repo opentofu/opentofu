@@ -30,6 +30,7 @@ func compileImports(
 	ctx context.Context,
 	declScope exprs.Scope,
 	providersSchema evalglue.ProvidersSchema,
+	moduleProviders configgraph.CompileProviderConfigRef,
 	importConfigs []*configs.Import,
 ) []*configgraph.Import {
 	var imports []*configgraph.Import
@@ -41,11 +42,14 @@ func compileImports(
 			InstanceSelector: compileInstanceSelectorAllowTuple(ctx, config.StaticTo, declScope, config.ForEach, nil, nil, dependsOn{}),
 			CompileImportInstance: func(ctx context.Context, key addrs.InstanceKey, repData instances.RepetitionData) *configgraph.ImportInstance {
 				localScope := instanceLocalScope(declScope, repData)
+				providerRef := compileProviderConfigRef(ctx, moduleProviders, config.ProviderConfigAddr(), config.ProviderConfigRef, localScope)
 
 				// This bypasses the usual [exprs.Valuer] approach due to complexity required for import handling
-
 				return &configgraph.ImportInstance{
-					DeclRange: tfdiags.SourceRangeFromHCL(config.DeclRange),
+					Addr:                   config.StaticTo,
+					DeclRange:              tfdiags.SourceRangeFromHCL(config.DeclRange),
+					Provider:               config.Provider,
+					ProviderInstanceValuer: configgraph.ValuerOnce(providerRef, "Provider of %s", config.StaticTo),
 					CompileImportStatement: func(ctx context.Context) (*configgraph.ImportStatement, tfdiags.Diagnostics) {
 						var diags, moreDiags tfdiags.Diagnostics
 						statement := configgraph.ImportStatement{

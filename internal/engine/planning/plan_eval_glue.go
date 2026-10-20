@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"iter"
 	"log"
+	"reflect"
 	"runtime/pprof"
 	"strings"
 	"sync"
@@ -152,6 +153,9 @@ func (p *planGlue) Finalize(ctx context.Context) (*planContextResult, tfdiags.Di
 	ctx = grapheval.ContextWithNewWorker(ctx)
 	var diags tfdiags.Diagnostics
 
+	// We need special handling of imports here with config generation
+	diags = diags.Append(p.validateImportsAndGenConfig(ctx))
+
 	p.planCtx.desiredMu.Lock()
 	defer p.planCtx.desiredMu.Unlock()
 
@@ -191,8 +195,6 @@ func (p *planGlue) Finalize(ctx context.Context) (*planContextResult, tfdiags.Di
 	diags = diags.Append(p.validateMoves(ctx))
 
 	diags = diags.Append(p.validateForceReplace())
-
-	diags = diags.Append(p.validateImports(ctx))
 
 	diags = diags.Append(p.oracle.Close(ctx))
 
@@ -487,7 +489,9 @@ func (p *planGlue) validateForceReplace() tfdiags.Diagnostics {
 	return diags
 }
 
-func (p *planGlue) validateImports(ctx context.Context) tfdiags.Diagnostics {
+var PlaceholderForGeneratedConfigImport = cty.UnknownVal(cty.Capsule("gen-config-placeholder", reflect.TypeFor[string]()))
+
+func (p *planGlue) validateImportsAndGenConfig(ctx context.Context) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	allStatements := p.oracle.CollectImports(ctx)
@@ -517,9 +521,32 @@ func (p *planGlue) validateImports(ctx context.Context) tfdiags.Diagnostics {
 		return diags
 	}
 
+	p.planCtx.desiredMu.Lock()
+	instancesDesired := p.planCtx.desired.Union(nil)
+	p.planCtx.desiredMu.Unlock()
+
+	configDesired := addrs.MakeSet[addrs.ConfigResource]()
+	for _, desired := range instancesDesired {
+		configDesired.Add(desired.ConfigResource())
+	}
+
 	// Check for no corresponding resource
 	for _, addr := range imports.Keys() {
-		if !p.planCtx.desired.Has(addr) { // TODO wildcard
+		if !instancesDesired.Has(addr) { // TODO wildcard
+			if p.planCtx.generateConfigPath != "" {
+				hasConfigResource := configDesired.Has(addr.ConfigResource())
+
+				if !hasConfigResource {
+					// Generate config
+					inst := &eval.DesiredResourceInstance{
+						Addr:      addr,
+						ConfigVal: PlaceholderForGeneratedConfigImport,
+					}
+					_, moreDiags := p.PlanDesiredResourceInstance(ctx, inst)
+					diags = diags.Append(moreDiags)
+					continue
+				}
+			}
 			config := imports.Get(addr)
 			var subject *hcl.Range
 			if config.DeclRange != nil {

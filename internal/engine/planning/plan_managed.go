@@ -189,19 +189,16 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		return ret, diags
 	}
 
-	validateDiags := resourceType.ValidateConfig(ctx, inst.ConfigVal)
-	diags = diags.Append(validateDiags)
-	if diags.HasErrors() {
-		return ret, diags
+	isGeneratingConfiguration := PlaceholderForGeneratedConfigImport.Type().Equals(inst.ConfigVal.Type())
+	if !isGeneratingConfiguration {
+		validateDiags := resourceType.ValidateConfig(ctx, inst.ConfigVal)
+		diags = diags.Append(validateDiags)
+		if diags.HasErrors() {
+			return ret, diags
+		}
 	}
 
 	unmarkedConfigVal, _ := inst.ConfigVal.UnmarkDeep()
-
-	validateDiags = p.planCtx.providers.ValidateResourceConfig(ctx, meta.Provider, addrs.ManagedResourceMode, meta.ResourceType, unmarkedConfigVal)
-	diags = diags.Append(validateDiags)
-	if diags.HasErrors() {
-		return ret, diags
-	}
 
 	var prevState *resources.ManagedResourceStateWithIdentity
 	if prevStateInfo.state != nil {
@@ -238,7 +235,6 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		ret.PlaceholderValue = prevState.Value
 	}
 
-	var planImport *plans.Importing
 	importing := !p.planCtx.skipImport && meta.ImportStatement != nil
 	if importing && prevState != nil {
 		if !meta.ImportStatement.FromConfig() {
@@ -253,6 +249,8 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		importing = false
 	}
 
+	var planImport *plans.Importing
+	var planGenConfig string
 	if importing {
 		prevState, ret.UpgradedState, moreDiags = processImport(
 			ctx,
@@ -267,6 +265,46 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		}
 		if prevState != nil {
 			ret.PlaceholderValue = prevState.Value
+
+			if isGeneratingConfiguration {
+				// Pretend the configuration always was the imported value.
+				unmarkedConfigVal = prevState.Value
+
+				planGenConfig, moreDiags = resourceType.GenerateConfigFor(ctx, prevState.Value, providerInst, inst.Addr)
+				diags = diags.Append(moreDiags)
+				if diags.HasErrors() {
+					return ret, diags
+				}
+
+				defer func() {
+					// A quirk of config generation is that we still need a planned change even in planning fails:
+					// TestContext2Plan_importResourceConfigGenWithError
+					if ret.PlannedChange != nil {
+						return
+					}
+					// Inject fallback planned change if we have exited without setting a planned change
+					ret.PlannedChange = &plans.ResourceInstanceChange{
+						Addr:        inst.Addr,
+						PrevRunAddr: prevStateInfo.from,
+						ProviderAddr: addrs.AbsProviderConfig{
+							// FIXME: This is a lossy shim to the old-style provider instance
+							// address representation, since our old models aren't yet updated
+							// to support the modern one. It cannot handle a provider config
+							// inside a module call that uses count or for_each.
+							Module:   providerInst.Config.Module.Module(),
+							Provider: providerInst.Config.Config.Provider,
+							Alias:    providerInst.Config.Config.Alias,
+						},
+
+						Importing:       planImport,
+						GeneratedConfig: planGenConfig,
+
+						Action: plans.Update,
+						Before: prevState.Value,
+						After:  prevState.Value,
+					}
+				}()
+			}
 
 			planImport = &plans.Importing{
 				ID:       meta.ImportStatement.ID,
@@ -292,6 +330,11 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		if prevState != nil {
 			// Improve what we know about the potential value
 			ret.PlaceholderValue = prevState.Value
+
+			if isGeneratingConfiguration {
+				// Pretend the configuration always was the refreshed value.
+				unmarkedConfigVal = prevState.Value
+			}
 		}
 
 		// verify the existence of the imported resource
@@ -471,7 +514,8 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		Before:          planResp.Current.Value,
 		After:           planResp.Planned.Value,
 
-		Importing: planImport,
+		Importing:       planImport,
+		GeneratedConfig: planGenConfig,
 
 		// TODO: ActionReason, but need to figure out how to get the information
 		// we'd need for that into here since most of the reasons are

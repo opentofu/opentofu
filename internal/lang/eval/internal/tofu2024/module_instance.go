@@ -125,7 +125,7 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 	configAddr := addr.InstanceAddr.ConfigResource()
 	for _, importNode := range c.importNodes {
 		if !importNode.Addr.Equal(configAddr) {
-			break
+			continue
 		}
 		instances, _ := importNode.Instances(ctx)
 		for _, instance := range instances {
@@ -141,6 +141,24 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 					ID:        statement.ID,
 					Identity:  statement.Identity,
 				}
+
+				// Inject information that's only used in the GenConfig path
+				ret.DeclRange = statement.DeclRange
+				ret.Provider = &evalglue.ResourceInstanceObjectProvider{
+					Provider: instance.Provider,
+
+					// In this language edition the author-specified resource type always
+					// matches the provider's chosen resource type name, so we can just
+					// derive these directly from the resource address.
+					ResourceMode: addr.InstanceAddr.Resource.Resource.Mode,
+					ResourceType: addr.InstanceAddr.Resource.Resource.Type,
+				}
+
+				providerInst, _ := instance.ProviderInstance(ctx)
+				providerInstAddr, _ := providerInst.Derive(func(providerInst *configgraph.ProviderInstance) (addrs.AbsProviderInstanceCorrect, error) {
+					return providerInst.Addr, nil
+				})
+				ret.Provider.Instance = &providerInstAddr
 			}
 		}
 	}
