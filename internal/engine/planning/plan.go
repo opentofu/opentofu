@@ -48,6 +48,7 @@ type PlanOpts struct {
 
 	// ImportCommandTargets specified on the command line
 	ImportCommandTargets []*eval.ImportStatement
+	GenerateConfigPath   string
 }
 
 // PlanChanges is the main entry point, taking a state snapshot from the end

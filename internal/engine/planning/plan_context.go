@@ -61,6 +61,7 @@ type planContext struct {
 
 	skipImport           bool
 	importCommandTargets []*eval.ImportStatement
+	generateConfigPath   string
 }
 
 func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, providers plugins.Providers, opts *PlanOpts) *planContext {
@@ -81,6 +82,7 @@ func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, pro
 		refreshOnly:      opts.Mode == plans.RefreshOnlyMode,
 
 		importCommandTargets: opts.ImportCommandTargets,
+		generateConfigPath:   opts.GenerateConfigPath,
 	}
 }
 

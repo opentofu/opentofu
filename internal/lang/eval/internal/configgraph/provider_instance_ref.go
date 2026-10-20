@@ -6,16 +6,19 @@
 package configgraph
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"reflect"
 	"sync"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/convert"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // providerInstanceTypes is a global repository of all of the provider instance
@@ -112,6 +115,25 @@ func ProviderInstanceFromValue(v cty.Value, forProvider addrs.Provider) (exprs.F
 		return exprs.Unknown[*ProviderInstance]().WithMarks(marks), err
 	}
 	return exprs.Known(v.EncapsulatedValue().(*ProviderInstance)).WithMarks(marks), nil
+}
+
+func ProviderInstanceFromValuer(ctx context.Context, valuer *OnceValuer, forProvider addrs.Provider, forAddr fmt.Stringer) (exprs.FromValue[*ProviderInstance], tfdiags.Diagnostics) {
+	ctx = withDebugAddr(ctx, forAddr, "ProviderInstance")
+	v, diags := valuer.Value(ctx)
+	if diags.HasErrors() {
+		return exprs.Unknown[*ProviderInstance]().Mark(exprs.EvalError), diags
+	}
+	inst, err := ProviderInstanceFromValue(v, forProvider)
+	if err != nil {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid provider instance reference",
+			Detail:   fmt.Sprintf("Unsuitable provider selection for %s: %s.", forAddr, tfdiags.FormatError(err)),
+			Subject:  MaybeHCLSourceRange(valuer.ValueSourceRange()),
+		})
+		return inst.Mark(exprs.EvalError), diags
+	}
+	return inst, diags
 }
 
 // IsProviderInstanceRefValue returns true if the given type represents a
