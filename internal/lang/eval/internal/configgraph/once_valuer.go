@@ -7,6 +7,8 @@ package configgraph
 
 import (
 	"context"
+	"fmt"
+	"runtime/pprof"
 
 	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/hashicorp/hcl/v2"
@@ -28,11 +30,14 @@ import (
 // The StaticCheckTraversal method is _not_ wrapped and so should be a
 // relatively cheap operation as usual and must not interact (directly or
 // indirectly) with any grapheval helpers.
-func ValuerOnce(valuer exprs.Valuer) *OnceValuer {
-	return &OnceValuer{inner: valuer}
+func ValuerOnce(valuer exprs.Valuer, label string, labelArgs ...any) *OnceValuer {
+	return &OnceValuer{inner: valuer, label: label, labelArgs: labelArgs}
 }
 
 type OnceValuer struct {
+	label     string
+	labelArgs []any
+
 	once  grapheval.Once[cty.Value]
 	inner exprs.Valuer
 }
@@ -46,7 +51,7 @@ func (v *OnceValuer) StaticCheckTraversal(traversal hcl.Traversal) tfdiags.Diagn
 func (v *OnceValuer) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
 	return v.once.Do(ctx, func(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
 		return v.inner.Value(ctx)
-	})
+	}, v.inner.ValueSourceRange(), v.label, v.labelArgs...)
 }
 
 // ValueSourceRange implements exprs.Valuer.
@@ -59,4 +64,14 @@ func (v *OnceValuer) ValueSourceRange() *tfdiags.SourceRange {
 // called the Value method yet.
 func (v *OnceValuer) RequestID() workgraph.RequestID {
 	return v.once.RequestID()
+}
+
+// withDebugAddr returns a new context annotated with a method name the address
+// of the object the method is being called on.
+//
+// Using the returned context with [OnceValuer], or any other
+// [grapheval.Once.Do] execution, causes the worker goroutine to be annotated
+// with this information in stack traces and pprof profiles.
+func withDebugAddr(ctx context.Context, addr fmt.Stringer, methodName string) context.Context {
+	return pprof.WithLabels(ctx, pprof.Labels(methodName, addr.String()))
 }

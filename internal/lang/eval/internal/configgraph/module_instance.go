@@ -9,13 +9,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
-	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -94,14 +92,24 @@ func (m *ModuleInstance) StaticCheckTraversal(traversal hcl.Traversal) tfdiags.D
 
 // Value implements exprs.Valuer.
 func (m *ModuleInstance) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+	ctx = withDebugAddr(ctx, m.Addr, "Value")
 	// The following is mechanically similar to evaluating an object constructor
 	// expression gathering all of the output value results into a single
 	// object, but because we're not using the expression evaluator to do it
-	// we need to explicitly discard indirect diagnostics with
-	// [diagsHandledElsewhere].
+	// we need to explicitly handle output diagnostics in the case of an evaluation
+	// error.
 	attrs := make(map[string]cty.Value, len(m.OutputValuers))
 	for addr, valuer := range m.OutputValuers {
-		attrs[addr.Name] = diagsHandledElsewhere(valuer.Value(ctx))
+		val, diags := valuer.Value(ctx)
+		if diags.HasErrors() {
+			// Error diagnostics will be reported via CompiledModuleInstance.CheckAll,
+			// but we still need to handle errors here in order to not produce objects
+			// containing cty.NilVal
+			// Alternatively, we could check for the EvalError mark deep, but that is more
+			// expensive
+			val = cty.DynamicVal.Mark(exprs.EvalError)
+		}
+		attrs[addr.Name] = val
 	}
 	return cty.ObjectVal(attrs), nil
 }
@@ -124,21 +132,4 @@ func (m *ModuleInstance) ValueSourceRange() *tfdiags.SourceRange {
 // doing something in future.
 func (m *ModuleInstance) CheckAll(ctx context.Context) tfdiags.Diagnostics {
 	return nil
-}
-
-// AnnounceAllGraphevalRequests calls announce for each [grapheval.Once],
-// [OnceValuer], or other [workgraph.RequestID] anywhere in the tree under this
-// object.
-//
-// This is used only when [workgraph] detects a self-dependency or failure to
-// resolve and we want to find a nice human-friendly name and optional source
-// range to use to describe each of the requests that were involved in the
-// problem.
-func (m *ModuleInstance) AnnounceAllGraphevalRequests(announce func(workgraph.RequestID, grapheval.RequestInfo)) {
-	for addr, valuer := range m.OutputValuers {
-		announce(valuer.RequestID(), grapheval.RequestInfo{
-			Name:        fmt.Sprintf("%s value for %s", m.Addr, addr),
-			SourceRange: m.ValueSourceRange(),
-		})
-	}
 }

@@ -243,6 +243,15 @@ the following properties:
   property then OpenTofu will install the indicated archive with no
   verification.
 
+* `use_mirror_credentials` (optional): if `true`, represents that OpenTofu
+  should use the same credentials used to fetch this package metadata when
+  fetching the package indicated in the `url` property.
+
+  By default OpenTofu fetches the package with no authentication token at
+  all, because some mirrors act as read-through caching proxies for packages
+  hosted elsewhere and this default avoids unintentionally sending the mirror's
+  credentials to the third-party package host.
+
 OpenTofu CLI will only attempt to download versions that it has previously
 seen in response to [List Available Versions](#list-available-versions).
 

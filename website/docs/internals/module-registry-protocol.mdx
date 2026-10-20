@@ -218,3 +218,25 @@ except that it may not recursively refer to another module registry address.
 The value of the module location may instead be a relative URL, indicated by beginning with `/`, `./` or `../`,
 in which case it is resolved relative to the full URL of the download endpoint to
 produce [an HTTP URL module source](../language/modules/sources.mdx#http-urls).
+
+OpenTofu v1.13 and later support an alternative mode intended for registries
+that host module packages directly, rather than just acting as an index for
+packages hosted elsewhere. The registry activates this mode by returing a JSON
+response with an additional property:
+
+```text
+HTTP/2 200
+Content-Length: 81
+
+{
+  "location": "https://example.com/module-package.zip",
+  "use_registry_credentials": true
+}
+```
+
+When `use_registry_credentials` is present, `"location"` **must** be a HTTP
+or HTTPS URL referring to a zip archive or to a tar archive compressed using
+gzip, xz, or bzip2 compression. Setting `use_registry_credentials` to true
+tells OpenTofu to use the same credentials it had used to fetch this metadata
+when retrieving the indicated package. No other module source type is permitted
+in this direct-hosted package mode.

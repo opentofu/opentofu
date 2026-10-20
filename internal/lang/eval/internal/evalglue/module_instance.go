@@ -9,14 +9,11 @@ import (
 	"context"
 	"iter"
 
-	"github.com/apparentlymart/go-workgraph/workgraph"
-
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
-	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -76,8 +73,16 @@ type CompiledModuleInstance interface {
 	ResultValuer(ctx context.Context) exprs.Valuer
 
 	// ResourceInstanceObjectMeta returns whatever metadata applies to the
-	// given resource instance object based only on information available in
-	// the configuration.
+	// specified resource instance object based only on information available in
+	// the configuration of the receiving module instance.
+	//
+	// A module instance is allowed to contribute metadata to any resource
+	// instance object declared beneath it, including both its own objects and
+	// those belonging to its descendents. Logic elsewhere in the system derives
+	// the overall effective metadata based on the contributions from each
+	// relevant module instance. The relativeModuleInst argument has length
+	// zero if the query is about an object declared in the receiving module
+	// instance, or nonzero if asking about a descendent.
 	//
 	// Calling this function is likely to force parts of the configuration to
 	// be evaluated, but no diagnostics are returned since callers are expected
@@ -90,25 +95,26 @@ type CompiledModuleInstance interface {
 	// It's up to the implementer of this method to decide what exactly it
 	// means for some metadata to be associated with a specific resource
 	// instance object. In practice the metadata could actually be defined
-	// on a per-resource or per-resource-instance basis instead, but that
-	// decision is an implementation detail of the specific language
-	// implementation so that it can potentially vary between language editions.
+	// on a per-resource or per-resource-instance basis instead, or even on
+	// some separate annotation like a "removed" block, but that decision is an
+	// implementation detail of the specific language implementation so that it
+	// can potentially vary between language editions.
 	//
-	// This method never returns a nil result. If the configuration contains no
-	// metadata at all for the requested object then the implementer is expected
-	// to return some reasonable default settings to use as a baseline.
+	// This method may return a nil result if this module instance has no
+	// metadata at all to contribute for the requested object.
 	//
 	// DO NOT MODIFY ANYTHING REACHABLE THROUGH THE RETURNED POINTER! A resource
 	// instance metadata object is treated as immutable by convention.
 	//
 	// Note that from the perspective of the planning and applying engines the
-	// full metadata for a resource instance object is defined as a melding of
-	// this result along with information taken from the prior state, and so
-	// unless you're implementing the code responsible for merging those two
-	// sources of metadata you probably shouldn't be using the result of this
-	// method directly. Use higher-level wrappers in the planning and applying
+	// effective metadata for a resource instance object is defined as a melding
+	// of this result along with similar information from every other relevant
+	// module instance and information taken from the prior state. Unless you're
+	// implementing the code responsible for merging those various sources of
+	// metadata you probably shouldn't be using the result of this method
+	// directly. Use higher-level wrappers in the planning and applying
 	// engines instead.
-	ResourceInstanceObjectMeta(ctx context.Context, addr addrs.ResourceInstanceObject) *ConfiguredResourceInstanceObjectMeta
+	ResourceInstanceObjectMeta(ctx context.Context, relativeModuleInst []addrs.ModuleInstanceStep, addr addrs.ResourceInstanceObject) *ConfiguredResourceInstanceObjectMeta
 
 	// ChildModuleCalls returns a sequence of addresses of all of the module
 	// calls that are declared in this module instance.
@@ -206,20 +212,6 @@ type CompiledModuleInstance interface {
 	ProviderInstance(ctx context.Context, addr addrs.ProviderInstanceCorrect) *configgraph.ProviderInstance
 
 	ProviderRequirements(ctx context.Context) (getproviders.Requirements, *getproviders.ProvidersQualification, tfdiags.Diagnostics)
-
-	// AnnounceAllGraphevalRequests calls announce for each [grapheval.Once],
-	// [OnceValuer], or other [workgraph.RequestID] anywhere in the tree under this
-	// object.
-	//
-	// This is used only when [workgraph] detects a self-dependency or failure to
-	// resolve and we want to find a nice human-friendly name and optional source
-	// range to use to describe each of the requests that were involved in the
-	// problem.
-	AnnounceAllGraphevalRequests(announce func(workgraph.RequestID, grapheval.RequestInfo))
-
-	// GetMoveStatementsFor obtains the move statements for this module and the child module
-	// if specified by the given address.
-	GetMoveStatementsFor(ctx context.Context, addr addrs.Module) []refactoring.MoveStatement
 }
 
 // ModuleInstance finds the [CompiledModuleInstance] representation of the
@@ -228,6 +220,9 @@ type CompiledModuleInstance interface {
 // The decision about which instances exist can be made dynamically by arbitrary
 // expressions, so this call will block until the necessary information is
 // resolved.
+//
+// If you instead need to visit each of the instances on the chain to the given
+// module instance, consider [ModuleInstanceSteps].
 func ModuleInstance(ctx context.Context, root CompiledModuleInstance, addr addrs.ModuleInstance) CompiledModuleInstance {
 	current := root
 	for _, step := range addr {
@@ -241,6 +236,64 @@ func ModuleInstance(ctx context.Context, root CompiledModuleInstance, addr addrs
 		}
 	}
 	return current
+}
+
+// ModuleInstanceSteps returns a sequence of all of the module instances from
+// the root to the given module instance address, yielding nil for any steps
+// that are not actually declared in the configuration.
+//
+// The decision about which instances exist can be made dynamically by arbitrary
+// expressions, so each iteration of the resulting sequence will block until
+// the necessary information is resolved. That information is retrieved using
+// the context given in the initial call, so no special handling is required
+// as long as the loop body runs synchronously on the same goroutine as the
+// initial call, but if multiple goroutines are involved then the provided
+// context must represent the workgraph worker where the loop itself will
+// execute.
+//
+// If you only need the specific module instance specified and not its
+// ancestors along the way, use [ModuleInstance] instead.
+func ModuleInstanceSteps(ctx context.Context, root CompiledModuleInstance, addr addrs.ModuleInstance) iter.Seq2[addrs.ModuleInstance, CompiledModuleInstance] {
+	return func(yield func(addrs.ModuleInstance, CompiledModuleInstance) bool) {
+		if !yield(addrs.RootModuleInstance, root) {
+			return
+		}
+		current := root
+		remain := []addrs.ModuleInstanceStep(addr)
+		stepIdx := 0
+		for len(remain) != 0 {
+			next := remain[0]
+			callInstAddr := addrs.ModuleCallInstance{
+				Call: addrs.ModuleCall{Name: next.Name},
+				Key:  next.InstanceKey,
+			}
+			// This call is the place where we can potentially block to fetch
+			// additional data if that's needed to decide which instances of
+			// this module call are declared in the configuration.
+			current = current.ChildModuleInstance(ctx, callInstAddr)
+			if current == nil {
+				// This and any other remaining steps are not in the
+				// configuration, so we'll yield nils for them all in
+				// the other loop below.
+				break
+			}
+			if !yield(addr[:stepIdx+1], current) {
+				return
+			}
+			remain = remain[1:]
+			stepIdx++
+		}
+		// If there's anything left in "remain" when we get here then each
+		// step is something not declared in the configuration, so we'll
+		// keep reporting those as nil until the caller stops asking.
+		for len(remain) != 0 {
+			if !yield(addr[:stepIdx+1], nil) {
+				return
+			}
+			remain = remain[1:]
+			stepIdx++
+		}
+	}
 }
 
 // ModuleInstancesDeep produces all of the module instances from the given root

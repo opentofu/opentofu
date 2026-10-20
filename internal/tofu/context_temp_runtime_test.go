@@ -98,7 +98,7 @@ var (
 	ExperimentalChangeCursedSelfRef   = ExperimentalFlag{"Change Cursed Self Reference (legacy race condition)", false}
 	ExperimentalChangeMoved           = ExperimentalFlag{"Moved blocks that are not \"active\" are not processed", false}
 
-	ExperimentalFeatureDeposed         = ExperimentalFlag{"Missing Deposed", false}
+	ExperimentalFeatureDeposed         = ExperimentalFlag{"Missing Deposed", true}
 	ExperimentalFeatureCondition       = ExperimentalFlag{"Missing Pre/Post Conditions", false}
 	ExperimentalFeatureLocalState      = ExperimentalFlag{"Missing Store locals in state", false}
 	ExperimentalFeatureChecks          = ExperimentalFlag{"Missing Checks", false}
@@ -106,8 +106,8 @@ var (
 	ExperimentalFeatureDeprecated      = ExperimentalFlag{"Missing Deprecated", false}
 	ExperimentalFeatureImport          = ExperimentalFlag{"Missing Importing", false}
 	ExperimentalFeatureLinting         = ExperimentalFlag{"Missing Linting", false}
-	ExperimentalFeatureRefresh         = ExperimentalFlag{"Missing Refresh", false}
-	ExperimentalFeatureRefreshOnly     = ExperimentalFlag{"Missing Refresh-only Planning Mode", false}
+	ExperimentalFeatureRefresh         = ExperimentalFlag{"Missing Refresh", true}
+	ExperimentalFeatureRefreshOnly     = ExperimentalFlag{"Missing Refresh-only Planning Mode", true}
 	ExperimentalFeatureMoved           = ExperimentalFlag{"Missing Moved", true}
 	ExperimentalFeatureRemoved         = ExperimentalFlag{"Missing Removed", false}
 	ExperimentalFeatureSkipDestroy     = ExperimentalFlag{"Missing Lifecycle Destroy", false}
@@ -123,6 +123,7 @@ var (
 	ExperimentalFeatureProviderInput   = ExperimentalFlag{"Missing Provider Input Prompting", false}
 	ExperimentalFeatureModuleEnabled   = ExperimentalFlag{"Missing Module Lifecycle Enabled", true}
 	ExperimentalFeatureActionReason    = ExperimentalFlag{"Missing ActionReason", false}
+	ExperimentalFeatureDriftedResource = ExperimentalFlag{"Missing Plan Drifted Resources", false}
 
 	// Obsolete flags indicate a test which depends on a feature we do not
 	// intend to carry forward into the new engine

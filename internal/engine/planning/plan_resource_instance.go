@@ -16,6 +16,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/resources"
+	"github.com/opentofu/opentofu/internal/states"
 )
 
 // resourceInstanceObject is the planning engine's internal intermediate
@@ -41,6 +42,15 @@ type resourceInstanceObject struct {
 	// during the apply phase and so is not recorded anywhere in
 	// [resourceInstanceObject].
 	Addr addrs.AbsResourceInstanceObject
+
+	PrevRoundAddr addrs.AbsResourceInstanceObject
+
+	// UpgradedState is the previous state value after processing
+	// Upgrades and Moves.
+	UpgradedState *states.ResourceInstanceObjectFullSrc
+	// UpgradedState is the upgraded state value after processing
+	// Refreshes. Will be nil if the object no-longer exists.
+	RefreshedState *states.ResourceInstanceObjectFullSrc
 
 	// PlannedChange is the change that the planning engine has decided for
 	// this resource instance object.

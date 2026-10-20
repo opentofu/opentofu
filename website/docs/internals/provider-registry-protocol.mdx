@@ -281,7 +281,8 @@ curl 'https://registry.opentofu.org/v1/providers/examplecorp/random/2.0.0/downlo
       ],
       "package_size": 6184593
     }
-  }
+  },
+  "use_registry_credentials": true
 }
 ```
 
@@ -347,6 +348,15 @@ A successful result is a JSON object with the following properties:
     Used to help prevent hash collision attacks.
     
     If `packages` is included then the information for all platforms must be included regardless of which platform was requested, because the included checksums will typically be copied into a dependency lock file for verifying packages installed on other platforms in future. The entry for each platform must include at least a `zh:` hash matching the value that would be returned in the top-level `shasum` property when requesting that platform.
+* `use_registry_credentials` (optional): if `true`, represents that OpenTofu
+  should use the same credentials used to fetch this package metadata when
+  fetching the artifacts mentioned in `download_url`, `shasums_url`, and
+  `shasums_signature_url`.
+
+  By default OpenTofu fetches these artifacts with no authentication token at
+  all, because some registries act only as indices of packages hosted elsewhere
+  and this default avoids unintentionally sending the registry's credentials to
+  the third-party package host.
 
 Return `404 Not Found` to signal that the given provider version isn't
 available for the requested operating system and/or architecture. OpenTofu

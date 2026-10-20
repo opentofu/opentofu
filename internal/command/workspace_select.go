@@ -11,8 +11,6 @@ import (
 
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
-	"github.com/posener/complete"
-
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -28,6 +26,14 @@ func WorkspaceSelectCommander(legacyName bool) Command {
 	args := arguments.BindWorkspaceSelect(&cmd.CommandLine)
 	cmd.Run = func(meta Meta) int {
 		return WorkspaceSelectCommand{meta, legacyName}.Execute(args, views.NewWorkspace(args.View, meta.View))
+	}
+	cmd.AutocompleteArgs = func(meta Meta) func(int) []string {
+		return func(nargs int) []string {
+			if nargs > 0 {
+				return []string{}
+			}
+			return WorkspaceSelectCommand{meta, legacyName}.AutocompleteArgs()
+		}
 	}
 
 	return cmd
@@ -143,13 +149,6 @@ func (c WorkspaceSelectCommand) Execute(args *arguments.WorkspaceSelect, view vi
 	return 0
 }
 
-func (c *WorkspaceSelectCommand) AutocompleteArgs() complete.Predictor {
-	return completePredictSequence{
-		c.completePredictWorkspaceName(c.CommandContext()),
-		complete.PredictDirs(""),
-	}
-}
-
-func (c *WorkspaceSelectCommand) AutocompleteFlags() complete.Flags {
-	return nil
+func (c WorkspaceSelectCommand) AutocompleteArgs() []string {
+	return c.completePredictWorkspaceName(c.CommandContext())
 }

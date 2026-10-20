@@ -231,7 +231,7 @@ func (c *registryClient) PackageMeta(ctx context.Context, provider addrs.Provide
 			PackageSize int64    `json:"package_size"`
 		} `json:"packages"`
 
-		UseMirrorCredentials *bool `json:"use_mirror_credentials"`
+		UseRegistryCredentials *bool `json:"use_registry_credentials"`
 	}
 	var body ResponseBody
 
@@ -292,9 +292,9 @@ func (c *registryClient) PackageMeta(ctx context.Context, provider addrs.Provide
 		return PackageMeta{}, fmt.Errorf("registry response includes invalid download URL: must use http or https scheme")
 	}
 
-	useMirrorCreds := false
-	if body.UseMirrorCredentials != nil {
-		useMirrorCreds = *body.UseMirrorCredentials
+	useRegistryCreds := false
+	if body.UseRegistryCredentials != nil {
+		useRegistryCreds = *body.UseRegistryCredentials
 	}
 
 	ret := PackageMeta{
@@ -315,7 +315,7 @@ func (c *registryClient) PackageMeta(ctx context.Context, provider addrs.Provide
 			if c.httpClient != nil && c.httpClient.HTTPClient != nil {
 				transport = c.httpClient.HTTPClient.Transport
 			}
-			if c.creds != nil && useMirrorCreds {
+			if c.creds != nil && useRegistryCreds {
 				transport = &registryCredentialTransport{
 					creds: c.creds,
 					host:  c.baseURL.Host,

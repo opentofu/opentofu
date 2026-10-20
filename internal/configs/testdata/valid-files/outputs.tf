@@ -24,3 +24,8 @@ output "π" {
     pizza.cheese,
   ]
 }
+
+output "typed" {
+  value = "value"
+  type = string
+}

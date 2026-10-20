@@ -36,6 +36,8 @@ func ApplyPlannedChanges(ctx context.Context, plan *plans.Plan, configInst *eval
 	tracer := contextTracer(ctx)
 	ctx = shared.ContextWithTracer(ctx, &tracer.Tracer)
 
+	ctx = grapheval.ContextWithRequestTracker(ctx, grapheval.NewRequestTracker())
+
 	glue := &evalGlue{
 		plugins: plugins,
 		// graph field populated below before we actually use the oracle
@@ -47,16 +49,13 @@ func ApplyPlannedChanges(ctx context.Context, plan *plans.Plan, configInst *eval
 		return nil, diags
 	}
 
-	execGraphSrc, execGraph, execOps, moreDiags := compileExecutionGraph(ctx, plan, oracle, plugins)
+	_, execGraph, execOps, moreDiags := compileExecutionGraph(ctx, plan, oracle, plugins)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		return nil, diags
 	}
 	glue.graph = execGraph
 	glue.ops = execOps
-
-	reqTracker := newRequestTracker(execGraphSrc, execOps)
-	ctx = grapheval.ContextWithRequestTracker(ctx, reqTracker)
 
 	moreDiags = execGraph.Execute(ctx)
 	diags = diags.Append(moreDiags)

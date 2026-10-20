@@ -7,9 +7,7 @@ package configgraph
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/instances"
@@ -73,6 +71,7 @@ var _ exprs.Valuer = (*ProviderConfig)(nil)
 // that it needs to produce a result value for a particular provider instance
 // before we actually request that value.
 func (p *ProviderConfig) Instances(ctx context.Context) map[addrs.InstanceKey]*ProviderInstance {
+	ctx = withDebugAddr(ctx, p.Addr, "Instances")
 	// We ignore the diagnostics here because they will be returned by
 	// the Value method instead.
 	result, diags := p.decideInstances(ctx)
@@ -92,7 +91,7 @@ func (p *ProviderConfig) Instances(ctx context.Context) map[addrs.InstanceKey]*P
 func (p *ProviderConfig) decideInstances(ctx context.Context) (*compiledInstances[*ProviderInstance], tfdiags.Diagnostics) {
 	return p.instancesResult.Do(ctx, func(ctx context.Context) (*compiledInstances[*ProviderInstance], tfdiags.Diagnostics) {
 		return compileInstances(ctx, p.InstanceSelector, p.CompileProviderInstance)
-	})
+	}, &p.DeclRange, "Decide instances of %s", p.Addr)
 }
 
 // StaticCheckTraversal implements exprs.Valuer.
@@ -102,6 +101,7 @@ func (p *ProviderConfig) StaticCheckTraversal(traversal hcl.Traversal) tfdiags.D
 
 // Value implements exprs.Valuer.
 func (p *ProviderConfig) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+	ctx = withDebugAddr(ctx, p.Addr, "Value")
 	selection, diags := p.decideInstances(ctx)
 	if diags.HasErrors() && selection == nil {
 		// If decideInstances fails for grapheval-related reasons, such as a
@@ -131,24 +131,4 @@ func (p *ProviderConfig) CheckAll(ctx context.Context) tfdiags.Diagnostics {
 	// This is where an invalid for_each expression would be reported.
 	cg.CheckValuer(ctx, p)
 	return cg.Complete(ctx)
-}
-
-func (p *ProviderConfig) AnnounceAllGraphevalRequests(announce func(workgraph.RequestID, grapheval.RequestInfo)) {
-	// There might be other grapheval requests in our dynamic instances, but
-	// they are hidden behind another request themselves so we'll try to
-	// report them only if that request was already started.
-	instancesReqId := p.instancesResult.RequestID()
-	if instancesReqId == workgraph.NoRequest {
-		return
-	}
-	announce(instancesReqId, grapheval.RequestInfo{
-		Name:        fmt.Sprintf("decide instances for %s", p.Addr),
-		SourceRange: p.InstanceSelector.InstancesSourceRange(),
-	})
-	// The Instances method potentially starts a new request, but we already
-	// confirmed above that this request was already started and so we
-	// can safely just await its result here.
-	for _, inst := range p.Instances(grapheval.ContextWithNewWorker(context.Background())) {
-		inst.AnnounceAllGraphevalRequests(announce)
-	}
 }

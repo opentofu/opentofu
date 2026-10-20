@@ -9,7 +9,6 @@ import (
 	"context"
 	"iter"
 
-	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
@@ -65,6 +64,7 @@ func (p *ProviderInstance) StaticCheckTraversal(traversal hcl.Traversal) tfdiags
 
 // Value implements exprs.Valuer.
 func (p *ProviderInstance) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+	ctx = withDebugAddr(ctx, p.Addr, "Value")
 	// The value for a provider instance as used in expressions is just an
 	// opaque reference to this object represented as a cty capsule type,
 	// but we do still evaluate the configuration first because that ensures
@@ -101,6 +101,7 @@ func (p *ProviderInstance) Value(ctx context.Context) (cty.Value, tfdiags.Diagno
 // in the configuration. The result is considered private to the provider
 // process that is configured with it.
 func (p *ProviderInstance) ConfigValue(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+	ctx = withDebugAddr(ctx, p.Addr, "ConfigValue")
 	// We use a "Once" here to coalesce to just one ValidateConfig call per
 	// ProviderInstance object, even when multiple callers ask for the
 	// configuration for this instance.
@@ -115,7 +116,7 @@ func (p *ProviderInstance) ConfigValue(ctx context.Context) (cty.Value, tfdiags.
 			return cty.DynamicVal, diags
 		}
 		return v, diags
-	})
+	}, p.ConfigValuer.ValueSourceRange(), "Configured Value for %s", p.Addr)
 }
 
 // ResourceInstanceDependencies returns a sequence of any resource instances
@@ -160,11 +161,4 @@ func (p *ProviderInstance) CheckAll(ctx context.Context) tfdiags.Diagnostics {
 		return diags
 	})
 	return cg.Complete(ctx)
-}
-
-func (p *ProviderInstance) AnnounceAllGraphevalRequests(announce func(workgraph.RequestID, grapheval.RequestInfo)) {
-	announce(p.ConfigValuer.RequestID(), grapheval.RequestInfo{
-		Name:        p.Addr.String() + " configuration",
-		SourceRange: p.ConfigValuer.ValueSourceRange(),
-	})
 }

@@ -783,6 +783,7 @@ func skipDestroyValueFromConstantExpression(destroyExpr hcl.Expression) (bool, h
 	}
 
 	destroyVal, valDiags := destroyExpr.Value(nil)
+	diags = diags.Extend(valDiags)
 	if diags.HasErrors() {
 		return false, valDiags
 	}

@@ -28,6 +28,7 @@ func compileModuleInstanceOutputValues(
 	ret := make(map[addrs.OutputValue]*configgraph.OutputValue, len(configs))
 	for name, vc := range configs {
 		addr := addrs.OutputValue{Name: name}
+		instAddr := moduleInstAddr.OutputValue(name)
 
 		dependsOn, _ := compileDependsOn(vc.DependsOn, declScope, extraMarks)
 
@@ -38,18 +39,13 @@ func compileModuleInstanceOutputValues(
 				diags = diags.Append(markDiags)
 				return v.WithMarks(marks), diags
 			},
-		))
+		), "Value of %s", instAddr)
 		ret[addr] = &configgraph.OutputValue{
-			Addr:     moduleInstAddr.OutputValue(name),
+			Addr:     instAddr,
 			RawValue: value,
 
-			// Our current language doesn't allow specifying a type constraint
-			// for an output value, so these are always the most liberal
-			// possible constraint. Making these customizable could be part
-			// of a solution to:
-			//     https://github.com/opentofu/opentofu/issues/2831
-			TargetType:     cty.DynamicPseudoType,
-			TargetDefaults: nil,
+			TargetType:     vc.ConstraintType,
+			TargetDefaults: vc.TypeDefaults,
 
 			ForceSensitive: vc.Sensitive,
 			ForceEphemeral: vc.Ephemeral,

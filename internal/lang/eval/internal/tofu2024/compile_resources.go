@@ -181,7 +181,7 @@ func compileModuleInstanceResource(
 		// See https://github.com/opentofu/opentofu/issues/2522 for more details
 		pdValuer = configgraph.ValuerOnce(
 			exprs.NewClosure(exprs.EvalableHCLExpression(config.Managed.PreventDestroy), declScope),
-		)
+			"Prevent destroy for %s", absAddr)
 	}
 
 	if diags.HasErrors() {
@@ -190,12 +190,13 @@ func compileModuleInstanceResource(
 
 	ret := &configgraph.Resource{
 		Addr:      absAddr,
+		Provider:  config.Provider,
 		DeclRange: tfdiags.SourceRangeFromHCL(config.DeclRange),
 
 		// Our instance selector depends on which of the repetition metaarguments
 		// are set, if any. We assume that package configs allows at most one
 		// of these to be set for each resource config.
-		InstanceSelector: compileInstanceSelector(ctx, declScope, config.ForEach, config.Count, config.Enabled, sharedDeps),
+		InstanceSelector: compileInstanceSelector(ctx, absAddr, declScope, config.ForEach, config.Count, config.Enabled, sharedDeps),
 
 		// The [configgraph.Resource] implementation will call back to this
 		// for each child instance it discovers through [InstanceSelector],
@@ -203,6 +204,8 @@ func compileModuleInstanceResource(
 		// of this resource.
 		CompileResourceInstance: func(ctx context.Context, key addrs.InstanceKey, repData instances.RepetitionData) *configgraph.ResourceInstance {
 			var diags tfdiags.Diagnostics
+
+			instAddr := absAddr.Instance(key)
 
 			localScope := instanceLocalScope(declScope, repData)
 			providerRef := compileProviderConfigRef(ctx, moduleProviders, config.ProviderConfigAddr(), config.ProviderConfigRef, localScope)
@@ -231,13 +234,14 @@ func compileModuleInstanceResource(
 				// the expression's source range will be used here instead.
 				cbdValuer = configgraph.ValuerOnce(
 					exprs.ConstantValuerWithSourceRange(cbdVal, tfdiags.SourceRangeFromHCL(config.DeclRange)),
+					"Create before destroy for %s", instAddr,
 				)
 			}
 
 			var provisionerConfigs []configgraph.Provisioner
 			var provisionerMarks cty.ValueMarks
 			for _, provFn := range createProvisioners {
-				provCfg := provFn(ctx, localScope, absAddr.Instance(key))
+				provCfg := provFn(ctx, localScope, instAddr)
 				provisionerConfigs = append(provisionerConfigs, provCfg)
 				for dep := range provCfg.Dependencies {
 					if provisionerMarks == nil {
@@ -338,13 +342,13 @@ func compileModuleInstanceResource(
 
 					return v, vDiags
 				},
-			))
+			), "Value of %s", instAddr)
 
 			inst := &configgraph.ResourceInstance{
-				Addr:                      absAddr.Instance(key),
-				Provider:                  config.Provider,
+				Addr:                      instAddr,
+				Provider:                  config.Provider, // must match the corresponding field in the parent configgraph.Resource
 				ConfigValuer:              configValuer,
-				ProviderInstanceValuer:    configgraph.ValuerOnce(providerRef),
+				ProviderInstanceValuer:    configgraph.ValuerOnce(providerRef, "Provider of %s", instAddr),
 				CreateBeforeDestroyValuer: cbdValuer,
 				CreateProvisioners:        provisionerConfigs,
 				IgnoreChangesPaths:        ignoreChanges,

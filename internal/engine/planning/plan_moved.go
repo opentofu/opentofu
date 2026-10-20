@@ -60,24 +60,24 @@ func (m *moveStep) isImplicit() bool {
 // this sub-move graph.  Cycles are detected and rejected, which effectively produces a flattened tree of moveSteps.
 // If configToState == false, iteration direction is reversed to allow for reverse lookups from state -> config
 // There are a bunch of different algostructures and datarythms that would make sense here, this one made the most sense
-// to me during initial implementation and seems to be reasonably performant
+// to cam72cam during initial implementation and seems to be reasonably performant
 func (p *planGlue) locateMovesFor(ctx context.Context, addr addrs.AbsResourceInstance, configToState bool, implicit func(addr addrs.AbsResourceInstance) *refactoring.MoveStatement) ([]*moveStep, tfdiags.Diagnostics) {
 	// Build simple lookup for move statements that have spidering traversals
 	// TODO this cache could live in planContext
-	moveStatementsCache := map[string][]refactoring.MoveStatement{}
+	moveStatementsCache := addrs.MakeMap[addrs.AbsResourceInstance, []refactoring.MoveStatement]()
 	getMoveStatementsFor := func(addr addrs.AbsResourceInstance) []refactoring.MoveStatement {
-		mod := addr.Module.Module()
-		key := mod.String()
-		statements, ok := moveStatementsCache[key]
+		statements, ok := moveStatementsCache.GetOk(addr)
 		if !ok {
-			// TODO replace with with resource config meta (tricky with orphans)
-			statements = p.oracle.MoveStatementsFor(ctx, mod)
-			moveStatementsCache[key] = statements
-		}
-		iMove := implicit(addr)
-		if iMove != nil {
-			// if concurrency is ever introduced here, this slice manipulation is inherently unsafe
-			statements = append(statements, *iMove)
+			for _, stmt := range p.ResourceInstanceObjectMoveStatements(ctx, addr) {
+				statements = append(statements, stmt)
+			}
+
+			iMove := implicit(addr)
+			if iMove != nil {
+				statements = append(statements, *iMove)
+			}
+
+			moveStatementsCache.Put(addr, statements)
 		}
 		return statements
 	}
@@ -204,11 +204,8 @@ func (p *planGlue) locateStateForConfig(ctx context.Context, addr addrs.AbsResou
 			return nil
 		}
 		log.Printf("[TRACE] ImplicitMove with state %s -> %s", *implicitAddr, addr)
-		var approxSrcRange tfdiags.SourceRange
-		meta := p.oracle.ResourceInstanceObjectMeta(ctx, implicitAddr.CurrentObject())
-		if meta != nil {
-			approxSrcRange = meta.DeclRange
-		}
+		approxSrcRange := p.ResourceInstanceObjectApproxDeclRange(ctx, *implicitAddr)
+
 		return &refactoring.MoveStatement{
 			From:      addrs.ImpliedMoveStatementEndpoint(*implicitAddr, approxSrcRange),
 			To:        addrs.ImpliedMoveStatementEndpoint(addr, approxSrcRange),
@@ -288,11 +285,7 @@ func (p *planGlue) locateConfigForState(ctx context.Context, addr addrs.AbsResou
 			return nil
 		}
 		log.Printf("[TRACE] ImplicitMove %s -> %s", *implicitAddr, addr)
-		var approxSrcRange tfdiags.SourceRange
-		meta := p.oracle.ResourceInstanceObjectMeta(ctx, implicitAddr.CurrentObject())
-		if meta != nil {
-			approxSrcRange = meta.DeclRange
-		}
+		approxSrcRange := p.ResourceInstanceObjectApproxDeclRange(ctx, *implicitAddr)
 		return &refactoring.MoveStatement{
 			To:        addrs.ImpliedMoveStatementEndpoint(*implicitAddr, approxSrcRange),
 			From:      addrs.ImpliedMoveStatementEndpoint(addr, approxSrcRange),
@@ -372,14 +365,10 @@ func (p *planGlue) validateMoves(ctx context.Context) tfdiags.Diagnostics {
 				noun := absFrom.Noun()
 				shortNoun := absFrom.ShortNoun()
 
-				declaredAt := ""
-				meta := p.oracle.ResourceInstanceObjectMeta(ctx, nopMove.from.CurrentObject())
-				if meta != nil {
-					// NOTE: It'd be pretty weird to _not_ have a range, since
-					// we're only in this codepath because the plan phase
-					// thought this object existed in the configuration.
-					declaredAt = fmt.Sprintf(" at %s", meta.DeclRange.StartString())
-				}
+				// NOTE: It'd be pretty weird to _not_ have a range, since
+				// we're only in this codepath because the plan phase
+				// thought this object existed in the configuration.
+				declaredAt := fmt.Sprintf(" at %s", p.ResourceInstanceObjectApproxDeclRange(ctx, nopMove.from).StartString())
 
 				diags = diags.Append(&hcl.Diagnostic{
 					Severity: hcl.DiagError,

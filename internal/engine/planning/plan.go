@@ -9,12 +9,14 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"slices"
 	"strings"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/collections"
 	"github.com/opentofu/opentofu/internal/engine/plugins"
 	"github.com/opentofu/opentofu/internal/lang/eval"
+	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/plans"
@@ -37,6 +39,8 @@ type PlanOpts struct {
 	// has a far more drastic, cross-cutting effect.
 	Mode plans.Mode
 
+	SkipRefresh bool
+
 	ForceReplace []addrs.AbsResourceInstance
 
 	Targets  []addrs.Targetable
@@ -56,24 +60,19 @@ func PlanChanges(ctx context.Context, opts *PlanOpts, prevRoundState *states.Sta
 	tracer := contextTracer(ctx)
 	ctx = shared.ContextWithTracer(ctx, &tracer.Tracer)
 
+	// If the grapheval package detects a self-dependency problem during
+	// evaluation then it'll use this tracker to find human-friendly names
+	// for all of the requests involved in the error.
+	ctx = grapheval.ContextWithRequestTracker(ctx, grapheval.NewRequestTracker())
+
 	switch opts.Mode {
-	case plans.NormalMode:
+	case plans.NormalMode, plans.RefreshOnlyMode:
 		return normalPlan(ctx, opts, prevRoundState, configInst, providers)
 	case plans.DestroyMode:
 		// "Destroy" mode is pretty different in that it focuses mainly on
 		// prevRoundState and only uses the config for preparing ephemeral
 		// objects, so it has its own separate planning function.
 		return destroyPlan(ctx, opts, prevRoundState, configInst, providers)
-	case plans.RefreshOnlyMode:
-		// TODO: Implement this mode
-		// (Undecided yet whether it will get its own function, as with
-		// DestroyMode, or if it'll share the normalPlan function and just force
-		// the resource instance handling to generate no changes for anything.)
-		return nil, tfdiags.New(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Refresh-only mode not available yet",
-			"The new language runtime does not yet support the \"refresh-only\" planning mode.",
-		))
 	default:
 		// Should not get here because the cases above should be exhaustive
 		// for all possible planning modes.
@@ -83,6 +82,65 @@ func PlanChanges(ctx context.Context, opts *PlanOpts, prevRoundState *states.Sta
 
 func finalizePlan(ctx context.Context, intermediate *planContextResult, providers plugins.Providers) (*plans.Plan, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
+
+	// Collect all of the upgraded and refreshed stateObjects
+	upgradedStateSync := intermediate.PrevRoundState.DeepCopy().SyncWrapper()
+	refreshedStateSync := intermediate.PrevRoundState.DeepCopy().SyncWrapper()
+
+	for _, obj := range intermediate.ResourceInstanceObjects.All() {
+		writeAddr := obj.PrevRoundAddr
+		if obj.UpgradedState != nil {
+			upgradedStateSync.SetResourceInstanceObjectFull(writeAddr, obj.UpgradedState)
+		}
+		if obj.RefreshedState != nil {
+			// There are some weird quirks in the old runtime that we are replicating here
+			// See TestApply_updateDependencies / 7964328f345 for more information
+			// Long term, we may be able to get rid of this workaround as the new runtime
+			// takes on more responsibilities.
+			var dependencies addrs.Set[addrs.AbsResourceInstance]
+			var configDependencies addrs.Set[addrs.ConfigResource]
+
+			if obj.PlannedChange != nil && obj.PlannedChange.Action != plans.NoOp {
+				// Include config dependencies in prevState
+				dependencies = addrs.MakeSet(obj.RefreshedState.Dependencies...)
+				configDependencies = addrs.MakeSet(obj.RefreshedState.ConfigDependencies...)
+			} else {
+				dependencies = addrs.MakeSet[addrs.AbsResourceInstance]()
+				configDependencies = addrs.MakeSet[addrs.ConfigResource]()
+			}
+
+			for dep := range obj.ConfigDependencies.All() {
+				dependencies.Add(dep.InstanceAddr)
+				configDependencies.Add(dep.InstanceAddr.ConfigResource())
+			}
+			obj.RefreshedState.Dependencies = slices.Collect(dependencies.All())
+			obj.RefreshedState.ConfigDependencies = slices.Collect(configDependencies.All())
+
+			refreshedStateSync.SetResourceInstanceObjectFull(writeAddr, obj.RefreshedState)
+		} else {
+			refreshedStateSync.RemoveResourceInstanceObjectFull(writeAddr, obj.ProviderInst)
+		}
+	}
+
+	upgradedState := upgradedStateSync.Close()
+	refreshedState := refreshedStateSync.Close()
+
+	// Propogate through the refreshed outputs
+	upgradedOutputs := upgradedState.EnsureModule(addrs.RootModuleInstance).OutputValues
+	refreshedOutputs := refreshedState.EnsureModule(addrs.RootModuleInstance).OutputValues
+	clear(refreshedOutputs)
+	for k, v := range intermediate.RootOutput.Current {
+		if v.Value.IsKnown() {
+			refreshedOutputs[k] = &states.OutputValue{
+				Addr:  addrs.AbsOutputValue{OutputValue: addrs.OutputValue{Name: k}},
+				Value: v.Value,
+				// TODO Sensitive  bool
+				// TODO Deprecated string
+			}
+		} else if prev, ok := upgradedOutputs[k]; ok {
+			refreshedOutputs[k] = prev
+		}
+	}
 
 	effectiveReplaceOrders, selfDeps := findEffectiveReplaceOrders(intermediate.ResourceInstanceObjects)
 	if len(selfDeps) != 0 {
@@ -134,7 +192,7 @@ func finalizePlan(ctx context.Context, intermediate *planContextResult, provider
 
 			var existingDeposed map[addrs.DeposedKey]*states.ResourceInstanceObjectSrc
 			newDeposed := newDeposedKeys.Get(instAddr)
-			inst := intermediate.RefreshedState.ResourceInstance(instAddr)
+			inst := refreshedState.ResourceInstance(instAddr)
 			if inst != nil {
 				existingDeposed = inst.Deposed
 			}
@@ -177,8 +235,8 @@ func finalizePlan(ctx context.Context, intermediate *planContextResult, provider
 	return &plans.Plan{
 		UIMode:       plans.NormalMode, // TODO: [PlanChanges] needs something analogous to [tofu.PlanOpts] for planning mode/options
 		Changes:      changes,
-		PrevRunState: intermediate.PrevRoundState,
-		PriorState:   intermediate.RefreshedState,
+		PrevRunState: upgradedState,
+		PriorState:   refreshedState,
 		// TODO: various other fields that we need to actually make use
 		// of this plan result. But this is intentionally just a partial
 		// result for now because it's not clear that we'd even be using

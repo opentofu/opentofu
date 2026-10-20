@@ -2203,7 +2203,7 @@ output "from_resource" {
 
 // -refresh-only should update checks
 func TestContext2Apply_refreshApplyUpdatesChecks(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureRefresh)
+	SkipExperimental(t, ExperimentalFeatureRefreshOnly, ExperimentalFeatureChecks)
 
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
@@ -2812,7 +2812,7 @@ locals {
 }
 
 func TestContext2Apply_forgetOrphanAndDeposed(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureDeposed)
+	SkipExperimental(t, ExperimentalFeatureRemoved)
 
 	desposedKey := states.DeposedKey("deposed")
 	addr := "aws_instance.baz"

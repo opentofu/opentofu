@@ -70,7 +70,10 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 		return ret, diags
 	}
 
-	providerInstAddr, ok := meta.ProviderInstance.ValueOk()
+	providerInstUnmarked, providerInstMarks := meta.ProviderInstance.Unmark()
+	// TODO: What should we do with these marks, if anything?
+	_ = providerInstMarks
+	providerInstAddr, ok := providerInstUnmarked.ValueOk()
 	if !ok {
 		// TODO: Record that this was deferred because we don't yet know which
 		// provider instance it belongs to.
@@ -83,10 +86,7 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 	// data resource instances persist between rounds and they cannot because
 	// the protocol doesn't include any way to "upgrade" them if the provider
 	// schema has changed since previous round.
-	// FIXME: State is still using the weird old representation of provider
-	// instance addresses, so we can't actually populate the provider instance
-	// arguments properly here.
-	p.planCtx.refreshedState.SetResourceInstanceCurrent(inst.Addr, nil, addrs.AbsProviderConfig{}, providerInstAddr.Key)
+	ret.PrevRoundAddr = ret.Addr
 
 	// TODO: If the config value is not wholly known, or if any resource
 	// instance in inst.RequiredResourceInstances already has a planned change,
@@ -153,15 +153,15 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 func (p *planGlue) planOrphanDataResourceInstance(_ context.Context, addr addrs.AbsResourceInstance, state *states.ResourceInstanceObjectFullSrc) (*resourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	// An orphan data object is always just discarded completely, because
-	// OpenTofu retains them only for esoteric uses like the "tofu console"
-	// command: they are not actually expected to persist between rounds.
-	p.planCtx.refreshedState.RemoveResourceInstanceObjectFull(addr.CurrentObject(), state.ProviderInstanceAddr)
-
 	return &resourceInstanceObject{
 		Addr:               addr.CurrentObject(),
+		PrevRoundAddr:      addr.CurrentObject(),
 		ConfigDependencies: addrs.MakeSet[addrs.AbsResourceInstanceObject](),
 		Provider:           state.ProviderInstanceAddr.Config.Config.Provider,
 		PlaceholderValue:   cty.NullVal(cty.DynamicPseudoType),
+		// An orphan data object is always just discarded completely, because
+		// OpenTofu retains them only for esoteric uses like the "tofu console"
+		// command: they are not actually expected to persist between rounds.
+		// Therefore upgrade and refresh state are not set
 	}, diags
 }

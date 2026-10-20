@@ -548,3 +548,61 @@ func TestResourceByAddr(t *testing.T) {
 	}
 
 }
+
+func TestModule_outputTypeConstraint(t *testing.T) {
+	mod, diags := testModuleFromDir("testdata/valid-modules/typed-output/")
+	if diags.HasErrors() {
+		t.Fatal(diags.Error())
+	}
+
+	tests := []struct {
+		title    string
+		wantType cty.Type
+	}{
+		{
+			title:    "untyped",
+			wantType: cty.DynamicPseudoType,
+		},
+		{
+			title:    "primitive",
+			wantType: cty.String,
+		},
+		{
+			title:    "collection",
+			wantType: cty.List(cty.String),
+		},
+		{
+			title: "object",
+			wantType: cty.Object(
+				map[string]cty.Type{
+					"name":  cty.String,
+					"count": cty.Number,
+				},
+			),
+		},
+		{
+			title:    "external-value",
+			wantType: cty.List(cty.String),
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.title, func(t *testing.T) {
+			got, exists := mod.Outputs[tc.title]
+			if !exists {
+				t.Fatalf("output %q not found in module", tc.title)
+			}
+
+			if !got.ConstraintType.Equals(tc.wantType) {
+				t.Errorf("expected constraint type %+v got %+v", tc.wantType, got.ConstraintType)
+			}
+		})
+	}
+}
+
+func TestModule_invalidOutputType(t *testing.T) {
+	_, diags := testModuleFromDir("testdata/invalid-modules/invalid-output-type/")
+	if !strings.Contains(diags.Error(), `The keyword "bad" is not a valid type specification.`) {
+		t.Fatalf("invalid error: %s", diags.Error())
+	}
+}

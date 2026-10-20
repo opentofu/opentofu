@@ -21,6 +21,267 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
+type ManagedResourceMoveStateRequest struct {
+	Provider      addrs.Provider
+	ResourceType  string
+	SchemaVersion uint64
+	ValueJSON     []byte
+	Private       []byte
+}
+
+func (rt *ManagedResourceType) MoveState(ctx context.Context, req *ManagedResourceMoveStateRequest, dispAddr addrs.AbsResourceInstanceObject) (*ValueWithPrivate, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
+	// log.Printf("[TRACE] moveResourceStateTransform: new address: %s, previous address: %s", inst.Addr, prevRunAddr)
+	moveReq := providers.MoveResourceStateRequest{
+		SourceProviderAddress: req.Provider.String(),
+		SourceTypeName:        req.ResourceType,
+		SourceSchemaVersion:   req.SchemaVersion,
+		// We'll make the same assumption as [ResourceInstanceObjectFullSrc] and
+		// assume we'll never encounter a legacy state snapshot that uses AttrsFlat.
+		SourceStateJSON: req.ValueJSON,
+		// SourceStateFlatmap:    prevRoundState.AttrsFlat,
+		SourcePrivate:  req.Private,
+		TargetTypeName: rt.typeName,
+	}
+	resp := rt.client.MoveResourceState(ctx, moveReq)
+	diags = diags.Append(resp.Diagnostics)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	diags = diags.Append(rt.TestValueConformance(ctx, resp.TargetState, dispAddr))
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	return &ValueWithPrivate{
+		Value:   resp.TargetState,
+		Private: resp.TargetPrivate,
+	}, diags
+}
+
+type ManagedResourceUpgradeStateRequest struct {
+	SchemaVersion uint64
+	ValueJSON     []byte
+	Private       []byte
+}
+
+func (rt *ManagedResourceType) UpgradeState(ctx context.Context, req *ManagedResourceUpgradeStateRequest, dispAddr addrs.AbsResourceInstanceObject) (*ValueWithPrivate, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
+	schema, moreDiags := rt.LoadSchema(ctx)
+	diags = diags.Append(moreDiags)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	// Let's do a schema version comparison before upgrade
+	if req.SchemaVersion > uint64(schema.Version) {
+		return nil, diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Resource instance managed by newer provider version",
+			// This is not a very good error message, but we don't retain enough
+			// information in state to give good feedback on what provider
+			// version might be required here. :(
+			// Or maybe we do. I dunno, I just copied the comment+diag from
+			// upgrade_resource_state.go:upgradeResourceStateTransform :P
+			fmt.Sprintf("The current state of %s was created by a newer provider version than is currently selected. Upgrade %s to work with this state.", dispAddr, rt.providerAddr.ForDisplay()),
+		))
+	}
+
+	// Remove any attributes from state that are not present in the schema.
+	// This was previously taken care of by the provider, but data sources do
+	// not go through the UpgradeResourceState process.
+	//
+	// Required for upgrade not for move,
+	// since the deprecated fields might still be relevant for the migration.
+	if req.SchemaVersion == uint64(schema.Version) {
+		req.ValueJSON = stripRemovedStateAttributes(req.ValueJSON, schema.Block.ImpliedType())
+	}
+
+	upgradeReq := providers.UpgradeResourceStateRequest{
+		TypeName: rt.typeName,
+
+		// TODO: The internal schema version representations are all using
+		// uint64 instead of int64, but unsigned integers aren't friendly
+		// to all protobuf target languages so in practice we use int64
+		// on the wire. In future we will change all of our internal
+		// representations to int64 too.
+		Version: int64(req.SchemaVersion),
+
+		// We'll make the same assumption as [ResourceInstanceObjectFullSrc] and
+		// assume we'll never encounter a legacy state snapshot that uses AttrsFlat.
+		RawStateJSON: req.ValueJSON,
+	}
+	upgradeResp := rt.client.UpgradeResourceState(ctx, upgradeReq)
+	diags = diags.Append(upgradeResp.Diagnostics)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	diags = diags.Append(rt.TestValueConformance(ctx, upgradeResp.UpgradedState, dispAddr))
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	return &ValueWithPrivate{
+		Value:   upgradeResp.UpgradedState,
+		Private: req.Private, // Pass through
+	}, diags
+}
+
+type ManagedResourceImportStateRequest struct {
+	Target providers.ImportTarget
+}
+
+type ManagedResourceStateWithIdentity struct {
+	ValueWithPrivate
+	Identity cty.Value
+}
+
+func (rt *ManagedResourceType) ImportState(ctx context.Context, req *ManagedResourceImportStateRequest, dispAddr addrs.AbsResourceInstanceObject) (*ManagedResourceStateWithIdentity, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
+	resp := rt.client.ImportResourceState(ctx, providers.ImportResourceStateRequest{
+		TypeName: rt.typeName,
+		Target:   req.Target,
+	})
+	diags = diags.Append(resp.Diagnostics)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	imported := resp.ImportedResources
+
+	if len(imported) == 0 {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Import returned no resources",
+			fmt.Sprintf("While attempting to import with ID %s, the provider"+
+				"returned no instance states.",
+				req.Target,
+			),
+		))
+		return nil, diags
+	}
+	for _, obj := range imported {
+		log.Printf("[TRACE] graphNodeImportState: import %s %q produced instance object of type %s", dispAddr, req.Target, obj.TypeName)
+	}
+	if len(imported) > 1 {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Multiple import states not supported",
+			fmt.Sprintf("While attempting to import with ID %s, the provider "+
+				"returned multiple resource instance states. This "+
+				"is not currently supported.",
+				req.Target,
+			),
+		))
+		return nil, diags
+	}
+
+	if imported[0].TypeName == "" {
+		diags = diags.Append(fmt.Errorf("import of %s didn't set type", dispAddr))
+		return nil, diags
+	}
+
+	if imported[0].State.IsNull() {
+		importDesc := req.Target.ID
+		if importDesc == "" {
+			importDesc = req.Target.Identity.GoString()
+		}
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Import returned null resource",
+			fmt.Sprintf("While attempting to import with %s, the provider "+
+				"returned an instance with no state.",
+				importDesc,
+			),
+		))
+	}
+
+	// TODO we don't validate imported TypeName against rt.typeName
+
+	return &ManagedResourceStateWithIdentity{
+		ValueWithPrivate: ValueWithPrivate{Value: imported[0].State, Private: imported[0].Private},
+		Identity:         imported[0].Identity,
+	}, diags
+}
+
+func (rt *ManagedResourceType) RefreshState(ctx context.Context, req *ManagedResourceStateWithIdentity, dispAddr addrs.AbsResourceInstanceObject) (*ManagedResourceStateWithIdentity, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
+	schema, moreDiags := rt.LoadSchema(ctx)
+	diags = diags.Append(moreDiags)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	providerReq := providers.ReadResourceRequest{
+		TypeName:      rt.typeName,
+		PriorState:    req.Value,
+		Private:       req.Private,
+		PriorIdentity: req.Identity,
+	}
+
+	resp := rt.client.ReadResource(ctx, providerReq)
+	diags = diags.Append(resp.Diagnostics)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	if resp.NewState == cty.NilVal {
+		// This ought not to happen in real cases since it's not possible to
+		// send NilVal over the plugin RPC channel, but it can come up in
+		// tests due to sloppy mocking.
+		panic("new state is cty.NilVal")
+	}
+
+	for _, err := range resp.NewState.Type().TestConformance(schema.Block.ImpliedType()) {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Provider produced invalid object",
+			fmt.Sprintf(
+				"Provider %q planned an invalid value for %s during refresh: %s.\n\nThis is a bug in the provider, which should be reported in the provider's own issue tracker.",
+				rt.providerAddr.String(), dispAddr, tfdiags.FormatError(err),
+			),
+		))
+	}
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	newState := objchange.NormalizeObjectFromLegacySDK(resp.NewState, schema.Block)
+	if !newState.RawEquals(resp.NewState) {
+		// We had to fix up this object in some way, and we still need to
+		// accept any changes for compatibility, so all we can do is log a
+		// warning about the change.
+		log.Printf("[WARN] Provider %q produced an invalid new value containing null blocks for %q during refresh\n", dispAddr, rt.providerAddr)
+	}
+
+	// We have no way to exempt provider using the legacy SDK from this check,
+	// so we can only log inconsistencies with the updated state values.
+	// In most cases these are not errors anyway, and represent "drift" from
+	// external changes which will be handled by the subsequent plan.
+	if errs := objchange.AssertObjectCompatible(schema.Block, req.Value, newState); len(errs) > 0 {
+		var buf strings.Builder
+		fmt.Fprintf(&buf, "[WARN] Provider %q produced an unexpected new value for %s during refresh.", rt.providerAddr, dispAddr)
+		for _, err := range errs {
+			fmt.Fprintf(&buf, "\n      - %s", tfdiags.FormatError(err))
+		}
+		log.Print(buf.String())
+	}
+
+	return &ManagedResourceStateWithIdentity{
+		ValueWithPrivate: ValueWithPrivate{
+			Value:   newState,
+			Private: resp.Private,
+		},
+		Identity: resp.NewIdentity,
+	}, diags
+}
+
 // PlanChanges encapsulates the logic for deciding what changes, if any, to make
 // to a managed resource instance object by comparing its current and desired
 // states.

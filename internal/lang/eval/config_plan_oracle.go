@@ -7,12 +7,13 @@ package eval
 
 import (
 	"context"
+	"log"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
-	"github.com/opentofu/opentofu/internal/lang/exprs"
+	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/providers"
-	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -23,10 +24,67 @@ type PlanningOracle struct {
 	providers *managedProviders
 }
 
-// MoveStatementsFor queries the root module for any move statements along the given path.
-// This should eventually be replaced with ResourceInstanceObjectMeta.
-func (o *PlanningOracle) MoveStatementsFor(ctx context.Context, addr addrs.Module) []refactoring.MoveStatement {
-	return o.root.GetMoveStatementsFor(ctx, addr)
+func (o *PlanningOracle) CheckTarget(ctx context.Context, target addrs.Targetable) {
+	ctx = grapheval.ContextWithNewWorker(ctx)
+
+	addTarget := func(ri *configgraph.ResourceInstance) {
+		// Populate the value before the glue disables itself for the rest of processing
+		log.Printf("[TRACE] %s targeting %s", target, ri.Addr)
+		ri.Value(ctx)
+	}
+
+	switch target.AddrType() {
+	case addrs.ConfigResourceAddrType:
+		configResource := target.(addrs.ConfigResource)
+		for _, modInst := range evalglue.ConfigModuleInstances(ctx, o.root, configResource.Module) {
+			for resInst := range modInst.ResourceInstancesForResource(ctx, configResource.Resource) {
+				addTarget(resInst)
+			}
+		}
+	case addrs.AbsResourceAddrType:
+		absResource := target.(addrs.AbsResource)
+		modInst := evalglue.ModuleInstance(ctx, o.root, absResource.Module)
+		if modInst != nil {
+			for resInst := range modInst.ResourceInstancesForResource(ctx, absResource.Resource) {
+				addTarget(resInst)
+			}
+		}
+	case addrs.AbsResourceInstanceAddrType:
+		absResourceInstance := target.(addrs.AbsResourceInstance)
+		resInst := evalglue.ResourceInstance(ctx, o.root, absResourceInstance)
+		if resInst != nil {
+			addTarget(resInst)
+		}
+	case addrs.ModuleAddrType:
+		module := target.(addrs.Module)
+		for _, modInst := range evalglue.ConfigModuleInstances(ctx, o.root, module) {
+			for resInst := range evalglue.ResourceInstancesDeep(ctx, modInst) {
+				addTarget(resInst)
+			}
+		}
+	case addrs.ModuleInstanceAddrType:
+		moduleInstance := target.(addrs.ModuleInstance)
+		modInst := evalglue.ModuleInstance(ctx, o.root, moduleInstance)
+		if modInst != nil {
+			for resInst := range evalglue.ResourceInstancesDeep(ctx, modInst) {
+				addTarget(resInst)
+			}
+		}
+	}
+}
+func (o *PlanningOracle) CheckAll(ctx context.Context) tfdiags.Diagnostics {
+	// The plan phase is driven forward by us evaluating expressions during
+	// the "checkAll" process, and so we can just run that here and then
+	// it'll cause various calls out to the "glue" object whenever we're
+	// ready to provide configuration for a resource instance and need to
+	// obtain its result for downstream use.
+	return o.root.CheckAll(ctx)
+}
+
+func (o *PlanningOracle) PlanningResult(ctx context.Context) *PlanningResult {
+	return &PlanningResult{
+		RootModuleOutputs: CollectRootModuleOutputs(ctx, o.root),
+	}
 }
 
 // DetectImplicitMoveForAddress spiders the configuration, attempting to determine if there is an implicit
@@ -35,9 +93,9 @@ func (o *PlanningOracle) DetectImplicitMoveForAddress(ctx context.Context, addr 
 	return o.root.DetectImplicitMoveForAddress(ctx, addr)
 }
 
-// ResourceInstanceObjectMeta returns whatever metadata applies to the
-// given resource instance object based only on information available in
-// the configuration.
+// ResourceInstanceObjectMeta collects all of the metadata provided by modules
+// on the path to the specified resource instance object, ordered by module
+// instance depth with the shallowest module instance first.
 //
 // This is intended to be called by methods of the [PlanGlue] implementation
 // provided by the planning engine during the planning process, when handling
@@ -48,15 +106,17 @@ func (o *PlanningOracle) DetectImplicitMoveForAddress(ctx context.Context, addr 
 //
 // Callers must be careful about how they ask this question if a particular
 // resource instance is changing its address as part of the current plan, such
-// as with "moved" blocks. The config-based metadata is always associated with
-// the new address that the object would be bound to after the apply phase
-// completes, whereas the associated state-based metadata would belong instead
-// to the old address.
+// as with "moved" blocks. The config-based metadata for a desired object is
+// always associated with the new address that the object would be bound to
+// after the apply phase completes, whereas the associated state-based metadata
+// would belong instead to the old address.
 //
-// This method returns nil if there is absolutely no configuration-based
-// metadata for the given object, in which case the caller will need to rely
-// on the state exclusively for deciding the metadata. Callers can assume that
-// a "desired" resource instance object will always have non-nil metadata.
+// This method returns a zero-length slice if there is absolutely no
+// configuration-based metadata for the given object, in which case the caller
+// will need to rely on the state exclusively for deciding the metadata. Callers
+// can assume that a "desired" resource instance object will always have at
+// least one result representing the leaf module instance that the object
+// directly belongs to.
 //
 // If errors in the configuration prevent producing the full metadata for the
 // resource instance then the result may include unknown values as placeholders
@@ -66,14 +126,8 @@ func (o *PlanningOracle) DetectImplicitMoveForAddress(ctx context.Context, addr 
 // on unknown values that are marked in that way, because that'll tend to cause
 // the same problem to be reported more than once in different ways and that's
 // confusing.
-func (o *PlanningOracle) ResourceInstanceObjectMeta(ctx context.Context, addr addrs.AbsResourceInstanceObject) *ConfiguredResourceInstanceObjectMeta {
-	moduleInst := evalglue.ModuleInstance(ctx, o.root, addr.InstanceAddr.Module)
-	if moduleInst == nil {
-		// The relevant module instance is not currently configured at all,
-		// so the caller will need to rely on the state exclusively for this one.
-		return nil
-	}
-	return moduleInst.ResourceInstanceObjectMeta(ctx, addr.ModuleRelative())
+func (o *PlanningOracle) ResourceInstanceObjectMeta(ctx context.Context, addr addrs.AbsResourceInstanceObject) []ModuleConfiguredResourceInstanceObjectMeta {
+	return collectResourceInstanceObjectMeta(ctx, addr, o.root)
 }
 
 // ProviderInstanceConfig returns a value representing the configuration to
@@ -96,18 +150,6 @@ func (o *PlanningOracle) ResourceInstanceObjectMeta(ctx context.Context, addr ad
 // unless its provider instance is re-added to the configuration.
 func (o *PlanningOracle) ProviderInstance(ctx context.Context, addr addrs.AbsProviderInstanceCorrect) (providers.Interface, tfdiags.Diagnostics) {
 	return o.providers.ProviderInstance(ctx, addr)
-}
-
-func (o *PlanningOracle) PreventDestroy(ctx context.Context, addr addrs.AbsResourceInstance) (exprs.FromValue[bool], *tfdiags.SourceRange, tfdiags.Diagnostics) {
-	mod := evalglue.ModuleInstance(ctx, o.root, addr.Module)
-	if mod == nil {
-		return exprs.Known(false), nil, nil
-	}
-	resource := mod.Resource(ctx, addr.Resource.Resource)
-	if resource == nil {
-		return exprs.Known(false), nil, nil
-	}
-	return resource.PreventDestroy(ctx)
 }
 
 func (o *PlanningOracle) Close(ctx context.Context) tfdiags.Diagnostics {

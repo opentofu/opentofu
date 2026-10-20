@@ -7,6 +7,7 @@ package logging
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"runtime/debug"
@@ -41,13 +42,6 @@ var panicMutex sync.Mutex
 // PanicHandler must be called as a deferred function, and must be the first
 // defer called at the start of a new goroutine.
 func PanicHandler() {
-	// Have all managed goroutines checkin here, and prevent them from exiting
-	// if there's a panic in progress. While this can't lock the entire runtime
-	// to block progress, we can prevent some cases where OpenTofu may return
-	// early before the panic has been printed out.
-	panicMutex.Lock()
-	defer panicMutex.Unlock()
-
 	recovered := recover()
 	panicHandler(recovered, nil, "", nil)
 }
@@ -79,24 +73,53 @@ func PanicHandlerWithTraceFn() func() {
 // PanicHandlerWithTraceHandlerFn is an enhanced version of PanicHandlerWithTraceFn
 // that supports providing information about the caller
 func PanicHandlerWithTraceHandlerFn() func(caller string, handler func()) {
-	trace := debug.Stack()
+	traces := [][]byte{debug.Stack()}
 	return func(caller string, handler func()) {
-		// Have all managed goroutines checkin here, and prevent them from exiting
-		// if there's a panic in progress. While this can't lock the entire runtime
-		// to block progress, we can prevent some cases where OpenTofu may return
-		// early before the panic has been printed out.
-		panicMutex.Lock()
-		defer panicMutex.Unlock()
-
 		recovered := recover()
-		panicHandler(recovered, trace, caller, handler)
+		panicHandler(recovered, traces, caller, handler)
 	}
 }
 
-func panicHandler(recovered interface{}, trace []byte, caller string, handler func()) {
+var panicTrace bool
+
+func init() {
+	panicTrace = os.Getenv("TOFU_PANIC_TRACE") != ""
+}
+
+// PanicHandlerWithContext adds the current stack to the context and builds
+// a panicHandler in case a recover() is possible.
+func PanicHandlerWithContext(ctx context.Context, label string, labelArgs ...any) (context.Context, func()) {
+	if !panicTrace {
+		// Due to the sheer number of go-routines the new runtime
+		// deals with, we only enable this panic handler if explicitly requested
+		return ctx, func() {
+			recovered := recover()
+			panicHandler(recovered, nil, fmt.Sprintf(label, labelArgs...), nil)
+		}
+	}
+	stack := debug.Stack()
+	if label != "" {
+		labelFmt := fmt.Sprintf("label: %s\n", label)
+		stack = append([]byte(fmt.Sprintf(labelFmt, labelArgs...)), debug.Stack()...)
+	}
+	ctx = ContextWithStack(ctx, stack)
+	return ctx, func() {
+		recovered := recover()
+		panicHandler(recovered, StacksFromContext(ctx), fmt.Sprintf(label, labelArgs...), nil)
+	}
+}
+
+func panicHandler(recovered interface{}, traces [][]byte, caller string, handler func()) {
 	if recovered == nil {
 		return
 	}
+
+	// Have all managed goroutines checkin here, and prevent them from exiting
+	// if there's a panic in progress. While this can't lock the entire runtime
+	// to block progress, we can prevent some cases where OpenTofu may return
+	// early before the panic has been printed out.
+	panicMutex.Lock()
+	defer panicMutex.Unlock()
 
 	// Given that multiple routines may be spewing to stderr at the same time
 	// buffer our message to prevent it being split.
@@ -111,8 +134,8 @@ func panicHandler(recovered interface{}, trace []byte, caller string, handler fu
 	// When called from a deferred function, debug.PrintStack will include the
 	// full stack from the point of the pending panic.
 	buffer.Write(debug.Stack())
-	if trace != nil {
-		fmt.Fprint(buffer, "With go-routine called from:\n")
+	for _, trace := range traces {
+		fmt.Fprint(buffer, "\nWith go-routine called from:\n")
 		buffer.Write(trace)
 	}
 
@@ -238,4 +261,19 @@ func (l *logPanicWrapper) Debug(msg string, args ...interface{}) {
 	}
 
 	l.Logger.Debug(msg, args...)
+}
+
+type contextKey rune
+
+const stackContextKey = contextKey('S')
+
+func ContextWithStack(ctx context.Context, stack []byte) context.Context {
+	currentStacks := StacksFromContext(ctx)
+	stacks := append([][]byte{stack}, currentStacks...)
+	return context.WithValue(ctx, stackContextKey, stacks)
+}
+
+func StacksFromContext(ctx context.Context) [][]byte {
+	value, _ := ctx.Value(stackContextKey).([][]byte)
+	return value
 }

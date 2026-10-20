@@ -546,14 +546,19 @@ type Output struct {
 	// should be used instead of evaluated expression. It's possible to have no
 	// OverrideValue even with IsOverridden is set to true.
 	OverrideValue *cty.Value
+
+	TypeExpr       hcl.Expression
+	ConstraintType cty.Type
+	TypeDefaults   *typeexpr.Defaults
 }
 
 func decodeOutputBlock(block *hcl.Block, override bool) (*Output, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
 	o := &Output{
-		Name:      block.Labels[0],
-		DeclRange: block.DefRange,
+		Name:           block.Labels[0],
+		DeclRange:      block.DefRange,
+		ConstraintType: cty.DynamicPseudoType,
 	}
 
 	schema := outputBlockSchema
@@ -615,6 +620,10 @@ func decodeOutputBlock(block *hcl.Block, override bool) (*Output, hcl.Diagnostic
 		o.DependsOn = append(o.DependsOn, deps...)
 	}
 
+	if attr, exists := content.Attributes["type"]; exists {
+		o.TypeExpr = attr.Expr
+	}
+
 	for _, block := range content.Blocks {
 		switch block.Type {
 		case "precondition":
@@ -636,6 +645,23 @@ func decodeOutputBlock(block *hcl.Block, override bool) (*Output, hcl.Diagnostic
 	}
 
 	return o, diags
+}
+
+func (o *Output) finalize(symbols symlib.Table) hcl.Diagnostics {
+	var diags hcl.Diagnostics
+	if o.TypeExpr == nil {
+		return diags
+	}
+	ty, tyDefaults, _, tyDiags := decodeVariableType(o.TypeExpr, new(symbols.TypeContext()))
+	diags = append(diags, tyDiags...)
+	if ty == cty.NilType {
+		ty = cty.DynamicPseudoType
+	}
+	o.ConstraintType = ty
+	o.TypeDefaults = tyDefaults
+	o.TypeExpr = nil
+
+	return diags
 }
 
 func (o *Output) Addr() addrs.OutputValue {
@@ -751,6 +777,9 @@ var outputBlockSchema = &hcl.BodySchema{
 		},
 		{
 			Name: "deprecated",
+		},
+		{
+			Name: "type",
 		},
 	},
 	Blocks: []hcl.BlockHeaderSchema{
