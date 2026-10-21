@@ -31,6 +31,9 @@ type Test struct {
 	// human-readable format or JSON for each run step depending on the
 	// ViewType.
 	Verbose bool
+
+	// JUnit formats in a JUnit XML compatible format.
+	JUnit string
 }
 
 // BindTest registers CLI arguments, returning a Test value and it's corresponding hooks.
@@ -43,6 +46,7 @@ func BindTest(cli *CommandLine) *Test {
 	cli.StringArrayVar(&test.Filter, "filter", nil, "If specified, OpenTofu will only execute the test files specified by this flag. You can use this option multiple times to execute more than one test file. The path should be relative to the current working directory, even if -test-directory is set.").SetDisplay("=testfile")
 	cli.StringVar(&test.TestDirectory, "test-directory", "tests", `Set the OpenTofu test directory, defaults to "tests". When set, the test command will search for test files in the current directory and in the one specified by the flag.`).SetDisplay("=path")
 	cli.BoolVar(&test.Verbose, "verbose", false, "Print the plan or state for each test run block as it executes.")
+	cli.StringVar(&test.JUnit, "junit-xml", "", "File to write JUnit compatible test information.")
 
 	return &test
 }
