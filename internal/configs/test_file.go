@@ -1383,9 +1383,9 @@ var testRunBlockSchema = &hcl.BodySchema{
 	},
 }
 
-// testVerifyBlockSchema this explain the shape of a verify block in a
-// block that is test run. It mirrors checkRuleBlockSchema, aside for that error_message
-// is optional.
+// testVerifyBlockSchema describes the schema for the assert block in a test run. This
+// schema is similar with checkRuleBlockSchema but the difference is that error_message
+// argument is optional.
 var testVerifyBlockSchema = &hcl.BodySchema{
 	Attributes: []hcl.AttributeSchema{
 		{Name: "condition", Required: true},
