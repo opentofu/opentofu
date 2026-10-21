@@ -19,6 +19,7 @@ ENHANCEMENTS:
 - `mock_provider` now supports the `source` argument that can get a file or directory with specific provider overrides ([#4532](https://github.com/opentofu/opentofu/pull/4532))
 - Module outputs now support specifying their type. ([#4645](https://github.com/opentofu/opentofu/pull/4645))
 - The `tofu` cli will now read `*.tfrc` file to load its configuration from system standard directories. ([#4624](https://github.com/opentofu/opentofu/pull/4624))
+- `tofu test` now has a `-junit-xml` option to produce JUnit compatible test outputs. ([#4760](https://github.com/opentofu/opentofu/pull/4760))
 
 BUG FIXES:
 

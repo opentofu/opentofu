@@ -7,13 +7,16 @@ package command
 
 import (
 	"fmt"
+	"os"
 	"path"
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/synctest"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/opentofu/opentofu/internal/command/workdir"
+	"github.com/opentofu/opentofu/internal/moduletest/junitxml"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -1695,6 +1698,67 @@ func TestTest_InstanceOverride(t *testing.T) {
 
 			if provider.ResourceCount() > 0 {
 				t.Errorf("should have deleted all resources on completion but left %v\n", provider.ResourceString())
+			}
+		})
+	}
+}
+
+func TestTest_JUnitXML(t *testing.T) {
+	tcs := map[string]struct {
+		expected    *junitxml.JUnit
+		expectedErr string
+		code        int
+	}{
+		"default": {
+			code: 0,
+		},
+		"multiple_files": {
+			code: 0,
+		},
+		"expected_error_fails": {
+			code: 1,
+		},
+		"failure": {
+			code: 1,
+		},
+	}
+
+	for name, tc := range tcs {
+		synctest.Test(t, func(t *testing.T) { // so junit time and timestamp attrs dont vary
+			td := t.TempDir()
+			tftestHCLDir := fmt.Sprintf("junit_%s", name)
+			expected, err := os.ReadFile(testFixturePath(path.Join("test", tftestHCLDir, "expected.xml")))
+			if err != nil {
+				t.Fatalf("failed to read expected output file: %s", err)
+			}
+			testCopyDir(t, testFixturePath(path.Join("test", tftestHCLDir)), td)
+			t.Chdir(td)
+
+			provider := testing_command.NewProvider(nil)
+			view, done := testView(t)
+			meta := Meta{
+				WorkingDir:       workdir.NewDir("."),
+				testingOverrides: metaOverridesForProvider(provider.Provider),
+				View:             view,
+			}
+
+			junitOutputPath := filepath.Join(td, "junit.xml")
+			code := RunCommander(t, TestCommander(), meta, []string{"-junit-xml", junitOutputPath})
+			_ = done(t)
+
+			if code != tc.code {
+				t.Fatalf("expected status code %d but got %d\n", tc.code, code)
+			}
+
+			junitOutput, err := os.ReadFile(junitOutputPath)
+			if err != nil {
+				t.Fatalf("Failed to read junit output: %s", err)
+			}
+
+			if diff := cmp.Diff(
+				strings.TrimSpace(string(expected)),
+				strings.TrimSpace(string(junitOutput))); len(diff) > 0 {
+				t.Fatalf("output didnt match expected: Expected:\n%s\nGot:\n%s\n%s", expected, junitOutput, diff)
 			}
 		})
 	}
