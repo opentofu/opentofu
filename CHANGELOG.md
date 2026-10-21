@@ -1,6 +1,8 @@
 The v1.12.x release series is supported until **February 1 2027**.
 
-## 1.12.9 (unreleased)
+## 1.12.10 (unreleased)
+
+## 1.12.9
 
 SECURITY ADVISORIES:
 
