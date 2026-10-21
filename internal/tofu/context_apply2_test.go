@@ -1933,6 +1933,9 @@ resource "test_object" "x" {
 	})
 
 	p := simpleMockProvider()
+	// Adding this for the new engine implies that the old engine is ignoring this field.
+	// TODO decide if we want to drop this field completely
+	p.GetProviderSchemaResponse.ServerCapabilities.PlanDestroy = true
 	p.PlanResourceChangeFn = func(req providers.PlanResourceChangeRequest) (resp providers.PlanResourceChangeResponse) {
 		if !req.ProposedNewState.IsNull() {
 			// we should only be destroying in this test
