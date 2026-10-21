@@ -231,3 +231,44 @@ func TestOperationResourceInstanceCurrentMeta(t *testing.T) {
 		})
 	}
 }
+
+func TestOperationResourceInstanceDesired(t *testing.T) {
+	instAddr := addrs.Resource{
+		Mode: addrs.ManagedResourceMode,
+		Type: "test",
+		Name: "example",
+	}.Absolute(addrs.RootModuleInstance).Instance(addrs.NoKey)
+	meta := &exec.ResourceInstanceObjectMeta{
+		Addr: instAddr.CurrentObject(),
+		// Although incomplete, this is just enough for what
+		// ResourceInstanceDesired needs in practice.
+	}
+	desired := &eval.DesiredResourceInstance{
+		Addr:      instAddr,
+		ConfigVal: cty.DynamicVal,
+	}
+
+	ops := operationsForTesting(
+		nil, // No state access in this operation
+		resourceConfigsForTesting(t,
+			[]*testResourceConfig{
+				{
+					Addr:    instAddr.CurrentObject(),
+					Desired: desired,
+				},
+			},
+			nil,
+		),
+		nil, // This operation does not modify the state at all
+		nil, // This operation does not need any plugins
+	)
+	got, gotDiags := ops.ResourceInstanceDesired(t.Context(), meta)
+	if gotDiags.HasErrors() {
+		t.Fatalf("unexpected errors\n%s", gotDiags.Err())
+	}
+	// We expect to just get back exactly what we put in here, so pointer
+	// equality is sufficient.
+	if got != desired {
+		t.Error("result does not match desired object from input")
+	}
+}
