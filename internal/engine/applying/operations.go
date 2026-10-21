@@ -57,9 +57,6 @@ type execOperations struct {
 	// plugins are the provider and provisioner plugins we have available for
 	// use during the apply phase.
 	plugins plugins.Plugins
-
-	// destroying is a flag to alter behavior for non-resource actions during apply.
-	destroying bool
 }
 
 // The main operation methods of execOperations are spread across the separate
@@ -102,21 +99,24 @@ func compileExecutionGraph(ctx context.Context, plan *plans.Plan, oracle *eval.A
 	ops.workingState = plan.PriorState.DeepCopy().SyncWrapper()
 	ops.configOracle = oracle
 	ops.plugins = plugins
-	ops.destroying = plan.Destroying
 
 	return compiledGraph, ops, diags
 }
 
 // Finish closes the operations object and returns its final state snapshot.
 //
+// If updateOutputs is set, this also copies the updated results from any
+// root module output values into the new state snapshot. If unset, the output
+// values from the previous round are preserved instead.
+//
 // This function must be called only once execution is complete and no other
 // calls to methods of this type are running concurrently. After calling this
 // function the operations object is invalid and must not be used anymore.
-func (ops *execOperations) Finish(ctx context.Context) (*states.State, tfdiags.Diagnostics) {
+func (ops *execOperations) Finish(ctx context.Context, updateOutputs bool) (*states.State, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	var rootOutputs eval.RootModuleOutputs
-	if !ops.destroying {
+	if updateOutputs {
 		// Save the root outputs before closing the config oracle
 		rootOutputs = ops.configOracle.RootOutputs(ctx)
 	}
@@ -145,8 +145,7 @@ func (ops *execOperations) Finish(ctx context.Context) (*states.State, tfdiags.D
 			finalState.RemoveModule(mod.Addr)
 		}
 	}
-	// If we are not destroying, we need to add the root module outputs.
-	if !ops.destroying {
+	if updateOutputs {
 		for k, out := range rootOutputs {
 			v := out.Value
 			// Known is a placeholder for if the output is available due to deferring or targeting (TODO better signal for this)
