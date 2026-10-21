@@ -1,5 +1,11 @@
 The v1.12.x release series is supported until **February 1 2027**.
 
+## 1.12.9 (unreleased)
+
+SECURITY ADVISORIES:
+
+- Filter out compromised intermediate certificates ([#4751](https://github.com/opentofu/opentofu/pull/4751))
+
 ## 1.12.8
 
 SECURITY ADVISORIES:
