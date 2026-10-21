@@ -6420,7 +6420,7 @@ func TestContext2Apply_destroyWithModuleVariableAndCountNested(t *testing.T) {
 }
 
 func TestContext2Apply_destroyOutputs(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugMissingResource)
+	SkipExperimental(t, ExperimentalBugDataResource)
 
 	m := testModule(t, "apply-destroy-outputs")
 	p := testProvider("test")
