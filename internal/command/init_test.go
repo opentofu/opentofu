@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -82,6 +83,50 @@ func TestInit_multipleArgs(t *testing.T) {
 	output := done(t)
 	if code != RunResultHelp {
 		t.Fatalf("bad: \n%s", output.Stdout())
+	}
+}
+
+// This test will start an init, ask for input and fail during that time.
+// I should recieve a context cancelled and not be stuf in an infinite wait
+func TestInit_fromHttpBackend_cancelDuringInputShouldExit(t *testing.T) {
+	// Create a temporary working directory that is empty
+	td := t.TempDir()
+	// Chose this as it asks for input during the initialization
+	testCopyDir(t, testFixturePath("init-backend-http"), td)
+	t.Chdir(td)
+
+	// Create a view to pass around inside the code
+	view, done := testView(t)
+
+	var (
+		meta = Meta{
+			WorkingDir:       workdir.NewDir("."),
+			testingOverrides: metaOverridesForProvider(testProvider()),
+			View:             view,
+		}
+		args []string
+		cmd  = InitCommander()
+	)
+
+	// Create a cancelled context to see if it is passed (next I will ask the input to be a pipe so it works)
+	cancellableContext, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	// make suer that the actual call will use the cancellable context
+	meta.CallerContext = cancellableContext
+
+	// make the reader not to get any value back when trying to read (for address value)
+	rx, _ := io.Pipe()
+	defaultInputReader = rx
+
+	diags := cmd.CommandLine.ParseDirect(t.Context(), args)
+	code := RunCli("testing", cmd, meta, diags)
+	output := done(t)
+
+	t.Fatal(output.All())
+
+	if code == 0 {
+		t.Fatalf("should not have passed: %s", output.All())
 	}
 }
 
