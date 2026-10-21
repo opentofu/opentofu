@@ -49,7 +49,7 @@ func ApplyPlannedChanges(ctx context.Context, plan *plans.Plan, configInst *eval
 		return nil, diags
 	}
 
-	_, execGraph, execOps, moreDiags := compileExecutionGraph(ctx, plan, oracle, plugins)
+	execGraph, execOps, moreDiags := compileExecutionGraph(ctx, plan, oracle, plugins)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		return nil, diags

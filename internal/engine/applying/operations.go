@@ -68,7 +68,7 @@ type execOperations struct {
 
 var _ exec.Operations = (*execOperations)(nil)
 
-func compileExecutionGraph(ctx context.Context, plan *plans.Plan, oracle *eval.ApplyOracle, plugins plugins.Plugins) (*execgraph.Graph, *execgraph.CompiledGraph, *execOperations, tfdiags.Diagnostics) {
+func compileExecutionGraph(ctx context.Context, plan *plans.Plan, oracle *eval.ApplyOracle, plugins plugins.Plugins) (*execgraph.CompiledGraph, *execOperations, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	execGraph, err := execgraph.UnmarshalGraph(plan.ExecutionGraph)
@@ -78,7 +78,7 @@ func compileExecutionGraph(ctx context.Context, plan *plans.Plan, oracle *eval.A
 			"Invalid execution graph in plan",
 			fmt.Sprintf("Failed to unmarshal the execution graph: %s.", tfdiags.FormatError(err)),
 		))
-		return nil, nil, nil, diags
+		return nil, nil, diags
 	}
 	if logging.IsDebugOrHigher() {
 		// FIXME: The DebugRepr currently includes ctydebug representations of
@@ -95,7 +95,7 @@ func compileExecutionGraph(ctx context.Context, plan *plans.Plan, oracle *eval.A
 	compiledGraph, moreDiags := execGraph.Compile(ops)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
-		return nil, nil, nil, diags
+		return nil, nil, diags
 	}
 
 	ops.priorState = plan.PriorState.SyncWrapper()
@@ -104,7 +104,7 @@ func compileExecutionGraph(ctx context.Context, plan *plans.Plan, oracle *eval.A
 	ops.plugins = plugins
 	ops.destroying = plan.Destroying
 
-	return execGraph, compiledGraph, ops, diags
+	return compiledGraph, ops, diags
 }
 
 // Finish closes the operations object and returns its final state snapshot.
