@@ -18,6 +18,7 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -37,7 +38,11 @@ type execOperations struct {
 
 	// configOracle gives us access to certain information we need that is
 	// produced by the configuration evaluator.
-	configOracle *eval.ApplyOracle
+	//
+	// In normal code this is always [*eval.ApplyOracle], but in our unit tests
+	// we use other "fake" implementations of this to avoid depending on the
+	// full evaluator behavior.
+	configOracle configOracle
 
 	// workingState is the state we modify during execution.
 	//
@@ -173,3 +178,20 @@ func (ops *execOperations) Finish(ctx context.Context, updateOutputs bool) (*sta
 	// just returning the state data structure directly and so this cannot fail.
 	return finalState, diags
 }
+
+// configOracle describes the subset of the API we expect the evaluator's
+// [eval.ApplyOracle] to provide to us, so that we can provide our own fake
+// implementations of this internally for unit-testing purposes. Real code
+// should use [*eval.ApplyOracle] directly to satisfy this interface.
+//
+// This only needs to represent the subset of methods that operations in this
+// package actually refer to.
+type configOracle interface {
+	ResourceInstanceObjectMeta(ctx context.Context, addr addrs.AbsResourceInstanceObject) []eval.ModuleConfiguredResourceInstanceObjectMeta
+	DesiredResourceInstance(ctx context.Context, addr addrs.AbsResourceInstance) (*eval.DesiredResourceInstance, tfdiags.Diagnostics)
+	ProviderInstance(ctx context.Context, addr addrs.AbsProviderInstanceCorrect) (providers.Interface, tfdiags.Diagnostics)
+	RootOutputs(ctx context.Context) eval.RootModuleOutputs
+	Close(ctx context.Context) tfdiags.Diagnostics
+}
+
+var _ configOracle = (*eval.ApplyOracle)(nil)
