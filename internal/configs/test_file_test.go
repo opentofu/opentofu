@@ -597,6 +597,26 @@ func TestDecodeTestRunBlock_verifyErrorMessageOptional(t *testing.T) {
 		}`,
 			wantErr: true,
 		},
+		"empty error_message fails": {
+			src: `
+		run "test" {
+		assert {
+			condition     = var.x == 1
+			error_message = ""
+		}
+		}`,
+			wantErr: true,
+		},
+		"null error_message fails": {
+			src: `
+		run "test" {
+		assert {
+			condition     = var.x == 1
+			error_message = null
+		}
+		}`,
+			wantErr: true,
+		},
 	}
 
 	for name, tc := range tests {
