@@ -42,6 +42,10 @@ import (
 // for objects of those modes, as described in the comments on each field.
 type ConfiguredResourceInstanceObjectMeta = evalglue.ConfiguredResourceInstanceObjectMeta
 
+// ResourceInstanceObjectProvider is a container for the provider-related
+// information in [ConfiguredResourceInstanceObjectMeta].
+type ResourceInstanceObjectProvider = evalglue.ResourceInstanceObjectProvider
+
 // ModuleConfiguredResourceInstanceObjectMeta describes the relationship
 // between a [ConfiguredResourceInstanceObjectMeta] object and the module
 // instance that produced it.
