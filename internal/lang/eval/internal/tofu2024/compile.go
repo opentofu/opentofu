@@ -94,6 +94,7 @@ func CompileModuleInstance(
 		rootDir:    call.EvalContext.RootModuleDir,
 		sourceDir:  module.SourceDir,
 	}
+	ret.topScope = topScope // only for use by [CompiledModuleInstance.CompileEvalable]
 
 	ret.providerRequirements = func(ctx context.Context) (getproviders.Requirements, *getproviders.ProvidersQualification, tfdiags.Diagnostics) {
 		fakeCfg := &configs.Config{Module: module}
