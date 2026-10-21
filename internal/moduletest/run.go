@@ -7,6 +7,7 @@ package moduletest
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/hashicorp/hcl/v2"
 
@@ -29,6 +30,7 @@ type Run struct {
 	Status Status
 
 	Diagnostics tfdiags.Diagnostics
+	Duration    time.Duration
 }
 
 // Verbose is a utility struct that holds all the information required for a run
