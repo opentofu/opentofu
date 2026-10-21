@@ -6,6 +6,8 @@
 package moduletest
 
 import (
+	"time"
+
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -19,4 +21,5 @@ type File struct {
 	Runs []*Run
 
 	Diagnostics tfdiags.Diagnostics
+	Started     time.Time
 }
