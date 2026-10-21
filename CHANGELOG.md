@@ -5,6 +5,7 @@ The v1.13.x release series is supported until **August 1 2027**.
 SECURITY ADVISORIES:
 
 - Previous versions of OpenTofu could potentially experience excessive CPU usage if connecting to an attacker-controlled HTTP2 server while installing dependencies in `tofu init`. ([#4681](https://github.com/opentofu/opentofu/pull/4681))
+- Filter out compromised intermediate certificates ([#4750](https://github.com/opentofu/opentofu/pull/4750))
 
 BUG FIXES:
 
