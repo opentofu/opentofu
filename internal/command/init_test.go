@@ -42,17 +42,6 @@ import (
 	tofuVersion "github.com/opentofu/opentofu/version"
 )
 
-type notifyReader struct {
-	io.Reader
-	once   *sync.Once
-	cancel context.CancelFunc
-}
-
-func (r *notifyReader) Read(p []byte) (int, error) {
-	r.once.Do(func() { r.cancel() })
-	return r.Reader.Read(p)
-}
-
 func TestInit_empty(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
@@ -101,14 +90,11 @@ func TestInit_multipleArgs(t *testing.T) {
 // This test will start an init, ask for input and fail during that time.
 // I should recieve a context cancelled and not be stuf in an infinite wait
 func TestInit_fromHttpBackend_cancelDuringInputShouldExit(t *testing.T) {
-	// Create a temporary working directory that is empty
-	td := t.TempDir()
-	// Chose this as it asks for input (address) during the initialization
-	testCopyDir(t, testFixturePath("init-backend-http"), td)
-	t.Chdir(td)
 
+	// place where I test the view isnt hardcoded, so putting before it all
 	view, done := testView(t)
 
+	// created a whole var section as I thought it was nicer (and I am totally open to reverting back to normal sections)
 	var (
 		meta = Meta{
 			WorkingDir:       workdir.NewDir("."),
@@ -118,7 +104,14 @@ func TestInit_fromHttpBackend_cancelDuringInputShouldExit(t *testing.T) {
 		args []string
 		once sync.Once
 		cmd  = InitCommander()
+
+		// Create a temporary working directory that is empty
+		td = t.TempDir()
 	)
+
+	// Chose this as it asks for input (address) during the initialization
+	testCopyDir(t, testFixturePath("init-backend-http"), td)
+	t.Chdir(td)
 
 	// force it to run like a "real" tofu command
 	test = false
