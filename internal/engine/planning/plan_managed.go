@@ -54,6 +54,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 			configMeta = append(configMeta, eval.ModuleConfiguredResourceInstanceObjectMeta{
 				ConfiguredResourceInstanceObjectMeta: &eval.ConfiguredResourceInstanceObjectMeta{
 					ImportStatement: stmt,
+					// DeclRange is intentionally nil
 				},
 			})
 		}
@@ -240,8 +241,8 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 	var planImport *plans.Importing
 	importing := !p.planCtx.skipImport && meta.ImportStatement != nil
 	if importing && prevState != nil {
-		if meta.ImportStatement.DeclRange == nil {
-			// Config import statement conflict
+		if !meta.ImportStatement.FromConfig() {
+			// CLI import statement conflict
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
 				"Resource already managed by OpenTofu",
