@@ -61,7 +61,7 @@ func TestContextEval(t *testing.T) {
 		}, nil),
 	})
 
-	scope, diags := ctx.Eval(context.Background(), m, states.NewState(), addrs.RootModuleInstance, &EvalOpts{
+	scope, _, diags := ctx.Eval(context.Background(), m, states.NewState(), addrs.RootModuleInstance, &EvalOpts{
 		SetVariables: testInputValuesUnset(m.Module.Variables),
 	})
 	if diags.HasErrors() {
@@ -130,7 +130,7 @@ output "out" {
 		}, nil),
 	})
 
-	_, diags := ctx.Eval(context.Background(), m, states.NewState(), addrs.RootModuleInstance, &EvalOpts{
+	_, _, diags := ctx.Eval(context.Background(), m, states.NewState(), addrs.RootModuleInstance, &EvalOpts{
 		SetVariables: testInputValuesUnset(m.Module.Variables),
 	})
 	assertNoErrors(t, diags)

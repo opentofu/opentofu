@@ -12,6 +12,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/lang"
+	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tracing"
@@ -39,7 +40,7 @@ type EvalOpts struct {
 // the returned scope may be nil. If it is not nil then it may still be used
 // to attempt expression evaluation or other analysis, but some expressions
 // may not behave as expected.
-func (c *Context) Eval(ctx context.Context, config *configs.Config, state *states.State, moduleAddr addrs.ModuleInstance, opts *EvalOpts) (*lang.Scope, tfdiags.Diagnostics) {
+func (c *Context) Eval(ctx context.Context, config *configs.Config, state *states.State, moduleAddr addrs.ModuleInstance, opts *EvalOpts) (*lang.Scope, func(context.Context) error, tfdiags.Diagnostics) {
 	// This is intended for external callers such as the "tofu console"
 	// command. Internally, we create an evaluator in c.walk before walking
 	// the graph, and create scopes in ContextGraphWalker.
@@ -73,6 +74,37 @@ func (c *Context) Eval(ctx context.Context, config *configs.Config, state *state
 
 	providerFunctionTracker := make(ProviderFunctionMapping)
 
+	// Inject all root providers for functions
+	providerCache := map[addrs.Provider]providers.Interface{}
+	for _, provider := range config.Module.ProviderRequirements.RequiredProviders {
+		key := ProviderFunctionReference{
+			ModulePath:   "",
+			ProviderName: provider.Name,
+		}
+		value := FunctionProvidedBy{
+			Provider:      addrs.AbsProviderConfig{},
+			KeyModule:     addrs.RootModule,
+			KeyExpression: nil,
+			Instance: func(addrs.InstanceKey) (providers.Configured, error) {
+				instance, ok := providerCache[provider.Type]
+				if !ok {
+					var diags tfdiags.Diagnostics
+					instance, diags = c.plugins.providers.NewProvider(ctx, provider.Type)
+					if diags.HasErrors() {
+						return nil, diags.Err()
+					}
+					providerCache[provider.Type] = instance
+				}
+				return instance, nil
+
+			},
+		}
+		providerFunctionTracker[key] = value
+	}
+	done := func(ctx context.Context) error {
+		return c.plugins.providers.Shutdown(ctx)
+	}
+
 	graph, moreDiags := (&EvalGraphBuilder{
 		Config:                  config,
 		State:                   state,
@@ -82,7 +114,7 @@ func (c *Context) Eval(ctx context.Context, config *configs.Config, state *state
 	}).Build(ctx, addrs.RootModuleInstance)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
-		return nil, diags
+		return nil, done, diags
 	}
 
 	walkOpts := &graphWalkOpts{
@@ -108,5 +140,5 @@ func (c *Context) Eval(ctx context.Context, config *configs.Config, state *state
 	// caches its contexts, so we should get hold of the context that was
 	// previously used for evaluation here, unless we skipped walking.
 	evalCtx := walker.EnterPath(moduleAddr)
-	return evalCtx.EvaluationScope(nil, nil, EvalDataForNoInstanceKey), diags
+	return evalCtx.EvaluationScope(nil, nil, EvalDataForNoInstanceKey), done, diags
 }
