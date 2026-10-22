@@ -224,9 +224,13 @@ func (fn *Function) Compile(w *workgraph.Worker, libScope *symbolScope) (functio
 		if param.TypeExpr != nil {
 			var valDiags hcl.Diagnostics
 			fnp.Type, defaults[fnp.Name], valDiags = typeCtx.TypeConstraintWithDefaults(*param.TypeExpr)
+			if fnp.Type == cty.DynamicPseudoType {
+				fnp.AllowDynamicType = true
+			}
 			return fnp, valDiags
 		}
 
+		fnp.AllowDynamicType = true
 		return fnp, nil
 	}
 
@@ -344,7 +348,7 @@ func (fn *Function) Compile(w *workgraph.Worker, libScope *symbolScope) (functio
 			diags = diags.Extend(vDiags)
 
 			if diags.HasErrors() {
-				return val, error(diags)
+				return cty.NilVal, error(diags)
 			}
 
 			// Ensure that we convert to the return type here instead of the raw val
