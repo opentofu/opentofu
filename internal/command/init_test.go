@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -40,6 +41,17 @@ import (
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	tofuVersion "github.com/opentofu/opentofu/version"
 )
+
+type notifyReader struct {
+	io.Reader
+	once   *sync.Once
+	cancel context.CancelFunc
+}
+
+func (r *notifyReader) Read(p []byte) (int, error) {
+	r.once.Do(func() { r.cancel() })
+	return r.Reader.Read(p)
+}
 
 func TestInit_empty(t *testing.T) {
 	// Create a temporary working directory that is empty
@@ -91,11 +103,10 @@ func TestInit_multipleArgs(t *testing.T) {
 func TestInit_fromHttpBackend_cancelDuringInputShouldExit(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
-	// Chose this as it asks for input during the initialization
+	// Chose this as it asks for input (address) during the initialization
 	testCopyDir(t, testFixturePath("init-backend-http"), td)
 	t.Chdir(td)
 
-	// Create a view to pass around inside the code
 	view, done := testView(t)
 
 	var (
@@ -105,28 +116,51 @@ func TestInit_fromHttpBackend_cancelDuringInputShouldExit(t *testing.T) {
 			View:             view,
 		}
 		args []string
+		once sync.Once
 		cmd  = InitCommander()
 	)
 
+	// force it to run like a "real" tofu command
+	test = false
+	defer func() { test = true }()
+
 	// Create a cancelled context to see if it is passed (next I will ask the input to be a pipe so it works)
 	cancellableContext, cancel := context.WithCancel(context.Background())
-	cancel()
 
 	// make suer that the actual call will use the cancellable context
 	meta.CallerContext = cancellableContext
 
-	// make the reader not to get any value back when trying to read (for address value)
-	rx, _ := io.Pipe()
-	defaultInputReader = rx
+	// create a pipe that is idle
+	rx, tx := io.Pipe()
 
-	diags := cmd.CommandLine.ParseDirect(t.Context(), args)
+	// cancel the context right before you start reading
+	rWrapped := notifyReader{
+		cancel: cancel,
+		once:   &once,
+		Reader: rx,
+	}
+
+	// and force the code to use it so it hangs on input for address
+	defaultInputReader = &rWrapped
+
+	// reset all things I set when done to not hog resources
+	defer func() {
+		defaultInputReader = os.Stdin
+		rx.Close()
+		tx.Close()
+	}()
+
+	// usual running of tofu parsing and actual running the cli
+	diags := cmd.CommandLine.ParseDirect(cancellableContext, args)
 	code := RunCli("testing", cmd, meta, diags)
 	output := done(t)
 
-	t.Fatal(output.All())
-
 	if code == 0 {
-		t.Fatalf("should not have passed: %s", output.All())
+		t.Fatalf("runcli should not have completed sucessfully: %s", output.All())
+	}
+
+	if !strings.Contains(output.Stderr(), "interrupted: context canceled") {
+		t.Fatalf("the context cancellation was supposed to bubble up the error, but gave: %v", output.Stderr())
 	}
 }
 
