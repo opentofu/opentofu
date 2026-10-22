@@ -553,6 +553,11 @@ func TestContextImport_moduleProvider(t *testing.T) {
 func TestContextImport_providerModule(t *testing.T) {
 	p := testProvider("aws")
 	m := testModule(t, "import-module")
+	if experimentalRuntimeEnabled() {
+		// Current test uses empty providers in place of required_providers
+		// See ExperimentalChangePreReqdProvider
+		m = testModule(t, "tempruntime-import-module")
+	}
 	ctx := testContext2(t, &ContextOpts{
 		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -855,6 +860,11 @@ func TestContextImport_refreshNil(t *testing.T) {
 func TestContextImport_module(t *testing.T) {
 	p := testProvider("aws")
 	m := testModule(t, "import-module")
+	if experimentalRuntimeEnabled() {
+		// Current test uses empty providers in place of required_providers
+		// See ExperimentalChangePreReqdProvider
+		m = testModule(t, "tempruntime-import-module")
+	}
 	ctx := testContext2(t, &ContextOpts{
 		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -898,6 +908,11 @@ func TestContextImport_module(t *testing.T) {
 func TestContextImport_moduleDepth2(t *testing.T) {
 	p := testProvider("aws")
 	m := testModule(t, "import-module")
+	if experimentalRuntimeEnabled() {
+		// Current test uses empty providers in place of required_providers
+		// See ExperimentalChangePreReqdProvider
+		m = testModule(t, "tempruntime-import-module")
+	}
 	ctx := testContext2(t, &ContextOpts{
 		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -941,6 +956,11 @@ func TestContextImport_moduleDepth2(t *testing.T) {
 func TestContextImport_moduleDiff(t *testing.T) {
 	p := testProvider("aws")
 	m := testModule(t, "import-module")
+	if experimentalRuntimeEnabled() {
+		// Current test uses empty providers in place of required_providers
+		// See ExperimentalChangePreReqdProvider
+		m = testModule(t, "tempruntime-import-module")
+	}
 	ctx := testContext2(t, &ContextOpts{
 		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
