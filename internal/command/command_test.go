@@ -23,7 +23,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -1316,15 +1315,4 @@ func TestVarsParsing(t *testing.T) {
 			}
 		})
 	}
-}
-
-type notifyReader struct {
-	io.Reader
-	once   *sync.Once
-	cancel context.CancelFunc
-}
-
-func (r *notifyReader) Read(p []byte) (int, error) {
-	r.once.Do(func() { r.cancel() })
-	return r.Reader.Read(p)
 }

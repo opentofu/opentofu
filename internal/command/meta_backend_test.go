@@ -2100,6 +2100,17 @@ func TestMetaBackend_configToExtra(t *testing.T) {
 	}
 }
 
+type notifyReader struct {
+	io.Reader
+	once   *sync.Once
+	cancel context.CancelFunc
+}
+
+func (r *notifyReader) Read(p []byte) (int, error) {
+	r.once.Do(func() { r.cancel() })
+	return r.Reader.Read(p)
+}
+
 func TestMetaBackend_cancelOnNoInput(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
