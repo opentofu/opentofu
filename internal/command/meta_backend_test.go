@@ -14,6 +14,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/hashicorp/hcl/v2"
@@ -2106,9 +2107,7 @@ func TestMetaBackend_cancelOnNoInput(t *testing.T) {
 	t.Chdir(td)
 
 	// Create a cancelled context to see if it is passed (next I will ask the input to be a pipe so it works)
-	cancellableContext, aCancel := context.WithCancel(context.Background())
-	// cancel it right away to
-	aCancel()
+	cancellableContext, cancel := context.WithCancel(context.Background())
 
 	// force it to run like a "real" tofu command
 	test = false
@@ -2123,9 +2122,16 @@ func TestMetaBackend_cancelOnNoInput(t *testing.T) {
 
 	// create a pipe that is idle
 	rx, tx := io.Pipe()
+	var once sync.Once
 
 	// and force the code to use it so it hangs on input for address
-	defaultInputReader = rx
+	// cancel the context right before you start reading
+	rWrapped := notifyReader{
+		cancel: cancel,
+		once:   &once,
+		Reader: rx,
+	}
+	defaultInputReader = &rWrapped
 
 	// reset all things I set when done to not hog resources
 	defer func() {
