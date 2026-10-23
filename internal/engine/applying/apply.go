@@ -49,7 +49,7 @@ func ApplyPlannedChanges(ctx context.Context, plan *plans.Plan, configInst *eval
 		return nil, diags
 	}
 
-	_, execGraph, execOps, moreDiags := compileExecutionGraph(ctx, plan, oracle, plugins)
+	execGraph, execOps, moreDiags := compileExecutionGraph(ctx, plan, oracle, plugins)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		return nil, diags
@@ -60,7 +60,10 @@ func ApplyPlannedChanges(ctx context.Context, plan *plans.Plan, configInst *eval
 	moreDiags = execGraph.Execute(ctx)
 	diags = diags.Append(moreDiags)
 
-	newState, moreDiags := execOps.Finish(ctx)
+	// We skip updating the output values for the new state when destroying
+	// because after destroy output values would be in a confusing state due to
+	// referring to resource instance objects that no longer exist.
+	newState, moreDiags := execOps.Finish(ctx, !plan.Destroying)
 	diags = diags.Append(moreDiags)
 
 	return newState, diags

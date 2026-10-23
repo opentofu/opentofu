@@ -18,6 +18,7 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -37,7 +38,11 @@ type execOperations struct {
 
 	// configOracle gives us access to certain information we need that is
 	// produced by the configuration evaluator.
-	configOracle *eval.ApplyOracle
+	//
+	// In normal code this is always [*eval.ApplyOracle], but in our unit tests
+	// we use other "fake" implementations of this to avoid depending on the
+	// full evaluator behavior.
+	configOracle configOracle
 
 	// workingState is the state we modify during execution.
 	//
@@ -57,9 +62,6 @@ type execOperations struct {
 	// plugins are the provider and provisioner plugins we have available for
 	// use during the apply phase.
 	plugins plugins.Plugins
-
-	// destroying is a flag to alter behavior for non-resource actions during apply.
-	destroying bool
 }
 
 // The main operation methods of execOperations are spread across the separate
@@ -68,7 +70,7 @@ type execOperations struct {
 
 var _ exec.Operations = (*execOperations)(nil)
 
-func compileExecutionGraph(ctx context.Context, plan *plans.Plan, oracle *eval.ApplyOracle, plugins plugins.Plugins) (*execgraph.Graph, *execgraph.CompiledGraph, *execOperations, tfdiags.Diagnostics) {
+func compileExecutionGraph(ctx context.Context, plan *plans.Plan, oracle *eval.ApplyOracle, plugins plugins.Plugins) (*execgraph.CompiledGraph, *execOperations, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	execGraph, err := execgraph.UnmarshalGraph(plan.ExecutionGraph)
@@ -78,7 +80,7 @@ func compileExecutionGraph(ctx context.Context, plan *plans.Plan, oracle *eval.A
 			"Invalid execution graph in plan",
 			fmt.Sprintf("Failed to unmarshal the execution graph: %s.", tfdiags.FormatError(err)),
 		))
-		return nil, nil, nil, diags
+		return nil, nil, diags
 	}
 	if logging.IsDebugOrHigher() {
 		// FIXME: The DebugRepr currently includes ctydebug representations of
@@ -95,28 +97,31 @@ func compileExecutionGraph(ctx context.Context, plan *plans.Plan, oracle *eval.A
 	compiledGraph, moreDiags := execGraph.Compile(ops)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
-		return nil, nil, nil, diags
+		return nil, nil, diags
 	}
 
 	ops.priorState = plan.PriorState.SyncWrapper()
 	ops.workingState = plan.PriorState.DeepCopy().SyncWrapper()
 	ops.configOracle = oracle
 	ops.plugins = plugins
-	ops.destroying = plan.Destroying
 
-	return execGraph, compiledGraph, ops, diags
+	return compiledGraph, ops, diags
 }
 
 // Finish closes the operations object and returns its final state snapshot.
 //
+// If updateOutputs is set, this also copies the updated results from any
+// root module output values into the new state snapshot. If unset, the output
+// values from the previous round are preserved instead.
+//
 // This function must be called only once execution is complete and no other
 // calls to methods of this type are running concurrently. After calling this
 // function the operations object is invalid and must not be used anymore.
-func (ops *execOperations) Finish(ctx context.Context) (*states.State, tfdiags.Diagnostics) {
+func (ops *execOperations) Finish(ctx context.Context, updateOutputs bool) (*states.State, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	var rootOutputs eval.RootModuleOutputs
-	if !ops.destroying {
+	if updateOutputs {
 		// Save the root outputs before closing the config oracle
 		rootOutputs = ops.configOracle.RootOutputs(ctx)
 	}
@@ -145,8 +150,7 @@ func (ops *execOperations) Finish(ctx context.Context) (*states.State, tfdiags.D
 			finalState.RemoveModule(mod.Addr)
 		}
 	}
-	// If we are not destroying, we need to add the root module outputs.
-	if !ops.destroying {
+	if updateOutputs {
 		for k, out := range rootOutputs {
 			v := out.Value
 			// Known is a placeholder for if the output is available due to deferring or targeting (TODO better signal for this)
@@ -174,3 +178,20 @@ func (ops *execOperations) Finish(ctx context.Context) (*states.State, tfdiags.D
 	// just returning the state data structure directly and so this cannot fail.
 	return finalState, diags
 }
+
+// configOracle describes the subset of the API we expect the evaluator's
+// [eval.ApplyOracle] to provide to us, so that we can provide our own fake
+// implementations of this internally for unit-testing purposes. Real code
+// should use [*eval.ApplyOracle] directly to satisfy this interface.
+//
+// This only needs to represent the subset of methods that operations in this
+// package actually refer to.
+type configOracle interface {
+	ResourceInstanceObjectMeta(ctx context.Context, addr addrs.AbsResourceInstanceObject) []eval.ModuleConfiguredResourceInstanceObjectMeta
+	DesiredResourceInstance(ctx context.Context, addr addrs.AbsResourceInstance) (*eval.DesiredResourceInstance, tfdiags.Diagnostics)
+	ProviderInstance(ctx context.Context, addr addrs.AbsProviderInstanceCorrect) (providers.Interface, tfdiags.Diagnostics)
+	RootOutputs(ctx context.Context) eval.RootModuleOutputs
+	Close(ctx context.Context) tfdiags.Diagnostics
+}
+
+var _ configOracle = (*eval.ApplyOracle)(nil)
