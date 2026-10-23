@@ -18,6 +18,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
+	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -60,6 +61,13 @@ type InputVariable struct {
 	// test whether the author's configured conditions have been met
 	// for the given value.
 	CompileValidationRules func(ctx context.Context, value cty.Value) iter.Seq[*CheckRule]
+
+	// valueOnce helps us to memoize the result from [InputVariable.Value]
+	// so that we'll definitely return a consistent value to every call without
+	// re-running whatever logic is behind the [InputVariable.FinalizeValue]
+	// implementation, which might involve side-effects that could produce
+	// different results
+	valueOnce grapheval.Once[cty.Value]
 }
 
 var _ exprs.Valuer = (*InputVariable)(nil)
@@ -80,6 +88,11 @@ func (i *InputVariable) StaticCheckTraversal(traversal hcl.Traversal) tfdiags.Di
 // Value implements exprs.Valuer.
 func (i *InputVariable) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
 	ctx = withDebugAddr(ctx, i.Addr, "Value")
+	return i.valueOnce.Do(ctx, func(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+		return i.value(ctx)
+	}, i.ValueSourceRange(), "Value of %s", i.Addr)
+}
+func (i *InputVariable) value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	rawV, moreDiags := i.RawValue.Value(ctx)
