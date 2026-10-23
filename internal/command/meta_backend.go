@@ -1422,7 +1422,7 @@ func (m *Meta) backendInitFromConfig(ctx context.Context, c *configs.Backend, en
 	// TODO: test
 	if m.Input() {
 		var err error
-		configVal, err = m.inputForSchema(configVal, schema, view)
+		configVal, err = m.inputForSchema(ctx, configVal, schema, view)
 		if err != nil {
 			diags = diags.Append(fmt.Errorf("Error asking for input to configure backend %q: %w", canonType, err))
 		}
