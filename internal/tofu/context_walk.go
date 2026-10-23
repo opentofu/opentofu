@@ -158,7 +158,6 @@ func (c *Context) graphWalker(operation walkOperation, opts *graphWalkOpts) *Con
 		Operation:               operation,
 		StopContext:             c.runContext,
 		PlanTimestamp:           opts.PlanTimeTimestamp,
-		Encryption:              c.encryption,
 		ProviderFunctionTracker: opts.ProviderFunctionTracker,
 	}
 }
