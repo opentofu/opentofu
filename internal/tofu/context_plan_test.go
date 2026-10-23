@@ -4794,7 +4794,7 @@ func TestContext2Plan_actionInteractions(t *testing.T) {
 }
 
 func TestContext2Plan_taint(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureChanges)
+	SkipExperimental(t, ExperimentalFeatureChanges, ExperimentalFeatureTaint)
 
 	m := testModule(t, "plan-taint")
 	p := testProvider("aws")
@@ -7825,6 +7825,7 @@ resource "test_instance" "b" {
 		if got, want := change.Action, plans.Delete; got != want {
 			t.Errorf("wrong action for %s %s; want %s", instAddr, got, want)
 		}
+		SkipExperimental(t, ExperimentalFeatureActionReason)
 		if got, want := change.ActionReason, plans.ResourceInstanceDeleteBecauseWrongRepetition; got != want {
 			t.Errorf("wrong action reason for %s %s; want %s", instAddr, got, want)
 		}
@@ -7841,6 +7842,7 @@ resource "test_instance" "b" {
 		if got, want := change.Action, plans.Delete; got != want {
 			t.Errorf("wrong action for %s %s; want %s", instAddr, got, want)
 		}
+		SkipExperimental(t, ExperimentalFeatureActionReason)
 		if got, want := change.ActionReason, plans.ResourceInstanceDeleteBecauseWrongRepetition; got != want {
 			t.Errorf("wrong action reason for %s %s; want %s", instAddr, got, want)
 		}

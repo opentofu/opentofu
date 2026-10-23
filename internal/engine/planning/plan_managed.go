@@ -505,12 +505,12 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 			return ret, diags
 		}
 	} else {
-		movedToAddr, movedDiags := p.locateConfigForState(ctx, currentRunAddr, addr.IsCurrent())
+		var movedDiags tfdiags.Diagnostics
+		movedToAddress, movedDiags = p.locateConfigForState(ctx, currentRunAddr, addr.IsCurrent())
 		diags = diags.Append(movedDiags)
 		if diags.HasErrors() {
 			return ret, diags
 		}
-		movedToAddress = movedToAddr
 	}
 	if movedToAddress != nil {
 		log.Printf("[TRACE] Orphaned resource %s is moved to %s", currentRunAddr, *movedToAddress)

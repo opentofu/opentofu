@@ -102,7 +102,7 @@ var (
 	ExperimentalFeatureCondition       = ExperimentalFlag{"Missing Pre/Post Conditions", false}
 	ExperimentalFeatureLocalState      = ExperimentalFlag{"Missing Store locals in state", false}
 	ExperimentalFeatureChecks          = ExperimentalFlag{"Missing Checks", false}
-	ExperimentalFeatureChanges         = ExperimentalFlag{"Missing Plan Changes", false}
+	ExperimentalFeatureChanges         = ExperimentalFlag{"Missing Plan Changes", true}
 	ExperimentalFeatureDeprecated      = ExperimentalFlag{"Missing Deprecated", false}
 	ExperimentalFeatureImport          = ExperimentalFlag{"Missing Importing", false}
 	ExperimentalFeatureLinting         = ExperimentalFlag{"Missing Linting", false}

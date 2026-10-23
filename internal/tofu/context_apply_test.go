@@ -3040,8 +3040,11 @@ func TestContext2Apply_moduleOrphanInheritAlias(t *testing.T) {
 		// This should ideally be ResourceInstanceDeleteBecauseNoModule, but
 		// the codepath deciding this doesn't currently have enough information
 		// to differentiate, and so this is a compromise.
-		if got, want := change.ActionReason, plans.ResourceInstanceDeleteBecauseNoResourceConfig; got != want {
-			t.Errorf("wrong action for %s %s; want %s", addr, got, want)
+		if !experimentalRuntimeEnabled() {
+			SkipExperimental(t, ExperimentalFeatureActionReason)
+			if got, want := change.ActionReason, plans.ResourceInstanceDeleteBecauseNoResourceConfig; got != want {
+				t.Errorf("wrong action for %s %s; want %s", addr, got, want)
+			}
 		}
 	}
 
