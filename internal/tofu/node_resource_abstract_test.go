@@ -208,6 +208,9 @@ func getMockProviderForReadResourceInstanceState() *MockProvider {
 					},
 				}),
 			},
+			ServerCapabilities: providers.ServerCapabilities{
+				MoveResourceState: true, // Some of the tests rely on this
+			},
 		},
 	}
 }

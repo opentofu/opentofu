@@ -8,6 +8,7 @@ package tofu
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -1575,6 +1576,47 @@ func TestContext2Plan_movedResourceToDifferentType(t *testing.T) {
 			wantErrStr: `unsupported attribute "test_string"`,
 		},
 		{
+			name:    "provider without move support at all",
+			oldType: "test_object0",
+			newType: "test_object",
+			config: map[string]string{
+				"main.tf": `
+					resource "test_object" "new" {}
+					moved {
+						from = test_object0.old
+						to   = test_object.new
+					}
+				`,
+			},
+			attrsJSON: []byte(`{}`),
+			mockProvider: &MockProvider{
+				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+					ResourceTypes: map[string]providers.Schema{
+						"test_object": constructProviderSchemaForTesting(map[string]*configschema.Attribute{
+							"test_number": {
+								Type:     cty.Number,
+								Optional: true,
+							},
+						}),
+						"test_object0": constructProviderSchemaForTesting(map[string]*configschema.Attribute{
+							"test_number": {
+								Type:     cty.Number,
+								Optional: true,
+							},
+						}),
+					},
+					ServerCapabilities: providers.ServerCapabilities{
+						MoveResourceState: false,
+					},
+				},
+			},
+			// this error message is built in to OpenTofu to prevent exposing
+			// the generic "not implemented" error from a provider that was
+			// built for an earlier version of the protocol that didn't have
+			// this operation at all.
+			wantErrStr: "Unsupported move between resource types",
+		},
+		{
 			name:    "provider failure",
 			oldType: "test_object0",
 			newType: "test_object",
@@ -1603,6 +1645,9 @@ func TestContext2Plan_movedResourceToDifferentType(t *testing.T) {
 								Optional: true,
 							},
 						}),
+					},
+					ServerCapabilities: providers.ServerCapabilities{
+						MoveResourceState: true,
 					},
 				},
 				MoveResourceStateResponse: &providers.MoveResourceStateResponse{
@@ -1662,6 +1707,9 @@ func TestContext2Plan_movedResourceToDifferentType(t *testing.T) {
 								Required: true,
 							},
 						}),
+					},
+					ServerCapabilities: providers.ServerCapabilities{
+						MoveResourceState: true,
 					},
 				},
 				MoveResourceStateResponse: &providers.MoveResourceStateResponse{
@@ -1723,6 +1771,9 @@ func TestContext2Plan_movedResourceToDifferentType(t *testing.T) {
 							},
 						}),
 					},
+					ServerCapabilities: providers.ServerCapabilities{
+						MoveResourceState: true,
+					},
 				},
 				MoveResourceStateResponse: &providers.MoveResourceStateResponse{
 					TargetState: cty.ObjectVal(map[string]cty.Value{
@@ -1777,6 +1828,9 @@ func TestContext2Plan_movedResourceToDifferentType(t *testing.T) {
 								Required: true,
 							},
 						}),
+					},
+					ServerCapabilities: providers.ServerCapabilities{
+						MoveResourceState: true,
 					},
 				},
 				MoveResourceStateResponse: &providers.MoveResourceStateResponse{
@@ -1833,6 +1887,9 @@ func TestContext2Plan_movedResourceToDifferentType(t *testing.T) {
 							},
 						}),
 					},
+					ServerCapabilities: providers.ServerCapabilities{
+						MoveResourceState: true,
+					},
 				},
 				UpgradeResourceStateResponse: &providers.UpgradeResourceStateResponse{
 					Diagnostics: tfdiags.New(tfdiags.Sourceless(tfdiags.Error, "Showing Upgrade instead of moved", "contrived test")),
@@ -1873,6 +1930,9 @@ func TestContext2Plan_movedResourceToDifferentType(t *testing.T) {
 					ResourceTypes: map[string]providers.Schema{
 						tt.newType: tt.newSchema,
 						tt.oldType: tt.oldSchema,
+					},
+					ServerCapabilities: providers.ServerCapabilities{
+						MoveResourceState: true,
 					},
 				},
 			}
@@ -1934,6 +1994,7 @@ func TestContext2Plan_movedResourceToDifferentType(t *testing.T) {
 		})
 	}
 }
+
 func TestContext2Plan_movedResourceToDifferentProvider(t *testing.T) {
 	// This tests a rare scenario where providers might
 	// change during a move, as brought up here:
@@ -2019,6 +2080,9 @@ func TestContext2Plan_movedResourceToDifferentProvider(t *testing.T) {
 					ResourceTypes: map[string]providers.Schema{
 						tt.resType: tt.schema,
 					},
+					ServerCapabilities: providers.ServerCapabilities{
+						MoveResourceState: true,
+					},
 				},
 			}
 
@@ -2027,6 +2091,9 @@ func TestContext2Plan_movedResourceToDifferentProvider(t *testing.T) {
 				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 					ResourceTypes: map[string]providers.Schema{
 						tt.resType: tt.schema,
+					},
+					ServerCapabilities: providers.ServerCapabilities{
+						MoveResourceState: true,
 					},
 				},
 			}
@@ -2051,6 +2118,239 @@ func TestContext2Plan_movedResourceToDifferentProvider(t *testing.T) {
 
 			assertNoErrors(t, diags)
 		})
+	}
+}
+
+func TestContext2Plan_movedResourceToDifferentTypeWithTargetIdentity(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		"test.tf": `
+			terraform {
+				required_providers {
+					test = {
+						source = "terraform.io/builtin/test"
+					}
+				}
+			}
+
+			moved {
+				from = test_old.a
+				to   = test_new.a
+			}
+
+			resource "test_new" "a" {
+			}
+		`,
+	})
+	state := states.BuildState(func(ss *states.SyncState) {
+		ss.SetResourceInstanceCurrent(
+			mustResourceInstanceAddr(`test_old.a`),
+			&states.ResourceInstanceObjectSrc{
+				AttrsJSON: []byte(`{}`),
+			},
+			mustProviderConfig(`provider["terraform.io/builtin/test"]`),
+			addrs.NoKey,
+		)
+	})
+	provider := &MockProvider{
+		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+			Provider: providers.Schema{
+				Block: &configschema.Block{},
+			},
+			ResourceTypes: map[string]providers.Schema{
+				"test_old": {
+					Block: &configschema.Block{},
+					// Intentionally no IdentitySchema here: we're testing
+					// migration from a resource type that doesn't use it
+					// to a resource type that does.
+				},
+				"test_new": {
+					Block: &configschema.Block{},
+					IdentitySchema: &configschema.Object{
+						Nesting: configschema.NestingSingle,
+						Attributes: map[string]*configschema.Attribute{
+							"reqd": {
+								Type:     cty.String,
+								Required: true,
+							},
+						},
+					},
+					IdentitySchemaVersion: 1,
+				},
+			},
+			ServerCapabilities: providers.ServerCapabilities{
+				MoveResourceState: true,
+			},
+		},
+		MoveResourceStateFn: func(req providers.MoveResourceStateRequest) providers.MoveResourceStateResponse {
+			if req.SourceProviderAddress != "terraform.io/builtin/test" || req.SourceTypeName != "test_old" {
+				return providers.MoveResourceStateResponse{
+					Diagnostics: tfdiags.New(fmt.Errorf("can't move from %s %s", req.SourceProviderAddress, req.SourceTypeName)),
+				}
+			}
+			return providers.MoveResourceStateResponse{
+				TargetState: cty.EmptyObjectVal,
+				TargetIdentity: cty.ObjectVal(map[string]cty.Value{
+					"reqd": cty.StringVal("new identity"),
+				}),
+			}
+		},
+	}
+	tofuCtx := testContext2(t, &ContextOpts{
+		Plugins: plugins.NewLibrary(plugins.ProviderFactories{
+			addrs.MustParseProviderSourceString("terraform.io/builtin/test"): providers.FactoryFixed(provider),
+		}, nil),
+	})
+
+	plan, diags := tofuCtx.Plan(t.Context(), m, state, DefaultPlanOpts)
+	assertNoDiagnostics(t, diags)
+
+	if !provider.MoveResourceStateCalled {
+		t.Error("MoveResourceState was not called")
+	}
+
+	riState := plan.PlannedState.ResourceInstance(mustResourceInstanceAddr(`test_new.a`))
+	if riState == nil {
+		t.Fatal("no planned new state for test_new.a")
+	}
+	if riState.Current == nil {
+		t.Fatal("no planned new current object for test_new.a")
+	}
+	type Identity struct {
+		Reqd string `json:"reqd"`
+	}
+	var identity Identity
+	err := json.Unmarshal(riState.Current.IdentityJSON, &identity)
+	if err != nil {
+		t.Fatalf("failed to unmarshal identity JSON for test_new.a: %s", err)
+	}
+	if got, want := identity.Reqd, "new identity"; got != want {
+		t.Fatalf("unexpected new identity %q; want %q", got, want)
+	}
+}
+
+func TestContext2Plan_movedResourceToDifferentTypeWithSourceAndTargetIdentity(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		"test.tf": `
+			terraform {
+				required_providers {
+					test = {
+						source = "terraform.io/builtin/test"
+					}
+				}
+			}
+
+			moved {
+				from = test_old.a
+				to   = test_new.a
+			}
+
+			resource "test_new" "a" {
+			}
+		`,
+	})
+	state := states.BuildState(func(ss *states.SyncState) {
+		ss.SetResourceInstanceCurrent(
+			mustResourceInstanceAddr(`test_old.a`),
+			&states.ResourceInstanceObjectSrc{
+				AttrsJSON:             []byte(`{}`),
+				IdentityJSON:          []byte(`{"opt":"preserved identity"}`),
+				IdentitySchemaVersion: new(uint64(1)),
+			},
+			mustProviderConfig(`provider["terraform.io/builtin/test"]`),
+			addrs.NoKey,
+		)
+	})
+	provider := &MockProvider{
+		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+			Provider: providers.Schema{
+				Block: &configschema.Block{},
+			},
+			ResourceTypes: map[string]providers.Schema{
+				"test_old": {
+					Block: &configschema.Block{},
+					IdentitySchema: &configschema.Object{
+						Nesting: configschema.NestingSingle,
+						Attributes: map[string]*configschema.Attribute{
+							"opt": {
+								Type:     cty.String,
+								Optional: true,
+							},
+						},
+					},
+					IdentitySchemaVersion: 1,
+				},
+				"test_new": {
+					Block: &configschema.Block{},
+					IdentitySchema: &configschema.Object{
+						Nesting: configschema.NestingSingle,
+						Attributes: map[string]*configschema.Attribute{
+							"reqd": {
+								Type:     cty.String,
+								Required: true,
+							},
+						},
+					},
+					IdentitySchemaVersion: 2,
+				},
+			},
+			ServerCapabilities: providers.ServerCapabilities{
+				MoveResourceState: true,
+			},
+		},
+		MoveResourceStateFn: func(req providers.MoveResourceStateRequest) providers.MoveResourceStateResponse {
+			if req.SourceProviderAddress != "terraform.io/builtin/test" || req.SourceTypeName != "test_old" {
+				return providers.MoveResourceStateResponse{
+					Diagnostics: tfdiags.New(fmt.Errorf("can't move from %s %s", req.SourceProviderAddress, req.SourceTypeName)),
+				}
+			}
+			type Identity struct {
+				Opt string `json:"opt"`
+			}
+			var identity Identity
+			err := json.Unmarshal(req.SourceIdentityJSON, &identity)
+			if err != nil {
+				return providers.MoveResourceStateResponse{
+					Diagnostics: tfdiags.New(err),
+				}
+			}
+			return providers.MoveResourceStateResponse{
+				TargetState: cty.EmptyObjectVal,
+				TargetIdentity: cty.ObjectVal(map[string]cty.Value{
+					"reqd": cty.StringVal(identity.Opt),
+				}),
+			}
+		},
+	}
+	tofuCtx := testContext2(t, &ContextOpts{
+		Plugins: plugins.NewLibrary(plugins.ProviderFactories{
+			addrs.MustParseProviderSourceString("terraform.io/builtin/test"): providers.FactoryFixed(provider),
+		}, nil),
+	})
+
+	plan, diags := tofuCtx.Plan(t.Context(), m, state, DefaultPlanOpts)
+	assertNoDiagnostics(t, diags)
+
+	if !provider.MoveResourceStateCalled {
+		t.Error("MoveResourceState was not called")
+	}
+
+	riState := plan.PlannedState.ResourceInstance(mustResourceInstanceAddr(`test_new.a`))
+	if riState == nil {
+		t.Fatal("no planned new state for test_new.a")
+	}
+	if riState.Current == nil {
+		t.Fatal("no planned new current object for test_new.a")
+	}
+	type Identity struct {
+		Reqd string `json:"reqd"`
+	}
+	var identity Identity
+	err := json.Unmarshal(riState.Current.IdentityJSON, &identity)
+	if err != nil {
+		t.Fatalf("failed to unmarshal identity JSON for test_new.a: %s", err)
+	}
+	if got, want := identity.Reqd, "preserved identity"; got != want {
+		t.Fatalf("unexpected new identity %q; want %q", got, want)
 	}
 }
 
