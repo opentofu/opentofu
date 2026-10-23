@@ -1252,8 +1252,6 @@ resource "test_object" "a" {
 }
 
 func TestContext2Plan_unmarkingSensitiveAttributeForOutput(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
-
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 resource "test_resource" "foo" {
@@ -4720,8 +4718,7 @@ resource "test_resource" "a" {
 }
 
 func TestContext2Plan_outputPrecondition(t *testing.T) {
-	SkipExperimental(t, ExperimentalChangeDiagWording, ExperimentalFlagUnknown)
-
+	SkipExperimental(t, ExperimentalFeatureChecks)
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 variable "boop" {
@@ -5430,8 +5427,6 @@ resource "test_object" "b" {
 // make sure there are no cycles with changes around a provider configured via
 // managed resources.
 func TestContext2Plan_destroyWithResourceConfiguredProvider(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
-
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 resource "test_object" "a" {

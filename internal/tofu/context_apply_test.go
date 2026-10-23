@@ -1893,8 +1893,6 @@ func TestContext2Apply_destroyCrossProviders(t *testing.T) {
 }
 
 func getContextForApply_destroyCrossProviders(t *testing.T, m *configs.Config, providerFactories map[addrs.Provider]providers.Factory) (*Context, *configs.Config, *states.State) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
-
 	state := states.NewState()
 	root := state.EnsureModule(addrs.RootModuleInstance)
 	root.SetResourceInstanceCurrent(
@@ -2379,8 +2377,6 @@ func TestContext2Apply_countDecreaseToOneX(t *testing.T) {
 // ignore the statement, in the same way as it would if an explicit move
 // statement specified the same situation.
 func TestContext2Apply_countDecreaseToOneCorrupted(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
-
 	m := testModule(t, "apply-count-dec-one")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
@@ -2428,8 +2424,11 @@ func TestContext2Apply_countDecreaseToOneCorrupted(t *testing.T) {
 		if got, want := change.Action, plans.Delete; got != want {
 			t.Errorf("wrong action for instance zero %s; want %s", got, want)
 		}
-		if got, want := change.ActionReason, plans.ResourceInstanceDeleteBecauseWrongRepetition; got != want {
-			t.Errorf("wrong action reason for instance zero %s; want %s", got, want)
+		if !experimentalRuntimeEnabled() {
+			SkipExperimental(t, ExperimentalFeatureActionReason)
+			if got, want := change.ActionReason, plans.ResourceInstanceDeleteBecauseWrongRepetition; got != want {
+				t.Errorf("wrong action reason for instance zero %s; want %s", got, want)
+			}
 		}
 	}
 	{
@@ -2458,7 +2457,7 @@ func TestContext2Apply_countDecreaseToOneCorrupted(t *testing.T) {
 }
 
 func TestContext2Apply_countTainted(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
+	SkipExperimental(t, ExperimentalFeatureTaint)
 
 	m := testModule(t, "apply-count-tainted")
 	p := testProvider("aws")
@@ -3102,8 +3101,6 @@ func TestContext2Apply_moduleOrphanProvider(t *testing.T) {
 }
 
 func TestContext2Apply_moduleOrphanGrandchildProvider(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
-
 	m := testModule(t, "apply-module-orphan-provider-inherit")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
@@ -3145,8 +3142,6 @@ func TestContext2Apply_moduleOrphanGrandchildProvider(t *testing.T) {
 }
 
 func TestContext2Apply_moduleGrandchildProvider(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
-
 	m := testModule(t, "apply-module-grandchild-provider-inherit")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
@@ -4331,8 +4326,6 @@ func TestContext2Apply_multiVarMissingState(t *testing.T) {
 }
 
 func TestContext2Apply_outputOrphan(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
-
 	m := testModule(t, "apply-output-orphan")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
@@ -4364,7 +4357,6 @@ func TestContext2Apply_outputOrphan(t *testing.T) {
 }
 
 func TestContext2Apply_outputOrphanModule(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
 
 	m := testModule(t, "apply-output-orphan-module")
 	p := testProvider("aws")
@@ -4401,6 +4393,8 @@ func TestContext2Apply_outputOrphanModule(t *testing.T) {
 	})
 
 	emptyConfig := configs.NewEmptyConfig()
+	// New runtime requires a dir
+	emptyConfig.Module.SourceDir = t.TempDir()
 
 	// NOTE: While updating this test to pass the state in as a Plan argument,
 	// rather than into the testContext2 call above, it previously said
@@ -4422,8 +4416,6 @@ func TestContext2Apply_outputOrphanModule(t *testing.T) {
 }
 
 func TestContext2Apply_providerComputedVar(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
-
 	m := testModule(t, "apply-provider-computed")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
@@ -4457,8 +4449,6 @@ func TestContext2Apply_providerComputedVar(t *testing.T) {
 }
 
 func TestContext2Apply_providerConfigureDisabled(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
-
 	m := testModule(t, "apply-provider-configure-disabled")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
@@ -6491,8 +6481,6 @@ func TestContext2Apply_destroyOutputs(t *testing.T) {
 }
 
 func TestContext2Apply_destroyOrphan(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
-
 	m := testModule(t, "apply-error")
 	p := testProvider("aws")
 	state := states.NewState()
@@ -8356,7 +8344,6 @@ func TestContext2Apply_createBefore_depends(t *testing.T) {
 }
 
 func TestContext2Apply_singleDestroy(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
 	m := testModule(t, "apply-depends-create-before")
 	h := new(HookRecordApplyOrder)
 	p := testProvider("aws")
@@ -8458,8 +8445,6 @@ func TestContext2Apply_singleDestroy(t *testing.T) {
 
 // GH-7824
 func TestContext2Apply_issue7824(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
-
 	p := testProvider("template")
 	p.PlanResourceChangeFn = testDiffFn
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
@@ -9856,7 +9841,7 @@ func TestContext2Apply_invalidIndexRef(t *testing.T) {
 }
 
 func TestContext2Apply_moduleReplaceCycle(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
+	SkipExperimental(t, ExperimentalNewStrategyNeeded)
 
 	for _, mode := range []string{"normal", "cbd"} {
 		var m *configs.Config
@@ -10011,7 +9996,7 @@ func TestContext2Apply_moduleReplaceCycle(t *testing.T) {
 }
 
 func TestContext2Apply_destroyDataCycle(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
+	SkipExperimental(t, ExperimentalBugDataResource)
 
 	m, snap := testModuleWithSnapshot(t, "apply-destroy-data-cycle")
 	p := testProvider("null")
@@ -10365,8 +10350,6 @@ func TestContext2Apply_plannedConnectionRefs(t *testing.T) {
 }
 
 func TestContext2Apply_cbdCycle(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
-
 	m, snap := testModuleWithSnapshot(t, "apply-cbd-cycle")
 	p := testProvider("test")
 	p.PlanResourceChangeFn = testDiffFn
@@ -13006,8 +12989,6 @@ func TestContext2Apply_dataSensitive(t *testing.T) {
 }
 
 func TestContext2Apply_errorRestorePrivateData(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
-
 	// empty config to remove our resource
 	m := testModuleInline(t, map[string]string{
 		"main.tf": "",
