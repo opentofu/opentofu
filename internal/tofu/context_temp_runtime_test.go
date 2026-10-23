@@ -85,7 +85,7 @@ var (
 	ExperimentalBugResourceMarks     = ExperimentalFlag{"Bug Not Transferring Marks from Resource Instance Config Value to Final Value", false}
 	ExperimentalBugTaintOnCreateFail = ExperimentalFlag{"Bug Not Tainted When Create Fails", false}
 	ExperimentalBugProviderPrivate   = ExperimentalFlag{"Bug Provider Private Data Not Preserved", true}
-	ExperimentalBugCircularReference = ExperimentalFlag{"Bug Circular Reference", false}
+	ExperimentalBugCircularReference = ExperimentalFlag{"Bug Circular Reference", true}
 
 	ExperimentalChangeDiagWording     = ExperimentalFlag{"Change Different Diagnostic Wording", false}
 	ExperimentalChangeErrorEarly      = ExperimentalFlag{"Change Detect Error Earlier", false}

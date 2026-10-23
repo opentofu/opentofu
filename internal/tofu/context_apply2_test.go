@@ -5437,12 +5437,24 @@ variable "other_var" {
 		_, diags := ctx.Plan(context.Background(), circular, nil, &PlanOpts{
 			SetVariables: input,
 		})
-		if !diags.HasErrors() || len(diags) != 2 {
-			t.Fatal("expected cycle failure")
-		}
-		for _, diag := range diags {
-			if !strings.HasPrefix(diag.Description().Summary, "Cycle: ") {
-				t.Fatalf("Expected cycle error, got %#v", diag.Description())
+		if experimentalRuntimeEnabled() {
+			// Different cycle detection / reporting logic
+			if !diags.HasErrors() || len(diags) != 4 {
+				t.Fatal("expected cycle failure: ", diags.Err())
+			}
+			for _, diag := range diags {
+				if !strings.HasPrefix(diag.Description().Summary, "Self-referential expressions") {
+					t.Fatalf("Expected cycle error, got %#v", diag.Description())
+				}
+			}
+		} else {
+			if !diags.HasErrors() || len(diags) != 2 {
+				t.Fatal("expected cycle failure: ", diags.Err())
+			}
+			for _, diag := range diags {
+				if !strings.HasPrefix(diag.Description().Summary, "Cycle: ") {
+					t.Fatalf("Expected cycle error, got %#v", diag.Description())
+				}
 			}
 		}
 	})
