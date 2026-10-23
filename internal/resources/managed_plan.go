@@ -158,7 +158,7 @@ func (rt *ManagedResourceType) ImportState(ctx context.Context, req *ManagedReso
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Import returned no resources",
-			fmt.Sprintf("While attempting to import with ID %s, the provider"+
+			fmt.Sprintf("While attempting to import with ID %s, the provider "+
 				"returned no instance states.",
 				req.Target,
 			),

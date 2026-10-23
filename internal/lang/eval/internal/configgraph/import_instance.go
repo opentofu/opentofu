@@ -9,13 +9,19 @@ import (
 	"context"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 )
 
 type ImportInstance struct {
+	Addr      addrs.ConfigResource
 	DeclRange tfdiags.SourceRange
+
+	// Only used in GenConfig path
+	Provider               addrs.Provider
+	ProviderInstanceValuer *OnceValuer
 
 	// CompileImportStatement is a callback function provided by whatever
 	// compiled this [ImportInstance] object that knows how to produce a compiled
@@ -31,6 +37,10 @@ type ImportInstance struct {
 	result grapheval.Once[*ImportStatement]
 }
 
+func (ii *ImportInstance) ProviderInstance(ctx context.Context) (exprs.FromValue[*ProviderInstance], tfdiags.Diagnostics) {
+	return ProviderInstanceFromValuer(ctx, ii.ProviderInstanceValuer, ii.Provider, ii.Addr)
+}
+
 type ImportStatement struct {
 	Addr      addrs.AbsResourceInstance
 	DeclRange tfdiags.SourceRange
@@ -39,11 +49,13 @@ type ImportStatement struct {
 }
 
 // CheckAll implements allChecker.
-func (i *ImportInstance) CheckAll(ctx context.Context) tfdiags.Diagnostics {
-	_, diags := i.Statement(ctx)
+func (ii *ImportInstance) CheckAll(ctx context.Context) tfdiags.Diagnostics {
+	_, diags := ii.Statement(ctx)
+	_, moreDiags := ii.ProviderInstance(ctx)
+	diags = diags.Append(moreDiags)
 	return diags
 }
 
-func (i *ImportInstance) Statement(ctx context.Context) (*ImportStatement, tfdiags.Diagnostics) {
-	return i.result.Do(ctx, i.CompileImportStatement, &i.DeclRange, "import statement")
+func (ii *ImportInstance) Statement(ctx context.Context) (*ImportStatement, tfdiags.Diagnostics) {
+	return ii.result.Do(ctx, ii.CompileImportStatement, &ii.DeclRange, "import statement")
 }

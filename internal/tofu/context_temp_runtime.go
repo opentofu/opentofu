@@ -209,6 +209,7 @@ func (c *Context) newEnginePlan(ctx context.Context, config *configs.Config, pre
 		SkipRefresh:  opts.SkipRefresh,
 
 		ImportCommandTargets: importTargets,
+		GenerateConfigPath:   opts.GenerateConfigPath,
 
 		// TODO: Most other things that are in this package's [PlanOpts]
 		// package, though notably not "SetVariables" because the new runtime

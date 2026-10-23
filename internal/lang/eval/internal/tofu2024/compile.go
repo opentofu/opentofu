@@ -167,6 +167,7 @@ func CompileModuleInstance(
 		ctx,
 		topScope,
 		call.EvalContext.Providers,
+		providersSidechannel,
 		module.Import,
 	)
 	ret.moveStatements = compileMoveStatements(
