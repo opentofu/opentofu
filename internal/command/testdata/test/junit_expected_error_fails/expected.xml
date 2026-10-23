@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite assertions="3" errors="1" failures="0" file="main.tftest.hcl" name="main.tftest.hcl" skipped="1" tests="3" time="0" timestamp="2000-01-01T00:00:00Z">
+    <testcase assertions="1" file="main.tftest.hcl" line="1" name="validate_test_resource" time="0"></testcase>
+    <testcase assertions="1" file="main.tftest.hcl" line="14" name="expected_error" time="0">
+      <error message="Missing expected failure: The checkable object, var.instances, was expected to report an error but did not."></error>
+    </testcase>
+    <testcase assertions="1" file="main.tftest.hcl" line="18" name="validate_test_resource" time="0">
+      <skipped message="Skipped due to error or cancelation."></skipped>
+    </testcase>
+  </testsuite>
+  <testsuite assertions="1" errors="0" failures="0" file="other.tftest.hcl" name="other.tftest.hcl" skipped="0" tests="1" time="0" timestamp="2000-01-01T00:00:00Z">
+    <testcase assertions="1" file="other.tftest.hcl" line="1" name="validate_test_resource_other" time="0"></testcase>
+  </testsuite>
+</testsuites>
