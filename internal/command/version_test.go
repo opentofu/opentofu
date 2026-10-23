@@ -11,7 +11,10 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/hashicorp/go-version"
+	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/command/workdir"
+	"github.com/opentofu/opentofu/internal/modsdir"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/depsfile"
@@ -167,5 +170,78 @@ func TestVersion_json(t *testing.T) {
 `)
 	if diff := cmp.Diff(expected, actual); diff != "" {
 		t.Fatalf("wrong output\n%s", diff)
+	}
+}
+
+func TestModuleVersions(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		records []modsdir.Record
+		expect  []views.ModuleVersions
+	}{
+		{
+			name: "one module",
+			records: []modsdir.Record{
+				{
+					Key:        "eks_cluster",
+					SourceAddr: "registry.opentofu.org/terraform-aws-modules/eks/aws",
+					Version:    version.Must(version.NewVersion("0.1.0")),
+				},
+			},
+			expect: []views.ModuleVersions{
+				{
+					Source:  "registry.opentofu.org/terraform-aws-modules/eks/aws",
+					Version: "0.1.0",
+				},
+			},
+		},
+		{
+			name: "module and submodule",
+			records: []modsdir.Record{
+				{
+					Key:        "eks_cluster",
+					SourceAddr: "registry.opentofu.org/terraform-aws-modules/eks/aws",
+					Version:    version.Must(version.NewVersion("0.1.0")),
+				},
+				{
+					Key:        "eks_cluster.hello",
+					SourceAddr: "./modules/hello",
+				},
+			},
+			expect: []views.ModuleVersions{
+				{
+					Source:  "registry.opentofu.org/terraform-aws-modules/eks/aws",
+					Version: "0.1.0",
+				},
+				{
+					Source:  "registry.opentofu.org/terraform-aws-modules/eks/aws//modules/hello",
+					Version: "0.1.0",
+				},
+			},
+		},
+		{
+			name: "no parent",
+			records: []modsdir.Record{
+				{
+					Key:        "eks_cluster.hello",
+					SourceAddr: "./modules/hello",
+				},
+			},
+			expect: []views.ModuleVersions{
+				{Source: "./modules/hello", Version: "0.0.0"},
+			},
+		},
+		{
+			name:    "no modules",
+			records: []modsdir.Record{},
+			expect:  nil,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			mv := readModuleVersions(tc.records)
+			if diff := cmp.Diff(tc.expect, mv); diff != "" {
+				t.Fatalf("wrong output\n%s", diff)
+			}
+		})
 	}
 }
