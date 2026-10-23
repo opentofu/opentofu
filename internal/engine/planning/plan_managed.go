@@ -451,6 +451,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		ret.PlaceholderValue = current.Value
 		plannedAction = plans.NoOp
 	}
+
 	// (a "desired" object cannot have a Delete action; we handle those cases
 	// in planOrphanManagedResourceInstance and planDeposedManagedResourceInstanceObject below.)
 	ret.PlannedChange = &plans.ResourceInstanceChange{

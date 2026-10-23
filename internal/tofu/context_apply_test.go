@@ -11707,7 +11707,7 @@ locals {
 // Ensure that we can destroy when a provider references a resource that will
 // also be destroyed
 func TestContext2Apply_destroyProviderReference(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDataResource)
+	SkipExperimental(t, ExperimentalBugDataResource, ExperimentalBugProviderDepsInExecgraph)
 
 	m, snap := testModuleWithSnapshot(t, "apply-destroy-provider-refs")
 
