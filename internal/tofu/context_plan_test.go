@@ -866,8 +866,6 @@ module.child:
 
 // https://github.com/hashicorp/terraform/issues/3114
 func TestContext2Plan_moduleOrphansWithProvisioner(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
-
 	m := testModule(t, "plan-modules-remove-provisioners")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
@@ -1896,9 +1894,6 @@ func TestContext2Plan_preventDestroy_dynamicFromManagedResourceDestroyMode(t *te
 }
 
 func TestContext2Plan_preventDestroy_countBad(t *testing.T) {
-	// This test is quite buggy and relies on some old broken functionality in the old engine as far as I can tell.
-	SkipExperimental(t, ExperimentalFlagUnknown)
-
 	m := testModule(t, "plan-prevent-destroy-count-bad")
 	p := testProvider("aws")
 
@@ -2217,7 +2212,7 @@ func TestContext2Plan_blockNestingGroup(t *testing.T) {
 }
 
 func TestContext2Plan_computedDataResource(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
+	SkipExperimental(t, ExperimentalBugDataResource)
 
 	m := testModule(t, "plan-computed-data-resource")
 	p := testProvider("aws")
@@ -2281,8 +2276,6 @@ func TestContext2Plan_computedDataResource(t *testing.T) {
 }
 
 func TestContext2Plan_computedInFunction(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
-
 	m := testModule(t, "plan-computed-in-function")
 	p := testProvider("aws")
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
@@ -2327,7 +2320,7 @@ func TestContext2Plan_computedInFunction(t *testing.T) {
 }
 
 func TestContext2Plan_computedDataCountResource(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
+	SkipExperimental(t, ExperimentalBugDataResource)
 
 	m := testModule(t, "plan-computed-data-count")
 	p := testProvider("aws")
@@ -3163,8 +3156,6 @@ aws_instance.foo.2:
 }
 
 func TestContext2Plan_countIncreaseFromNotSet(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
-
 	m := testModule(t, "plan-count-inc")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
@@ -3243,8 +3234,6 @@ func TestContext2Plan_countIncreaseFromNotSet(t *testing.T) {
 }
 
 func TestContext2Plan_countIncreaseFromOne(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
-
 	m := testModule(t, "plan-count-inc")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
@@ -3327,8 +3316,6 @@ func TestContext2Plan_countIncreaseFromOne(t *testing.T) {
 // the state file, which apparently is a reasonable backwards compatibility
 // concern found in the above 3rd party repo.
 func TestContext2Plan_countIncreaseFromOneCorrupted(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
-
 	m := testModule(t, "plan-count-inc")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
@@ -3428,8 +3415,6 @@ func TestContext2Plan_countIncreaseFromOneCorrupted(t *testing.T) {
 // count is increased. In that case, we should see only the create diffs
 // for the new instances and not any update diffs for the existing ones.
 func TestContext2Plan_countIncreaseWithSplatReference(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
-
 	m := testModule(t, "plan-count-splat-reference")
 	p := testProvider("aws")
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
@@ -3918,8 +3903,6 @@ func TestContext2Plan_pathVar(t *testing.T) {
 }
 
 func TestContext2Plan_diffVar(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
-
 	m := testModule(t, "plan-diffvar")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
@@ -4035,8 +4018,6 @@ func TestContext2Plan_closeProvider(t *testing.T) {
 }
 
 func TestContext2Plan_orphan(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
-
 	m := testModule(t, "plan-orphan")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
@@ -4080,8 +4061,12 @@ func TestContext2Plan_orphan(t *testing.T) {
 			if res.Action != plans.Delete {
 				t.Fatalf("resource %s should be removed", i)
 			}
-			if got, want := ric.ActionReason, plans.ResourceInstanceDeleteBecauseNoResourceConfig; got != want {
-				t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
+			if !experimentalRuntimeEnabled() {
+				SkipExperimental(t, ExperimentalFeatureActionReason)
+
+				if got, want := ric.ActionReason, plans.ResourceInstanceDeleteBecauseNoResourceConfig; got != want {
+					t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
+				}
 			}
 		case "aws_instance.foo":
 			if res.Action != plans.Create {
@@ -4119,8 +4104,6 @@ func TestContext2Plan_shadowUuid(t *testing.T) {
 }
 
 func TestContext2Plan_state(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
-
 	m := testModule(t, "plan-good")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
@@ -4198,8 +4181,6 @@ func TestContext2Plan_state(t *testing.T) {
 }
 
 func TestContext2Plan_requiresReplace(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
-
 	m := testModule(t, "plan-requires-replace")
 	p := testProvider("test")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
@@ -4269,8 +4250,12 @@ func TestContext2Plan_requiresReplace(t *testing.T) {
 				if got, want := ric.Action, plans.DeleteThenCreate; got != want {
 					t.Errorf("wrong action\ngot:  %s\nwant: %s", got, want)
 				}
-				if got, want := ric.ActionReason, plans.ResourceInstanceReplaceBecauseCannotUpdate; got != want {
-					t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
+				if !experimentalRuntimeEnabled() {
+					SkipExperimental(t, ExperimentalFeatureActionReason)
+
+					if got, want := ric.ActionReason, plans.ResourceInstanceReplaceBecauseCannotUpdate; got != want {
+						t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
+					}
 				}
 				checkVals(t, objectVal(t, schema.Block, map[string]cty.Value{
 					"v": cty.StringVal("goodbye"),
@@ -7951,7 +7936,7 @@ func TestContext2Plan_excludedModuleInstance(t *testing.T) {
 }
 
 func TestContext2Plan_dataRefreshedInPlan(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
+	SkipExperimental(t, ExperimentalBugDataResource)
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 data "test_data_source" "d" {

@@ -299,8 +299,6 @@ output "data" {
 }
 
 func TestContext2Apply_destroyThenUpdate(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
-
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 resource "test_instance" "a" {
@@ -5407,7 +5405,7 @@ variable "other_var" {
 
 		state, diags := ctx.Apply(context.Background(), plan, valid, nil)
 		if diags.HasErrors() {
-			SkipExperimental(t, ExperimentalFlagUnknown)
+			SkipExperimental(t, ExperimentalBugDataResource)
 			t.Fatal(diags.Err())
 		}
 
@@ -7152,8 +7150,6 @@ resource "test_resource" "res" {
 // This test has been added when a fix for https://github.com/opentofu/opentofu/issues/3489
 // was provided.
 func TestContext2Apply_ephemeralInModuleWithExpansion(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
-
 	cfgs := map[string]map[string]string{
 		"1 level deep with for_each on module call": {
 			`mod/main.tf`: `
@@ -7425,8 +7421,6 @@ func TestContext2Apply_ephemeralInModuleWithExpansion(t *testing.T) {
 // same module as the ephemeral resource, and one in a different module reached only
 // through the output.
 func TestContext2Apply_ephemeralOutputCrossModuleWriteOnly(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
-
 	m := testModuleInline(t, map[string]string{
 		"child/main.tf": `
 			ephemeral "test_ephemeral_resource" "generate" {
