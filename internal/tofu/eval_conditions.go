@@ -297,3 +297,11 @@ You can correct this by removing references to ephemeral values or by utilizing 
 
 	return strings.TrimSpace(val.AsString()), diags
 }
+
+// evalVerifyErrorMessage is a wrapper around evalCheckErrorMessage that is used for verify blocks, which are a special case of check rules.
+func evalVerifyErrorMessage(expr hcl.Expression, hclCtx *hcl.EvalContext) (string, tfdiags.Diagnostics) {
+	if expr == nil {
+		return "", nil
+	}
+	return evalCheckErrorMessage(expr, hclCtx)
+}
