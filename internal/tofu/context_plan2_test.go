@@ -552,7 +552,7 @@ func TestContext2Plan_resourceChecksInExpandedModule(t *testing.T) {
 }
 
 func TestContext2Plan_dataResourceChecksManagedResourceChange(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureChanges)
+	SkipExperimental(t, ExperimentalFeatureChanges, ExperimentalBugDataResource)
 
 	// This tests the situation where the remote system contains data that
 	// isn't valid per a data resource postcondition, but that the
@@ -1252,8 +1252,6 @@ resource "test_object" "a" {
 }
 
 func TestContext2Plan_unmarkingSensitiveAttributeForOutput(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
-
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 resource "test_resource" "foo" {
@@ -4720,8 +4718,7 @@ resource "test_resource" "a" {
 }
 
 func TestContext2Plan_outputPrecondition(t *testing.T) {
-	SkipExperimental(t, ExperimentalChangeDiagWording, ExperimentalFlagUnknown)
-
+	SkipExperimental(t, ExperimentalFeatureChecks)
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 variable "boop" {
@@ -5430,8 +5427,6 @@ resource "test_object" "b" {
 // make sure there are no cycles with changes around a provider configured via
 // managed resources.
 func TestContext2Plan_destroyWithResourceConfiguredProvider(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
-
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 resource "test_object" "a" {

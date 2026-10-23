@@ -299,8 +299,6 @@ output "data" {
 }
 
 func TestContext2Apply_destroyThenUpdate(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
-
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 resource "test_instance" "a" {
@@ -1933,6 +1931,9 @@ resource "test_object" "x" {
 	})
 
 	p := simpleMockProvider()
+	// Adding this for the new engine implies that the old engine is ignoring this field.
+	// TODO decide if we want to drop this field completely
+	p.GetProviderSchemaResponse.ServerCapabilities.PlanDestroy = true
 	p.PlanResourceChangeFn = func(req providers.PlanResourceChangeRequest) (resp providers.PlanResourceChangeResponse) {
 		if !req.ProposedNewState.IsNull() {
 			// we should only be destroying in this test
@@ -5404,7 +5405,7 @@ variable "other_var" {
 
 		state, diags := ctx.Apply(context.Background(), plan, valid, nil)
 		if diags.HasErrors() {
-			SkipExperimental(t, ExperimentalFlagUnknown)
+			SkipExperimental(t, ExperimentalBugDataResource)
 			t.Fatal(diags.Err())
 		}
 
@@ -5434,12 +5435,24 @@ variable "other_var" {
 		_, diags := ctx.Plan(context.Background(), circular, nil, &PlanOpts{
 			SetVariables: input,
 		})
-		if !diags.HasErrors() || len(diags) != 2 {
-			t.Fatal("expected cycle failure")
-		}
-		for _, diag := range diags {
-			if !strings.HasPrefix(diag.Description().Summary, "Cycle: ") {
-				t.Fatalf("Expected cycle error, got %#v", diag.Description())
+		if experimentalRuntimeEnabled() {
+			// Different cycle detection / reporting logic
+			if !diags.HasErrors() || len(diags) != 4 {
+				t.Fatal("expected cycle failure: ", diags.Err())
+			}
+			for _, diag := range diags {
+				if !strings.HasPrefix(diag.Description().Summary, "Self-referential expressions") {
+					t.Fatalf("Expected cycle error, got %#v", diag.Description())
+				}
+			}
+		} else {
+			if !diags.HasErrors() || len(diags) != 2 {
+				t.Fatal("expected cycle failure: ", diags.Err())
+			}
+			for _, diag := range diags {
+				if !strings.HasPrefix(diag.Description().Summary, "Cycle: ") {
+					t.Fatalf("Expected cycle error, got %#v", diag.Description())
+				}
 			}
 		}
 	})
@@ -6898,8 +6911,11 @@ func TestContext2Apply_enabledForResource(t *testing.T) {
 			t.Fatalf("plan for %s has wrong action %s; want %s", resourceInstAddr, got, want)
 		}
 
-		if got, want := change.ActionReason, plans.ResourceInstanceDeleteBecauseEnabledFalse; got != want {
-			t.Errorf("wrong action reason for %s %s; want %s", resourceInstAddr, got, want)
+		if !experimentalRuntimeEnabled() {
+			SkipExperimental(t, ExperimentalFeatureActionReason)
+			if got, want := change.ActionReason, plans.ResourceInstanceDeleteBecauseEnabledFalse; got != want {
+				t.Errorf("wrong action reason for %s %s; want %s", resourceInstAddr, got, want)
+			}
 		}
 
 		newState, diags := tfCtx.Apply(context.Background(), plan, m, nil)
@@ -7134,8 +7150,6 @@ resource "test_resource" "res" {
 // This test has been added when a fix for https://github.com/opentofu/opentofu/issues/3489
 // was provided.
 func TestContext2Apply_ephemeralInModuleWithExpansion(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
-
 	cfgs := map[string]map[string]string{
 		"1 level deep with for_each on module call": {
 			`mod/main.tf`: `
@@ -7407,8 +7421,6 @@ func TestContext2Apply_ephemeralInModuleWithExpansion(t *testing.T) {
 // same module as the ephemeral resource, and one in a different module reached only
 // through the output.
 func TestContext2Apply_ephemeralOutputCrossModuleWriteOnly(t *testing.T) {
-	SkipExperimental(t, ExperimentalFlagUnknown)
-
 	m := testModuleInline(t, map[string]string{
 		"child/main.tf": `
 			ephemeral "test_ephemeral_resource" "generate" {
