@@ -327,14 +327,6 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		current = prevState.ValueWithPrivate
 	}
 
-	// TODO: ProviderMeta is a rarely-used feature that only really makes
-	// sense when the module and provider are both written by the same
-	// party and the module author is using the provider as a way to
-	// transport module usage telemetry. We should decide whether we want
-	// to keep supporting that, and if so design a way for the relevant
-	// meta value to get from the evaluator into here.
-	providerMetaValue := cty.NilVal
-
 	planChangesCtx := ctx
 	if cb := tracer.StartManagedResourceInstanceObjectPlanChanges; cb != nil {
 		planChangesCtx = cb(ctx, inst.Addr.CurrentObject(), current.Value, unmarkedConfigVal)
@@ -342,7 +334,6 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 	planResp, planDiags := resourceType.PlanChanges(planChangesCtx, &resources.ManagedResourcePlanRequest{
 		Current:            current,
 		DesiredValue:       unmarkedConfigVal,
-		ProviderMetaValue:  providerMetaValue,
 		IgnoreChangesPaths: inst.IgnoreChangesPaths,
 	}, ret.Addr)
 	diags = diags.Append(planDiags)
@@ -416,8 +407,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		createPlanResp, planDiags := resourceType.PlanChanges(ctx, &resources.ManagedResourcePlanRequest{
 			// "Current" is intentionally not set here, because we're asking
 			// for a plan to create a new object matching the configuration.
-			DesiredValue:      unmarkedConfigVal,
-			ProviderMetaValue: providerMetaValue,
+			DesiredValue: unmarkedConfigVal,
 		}, ret.Addr)
 		diags = diags.Append(planDiags)
 		if planDiags.HasErrors() {
@@ -427,7 +417,6 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 			Current: current,
 			// DesiredValue is intentionally not set here, because we're asking
 			// asking for a plan to just destroy what currently exists.
-			ProviderMetaValue: providerMetaValue,
 		}, ret.Addr)
 		diags = diags.Append(planDiags)
 		if planDiags.HasErrors() {
@@ -678,14 +667,6 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 	planResp, planDiags := resourceType.PlanChanges(ctx, &resources.ManagedResourcePlanRequest{
 		Current:      prevState.ValueWithPrivate,
 		DesiredValue: cty.NilVal, // we want to destroy this object
-
-		// TODO: ProviderMeta is a rarely-used feature that only really makes
-		// sense when the module and provider are both written by the same
-		// party and the module author is using the provider as a way to
-		// transport module usage telemetry. We should decide whether we want
-		// to keep supporting that, and if so design a way for the relevant
-		// meta value to get from the evaluator into here.
-		ProviderMetaValue: cty.NilVal,
 	}, addr)
 	diags = diags.Append(planDiags)
 	if planDiags.HasErrors() {

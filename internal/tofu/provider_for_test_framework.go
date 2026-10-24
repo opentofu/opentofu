@@ -154,7 +154,6 @@ func (p providerForTest) ValidateProviderConfig(_ context.Context, _ providers.V
 func (p providerForTest) GetProviderSchema(ctx context.Context) providers.GetProviderSchemaResponse {
 	providerSchema := p.internal.GetProviderSchema(ctx)
 	providerSchema.Provider = providers.Schema{}
-	providerSchema.ProviderMeta = providers.Schema{}
 	return providerSchema
 }
 
