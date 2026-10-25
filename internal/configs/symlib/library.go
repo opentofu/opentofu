@@ -80,7 +80,7 @@ type Table map[string]*Library
 
 func (t Table) library(name string, rng hcl.Range) (*Library, hcl.Diagnostics) {
 	lib, ok := t[name]
-	if !ok {
+	if !ok || lib == nil {
 		return nil, hcl.Diagnostics{{
 			Severity: hcl.DiagError,
 			Summary:  "Missing symbol library",
@@ -113,9 +113,19 @@ func (t Table) TypeContext() typeexpr.TypeContext {
 				Name:      split[2],
 				Range:     call.NameRange,
 			})
+			if ty == cty.NilType {
+				dyn := cty.DynamicPseudoType
+				return &dyn, nil, diags
+			}
 			return &ty, def, diags
 		default:
-			return nil, nil, nil
+			dyn := cty.DynamicPseudoType
+			return &dyn, nil, hcl.Diagnostics{{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid type call structure",
+				Detail:   "Expected symbol type call of the form symbols::namespace::name()",
+				Subject:  call.NameRange.Ptr(),
+			}}
 		}
 	}}
 }
@@ -131,7 +141,9 @@ func (t Table) Value(ref ValueRef) (cty.Value, hcl.Diagnostics) {
 func (t Table) Values() map[string]cty.Value {
 	values := map[string]cty.Value{}
 	for name, lib := range t {
-		values[name] = lib.value()
+		if lib != nil {
+			values[name] = lib.value()
+		}
 	}
 	return values
 }
