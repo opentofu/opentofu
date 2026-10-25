@@ -27,9 +27,11 @@ package kubernetes
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"os"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -37,7 +39,10 @@ import (
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/client-go/dynamic"
 )
 
 const (
@@ -67,6 +72,51 @@ func testACC(t *testing.T) {
 
 func TestBackend_impl(t *testing.T) {
 	var _ backend.Backend = new(Backend)
+}
+
+type fakeSecretClient struct {
+	dynamic.ResourceInterface
+	list func(ctx context.Context, opts metav1.ListOptions) (*unstructured.UnstructuredList, error)
+}
+
+func (f *fakeSecretClient) List(ctx context.Context, opts metav1.ListOptions) (*unstructured.UnstructuredList, error) {
+	return f.list(ctx, opts)
+}
+
+func TestWorkspaces(t *testing.T) {
+	t.Run("forbidden returns default workspace", func(t *testing.T) {
+		b := &Backend{
+			nameSuffix: secretSuffix,
+			kubernetesSecretClient: &fakeSecretClient{
+				list: func(context.Context, metav1.ListOptions) (*unstructured.UnstructuredList, error) {
+					return nil, k8serrors.NewForbidden(secretResource.GroupResource(), "", errors.New("secrets is forbidden"))
+				},
+			},
+		}
+
+		ws, err := b.Workspaces(t.Context())
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if want := []string{backend.DefaultStateName}; !slices.Equal(ws, want) {
+			t.Fatalf("got %v, want %v", ws, want)
+		}
+	})
+
+	t.Run("other errors are returned", func(t *testing.T) {
+		b := &Backend{
+			nameSuffix: secretSuffix,
+			kubernetesSecretClient: &fakeSecretClient{
+				list: func(context.Context, metav1.ListOptions) (*unstructured.UnstructuredList, error) {
+					return nil, k8serrors.NewUnauthorized("unauthorized")
+				},
+			},
+		}
+
+		if _, err := b.Workspaces(t.Context()); !k8serrors.IsUnauthorized(err) {
+			t.Fatalf("got %v, want Unauthorized error", err)
+		}
+	})
 }
 
 func TestBackend(t *testing.T) {
