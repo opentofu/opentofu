@@ -410,12 +410,6 @@ func TestLogin(t *testing.T) {
 		if !strings.Contains(loginOutput, "interrupted: context canceled") {
 			t.Fatalf("aaaa %s", loginOutput)
 		}
-		// exit status 0 (OAuth won) or 1 (ShutdownCh won) are both valid
-
-		// expectedScopes := [2]string{"app1.full_access", "app2.read_only"}
-
-		// var foundScopes [2]string
-		// copy(foundScopes[:], client.Scopes)
 	}, false))
 
 }
