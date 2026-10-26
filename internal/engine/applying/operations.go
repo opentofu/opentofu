@@ -57,7 +57,7 @@ type execOperations struct {
 	// phase. Right now we just wait until the end and save everything at once,
 	// but that's risky because the session we use to write to state storage
 	// might become invalid before the apply phase is complete.
-	workingState *states.SyncState
+	workingState *PersistingState
 
 	// plugins are the provider and provisioner plugins we have available for
 	// use during the apply phase.
@@ -70,7 +70,7 @@ type execOperations struct {
 
 var _ exec.Operations = (*execOperations)(nil)
 
-func compileExecutionGraph(ctx context.Context, plan *plans.Plan, oracle *eval.ApplyOracle, plugins plugins.Plugins) (*execgraph.CompiledGraph, *execOperations, tfdiags.Diagnostics) {
+func compileExecutionGraph(ctx context.Context, plan *plans.Plan, oracle *eval.ApplyOracle, plugins plugins.Plugins, persistState PersistState) (*execgraph.CompiledGraph, *execOperations, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	execGraph, err := execgraph.UnmarshalGraph(plan.ExecutionGraph)
@@ -101,7 +101,7 @@ func compileExecutionGraph(ctx context.Context, plan *plans.Plan, oracle *eval.A
 	}
 
 	ops.priorState = plan.PriorState.SyncWrapper()
-	ops.workingState = plan.PriorState.DeepCopy().SyncWrapper()
+	ops.workingState = NewPersistingState(plan.PriorState.DeepCopy(), persistState)
 	ops.configOracle = oracle
 	ops.plugins = plugins
 

@@ -7,6 +7,7 @@ package tofu
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -336,7 +337,24 @@ func (c *Context) newEngineApply(ctx context.Context, config *configs.Config, pl
 
 	defer done()
 
-	newState, moreDiags := applying.ApplyPlannedChanges(ctx, plan, configInst, plugins)
+	persistState := func(state *states.State) error {
+		var errs []error
+		for _, h := range c.hooks {
+			action, err := h.PostStateUpdate(func(mut *states.State) {
+				// Intentional struct copy
+				*mut = *state
+			})
+			errs = append(errs, err)
+			switch action {
+			case HookActionContinue:
+				continue
+			case HookActionHalt:
+				break
+			}
+		}
+		return errors.Join(errs...)
+	}
+	newState, moreDiags := applying.ApplyPlannedChanges(ctx, plan, configInst, plugins, persistState)
 	diags = diags.Append(moreDiags)
 
 	if len(plan.TargetAddrs) > 0 || len(plan.ExcludeAddrs) > 0 {

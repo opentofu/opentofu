@@ -71,7 +71,7 @@ func operationsForTesting(
 	return &execOperations{
 		priorState:   priorState.SyncWrapper(),
 		configOracle: configOracle,
-		workingState: workingState.SyncWrapper(),
+		workingState: NewPersistingState(workingState, func(state *states.State) error { return nil }),
 		plugins:      plugins,
 	}
 }

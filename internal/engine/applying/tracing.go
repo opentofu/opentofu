@@ -12,6 +12,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/shared"
+	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -79,6 +80,8 @@ type Tracer struct {
 	// plan and apply. [ApplyPlannedChanges] automatically ensures that this
 	// nested tracer reaches the shared codepaths that rely on it.
 	shared.Tracer
+
+	PersistState func(*states.SyncState) error
 }
 
 // ContextWithTracer returns a new context derived from parent that carries

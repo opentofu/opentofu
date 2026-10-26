@@ -387,7 +387,8 @@ func (ops *execOperations) ManagedApply(
 		// back to being the current object for our resource instance before
 		// we return.
 		if fallback != nil {
-			ok := ops.workingState.MaybeRestoreResourceInstanceDeposed(fallback.Addr.InstanceAddr, fallback.Addr.DeposedKey)
+			ok, err := ops.workingState.MaybeRestoreResourceInstanceDeposed(fallback.Addr.InstanceAddr, fallback.Addr.DeposedKey)
+			diags = diags.Append(err)
 			if !ok {
 				diags = diags.Append(tfdiags.Sourceless(
 					tfdiags.Error,
@@ -399,7 +400,7 @@ func (ops *execOperations) ManagedApply(
 				))
 			}
 		}
-		result, moreDiags := ops.resourceInstanceStateObject(ctx, ops.workingState, plan.Addr.InstanceAddr, states.NotDeposed)
+		result, moreDiags := ops.resourceInstanceStateObject(ctx, plan.Addr.InstanceAddr, states.NotDeposed)
 		diags = diags.Append(moreDiags)
 		return result, diags
 	}
@@ -513,14 +514,16 @@ func (ops *execOperations) ManagedApply(
 			diags = diags.Append(fmt.Errorf("failed to encode the new state for %s: %w", plan.Addr, err))
 			return nil, diags
 		}
-		ops.workingState.SetResourceInstanceObjectFull(objAddr, stateSrc)
+		err = ops.workingState.SetResourceInstanceObjectFull(objAddr, stateSrc)
+		diags = diags.Append(err)
 	} else {
 		// A null value for "new state" represents that the object has been
 		// deleted, so we now just need to remove it from the state.
 		// Unfortunately this API is still a little quirkly and wants us to
 		// pass the provider instance address so that it can update some
 		// resource-level and instance-level metadata as a side-effect.
-		ops.workingState.RemoveResourceInstanceObjectFull(objAddr, providerConfigAddr)
+		err := ops.workingState.RemoveResourceInstanceObjectFull(objAddr, providerConfigAddr)
+		diags = diags.Append(err)
 	}
 
 	if state != nil {
@@ -587,7 +590,8 @@ func (ops *execOperations) ManagedForget(
 	}
 
 	// For "forget" we just unconditionally remove the object from the state.
-	ops.workingState.RemoveResourceInstanceObjectFull(objAddr, plan.ProviderInstance)
+	err := ops.workingState.RemoveResourceInstanceObjectFull(objAddr, plan.ProviderInstance)
+	diags = diags.Append(err)
 
 	if provs := plan.ProvisionersAfter; len(provs) != 0 {
 		// Post-apply provisioners are only relevant when there's still an
@@ -633,7 +637,8 @@ func (ops *execOperations) ManagedPerformDepose(
 	}
 
 	deposedKey := deletePlan.Addr.DeposedKey
-	ops.workingState.DeposeResourceInstanceObjectForceKey(deletePlan.Addr.InstanceAddr, deposedKey)
+	err := ops.workingState.DeposeResourceInstanceObjectForceKey(deletePlan.Addr.InstanceAddr, deposedKey)
+	diags = diags.Append(err)
 	return currentObj.IntoDeposed(deposedKey), diags
 }
 
@@ -661,7 +666,7 @@ func (ops *execOperations) ManagedAlreadyDeposed(
 	// This is essentially the same as ResourceInstancePrior, but for deposed
 	// objects rather than "current" objects. Therefore we'll share most of the
 	// implementation between these two.
-	return ops.resourceInstanceStateObject(ctx, ops.priorState, instAddr, deposedKey)
+	return ops.resourceInstanceStateObject(ctx, instAddr, deposedKey)
 }
 
 // ManagedChangeAddr implements [exec.Operations].
@@ -688,7 +693,9 @@ func (ops *execOperations) ManagedChangeAddr(
 		return nil, diags
 	}
 
-	if !ops.workingState.MaybeMoveResourceInstance(currentObj.Addr.InstanceAddr, newAddr) {
+	moved, err := ops.workingState.MaybeMoveResourceInstance(currentObj.Addr.InstanceAddr, newAddr)
+	diags = diags.Append(err)
+	if !moved {
 		// We should not get here with a correctly-constructed execution graph
 		// because currentObj being non-nil means that there should definitely
 		// be something to move.

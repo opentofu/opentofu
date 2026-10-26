@@ -43,7 +43,7 @@ func TestUpdateStateHook(t *testing.T) {
 	}
 
 	target := states.NewState()
-	mockHook.PostStateUpdateFn(target.SyncWrapper())
+	mockHook.PostStateUpdateFn(target)
 
 	if !state.ManagedResourcesEqual(target) {
 		t.Fatalf("wrong state passed to hook: %s", spew.Sdump(target))
@@ -88,7 +88,7 @@ func TestUpdateStateHookRemoved(t *testing.T) {
 		t.Fatal("should call PostStateUpdate")
 	}
 	mockHook.PostStateUpdateCalled = false
-	mockHook.PostStateUpdateFn(target.SyncWrapper())
+	mockHook.PostStateUpdateFn(target)
 
 	// Will remove the entry if it exists
 	if err := updateStateHook(ctx, resAddr1); err != nil {
@@ -99,7 +99,7 @@ func TestUpdateStateHookRemoved(t *testing.T) {
 	if !mockHook.PostStateUpdateCalled {
 		t.Fatal("should call PostStateUpdate")
 	}
-	mockHook.PostStateUpdateFn(target.SyncWrapper())
+	mockHook.PostStateUpdateFn(target)
 
 	// Comparison
 	if !state.ManagedResourcesEqual(target) {

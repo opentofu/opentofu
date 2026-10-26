@@ -29,7 +29,7 @@ import (
 // right for what we need here. A future version of this function will hopefully
 // have a signature more tailored to the needs of the new apply engine, once
 // we have a stronger understanding of what those needs are.
-func ApplyPlannedChanges(ctx context.Context, plan *plans.Plan, configInst *eval.ConfigInstance, plugins plugins.Plugins) (*states.State, tfdiags.Diagnostics) {
+func ApplyPlannedChanges(ctx context.Context, plan *plans.Plan, configInst *eval.ConfigInstance, plugins plugins.Plugins, persistState PersistState) (*states.State, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// We'll make the "shared" tracer also available to everything we call.
@@ -49,7 +49,7 @@ func ApplyPlannedChanges(ctx context.Context, plan *plans.Plan, configInst *eval
 		return nil, diags
 	}
 
-	execGraph, execOps, moreDiags := compileExecutionGraph(ctx, plan, oracle, plugins)
+	execGraph, execOps, moreDiags := compileExecutionGraph(ctx, plan, oracle, plugins, persistState)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		return nil, diags

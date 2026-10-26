@@ -6277,7 +6277,7 @@ resource "test_instance" "a" {
 				t.Errorf("unexpected ephemeral resource content in the state (-want,+got):\n%s", diff)
 			}
 			if diff := cmp.Diff(tc.expectedHookCalls, h.Calls); diff != "" {
-				SkipExperimental(t, ExperimentalBugStateUpdateHook)
+				SkipExperimental(t, ExperimentalFlagUnknown)
 				t.Errorf("unexpected hook calls (-want,+got):\n%s", diff)
 			}
 		})
