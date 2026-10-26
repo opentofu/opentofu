@@ -301,6 +301,8 @@ type ResourceInstanceObjectMeta struct {
 	// part of the system should be interacting with individual move statements
 	// because the planning engine should already have resolved them into a
 	// more convenient, finalized form.
+
+	Status states.ObjectStatus
 }
 
 // BuildResourceInstanceObjectMeta constructs a [ResourceInstanceObjectMeta]
@@ -357,6 +359,8 @@ func BuildResourceInstanceObjectMeta[SV states.ValueOrJSONEquivalent](
 		} else {
 			ret.ReplaceOrder = exprs.Known(resources.ReplaceAnyOrder)
 		}
+
+		ret.Status = state.Status
 
 		// TODO: Everything else
 	}

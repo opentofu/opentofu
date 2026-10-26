@@ -83,7 +83,7 @@ var (
 	ExperimentalBugResourceReadNull  = ExperimentalFlag{"Bug Read Resource Deleted", true}
 	ExperimentalBugDataResource      = ExperimentalFlag{"Bug Data Resource", false}
 	ExperimentalBugResourceMarks     = ExperimentalFlag{"Bug Not Transferring Marks from Resource Instance Config Value to Final Value", false}
-	ExperimentalBugTaintOnCreateFail = ExperimentalFlag{"Bug Not Tainted When Create Fails", false}
+	ExperimentalBugTaintOnCreateFail = ExperimentalFlag{"Bug Not Tainted When Create Fails", true}
 	ExperimentalBugProviderPrivate   = ExperimentalFlag{"Bug Provider Private Data Not Preserved", true}
 	ExperimentalBugCircularReference = ExperimentalFlag{"Bug Circular Reference", true}
 
@@ -119,7 +119,7 @@ var (
 	ExperimentalFeaturePlannedState    = ExperimentalFlag{"Missing Planned State", false}
 	ExperimentalFeatureSensitivity     = ExperimentalFlag{"Missing Sensitivity Handling", false}
 	ExperimentalFeatureSelfReference   = ExperimentalFlag{"Missing Self Reference", false}
-	ExperimentalFeatureTaint           = ExperimentalFlag{"Missing Taint", false}
+	ExperimentalFeatureTaint           = ExperimentalFlag{"Missing Taint", true}
 	ExperimentalFeatureErrorHandling   = ExperimentalFlag{"Missing Error Handling", false}
 	ExperimentalFeatureProviderInput   = ExperimentalFlag{"Missing Provider Input Prompting", false}
 	ExperimentalFeatureModuleEnabled   = ExperimentalFlag{"Missing Module Lifecycle Enabled", true}
