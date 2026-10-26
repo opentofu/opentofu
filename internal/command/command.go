@@ -414,7 +414,7 @@ func RootCommander(help *bool, ver *bool, chdir *string) Command {
 	}}
 
 	root.CommandLine.StringVar(chdir, "chdir", "", "Switch to a different working directory before executing the given subcommand.").SetDisplay("=DIR")
-	root.CommandLine.BoolVar(ver, "version", false, `An alias for the "version" subcommand.`)
+	root.CommandLine.BoolVarWithShortAlias(ver, "version", 'v', false, `An alias for the "version" subcommand.`)
 	root.CommandLine.BoolVar(help, "help", false, "Show this help output, or the help for a specified subcommand.")
 
 	return root
