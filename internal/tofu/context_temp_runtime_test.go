@@ -78,7 +78,7 @@ var (
 
 	ExperimentalBugCancel            = ExperimentalFlag{"Bug Context Cancel", false}
 	ExperimentalBugStateCBD          = ExperimentalFlag{"Bug CreateBeforeDestroy Not Tracked In State", false}
-	ExperimentalBugStateUpdateHook   = ExperimentalFlag{"Bug State Update Hook", false}
+	ExperimentalBugStateUpdateHook   = ExperimentalFlag{"Bug State Update Hook", true}
 	ExperimentalBugMissingResource   = ExperimentalFlag{"Bug Missing Configuration For Resource Instance", true}
 	ExperimentalBugResourceReadNull  = ExperimentalFlag{"Bug Read Resource Deleted", true}
 	ExperimentalBugDataResource      = ExperimentalFlag{"Bug Data Resource", false}

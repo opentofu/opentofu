@@ -226,7 +226,7 @@ func (h *testHook) Stopping() {
 	h.Calls = append(h.Calls, &testHookCall{"Stopping", ""})
 }
 
-func (h *testHook) PostStateUpdate(fn func(*states.SyncState)) (HookAction, error) {
+func (h *testHook) PostStateUpdate(fn func(*states.State)) (HookAction, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.Calls = append(h.Calls, &testHookCall{"PostStateUpdate", ""})

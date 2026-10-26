@@ -28,8 +28,8 @@ func stateHookExpected() *states.State {
 	expected.RootModule().SetOutputValue("sensitive_output", cty.StringVal("it's a secret"), true, "")
 	return expected
 }
-func stateHookMutator(state *states.SyncState) {
-	state.SetOutputValue(addrs.AbsOutputValue{OutputValue: addrs.OutputValue{Name: "sensitive_output"}}, cty.StringVal("it's a secret"), true, "")
+func stateHookMutator(state *states.State) {
+	state.SyncWrapper().SetOutputValue(addrs.AbsOutputValue{OutputValue: addrs.OutputValue{Name: "sensitive_output"}}, cty.StringVal("it's a secret"), true, "")
 }
 
 func TestStateHook(t *testing.T) {
