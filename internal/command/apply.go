@@ -70,6 +70,8 @@ type ApplyCommand struct {
 func (c ApplyCommand) Execute(args *arguments.Apply, view views.Apply) int {
 	var diags tfdiags.Diagnostics
 	ctx := c.CommandContext()
+	ctx, cancel := c.InterruptibleContext(ctx)
+	defer cancel()
 	ctx = tfdiags.ContextWithLintFilterHints(ctx, args.View.LintInclude, args.View.LintExclude)
 	diags = diags.Append(tfdiags.ExperimentalLintWarn(ctx))
 

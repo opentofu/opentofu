@@ -45,6 +45,8 @@ type PlanCommand struct {
 func (c PlanCommand) Execute(args *arguments.Plan, view views.Plan) int {
 	var diags tfdiags.Diagnostics
 	ctx := c.CommandContext()
+	ctx, cancel := c.InterruptibleContext(ctx)
+	defer cancel()
 	ctx = tfdiags.ContextWithLintFilterHints(ctx, args.View.LintInclude, args.View.LintExclude)
 	diags = diags.Append(tfdiags.ExperimentalLintWarn(ctx))
 

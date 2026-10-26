@@ -113,11 +113,14 @@ func (c UnlockCommand) Execute(args *arguments.Unlock, view views.Unlock) int {
 			return 1
 		}
 
+		cancelCtx, cancel := c.InterruptibleContext(ctx)
+		defer cancel()
+
 		desc := "OpenTofu will remove the lock on the remote state.\n" +
 			"This will allow local OpenTofu commands to modify this state, even though it\n" +
 			"may still be in use. Only 'yes' will be accepted to confirm."
 
-		v, err := c.UIInput().Input(context.Background(), &tofu.InputOpts{
+		v, err := c.UIInput().Input(cancelCtx, &tofu.InputOpts{
 			Id:          "force-unlock",
 			Query:       "Do you really want to force-unlock?",
 			Description: desc,

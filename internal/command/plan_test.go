@@ -9,6 +9,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
+	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -57,6 +59,69 @@ func TestPlan(t *testing.T) {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
 	}
 }
+
+func TestPlan_cancelNoInput(t *testing.T) {
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("apply-input"), td)
+	t.Chdir(td)
+
+	// capture logs from all the run inside a buffer, so I can see the context.cancel without changing any code
+	// used in init_test.go:36
+	var logBuf bytes.Buffer
+	saved := log.Writer()
+	log.SetOutput(&logBuf)
+	defer log.SetOutput(saved)
+
+	p := planFixtureProvider()
+	view, done := testView(t)
+
+	// Create a cancelled context to see if it is passed (next I will ask the input to be a pipe so it works)
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// force it to run like a "real" tofu command
+	test = false
+	defer func() { test = true }()
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
+		input:            true,
+		CallerContext:    ctx,
+	}
+
+	// create a pipe that is idle
+	rx, tx := io.Pipe()
+	var once sync.Once
+
+	// and force the code to use it so it hangs on input for address
+	// cancel the context right before you start reading
+	rWrapped := notifyReader{
+		cancel: cancel,
+		once:   &once,
+		Reader: rx,
+	}
+	defaultInputReader = &rWrapped
+
+	// reset all things I set when done to not hog resources
+	defer func() {
+		defaultInputReader = os.Stdin
+		rx.Close()
+		tx.Close()
+	}()
+
+	args := []string{}
+	code := RunCommander(t, PlanCommander(), meta, args)
+	output := done(t).Stderr()
+	if code != 1 {
+		t.Fatalf("bad status code: %d\n\n%s", code, output)
+	}
+
+	if !strings.Contains(logBuf.String(), "interrupted: context canceled") {
+		t.Fatalf("error was not the one I expected to have, %s", output)
+	}
+}
+
 func TestPlan_conditionalSensitive(t *testing.T) {
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply-plan-conditional-sensitive"), td)

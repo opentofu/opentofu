@@ -243,7 +243,7 @@ func (m *Meta) selectWorkspace(ctx context.Context, b backend.Backend) error {
 			// len is always 1 if using Name; 0 means we're using Tags and there
 			// aren't any matching workspaces. Which might be normal and fine, so
 			// let's just ask:
-			name, err := m.UIInput().Input(context.Background(), &tofu.InputOpts{
+			name, err := m.UIInput().Input(ctx, &tofu.InputOpts{
 				Id:          "create-workspace",
 				Query:       "\n[reset][bold][yellow]No workspaces found.[reset]",
 				Description: fmt.Sprintf(inputCloudInitCreateWorkspace, strings.Join(c.WorkspaceMapping.Tags, ", ")),
@@ -290,7 +290,7 @@ func (m *Meta) selectWorkspace(ctx context.Context, b backend.Backend) error {
 	}
 
 	// Otherwise, ask the user to select a workspace from the list of existing workspaces.
-	v, err := m.UIInput().Input(context.Background(), &tofu.InputOpts{
+	v, err := m.UIInput().Input(ctx, &tofu.InputOpts{
 		Id: "select-workspace",
 		Query: fmt.Sprintf(
 			"\n[reset][bold][yellow]The currently selected workspace (%s) does not exist.[reset]",

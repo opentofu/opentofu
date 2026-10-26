@@ -2118,7 +2118,7 @@ func TestMetaBackend_cancelOnNoInput(t *testing.T) {
 	t.Chdir(td)
 
 	// Create a cancelled context to see if it is passed (next I will ask the input to be a pipe so it works)
-	cancellableContext, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
 
 	// force it to run like a "real" tofu command
 	test = false
@@ -2129,7 +2129,7 @@ func TestMetaBackend_cancelOnNoInput(t *testing.T) {
 	m.input = true
 
 	// make suer that the actual call will use the cancellable context
-	m.CallerContext = cancellableContext
+	m.CallerContext = ctx
 
 	// create a pipe that is idle
 	rx, tx := io.Pipe()
@@ -2156,7 +2156,7 @@ func TestMetaBackend_cancelOnNoInput(t *testing.T) {
 	}
 
 	// create the backend
-	_, diags := m.Backend(cancellableContext, opts, encryption.StateEncryptionDisabled())
+	_, diags := m.Backend(ctx, opts, encryption.StateEncryptionDisabled())
 
 	// find the error that shows it
 	if !diags.HasErrors() {

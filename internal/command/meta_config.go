@@ -123,7 +123,7 @@ func (m *Meta) rootModuleCall(ctx context.Context, rootDir string) (configs.Stat
 			if variable.Required() {
 				// User prompts are best efforts, so we accept the input here
 				// and rely on downstream checks to validate it
-				rawVal, err := m.getInput(context.Background(), variable)
+				rawVal, err := m.getInput(ctx, variable)
 				if err != nil {
 					return cty.NilVal, hcl.Diagnostics{&hcl.Diagnostic{
 						Severity: hcl.DiagError,

@@ -6,6 +6,11 @@
 package command
 
 import (
+	"context"
+	"io"
+	"os"
+	"strings"
+	"sync"
 	"testing"
 )
 
@@ -53,7 +58,7 @@ func TestBackendMigrate_promptMultiStatePattern(t *testing.T) {
 		}
 
 		sourceType := "cloud"
-		_, err := m.promptMultiStateMigrationPattern(sourceType)
+		_, err := m.promptMultiStateMigrationPattern(context.Background(), sourceType)
 		if tc.expectedErr == "" && err != nil {
 			t.Fatalf("expected error to be nil, but was %s", err.Error())
 		}
@@ -63,4 +68,51 @@ func TestBackendMigrate_promptMultiStatePattern(t *testing.T) {
 
 		cleanup()
 	}
+}
+
+func TestBackendMigrate_cancelDuringInputReading(t *testing.T) {
+	m := testMetaBackend(t)
+
+	// force it to run like a "real" tofu command
+	test = false
+	defer func() { test = true }()
+
+	// Create a cancelled context to see if it is passed (next I will ask the input to be a pipe so it works)
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// make suer that the actual call will use the cancellable context
+	m.CallerContext = ctx
+
+	// create a pipe that is idle
+	rx, tx := io.Pipe()
+
+	// cancel the context right before you start reading
+	var once sync.Once
+	rWrapped := notifyReader{
+		cancel: cancel,
+		once:   &once,
+		Reader: rx,
+	}
+
+	// and force the code to use it so it hangs on input for address
+	defaultInputReader = &rWrapped
+
+	// reset all things I set when done to not hog resources
+	defer func() {
+		defaultInputReader = os.Stdin
+		rx.Close()
+		tx.Close()
+	}()
+
+	sourceType := "cloud"
+	_, err := m.promptMultiStateMigrationPattern(ctx, sourceType)
+
+	if err == nil {
+		t.Fatal("expected an err to occur")
+	}
+
+	if !strings.Contains(err.Error(), "interrupted: context canceled") {
+		t.Fatalf("error was not the one I expected to have, %s", err)
+	}
+
 }
