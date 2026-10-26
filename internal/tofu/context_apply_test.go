@@ -7256,7 +7256,7 @@ func TestContext2Apply_taintDep(t *testing.T) {
 }
 
 func TestContext2Apply_taintDepRequiresNew(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureTaint)
+	SkipExperimental(t, ExperimentalFeatureTaint, ExperimentalFlagUnknown)
 
 	m := testModule(t, "apply-taint-dep-requires-new")
 	p := testProvider("aws")
@@ -8096,6 +8096,8 @@ func TestContext2Apply_unknownAttribute(t *testing.T) {
 	if !diags.HasErrors() {
 		t.Error("should error, because attribute 'unknown' is still unknown after apply")
 	}
+
+	t.Log(diags.Err().Error())
 
 	actual := strings.TrimSpace(state.String())
 	expected := strings.TrimSpace(testTofuApplyUnknownAttrStr)

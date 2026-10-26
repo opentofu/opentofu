@@ -28,26 +28,38 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 	ctx context.Context,
 	inst *eval.DesiredResourceInstance,
 ) (ret *resourceInstanceObject, diags tfdiags.Diagnostics) {
-	// TODO: Resolve any relevant moves up front here and then use
-	// p.ResourceInstanceObjectMeta directly to request the aggregate metadata.
-	//
-	// This means we'd then be consistently building metadata in the same way
-	// for all objects desired or not, instead of having the current special
-	// case where we ignore the previous state for desired objects.
-	//
-	// (In practice currently that cheat works out okay because the config
-	// metadata for a desired object generally overrides everything from the
-	// previous state anyway, but the intention is to standardize on one
-	// approach everywhere so that there are fewer cases to consider under
-	// future maintenence and we'll have the option of using some state metadata
-	// even for desired objects, which would be useful e.g. for
-	// https://github.com/opentofu/opentofu/issues/4585 .
+	ret = &resourceInstanceObject{
+		Addr:               inst.Addr.CurrentObject(),
+		PrevRoundAddr:      inst.Addr.CurrentObject(),
+		ConfigDependencies: addrs.MakeSet[addrs.AbsResourceInstanceObject](),
+		StateDependencies:  addrs.MakeSet[addrs.AbsResourceInstanceObject](),
+
+		// We'll start off with a completely-unknown placeholder value, but
+		// we might refine this to be more specific as we learn more below.
+		PlaceholderValue: cty.DynamicVal,
+
+		// NOTE: PlannedChange remains nil until we actually produce a plan,
+		// so early returns with errors are not guaranteed to have a valid
+		// change object. Evaluation falls back on using PlaceholderValue
+		// when no planned change is present.
+	}
+	for dep := range inst.RequiredResourceInstances.All() {
+		ret.ConfigDependencies.Add(dep.CurrentObject())
+	}
+
+	prevStateInfo, moveDiags := p.locateStateForConfig(ctx, inst.Addr)
+	diags = diags.Append(moveDiags)
+	if diags.HasErrors() {
+		return ret, diags
+	}
+
 	configMeta := p.oracle.ResourceInstanceObjectMeta(ctx, inst.Addr.CurrentObject())
 	if configMeta == nil {
 		// Should not happen: the evaluator is required to always produce
 		// non-nil metadata for a desired object.
 		panic(fmt.Sprintf("no metadata available for desired object %s", inst.Addr))
 	}
+
 	// Inject import command address if applicable
 	for _, stmt := range p.planCtx.importCommandTargets {
 		if stmt.Addr.Equal(inst.Addr) {
@@ -59,7 +71,8 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 			})
 		}
 	}
-	meta := exec.BuildResourceInstanceObjectMeta(inst.Addr.CurrentObject(), configMeta, (*states.ResourceInstanceObjectFullSrc)(nil))
+
+	meta := exec.BuildResourceInstanceObjectMeta(inst.Addr.CurrentObject(), configMeta, prevStateInfo.state)
 
 	// There are various reasons why we might need to defer final planning
 	// of this to a later round. The following is not exhaustive but is a
@@ -98,25 +111,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		}()
 	}
 
-	ret = &resourceInstanceObject{
-		Addr:               inst.Addr.CurrentObject(),
-		PrevRoundAddr:      inst.Addr.CurrentObject(),
-		ConfigDependencies: addrs.MakeSet[addrs.AbsResourceInstanceObject](),
-		StateDependencies:  addrs.MakeSet[addrs.AbsResourceInstanceObject](),
-		Provider:           meta.Provider,
-
-		// We'll start off with a completely-unknown placeholder value, but
-		// we might refine this to be more specific as we learn more below.
-		PlaceholderValue: cty.DynamicVal,
-
-		// NOTE: PlannedChange remains nil until we actually produce a plan,
-		// so early returns with errors are not guaranteed to have a valid
-		// change object. Evaluation falls back on using PlaceholderValue
-		// when no planned change is present.
-	}
-	for dep := range inst.RequiredResourceInstances.All() {
-		ret.ConfigDependencies.Add(dep.CurrentObject())
-	}
+	ret.Provider = meta.Provider
 	replaceOrder, ok := meta.ReplaceOrder.ValueOk()
 	if ok {
 		ret.ReplaceOrder = replaceOrder
@@ -150,12 +145,6 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		// is "infectious" through dependencies and affects the ordering even
 		// of non-replace actions between different resource instance objects.
 		ret.ReplaceOrder = resources.ReplaceAnyOrder
-	}
-
-	prevStateInfo, moveDiags := p.locateStateForConfig(ctx, inst.Addr)
-	diags = diags.Append(moveDiags)
-	if diags.HasErrors() {
-		return ret, diags
 	}
 
 	if prevStateInfo.state == nil && p.planCtx.refreshOnly && meta.ImportStatement == nil {
@@ -388,6 +377,9 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 	}
 
 	// Incomplete
+	// The ordering here is designed to match the existing runtime where possible,
+	// but some of the priorities (replaceRequest vs replaceTaint) are
+	// somewhat arbitrary.
 	actionReason := plans.ResourceInstanceChangeNoReason
 
 	// Check for if replacement is required
@@ -423,6 +415,11 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		// for a multi-instance resource then it won't match here, but we
 		// have an earlier check in ????? that should
 		// prevent us from getting here in that case.
+	}
+
+	if meta.Status == states.ObjectTainted {
+		forceReplace = true
+		actionReason = plans.ResourceInstanceReplaceBecauseTainted
 	}
 
 	// TODO: Check for resp.Deferred once we've updated package providers to

@@ -427,10 +427,55 @@ func (ops *execOperations) ManagedApply(
 
 	var state *states.ResourceInstanceObjectFull
 	if !resp.NewState.IsNull() {
-		status := states.ObjectTainted
-		if !diags.HasErrors() {
-			status = states.ObjectReady
+		// By this point there must not be any unknown values remaining in our
+		// object, because we've applied the change and we can't save unknowns
+		// in our persistent state. If any are present then we will indicate an
+		// error (which is always a bug in the provider) but we will also replace
+		// them with nulls so that we can successfully save the portions of the
+		// returned value that are known.
+		if !resp.NewState.IsWhollyKnown() {
+			// To generate better error messages, we'll go for a walk through the
+			// value and make a separate diagnostic for each unknown value we
+			// find.
+			// We don't care about the error return here as it's only to help build a more detailed error message
+			_ = cty.Walk(resp.NewState, func(path cty.Path, val cty.Value) (bool, error) {
+				if !val.IsKnown() {
+					pathStr := tfdiags.FormatCtyPath(path)
+					diags = diags.Append(tfdiags.Sourceless(
+						tfdiags.Error,
+						"Provider returned invalid result object after apply",
+						fmt.Sprintf(
+							"After the apply operation, the provider still indicated an unknown value for %s%s. All values must be known after apply, so this is always a bug in the provider and should be reported in the provider's own repository. OpenTofu will still save the other known object values in the state.",
+							plan.Addr, pathStr,
+						),
+					))
+				}
+				return true, nil
+			})
+
+			// NOTE: This operation can potentially be lossy if there are multiple
+			// elements in a set that differ only by unknown values: after
+			// replacing with null these will be merged together into a single set
+			// element. Since we can only get here in the presence of a provider
+			// bug, we accept this because storing a result here is always a
+			// best-effort sort of thing.
+			resp.NewState = cty.UnknownAsNull(resp.NewState)
 		}
+
+		status := states.ObjectReady
+		if plan.Addr.IsCurrent() && diags.HasErrors() {
+			status = states.ObjectTainted
+
+			prev := ops.priorState.ResourceInstanceObjectFull(plan.Addr)
+			if prev != nil && prev.Status == states.ObjectTainted {
+				// If the current object was already tainted, don't modify state
+				// TestContext2Apply_errorRestoreStatus covers this functionallity.
+				// NOTE: we are ignoring the providers new value here, which
+				// may or may not be correct after attempting a provider operation.
+				return nil, diags
+			}
+		}
+
 		state = &states.ResourceInstanceObjectFull{
 			Status:               status,
 			Value:                resp.NewState,
