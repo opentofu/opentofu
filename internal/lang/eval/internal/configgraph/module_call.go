@@ -205,7 +205,10 @@ func (c *ModuleCall) SourceArguments(ctx context.Context) (exprs.FromValue[Modul
 	// If the specified source address is a relative path then we need to
 	// resolve it to absolute based on the source address where this
 	// module call appeared.
-	sourceAddr, err = addrs.ResolveRelativeModuleSource(c.ParentSourceAddr, sourceAddr)
+	// FIXME: the current runtime does not perform this and causes conflicts
+	// while the shims are in place.  We should revisit this once the engine
+	// is stable.
+	/*sourceAddr, err = addrs.ResolveRelativeModuleSource(c.ParentSourceAddr, sourceAddr)
 	if err != nil {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
@@ -214,7 +217,7 @@ func (c *ModuleCall) SourceArguments(ctx context.Context) (exprs.FromValue[Modul
 			Subject:  MaybeHCLSourceRange(c.SourceAddrValuer.ValueSourceRange()),
 		})
 		return exprs.Unknown[ModuleSourceArguments]().WithMarks(allMarks), diags
-	}
+	}*/
 
 	// FIXME: It would be better if the rule for what source address types
 	// are allowed to have version constraints would live somewhere else,

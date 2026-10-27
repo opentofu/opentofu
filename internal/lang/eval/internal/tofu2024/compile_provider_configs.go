@@ -51,7 +51,7 @@ func compileProviderConfig(
 	providers evalglue.Providers,
 	extraMarks cty.ValueMarks,
 ) *configgraph.ProviderConfig {
-	providerAddr := addrs.NewDefaultProvider(config.Name)
+	providerAddr := addrs.ImpliedProviderForUnqualifiedType(config.Name)
 	if reqd, ok := reqdProviders[config.Name]; ok {
 		providerAddr = reqd.Type
 	}
