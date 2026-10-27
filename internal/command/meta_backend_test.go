@@ -2100,13 +2100,17 @@ func TestMetaBackend_configToExtra(t *testing.T) {
 	}
 }
 
+// notifyReader is a wrapper for io.Reader that once it detects a read it cancels the context
+// via the r.cancel func, it does it once to not cancel the func twice
 type notifyReader struct {
 	io.Reader
 	once   *sync.Once
 	cancel context.CancelFunc
 }
 
+// Read is the implementation of the reader interface
 func (r *notifyReader) Read(p []byte) (int, error) {
+	// cancels the context that is attacehd to this struct once
 	r.once.Do(func() { r.cancel() })
 	return r.Reader.Read(p)
 }
@@ -2118,7 +2122,7 @@ func TestMetaBackend_cancelOnNoInput(t *testing.T) {
 	t.Chdir(td)
 
 	// Create a cancelled context to see if it is passed (next I will ask the input to be a pipe so it works)
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 
 	// force it to run like a "real" tofu command
 	test = false

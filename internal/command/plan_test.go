@@ -65,8 +65,6 @@ func TestPlan_cancelNoInput(t *testing.T) {
 	testCopyDir(t, testFixturePath("apply-input"), td)
 	t.Chdir(td)
 
-	// capture logs from all the run inside a buffer, so I can see the context.cancel without changing any code
-	// used in init_test.go:36
 	var logBuf bytes.Buffer
 	saved := log.Writer()
 	log.SetOutput(&logBuf)
@@ -76,7 +74,7 @@ func TestPlan_cancelNoInput(t *testing.T) {
 	view, done := testView(t)
 
 	// Create a cancelled context to see if it is passed (next I will ask the input to be a pipe so it works)
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 
 	// force it to run like a "real" tofu command
 	test = false
@@ -1895,7 +1893,7 @@ func TestPlan_parallelism(t *testing.T) {
 	// calls until we reach the desired concurrency. The cancel func "begin" is
 	// called once we reach the desired concurrency, allowing all apply calls
 	// to proceed in unison.
-	beginCtx, begin := context.WithCancel(context.Background())
+	beginCtx, begin := context.WithCancel(t.Context())
 	// Ensure cancel is fired regardless of test
 	defer begin()
 

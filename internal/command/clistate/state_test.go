@@ -37,7 +37,7 @@ func TestUnlockWithCancelledContext(t *testing.T) {
 	view := views.NewView(streams)
 
 	// Create a context that is already cancelled (simulates Ctrl+C)
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
 	backendView := views.NewBackendHuman(view)

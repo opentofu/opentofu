@@ -78,7 +78,7 @@ func TestBackendMigrate_cancelDuringInputReading(t *testing.T) {
 	defer func() { test = true }()
 
 	// Create a cancelled context to see if it is passed (next I will ask the input to be a pipe so it works)
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 
 	// make suer that the actual call will use the cancellable context
 	m.CallerContext = ctx

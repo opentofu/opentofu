@@ -48,6 +48,11 @@ func (c StateReplaceProviderCommand) Execute(args *arguments.StateReplaceProvide
 
 	ctx := c.CommandContext()
 
+	// This is safe to be done since the execution engine contexts are created by ignoring the cancellation from the parent context.
+	// internal/backend/local/backend.go L314:333
+	ctx, cancel := c.InterruptibleContext(ctx)
+	defer cancel()
+
 	if diags := c.Meta.checkRequiredVersion(ctx); diags != nil {
 		view.Diagnostics(diags)
 		return 1
@@ -145,12 +150,9 @@ func (c StateReplaceProviderCommand) Execute(args *arguments.StateReplaceProvide
 	// Explain the changes
 	view.ReplaceProviderOverview(from, to, willReplace)
 
-	cancelCtx, cancel := c.InterruptibleContext(ctx)
-	defer cancel()
-
 	// Confirm
 	if !args.AutoApprove {
-		v, err := c.UIInput().Input(cancelCtx, &tofu.InputOpts{
+		v, err := c.UIInput().Input(ctx, &tofu.InputOpts{
 			Id:          "confirm",
 			Query:       "\nDo you want to make these changes?",
 			Description: "Only 'yes' will be accepted to continue.",

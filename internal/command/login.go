@@ -508,7 +508,7 @@ func (c *LoginCommand) interactiveGetTokenByCode(ctx context.Context, hostname s
 			tfdiags.Sourceless(
 				tfdiags.Error,
 				"Action aborted",
-				"Current command was aborted by interruptor",
+				"Current command was aborted",
 			),
 		)
 		if err := server.Shutdown(ctx); err != nil {

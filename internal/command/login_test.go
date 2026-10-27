@@ -370,7 +370,7 @@ func TestLogin(t *testing.T) {
 
 	t.Run("cancel input during login confirmation", loginTestCase(func(t *testing.T, m *Meta, closeView func(*testing.T) *terminal.TestOutput) {
 		// Create a cancelled context to see if it is passed (next I will ask the input to be a pipe so it works)
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
 
 		// make suer that the actual call will use the cancellable context

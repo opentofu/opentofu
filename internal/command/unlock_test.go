@@ -138,7 +138,7 @@ func TestUnlockCancelledMidInput(t *testing.T) {
 	unlockView, unlockDone := testView(t)
 
 	// Create a cancelled context to see if it is passed (next I will ask the input to be a pipe so it works)
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 
 	// init backend
 	initView, initDone := testView(t)
@@ -156,7 +156,7 @@ func TestUnlockCancelledMidInput(t *testing.T) {
 		WorkingDir: workdir.NewDir("."),
 		View:       unlockView,
 
-		// make suer that the actual call will use the cancellable context
+		// make sure that the actual call will use the cancellable context
 		CallerContext: ctx,
 	}
 

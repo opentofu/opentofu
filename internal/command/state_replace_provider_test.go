@@ -208,7 +208,7 @@ func TestStateReplaceProvider(t *testing.T) {
 		view, done := testView(t)
 
 		// Create a cancelled context to see if it is passed (next I will ask the input to be a pipe so it works)
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 
 		meta := Meta{
 			WorkingDir: workdir.NewDir("."),
