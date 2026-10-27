@@ -3,7 +3,7 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package globalref
+package globalref_test
 
 import (
 	"context"
@@ -17,11 +17,12 @@ import (
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/initwd"
+	"github.com/opentofu/opentofu/internal/lang/globalref"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/registry"
 )
 
-func testAnalyzer(t *testing.T, fixtureName string) *Analyzer {
+func testAnalyzer(t *testing.T, fixtureName string) *globalref.Analyzer {
 	configDir := filepath.Join("testdata", fixtureName)
 
 	loader := configload.NewLoaderForTests(t, false)
@@ -103,5 +104,5 @@ func testAnalyzer(t *testing.T, fixtureName string) *Analyzer {
 		},
 	}
 
-	return NewAnalyzer(cfg, schemas)
+	return globalref.NewAnalyzer(cfg, schemas)
 }
