@@ -7,6 +7,7 @@ package planning
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -15,6 +16,7 @@ import (
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/zclconf/go-cty/cty"
 )
 
 // planContext is our shared state for the various parts of a single call
@@ -94,10 +96,16 @@ func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, pro
 func (p *planContext) Close(ctx context.Context) (*planContextResult, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
+	objs := p.resourceInstObjs.Close()
+
+	drift, moreDiags := p.managedResourceChangesBetweenUpgradeAndRefresh(ctx, objs)
+	diags = diags.Append(moreDiags)
+
 	result := &planContextResult{
-		ResourceInstanceObjects: p.resourceInstObjs.Close(),
+		ResourceInstanceObjects: objs,
 		PrevRoundState:          p.prevRoundState,
 		RootOutput:              p.rootOutput,
+		DriftedResources:        drift,
 	}
 
 	return result, diags
@@ -119,4 +127,177 @@ type planContextResult struct {
 	// Unfortunately, we need to signal to the apply engine that some things
 	// like output values need to be handled a bit differently.
 	Destroying bool
+
+	DriftedResources []*plans.ResourceInstanceChangeSrc
+}
+
+// driftedResources is a best-effort attempt to compare the current and prior
+// state. If we cannot decode the prior state for some reason, this should only
+// return warnings to help the user correlate any missing resources in the
+// report. This is known to happen when targeting a subset of resources,
+// because the excluded instances will have been removed from the plan and
+// not upgraded.
+//
+// This is a direct port from tofu/context_plan.go
+func (p *planContext) managedResourceChangesBetweenUpgradeAndRefresh(ctx context.Context, objects *resourceInstanceObjects) ([]*plans.ResourceInstanceChangeSrc, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
+	/*TODO potential optimization, compare with skipping the decodes below
+	if newState.ManagedResourcesEqual(oldState) && moves.Changes.Len() == 0 {
+		// Nothing to do, because we only detect and report drift for managed
+		// resource instances.
+		return nil, diags
+	}*/
+
+	p.moveMu.Lock()
+	// Inverted map lookup
+	movesTo := addrs.MakeMap[addrs.AbsResourceInstance, addrs.AbsResourceInstance]()
+	for _, entry := range p.recordedMoves.Elements() {
+		movesTo.Put(entry.Value, entry.Key)
+	}
+	p.moveMu.Unlock()
+
+	var drs []*plans.ResourceInstanceChangeSrc
+
+	for _, obj := range objects.All() {
+		if obj.Addr.InstanceAddr.Resource.Resource.Mode != addrs.ManagedResourceMode {
+			// Drift reporting is only for managed resources
+			continue
+		}
+
+		if !obj.Addr.IsCurrent() {
+			// Not interested in instances that only have deposed objects
+			continue
+		}
+
+		oldIS := obj.UpgradedState
+		if oldIS == nil {
+			// Did not exist before refresh
+			continue
+		}
+
+		provider := obj.Provider
+		addr := obj.Addr.InstanceAddr
+
+		// Previous run address defaults to the current address, but
+		// can differ if the resource moved before refreshing
+		prevRunAddr, ok := movesTo.GetOk(addr)
+		if !ok {
+			prevRunAddr = obj.PrevRoundAddr.InstanceAddr
+		}
+
+		// Note: provider addr is provided twice;
+		// we cannot compare the currently configured provider
+		// with the resource's provider from the previous state, so
+		// we'll skip the provider check. TODO
+		if addr.Resource.Resource.Type != prevRunAddr.Resource.Resource.Type {
+			// We don't report drift in case of resource type change
+			continue
+		}
+		newIS := obj.RefreshedState
+
+		schema, _ := p.providers.ResourceTypeSchema(
+			ctx,
+			provider,
+			addr.Resource.Resource.Mode,
+			addr.Resource.Resource.Type,
+		)
+		if schema == nil {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Warning,
+				"Missing resource schema from provider",
+				fmt.Sprintf("No resource schema found for %s when decoding prior state", addr.Resource.Resource.Type),
+			))
+			continue
+		}
+		ty := schema.Block.ImpliedType()
+
+		// TODO revisit this decode as it's extra work that's not nessesary
+		oldVal, err := oldIS.Value.Decode(ty)
+		if err != nil {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Warning,
+				"Failed to decode resource from state",
+				fmt.Sprintf("Error decoding %q from prior state: %s", addr.String(), err),
+			))
+			continue
+		}
+
+		newVal := cty.NullVal(ty)
+		if newIS != nil {
+			newVal, err = newIS.Value.Decode(ty)
+			if err != nil {
+				diags = diags.Append(tfdiags.Sourceless(
+					tfdiags.Warning,
+					"Failed to decode resource from state",
+					fmt.Sprintf("Error decoding %q from prior state: %s", addr.String(), err),
+				))
+				continue
+			}
+		}
+
+		if oldVal.RawEquals(newVal) && addr.Equal(prevRunAddr) {
+			// No drift if the two values are semantically equivalent
+			// and no move has happened
+			continue
+		}
+
+		// We can detect three types of changes after refreshing state,
+		// only two of which are easily understood as "drift":
+		//
+		// - Resources which were deleted outside OpenTofu;
+		// - Resources where the object value has changed outside OpenTofu;
+		// - Resources which have been moved without other changes.
+		//
+		// All of these are returned as drift, to allow refresh-only plans
+		// to present a full set of changes which will be applied.
+		var action plans.Action
+		switch {
+		case newVal.IsNull():
+			action = plans.Delete
+		case !oldVal.RawEquals(newVal):
+			action = plans.Update
+		default:
+			action = plans.NoOp
+		}
+
+		/* TODO identity
+		oldObjIdentity := oldIS.Identity
+		var newObjIdentity cty.Value
+		if newObj != nil {
+			newObjIdentity = newIS.Identity
+		}*/
+
+		providerInst := obj.ProviderInst
+		change := &plans.ResourceInstanceChange{
+			Addr:        addr,
+			PrevRunAddr: prevRunAddr,
+			ProviderAddr: addrs.AbsProviderConfig{
+				// FIXME: This is a lossy shim to the old-style provider instance
+				// address representation, since our old models aren't yet updated
+				// to support the modern one. It cannot handle a provider config
+				// inside a module call that uses count or for_each.
+				Module:   providerInst.Config.Module.Module(),
+				Provider: providerInst.Config.Config.Provider,
+				Alias:    providerInst.Config.Config.Alias,
+			},
+			Change: plans.Change{
+				Action: action,
+				Before: oldVal,
+				After:  newVal,
+				//BeforeIdentity: oldObjIdentity,
+				//AfterIdentity:  newObjIdentity,
+			},
+		}
+
+		changeSrc, err := change.Encode(schema)
+		if err != nil {
+			diags = diags.Append(err)
+			return nil, diags
+		}
+
+		drs = append(drs, changeSrc)
+	}
+
+	return drs, diags
 }
