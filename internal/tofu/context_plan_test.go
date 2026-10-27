@@ -4066,12 +4066,10 @@ func TestContext2Plan_orphan(t *testing.T) {
 			if res.Action != plans.Delete {
 				t.Fatalf("resource %s should be removed", i)
 			}
-			if !experimentalRuntimeEnabled() {
-				SkipExperimental(t, ExperimentalFeatureActionReason)
+			SkipExperimental(t, ExperimentalFeatureActionReason)
 
-				if got, want := ric.ActionReason, plans.ResourceInstanceDeleteBecauseNoResourceConfig; got != want {
-					t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
-				}
+			if got, want := ric.ActionReason, plans.ResourceInstanceDeleteBecauseNoResourceConfig; got != want {
+				t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
 			}
 		case "aws_instance.foo":
 			if res.Action != plans.Create {
@@ -4255,12 +4253,10 @@ func TestContext2Plan_requiresReplace(t *testing.T) {
 				if got, want := ric.Action, plans.DeleteThenCreate; got != want {
 					t.Errorf("wrong action\ngot:  %s\nwant: %s", got, want)
 				}
-				if !experimentalRuntimeEnabled() {
-					SkipExperimental(t, ExperimentalFeatureActionReason)
+				SkipExperimental(t, ExperimentalFeatureActionReason)
 
-					if got, want := ric.ActionReason, plans.ResourceInstanceReplaceBecauseCannotUpdate; got != want {
-						t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
-					}
+				if got, want := ric.ActionReason, plans.ResourceInstanceReplaceBecauseCannotUpdate; got != want {
+					t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
 				}
 				checkVals(t, objectVal(t, schema.Block, map[string]cty.Value{
 					"v": cty.StringVal("goodbye"),

@@ -12,6 +12,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
+	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/resources"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -98,6 +99,8 @@ type ConfiguredResourceInstanceObjectMeta struct {
 	MoveStatements []refactoring.MoveStatement
 
 	ImportStatement *ImportStatement
+
+	OrphanActionReason plans.ResourceInstanceChangeActionReason
 }
 
 // ResourceInstanceObjectProvider describes the provider-related metadata
