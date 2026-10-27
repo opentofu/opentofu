@@ -16,7 +16,6 @@ import (
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/zclconf/go-cty/cty"
 )
 
 // planContext is our shared state for the various parts of a single call
@@ -142,7 +141,7 @@ type planContextResult struct {
 func (p *planContext) managedResourceChangesBetweenUpgradeAndRefresh(ctx context.Context, objects *resourceInstanceObjects) ([]*plans.ResourceInstanceChangeSrc, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	/*TODO potential optimization, compare with skipping the decodes below
+	/*TODO potential optimization, maybe not needed since we no-longet do decodes below
 	if newState.ManagedResourcesEqual(oldState) && moves.Changes.Len() == 0 {
 		// Nothing to do, because we only detect and report drift for managed
 		// resource instances.
@@ -194,7 +193,6 @@ func (p *planContext) managedResourceChangesBetweenUpgradeAndRefresh(ctx context
 			// We don't report drift in case of resource type change
 			continue
 		}
-		newIS := obj.RefreshedState
 
 		schema, _ := p.providers.ResourceTypeSchema(
 			ctx,
@@ -210,31 +208,9 @@ func (p *planContext) managedResourceChangesBetweenUpgradeAndRefresh(ctx context
 			))
 			continue
 		}
-		ty := schema.Block.ImpliedType()
 
-		// TODO revisit this decode as it's extra work that's not nessesary
-		oldVal, err := oldIS.Value.Decode(ty)
-		if err != nil {
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Warning,
-				"Failed to decode resource from state",
-				fmt.Sprintf("Error decoding %q from prior state: %s", addr.String(), err),
-			))
-			continue
-		}
-
-		newVal := cty.NullVal(ty)
-		if newIS != nil {
-			newVal, err = newIS.Value.Decode(ty)
-			if err != nil {
-				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Warning,
-					"Failed to decode resource from state",
-					fmt.Sprintf("Error decoding %q from prior state: %s", addr.String(), err),
-				))
-				continue
-			}
-		}
+		oldVal := obj.UpgradedValue
+		newVal := obj.RefreshedValue
 
 		if oldVal.RawEquals(newVal) && addr.Equal(prevRunAddr) {
 			// No drift if the two values are semantically equivalent

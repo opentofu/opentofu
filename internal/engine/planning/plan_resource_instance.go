@@ -48,9 +48,11 @@ type resourceInstanceObject struct {
 	// UpgradedState is the previous state value after processing
 	// Upgrades and Moves.
 	UpgradedState *states.ResourceInstanceObjectFullSrc
+	UpgradedValue cty.Value
 	// UpgradedState is the upgraded state value after processing
 	// Refreshes. Will be nil if the object no-longer exists.
 	RefreshedState *states.ResourceInstanceObjectFullSrc
+	RefreshedValue cty.Value
 
 	// PlannedChange is the change that the planning engine has decided for
 	// this resource instance object.
