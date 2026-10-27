@@ -3,7 +3,7 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package globalref
+package globalref_test
 
 import (
 	"sort"
@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/lang/globalref"
 )
 
 func TestAnalyzerMetaReferences(t *testing.T) {
@@ -154,7 +155,7 @@ func TestAnalyzerMetaReferences(t *testing.T) {
 				t.Fatalf("input reference is invalid: %s", diags.Err())
 			}
 
-			ref := Reference{
+			ref := globalref.Reference{
 				ContainerAddr: containerAddr,
 				LocalRef:      localRef,
 			}
