@@ -2267,7 +2267,11 @@ OpenTofu has planned to destroy these objects. If OpenTofu's proposed changes ar
 		if got, want := instPlan.Action, plans.Delete; got != want {
 			t.Errorf("wrong planned action\ngot:  %s\nwant: %s", got, want)
 		}
-		if got, want := instPlan.ActionReason, plans.ResourceInstanceChangeNoReason; got != want {
+		expected := plans.ResourceInstanceChangeNoReason
+		if experimentalRuntimeEnabled() {
+			expected = plans.ResourceInstanceDeleteBecauseWrongRepetition
+		}
+		if got, want := instPlan.ActionReason, expected; got != want {
 			t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
 		}
 	})

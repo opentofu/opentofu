@@ -13,6 +13,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
+	"github.com/opentofu/opentofu/internal/plans"
 )
 
 // ConfiguredResourceInstanceObjectMeta represents the subset of metadata
@@ -200,6 +201,13 @@ func collectResourceInstanceObjectMeta(ctx context.Context, addr addrs.AbsResour
 			// the configuration, so any info we didn't already learn about
 			// this object will need to come from the previous run state, and
 			// that's the caller's responsibility to deal with.
+			ret = append(ret, ModuleConfiguredResourceInstanceObjectMeta{
+				ModuleInstance: moduleInstAddr,
+				ConfiguredResourceInstanceObjectMeta: &ConfiguredResourceInstanceObjectMeta{
+					OrphanActionReason: plans.ResourceInstanceDeleteBecauseNoModule,
+				},
+			})
+
 			break
 		}
 		relativeModuleInst := []addrs.ModuleInstanceStep(leafModuleInstAddr[len(moduleInstAddr):])
