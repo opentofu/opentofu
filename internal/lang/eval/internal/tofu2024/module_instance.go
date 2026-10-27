@@ -20,6 +20,7 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
+	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -169,17 +170,18 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 		return ret
 	}
 
+	// Ensure that ret exists, regarless of module statements
+	if ret == nil {
+		ret = new(evalglue.ConfiguredResourceInstanceObjectMeta)
+	}
+
 	rsrc, ok := c.resourceNodes[addr.InstanceAddr.Resource.Resource]
 	if !ok {
 		// If there's no mention of this resource in this module at all then
 		// we have nothing to say about it, and so any metadata will need to
 		// come either from an ancestor module or from the previous run state.
+		ret.OrphanActionReason = plans.ResourceInstanceDeleteBecauseNoResourceConfig
 		return ret
-	}
-
-	// Ensure that ret exists, regarless of module statements
-	if ret == nil {
-		ret = new(evalglue.ConfiguredResourceInstanceObjectMeta)
 	}
 
 	// We'll start with a suitable placeholder to use if there's no mention
@@ -213,6 +215,8 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 	if !ok {
 		// Only the resource-level settings are used when we're dealing with
 		// a resource instance that is not currently declared in the configuration.
+		ret.OrphanActionReason = configgraph.OrphanActionForInstanceKey(rsrc.InstanceSelector, addr.InstanceAddr.Resource.Key)
+
 		return ret
 	}
 
@@ -305,6 +309,20 @@ func (c *CompiledModuleInstance) ChildModuleInstance(ctx context.Context, addr a
 		return nil
 	}
 	return compiled
+}
+
+// ChildModuleInstanceOrphanReason implements evalglue.CompiledModuleInstance.
+func (c *CompiledModuleInstance) ChildModuleInstanceOrphanReason(ctx context.Context, addr addrs.ModuleCallInstance) plans.ResourceInstanceChangeActionReason {
+	callNode, ok := c.moduleCallNodes[addr.Call]
+	if !ok {
+		return plans.ResourceInstanceDeleteBecauseNoModule
+	}
+	callInsts := callNode.Instances(ctx)
+	_, ok = callInsts[addr.Key]
+	if !ok {
+		return configgraph.OrphanActionForInstanceKey(callNode.InstanceSelector, addr.Key)
+	}
+	return plans.ResourceInstanceChangeNoReason
 }
 
 // ChildModuleInstances implements evalglue.CompiledModuleInstance.

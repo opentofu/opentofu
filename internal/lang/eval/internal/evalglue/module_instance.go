@@ -14,6 +14,7 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
+	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -154,6 +155,8 @@ type CompiledModuleInstance interface {
 	// This blocks on the decision about which instances are available for the
 	// relevant module call.
 	ChildModuleInstance(ctx context.Context, addr addrs.ModuleCallInstance) CompiledModuleInstance
+
+	ChildModuleInstanceOrphanReason(ctx context.Context, addr addrs.ModuleCallInstance) plans.ResourceInstanceChangeActionReason
 
 	// Resources returns a sequence of addresses of all of the resources
 	// that are declared in this module instance.

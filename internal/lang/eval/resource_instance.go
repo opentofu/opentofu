@@ -194,12 +194,27 @@ type ImportStatement = evalglue.ImportStatement
 func collectResourceInstanceObjectMeta(ctx context.Context, addr addrs.AbsResourceInstanceObject, rootModInst evalglue.CompiledModuleInstance) []ModuleConfiguredResourceInstanceObjectMeta {
 	leafModuleInstAddr := addr.InstanceAddr.Module
 	ret := make([]ModuleConfiguredResourceInstanceObjectMeta, 0, len(leafModuleInstAddr))
+	var parent evalglue.CompiledModuleInstance
 	for moduleInstAddr, moduleInst := range evalglue.ModuleInstanceSteps(ctx, rootModInst, leafModuleInstAddr) {
 		if moduleInst == nil {
 			// We've reached the deepest level that is currently declared in
 			// the configuration, so any info we didn't already learn about
 			// this object will need to come from the previous run state, and
 			// that's the caller's responsibility to deal with.
+			if parent != nil {
+				step := moduleInstAddr[len(moduleInstAddr)-1]
+				call := addrs.ModuleCallInstance{
+					Call: addrs.ModuleCall{Name: step.Name},
+					Key:  step.InstanceKey,
+				}
+				ret = append(ret, ModuleConfiguredResourceInstanceObjectMeta{
+					ModuleInstance: moduleInstAddr,
+					ConfiguredResourceInstanceObjectMeta: &ConfiguredResourceInstanceObjectMeta{
+						OrphanActionReason: parent.ChildModuleInstanceOrphanReason(ctx, call),
+					},
+				})
+			}
+
 			break
 		}
 		relativeModuleInst := []addrs.ModuleInstanceStep(leafModuleInstAddr[len(moduleInstAddr):])
@@ -210,6 +225,7 @@ func collectResourceInstanceObjectMeta(ctx context.Context, addr addrs.AbsResour
 				ConfiguredResourceInstanceObjectMeta: meta,
 			})
 		}
+		parent = moduleInst
 	}
 	return ret
 }
