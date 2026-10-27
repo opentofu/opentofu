@@ -446,6 +446,10 @@ func (rt *ManagedResourceType) PlanChanges(ctx context.Context, req *ManagedReso
 	// static attribute flags in the resource type schema.
 	plannedVal := plannedValUnmarked.MarkWithPaths(currentMarks).MarkWithPaths(desiredMarks)
 
+	// This mark is needed for data resources downstream, which
+	// implicitly depend on the entire managed resource having no pending changes.
+	plannedVal = objchange.MarkPendingChanges(schema.Block, currentVal, plannedVal, dispAddr.InstanceAddr)
+
 	return &ManagedResourcePlanResponse{
 		Current: ValueWithPrivate{
 			Value:   currentVal,

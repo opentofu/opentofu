@@ -19,6 +19,7 @@ import (
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
+	"github.com/opentofu/opentofu/internal/plans/objchange"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -127,6 +128,10 @@ func (i *InputVariable) value(ctx context.Context) (cty.Value, tfdiags.Diagnosti
 			finalV = exprs.AsEvalError(cty.UnknownVal(i.TargetType.WithoutOptionalAttributesDeep()))
 		}
 	}
+
+	// Pending changes do not propagate through input vars
+	// See TestContext2Plan_dataReferencesResourceIndirectly
+	finalV = objchange.RemovePendingChangesMark(finalV)
 
 	// Once we have our converted and prepared value we can finally compile
 	// the validation rules against it and then check them.
