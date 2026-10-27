@@ -212,6 +212,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		// TODO Identity passthrough
 		prevState = &resources.ManagedResourceStateWithIdentity{ValueWithPrivate: *prevValue}
 		ret.UpgradedState = prevStateFull
+		ret.UpgradedValue = prevValue.Value
 
 		if prevStateInfo.isImplicit() {
 			// due to a quirk in how moves are handled,
@@ -254,6 +255,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		}
 		if prevState != nil {
 			ret.PlaceholderValue = prevState.Value
+			ret.UpgradedValue = prevState.Value
 
 			if isGeneratingConfiguration {
 				// Pretend the configuration always was the imported value.
@@ -319,6 +321,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		if prevState != nil {
 			// Improve what we know about the potential value
 			ret.PlaceholderValue = prevState.Value
+			ret.RefreshedValue = prevState.Value
 
 			if isGeneratingConfiguration {
 				// Pretend the configuration always was the refreshed value.
@@ -662,6 +665,7 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 	// TODO Identity passthrough
 	prevState := &resources.ManagedResourceStateWithIdentity{ValueWithPrivate: *prevValue}
 	ret.PlaceholderValue = prevState.Value
+	ret.UpgradedValue = prevState.Value
 
 	// Include destroy provisioner dependencies
 	for _, p := range meta.PostCreateProvisioners {
@@ -690,6 +694,7 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 			return ret, diags
 		}
 		ret.PlaceholderValue = prevState.Value
+		ret.RefreshedValue = prevState.Value
 	}
 
 	if prevState.Value.IsNull() {
