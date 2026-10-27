@@ -2,6 +2,10 @@ The v1.13.x release series is supported until **August 1 2027**.
 
 ## 1.13.3 (Unreleased)
 
+BUG FIXES:
+
+- The `-v` short option now again works as an alias for the `version` command and `--version` option, fixing an unintended regression in v1.13.0. ([#4769](https://github.com/opentofu/opentofu/pull/4769))
+
 ## 1.13.2
 
 SECURITY ADVISORIES:
