@@ -32,7 +32,8 @@ type Test struct {
 	// ViewType.
 	Verbose bool
 
-	// JUnit formats in a JUnit XML compatible format.
+	// JUnit provides a way for the user to specify a path where the
+	// results will be written in a junit format.
 	JUnit string
 }
 

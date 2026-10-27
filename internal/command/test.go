@@ -268,12 +268,14 @@ func (c TestCommand) Execute(args *arguments.Test, view views.Test) int {
 
 	if args.JUnit != "" {
 		var junitFile *os.File
-		if args.JUnit == "-" {
+		switch args.JUnit {
+		case "-":
 			junitFile = os.Stdout
-		} else {
+		default:
 			junitFile, err = os.Create(args.JUnit)
 			if err != nil {
-				log.Printf("[ERROR] failed to open JUnit file: %s", err)
+				diags.Append(err)
+				view.Diagnostics(nil, nil, diags)
 				return 1
 			}
 			defer junitFile.Close()
@@ -281,7 +283,8 @@ func (c TestCommand) Execute(args *arguments.Test, view views.Test) int {
 
 		junitOutput := suite.ToJUnit()
 		if err := junitOutput.WriteXML(junitFile); err != nil {
-			log.Printf("[ERROR] failed to write JUnit file: %s", err)
+			diags.Append(err)
+			view.Diagnostics(nil, nil, diags)
 			return 1
 		}
 	}
