@@ -177,7 +177,7 @@ func TestModuleVersions(t *testing.T) {
 	for _, tc := range []struct {
 		name    string
 		records []modsdir.Record
-		expect  []views.ModuleVersions
+		expect  []views.ModuleVersion
 	}{
 		{
 			name: "one module",
@@ -188,7 +188,7 @@ func TestModuleVersions(t *testing.T) {
 					Version:    version.Must(version.NewVersion("0.1.0")),
 				},
 			},
-			expect: []views.ModuleVersions{
+			expect: []views.ModuleVersion{
 				{
 					Source:  "registry.opentofu.org/terraform-aws-modules/eks/aws",
 					Version: "0.1.0",
@@ -208,7 +208,7 @@ func TestModuleVersions(t *testing.T) {
 					SourceAddr: "./modules/hello",
 				},
 			},
-			expect: []views.ModuleVersions{
+			expect: []views.ModuleVersion{
 				{
 					Source:  "registry.opentofu.org/terraform-aws-modules/eks/aws",
 					Version: "0.1.0",
@@ -227,8 +227,8 @@ func TestModuleVersions(t *testing.T) {
 					SourceAddr: "./modules/hello",
 				},
 			},
-			expect: []views.ModuleVersions{
-				{Source: "./modules/hello", Version: "0.0.0"},
+			expect: []views.ModuleVersion{
+				{Source: "./modules/hello"},
 			},
 		},
 		{

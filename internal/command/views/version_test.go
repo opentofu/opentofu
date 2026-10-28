@@ -115,7 +115,7 @@ on darwin_arm64
 		"json printVersion with modules": {
 			viewType: arguments.ViewJSON,
 			viewCall: func(v Version) {
-				v.PrintVersion("0.1.0", "dev", "darwin_arm64", false, map[string]string{}, []ModuleVersions{
+				v.PrintVersion("0.1.0", "dev", "darwin_arm64", false, map[string]string{}, []ModuleVersion{
 					{Source: "registry.opentofu.org/terraform-aws-modules/eks/aws", Version: "20.24.0"},
 				})
 			},
@@ -136,7 +136,7 @@ on darwin_arm64
 		"human printVersion with modules": {
 			viewType: arguments.ViewHuman,
 			viewCall: func(v Version) {
-				v.PrintVersion("0.1.0", "dev", "darwin_arm64", false, map[string]string{}, []ModuleVersions{
+				v.PrintVersion("0.1.0", "dev", "darwin_arm64", false, map[string]string{}, []ModuleVersion{
 					{Source: "registry.opentofu.org/terraform-aws-modules/eks/aws", Version: "20.24.0"},
 				})
 			},
@@ -149,7 +149,7 @@ on darwin_arm64
 		"human printVersion with nested modules": {
 			viewType: arguments.ViewHuman,
 			viewCall: func(v Version) {
-				v.PrintVersion("0.1.0", "dev", "darwin_arm64", false, map[string]string{}, []ModuleVersions{
+				v.PrintVersion("0.1.0", "dev", "darwin_arm64", false, map[string]string{}, []ModuleVersion{
 					{Source: "registry.opentofu.org/terraform-aws-modules/eks/aws", Version: "20.24.0"},
 					{Source: "registry.opentofu.org/terraform-aws-modules/eks/aws//modules/_user_data", Version: "20.24.0"},
 					{Source: "registry.opentofu.org/terraform-aws-modules/eks/aws//modules/eks-managed-node-group", Version: "20.24.0"},
@@ -176,7 +176,7 @@ on darwin_arm64
 		"json printVersion with nested modules": {
 			viewType: arguments.ViewJSON,
 			viewCall: func(v Version) {
-				v.PrintVersion("0.1.0", "dev", "darwin_arm64", false, map[string]string{}, []ModuleVersions{
+				v.PrintVersion("0.1.0", "dev", "darwin_arm64", false, map[string]string{}, []ModuleVersion{
 					{Source: "registry.opentofu.org/terraform-aws-modules/eks/aws", Version: "20.24.0"},
 					{Source: "registry.opentofu.org/terraform-aws-modules/eks/aws//modules/_user_data", Version: "20.24.0"},
 					{Source: "registry.opentofu.org/terraform-aws-modules/eks/aws//modules/eks-managed-node-group", Version: "20.24.0"},
