@@ -17,7 +17,7 @@ import (
 )
 
 // PendingChange is used to "mark" cty values which are derived from the result
-// of a planned change that hasn't yet been applied to the remote object it
+// of a after change that hasn't yet been applied to the remote object it
 // belongs to.
 //
 // [MarkPendingChanges] produces values marked in this way. We can use this in
@@ -40,9 +40,13 @@ type PendingChange struct {
 // ValuePendingChange returns the given value marked as being derived from the
 // result of a pending change to the resource instance given in instAddr.
 func ValuePendingChange(v cty.Value, instAddr addrs.AbsResourceInstance) cty.Value {
-	return v.Mark(PendingChange{
+	return v.Mark(NewPendingChange(instAddr))
+}
+
+func NewPendingChange(instAddr addrs.AbsResourceInstance) any {
+	return PendingChange{
 		instAddr: instAddr.String(),
-	})
+	}
 }
 
 // PrereqChangesForValue takes a value derived from a result of
@@ -85,7 +89,7 @@ func PrereqChangesForValue(v cty.Value) iter.Seq[addrs.AbsResourceInstance] {
 // value except that any unknown values within it are marked as having pending
 // changes associated with the given resource instance address.
 //
-// This is intended for when preparing the approximate planned value for a
+// This is intended for when preparing the approximate after value for a
 // data resource instance whose read is being delayed until the apply phase to
 // await some upstream changes. In that case, we want to treat the unknown parts
 // of that placeholder as also being pending changes so that downstream uses
@@ -109,7 +113,7 @@ func MarkUnknownValuesAsPending(v cty.Value, instAddr addrs.AbsResourceInstance)
 
 // MarkPendingChanges returns a value with the same content as "planned" except
 // that it has additional [PendingChange] marks on any part of the value that
-// differs from "prior".
+// differs from "before".
 //
 // Use this with the prior and planned values for a resource instance to
 // produce a value that can be used for downstream analysis of what else in the
@@ -118,107 +122,133 @@ func MarkUnknownValuesAsPending(v cty.Value, instAddr addrs.AbsResourceInstance)
 // The given values must both conform to the given schema and must be consistent
 // with the rules enforced by [AssertPlanValid], or the behavior is unspecified.
 func MarkPendingChanges(schema *configschema.Block, prior, planned cty.Value, instAddr addrs.AbsResourceInstance) cty.Value {
-	return markPendingChangesSchemaObj(schema.Attributes, schema.BlockTypes, prior, planned, instAddr)
+	return MarkChanges(schema, prior, planned, func(cty.Path) any {
+		return PendingChange{
+			instAddr: instAddr.String(),
+		}
+	})
 }
 
-// markPendingChangesNestedBlockType does the work of [MarkPendingChanges] for a
+type Marker func(cty.Path) any
+
+// MarkChanges returns a value with the same content as "after" except
+// that it has additional marks on any part of the value that differs from
+// "before".
+//
+// The "marker" function is given the path of the discovered change and can
+// use that during the mark construction process. NOTE: For performance reasons
+// the slice underlying the path may be re-used for subsequent calls and should
+// not stored directly, unless path.Copy() is explicitly called in the marking
+// function.
+//
+// The given values must both conform to the given schema and must be consistent
+// with the rules enforced by [AssertPlanValid], or the behavior is unspecified.
+func MarkChanges(schema *configschema.Block, before, after cty.Value, marker Marker) cty.Value {
+	return markChangesSchemaObj(schema.Attributes, schema.BlockTypes, before, after, nil, marker)
+}
+
+// markChangesNestedBlockType does the work of [MarkPendingChanges] for a
 // nested block type.
-func markPendingChangesNestedBlockType(schema *configschema.NestedBlock, prior, planned cty.Value, instAddr addrs.AbsResourceInstance) cty.Value {
-	return markPendingChangesNestedSchemaObj(
+func markChangesNestedBlockType(schema *configschema.NestedBlock, before, after cty.Value, path cty.Path, marker Marker) cty.Value {
+	return markChangesNestedSchemaObj(
 		schema.Nesting, schema.Attributes, schema.BlockTypes,
-		prior, planned,
-		instAddr,
+		before, after,
+		path, marker,
 	)
 }
 
-// markPendingChangesComplexAttr does the work of [MarkPendingChanges] for an
+// markChangesComplexAttr does the work of [MarkPendingChanges] for an
 // attribute that uses "structural typing", where it has a full nested schema
 // rather than just a required type.
-func markPendingChangesComplexAttr(schema *configschema.Object, prior, planned cty.Value, instAddr addrs.AbsResourceInstance) cty.Value {
-	return markPendingChangesNestedSchemaObj(
+func markChangesComplexAttr(schema *configschema.Object, before, after cty.Value, path cty.Path, marker Marker) cty.Value {
+	return markChangesNestedSchemaObj(
 		schema.Nesting, schema.Attributes, nil,
-		prior, planned,
-		instAddr,
+		before, after,
+		path, marker,
 	)
 }
 
-// markPendingChangesSchemaObj deals with the common aspects of top-level
+// markChangesSchemaObj deals with the common aspects of top-level
 // blocks, instances of nested blocks, and structural attributes, all of which
 // involve cty object types.
-func markPendingChangesSchemaObj(
+func markChangesSchemaObj(
 	attrs map[string]*configschema.Attribute,
 	nestedBlocks map[string]*configschema.NestedBlock,
-	prior, planned cty.Value,
-	instAddr addrs.AbsResourceInstance,
+	before, after cty.Value,
+	path cty.Path,
+	marker Marker,
 ) cty.Value {
-	if prior.IsNull() || planned.IsNull() || !planned.IsKnown() {
+	if before.IsNull() || after.IsNull() || !after.IsKnown() {
 		// For null and unknown values we just use the "leaf" implementation
 		// because deep analysis is not possible or needed or possible.
-		return markPendingChangesLeaf(prior, planned, instAddr)
+		return markChangesLeaf(before, after, path, marker)
 	}
 	retAttrs := make(map[string]cty.Value, len(attrs)+len(nestedBlocks))
 	for name, attrS := range attrs {
-		nestedPrior := prior.GetAttr(name)
-		nestedPlanned := planned.GetAttr(name)
+		nestedPrior := before.GetAttr(name)
+		nestedPlanned := after.GetAttr(name)
+		attrPath := append(path, cty.GetAttrStep{Name: name})
 		if attrS.NestedType == nil {
 			// This is a "simple" attribute which is just a regular value
 			// required to conform to some type constraint.
-			retAttrs[name] = markPendingChangesAttr(attrS.Type, nestedPrior, nestedPlanned, instAddr)
+			retAttrs[name] = markChangesAttr(attrS.Type, nestedPrior, nestedPlanned, attrPath, marker)
 		} else {
-			retAttrs[name] = markPendingChangesComplexAttr(attrS.NestedType, nestedPrior, nestedPlanned, instAddr)
+			retAttrs[name] = markChangesComplexAttr(attrS.NestedType, nestedPrior, nestedPlanned, attrPath, marker)
 		}
 	}
 	for name, blockS := range nestedBlocks {
-		nestedPrior := prior.GetAttr(name)
-		nestedPlanned := planned.GetAttr(name)
-		retAttrs[name] = markPendingChangesNestedBlockType(blockS, nestedPrior, nestedPlanned, instAddr)
+		nestedPrior := before.GetAttr(name)
+		nestedPlanned := after.GetAttr(name)
+		attrPath := append(path, cty.GetAttrStep{Name: name})
+		retAttrs[name] = markChangesNestedBlockType(blockS, nestedPrior, nestedPlanned, attrPath, marker)
 	}
 	return cty.ObjectVal(retAttrs)
 }
 
-func markPendingChangesNestedSchemaObj(
+func markChangesNestedSchemaObj(
 	nesting configschema.NestingMode,
 	attrs map[string]*configschema.Attribute,
 	nestedBlocks map[string]*configschema.NestedBlock,
-	prior, planned cty.Value,
-	instAddr addrs.AbsResourceInstance,
+	before, after cty.Value,
+	path cty.Path,
+	marker Marker,
 ) cty.Value {
-	if prior.IsNull() || planned.IsNull() || !planned.IsKnown() {
+	if before.IsNull() || after.IsNull() || !after.IsKnown() {
 		// For null and unknown values we just use the "leaf" implementation
 		// because deep analysis is not possible or needed or possible.
-		return markPendingChangesLeaf(prior, planned, instAddr)
+		return markChangesLeaf(before, after, path, marker)
 	}
 	switch nesting {
 	case configschema.NestingSingle, configschema.NestingGroup:
-		return markPendingChangesSchemaObj(
+		return markChangesSchemaObj(
 			attrs, nestedBlocks,
-			prior, planned,
-			instAddr,
+			before, after,
+			path, marker,
 		)
 	case configschema.NestingList:
-		if lengthEq, _ := planned.Length().Equals(prior.Length()).Unmark(); !lengthEq.IsKnown() || lengthEq.False() {
+		if lengthEq, _ := after.Length().Equals(before.Length()).Unmark(); !lengthEq.IsKnown() || lengthEq.False() {
 			// If the length has changed then there's no need for any deeper
 			// analysis, since we'll be marking the top-level value anyway.
-			return ValuePendingChange(planned, instAddr)
+			return after.Mark(marker(path))
 		}
 		var retElems []cty.Value
-		for k := range planned.Elements() {
+		for k := range after.Elements() {
 			step := cty.IndexStep{Key: k}
 			// These lookups should not be able to fail because we checked that
 			// both lists have the same length above.
-			nestedPrior, _ := step.Apply(prior)
-			nestedPlanned, _ := step.Apply(planned)
-			newVal := markPendingChangesSchemaObj(
+			nestedPrior, _ := step.Apply(before)
+			nestedPlanned, _ := step.Apply(after)
+			newVal := markChangesSchemaObj(
 				attrs, nestedBlocks,
 				nestedPrior, nestedPlanned,
-				instAddr,
+				append(path, step), marker,
 			)
 			retElems = append(retElems, newVal)
 		}
 		// NestingList can represent either a list or a tuple type depending
 		// on whether the nested schema has dynamically-typed items, so we'll
-		// respect whatever kind "planned" had.
-		if ty := planned.Type(); ty.IsTupleType() {
+		// respect whatever kind "after" had.
+		if ty := after.Type(); ty.IsTupleType() {
 			return cty.TupleVal(retElems)
 		} else {
 			if len(retElems) == 0 {
@@ -227,47 +257,47 @@ func markPendingChangesNestedSchemaObj(
 			return cty.ListVal(retElems)
 		}
 	case configschema.NestingMap:
-		if lengthEq, _ := planned.Length().Equals(prior.Length()).Unmark(); !lengthEq.IsKnown() || lengthEq.False() {
+		if lengthEq, _ := after.Length().Equals(before.Length()).Unmark(); !lengthEq.IsKnown() || lengthEq.False() {
 			// If the length has changed then there's no need for any deeper
 			// analysis, since we'll be marking the top-level value anyway.
-			return ValuePendingChange(planned, instAddr)
+			return after.Mark(marker(path))
 		}
-		// If there are any elements of prior that are not also in planned
+		// If there are any elements of before that are not also in after
 		// then we must treat the whole map has having pending changes, because
 		// its set of keys is changing. We'll check this first since there's
 		// no need to construct a new result if we return here.
-		for k := range prior.Elements() {
+		for k := range before.Elements() {
 			step := cty.IndexStep{Key: k}
-			_, err := step.Apply(planned)
+			_, err := step.Apply(after)
 			if err != nil {
-				return ValuePendingChange(planned, instAddr)
+				return after.Mark(marker(append(path, step)))
 			}
 		}
-		// If we get here then we know that the keys in the planned map are a
-		// superset of those in prior, and so we can produce a more precise
+		// If we get here then we know that the keys in the after map are a
+		// superset of those in before, and so we can produce a more precise
 		// result that describes only individual elements as having changed.
 		retElems := make(map[string]cty.Value)
-		for k := range planned.Elements() {
+		for k := range after.Elements() {
 			step := cty.IndexStep{Key: k}
-			nestedPrior, err := step.Apply(prior)
+			nestedPrior, err := step.Apply(before)
 			if err != nil {
-				// If the same key can't be used in prior then that means the
+				// If the same key can't be used in before then that means the
 				// set of keys has changed, so for the sake of our analysis here
-				// we'll treat the prior value as a null value.
-				nestedPrior = cty.NullVal(prior.Type())
+				// we'll treat the before value as a null value.
+				nestedPrior = cty.NullVal(before.Type())
 			}
-			// This should not fail because we're iterating over the planned keys
-			nestedPlanned, _ := step.Apply(planned)
-			retElems[k.AsString()] = markPendingChangesSchemaObj(
+			// This should not fail because we're iterating over the after keys
+			nestedPlanned, _ := step.Apply(after)
+			retElems[k.AsString()] = markChangesSchemaObj(
 				attrs, nestedBlocks,
 				nestedPrior, nestedPlanned,
-				instAddr,
+				append(path, step), marker,
 			)
 		}
 		// NestingMap can represent either a map or an object type depending
 		// on whether the nested schema has dynamically-typed items, so we'll
-		// respect whatever kind "planned" had.
-		if ty := planned.Type(); ty.IsObjectType() {
+		// respect whatever kind "after" had.
+		if ty := after.Type(); ty.IsObjectType() {
 			return cty.ObjectVal(retElems)
 		} else {
 			if len(retElems) == 0 {
@@ -278,53 +308,49 @@ func markPendingChangesNestedSchemaObj(
 	case configschema.NestingSet:
 		// cty doesn't support nested marks inside a set anyway, so there's
 		// no point in doing deep analysis here: we'll just treat this as a leaf.
-		return markPendingChangesLeaf(prior, planned, instAddr)
+		return markChangesLeaf(before, after, path, marker)
 	default:
 		// The above should be exhaustive for all possible nesting modes.
 		panic(fmt.Sprintf("unsupported nesting mode %#v", nesting))
 	}
 }
 
-// markPendingChangesAttr does the work of [MarkPendingChanges] for a
+// markChangesAttr does the work of [MarkChanges] for a
 // leaf non-structural attribute, or a nested part of one recursively.
-//
-// The second return value is true if a [PendingChange] mark was added anywhere
-// inside the returned value, so that the caller doesn't need to do a deep
-// mark search to discover that.
-func markPendingChangesAttr(ty cty.Type, prior, planned cty.Value, instAddr addrs.AbsResourceInstance) cty.Value {
-	if prior.IsNull() || planned.IsNull() || !planned.IsKnown() {
+func markChangesAttr(ty cty.Type, before, after cty.Value, path cty.Path, marker Marker) cty.Value {
+	if before.IsNull() || after.IsNull() || !after.IsKnown() {
 		// For null and unknown values we just use the "leaf" implementation
 		// because deep analysis is not possible or needed or possible.
-		return markPendingChangesLeaf(prior, planned, instAddr)
+		return markChangesLeaf(before, after, path, marker)
 	}
 	if ty.HasDynamicTypes() {
 		// If the schema allows various types but the two values we have are of
 		// the same dynamic type then we'll compare them by their dynamic type
 		// so we can get a more precise result. Values of different types are
 		// never equal though, so it's okay not to do this when they differ.
-		if plannedTy := planned.Type(); plannedTy.Equals(prior.Type()) {
-			ty = plannedTy
+		if afterTy := after.Type(); afterTy.Equals(before.Type()) {
+			ty = afterTy
 		}
 	}
 	if ty.IsObjectType() {
-		return markPendingChangesObject(ty.AttributeTypes(), prior, planned, instAddr)
+		return markChangesObject(ty.AttributeTypes(), before, after, path, marker)
 	}
 	if ty.IsTupleType() {
-		return markPendingChangesTuple(ty.TupleElementTypes(), prior, planned, instAddr)
+		return markChangesTuple(ty.TupleElementTypes(), before, after, path, marker)
 	}
 	if ty.IsListType() {
-		return markPendingChangesList(ty.ElementType(), prior, planned, instAddr)
+		return markChangesList(ty.ElementType(), before, after, path, marker)
 	}
 	if ty.IsMapType() {
-		return markPendingChangesMap(ty.ElementType(), prior, planned, instAddr)
+		return markChangesMap(ty.ElementType(), before, after, path, marker)
 	}
 	// NOTE: We don't have recursive treatment for sets because cty doesn't
 	// allow marking individual nested items inside a set anyway, so there's
 	// no point in trying to compute it precisely.
-	return markPendingChangesLeaf(prior, planned, instAddr)
+	return markChangesLeaf(before, after, path, marker)
 }
 
-func markPendingChangesObject(atys map[string]cty.Type, prior, planned cty.Value, instAddr addrs.AbsResourceInstance) cty.Value {
+func markChangesObject(atys map[string]cty.Type, before, after cty.Value, path cty.Path, marker Marker) cty.Value {
 	if len(atys) == 0 {
 		// There is only one known, non-null value of the empty object type,
 		// so there can't possibly be any changes and so we can skip
@@ -333,9 +359,10 @@ func markPendingChangesObject(atys map[string]cty.Type, prior, planned cty.Value
 	}
 	retAttrs := make(map[string]cty.Value, len(atys))
 	for name, aty := range atys {
-		nestedPrior := prior.GetAttr(name)
-		nestedPlanned := planned.GetAttr(name)
-		retAttrs[name] = markPendingChangesAttr(aty, nestedPrior, nestedPlanned, instAddr)
+		step := cty.GetAttrStep{Name: name}
+		nestedPrior := before.GetAttr(name)
+		nestedPlanned := after.GetAttr(name)
+		retAttrs[name] = markChangesAttr(aty, nestedPrior, nestedPlanned, append(path, step), marker)
 	}
 	// Because the attributes of an object are fixed as part of the type we
 	// can assume that the overall object is not a pending change, so any
@@ -343,7 +370,7 @@ func markPendingChangesObject(atys map[string]cty.Type, prior, planned cty.Value
 	return cty.ObjectVal(retAttrs)
 }
 
-func markPendingChangesTuple(etys []cty.Type, prior, planned cty.Value, instAddr addrs.AbsResourceInstance) cty.Value {
+func markChangesTuple(etys []cty.Type, before, after cty.Value, path cty.Path, marker Marker) cty.Value {
 	if len(etys) == 0 {
 		// There is only one known, non-null value of the empty tuple type,
 		// so there can't possibly be any changes and so we can skip
@@ -356,9 +383,9 @@ func markPendingChangesTuple(etys []cty.Type, prior, planned cty.Value, instAddr
 		// These lookups can't fail because the length of a tuple is chosen
 		// by its type rather than its value, and the caller is required to
 		// make sure both values have the same type.
-		nestedPrior, _ := step.Apply(prior)
-		nestedPlanned, _ := step.Apply(planned)
-		retElems[i] = markPendingChangesAttr(ety, nestedPrior, nestedPlanned, instAddr)
+		nestedPrior, _ := step.Apply(before)
+		nestedPlanned, _ := step.Apply(after)
+		retElems[i] = markChangesAttr(ety, nestedPrior, nestedPlanned, append(path, step), marker)
 	}
 	// Because the element types of a a tuple are fixed as part of the type we
 	// can assume that the overall tuple is not a pending change, so any
@@ -366,34 +393,34 @@ func markPendingChangesTuple(etys []cty.Type, prior, planned cty.Value, instAddr
 	return cty.TupleVal(retElems)
 }
 
-func markPendingChangesList(ety cty.Type, prior, planned cty.Value, instAddr addrs.AbsResourceInstance) cty.Value {
+func markChangesList(ety cty.Type, before, after cty.Value, path cty.Path, marker Marker) cty.Value {
 	// For lists the length is part of the value rather than part of the type,
 	// so we'll compare across both lists for any index they both have in common
 	// but we will also need to add a broad mark if the lengths of the lists are
-	// different. We expect to have been called by [markPendingChangesAttr] so
+	// different. We expect to have been called by [markChangesAttr] so
 	// that both values are guaranteed to be known and not null, but they could
 	// still be marked.
-	priorUnmarked, _ := prior.Unmark()
-	plannedUnmarked, plannedMarks := planned.Unmark()
-	priorLen := priorUnmarked.LengthInt()
-	plannedLen := plannedUnmarked.LengthInt()
-	commonLen := min(priorLen, plannedLen)
-	retElems := make([]cty.Value, plannedLen)
+	beforeUnmarked, _ := before.Unmark()
+	afterUnmarked, afterMarks := after.Unmark()
+	beforeLen := beforeUnmarked.LengthInt()
+	afterLen := afterUnmarked.LengthInt()
+	commonLen := min(beforeLen, afterLen)
+	retElems := make([]cty.Value, afterLen)
 	// We'll start with the indices that both lists have, where we'll compare
 	// the element values directly.
 	for i := range commonLen {
 		step := cty.IndexStep{Key: cty.NumberIntVal(int64(i))}
 		// These lookups can't fail because we know that there are at least
 		// commonLen elements in both lists.
-		nestedPrior, _ := step.Apply(priorUnmarked)
-		nestedPlanned, _ := step.Apply(plannedUnmarked)
-		retElems[i] = markPendingChangesAttr(ety, nestedPrior, nestedPlanned, instAddr)
+		nestedPrior, _ := step.Apply(beforeUnmarked)
+		nestedPlanned, _ := step.Apply(afterUnmarked)
+		retElems[i] = markChangesAttr(ety, nestedPrior, nestedPlanned, append(path, step), marker)
 	}
-	// Now we'll deal with elements that are only present in "planned", which
+	// Now we'll deal with elements that are only present in "after", which
 	// therefore have no nested changes.
-	for i := commonLen; i < plannedLen; i++ {
+	for i := commonLen; i < afterLen; i++ {
 		step := cty.IndexStep{Key: cty.NumberIntVal(int64(i))}
-		retElems[i], _ = step.Apply(plannedUnmarked)
+		retElems[i], _ = step.Apply(afterUnmarked)
 	}
 	var ret cty.Value
 	if len(retElems) != 0 {
@@ -404,37 +431,38 @@ func markPendingChangesList(ety cty.Type, prior, planned cty.Value, instAddr add
 	// If the length has changed then our entire result value must be marked,
 	// because e.g. length(list) itself would produce a different result after
 	// the change has been applied.
-	if priorLen != plannedLen {
-		ret = ValuePendingChange(ret, instAddr)
+	if beforeLen != afterLen {
+		ret = ret.Mark(marker(path))
 	}
-	return ret.WithMarks(plannedMarks)
+	return ret.WithMarks(afterMarks)
 }
 
-func markPendingChangesMap(ety cty.Type, prior, planned cty.Value, instAddr addrs.AbsResourceInstance) cty.Value {
+func markChangesMap(ety cty.Type, before, after cty.Value, path cty.Path, marker Marker) cty.Value {
 	// For maps the set of keys is part of the value rather than part of the
 	// type, so we'll compare the values of any keys that both values have in
 	// common but we'll also need to add a broad mark if there are any unshared
-	// keys. We expect to have been called by [markPendingChangesAttr] so
+	// keys. We expect to have been called by [markChangesAttr] so
 	// that both values are guaranteed to be known and not null, but they could
 	// still be marked.
-	priorUnmarked, _ := prior.Unmark()
-	plannedUnmarked, plannedMarks := planned.Unmark()
+	beforeUnmarked, _ := before.Unmark()
+	afterUnmarked, afterMarks := after.Unmark()
 	differentKeys := false
 	retElems := make(map[string]cty.Value)
-	for k, nestedPlanned := range plannedUnmarked.Elements() {
-		nestedPrior, err := cty.IndexStep{Key: k}.Apply(priorUnmarked)
+	for k, nestedPlanned := range afterUnmarked.Elements() {
+		step := cty.IndexStep{Key: k}
+		nestedPrior, err := step.Apply(beforeUnmarked)
 		if err != nil {
 			differentKeys = true
 			retElems[k.AsString()] = nestedPlanned
 			continue
 		}
-		retElems[k.AsString()] = markPendingChangesAttr(ety, nestedPrior, nestedPlanned, instAddr)
+		retElems[k.AsString()] = markChangesAttr(ety, nestedPrior, nestedPlanned, append(path, step), marker)
 	}
 	if !differentKeys {
-		// There might also be some keys present in prior that are not present
-		// in planned, which we've not checked for yet.
-		for k := range priorUnmarked.Elements() {
-			_, err := cty.IndexStep{Key: k}.Apply(plannedUnmarked)
+		// There might also be some keys present in before that are not present
+		// in after, which we've not checked for yet.
+		for k := range beforeUnmarked.Elements() {
+			_, err := cty.IndexStep{Key: k}.Apply(afterUnmarked)
 			if err != nil {
 				differentKeys = true
 				continue
@@ -448,19 +476,19 @@ func markPendingChangesMap(ety cty.Type, prior, planned cty.Value, instAddr addr
 		ret = cty.MapValEmpty(ety)
 	}
 	if differentKeys {
-		ret = ValuePendingChange(ret, instAddr)
+		ret = ret.Mark(marker(path))
 	}
-	return ret.WithMarks(plannedMarks)
+	return ret.WithMarks(afterMarks)
 }
 
-func markPendingChangesLeaf(prior, planned cty.Value, instAddr addrs.AbsResourceInstance) cty.Value {
+func markChangesLeaf(before, after cty.Value, path cty.Path, marker Marker) cty.Value {
 	// We use RawEquals here because changes to marks and refinements are also
 	// potentially relevant. This would detect, for example, if the sensitivity
 	// of a value has changed even if the value itself did not change.
-	if !planned.RawEquals(prior) {
-		return ValuePendingChange(planned, instAddr)
+	if !after.RawEquals(before) {
+		return after.Mark(marker(path))
 	}
-	return planned
+	return after
 }
 
 func RemovePendingChangesMark(val cty.Value) cty.Value {

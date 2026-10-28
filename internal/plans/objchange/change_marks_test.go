@@ -11,18 +11,24 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/zclconf/go-cty-debug/ctydebug"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/ctymarks"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-func TestMarkPendingChanges(t *testing.T) {
-	instAddr := addrs.Resource{
-		Mode: addrs.ManagedResourceMode,
-		Type: "test",
-		Name: "example",
-	}.Absolute(addrs.RootModuleInstance).Instance(addrs.NoKey)
+func TestMarkChanges(t *testing.T) {
+	type testMarkWithPath struct {
+		path string
+	}
 
+	newTestMark := func(path cty.Path) any {
+		return testMarkWithPath{path: tfdiags.FormatCtyPath(path)}
+	}
+	applyTestMark := func(val cty.Value, path cty.Path) cty.Value {
+		return val.Mark(newTestMark(path))
+	}
 	tests := map[string]struct {
 		Schema         *configschema.Block
 		Prior, Planned cty.Value
@@ -44,7 +50,7 @@ func TestMarkPendingChanges(t *testing.T) {
 			&configschema.Block{},
 			cty.NullVal(cty.EmptyObject),
 			cty.UnknownVal(cty.EmptyObject),
-			ValuePendingChange(cty.UnknownVal(cty.EmptyObject), instAddr),
+			applyTestMark(cty.UnknownVal(cty.EmptyObject), nil),
 		},
 
 		// Shallow changes to primitive-typed attributes.
@@ -83,7 +89,7 @@ func TestMarkPendingChanges(t *testing.T) {
 				"foo": cty.StringVal("baz"),
 			}),
 			cty.ObjectVal(map[string]cty.Value{
-				"foo": ValuePendingChange(cty.StringVal("baz"), instAddr),
+				"foo": applyTestMark(cty.StringVal("baz"), cty.Path{}.GetAttr("foo")),
 			}),
 		},
 		"string becomes null": {
@@ -102,7 +108,7 @@ func TestMarkPendingChanges(t *testing.T) {
 				"foo": cty.NullVal(cty.String),
 			}),
 			cty.ObjectVal(map[string]cty.Value{
-				"foo": ValuePendingChange(cty.NullVal(cty.String), instAddr),
+				"foo": applyTestMark(cty.NullVal(cty.String), cty.Path{}.GetAttr("foo")),
 			}),
 		},
 		"bool unchanged": {
@@ -140,7 +146,7 @@ func TestMarkPendingChanges(t *testing.T) {
 				"foo": cty.True,
 			}),
 			cty.ObjectVal(map[string]cty.Value{
-				"foo": ValuePendingChange(cty.True, instAddr),
+				"foo": applyTestMark(cty.True, cty.Path{}.GetAttr("foo")),
 			}),
 		},
 		"bool becomes null": {
@@ -159,7 +165,7 @@ func TestMarkPendingChanges(t *testing.T) {
 				"foo": cty.NullVal(cty.Bool),
 			}),
 			cty.ObjectVal(map[string]cty.Value{
-				"foo": ValuePendingChange(cty.NullVal(cty.Bool), instAddr),
+				"foo": applyTestMark(cty.NullVal(cty.Bool), cty.Path{}.GetAttr("foo")),
 			}),
 		},
 		"number unchanged": {
@@ -197,7 +203,7 @@ func TestMarkPendingChanges(t *testing.T) {
 				"foo": cty.NumberIntVal(1),
 			}),
 			cty.ObjectVal(map[string]cty.Value{
-				"foo": ValuePendingChange(cty.NumberIntVal(1), instAddr),
+				"foo": applyTestMark(cty.NumberIntVal(1), cty.Path{}.GetAttr("foo")),
 			}),
 		},
 		"number becomes null": {
@@ -216,7 +222,7 @@ func TestMarkPendingChanges(t *testing.T) {
 				"foo": cty.NullVal(cty.Number),
 			}),
 			cty.ObjectVal(map[string]cty.Value{
-				"foo": ValuePendingChange(cty.NullVal(cty.Number), instAddr),
+				"foo": applyTestMark(cty.NullVal(cty.Number), cty.Path{}.GetAttr("foo")),
 			}),
 		},
 
@@ -244,7 +250,7 @@ func TestMarkPendingChanges(t *testing.T) {
 			}),
 			cty.ObjectVal(map[string]cty.Value{
 				"foo": cty.ObjectVal(map[string]cty.Value{
-					"greeting": ValuePendingChange(cty.StringVal("howdy"), instAddr),
+					"greeting": applyTestMark(cty.StringVal("howdy"), cty.Path{}.GetAttr("foo").GetAttr("greeting")),
 				}),
 			}),
 		},
@@ -271,7 +277,7 @@ func TestMarkPendingChanges(t *testing.T) {
 			}),
 			cty.ObjectVal(map[string]cty.Value{
 				"foo": cty.ObjectVal(map[string]cty.Value{
-					"greeting": ValuePendingChange(cty.UnknownVal(cty.String), instAddr),
+					"greeting": applyTestMark(cty.UnknownVal(cty.String), cty.Path{}.GetAttr("foo").GetAttr("greeting")),
 				}),
 			}),
 		},
@@ -297,11 +303,11 @@ func TestMarkPendingChanges(t *testing.T) {
 				})),
 			}),
 			cty.ObjectVal(map[string]cty.Value{
-				"foo": ValuePendingChange(
+				"foo": applyTestMark(
 					cty.UnknownVal(cty.Object(map[string]cty.Type{
 						"greeting": cty.String,
 					})),
-					instAddr,
+					cty.Path{}.GetAttr("foo"),
 				),
 			}),
 		},
@@ -336,7 +342,7 @@ func TestMarkPendingChanges(t *testing.T) {
 			}),
 			cty.ObjectVal(map[string]cty.Value{
 				"foo": cty.ObjectVal(map[string]cty.Value{
-					"greeting": ValuePendingChange(cty.StringVal("howdy"), instAddr),
+					"greeting": applyTestMark(cty.StringVal("howdy"), cty.Path{}.GetAttr("foo").GetAttr("greeting")),
 				}),
 			}),
 		},
@@ -369,7 +375,7 @@ func TestMarkPendingChanges(t *testing.T) {
 			}),
 			cty.ObjectVal(map[string]cty.Value{
 				"foo": cty.ObjectVal(map[string]cty.Value{
-					"greeting": ValuePendingChange(cty.StringVal("howdy"), instAddr),
+					"greeting": applyTestMark(cty.StringVal("howdy"), cty.Path{}.GetAttr("foo").GetAttr("greeting")),
 				}),
 			}),
 		},
@@ -407,7 +413,7 @@ func TestMarkPendingChanges(t *testing.T) {
 			cty.ObjectVal(map[string]cty.Value{
 				"foo": cty.ListVal([]cty.Value{
 					cty.ObjectVal(map[string]cty.Value{
-						"greeting": ValuePendingChange(cty.StringVal("howdy"), instAddr),
+						"greeting": applyTestMark(cty.StringVal("howdy"), cty.Path{}.GetAttr("foo").IndexInt(0).GetAttr("greeting")),
 					}),
 				}),
 			}),
@@ -446,11 +452,11 @@ func TestMarkPendingChanges(t *testing.T) {
 			cty.ObjectVal(map[string]cty.Value{
 				// cty sets don't support nested marks, so in this case the
 				// marks all aggregate up on the set itself.
-				"foo": ValuePendingChange(cty.SetVal([]cty.Value{
+				"foo": applyTestMark(cty.SetVal([]cty.Value{
 					cty.ObjectVal(map[string]cty.Value{
 						"greeting": cty.StringVal("howdy"),
 					}),
-				}), instAddr),
+				}), cty.Path{}.GetAttr("foo")),
 			}),
 		},
 
@@ -483,7 +489,7 @@ func TestMarkPendingChanges(t *testing.T) {
 			}),
 			cty.ObjectVal(map[string]cty.Value{
 				"foo": cty.ObjectVal(map[string]cty.Value{
-					"greeting": ValuePendingChange(cty.StringVal("howdy"), instAddr),
+					"greeting": applyTestMark(cty.StringVal("howdy"), cty.Path{}.GetAttr("foo").GetAttr("greeting")),
 				}),
 			}),
 		},
@@ -515,7 +521,7 @@ func TestMarkPendingChanges(t *testing.T) {
 			}),
 			cty.ObjectVal(map[string]cty.Value{
 				"foo": cty.ObjectVal(map[string]cty.Value{
-					"greeting": ValuePendingChange(cty.StringVal("howdy"), instAddr),
+					"greeting": applyTestMark(cty.StringVal("howdy"), cty.Path{}.GetAttr("foo").GetAttr("greeting")),
 				}),
 			}),
 		},
@@ -552,7 +558,7 @@ func TestMarkPendingChanges(t *testing.T) {
 			cty.ObjectVal(map[string]cty.Value{
 				"foo": cty.ListVal([]cty.Value{
 					cty.ObjectVal(map[string]cty.Value{
-						"greeting": ValuePendingChange(cty.StringVal("howdy"), instAddr),
+						"greeting": applyTestMark(cty.StringVal("howdy"), cty.Path{}.GetAttr("foo").IndexInt(0).GetAttr("greeting")),
 					}),
 				}),
 			}),
@@ -590,11 +596,11 @@ func TestMarkPendingChanges(t *testing.T) {
 			cty.ObjectVal(map[string]cty.Value{
 				// cty sets don't support nested marks, so in this case the
 				// marks all aggregate up on the set itself.
-				"foo": ValuePendingChange(cty.SetVal([]cty.Value{
+				"foo": applyTestMark(cty.SetVal([]cty.Value{
 					cty.ObjectVal(map[string]cty.Value{
 						"greeting": cty.StringVal("howdy"),
 					}),
-				}), instAddr),
+				}), cty.Path{}.GetAttr("foo")),
 			}),
 		},
 
@@ -651,7 +657,7 @@ func TestMarkPendingChanges(t *testing.T) {
 			cty.ObjectVal(map[string]cty.Value{
 				"foo": cty.ListVal([]cty.Value{
 					cty.StringVal("Hello"),
-					ValuePendingChange(cty.StringVal("Greetings"), instAddr),
+					applyTestMark(cty.StringVal("Greetings"), cty.Path{}.GetAttr("foo").IndexInt(1)),
 				}),
 			}),
 		},
@@ -679,10 +685,10 @@ func TestMarkPendingChanges(t *testing.T) {
 				// The entire list is marked because the length of the list
 				// is considered to be a part of the list value itself rather
 				// than any of its elements individually.
-				"foo": ValuePendingChange(cty.ListVal([]cty.Value{
+				"foo": applyTestMark(cty.ListVal([]cty.Value{
 					cty.StringVal("Hello"),
 					cty.StringVal("Howdy"),
-				}), instAddr),
+				}), cty.Path{}.GetAttr("foo")),
 			}),
 		},
 		"list attribute element removed": {
@@ -709,9 +715,9 @@ func TestMarkPendingChanges(t *testing.T) {
 				// The entire list is marked because the length of the list
 				// is considered to be a part of the list value itself rather
 				// than any of its elements individually.
-				"foo": ValuePendingChange(cty.ListVal([]cty.Value{
+				"foo": applyTestMark(cty.ListVal([]cty.Value{
 					cty.StringVal("Hello"),
-				}), instAddr),
+				}), cty.Path{}.GetAttr("foo")),
 			}),
 		},
 
@@ -767,7 +773,7 @@ func TestMarkPendingChanges(t *testing.T) {
 			}),
 			cty.ObjectVal(map[string]cty.Value{
 				"foo": cty.MapVal(map[string]cty.Value{
-					"a": ValuePendingChange(cty.StringVal("new a value"), instAddr),
+					"a": applyTestMark(cty.StringVal("new a value"), cty.Path{}.GetAttr("foo").IndexString("a")),
 					"b": cty.StringVal("b value"),
 				}),
 			}),
@@ -795,10 +801,10 @@ func TestMarkPendingChanges(t *testing.T) {
 			cty.ObjectVal(map[string]cty.Value{
 				// The keys of a map are considered a property of the map itself,
 				// so the entire map is marked in this case.
-				"foo": ValuePendingChange(cty.MapVal(map[string]cty.Value{
+				"foo": applyTestMark(cty.MapVal(map[string]cty.Value{
 					"a": cty.StringVal("a value"),
 					"b": cty.StringVal("b value"),
-				}), instAddr),
+				}), cty.Path{}.GetAttr("foo")),
 			}),
 		},
 		"map attribute element removed": {
@@ -824,9 +830,9 @@ func TestMarkPendingChanges(t *testing.T) {
 			cty.ObjectVal(map[string]cty.Value{
 				// The keys of a map are considered a property of the map itself,
 				// so the entire map is marked in this case.
-				"foo": ValuePendingChange(cty.MapVal(map[string]cty.Value{
+				"foo": applyTestMark(cty.MapVal(map[string]cty.Value{
 					"b": cty.StringVal("b value"),
-				}), instAddr),
+				}), cty.Path{}.GetAttr("foo")),
 			}),
 		},
 
@@ -885,10 +891,10 @@ func TestMarkPendingChanges(t *testing.T) {
 				// aggregate on the set itself. In this case the mark is
 				// representing that the elements in the set have changed,
 				// and so functions like "setunion" should pass on the mark.
-				"foo": ValuePendingChange(cty.SetVal([]cty.Value{
+				"foo": applyTestMark(cty.SetVal([]cty.Value{
 					cty.StringVal("Hello"),
 					cty.StringVal("Greetings"),
-				}), instAddr),
+				}), cty.Path{}.GetAttr("foo")),
 			}),
 		},
 		"set attribute removed": {
@@ -916,9 +922,9 @@ func TestMarkPendingChanges(t *testing.T) {
 				// aggregate on the set itself. In this case the mark is
 				// representing that the elements in the set have changed,
 				// and so functions like "setunion" should pass on the mark.
-				"foo": ValuePendingChange(cty.SetVal([]cty.Value{
+				"foo": applyTestMark(cty.SetVal([]cty.Value{
 					cty.StringVal("Hello"),
-				}), instAddr),
+				}), cty.Path{}.GetAttr("foo")),
 			}),
 		},
 		"set attribute added": {
@@ -946,10 +952,10 @@ func TestMarkPendingChanges(t *testing.T) {
 				// aggregate on the set itself. In this case the mark is
 				// representing that the elements in the set have changed,
 				// and so functions like "setunion" should pass on the mark.
-				"foo": ValuePendingChange(cty.SetVal([]cty.Value{
+				"foo": applyTestMark(cty.SetVal([]cty.Value{
 					cty.StringVal("Hello"),
 					cty.StringVal("Greetings"),
-				}), instAddr),
+				}), cty.Path{}.GetAttr("foo")),
 			}),
 		},
 
@@ -989,7 +995,7 @@ func TestMarkPendingChanges(t *testing.T) {
 				"foo": cty.NullVal(cty.EmptyObject),
 			}),
 			cty.ObjectVal(map[string]cty.Value{
-				"foo": ValuePendingChange(cty.NullVal(cty.EmptyObject), instAddr),
+				"foo": applyTestMark(cty.NullVal(cty.EmptyObject), cty.Path{}.GetAttr("foo")),
 			}),
 		},
 		"single-nested block of a type becomes non-null": {
@@ -1008,7 +1014,7 @@ func TestMarkPendingChanges(t *testing.T) {
 				"foo": cty.EmptyObjectVal,
 			}),
 			cty.ObjectVal(map[string]cty.Value{
-				"foo": ValuePendingChange(cty.EmptyObjectVal, instAddr),
+				"foo": applyTestMark(cty.EmptyObjectVal, cty.Path{}.GetAttr("foo")),
 			}),
 		},
 		"single-nested block of a type becomes unknown": {
@@ -1027,7 +1033,7 @@ func TestMarkPendingChanges(t *testing.T) {
 				"foo": cty.UnknownVal(cty.EmptyObject),
 			}),
 			cty.ObjectVal(map[string]cty.Value{
-				"foo": ValuePendingChange(cty.UnknownVal(cty.EmptyObject), instAddr),
+				"foo": applyTestMark(cty.UnknownVal(cty.EmptyObject), cty.Path{}.GetAttr("foo")),
 			}),
 		},
 
@@ -1124,10 +1130,10 @@ func TestMarkPendingChanges(t *testing.T) {
 				}),
 			}),
 			cty.ObjectVal(map[string]cty.Value{
-				"foo": ValuePendingChange(cty.ListVal([]cty.Value{
+				"foo": applyTestMark(cty.ListVal([]cty.Value{
 					cty.EmptyObjectVal,
 					cty.EmptyObjectVal,
-				}), instAddr),
+				}), cty.Path{}.GetAttr("foo")),
 			}),
 		},
 		"list-nested block of a type item removed": {
@@ -1151,9 +1157,9 @@ func TestMarkPendingChanges(t *testing.T) {
 				}),
 			}),
 			cty.ObjectVal(map[string]cty.Value{
-				"foo": ValuePendingChange(cty.ListVal([]cty.Value{
+				"foo": applyTestMark(cty.ListVal([]cty.Value{
 					cty.EmptyObjectVal,
-				}), instAddr),
+				}), cty.Path{}.GetAttr("foo")),
 			}),
 		},
 
@@ -1234,14 +1240,14 @@ func TestMarkPendingChanges(t *testing.T) {
 				}),
 			}),
 			cty.ObjectVal(map[string]cty.Value{
-				"foo": ValuePendingChange(cty.SetVal([]cty.Value{
+				"foo": applyTestMark(cty.SetVal([]cty.Value{
 					cty.ObjectVal(map[string]cty.Value{
 						"foo": cty.True,
 					}),
 					cty.ObjectVal(map[string]cty.Value{
 						"foo": cty.False,
 					}),
-				}), instAddr),
+				}), cty.Path{}.GetAttr("foo")),
 			}),
 		},
 		"set-nested block of a type item removed": {
@@ -1282,18 +1288,34 @@ func TestMarkPendingChanges(t *testing.T) {
 				}),
 			}),
 			cty.ObjectVal(map[string]cty.Value{
-				"foo": ValuePendingChange(cty.SetVal([]cty.Value{
+				"foo": applyTestMark(cty.SetVal([]cty.Value{
 					cty.ObjectVal(map[string]cty.Value{
 						"foo": cty.True,
 					}),
-				}), instAddr),
+				}), cty.Path{}.GetAttr("foo")),
 			}),
 		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			got := MarkPendingChanges(test.Schema, test.Prior, test.Planned, instAddr)
+			got := MarkChanges(test.Schema, test.Prior, test.Planned, newTestMark)
+			if diff := cmp.Diff(test.Want, got, ctydebug.CmpOptions); diff != "" {
+				t.Error("wrong result\n" + diff)
+			}
+
+			// We can use MarkPendingChanges and cty.WrangleMarks to validate the path construction
+			// above. This is technically not nessesary, but it adds an additional layer of validation
+			// that we are building the marker path correctly.
+			var addr addrs.AbsResourceInstance
+			pendingChanges := MarkPendingChanges(test.Schema, test.Prior, test.Planned, addr)
+			replaceMark := NewPendingChange(addr)
+			got, _ = pendingChanges.WrangleMarksDeep(func(mark any, path cty.Path) (ctymarks.WrangleAction, error) {
+				if mark == replaceMark {
+					return ctymarks.WrangleReplace(newTestMark(path)), nil
+				}
+				return ctymarks.WrangleKeep, nil
+			})
 			if diff := cmp.Diff(test.Want, got, ctydebug.CmpOptions); diff != "" {
 				t.Error("wrong result\n" + diff)
 			}
