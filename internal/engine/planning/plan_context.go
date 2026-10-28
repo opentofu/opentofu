@@ -13,6 +13,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/plugins"
 	"github.com/opentofu/opentofu/internal/lang/eval"
+	"github.com/opentofu/opentofu/internal/lang/globalref"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -100,11 +101,38 @@ func (p *planContext) Close(ctx context.Context) (*planContextResult, tfdiags.Di
 	drift, moreDiags := p.managedResourceChangesBetweenUpgradeAndRefresh(ctx, objs)
 	diags = diags.Append(moreDiags)
 
+	var relevantAttrs []globalref.ResourceAttr
+	for _, obj := range objs.All() {
+		if obj.PlannedChange != nil && obj.PlannedChange.Action != plans.NoOp {
+			for _, path := range obj.IndependentAttrs {
+				beforeVal, err := path.Apply(obj.PlannedChange.Before)
+				if err != nil {
+					continue
+				}
+				afterVal, err := path.Apply(obj.PlannedChange.After)
+				if err != nil {
+					continue
+				}
+
+				eq, _ := beforeVal.Equals(afterVal).Unmark()
+				if !eq.IsKnown() || eq.True() {
+					continue
+				}
+
+				relevantAttrs = append(relevantAttrs, globalref.ResourceAttr{
+					Resource: obj.Addr.InstanceAddr,
+					Attr:     path,
+				})
+			}
+		}
+	}
+
 	result := &planContextResult{
 		ResourceInstanceObjects: objs,
 		PrevRoundState:          p.prevRoundState,
 		RootOutput:              p.rootOutput,
 		DriftedResources:        drift,
+		RelevantAttributes:      relevantAttrs,
 	}
 
 	return result, diags
@@ -127,7 +155,8 @@ type planContextResult struct {
 	// like output values need to be handled a bit differently.
 	Destroying bool
 
-	DriftedResources []*plans.ResourceInstanceChangeSrc
+	DriftedResources   []*plans.ResourceInstanceChangeSrc
+	RelevantAttributes []globalref.ResourceAttr
 }
 
 // driftedResources is a best-effort attempt to compare the current and prior

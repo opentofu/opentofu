@@ -163,6 +163,8 @@ type resourceInstanceObject struct {
 	// This should be empty for "create" because there is no previous round
 	// state in that case.
 	StateDependencies addrs.Set[addrs.AbsResourceInstanceObject]
+
+	IndependentAttrs []cty.Path
 }
 
 // ResultValue returns the value that should be sent to the evaluator for

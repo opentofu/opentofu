@@ -38,6 +38,8 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		// we might refine this to be more specific as we learn more below.
 		PlaceholderValue: cty.DynamicVal,
 
+		IndependentAttrs: inst.IndependentAttrs,
+
 		// NOTE: PlannedChange remains nil until we actually produce a plan,
 		// so early returns with errors are not guaranteed to have a valid
 		// change object. Evaluation falls back on using PlaceholderValue

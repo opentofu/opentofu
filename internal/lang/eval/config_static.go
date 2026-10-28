@@ -108,6 +108,6 @@ func (v *staticGlue) ProviderFunction(ctx context.Context, provider addrs.Provid
 }
 
 // ResourceInstanceValue implements evaluationGlue.
-func (v *staticGlue) ResourceInstanceValue(ctx context.Context, ri *configgraph.ResourceInstance, configVal cty.Value, _ exprs.FromValue[*configgraph.ProviderInstance], _ addrs.Set[addrs.AbsResourceInstance]) (cty.Value, tfdiags.Diagnostics) {
+func (v *staticGlue) ResourceInstanceValue(ctx context.Context, ri *configgraph.ResourceInstance, configVal cty.Value, _ exprs.FromValue[*configgraph.ProviderInstance], _ addrs.Set[addrs.AbsResourceInstance], _ []cty.Path) (cty.Value, tfdiags.Diagnostics) {
 	return cty.DynamicVal, nil
 }

@@ -143,7 +143,7 @@ func (p *planningEvalGlue) ProviderFunction(ctx context.Context, provider addrs.
 }
 
 // ResourceInstanceValue implements evalglue.Glue.
-func (p *planningEvalGlue) ResourceInstanceValue(ctx context.Context, ri *configgraph.ResourceInstance, configVal cty.Value, providerInst exprs.FromValue[*configgraph.ProviderInstance], riDeps addrs.Set[addrs.AbsResourceInstance]) (cty.Value, tfdiags.Diagnostics) {
+func (p *planningEvalGlue) ResourceInstanceValue(ctx context.Context, ri *configgraph.ResourceInstance, configVal cty.Value, providerInst exprs.FromValue[*configgraph.ProviderInstance], riDeps addrs.Set[addrs.AbsResourceInstance], independentAttrs []cty.Path) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	desired := &DesiredResourceInstance{
@@ -152,6 +152,7 @@ func (p *planningEvalGlue) ResourceInstanceValue(ctx context.Context, ri *config
 		RequiredResourceInstances: riDeps,
 		IgnoreChangesPaths:        ri.IgnoreChangesPaths,
 		ReplaceTriggeredBy:        ri.ReplaceTriggeredBy,
+		IndependentAttrs:          independentAttrs,
 	}
 
 	if desired.Addr.Resource.Resource.Mode == addrs.EphemeralResourceMode {

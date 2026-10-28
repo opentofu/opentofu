@@ -67,7 +67,7 @@ func (v *preparationGlue) ProviderFunction(ctx context.Context, provider addrs.P
 }
 
 // ResourceInstanceValue implements evaluationGlue.
-func (v *preparationGlue) ResourceInstanceValue(ctx context.Context, ri *configgraph.ResourceInstance, configVal cty.Value, _ exprs.FromValue[*configgraph.ProviderInstance], _ addrs.Set[addrs.AbsResourceInstance]) (cty.Value, tfdiags.Diagnostics) {
+func (v *preparationGlue) ResourceInstanceValue(ctx context.Context, ri *configgraph.ResourceInstance, configVal cty.Value, _ exprs.FromValue[*configgraph.ProviderInstance], _ addrs.Set[addrs.AbsResourceInstance], _ []cty.Path) (cty.Value, tfdiags.Diagnostics) {
 	schema, diags := v.providers.ResourceTypeSchema(ctx,
 		ri.Provider,
 		ri.Addr.Resource.Resource.Mode,

@@ -33,7 +33,7 @@ func compileModuleInstanceResources(
 	moduleInstanceAddr addrs.ModuleInstance,
 	providersSchema evalglue.ProvidersSchema,
 	provisionersSchema evalglue.ProvisionersSchema,
-	getResultValue func(context.Context, *configgraph.ResourceInstance, cty.Value, exprs.FromValue[*configgraph.ProviderInstance], addrs.Set[addrs.AbsResourceInstance]) (cty.Value, tfdiags.Diagnostics),
+	getResultValue func(context.Context, *configgraph.ResourceInstance, cty.Value, exprs.FromValue[*configgraph.ProviderInstance], addrs.Set[addrs.AbsResourceInstance], []cty.Path) (cty.Value, tfdiags.Diagnostics),
 	extraMarks cty.ValueMarks,
 ) map[addrs.Resource]*configgraph.Resource {
 	ret := make(map[addrs.Resource]*configgraph.Resource, len(managedConfigs)+len(dataConfigs)+len(ephemeralConfigs))
@@ -60,7 +60,7 @@ func compileModuleInstanceResource(
 	moduleInstanceAddr addrs.ModuleInstance,
 	providers evalglue.ProvidersSchema,
 	provisioners evalglue.ProvisionersSchema,
-	getResultValue func(context.Context, *configgraph.ResourceInstance, cty.Value, exprs.FromValue[*configgraph.ProviderInstance], addrs.Set[addrs.AbsResourceInstance]) (cty.Value, tfdiags.Diagnostics),
+	getResultValue func(context.Context, *configgraph.ResourceInstance, cty.Value, exprs.FromValue[*configgraph.ProviderInstance], addrs.Set[addrs.AbsResourceInstance], []cty.Path) (cty.Value, tfdiags.Diagnostics),
 	extraMarks cty.ValueMarks,
 ) (addrs.Resource, *configgraph.Resource) {
 	resourceAddr := config.Addr()
@@ -361,8 +361,8 @@ func compileModuleInstanceResource(
 			// in the current phase. (The planned new state during the plan
 			// phase, for example.)
 			inst.Glue = &resourceInstanceGlue{
-				getResultValue: func(ctx context.Context, configVal cty.Value, providerInst exprs.FromValue[*configgraph.ProviderInstance], riDeps addrs.Set[addrs.AbsResourceInstance]) (cty.Value, tfdiags.Diagnostics) {
-					return getResultValue(ctx, inst, configVal, providerInst, riDeps)
+				getResultValue: func(ctx context.Context, configVal cty.Value, providerInst exprs.FromValue[*configgraph.ProviderInstance], riDeps addrs.Set[addrs.AbsResourceInstance], independentAttrs []cty.Path) (cty.Value, tfdiags.Diagnostics) {
+					return getResultValue(ctx, inst, configVal, providerInst, riDeps, independentAttrs)
 				},
 			}
 			return inst
@@ -399,12 +399,12 @@ func compileModuleInstanceResource(
 // to us for needs that require interacting with outside concerns like
 // provider plugins, an active plan or apply process, etc.
 type resourceInstanceGlue struct {
-	getResultValue func(context.Context, cty.Value, exprs.FromValue[*configgraph.ProviderInstance], addrs.Set[addrs.AbsResourceInstance]) (cty.Value, tfdiags.Diagnostics)
+	getResultValue func(context.Context, cty.Value, exprs.FromValue[*configgraph.ProviderInstance], addrs.Set[addrs.AbsResourceInstance], []cty.Path) (cty.Value, tfdiags.Diagnostics)
 }
 
 // ResultValue implements [configgraph.ResourceInstanceGlue].
-func (r *resourceInstanceGlue) ResultValue(ctx context.Context, configVal cty.Value, providerInst exprs.FromValue[*configgraph.ProviderInstance], riDeps addrs.Set[addrs.AbsResourceInstance]) (cty.Value, tfdiags.Diagnostics) {
-	return r.getResultValue(ctx, configVal, providerInst, riDeps)
+func (r *resourceInstanceGlue) ResultValue(ctx context.Context, configVal cty.Value, providerInst exprs.FromValue[*configgraph.ProviderInstance], riDeps addrs.Set[addrs.AbsResourceInstance], independentAttrs []cty.Path) (cty.Value, tfdiags.Diagnostics) {
+	return r.getResultValue(ctx, configVal, providerInst, riDeps, independentAttrs)
 }
 
 // From node_resource_abstract_instance.go

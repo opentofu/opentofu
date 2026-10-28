@@ -110,7 +110,7 @@ type applyingEvalGlue struct {
 }
 
 // ResourceInstanceValue implements [evalglue.Glue].
-func (g *applyingEvalGlue) ResourceInstanceValue(ctx context.Context, ri *configgraph.ResourceInstance, cfgVal cty.Value, providerInst exprs.FromValue[*configgraph.ProviderInstance], _ addrs.Set[addrs.AbsResourceInstance]) (cty.Value, tfdiags.Diagnostics) {
+func (g *applyingEvalGlue) ResourceInstanceValue(ctx context.Context, ri *configgraph.ResourceInstance, cfgVal cty.Value, providerInst exprs.FromValue[*configgraph.ProviderInstance], _ addrs.Set[addrs.AbsResourceInstance], _ []cty.Path) (cty.Value, tfdiags.Diagnostics) {
 	if ri.Addr.Resource.Resource.Mode == addrs.EphemeralResourceMode {
 		providerInstAddr, _ := providerInst.Derive(func(pi *configgraph.ProviderInstance) (addrs.AbsProviderInstanceCorrect, error) {
 			return pi.Addr, nil

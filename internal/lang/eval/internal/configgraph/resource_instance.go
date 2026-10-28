@@ -249,12 +249,23 @@ func (ri *ResourceInstance) Value(ctx context.Context) (v cty.Value, diags tfdia
 			configVal = exprs.AsEvalError(cty.DynamicVal)
 		}
 
+		var independentAttrs []cty.Path
+		_ = cty.Walk(configVal, func(path cty.Path, val cty.Value) (bool, error) {
+			for _ = range cty.ValueMarksOfType[ResourceInstanceMark](val) {
+				return false, nil
+			}
+			if len(path) != 0 {
+				independentAttrs = append(independentAttrs, path)
+			}
+			return true, nil
+		})
+
 		// We also need help from our caller to prepare the final value to
 		// return here, because it should reflect the outcome of whatever
 		// resource-instance-related side effects we're doing this evaluation in
 		// support of. Refer to the documentation of the ResultValue method
 		// for details on what we're expecting this to do.
-		resultVal, moreDiags := ri.Glue.ResultValue(ctx, configVal, providerInst, riDeps)
+		resultVal, moreDiags := ri.Glue.ResultValue(ctx, configVal, providerInst, riDeps, independentAttrs)
 		diags = diags.Append(moreDiags)
 
 		// We must pass the marks from the provider instance selection into the

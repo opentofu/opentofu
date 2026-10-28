@@ -158,6 +158,8 @@ type DesiredResourceInstance struct {
 	// Any resource instance mentioned in this collection will always also
 	// appear in RequiredResourceInstances.
 	ReplaceTriggeredBy []ResourceInstanceAttributePath
+
+	IndependentAttrs []cty.Path
 }
 
 // IsPlaceholder returns true if this object is acting as a placeholder for
