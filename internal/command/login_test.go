@@ -404,11 +404,11 @@ func TestLogin(t *testing.T) {
 		loginOutput := closeView(t).All()
 
 		if out != 1 {
-			t.Fatalf("error code and stdoud dont match expected test: %d %s", out, loginOutput)
+			t.Fatalf("error code and stdout dont match expected test: %d %s", out, loginOutput)
 
 		}
 		if !strings.Contains(loginOutput, "interrupted: context canceled") {
-			t.Fatalf("aaaa %s", loginOutput)
+			t.Fatalf("an error occured but not the one I expected %s", loginOutput)
 		}
 	}, false))
 
