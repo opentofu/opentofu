@@ -237,11 +237,13 @@ func finalizePlan(ctx context.Context, intermediate *planContextResult, provider
 	}
 
 	return &plans.Plan{
-		UIMode:           plans.NormalMode, // TODO: [PlanChanges] needs something analogous to [tofu.PlanOpts] for planning mode/options
-		Changes:          changes,
-		PrevRunState:     upgradedState,
-		PriorState:       refreshedState,
-		DriftedResources: intermediate.DriftedResources,
+		UIMode:       plans.NormalMode, // TODO: [PlanChanges] needs something analogous to [tofu.PlanOpts] for planning mode/options
+		Changes:      changes,
+		PrevRunState: upgradedState,
+		PriorState:   refreshedState,
+
+		DriftedResources:   intermediate.DriftedResources,
+		RelevantAttributes: intermediate.DriftCausingChanges,
 		// TODO: various other fields that we need to actually make use
 		// of this plan result. But this is intentionally just a partial
 		// result for now because it's not clear that we'd even be using
@@ -305,7 +307,7 @@ func buildPlanChanges(
 	}
 
 	for name, out := range rootOutput.Current {
-		value := out.Value
+		value := withoutDriftMarks(out.Value)
 		if derivedFromDeferredVal(value) {
 			continue
 		}
