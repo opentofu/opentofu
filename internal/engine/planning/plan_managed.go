@@ -18,6 +18,7 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/lang/evalchecks"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/plans/objchange"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/resources"
 	"github.com/opentofu/opentofu/internal/states"
@@ -319,14 +320,22 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 			return ret, diags
 		}
 		if prevState != nil {
-			// Improve what we know about the potential value
-			ret.PlaceholderValue = prevState.Value
+			// Update refreshed and config value before we mess with drift marks
 			ret.RefreshedValue = prevState.Value
-
 			if isGeneratingConfiguration {
 				// Pretend the configuration always was the refreshed value.
 				unmarkedConfigVal = prevState.Value
 			}
+
+			schema, moreDiags := resourceType.LoadSchema(ctx)
+			diags = diags.Append(moreDiags)
+			prevState.Value = objchange.MarkChanges(schema.Block, ret.UpgradedValue, prevState.Value, func(path cty.Path) any {
+				// NOTE: The path given here is mutable and must be copied if it is to be saved.
+				return newDriftMark(inst.Addr, path)
+			})
+
+			// Improve what we know about the potential value
+			ret.PlaceholderValue = prevState.Value
 		}
 
 		// verify the existence of the imported resource
@@ -511,6 +520,25 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		// configuration-related and so would need to be driven by stuff in
 		// [eval.DesiredResourceInstance].
 		ActionReason: actionReason,
+	}
+
+	// Determine if any of the planned changes are due to drift
+	if plannedAction != plans.NoOp {
+		// TODO examine the performance impact of this precise marks wrangling for every change
+		// the previous implementation of this was a lot more coarse and only checked
+		// for NoOp.
+		changeMark := objchange.NewPendingChange(inst.Addr)
+		for path, v := range cty.DeepValues(planResp.Planned.Value) {
+			if v.HasMark(changeMark) {
+				configV, err := path.Apply(inst.ConfigVal)
+				if err == nil {
+					// path exists, copy all drift marks into the ongoing collection
+					for mark := range cty.ValueMarksOfTypeDeep[driftMark](configV) {
+						p.planCtx.driftCausingChanges[mark] = struct{}{}
+					}
+				}
+			}
+		}
 	}
 
 	diags = diags.Append(checkPreventDestroy(ctx, meta, ret))
