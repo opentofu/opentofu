@@ -566,7 +566,7 @@ These blocks consist of the following elements:
 | Name     | Type         | Description                                                                                                            |
 |:--------:|:------------:|------------------------------------------------------------------------------------------------------------------------|
 | target   | reference    | Required. Address of the target resource or data source to be overridden.                                              |
-| values   | object       | Custom values for computed attributes and blocks to be used instead of automatically generated.                        |
+| values   | object       | Custom values for attributes and blocks to be used instead of automatically generated or configured values.            |
 
 You can use `override_resource` or `override_data` blocks for the whole test file or inside a single `run` block. The latter takes precedence if both specified for the same `target`.
 
@@ -622,7 +622,7 @@ When generating these values, OpenTofu cannot follow custom provider logic, so i
 :::tip Note
 
 You can set custom values to use instead of automatically generated ones via respective mock or override fields.
-Keep in mind, it's only possible for computed attributes and configuration values cannot be changed.
+Keep in mind, it's possible for both computed/non-computed attriubtes to be changed, however configuration values cannot.
 
 :::
 
