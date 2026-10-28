@@ -97,7 +97,7 @@ func (p *planContext) Close(ctx context.Context) (*planContextResult, tfdiags.Di
 
 	objs := p.resourceInstObjs.Close()
 
-	drift, moreDiags := p.driftedResources(ctx, objs)
+	drift, moreDiags := p.managedResourceChangesBetweenUpgradeAndRefresh(ctx, objs)
 	diags = diags.Append(moreDiags)
 
 	result := &planContextResult{
@@ -138,7 +138,7 @@ type planContextResult struct {
 // not upgraded.
 //
 // This is a direct port from tofu/context_plan.go
-func (p *planContext) driftedResources(ctx context.Context, objects *resourceInstanceObjects) ([]*plans.ResourceInstanceChangeSrc, tfdiags.Diagnostics) {
+func (p *planContext) managedResourceChangesBetweenUpgradeAndRefresh(ctx context.Context, objects *resourceInstanceObjects) ([]*plans.ResourceInstanceChangeSrc, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	/*TODO potential optimization, maybe not needed since we no-longet do decodes below
