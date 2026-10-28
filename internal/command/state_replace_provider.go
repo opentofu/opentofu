@@ -49,7 +49,7 @@ func (c StateReplaceProviderCommand) Execute(args *arguments.StateReplaceProvide
 	ctx := c.CommandContext()
 
 	// This is safe to be done since the execution engine contexts are created by ignoring the cancellation from the parent context.
-	// internal/backend/local/backend.go L314:333
+	// internal/backend/local/backend.go
 	ctx, cancel := c.InterruptibleContext(ctx)
 	defer cancel()
 
