@@ -6,7 +6,6 @@
 package keyprovider_test
 
 import (
-	"math/big"
 	"testing"
 
 	"github.com/hashicorp/hcl/v2"
@@ -111,7 +110,7 @@ func TestDecodeOutput(t *testing.T) {
 			expectedDiags: hcl.Diagnostics{&hcl.Diagnostic{Summary: "Expected key_provider value", Detail: "Expected a key_provider compatible value, found string instead", Subject: &src}},
 		},
 		"wrong type - number": {
-			input:         cty.NumberVal(big.NewFloat(4.2)),
+			input:         cty.NumberFloatVal(4.2),
 			expectedDiags: hcl.Diagnostics{&hcl.Diagnostic{Summary: "Expected key_provider value", Detail: "Expected a key_provider compatible value, found number instead", Subject: &src}},
 		},
 		"wrong type - list": {
