@@ -5,6 +5,7 @@ The v1.13.x release series is supported until **August 1 2027**.
 BUG FIXES:
 
 - The `-v` short option now again works as an alias for the `version` command and `--version` option, fixing an unintended regression in v1.13.0. ([#4769](https://github.com/opentofu/opentofu/pull/4769))
+- State and plan encryption method `keys` accepted types are properly validated now and returns an error instead of panicking. ([#4783](https://github.com/opentofu/opentofu/pull/4783))
 
 ## 1.13.2
 
