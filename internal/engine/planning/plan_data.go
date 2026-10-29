@@ -8,6 +8,7 @@ package planning
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/zclconf/go-cty/cty"
 
@@ -61,6 +62,24 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 		// change object. Evaluation falls back on using PlaceholderValue
 		// when no planned change is present.
 	}
+
+	// We need to determine whether an implicit move has been made on this data resource.
+	// We do not move data resources otherwise
+	// but some operations may depend on this functionality.
+	// See TestContext2Apply_dataDependsOn
+	prevStateInfo, moveDiags := p.locateStateForConfig(ctx, inst.Addr)
+	diags = diags.Append(moveDiags)
+	if diags.HasErrors() {
+		return ret, diags
+	}
+
+	if prevStateInfo.isImplicit() {
+		// due to a quirk in how moves are handled,
+		// if it's an implied move, we save state
+		// in the prevAddr instead of current.
+		ret.PrevRoundAddr = prevStateInfo.from.CurrentObject()
+	}
+
 	for dep := range inst.RequiredResourceInstances.All() {
 		ret.ConfigDependencies.Add(dep.CurrentObject())
 	}
@@ -139,7 +158,7 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 	}
 
 	unmarkedConfigVal, _ := inst.ConfigVal.UnmarkDeepWithPaths()
-	proposedNewVal, unkDiags := resourceType.UnknownValue(ctx, unmarkedConfigVal)
+	proposedNewVal, unkDiags := resourceType.UnknownValue(ctx, unmarkedConfigVal, inst.Addr)
 	diags = diags.Append(unkDiags)
 	if diags.HasErrors() {
 		// This only happens when there's issues getting the schema
@@ -215,7 +234,11 @@ func (p *planGlue) planDelayedDataResourceInstance(ctx context.Context, inst *ev
 
 	resourceType := resources.NewDataResourceType(providerAddr.Config.Config.Provider, inst.Addr.Resource.Resource.Type, providerClient)
 
-	schema, schemaDiags := resourceType.LoadSchema(ctx)
+	unmarkedConfigVal, configMarkPaths := inst.ConfigVal.UnmarkDeepWithPaths()
+	// Note: UnknownValue only returns diags when there are problems with the schema
+	proposedNewVal, schemaDiags := resourceType.UnknownValue(ctx, unmarkedConfigVal, inst.Addr)
+	proposedNewVal = proposedNewVal.MarkWithPaths(configMarkPaths)
+
 	if schemaDiags.HasErrors() {
 		// We don't return the schema-loading diagnostics directly here because
 		// they should have already been returned by earlier code, but we do
@@ -233,10 +256,7 @@ func (p *planGlue) planDelayedDataResourceInstance(ctx context.Context, inst *ev
 		return ret, diags
 	}
 
-	unmarkedConfigVal, configMarkPaths := inst.ConfigVal.UnmarkDeepWithPaths()
-	// TODO replace with (*DataResourceType).UnknownValue
-	proposedNewVal := objchange.PlannedUnknownObject(schema.Block, unmarkedConfigVal)
-	proposedNewVal = proposedNewVal.MarkWithPaths(configMarkPaths)
+	prevState := p.planCtx.prevRoundState.SyncWrapper().ResourceInstanceObjectFull(inst.Addr.CurrentObject())
 
 	// Apply detects that the data source will need to be read by the After
 	// value containing unknowns from PlanDataResourceObject.
@@ -250,18 +270,12 @@ func (p *planGlue) planDelayedDataResourceInstance(ctx context.Context, inst *ev
 		ActionReason: reason,
 	}
 	ret.ProviderInst = providerAddr
+	ret.RefreshedState = prevState
+	ret.UpgradedState = prevState
 
 	// TODO post-diff hook
 
 	return ret, diags
-
-	// Still TODO:
-	// The placeholder value for any computed attribute in
-	// the object we return should also be annotated with
-	// [objchange.ValuePendingChange] using this data resource instance's
-	// address, so that any downstream data resource instance that derives
-	// from the results of this one will also get delayed to the apply
-	// phase.
 
 	// TODO: It would be nice to also report the requiredChanges set in a way
 	// that would allow us to enumerate in the UI exactly which managed
@@ -276,18 +290,83 @@ func (p *planGlue) planDelayedDataResourceInstance(ctx context.Context, inst *ev
 	// does something sensible when requiredChanges is empty.
 }
 
-func (p *planGlue) planOrphanDataResourceInstance(_ context.Context, addr addrs.AbsResourceInstance, state *states.ResourceInstanceObjectFullSrc) (*resourceInstanceObject, tfdiags.Diagnostics) {
+func (p *planGlue) planOrphanDataResourceInstance(ctx context.Context, addr addrs.AbsResourceInstance, state *states.ResourceInstanceObjectFullSrc) (*resourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	return &resourceInstanceObject{
+	ret := &resourceInstanceObject{
 		Addr:               addr.CurrentObject(),
 		PrevRoundAddr:      addr.CurrentObject(),
 		ConfigDependencies: addrs.MakeSet[addrs.AbsResourceInstanceObject](),
 		Provider:           state.ProviderInstanceAddr.Config.Config.Provider,
 		PlaceholderValue:   cty.NullVal(cty.DynamicPseudoType),
-		// An orphan data object is always just discarded completely, because
-		// OpenTofu retains them only for esoteric uses like the "tofu console"
-		// command: they are not actually expected to persist between rounds.
-		// Therefore upgrade and refresh state are not set
-	}, diags
+		RefreshedState:     state,
+		UpgradedState:      state,
+	}
+
+	currentRunAddr := addr
+	movedToAddress := p.locateExecutedMove(currentRunAddr)
+
+	if movedToAddress != nil {
+		// We were part of a move already and can safely be ignored
+		// For data resources, moves only happen implicitly, and so
+		// we don't have to worry if there's already a state here.
+		log.Printf("[TRACE] Potentially orphaned resource %s was recorded as being moved to %s and is therefore not orphaned", currentRunAddr, *movedToAddress)
+		return ret, diags
+	}
+
+	// TODO: during destroy, we need to do an early read here.
+	// See TestContext2Apply_destroyDataCycle
+
+	providerConfig := state.ProviderInstanceAddr.Config
+
+	providerClient, moreDiags := p.providerClient(ctx, state.ProviderInstanceAddr)
+	if providerClient == nil {
+		moreDiags = moreDiags.Append(tfdiags.AttributeValue(
+			tfdiags.Error,
+			"Provider instance not available",
+			fmt.Sprintf("Cannot plan %s because its associated provider instance %s cannot initialize.", addr, state.ProviderInstanceAddr),
+			nil,
+		))
+	}
+	diags = diags.Append(moreDiags)
+	if moreDiags.HasErrors() {
+		return ret, diags
+	}
+
+	resourceType := resources.NewDataResourceType(providerConfig.Config.Provider, addr.Resource.Resource.Type, providerClient)
+	schema, schemaDiags := resourceType.LoadSchema(ctx)
+	diags = diags.Append(schemaDiags)
+	if schemaDiags.HasErrors() {
+		return ret, diags
+	}
+
+	ty := schema.Block.ImpliedType().WithoutOptionalAttributesDeep()
+
+	prevVal, err := state.Value.Decode(ty)
+	if err != nil {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Failed to decode data resource from state",
+			fmt.Sprintf("Failed to decode state for %s, this is probably a bug in the runtime: %s.", addr, tfdiags.FormatError(err)),
+		))
+	}
+	ret.PlannedChange = &plans.ResourceInstanceChange{
+		Addr:        addr,
+		PrevRunAddr: addr,
+		DeposedKey:  addrs.NotDeposed,
+		ProviderAddr: addrs.AbsProviderConfig{
+			// FIXME: This is a lossy shim to the old-style provider instance
+			// address representation, since our old models aren't yet updated
+			// to support the modern one. It cannot handle a provider config
+			// inside a module call that uses count or for_each.
+			Module:   providerConfig.Module.Module(),
+			Provider: providerConfig.Config.Provider,
+			Alias:    providerConfig.Config.Alias,
+		},
+		Private: state.Private,
+		Action:  plans.Delete,
+		Before:  prevVal,
+		After:   cty.NullVal(cty.DynamicPseudoType),
+	}
+	return ret, diags
 }

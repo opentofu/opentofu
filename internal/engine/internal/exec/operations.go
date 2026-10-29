@@ -307,4 +307,10 @@ type Operations interface {
 		metadata *ResourceInstanceObjectMeta,
 		desired *eval.DesiredResourceInstance,
 	) (*ResourceInstanceObject, tfdiags.Diagnostics)
+
+	// DataDestroy removes the data object from state.
+	DataDestroy(
+		ctx context.Context,
+		metadata *ResourceInstanceObjectMeta,
+	) tfdiags.Diagnostics
 }

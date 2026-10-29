@@ -23,6 +23,7 @@ type mockOperations struct {
 	Calls []mockOperationsCall
 
 	DataReadFunc                       func(ctx context.Context, metadata *exec.ResourceInstanceObjectMeta, desired *eval.DesiredResourceInstance) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
+	DataDestroyFunc                    func(ctx context.Context) tfdiags.Diagnostics
 	ManagedAlreadyDeposedFunc          func(ctx context.Context, instAddr addrs.AbsResourceInstance, deposedKey states.DeposedKey) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
 	ManagedApplyFunc                   func(ctx context.Context, plan *exec.ManagedResourceObjectFinalPlan, fallback *exec.ResourceInstanceObject) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
 	ManagedChangeAddrFunc              func(ctx context.Context, currentObj *exec.ResourceInstanceObject, newAddr addrs.AbsResourceInstance) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
@@ -50,6 +51,16 @@ func (m *mockOperations) DataRead(ctx context.Context, metadata *exec.ResourceIn
 	}
 	m.appendLog("DataRead", []any{desired}, result)
 	return result, diags
+}
+
+// DataDestroy implements [exec.Operations].
+func (m *mockOperations) DataDestroy(ctx context.Context, metadata *exec.ResourceInstanceObjectMeta) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+	if m.DataDestroyFunc != nil {
+		diags = m.DataDestroyFunc(ctx)
+	}
+	m.appendLog("DataDestroy", nil, nil)
+	return diags
 }
 
 // ManagedAlreadyDeposed implements [exec.Operations].

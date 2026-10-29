@@ -9999,7 +9999,7 @@ func TestContext2Apply_moduleReplaceCycle(t *testing.T) {
 }
 
 func TestContext2Apply_destroyDataCycle(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDataResource)
+	SkipExperimental(t, ExperimentalBugDataResource, ExperimentalBugDataDestroyAndRead)
 
 	m, snap := testModuleWithSnapshot(t, "apply-destroy-data-cycle")
 	p := testProvider("null")
