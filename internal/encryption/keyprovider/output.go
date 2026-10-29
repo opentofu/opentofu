@@ -24,7 +24,7 @@ type Output struct {
 
 func DecodeOutput(val cty.Value, subject hcl.Range) (Output, hcl.Diagnostics) {
 	var out Output
-	if !val.CanIterateElements() {
+	if !val.Type().IsMapType() && !val.Type().IsObjectType() {
 		return out, hcl.Diagnostics{{
 			Severity: hcl.DiagError,
 			Summary:  "Expected key_provider value",
