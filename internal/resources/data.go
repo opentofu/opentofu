@@ -127,7 +127,7 @@ func (dt *DataResourceType) EncodeValue(ctx context.Context, value cty.Value, di
 	return
 }
 
-func (dt *DataResourceType) UnknownValue(ctx context.Context, unmarkedConfigVal cty.Value) (unknownVal cty.Value, diags tfdiags.Diagnostics) {
+func (dt *DataResourceType) UnknownValue(ctx context.Context, unmarkedConfigVal cty.Value, addr addrs.AbsResourceInstance) (unknownVal cty.Value, diags tfdiags.Diagnostics) {
 	// obtain schema for encoding
 	schema, schemaDiags := dt.LoadSchema(ctx)
 	diags = diags.Append(schemaDiags)
@@ -137,5 +137,8 @@ func (dt *DataResourceType) UnknownValue(ctx context.Context, unmarkedConfigVal 
 	}
 
 	unknownVal = objchange.PlannedUnknownObject(schema.Block, unmarkedConfigVal)
+	// This mark is needed for data resources downstream, which
+	// implicitly depend on the entire managed resource having no pending changes.
+	unknownVal = objchange.MarkPendingChanges(schema.Block, unmarkedConfigVal, unknownVal, addr)
 	return
 }

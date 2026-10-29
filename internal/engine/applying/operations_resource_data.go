@@ -92,6 +92,9 @@ func (ops *execOperations) DataRead(
 		resp.Result = cty.NullVal(schema.Block.ImpliedType())
 	}
 
+	// TODO: consider doing an objchange.AssertObjectCompatible to verify that the result is
+	// consistent with what was planned.
+
 	var state *states.ResourceInstanceObjectFull
 	if !resp.Result.IsNull() {
 		status := states.ObjectTainted
@@ -119,11 +122,26 @@ func (ops *execOperations) DataRead(
 			diags = diags.Append(err)
 			return ret, diags
 		}
-		ops.workingState.SetResourceInstanceObjectFull(desired.Addr.CurrentObject(), stateSrc)
-
+		err = ops.workingState.SetResourceInstanceObjectFull(desired.Addr.CurrentObject(), stateSrc)
+		if err != nil {
+			// TODO maybe a more elegant error handling
+			// like, with tfdiags.FormatError(err)
+			diags = diags.Append(err)
+			return ret, diags
+		}
 	}
 
 	ret.State = state // nil if the object was deleted
 
 	return ret, diags
+}
+
+// DataDestroy implements [exec.Operations].
+func (ops *execOperations) DataDestroy(ctx context.Context, metadata *exec.ResourceInstanceObjectMeta) tfdiags.Diagnostics {
+	// TODO double-check that calling KnownValue for the ProviderInstance address is kosher here
+	err := ops.workingState.RemoveResourceInstanceObjectFull(metadata.Addr, metadata.ProviderInstance.KnownValue())
+	if err != nil {
+		return tfdiags.New(err)
+	}
+	return nil
 }

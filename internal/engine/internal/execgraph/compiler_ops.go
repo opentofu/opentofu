@@ -490,3 +490,37 @@ func (c *compiler) compileOpDataRead(operands *compilerOperands) nodeExecuteRaw 
 		return ret, !diags.HasErrors(), diags
 	}
 }
+
+func (c *compiler) compileOpDataDestroy(operands *compilerOperands) nodeExecuteRaw {
+	getMetadata := nextOperand[*exec.ResourceInstanceObjectMeta](operands)
+	waitForDeps := operands.OperandWaiter()
+	diags := operands.Finish()
+	c.diags = c.diags.Append(diags)
+	if diags.HasErrors() {
+		return nil
+	}
+	ops := c.ops
+
+	return func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
+		if !waitForDeps(ctx) {
+			return nil, false, diags
+		}
+
+		metadata, ok, moreDiags := getMetadata(ctx)
+		diags = diags.Append(moreDiags)
+		if !ok {
+			return nil, false, diags
+		}
+
+		moreDiags = ops.DataDestroy(ctx, metadata)
+		diags = diags.Append(moreDiags)
+		// TODO: Also call ops.ResourceInstancePostconditions
+		log.Printf("[WARN] opDataDestroy doesn't yet handle postconditions")
+
+		ret := &exec.ResourceInstanceObject{
+			Addr:  metadata.Addr,
+			State: nil, // because the object no longer exists as far as OpenTofu is concerned
+		}
+		return ret, !diags.HasErrors(), diags
+	}
+}

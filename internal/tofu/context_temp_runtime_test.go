@@ -89,6 +89,7 @@ var (
 
 	ExperimentalBugProviderDepsInExecgraph     = ExperimentalFlag{"Bug Provider Dependencies Must Compile Into Execgraph", false}
 	ExperimentalBugStripRemovedStateAttributes = ExperimentalFlag{"Bug State Attributes Removed on State Upgrade", false}
+	ExperimentalBugDataDestroyAndRead          = ExperimentalFlag{"Bug Read Data Resource During Destroy", false}
 
 	ExperimentalChangeDiagWording     = ExperimentalFlag{"Change Different Diagnostic Wording", false}
 	ExperimentalChangeErrorEarly      = ExperimentalFlag{"Change Detect Error Earlier", false}

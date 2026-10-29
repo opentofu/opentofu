@@ -306,7 +306,7 @@ func TestContextImport_multiInstanceProviderConfig(t *testing.T) {
 }
 
 func TestContextImport_importResourceWithSensitiveDataSource(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDataResource)
+	SkipExperimental(t, ExperimentalBugDataResource, ExperimentalFeatureSensitivity)
 	p := testProvider("aws")
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
@@ -1321,7 +1321,7 @@ resource "test_resource" "test" {
 }
 
 func TestContextImport_33572(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDataResource)
+	SkipExperimental(t, ExperimentalBugDataResource, ExperimentalFeatureChecks)
 	p := testProvider("aws")
 	m := testModule(t, "issue-33572")
 

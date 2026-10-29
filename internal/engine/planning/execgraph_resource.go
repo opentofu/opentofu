@@ -63,6 +63,7 @@ func (b *execGraphBuilder) AddResourceInstanceObjectSubgraphs(
 	// for objects that aren't changing.
 	for _, addr := range objAddrs {
 		obj := objs.Get(addr)
+
 		plannedChange := obj.PlannedChange
 		if plannedChange == nil {
 			// For this first loop we only care about objects that have planned

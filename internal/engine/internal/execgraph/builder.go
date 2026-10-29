@@ -344,6 +344,18 @@ func (b *Builder) DataRead(
 	})
 }
 
+// DataDestroy registers an operation to remove a data resource from state
+func (b *Builder) DataDestroy(
+	metadataRef ResultRef[*exec.ResourceInstanceObjectMeta],
+	waitFor AnyResultRef,
+) ResourceInstanceResultRef {
+	waiter := b.ensureWaiterRef(waitFor)
+	return operationRef[*exec.ResourceInstanceObject](b, operationDesc{
+		opCode:   opDataDestroy,
+		operands: []AnyResultRef{metadataRef, waiter},
+	})
+}
+
 // SetResourceInstanceFinalStateResult records which result should be treated
 // as the "final state" for the given resource instance, for purposes such as
 // propagating the result value back into the evaluation system to allow
