@@ -503,3 +503,96 @@ func TestExperimentalLintWarn(t *testing.T) {
 		})
 	}
 }
+
+func TestExecuteLintRuleWithDirectives(t *testing.T) {
+	ruleA := linting.MustParseRuleAddr("core:rule-a")
+	ruleB := linting.MustParseRuleAddr("core:rule-b")
+	groupAll := linting.MustParseRuleAddr("core:all")
+
+	type directive struct {
+		line int
+		text string
+	}
+	// The linted construct always starts on line 10.
+	const constructLine = 10
+
+	tests := map[string]struct {
+		directives []directive
+		wantRanA   bool
+		wantRanB   bool
+	}{
+		"no directives": {
+			wantRanA: true,
+			wantRanB: true,
+		},
+		"disable for one rule does not suppress the other rule": {
+			directives: []directive{{line: 9, text: "#disable(core:rule-a)"}},
+			wantRanA:   false,
+			wantRanB:   true,
+		},
+		"disable for a group suppresses every rule in the group": {
+			directives: []directive{{line: 9, text: "#disable(core:all)"}},
+			wantRanA:   false,
+			wantRanB:   false,
+		},
+		"disable for an unknown rule suppresses nothing": {
+			directives: []directive{{line: 9, text: "#disable(core:typo)"}},
+			wantRanA:   true,
+			wantRanB:   true,
+		},
+		"stacked directives each suppress their own rule": {
+			directives: []directive{
+				{line: 8, text: "#disable(core:rule-a)"},
+				{line: 9, text: "#disable(core:rule-b)"},
+			},
+			wantRanA: false,
+			wantRanB: false,
+		},
+		"a line without a directive stops the search": {
+			directives: []directive{{line: 8, text: "#disable(core:rule-a)"}},
+			wantRanA:   true,
+			wantRanB:   true,
+		},
+		"a directive that is not directly above suppresses nothing": {
+			directives: []directive{{line: 5, text: "#disable(core:all)"}},
+			wantRanA:   true,
+			wantRanB:   true,
+		},
+		"enable directive does not suppress": {
+			directives: []directive{{line: 9, text: "#enable(core:rule-a)"}},
+			wantRanA:   true,
+			wantRanB:   true,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			ctx := ContextWithLintFilterHints(t.Context(), collections.NewSet(linting.AllRulesGroupID), collections.NewSet[linting.RuleAddr]())
+			var controls []LintingControl
+			for _, d := range tc.directives {
+				lc, ok := ParseLintingControl(d.text, hcl.Range{Filename: "test.tf", Start: hcl.Pos{Line: d.line}})
+				if !ok {
+					t.Fatalf("directive %q was not parsed", d.text)
+				}
+				controls = append(controls, lc)
+			}
+			ctx = ContextWithNoLint(ctx, controls)
+
+			ran := map[linting.RuleAddr]bool{}
+			exec := func(ruleID linting.RuleAddr, groupIDs ...linting.RuleAddr) Diagnostics {
+				ran[ruleID] = true
+				return nil
+			}
+			src := SourceRange{Filename: "test.tf", Start: SourcePos{Line: constructLine, Column: 1}, End: SourcePos{Line: constructLine, Column: 20}}
+			_ = ExecuteLintRule(ctx, exec, src, ruleA, groupAll)
+			_ = ExecuteLintRule(ctx, exec, src, ruleB, groupAll)
+
+			if got := ran[ruleA]; got != tc.wantRanA {
+				t.Errorf("rule A executed: got %t, want %t", got, tc.wantRanA)
+			}
+			if got := ran[ruleB]; got != tc.wantRanB {
+				t.Errorf("rule B executed: got %t, want %t", got, tc.wantRanB)
+			}
+		})
+	}
+}
