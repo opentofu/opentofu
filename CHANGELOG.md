@@ -1,10 +1,14 @@
 The v1.12.x release series is supported until **February 1 2027**.
 
-## 1.12.11 (unreleased)
+## 1.12.12 (unreleased)
 
-## 1.12.10
+## 1.12.11
 BUG FIXES:
 - Fixed panic when provided invalid state encryption configuration. ([#4784](https://github.com/opentofu/opentofu/pull/4784))
+
+## 1.12.10
+
+This version was skipped due to issues in the release process.
 
 ## 1.12.9
 
