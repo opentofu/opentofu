@@ -1,13 +1,17 @@
 The v1.13.x release series is supported until **August 1 2027**.
 
-## 1.13.5 (Unreleased)
+## 1.13.6 (Unreleased)
 
-## 1.13.4
+## 1.13.5
 
 BUG FIXES:
 
 - The `-v` short option now again works as an alias for the `version` command and `--version` option, fixing an unintended regression in v1.13.0. ([#4769](https://github.com/opentofu/opentofu/pull/4769))
 - Fixed panic when provided invalid state encryption configuration. ([#4783](https://github.com/opentofu/opentofu/pull/4783))
+
+## 1.13.4
+
+This version was skipped due to issues in the release process.
 
 ## 1.13.3
 
