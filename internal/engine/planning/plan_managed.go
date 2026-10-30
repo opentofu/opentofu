@@ -417,6 +417,11 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		// prevent us from getting here in that case.
 	}
 
+	if !planResp.RequiresReplace.Empty() {
+		forceReplace = true
+		actionReason = plans.ResourceInstanceReplaceBecauseCannotUpdate
+	}
+
 	if meta.Status == states.ObjectTainted {
 		forceReplace = true
 		actionReason = plans.ResourceInstanceReplaceBecauseTainted
@@ -432,7 +437,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 	plannedAction := plans.Update
 	if current.Value.IsNull() {
 		plannedAction = plans.Create
-	} else if !planResp.RequiresReplace.Empty() || forceReplace {
+	} else if forceReplace {
 		// For "replace" actions the execution graph will include two separate
 		// plan and apply operations, where one handles deletion and the other
 		// handles creation. There is therefore an implicit third intermediate
@@ -714,6 +719,8 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 		return ret, diags
 	}
 
+	reason := meta.OrphanActionReason
+
 	ret.PlannedChange = &plans.ResourceInstanceChange{
 		Addr:        currentRunAddr,
 		PrevRunAddr: addr.InstanceAddr,
@@ -740,6 +747,7 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 		// should just pass in a reason as an additonal argument to this
 		// function, since it presumably already knows how it concluded that
 		// this address is "orphaned".
+		ActionReason: reason,
 	}
 
 	diags = diags.Append(checkPreventDestroy(ctx, meta, ret))

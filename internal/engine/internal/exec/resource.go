@@ -13,6 +13,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
+	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/resources"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -303,6 +304,8 @@ type ResourceInstanceObjectMeta struct {
 	// more convenient, finalized form.
 
 	Status states.ObjectStatus
+
+	OrphanActionReason plans.ResourceInstanceChangeActionReason
 }
 
 // BuildResourceInstanceObjectMeta constructs a [ResourceInstanceObjectMeta]
@@ -382,6 +385,10 @@ func BuildResourceInstanceObjectMeta[SV states.ValueOrJSONEquivalent](
 		// instance includes a declaration that the object is desired --
 		// and let it be nil for module instances where that isn't true.
 		ret.DeclRange = fromModule.DeclRange
+
+		if fromModule.OrphanActionReason != plans.ResourceInstanceChangeNoReason {
+			ret.OrphanActionReason = fromModule.OrphanActionReason
+		}
 
 		ret.PostCreateProvisioners = append(ret.PostCreateProvisioners, fromModule.PostCreateProvisioners...)
 		ret.PreDeleteProvisioners = append(ret.PreDeleteProvisioners, fromModule.PreDeleteProvisioners...)

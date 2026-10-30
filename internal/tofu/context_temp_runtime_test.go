@@ -123,7 +123,7 @@ var (
 	ExperimentalFeatureErrorHandling   = ExperimentalFlag{"Missing Error Handling", false}
 	ExperimentalFeatureProviderInput   = ExperimentalFlag{"Missing Provider Input Prompting", false}
 	ExperimentalFeatureModuleEnabled   = ExperimentalFlag{"Missing Module Lifecycle Enabled", true}
-	ExperimentalFeatureActionReason    = ExperimentalFlag{"Missing ActionReason", false}
+	ExperimentalFeatureActionReason    = ExperimentalFlag{"Missing ActionReason", true}
 	ExperimentalFeatureDriftedResource = ExperimentalFlag{"Missing Plan Drifted Resources", false}
 
 	// Obsolete flags indicate a test which depends on a feature we do not

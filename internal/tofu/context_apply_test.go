@@ -2424,11 +2424,9 @@ func TestContext2Apply_countDecreaseToOneCorrupted(t *testing.T) {
 		if got, want := change.Action, plans.Delete; got != want {
 			t.Errorf("wrong action for instance zero %s; want %s", got, want)
 		}
-		if !experimentalRuntimeEnabled() {
-			SkipExperimental(t, ExperimentalFeatureActionReason)
-			if got, want := change.ActionReason, plans.ResourceInstanceDeleteBecauseWrongRepetition; got != want {
-				t.Errorf("wrong action reason for instance zero %s; want %s", got, want)
-			}
+		SkipExperimental(t, ExperimentalFeatureActionReason)
+		if got, want := change.ActionReason, plans.ResourceInstanceDeleteBecauseWrongRepetition; got != want {
+			t.Errorf("wrong action reason for instance zero %s; want %s", got, want)
 		}
 	}
 	{
@@ -3039,11 +3037,14 @@ func TestContext2Apply_moduleOrphanInheritAlias(t *testing.T) {
 		// This should ideally be ResourceInstanceDeleteBecauseNoModule, but
 		// the codepath deciding this doesn't currently have enough information
 		// to differentiate, and so this is a compromise.
-		if !experimentalRuntimeEnabled() {
-			SkipExperimental(t, ExperimentalFeatureActionReason)
-			if got, want := change.ActionReason, plans.ResourceInstanceDeleteBecauseNoResourceConfig; got != want {
-				t.Errorf("wrong action for %s %s; want %s", addr, got, want)
-			}
+		SkipExperimental(t, ExperimentalFeatureActionReason)
+		expected := plans.ResourceInstanceDeleteBecauseNoResourceConfig
+		if experimentalRuntimeEnabled() {
+			// Fixed in the new runtime
+			expected = plans.ResourceInstanceDeleteBecauseNoModule
+		}
+		if got, want := change.ActionReason, expected; got != want {
+			t.Errorf("wrong action for %s %s; want %s", addr, got, want)
 		}
 	}
 

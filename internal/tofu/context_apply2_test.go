@@ -6911,11 +6911,9 @@ func TestContext2Apply_enabledForResource(t *testing.T) {
 			t.Fatalf("plan for %s has wrong action %s; want %s", resourceInstAddr, got, want)
 		}
 
-		if !experimentalRuntimeEnabled() {
-			SkipExperimental(t, ExperimentalFeatureActionReason)
-			if got, want := change.ActionReason, plans.ResourceInstanceDeleteBecauseEnabledFalse; got != want {
-				t.Errorf("wrong action reason for %s %s; want %s", resourceInstAddr, got, want)
-			}
+		SkipExperimental(t, ExperimentalFeatureActionReason)
+		if got, want := change.ActionReason, plans.ResourceInstanceDeleteBecauseEnabledFalse; got != want {
+			t.Errorf("wrong action reason for %s %s; want %s", resourceInstAddr, got, want)
 		}
 
 		newState, diags := tfCtx.Apply(context.Background(), plan, m, nil)
