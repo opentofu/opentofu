@@ -48,6 +48,11 @@ func (c StateReplaceProviderCommand) Execute(args *arguments.StateReplaceProvide
 
 	ctx := c.CommandContext()
 
+	// This is safe to be done since the execution engine contexts are created by ignoring the cancellation from the parent context.
+	// internal/backend/local/backend.go
+	ctx, cancel := c.InterruptibleContext(ctx)
+	defer cancel()
+
 	if diags := c.Meta.checkRequiredVersion(ctx); diags != nil {
 		view.Diagnostics(diags)
 		return 1

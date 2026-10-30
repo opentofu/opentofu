@@ -175,7 +175,7 @@ func (m *Meta) backendMigrateState_S_S(ctx context.Context, opts *backendMigrate
 	if !migrate {
 		var err error
 		// Ask the user if they want to migrate their existing remote state
-		migrate, err = m.confirm(&tofu.InputOpts{
+		migrate, err = m.confirm(ctx, &tofu.InputOpts{
 			Id: "backend-migrate-multistate-to-multistate",
 			Query: fmt.Sprintf(
 				"Do you want to migrate all workspaces to %q?",
@@ -235,7 +235,7 @@ func (m *Meta) backendMigrateState_S_s(ctx context.Context, opts *backendMigrate
 	if !migrate {
 		var err error
 		// Ask the user if they want to migrate their existing remote state
-		migrate, err = m.confirm(&tofu.InputOpts{
+		migrate, err = m.confirm(ctx, &tofu.InputOpts{
 			Id: "backend-migrate-multistate-to-single",
 			Query: fmt.Sprintf(
 				"Destination state %q doesn't support workspaces.\n"+
@@ -292,7 +292,7 @@ func (m *Meta) backendMigrateState_s_s(ctx context.Context, opts *backendMigrate
 		// for a new name and migrate the default state to the given named state.
 		destinationState, err = func() (statemgr.Full, error) {
 			log.Print("[TRACE] backendMigrateState: destination doesn't support a default workspace, so we must prompt for a new name")
-			name, err := m.promptNewWorkspaceName(opts.DestinationType)
+			name, err := m.promptNewWorkspaceName(ctx, opts.DestinationType)
 			if err != nil {
 				return nil, err
 			}
@@ -384,7 +384,7 @@ func (m *Meta) backendMigrateState_s_s(ctx context.Context, opts *backendMigrate
 		destination = destinationState.State()
 	}
 
-	var confirmFunc func(statemgr.Full, statemgr.Full, *backendMigrateOpts) (bool, error)
+	var confirmFunc func(context.Context, statemgr.Full, statemgr.Full, *backendMigrateOpts) (bool, error)
 	switch {
 	// No migration necessary
 	case source.Empty() && destination.Empty():
@@ -404,7 +404,7 @@ func (m *Meta) backendMigrateState_s_s(ctx context.Context, opts *backendMigrate
 			// whether to migrate state in the cloud case, so we'll skip
 			// this later prompt for Cloud, even though we do still need it
 			// for state backends.
-			confirmFunc = func(statemgr.Full, statemgr.Full, *backendMigrateOpts) (bool, error) {
+			confirmFunc = func(context.Context, statemgr.Full, statemgr.Full, *backendMigrateOpts) (bool, error) {
 				return true, nil // the answer is implied to be "yes" if we reached this point
 			}
 		} else {
@@ -431,7 +431,7 @@ func (m *Meta) backendMigrateState_s_s(ctx context.Context, opts *backendMigrate
 		}
 
 		// Confirm with the user whether we want to copy state over
-		confirm, err := confirmFunc(sourceState, destinationState, opts)
+		confirm, err := confirmFunc(ctx, sourceState, destinationState, opts)
 		if err != nil {
 			log.Print("[TRACE] backendMigrateState: error reading input, so aborting migration")
 			return err
@@ -463,7 +463,7 @@ func (m *Meta) backendMigrateState_s_s(ctx context.Context, opts *backendMigrate
 	return nil
 }
 
-func (m *Meta) backendMigrateEmptyConfirm(source, destination statemgr.Full, opts *backendMigrateOpts) (bool, error) {
+func (m *Meta) backendMigrateEmptyConfirm(ctx context.Context, source, destination statemgr.Full, opts *backendMigrateOpts) (bool, error) {
 	var inputOpts *tofu.InputOpts
 	if opts.DestinationType == "cloud" {
 		inputOpts = &tofu.InputOpts{
@@ -481,11 +481,11 @@ func (m *Meta) backendMigrateEmptyConfirm(source, destination statemgr.Full, opt
 		}
 	}
 
-	return m.confirm(inputOpts)
+	return m.confirm(ctx, inputOpts)
 }
 
 func (m *Meta) backendMigrateNonEmptyConfirm(
-	sourceState, destinationState statemgr.Full, opts *backendMigrateOpts) (bool, error) {
+	ctx context.Context, sourceState, destinationState statemgr.Full, opts *backendMigrateOpts) (bool, error) {
 	// We need to grab both states so we can write them to a file
 	source := sourceState.State()
 	destination := destinationState.State()
@@ -533,7 +533,7 @@ func (m *Meta) backendMigrateNonEmptyConfirm(
 	}
 
 	// Confirm with the user that the copy should occur
-	return m.confirm(inputOpts)
+	return m.confirm(ctx, inputOpts)
 }
 
 func retrieveWorkspaces(ctx context.Context, back backend.Backend, sourceType string) ([]string, bool, error) {
@@ -617,7 +617,7 @@ func (m *Meta) backendMigrateTFC(ctx context.Context, opts *backendMigrateOpts) 
 		// We do prompt first though, because state migration is mandatory
 		// for moving to Cloud and the user should get an opportunity to
 		// confirm that first.
-		if migrate, err := m.promptSingleToCloudSingleStateMigration(opts); err != nil {
+		if migrate, err := m.promptSingleToCloudSingleStateMigration(ctx, opts); err != nil {
 			return err
 		} else if !migrate {
 			return nil // skip migrating but return successfully
@@ -638,7 +638,7 @@ func (m *Meta) backendMigrateTFC(ctx context.Context, opts *backendMigrateOpts) 
 
 		opts.sourceWorkspace = currentWorkspace
 		opts.destinationWorkspace = cloudBackendDestination.WorkspaceMapping.Name
-		if err := m.promptMultiToSingleCloudMigration(opts); err != nil {
+		if err := m.promptMultiToSingleCloudMigration(ctx, opts); err != nil {
 			return err
 		}
 
@@ -694,7 +694,7 @@ func (m *Meta) backendMigrateState_S_TFC(ctx context.Context, opts *backendMigra
 					errMigrateSingleLoadDefault), opts.SourceType, err)
 			}
 			if !sourceState.State().Empty() {
-				newName, err := m.promptNewWorkspaceName(opts.DestinationType)
+				newName, err := m.promptNewWorkspaceName(ctx, opts.DestinationType)
 				if err != nil {
 					return err
 				}
@@ -716,7 +716,7 @@ func (m *Meta) backendMigrateState_S_TFC(ctx context.Context, opts *backendMigra
 	//   how things already are in Terraform Cloud with no user intervention needed.
 	pattern := ""
 	if remoteBackend, ok := opts.Source.(*remote.Remote); ok {
-		if err := m.promptRemotePrefixToCloudTagsMigration(opts); err != nil {
+		if err := m.promptRemotePrefixToCloudTagsMigration(ctx, opts); err != nil {
 			return err
 		}
 		pattern = remoteBackend.WorkspaceNamePattern()
@@ -724,7 +724,7 @@ func (m *Meta) backendMigrateState_S_TFC(ctx context.Context, opts *backendMigra
 	}
 
 	if pattern == "" {
-		pattern, err = m.promptMultiStateMigrationPattern(opts.SourceType)
+		pattern, err = m.promptMultiStateMigrationPattern(ctx, opts.SourceType)
 		if err != nil {
 			return err
 		}
@@ -792,7 +792,7 @@ func (m *Meta) backendMigrateState_S_TFC(ctx context.Context, opts *backendMigra
 	return nil
 }
 
-func (m *Meta) promptSingleToCloudSingleStateMigration(opts *backendMigrateOpts) (bool, error) {
+func (m *Meta) promptSingleToCloudSingleStateMigration(ctx context.Context, opts *backendMigrateOpts) (bool, error) {
 	if !m.input {
 		log.Print("[TRACE] backendMigrateState: can't prompt for input, so aborting migration")
 		return false, errors.New(strings.TrimSpace(errInteractiveInputDisabled))
@@ -800,7 +800,7 @@ func (m *Meta) promptSingleToCloudSingleStateMigration(opts *backendMigrateOpts)
 	migrate := opts.force
 	if !migrate {
 		var err error
-		migrate, err = m.confirm(&tofu.InputOpts{
+		migrate, err = m.confirm(ctx, &tofu.InputOpts{
 			Id:          "backend-migrate-state-single-to-cloud-single",
 			Query:       "Do you wish to proceed?",
 			Description: strings.TrimSpace(tfcInputBackendMigrateStateSingleToCloudSingle),
@@ -813,7 +813,7 @@ func (m *Meta) promptSingleToCloudSingleStateMigration(opts *backendMigrateOpts)
 	return migrate, nil
 }
 
-func (m *Meta) promptRemotePrefixToCloudTagsMigration(opts *backendMigrateOpts) error {
+func (m *Meta) promptRemotePrefixToCloudTagsMigration(ctx context.Context, opts *backendMigrateOpts) error {
 	if !m.input {
 		log.Print("[TRACE] backendMigrateState: can't prompt for input, so aborting migration")
 		return errors.New(strings.TrimSpace(errInteractiveInputDisabled))
@@ -821,7 +821,7 @@ func (m *Meta) promptRemotePrefixToCloudTagsMigration(opts *backendMigrateOpts) 
 	migrate := opts.force
 	if !migrate {
 		var err error
-		migrate, err = m.confirm(&tofu.InputOpts{
+		migrate, err = m.confirm(ctx, &tofu.InputOpts{
 			Id:          "backend-migrate-remote-multistate-to-cloud",
 			Query:       "Do you wish to proceed?",
 			Description: strings.TrimSpace(tfcInputBackendMigrateRemoteMultiToCloud),
@@ -839,7 +839,7 @@ func (m *Meta) promptRemotePrefixToCloudTagsMigration(opts *backendMigrateOpts) 
 }
 
 // Multi-state to single state.
-func (m *Meta) promptMultiToSingleCloudMigration(opts *backendMigrateOpts) error {
+func (m *Meta) promptMultiToSingleCloudMigration(ctx context.Context, opts *backendMigrateOpts) error {
 	if !m.input {
 		log.Print("[TRACE] backendMigrateState: can't prompt for input, so aborting migration")
 		return errors.New(strings.TrimSpace(errInteractiveInputDisabled))
@@ -848,7 +848,7 @@ func (m *Meta) promptMultiToSingleCloudMigration(opts *backendMigrateOpts) error
 	if !migrate {
 		var err error
 		// Ask the user if they want to migrate their existing remote state
-		migrate, err = m.confirm(&tofu.InputOpts{
+		migrate, err = m.confirm(ctx, &tofu.InputOpts{
 			Id:    "backend-migrate-multistate-to-single",
 			Query: "Do you want to copy only your current workspace?",
 			Description: fmt.Sprintf(
@@ -867,7 +867,7 @@ func (m *Meta) promptMultiToSingleCloudMigration(opts *backendMigrateOpts) error
 	return nil
 }
 
-func (m *Meta) promptNewWorkspaceName(destinationType string) (string, error) {
+func (m *Meta) promptNewWorkspaceName(ctx context.Context, destinationType string) (string, error) {
 	message := fmt.Sprintf("[reset][bold][yellow]The %q backend configuration only allows "+
 		"named workspaces![reset]", destinationType)
 	if destinationType == "cloud" {
@@ -877,7 +877,8 @@ func (m *Meta) promptNewWorkspaceName(destinationType string) (string, error) {
 		}
 		message = `[reset][bold][yellow]Cloud backend requires all workspaces to be given an explicit name.[reset]`
 	}
-	name, err := m.UIInput().Input(context.Background(), &tofu.InputOpts{
+
+	name, err := m.UIInput().Input(ctx, &tofu.InputOpts{
 		Id:          "new-state-name",
 		Query:       message,
 		Description: strings.TrimSpace(inputBackendNewWorkspaceName),
@@ -889,10 +890,10 @@ func (m *Meta) promptNewWorkspaceName(destinationType string) (string, error) {
 	return name, nil
 }
 
-func (m *Meta) promptMultiStateMigrationPattern(sourceType string) (string, error) {
+func (m *Meta) promptMultiStateMigrationPattern(ctx context.Context, sourceType string) (string, error) {
 	// This is not the first prompt a user would be presented with in the migration to TFC, so no
 	// guard on m.input is needed here.
-	renameWorkspaces, err := m.UIInput().Input(context.Background(), &tofu.InputOpts{
+	renameWorkspaces, err := m.UIInput().Input(ctx, &tofu.InputOpts{
 		Id:          "backend-migrate-multistate-to-tfc",
 		Query:       fmt.Sprintf("[reset][bold][yellow]%s[reset]", "Would you like to rename your workspaces?"),
 		Description: fmt.Sprintf(strings.TrimSpace(tfcInputBackendMigrateMultiToMulti), sourceType),
@@ -910,7 +911,7 @@ func (m *Meta) promptMultiStateMigrationPattern(sourceType string) (string, erro
 		return "*", nil
 	}
 
-	pattern, err := m.UIInput().Input(context.Background(), &tofu.InputOpts{
+	pattern, err := m.UIInput().Input(ctx, &tofu.InputOpts{
 		Id:          "backend-migrate-multistate-to-tfc-pattern",
 		Query:       fmt.Sprintf("[reset][bold][yellow]%s[reset]", "How would you like to rename your workspaces?"),
 		Description: strings.TrimSpace(tfcInputBackendMigrateMultiToMultiPattern),
