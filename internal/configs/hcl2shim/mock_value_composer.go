@@ -83,19 +83,19 @@ composeMockValueForAttributes generates a new mocked value based on the given sc
 For write-only attributes, it always returns null value based on the attribute's schema.
 For all other attribute configurations, the generated value follows the truth table below:
 Required  Optional  Computed  Has config  Has Override  Result
-t         f         f         t           t             Error - Not Allowed to override config
+t         f         f         t           t             Config - allowed to have the override specified but the config is used if specifie
 t         f         f         t           f             Config
 t         f         f         f           t             Error - Required field in config not provided
 t         f         f         f           f             Error - Required field in config not provided
-f         t         f         t           t             Error - Not Allowed to override config
+f         t         f         t           t             Config - allowed to have the override specified but the config is used if specified
 f         t         f         t           f             Config
 f         t         f         f           t             Override Value
 f         t         f         f           f             NullVal of the attribute type
-f         t         t         t           t             Error - Not Allowed to override config
+f         t         t         t           t             Config - allowed to have the override specified but the config is used if specified
 f         t         t         t           f             Config
 f         t         t         f           t             Override
 f         t         t         f           f             GenVal
-f         f         t         t           t             Error - Not Allowed to override config
+f         f         t         t           t             Error - Config not allowed here
 f         f         t         t           f             Error - Config not allowed here
 f         f         t         f           t             Override
 f         f         t         f           f             GenVal
@@ -128,21 +128,6 @@ func (mvc MockValueComposer) composeMockValueForAttributes(attrs map[string]*con
 
 		// Validation of overridden values
 		if hasOverride {
-			if hasConfig {
-				diags = diags.Append(tfdiags.WholeContainingBody(
-					tfdiags.Error,
-					fmt.Sprintf("Invalid mock/override field `%v`", k),
-					"The field is ignored since overriding configuration values is not allowed.",
-				))
-			}
-			if !attr.Computed {
-				diags = diags.Append(tfdiags.WholeContainingBody(
-					tfdiags.Error,
-					fmt.Sprintf("Non-computed field `%v` is not allowed to be overridden", k),
-					"Overriding non-computed fields is not allowed, so this field cannot be processed.",
-				))
-			}
-
 			var err error
 			ovConvert, err = convert.Convert(overrideValue, attr.ImpliedType())
 			if err != nil {

@@ -752,7 +752,10 @@ func TestComposeMockValueBySchema(t *testing.T) {
 			defaults: map[string]cty.Value{
 				"config-field": cty.StringVal("str"),
 			},
-			wantError: true,
+			wantVal: cty.ObjectVal(map[string]cty.Value{
+				"config-field": cty.StringVal("iAmFromConfig"),
+			}),
+			wantError: false,
 		},
 		"override-of-write-only-without-config": {
 			schema: &configschema.Block{
