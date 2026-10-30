@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"log"
 	"maps"
+	"os"
 	"path"
 	"slices"
 	"sort"
@@ -265,6 +266,29 @@ func (c TestCommand) Execute(args *arguments.Test, view views.Test) int {
 
 	view.Conclusion(&suite)
 
+	if args.JUnit != "" {
+		var junitFile *os.File
+		switch args.JUnit {
+		case "-":
+			junitFile = os.Stdout
+		default:
+			junitFile, err = os.Create(args.JUnit)
+			if err != nil {
+				diags.Append(err)
+				view.Diagnostics(nil, nil, diags)
+				return 1
+			}
+			defer junitFile.Close()
+		}
+
+		junitOutput := suite.ToJUnit()
+		if err := junitOutput.WriteXML(junitFile); err != nil {
+			diags.Append(err)
+			view.Diagnostics(nil, nil, diags)
+			return 1
+		}
+	}
+
 	if suite.Status != moduletest.Pass {
 		return 1
 	}
@@ -318,7 +342,6 @@ func (runner *TestSuiteRunner) Start(ctx context.Context) {
 		}
 
 		file := runner.Suite.Files[name]
-
 		fileRunner := &TestFileRunner{
 			Suite: runner,
 			States: map[string]*TestFileState{
@@ -349,6 +372,7 @@ type TestFileState struct {
 func (runner *TestFileRunner) ExecuteTestFile(ctx context.Context, file *moduletest.File) {
 	log.Printf("[TRACE] TestFileRunner: executing test file %s", file.Name)
 
+	file.Started = time.Now().UTC()
 	file.Status = file.Status.Merge(moduletest.Pass)
 	for _, run := range file.Runs {
 		if runner.Suite.Cancelled {
@@ -445,6 +469,8 @@ func (runner *TestFileRunner) ExecuteTestFile(ctx context.Context, file *modulet
 
 func (runner *TestFileRunner) ExecuteTestRun(ctx context.Context, run *moduletest.Run, file *moduletest.File, state *states.State, config *configs.Config) (*states.State, bool) {
 	log.Printf("[TRACE] TestFileRunner: executing run block %s/%s", file.Name, run.Name)
+	started := time.Now()
+	defer func() { run.Duration = time.Since(started) }()
 
 	if runner.Suite.Cancelled {
 		// Don't do anything, just give up and return immediately.
