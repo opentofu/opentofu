@@ -400,6 +400,9 @@ func RootCommander(help *bool, ver *bool, chdir *string) Command {
 			WorkspaceCommander(false),
 			UnlockCommander(),
 			StateCommander(),
+
+			// Hidden Commands
+			CliCommander(),
 		},
 		Groups: []Group{MainCommandGroup, OtherCommandGroup},
 
@@ -418,4 +421,21 @@ func RootCommander(help *bool, ver *bool, chdir *string) Command {
 	root.CommandLine.BoolVar(help, "help", false, "Show this help output, or the help for a specified subcommand.")
 
 	return root
+}
+
+func CliCommander() Command {
+	return Command{
+		Hidden: true,
+		Name:   "cli",
+		Short:  "cli support commands",
+		Long:   `Commands to support the tofu executable (completion, docs, etc...)`,
+
+		Commands: []Command{
+			// Will be replaced during execution with the builtin completion
+			Command{
+				Name:  "completion",
+				Short: "Completion script generation",
+			},
+		},
+	}
 }
