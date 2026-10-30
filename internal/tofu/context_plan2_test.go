@@ -30,6 +30,7 @@ import (
 	"github.com/opentofu/opentofu/internal/shared"
 
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/lang/globalref"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
@@ -9874,4 +9875,234 @@ resource "test_resource" "example" {
 	if changes := len(plan.Changes.Resources); changes != 1 {
 		t.Fatalf("expected to have exactly one resource change but got %d", changes)
 	}
+}
+
+// TestContex2Plan_relevantAttributesDrift defines how relevant
+// attributes should be detected based on drift.
+func TestContex2Plan_relevantAttributesDrift(t *testing.T) {
+	// RelevantAttributes is a weird artefact of filtering
+	// drifted changes in the UI.  When drifted changes
+	// were introduced in the UI, lots of feedback was
+	// given that it was too noisy.  The solution implemented
+	// was the following rule:
+	//
+	// Only show resource drift if that drift can be traced
+	// back to planned changes in dependent resources.
+	//
+	// Many sdkv2 providers are lossy with how they treat
+	// null vs []. Some additionally ignore the case
+	// of certain attributes. Drift here will usually
+	// be resolved between the refresh and plan provider calls
+	// and not shown in planned changes.  However, any downstream
+	// resource that uses this "inconsistent" attribute value
+	// may see unexpected drift.
+	//
+	// The "heuristic" in the experimental runtime may
+	// differ from the original runtime as it has more precise
+	// dependency tracking.
+
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+resource "test_resource" "drifty" {
+  attr = ""
+  insensitive = "valuestr"
+}
+
+resource "test_resource" "dependy" {
+  attr = test_resource.drifty.insensitive
+}
+`,
+	})
+
+	drifty := mustResourceInstanceAddr("test_resource.drifty")
+	dependy := mustResourceInstanceAddr("test_resource.dependy")
+	insensitivePath := cty.Path{cty.GetAttrStep{Name: "insensitive"}}
+	driftyRA := globalref.ResourceAttr{Resource: drifty, Attr: insensitivePath}
+
+	p := &MockProvider{
+		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+			Provider: providers.Schema{Block: &configschema.Block{}},
+			ResourceTypes: map[string]providers.Schema{
+				"test_resource": {Block: &configschema.Block{
+					Attributes: map[string]*configschema.Attribute{
+						"attr":        &configschema.Attribute{Type: cty.String, Required: true},
+						"insensitive": &configschema.Attribute{Type: cty.String, Optional: true},
+					},
+				}},
+			},
+		},
+	}
+
+	// Refresh always lower-cases the insensitive string
+	p.ReadResourceFn = func(req providers.ReadResourceRequest) providers.ReadResourceResponse {
+		insensitiveVal := req.PriorState.GetAttr("insensitive")
+		if !insensitiveVal.IsNull() {
+			insensitiveStr := insensitiveVal.AsString()
+			insensitiveStr = strings.ToLower(insensitiveStr)
+			insensitiveVal = cty.StringVal(insensitiveStr)
+		}
+
+		newState := cty.ObjectVal(map[string]cty.Value{
+			"attr":        req.PriorState.GetAttr("attr"),
+			"insensitive": insensitiveVal,
+		})
+		t.Logf("refresh\nprior: %s\nnew:   %s", req.PriorState.GoString(), newState.GoString())
+
+		return providers.ReadResourceResponse{
+			NewState: newState,
+		}
+	}
+	ctx := testContext2(t, &ContextOpts{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		}, nil),
+	})
+
+	assertRAEqual := func(t *testing.T, expected, actual globalref.ResourceAttr) {
+		t.Helper()
+		if !expected.Resource.Equal(actual.Resource) {
+			t.Errorf("Expect RA resource %s, got %s", expected.Resource, actual.Resource)
+		}
+		if !expected.Attr.Equals(actual.Attr) {
+			t.Errorf("Expect RA attr %q, got %q", tfdiags.FormatCtyPath(expected.Attr), tfdiags.FormatCtyPath(actual.Attr))
+		}
+	}
+
+	t.Run("empty state", func(t *testing.T) {
+		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
+		if diags.HasErrors() {
+			t.Errorf("unexpected errors: %s", diags.Err())
+		}
+		if changes := len(plan.Changes.Resources); changes != 2 {
+			t.Fatalf("expected to have exactly one resource change but got %d", changes)
+		}
+		for _, change := range plan.Changes.Resources {
+			if change.Action != plans.Create {
+				t.Errorf("unexpected change %s", change.Action)
+			}
+		}
+		if len(plan.DriftedResources) > 0 {
+			t.Fatalf("expected no drifted resources: %#v", plan.DriftedResources)
+		}
+		if experimentalRuntimeEnabled() {
+			if len(plan.RelevantAttributes) > 0 {
+				t.Fatalf("expected no relevant attributes: %#v", plan.RelevantAttributes)
+			}
+		} else {
+			if len(plan.RelevantAttributes) != 1 {
+				t.Fatalf("expected one relevant attributes: %#v", plan.RelevantAttributes)
+			}
+			assertRAEqual(t, plan.RelevantAttributes[0], driftyRA)
+		}
+	})
+
+	t.Run("refresh matches state", func(t *testing.T) {
+		state := states.BuildState(func(s *states.SyncState) {
+			s.SetResourceInstanceCurrent(drifty, &states.ResourceInstanceObjectSrc{
+				AttrsJSON: []byte(`{"attr": "", "insensitive": "valuestr"}`),
+				Status:    states.ObjectReady,
+			}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
+		})
+		plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
+		if diags.HasErrors() {
+			t.Errorf("unexpected errors: %s", diags.Err())
+		}
+		if changes := len(plan.Changes.Resources); changes != 2 {
+			t.Fatalf("expected to have exactly one resource change but got %d", changes)
+		}
+		for _, change := range plan.Changes.Resources {
+			if change.Addr.Equal(drifty) && change.Action != plans.NoOp {
+				t.Errorf("unexpected change %s", change.Action)
+			}
+			if change.Addr.Equal(dependy) && change.Action != plans.Create {
+				t.Errorf("unexpected change %s", change.Action)
+			}
+		}
+		if len(plan.DriftedResources) > 0 {
+			t.Fatalf("expected no drifted resources: %#v", plan.DriftedResources)
+		}
+		if experimentalRuntimeEnabled() {
+			// As there is no drift for drifty, there can be no corresponding RA
+			if len(plan.RelevantAttributes) > 0 {
+				t.Fatalf("expected no relevant attributes: %#v", plan.RelevantAttributes)
+			}
+		} else {
+			// The create change of dependy should cause driftyRA to be included
+			if len(plan.RelevantAttributes) != 1 {
+				t.Fatalf("expected one relevant attributes: %#v", plan.RelevantAttributes)
+			}
+			assertRAEqual(t, plan.RelevantAttributes[0], driftyRA)
+		}
+	})
+	t.Run("refresh does not match state with change", func(t *testing.T) {
+		state := states.BuildState(func(s *states.SyncState) {
+			s.SetResourceInstanceCurrent(drifty, &states.ResourceInstanceObjectSrc{
+				AttrsJSON: []byte(`{"attr": "", "insensitive": "valueSTR"}`),
+				Status:    states.ObjectReady,
+			}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
+		})
+		plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
+		if diags.HasErrors() {
+			t.Errorf("unexpected errors: %s", diags.Err())
+		}
+		if changes := len(plan.Changes.Resources); changes != 2 {
+			t.Fatalf("expected to have exactly one resource change but got %d", changes)
+		}
+		for _, change := range plan.Changes.Resources {
+			if change.Addr.Equal(drifty) && change.Action != plans.NoOp {
+				t.Errorf("unexpected change %s", change.Action)
+			}
+			if change.Addr.Equal(dependy) && change.Action != plans.Create {
+				t.Errorf("unexpected change %s", change.Action)
+			}
+		}
+		if len(plan.DriftedResources) != 1 {
+			t.Fatalf("expected one drifted resources: %#v", plan.DriftedResources)
+		}
+		if expected, actual := drifty, plan.DriftedResources[0].Addr; !expected.Equal(actual) {
+			t.Fatalf("expected %s, got %s", expected, actual)
+		}
+		// The create change of dependy should cause driftyRA to be included
+		if len(plan.RelevantAttributes) != 1 {
+			t.Fatalf("expected one relevant attributes: %#v", plan.RelevantAttributes)
+		}
+		assertRAEqual(t, plan.RelevantAttributes[0], driftyRA)
+	})
+	t.Run("refresh does not match state without change", func(t *testing.T) {
+		state := states.BuildState(func(s *states.SyncState) {
+			s.SetResourceInstanceCurrent(drifty, &states.ResourceInstanceObjectSrc{
+				AttrsJSON: []byte(`{"attr": "", "insensitive": "valueSTR"}`),
+				Status:    states.ObjectReady,
+			}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
+			s.SetResourceInstanceCurrent(dependy, &states.ResourceInstanceObjectSrc{
+				AttrsJSON: []byte(`{"attr": "valuestr"}`),
+				Status:    states.ObjectReady,
+			}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
+		})
+		plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
+		if diags.HasErrors() {
+			t.Errorf("unexpected errors: %s", diags.Err())
+		}
+		if changes := len(plan.Changes.Resources); changes != 2 {
+			t.Fatalf("expected to have exactly one resource change but got %d", changes)
+		}
+		for _, change := range plan.Changes.Resources {
+			if change.Addr.Equal(drifty) && change.Action != plans.NoOp {
+				t.Errorf("unexpected change %s", change.Action)
+			}
+			if change.Addr.Equal(dependy) && change.Action != plans.NoOp {
+				t.Errorf("unexpected change %s\n%s\n%s", change.Action, string(change.Before), string(change.After))
+			}
+		}
+		if len(plan.DriftedResources) != 1 {
+			t.Fatalf("expected one drifted resources: %#v", plan.DriftedResources)
+		}
+		if expected, actual := drifty, plan.DriftedResources[0].Addr; !expected.Equal(actual) {
+			t.Fatalf("expected %s, got %s", expected, actual)
+		}
+		// NoOp change for dependy means no reverse lookup for driftyRA
+		if len(plan.RelevantAttributes) != 0 {
+			t.Fatalf("expected no relevant attributes: %#v", plan.RelevantAttributes)
+		}
+	})
 }

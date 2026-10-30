@@ -13,6 +13,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/plugins"
 	"github.com/opentofu/opentofu/internal/lang/eval"
+	"github.com/opentofu/opentofu/internal/lang/globalref"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -63,6 +64,8 @@ type planContext struct {
 	skipImport           bool
 	importCommandTargets []*eval.ImportStatement
 	generateConfigPath   string
+
+	driftCausingChanges map[driftMark]struct{}
 }
 
 func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, providers plugins.Providers, opts *PlanOpts) *planContext {
@@ -84,6 +87,8 @@ func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, pro
 
 		importCommandTargets: opts.ImportCommandTargets,
 		generateConfigPath:   opts.GenerateConfigPath,
+
+		driftCausingChanges: map[driftMark]struct{}{},
 	}
 }
 
@@ -100,11 +105,20 @@ func (p *planContext) Close(ctx context.Context) (*planContextResult, tfdiags.Di
 	drift, moreDiags := p.managedResourceChangesBetweenUpgradeAndRefresh(ctx, objs)
 	diags = diags.Append(moreDiags)
 
+	var driftCausingChanges []globalref.ResourceAttr
+	for mark := range p.driftCausingChanges {
+		driftCausingChanges = append(driftCausingChanges, globalref.ResourceAttr{
+			Resource: *mark.addr,
+			Attr:     *mark.path,
+		})
+	}
+
 	result := &planContextResult{
 		ResourceInstanceObjects: objs,
 		PrevRoundState:          p.prevRoundState,
 		RootOutput:              p.rootOutput,
 		DriftedResources:        drift,
+		DriftCausingChanges:     driftCausingChanges,
 	}
 
 	return result, diags
@@ -127,7 +141,8 @@ type planContextResult struct {
 	// like output values need to be handled a bit differently.
 	Destroying bool
 
-	DriftedResources []*plans.ResourceInstanceChangeSrc
+	DriftedResources    []*plans.ResourceInstanceChangeSrc
+	DriftCausingChanges []globalref.ResourceAttr
 }
 
 // driftedResources is a best-effort attempt to compare the current and prior
