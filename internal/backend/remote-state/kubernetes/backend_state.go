@@ -9,12 +9,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"sort"
 
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/remote"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -33,6 +35,10 @@ func (b *Backend) Workspaces(ctx context.Context) ([]string, error) {
 		},
 	)
 	if err != nil {
+		if k8serrors.IsForbidden(err) {
+			log.Printf("[INFO] kubernetes: listing secrets is forbidden, returning default workspace only")
+			return []string{backend.DefaultStateName}, nil
+		}
 		return nil, err
 	}
 
