@@ -177,7 +177,7 @@ The directive comment will be recognised only when it follows the following form
 #disable(<linting rule identifier>)[: reason]
 ```
 
-In order to supress correctly the linting warnings, it needs be present right above the line indicated by the linting diagnostic.
+In order to supress correctly the linting warnings, the directive needs to be declared right above the line indicated by the linting diagnostic.
 
 Invalid usage:
 ```hcl
@@ -206,6 +206,31 @@ resource "terraform_data" "all_answers" {
   # Since the format of a directive requires no space between the comment token and the `disable` keyword, this will be discarded
   # disable(core:count-instead-enabled): I need this to be portable
   count = var.in_number == 42 ? 1 : 0
+}
+```
+
+In situations where multiple linting rules wants to be controlled by the suppression directive, multiple directives can be specified, each
+on its own line with no empty lines in between directives. OpenTofu will read all the directives above the target indicated by the diagnostic
+until it reaches one of the following:
+* a comment with no directive
+* an empty comment
+* a line with no comment on it
+
+An example where both, `core:no-type-variable` and `core:unused-variable`, will be disabled:
+```hcl
+#disable(core:no-type-variable): just for test
+#disable(core:unused-variable): just for another test
+variable "in_string" {
+  default = "input"
+}
+```
+An example where only `core:no-type-variable` will affect the linting diagnostics, while `core:unused-variable` is ignored:
+```hcl
+#disable(core:unused-variable): just for another test
+#
+#disable(core:no-type-variable): just for test
+variable "in_string" {
+  default = "input"
 }
 ```
 
