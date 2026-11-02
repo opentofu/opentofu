@@ -25,7 +25,7 @@ to [the main OpenTofu CLI documentation](https://opentofu.org/docs/cli/index.htm
   instead; it presents similar information from the perspective of the SDK
   API, rather than the plugin wire protocol.)
 
-* [Diagnostics](./diagnostics): how we report errors and warnings to end-users
+* [Diagnostics](./diagnostics.md): how we report errors and warnings to end-users
   in OpenTofu.
 
 * [Plugin Protocol](./plugin-protocol/): gRPC/protobuf definitions for the
