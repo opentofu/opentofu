@@ -20,6 +20,7 @@ ENHANCEMENTS:
 - Module outputs now support specifying their type. ([#4645](https://github.com/opentofu/opentofu/pull/4645))
 - The `tofu` cli will now read `*.tfrc` file to load its configuration from system standard directories. ([#4624](https://github.com/opentofu/opentofu/pull/4624))
 - `override_data`/`override_resource` blocks may override non-computed fields in tofu test. ([#4777](https://github.com/opentofu/opentofu/pull/4777))
+- `tofu version` now includes the list of modules and their versions. ([#3270](https://github.com/opentofu/opentofu/issues/3270))
 
 BUG FIXES:
 
