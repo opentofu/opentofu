@@ -3,22 +3,144 @@ name: release
 on:
   workflow_dispatch:
     inputs:
-      tag:
-        description: "Git tag (leave empty for dry run)"
-        required: false
       latest:
         description: "Release as latest?"
         required: true
         type: boolean
-      prerelease:
-        description: "Release as prerelease?"
-        required: true
-        type: boolean
+      tag:
+        description: "Override tag? (vM.N.P)"
+        required: false
 
 jobs:
-  release:
-    name: Release
-    runs-on: larger-runners
+  info:
+    name: Information
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: "Determine tag"
+        id: tag
+        run: echo "value=${{ inputs.tag == '' && 'v$(cat version/VERSION)' || inputs.tag }}" | tee -a "${GITHUB_OUTPUT}"
+
+      # NOTE: Historically, we have not been great about running the beta workflow on the main branch.
+      # This has implications on how we run cosign.
+      # Practically, this means that certain tools like tenv and tofudl don't install betas correctly.
+      # We should pick one (main vs branch) and stick to it here.
+      - name: "Determine Prerelease Status"
+        id: prerelease
+        run: echo "value=$(echo "${{ steps.tag.outputs.value }}" | grep -c "-")" | tee -a "${GITHUB_OUTPUT}"
+
+      - name: "Ensure tag matches branch"
+        if: ${{ !startsWith(steps.tag.outputs.value, github.ref_name) }}
+        run: echo "Version tag ${{ steps.tag.outputs.value }} does not match branch ${{ github.ref_name }}!" && exit 1
+
+      - name: "Ensure prerelease is not latest"
+        if: ${{ inputs.latest && steps.prerelease.outputs.value == 1 }}
+        run: echo "Latest and Prerelease conflict" && exit 1
+
+      - name: "Summary"
+        run: |
+          echo "Branch: ${{ github.ref_name }}" | tee -a "${GITHUB_STEP_SUMMARY}"
+          echo "Tag: ${{ steps.tag.outputs.value }}" | tee -a "${GITHUB_STEP_SUMMARY}"
+          echo "Latest: ${{ inputs.latest }}" | tee -a "${GITHUB_STEP_SUMMARY}"
+          echo "Prerelease: ${{ steps.prerelease.outputs.value }}" | tee -a "${GITHUB_STEP_SUMMARY}"
+    outputs:
+      branch: ${{ github.ref_name }}
+      tag: ${{ steps.tag.outputs.value }}
+      latest: ${{ inputs.latest }}
+      prerelease: ${{ steps.prerelease.outputs.value == 1 && 'true' || 'false' }}
+
+  build:
+    needs: [info]
+    strategy:
+      fail-fast: false
+      matrix:
+        include: # NOTE: Ensure this list EXACTLY matches the cache steps below and the nightly action 
+          - {goos: "linux",   goarch: "amd64"}
+          - {goos: "linux",   goarch: "arm64"}
+          - {goos: "freebsd", goarch: "amd64"}
+          - {goos: "openbsd", goarch: "amd64"}
+          - {goos: "solaris", goarch: "amd64"}
+          - {goos: "darwin",  goarch: "amd64"}
+          - {goos: "darwin",  goarch: "arm64"}
+          - {goos: "windows", goarch: "amd64"}
+          - {goos: "windows", goarch: "arm64"}
+    
+    name: Build for ${{ matrix.goos }}_${{ matrix.goarch }}
+    runs-on: ubuntu-latest
+    environment: gpg
+    env:
+      GOOS: ${{ matrix.goos }}
+      GOARCH: ${{ matrix.goarch }}
+
+    steps:
+      - name: "Fetch source code ${{ needs.info.outputs.tag }}"
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.info.outputs.tag }}
+
+      - name: "Configure Go toolchain"
+        uses: ./.github/actions/go-toolchain
+
+      - name: Cache
+        uses: ./.github/actions/release-cache
+        with: { goos: "${{ matrix.goos }}", goarch: "${{ matrix.goarch }}", tag: "${{ needs.info.outputs.tag }}" }
+
+      - name: Setup snapcraft
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_TOKEN }}
+        run: |
+          sudo snap install snapcraft --classic --channel=7.x/stable
+
+          # See https://github.com/goreleaser/goreleaser/issues/1715
+          # https://bugs.launchpad.net/snapcraft/+bug/1889741
+          mkdir -p "$HOME/.cache/snapcraft/download"
+          mkdir -p "$HOME/.cache/snapcraft/stage-packages"
+
+          # Ensure that our credentials are valid (not expired)
+          set -o pipefail
+          snapcraft whoami | grep email
+
+      - name: Import GPG key
+        run: |
+          GPG_KEY_FILE=/tmp/signing-key.gpg
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | base64 --decode > "${GPG_KEY_FILE}"
+          
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | base64 --decode | gpg --import
+          GPG_FINGERPRINT=$(gpg --list-secret-keys --keyid-format LONG | awk '/^sec/{sub(/.*\//, "", $2); print $2; exit}')
+          
+          echo "GPG_FINGERPRINT=${GPG_FINGERPRINT}" >>"${GITHUB_ENV}"
+          echo "GPG_KEY_FILE=${GPG_KEY_FILE}" >> "${GITHUB_ENV}"
+        env:
+          GPG_TTY: /dev/ttys000  # Set the GPG_TTY to avoid issues with pinentry
+
+      - name: Run GoReleaser (Build)
+        uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
+        with:
+          version: v2.19.0
+          distribution: goreleaser-pro
+          # Without single-target, only GOOS is used as a filter, not GOARCH
+          args: release --split --clean --single-target --timeout=60m --config=release/.goreleaser.yaml
+        env:
+          # Note: the GPG_FINGERPRINT and GPG_KEY_FILE are defined in the task above. If they are not set,
+          # goreleaser won't sign the packages.
+          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
+          # This causes version.IsOfficialBuild to return true when someone is
+          # running one of our official release builds.
+          BUILD_OPENTOFU_OFFICIAL: '1'
+          RELEASE_FLAG_LATEST: ${{ needs.info.outputs.latest }}
+          RELEASE_FLAG_PRERELEASE: ${{ needs.info.outputs.prerelease }}
+
+  github-release:
+    needs: [info, build]
+    runs-on: "ubuntu-latest"
+    name: "Github Release"
+
     environment: gpg
     permissions:
       contents: write
@@ -26,6 +148,43 @@ jobs:
       packages: write
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.info.outputs.tag }}
+
+      - name: Fetch tags
+        run: git fetch --force --tags
+
+      - name: Cache
+        uses: ./.github/actions/release-cache
+        with: { goos: "linux", goarch: "amd64", tag: "${{ needs.info.outputs.tag }}"}
+      - name: Cache
+        uses: ./.github/actions/release-cache
+        with: { goos: "linux", goarch: "arm64", tag: "${{ needs.info.outputs.tag }}"}
+      - name: Cache
+        uses: ./.github/actions/release-cache
+        with: { goos: "freebsd", goarch: "amd64", tag: "${{ needs.info.outputs.tag }}"}
+      - name: Cache
+        uses: ./.github/actions/release-cache
+        with: { goos: "openbsd", goarch: "amd64", tag: "${{ needs.info.outputs.tag }}"}
+      - name: Cache
+        uses: ./.github/actions/release-cache
+        with: { goos: "solaris", goarch: "amd64", tag: "${{ needs.info.outputs.tag }}"}
+      - name: Cache
+        uses: ./.github/actions/release-cache
+        with: { goos: "darwin", goarch: "amd64", tag: "${{ needs.info.outputs.tag }}"}
+      - name: Cache
+        uses: ./.github/actions/release-cache
+        with: { goos: "darwin", goarch: "arm64", tag: "${{ needs.info.outputs.tag }}"}
+      - name: Cache
+        uses: ./.github/actions/release-cache
+        with: { goos: "windows", goarch: "amd64", tag: "${{ needs.info.outputs.tag }}"}
+      - name: Cache
+        uses: ./.github/actions/release-cache
+        with: { goos: "windows", goarch: "arm64", tag: "${{ needs.info.outputs.tag }}"}
+
       - name: Set up QEMU cross build support
         uses: docker/setup-qemu-action@53851d14592bedcffcf25ea515637cff71ef929a # v3.3.0
       - name: Set up Docker Buildx
@@ -33,71 +192,17 @@ jobs:
 
       - name: Login to Github Container Registry
         uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
-        if: startsWith(inputs.tag, 'v')
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          fetch-depth: 0
-          ref: ${{ inputs.tag }}
-
-      - name: Fetch tags
-        run: git fetch --force --tags
-
-      - name: Compare versions
-        if: startsWith(inputs.tag, 'v')
-        run: ./.github/scripts/compare-release-version.sh
-        env:
-          TARGET_VERSION: ${{inputs.tag}}
-
-      - name: Check if tag is on main branch or version branch
-        id: validate_tag
-        env:
-          INPUT_TAG: ${{ inputs.tag }}
-        run: |
-          IS_TAG_ON_MAIN=$(git branch -a --contains "$INPUT_TAG" | grep -q "main" && echo true || echo false)
-          IS_TAG_ON_VERSION=$(git branch -a --contains "$INPUT_TAG" | grep -E "^v[0-9]+\.[0-9]+" && echo true || echo false)
-          echo "IS_TAG_ON_MAIN=${IS_TAG_ON_MAIN}" >> $GITHUB_OUTPUT
-          echo "IS_TAG_ON_VERSION=${IS_TAG_ON_VERSION}" >> $GITHUB_OUTPUT
-
-      - name: Check if release is allowed or not
-        id: validate_release
-        env:
-          IS_PRERELEASE: ${{ inputs.prerelease }}
-          IS_TAG_ON_MAIN: ${{ steps.validate_tag.outputs.IS_TAG_ON_MAIN }}
-        run: |
-          if [[ "$IS_PRERELEASE" == "false" && "$IS_TAG_ON_MAIN" == "true" ]]; then
-            echo "ERROR: Creating stable release from a tag on main is not allowed."
-            exit 1
-          fi
-
-      - name: "Configure Go toolchain"
-        uses: ./.github/actions/go-toolchain
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@6524bf65af31da8d45b59e8c27de4bd072b392f5 # v3.8.0
 
       - name: Install cosign
         uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
         with:
           cosign-release: v2.4.3
 
-      - name: Setup snapcraft
-        run: |
-          sudo snap install snapcraft --classic --channel=7.x/stable
-
-          # See https://github.com/goreleaser/goreleaser/issues/1715
-          mkdir -p "$HOME/.cache/snapcraft/download"
-          mkdir -p "$HOME/.cache/snapcraft/stage-packages"
-        env:
-          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_TOKEN }}
-
       - name: Import GPG key
-        if: startsWith(inputs.tag, 'v')
         run: |
           GPG_KEY_FILE=/tmp/signing-key.gpg
           echo "${{ secrets.GPG_PRIVATE_KEY }}" | base64 --decode > "${GPG_KEY_FILE}"
@@ -111,51 +216,101 @@ jobs:
           GPG_TTY: /dev/ttys000  # Set the GPG_TTY to avoid issues with pinentry
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@5742e2a039330cbb23ebf35f046f814d4c6ff811 # v5.1.0
+        uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
         with:
-          version: v1.21.2
+          version: v2.19.0
           distribution: goreleaser-pro
-          args: release --clean --timeout=60m --snapshot=${{ !startsWith(inputs.tag, 'v') }}
+          # No need to specify config file here (not allowed) as it uses the config from the dists (undocumented)
+          args: continue --merge --timeout=60m
         env:
           # Note: the GPG_FINGERPRINT and GPG_KEY_FILE are defined in the task above. If they are not set,
           # goreleaser won't sign the packages.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
-          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_TOKEN }}
-          RELEASE_FLAG_LATEST: ${{ inputs.latest }}
-          RELEASE_FLAG_PRERELEASE: ${{ inputs.prerelease }}
-          # This causes version.IsOfficialBuild to return true when someone is
-          # running one of our official release builds.
-          BUILD_OPENTOFU_OFFICIAL: '1'
+          RELEASE_FLAG_LATEST: ${{ needs.info.outputs.latest }}
+          RELEASE_FLAG_PRERELEASE: ${{ needs.info.outputs.prerelease }}
 
-      - name: Remove GPG key
-        if: always()
-        run: |
-          rm -rf ~/.gnupg
-          if [ -n "${GPG_KEY_FILE}" ]; then
-            rm -rf "${GPG_KEY_FILE}"
-          fi
+  snapcraft-release:
+    needs: [info, build]
+    # TODO: we could actually support release channels properly in the future
+    if: ${{ needs.info.outputs.latest == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {goarch: "amd64"}
+          - {goarch: "arm64"}
+    runs-on: "ubuntu-latest"
+    name: "Snapcraft Release ${{ matrix.goarch }}"
+    environment: gpg
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          name: dist
-          path: dist
+          fetch-depth: 0
+          ref: ${{ needs.info.outputs.tag }}
+
+      - name: Fetch tags
+        run: git fetch --force --tags
+
+      - name: Cache
+        uses: ./.github/actions/release-cache
+        with: { goos: "linux", goarch: "${{ matrix.goarch }}", tag: "${{ needs.info.outputs.tag }}"}
+
+      - name: Locate snap
+        id: snapdist
+        run: echo "value=$(find dist/*/*.snap)" | tee -a "${GITHUB_OUTPUT}"
+
+      # We use the snapcraft action here instead of go-releaser because split goreleaser
+      # builds are *incredibly* broken when you try to split out the release channels.
+      #
+      # Given snapcraft's recent stability issues, having these as a distinct step allows
+      # the failed jobs in a release run to be re-triggered without having to cut a new release
+      - name: Release
+        uses: snapcore/action-publish@214b86e5ca036ead1668c79afb81e550e6c54d40 # v1
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_TOKEN }}
+        with:
+          snap: ${{ steps.snapdist.outputs.value }}
+          release: latest
+
+  packagecloud-release:
+    needs: [info, build]
+    runs-on: "ubuntu-latest"
+    name: "PackageCloud Release"
+    environment: gpg
+    if: ${{ needs.info.outputs.prerelease == 'false' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.info.outputs.tag }}
+
+      - name: Fetch tags
+        run: git fetch --force --tags
+
+      - name: Cache
+        uses: ./.github/actions/release-cache
+        with: { goos: "linux", goarch: "amd64", tag: "${{ needs.info.outputs.tag }}"}
+      - name: Cache
+        uses: ./.github/actions/release-cache
+        with: { goos: "linux", goarch: "arm64", tag: "${{ needs.info.outputs.tag }}"}
 
       - name: Upload Debian packages to PackageCloud
-        if: startsWith(inputs.tag, 'v') && ! inputs.prerelease
         uses: computology/packagecloud-github-action@3a3116159414e57767827ed264a6de29a1f86d4c # v0.6
         with:
-                PACKAGE-NAME: dist/*.deb
+                PACKAGE-NAME: dist/*/*.deb
                 PACKAGECLOUD-USERNAME: opentofu
                 PACKAGECLOUD-REPONAME: tofu
                 PACKAGECLOUD-DISTRO: any/any
                 PACKAGECLOUD-TOKEN: ${{ secrets.PACKAGECLOUD_TOKEN }}
       - name: Upload RPM packages to PackageCloud
-        if: startsWith(inputs.tag, 'v') && ! inputs.prerelease
         uses: computology/packagecloud-github-action@3a3116159414e57767827ed264a6de29a1f86d4c # v0.6
         with:
-                PACKAGE-NAME: dist/*.rpm
+                PACKAGE-NAME: dist/*/*.rpm
                 PACKAGECLOUD-USERNAME: opentofu
                 PACKAGECLOUD-REPONAME: tofu
                 PACKAGECLOUD-DISTRO: rpm_any/rpm_any
