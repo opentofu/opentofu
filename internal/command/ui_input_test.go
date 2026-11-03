@@ -45,7 +45,7 @@ func TestUIInputInput_canceled(t *testing.T) {
 	}
 
 	// Make a context that can be canceled.
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 
 	go func() {
 		// Cancel the context after 2 seconds.
