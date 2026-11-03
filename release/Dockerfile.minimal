@@ -4,9 +4,10 @@
 # SPDX-License-Identifier: MPL-2.0
 
 FROM scratch
+ARG TARGETPLATFORM
 
 LABEL maintainer="OpenTofu Core Team <core@opentofu.org>"
 
-COPY tofu /usr/local/bin/tofu
+COPY $TARGETPLATFORM/tofu /usr/local/bin/tofu
 
 ENTRYPOINT ["/usr/local/bin/tofu"]
