@@ -7,12 +7,14 @@ package command
 
 import (
 	"context"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
 	"runtime"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/hashicorp/hcl/v2"
@@ -25,6 +27,7 @@ import (
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+
 	"github.com/opentofu/opentofu/internal/copy"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/plans"
@@ -2094,6 +2097,79 @@ func TestMetaBackend_configToExtra(t *testing.T) {
 
 	if s.Backend.Hash == backendHash {
 		t.Fatal("state.Backend.Hash was not updated")
+	}
+}
+
+// notifyReader is a wrapper for io.Reader that once it detects a read it cancels the context
+// via the r.cancel func, it does it once to not cancel the func twice
+type notifyReader struct {
+	io.Reader
+	once   *sync.Once
+	cancel context.CancelFunc
+}
+
+// Read is the implementation of the reader interface
+func (r *notifyReader) Read(p []byte) (int, error) {
+	// cancels the context that is attacehd to this struct once
+	r.once.Do(func() { r.cancel() })
+	return r.Reader.Read(p)
+}
+
+func TestMetaBackend_cancelOnNoInput(t *testing.T) {
+	// Create a temporary working directory that is empty
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("init-backend-http"), td)
+	t.Chdir(td)
+
+	// Create a cancelled context to see if it is passed (next I will ask the input to be a pipe so it works)
+	ctx, cancel := context.WithCancel(t.Context())
+
+	// force it to run like a "real" tofu command
+	test = false
+	defer func() { test = true }()
+
+	// init the backend and force it to wait for keyboard input
+	m := testMetaBackend(t)
+	m.input = true
+
+	// make suer that the actual call will use the cancellable context
+	m.CallerContext = ctx
+
+	// create a pipe that is idle
+	rx, tx := io.Pipe()
+	var once sync.Once
+
+	// and force the code to use it so it hangs on input for address
+	// cancel the context right before you start reading
+	rWrapped := notifyReader{
+		cancel: cancel,
+		once:   &once,
+		Reader: rx,
+	}
+	defaultInputReader = &rWrapped
+
+	// reset all things I set when done to not hog resources
+	defer func() {
+		defaultInputReader = os.Stdin
+		rx.Close()
+		tx.Close()
+	}()
+
+	opts := &BackendOpts{
+		Init: true,
+	}
+
+	// create the backend
+	_, diags := m.Backend(ctx, opts, encryption.StateEncryptionDisabled())
+
+	// find the error that shows it
+	if !diags.HasErrors() {
+		t.Fatal("expected there to be errors, none found")
+	}
+	err := diags.Err().Error()
+
+	if !strings.Contains(err, "interrupted: context canceled") {
+		t.Fatalf("error was not the one I expected to have, %s", err)
 	}
 }
 
