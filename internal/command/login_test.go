@@ -368,15 +368,15 @@ func TestLogin(t *testing.T) {
 		}
 	}, false))
 
-	t.Run("cancel input during login confirmation", loginTestCase(func(t *testing.T, m *Meta, closeView func(*testing.T) *terminal.TestOutput) {
+	t.Run("cancel input during login confirmation", loginTestCase(func(t *testing.T, c *LoginCommand, closeView func(*testing.T) *terminal.TestOutput) {
 		// Create a cancelled context to see if it is passed (next I will ask the input to be a pipe so it works)
 		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
 
 		// make suer that the actual call will use the cancellable context
-		prefCtx := m.CallerContext
-		m.CallerContext = ctx
-		defer func() { m.CallerContext = prefCtx }()
+		prefCtx := c.CallerContext
+		c.CallerContext = ctx
+		defer func() { c.CallerContext = prefCtx }()
 		// defer func() { abortCh <- struct{}{} }()
 
 		// create a pipe that is idle
@@ -400,7 +400,7 @@ func TestLogin(t *testing.T) {
 			tx.Close()
 		}()
 
-		out := RunCommander(t, LoginCommander(), *m, []string{"example.com"})
+		out := c.Run([]string{"example.com"})
 		loginOutput := closeView(t).All()
 
 		if out != 1 {
