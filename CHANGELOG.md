@@ -2,6 +2,10 @@ The v1.13.x release series is supported until **August 1 2027**.
 
 ## 1.13.6 (Unreleased)
 
+BUG FIXES:
+
+- Interruption during backend configuration prompt now is handled correctly. ([#4755](https://github.com/opentofu/opentofu/pull/4755))
+
 ## 1.13.5
 
 BUG FIXES:

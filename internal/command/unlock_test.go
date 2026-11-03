@@ -6,7 +6,11 @@
 package command
 
 import (
+	"context"
+	"io"
 	"os"
+	"strings"
+	"sync"
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/backend/remote-state/inmem"
@@ -122,5 +126,70 @@ func TestUnlock_inmemBackend(t *testing.T) {
 	unlockOutput = unlockDone(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n%s", code, unlockOutput.All())
+	}
+}
+
+func TestUnlockCancelledMidInput(t *testing.T) {
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("backend-inmem-locked"), td)
+	t.Chdir(td)
+	defer inmem.Reset()
+
+	unlockView, unlockDone := testView(t)
+
+	// Create a cancelled context to see if it is passed (next I will ask the input to be a pipe so it works)
+	ctx, cancel := context.WithCancel(t.Context())
+
+	// init backend
+	initView, initDone := testView(t)
+	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       initView,
+	}
+	code := RunCommander(t, InitCommander(), meta, nil)
+	initOutput := initDone(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n%s", code, initOutput.Stderr())
+	}
+
+	meta = Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       unlockView,
+
+		// make sure that the actual call will use the cancellable context
+		CallerContext: ctx,
+	}
+
+	// create a pipe that is idle
+	rx, tx := io.Pipe()
+
+	// cancel the context right before you start reading
+	var once sync.Once
+	rWrapped := notifyReader{
+		cancel: cancel,
+		once:   &once,
+		Reader: rx,
+	}
+
+	// and force the code to use it so it hangs on input for address
+	defaultInputReader = &rWrapped
+
+	// reset all things I set when done to not hog resources
+	defer func() {
+		defaultInputReader = os.Stdin
+		rx.Close()
+		tx.Close()
+	}()
+
+	args := []string{"LOCK_ID"}
+
+	code = RunCommander(t, UnlockCommander(), meta, args)
+	output := unlockDone(t).Stderr()
+	if code != 1 {
+		t.Fatalf("bad status code: %d\n\n%s", code, output)
+	}
+
+	if !strings.Contains(output, "interrupted: context canceled") {
+		t.Fatalf("error was not the one I expected to have, %s", output)
 	}
 }
