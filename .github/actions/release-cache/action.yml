@@ -1,0 +1,18 @@
+name: 'Release Cache'
+inputs:
+  goos:
+    required: true
+  goarch:
+    required: true
+  tag:
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+      - id: cache
+        uses: actions/cache@6f8efc29b200d32929f49075959781ed54ec270c # v3
+        with:
+          path: dist/${{ inputs.goos }}_${{ inputs.goarch }}/
+          key: ${{ inputs.goos }}-${{ inputs.goarch }}-${{ inputs.tag }}
+          enableCrossOsArchive: ${{ inputs.goos == 'windows' }}

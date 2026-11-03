@@ -4,12 +4,13 @@
 # SPDX-License-Identifier: MPL-2.0
 
 FROM alpine:3.20
+ARG TARGETPLATFORM
 
 LABEL maintainer="OpenTofu Core Team <core@opentofu.org>"
 
 RUN apk add --no-cache git bash openssh
 
-COPY tofu /usr/local/bin/tofu
+COPY $TARGETPLATFORM/tofu /usr/local/bin/tofu
 
 ONBUILD RUN echo -e "\033[1;33mWARNING! PLEASE READ!\033[0m" >&2 \
             && echo -e "\033[1;33mPlease read carefully: you are using the OpenTofu image as a base image\033[0m" >&2 \

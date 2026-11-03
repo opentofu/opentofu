@@ -1,7 +1,0 @@
-version_info {
-  version_var =    "github.com/opentofu/opentofu/version.Version"
-  prerelease_var = "github.com/opentofu/opentofu/version.Prerelease"
-}
-
-version_exec = false
-disable_provider_requirements = true

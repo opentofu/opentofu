@@ -30,7 +30,6 @@ To create a release, make sure you have people on standby with the following cre
 - PackageCloud
 - Snapcraft
 - Linkedin
-- X
 
 ---
 
@@ -46,7 +45,7 @@ Before you start creating a release, make sure you have the following marketing 
 
 - "Get ready for..." blog post (see https://opentofu.org/blog/ for examples)
 - Community Slack announcement
-- Linkedin and X posts
+- Linkedin posts
 
 </details>
 
@@ -57,7 +56,7 @@ Before you start creating a release, make sure you have the following marketing 
 </summary>
 
 - Community Slack announcement
-- Linkedin and X posts
+- Linkedin posts
 
 </details>
 
@@ -69,7 +68,7 @@ Before you start creating a release, make sure you have the following marketing 
 
 - Release blog post with the feature and community highlights since the last release (see https://opentofu.org/blog/ for examples)
 - Community Slack announcement
-- Linkedin and X posts
+- Linkedin posts
 
 </details>
 
@@ -121,9 +120,9 @@ Now that you have the files up to date, do the following:
 1. On your computer, make sure you have checked out the correct branch:
    * `vX.Y`, assuming you are releasing version `X.Y.Z`
 2. Make sure the branch is up-to-date by running `git pull`
-3. Create the correct tag: `git tag -m "X.Y.Z" vX.Y.Z` (assuming you are releasing version `X.Y.Z`)
+3. Create the correct tag: `git tag -m "$(cat version/VERSION)" "v$(cat version/VERSION)"`
    * If you have a GPG key, consider adding the `-s` option to create a GPG-signed tag
-4. Push the tag: `git push origin vX.Y.Z`
+4. Push the tag: `git push origin "v$(cat version/VERSION)"`
 
 ---
 
@@ -134,13 +133,9 @@ Now comes the big step, creating the actual release.
 1. Head on over to the [Actions tab](https://github.com/opentofu/opentofu/actions) on the main repository
 2. Select the `release` workflow on the left side
 3. Click the `Run workflow` button, which opens a popup menu
-4. Select the correct branch:
-   * For `beta` releases, select the `main` branch
-   * For all other releases, select the appropriate version branch
-5. Enter the correct git tag name: `vX.Y.Z`
-6. If you are releasing the latest `X.Y` version, check the `Release as latest?` option.
-7. If you are releasing a `beta` or `rc` version, check the `Release as prerelease?` option.
-8. Click the `Run workflow` button.
+4. Select the branch that corresponds to your release
+5. If you are releasing the latest `X.Y` version, check the `Release as latest?` option.
+6. Click the `Run workflow` button.
 
 Now the release process will commence and create a *draft* release on GitHub. If you did not check the prerelease option, it will also publish to Snapcraft and PackageCloud.
 
