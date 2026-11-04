@@ -1001,6 +1001,10 @@ func TestRefresh_warnings(t *testing.T) {
 	})
 }
 
+func TestRefresh_initRequired(t *testing.T) {
+	testInitRequiredExit(t, RefreshCommander())
+}
+
 // configuration in testdata/refresh . This schema should be
 // assigned to a mock provider named "test".
 func refreshFixtureSchema() *providers.GetProviderSchemaResponse {

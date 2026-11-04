@@ -26,6 +26,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/svchost"
 	"github.com/opentofu/svchost/disco"
@@ -1312,6 +1313,51 @@ func TestVarsParsing(t *testing.T) {
 				if !strings.Contains(actual, want) {
 					t.Errorf("variables parsed incorrectly. Want %q to exist in the output, but it didn't\noutput:\n%s", want, actual)
 				}
+			}
+		})
+	}
+}
+
+func testInitRequiredExit(t *testing.T, command Command) {
+	t.Helper()
+	for _, tc := range []struct {
+		name string
+	}{
+		{name: "backend-init-required"},
+		{name: "module-required-exit"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			td := t.TempDir()
+			testCopyDir(t, testFixturePath("backend-init-required"), td)
+			t.Chdir(td)
+
+			view, done := testView(t)
+			meta := Meta{
+				WorkingDir:       workdir.NewDir("."),
+				testingOverrides: metaOverridesForProvider(planFixtureProvider()),
+				View:             view,
+			}
+			code := RunCommander(t, command, meta, []string{})
+			output := done(t)
+			if code != int(backend.OperationInitRequired) {
+				t.Fatalf("expected exit code 4, got %d", code)
+			}
+			if !strings.Contains(output.Stderr(), "\"tofu init\"") {
+				t.Fatalf("stderr should suggest running tofu init:\n%s", output.Stderr())
+			}
+			view, done = testView(t)
+			meta.View = view
+			if code := RunCommander(t, InitCommander(), meta, nil); code != 0 {
+				t.Fatalf("init failed: %d", code)
+			}
+			done(t)
+
+			view, done = testView(t)
+			meta.View = view
+			code = RunCommander(t, PlanCommander(), meta, []string{})
+			done(t)
+			if code != 0 {
+				t.Fatalf("expected exit code 0, got %d", code)
 			}
 		})
 	}

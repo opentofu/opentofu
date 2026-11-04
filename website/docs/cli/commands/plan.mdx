@@ -330,6 +330,7 @@ The available options are:
   * 0 = Succeeded with empty diff (no changes)
   * 1 = Error
   * 2 = Succeeded with non-empty diff (changes present)
+  * 4 = Error as `tofu init` must be run
 
 - `-generate-config-out=PATH` - (Experimental) If `import` blocks are present in configuration, instructs OpenTofu to generate HCL for any imported resources not already present. The configuration is written to a new file at PATH, which must not already exist, or OpenTofu will error. If the plan fails for another reason, OpenTofu may still attempt to write configuration.
 
@@ -416,3 +417,10 @@ If your workflow relies on overriding the root module directory, use
 instead, which works across all commands and makes OpenTofu consistently look
 in the given directory for all files it would normally read or write in the
 current working directory.
+
+### Exit status
+
+`tofu plan` can result in several exit statuses. The `-detailed-exitcode` code behavior is
+documented above however, in cases where `tofu init` is required to be run the exit code will
+be `4`, and it will exit in `1` for any other error.
+

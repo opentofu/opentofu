@@ -2176,6 +2176,10 @@ func TestPlan_concise(t *testing.T) {
 	}
 }
 
+func TestPlan_initRequired(t *testing.T) {
+	testInitRequiredExit(t, PlanCommander())
+}
+
 // planFixtureProvider returns a mock provider that is configured for basic
 // operation with the configuration in testdata/plan. This mock has
 // GetSchemaResponse and PlanResourceChangeFn populated, with the plan
