@@ -6,6 +6,7 @@
 package command
 
 import (
+	"encoding/xml"
 	"fmt"
 	"os"
 	"path"
@@ -1764,6 +1765,82 @@ func TestTest_JUnitXML(t *testing.T) {
 					strings.TrimSpace(string(expected)),
 					strings.TrimSpace(string(junitOutput))); len(diff) > 0 {
 					t.Fatalf("output didnt match expected: Expected:\n%s\nGot:\n%s\n%s", expected, junitOutput, diff)
+				}
+			})
+		})
+	}
+}
+
+func TestTest_JUnitXMLStdout(t *testing.T) {
+	tcs := map[string]struct {
+		expected    *junitxml.JUnit
+		expectedErr string
+		code        int
+		stderr      string
+	}{
+		"default": {
+			code:   0,
+			stderr: "1 passed, 0 failed.",
+		},
+		"multiple_files": {
+			code:   0,
+			stderr: "2 passed, 0 failed.",
+		},
+		"expected_error_fails": {
+			code:   1,
+			stderr: "2 passed, 1 failed, 1 skipped.",
+		},
+		"failure": {
+			code:   1,
+			stderr: "2 passed, 1 failed.",
+		},
+	}
+
+	for name, tc := range tcs {
+		t.Run(name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) { // so junit time and timestamp attrs dont vary
+				td := t.TempDir()
+				tftestHCLDir := fmt.Sprintf("junit_%s", name)
+				expected, err := os.ReadFile(testFixturePath(path.Join("test", tftestHCLDir, "expected.xml")))
+				if err != nil {
+					t.Fatalf("failed to read expected output file: %s", err)
+				}
+				testCopyDir(t, testFixturePath(path.Join("test", tftestHCLDir)), td)
+				t.Chdir(td)
+
+				provider := testing_command.NewProvider(nil)
+				view, done := testView(t)
+				meta := Meta{
+					WorkingDir:       workdir.NewDir("."),
+					testingOverrides: metaOverridesForProvider(provider.Provider),
+					View:             view,
+				}
+				os.Stdout = view.GetStreams().Stdout.File
+
+				code := RunCommander(t, TestCommander(), meta, []string{"-junit-xml", "-"})
+				out := done(t)
+
+				if code != tc.code {
+					t.Fatalf("expected status code %d but got %d\n", tc.code, code)
+				}
+
+				stderr := out.Stderr()
+				if !strings.Contains(stderr, tc.stderr) {
+					t.Fatalf("expected output to contain: %s, got: \n%s", tc.stderr, stderr)
+				}
+
+				junitOutput := out.Stdout()
+
+				if diff := cmp.Diff(
+					strings.TrimSpace(string(expected)),
+					strings.TrimSpace(junitOutput)); len(diff) > 0 {
+					t.Fatalf("output didnt match expected: Expected:\n%s\nGot:\n%s\n%s", expected, junitOutput, diff)
+				}
+
+				ju := junitxml.JUnit{}
+				err = xml.Unmarshal([]byte(junitOutput), &ju)
+				if err != nil {
+					t.Fatalf("expected to unmarshall XML, got unexpected err: %s", err)
 				}
 			})
 		})

@@ -55,6 +55,11 @@ This command creates real infrastructure and will attempt to clean up the testin
 
 	args := arguments.BindTest(&cmd.CommandLine)
 	cmd.Run = func(meta Meta) int {
+		if args.JUnit == "-" {
+			streams := meta.View.GetStreams()
+			streams.Stdout = streams.Stderr
+			meta.View.SetStreams(streams)
+		}
 		return TestCommand{meta}.Execute(args, views.NewTest(args.View, meta.View))
 	}
 
