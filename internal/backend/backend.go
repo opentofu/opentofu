@@ -346,6 +346,15 @@ func (o *Operation) HasConfig() bool {
 	return o.ConfigLoader.IsConfigDir(o.ConfigDir)
 }
 
+func initRequired(diags tfdiags.Diagnostics) bool {
+	for _, diag := range diags {
+		if _, ok := diag.ExtraInfo().(configload.InitExit); ok {
+			return true
+		}
+	}
+	return false
+}
+
 // ReportResult is a helper for the common chore of setting the status of
 // a running operation and showing any diagnostics produced during that
 // operation.
@@ -360,9 +369,12 @@ func (o *Operation) HasConfig() bool {
 // output, but terminating immediately after reporting error diagnostics is
 // common and can be expressed concisely via this method.
 func (o *Operation) ReportResult(op *RunningOperation, diags tfdiags.Diagnostics) {
-	if diags.HasErrors() {
+	switch {
+	case initRequired(diags):
+		op.Result = OperationInitRequired
+	case diags.HasErrors():
 		op.Result = OperationFailure
-	} else {
+	default:
 		op.Result = OperationSuccess
 	}
 	if o.View != nil {
@@ -424,6 +436,10 @@ const (
 	// of error, and thus may have been only partially performed or not
 	// performed at all.
 	OperationFailure OperationResult = 1
+
+	// OperationInitRequired indicates that the operation encountered
+	// an error due to `tofu init` needing to be executed.
+	OperationInitRequired OperationResult = 4
 )
 
 func (r OperationResult) ExitStatus() int {

@@ -135,6 +135,12 @@ For configurations using
 
 You can further customize behavior of `apply` command by using [environment variables](../config/environment-variables.mdx).  For example, the [TF_STATE_PERSIST_INTERVAL](../config/environment-variables.mdx#tf_state_persist_interval) environment variable allows to specify the interval between state persistence.
 
+### Exit status
+
+`tofu apply` can indicate its status through exit code:
+- Exit status `1` indicates an some error occured.
+- Exit status `4` indicates `tofu init` must be run.
+
 ## Passing a Different Configuration Directory
 
 If your workflow relies on overriding the root module directory, use

@@ -66,3 +66,9 @@ tofu apply -refresh-only
 
 This alternative command will present an interactive prompt for you to confirm
 the detected changes.
+
+### Exit status
+
+`tofu refresh` can indicate its status through exit code:
+- Exit status `1` indicates an some error occured.
+- Exit status `4` indicates `tofu init` must be run.

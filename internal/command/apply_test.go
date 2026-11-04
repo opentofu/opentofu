@@ -2487,6 +2487,10 @@ func TestApply_concise(t *testing.T) {
 	}
 }
 
+func TestApply_initRequired(t *testing.T) {
+	testInitRequiredExit(t, ApplyCommander())
+}
+
 // applyFixtureSchema returns a schema suitable for processing the
 // configuration in testdata/apply . This schema should be
 // assigned to a mock provider named "test".

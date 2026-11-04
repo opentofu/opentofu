@@ -75,7 +75,7 @@ func (c PlanCommand) Execute(args *arguments.Plan, view views.Plan) int {
 	diags = diags.Append(beDiags)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
-		return 1
+		return exitStatusFromDiags(diags)
 	}
 
 	// Build the operation request
