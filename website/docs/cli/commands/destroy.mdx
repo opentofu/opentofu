@@ -40,6 +40,13 @@ tofu plan -destroy
 This will run [`tofu plan`](plan.mdx) in _destroy_ mode, showing
 you the proposed destroy changes without executing them.
 
+### Exit status
+
+`tofu destroy` can indicate its status through exit code:
+- Exit status `1` indicates an some error occured.
+- Exit status `4` indicates `tofu init` must be run.
+
+
 ## Forgotten Resources
 
 <span id="forgotten-resources"></span>
@@ -70,3 +77,4 @@ remove the `lifecycle.destroy` attribute (or set it to `true`).
 
 Alternatively, you can add the `removed` block for the removed resource with `lifecycle.destroy = true`, which will override the `destroy` attribute in the state file.
 :::
+

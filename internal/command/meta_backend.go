@@ -29,6 +29,7 @@ import (
 	"github.com/opentofu/opentofu/internal/command/clistate"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
@@ -622,10 +623,11 @@ func (m *Meta) backendFromConfig(ctx context.Context, opts *BackendOpts, enc enc
 
 		initReason := fmt.Sprintf("Unsetting the previously set backend %q", s.Backend.Type)
 		if !opts.Init {
-			diags = diags.Append(tfdiags.Sourceless(
+			diags = diags.Append(tfdiags.SourcelessWithExtra(
 				tfdiags.Error,
 				"Backend initialization required, please run \"tofu init\"",
 				fmt.Sprintf(strings.TrimSpace(errBackendInit), initReason),
+				configload.InitExit{},
 			))
 			return nil, diags
 		}
@@ -643,17 +645,19 @@ func (m *Meta) backendFromConfig(ctx context.Context, opts *BackendOpts, enc enc
 		if !opts.Init {
 			if c.Type == "cloud" {
 				initReason := "Initial configuration of cloud backend"
-				diags = diags.Append(tfdiags.Sourceless(
+				diags = diags.Append(tfdiags.SourcelessWithExtra(
 					tfdiags.Error,
 					"Cloud backend initialization required: please run \"tofu init\"",
 					fmt.Sprintf(strings.TrimSpace(errBackendInitCloud), initReason),
+					configload.InitExit{},
 				))
 			} else {
 				initReason := fmt.Sprintf("Initial configuration of the requested backend %q", c.Type)
-				diags = diags.Append(tfdiags.Sourceless(
+				diags = diags.Append(tfdiags.SourcelessWithExtra(
 					tfdiags.Error,
 					"Backend initialization required, please run \"tofu init\"",
 					fmt.Sprintf(strings.TrimSpace(errBackendInit), initReason),
+					configload.InitExit{},
 				))
 			}
 			return nil, diags
@@ -760,22 +764,25 @@ func (m *Meta) determineInitReason(previousBackendType string, currentBackendTyp
 	var diags tfdiags.Diagnostics
 	switch cloudMode {
 	case cloud.ConfigChangeInPlace:
-		diags = diags.Append(tfdiags.Sourceless(
+		diags = diags.Append(tfdiags.SourcelessWithExtra(
 			tfdiags.Error,
 			"Cloud backend initialization required: please run \"tofu init\"",
 			fmt.Sprintf(strings.TrimSpace(errBackendInitCloud), initReason),
+			configload.InitExit{},
 		))
 	case cloud.ConfigMigrationIn:
-		diags = diags.Append(tfdiags.Sourceless(
+		diags = diags.Append(tfdiags.SourcelessWithExtra(
 			tfdiags.Error,
 			"Cloud backend initialization required: please run \"tofu init\"",
 			fmt.Sprintf(strings.TrimSpace(errBackendInitCloud), initReason),
+			configload.InitExit{},
 		))
 	default:
-		diags = diags.Append(tfdiags.Sourceless(
+		diags = diags.Append(tfdiags.SourcelessWithExtra(
 			tfdiags.Error,
 			"Backend initialization required: please run \"tofu init\"",
 			fmt.Sprintf(strings.TrimSpace(errBackendInit), initReason),
+			configload.InitExit{},
 		))
 	}
 
