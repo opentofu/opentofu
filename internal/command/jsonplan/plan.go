@@ -194,6 +194,12 @@ func MarshalForRenderer(
 		return nil, nil, nil, nil, err
 	}
 
+	// Reconstruct the real before/after sensitivity for root outputs on
+	// this renderer-only path. This does not affect Marshal or
+	// MarshalForLog, so the persisted/machine-readable JSON plan format
+	// is unaffected.
+	applyRendererOutputSensitivity(output.OutputChanges, p)
+
 	if output.ResourceChanges, err = MarshalResourceChanges(p.Changes.Resources, schemas); err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -309,6 +315,70 @@ func MarshalForLog(
 	}
 
 	return output, nil
+}
+
+// applyRendererOutputSensitivity reconstructs the real before/after
+// sensitivity for root outputs in the renderer-only output changes map.
+//
+// MarshalOutputChanges collapses output sensitivity to a single boolean
+// (oc.Sensitive) and writes it as both BeforeSensitive and AfterSensitive, so
+// the renderer cannot distinguish an output that is becoming sensitive from one
+// that is becoming non-sensitive. This helper corrects that by consulting
+// p.PrevRunState to obtain the sensitivity that was in effect before the plan
+// was generated.
+//
+// This function only modifies the in-memory map passed to the structured
+// renderer. Marshal and MarshalForLog are unaffected, so the
+// persisted/machine-readable JSON plan format is byte-for-byte identical to
+// what it was before.
+func applyRendererOutputSensitivity(outputChanges map[string]Change, p *plans.Plan) {
+	if p.Changes == nil || p.PrevRunState == nil {
+		return
+	}
+
+	rootModule := p.PrevRunState.RootModule()
+	if rootModule == nil {
+		return
+	}
+
+	for _, oc := range p.Changes.Outputs {
+		if !oc.Addr.Module.IsRoot() {
+			continue
+		}
+
+		name := oc.Addr.OutputValue.Name
+		change, ok := outputChanges[name]
+		if !ok {
+			continue
+		}
+
+		// The "after" sensitivity is what the plan says will be true once the
+		// change is applied — that is oc.Sensitive.
+		afterSensitive := oc.Sensitive
+
+		// The "before" sensitivity is the sensitivity that was recorded in the
+		// state snapshot taken before this plan walk began. If the output is
+		// not present in the prior state (e.g. it is being created), fall back
+		// to oc.Sensitive so that BeforeSensitive == AfterSensitive and no
+		// spurious warning is emitted.
+		beforeSensitive := oc.Sensitive
+		if prev, exists := rootModule.OutputValues[name]; exists {
+			beforeSensitive = prev.Sensitive
+		}
+
+		beforeJSON, err := ctyjson.Marshal(cty.BoolVal(beforeSensitive), cty.Bool)
+		if err != nil {
+			continue
+		}
+		afterJSON, err := ctyjson.Marshal(cty.BoolVal(afterSensitive), cty.Bool)
+		if err != nil {
+			continue
+		}
+
+		change.BeforeSensitive = json.RawMessage(beforeJSON)
+		change.AfterSensitive = json.RawMessage(afterJSON)
+		outputChanges[name] = change
+	}
 }
 
 // Marshal returns the json encoding of a tofu plan.
