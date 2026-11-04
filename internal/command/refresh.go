@@ -67,7 +67,7 @@ func (c RefreshCommand) Execute(args *arguments.Refresh, view views.Refresh) int
 	diags = diags.Append(beDiags)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
-		return 1
+		return exitStatusFromDiags(diags)
 	}
 
 	// Build the operation request
