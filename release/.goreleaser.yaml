@@ -76,7 +76,7 @@ dockers_v2:
       - linux/amd64
       - linux/arm64
       - linux/386
-      - linux/arm
+      - linux/arm/v6
     tags:
       - "{{ .Version }}-minimal"
       - '{{ if eq .Env.RELEASE_FLAG_PRERELEASE "false" }}{{ .Major }}.{{ .Minor }}-minimal{{ end }}'
@@ -102,7 +102,7 @@ dockers_v2:
       - linux/amd64
       - linux/arm64
       - linux/386
-      - linux/arm
+      - linux/arm/v6
     tags:
       - "{{ .Version }}"
       - '{{ if eq .Env.RELEASE_FLAG_PRERELEASE "false" }}{{ .Major }}.{{ .Minor }}{{ end }}'
