@@ -6,6 +6,7 @@
 package configgraph
 
 import (
+	"fmt"
 	"iter"
 	"maps"
 
@@ -36,6 +37,8 @@ import (
 type ResourceInstanceMark struct {
 	// instance is a pointer to the resource instance this mark relates to.
 	instance *ResourceInstance
+
+	ctymarks.ProvenanceMark
 }
 
 // NewResourceInstanceMark constructs a new [ResourceInstanceMark] referring
@@ -44,7 +47,13 @@ type ResourceInstanceMark struct {
 // This is here so that code in other packages can describe dependencies caused
 // by language features that this package is not aware of.
 func NewResourceInstanceMark(inst *ResourceInstance) ResourceInstanceMark {
-	return ResourceInstanceMark{inst}
+	return ResourceInstanceMark{instance: inst}
+}
+
+func (m ResourceInstanceMark) GoString() string {
+	// This is not actually a valid way to construct this value, but it's
+	// close enough for humans to debug with, and that's the main point.
+	return fmt.Sprintf("configgraph.ResourceInstanceMark(%q)", m.instance.Addr)
 }
 
 // ContributingResourceInstances returns an iterable sequence of all of the
@@ -100,9 +109,9 @@ func PrepareOutgoingValue(v cty.Value) cty.Value {
 // in the configuration and so we must conservatively assume that all parts
 // of the result could be derived from any part of the config.
 func prepareResourceInstanceResult(resultVal cty.Value, thisRI *ResourceInstance, configVal cty.Value) cty.Value {
-	v := resultVal.Mark(ResourceInstanceMark{thisRI})
+	v := resultVal.Mark(NewResourceInstanceMark(thisRI))
 	for ri := range ContributingResourceInstances(configVal) {
-		v = v.Mark(ResourceInstanceMark{ri})
+		v = v.Mark(NewResourceInstanceMark(ri))
 	}
 	// TODO: We need to transfer certain other marks from the configVal too,
 	// but others need to be transferred more surgically. For example,

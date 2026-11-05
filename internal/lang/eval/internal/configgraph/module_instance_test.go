@@ -81,13 +81,13 @@ func TestModuleInstance_Value(t *testing.T) {
 			&ModuleInstance{
 				OutputValuers: constantOnceValuerMap(map[addrs.OutputValue]cty.Value{
 					{Name: "sensitive"}:              cty.StringVal("boop").Mark(marks.Sensitive),
-					{Name: "from_resource_instance"}: cty.StringVal("beep").Mark(ResourceInstanceMark{resourceInstancePlaceholder}),
+					{Name: "from_resource_instance"}: cty.StringVal("beep").Mark(NewResourceInstanceMark(resourceInstancePlaceholder)),
 					{Name: "eval_error"}:             exprs.AsEvalError(cty.StringVal("oops")),
 				}, "Outputs %s", testAddr),
 			},
 			cty.ObjectVal(map[string]cty.Value{
 				"sensitive":              cty.StringVal("boop").Mark(marks.Sensitive),
-				"from_resource_instance": cty.StringVal("beep").Mark(ResourceInstanceMark{resourceInstancePlaceholder}),
+				"from_resource_instance": cty.StringVal("beep").Mark(NewResourceInstanceMark(resourceInstancePlaceholder)),
 				"eval_error":             exprs.AsEvalError(cty.StringVal("oops")),
 			}),
 			nil,
