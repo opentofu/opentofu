@@ -173,13 +173,14 @@ func (b *Local) localRunDirect(ctx context.Context, stopCtx context.Context, op 
 		default:
 			suggestion = "To update the locked dependency selections to match a changed configuration, run:\n  tofu init -upgrade"
 		}
-		diags = diags.Append(tfdiags.Sourceless(
+		diags = diags.Append(tfdiags.SourcelessWithExtra(
 			tfdiags.Error,
 			"Inconsistent dependency lock file",
 			fmt.Sprintf(
 				"The following dependency selections recorded in the lock file are inconsistent with the current configuration:%s\n\n%s",
 				buf.String(), suggestion,
 			),
+			configload.ExitInitRequired,
 		))
 	}
 

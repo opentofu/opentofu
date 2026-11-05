@@ -346,15 +346,6 @@ func (o *Operation) HasConfig() bool {
 	return o.ConfigLoader.IsConfigDir(o.ConfigDir)
 }
 
-func initRequired(diags tfdiags.Diagnostics) bool {
-	for _, diag := range diags {
-		if _, ok := diag.ExtraInfo().(configload.InitExit); ok {
-			return true
-		}
-	}
-	return false
-}
-
 // ReportResult is a helper for the common chore of setting the status of
 // a running operation and showing any diagnostics produced during that
 // operation.
@@ -369,10 +360,10 @@ func initRequired(diags tfdiags.Diagnostics) bool {
 // output, but terminating immediately after reporting error diagnostics is
 // common and can be expressed concisely via this method.
 func (o *Operation) ReportResult(op *RunningOperation, diags tfdiags.Diagnostics) {
-	switch {
-	case initRequired(diags):
+	switch configload.ExitStatus(diags) {
+	case int(configload.ExitInitRequired):
 		op.Result = OperationInitRequired
-	case diags.HasErrors():
+	case int(configload.ExitFailure):
 		op.Result = OperationFailure
 	default:
 		op.Result = OperationSuccess
