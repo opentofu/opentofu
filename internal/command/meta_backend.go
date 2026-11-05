@@ -627,7 +627,7 @@ func (m *Meta) backendFromConfig(ctx context.Context, opts *BackendOpts, enc enc
 				tfdiags.Error,
 				"Backend initialization required, please run \"tofu init\"",
 				fmt.Sprintf(strings.TrimSpace(errBackendInit), initReason),
-				configload.InitExit{},
+				configload.ExitInitRequired,
 			))
 			return nil, diags
 		}
@@ -649,7 +649,7 @@ func (m *Meta) backendFromConfig(ctx context.Context, opts *BackendOpts, enc enc
 					tfdiags.Error,
 					"Cloud backend initialization required: please run \"tofu init\"",
 					fmt.Sprintf(strings.TrimSpace(errBackendInitCloud), initReason),
-					configload.InitExit{},
+					configload.ExitInitRequired,
 				))
 			} else {
 				initReason := fmt.Sprintf("Initial configuration of the requested backend %q", c.Type)
@@ -657,7 +657,7 @@ func (m *Meta) backendFromConfig(ctx context.Context, opts *BackendOpts, enc enc
 					tfdiags.Error,
 					"Backend initialization required, please run \"tofu init\"",
 					fmt.Sprintf(strings.TrimSpace(errBackendInit), initReason),
-					configload.InitExit{},
+					configload.ExitInitRequired,
 				))
 			}
 			return nil, diags
@@ -768,21 +768,21 @@ func (m *Meta) determineInitReason(previousBackendType string, currentBackendTyp
 			tfdiags.Error,
 			"Cloud backend initialization required: please run \"tofu init\"",
 			fmt.Sprintf(strings.TrimSpace(errBackendInitCloud), initReason),
-			configload.InitExit{},
+			configload.ExitInitRequired,
 		))
 	case cloud.ConfigMigrationIn:
 		diags = diags.Append(tfdiags.SourcelessWithExtra(
 			tfdiags.Error,
 			"Cloud backend initialization required: please run \"tofu init\"",
 			fmt.Sprintf(strings.TrimSpace(errBackendInitCloud), initReason),
-			configload.InitExit{},
+			configload.ExitInitRequired,
 		))
 	default:
 		diags = diags.Append(tfdiags.SourcelessWithExtra(
 			tfdiags.Error,
 			"Backend initialization required: please run \"tofu init\"",
 			fmt.Sprintf(strings.TrimSpace(errBackendInit), initReason),
-			configload.InitExit{},
+			configload.ExitInitRequired,
 		))
 	}
 
