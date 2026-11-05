@@ -1,6 +1,12 @@
 The v1.13.x release series is supported until **August 1 2027**.
 
-## 1.13.9 (Unreleased)
+## 1.13.10 (Unreleased)
+
+## 1.13.9
+
+BUG FIXES:
+
+- Fix local backend state persistence bug when the first apply crashes. ([#4811](https://github.com/opentofu/opentofu/pull/4811))
 
 ## 1.13.8
 
