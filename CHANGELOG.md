@@ -1,6 +1,12 @@
 The v1.12.x release series is supported until **February 1 2027**.
 
-## 1.12.12 (unreleased)
+## 1.12.13 (unreleased)
+
+## 1.12.12
+
+BUG FIXES:
+
+- Fix local backend state persistence bug when the first apply crashes. ([#4811](https://github.com/opentofu/opentofu/pull/4811))
 
 ## 1.12.11
 BUG FIXES:
