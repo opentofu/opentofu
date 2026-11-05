@@ -199,7 +199,12 @@ func (n *NodeValidatableResource) validateProvisioner(ctx context.Context, evalC
 func (n *NodeValidatableResource) evaluateBlock(ctx context.Context, evalCtx EvalContext, body hcl.Body, schema *configschema.Block) (cty.Value, hcl.Body, tfdiags.Diagnostics) {
 	keyData, selfAddr := n.stubRepetitionData(n.Config.Count != nil, n.Config.ForEach != nil)
 
-	return evalCtx.EvaluateBlock(ctx, body, schema, selfAddr, keyData)
+	// Even though the EvaluateBlock can produce a value with linting marks, at the moment of introducing impurefunc
+	// linting rule (the first linting rule to use marks), we skipped on handling those marks here
+	// since impure functions are not evaluated fully during validate, which this EvaluateBlock call is part of
+	blockVal, remaining, diags := evalCtx.EvaluateBlock(ctx, body, schema, selfAddr, keyData)
+
+	return blockVal, remaining, diags
 }
 
 func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx EvalContext) tfdiags.Diagnostics {
@@ -262,6 +267,9 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 			return diags
 		}
 
+		// Even though the EvaluateBlock can produce a value with linting marks, at the moment of introducing impurefunc
+		// linting rule (the first linting rule to use marks), we skipped on handling those marks here
+		// since impure functions are not evaluated fully during validate, which this EvaluateBlock call is part of
 		configVal, _, valDiags := evalCtx.EvaluateBlock(ctx, n.Config.Config, schemaForType.Block, nil, keyData)
 		diags = diags.Append(valDiags.InConfigBody(n.Config.Config, n.Addr.String()))
 		if valDiags.HasErrors() {
@@ -379,6 +387,10 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 			})
 			return diags
 		}
+
+		// Even though the EvaluateBlock can produce a value with linting marks, at the moment of introducing impurefunc
+		// linting rule (the first linting rule to use marks), we skipped on handling those marks here
+		// since impure functions are not evaluated fully during validate, which this EvaluateBlock call is part of
 		configVal, _, valDiags := evalCtx.EvaluateBlock(ctx, n.Config.Config, schemaForType.Block, nil, keyData)
 		diags = diags.Append(valDiags.InConfigBody(n.Config.Config, n.Addr.String()))
 		if valDiags.HasErrors() {
@@ -407,6 +419,9 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 			return diags
 		}
 
+		// Even though the EvaluateBlock can produce a value with linting marks, at the moment of introducing impurefunc
+		// linting rule (the first linting rule to use marks), we skipped on handling those marks here
+		// since impure functions are not evaluated fully during validate, which this EvaluateBlock call is part of
 		configVal, _, valDiags := evalCtx.EvaluateBlock(ctx, n.Config.Config, schema.Block, nil, keyData)
 		diags = diags.Append(valDiags)
 		if valDiags.HasErrors() {

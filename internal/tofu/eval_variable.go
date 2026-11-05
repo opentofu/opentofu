@@ -324,6 +324,7 @@ func evalVariableValidation(validation *configs.CheckRule, hclCtx *hcl.EvalConte
 
 	result, deprDiags := marks.ExtractDeprecatedDiagnosticsWithExpr(result, validation.Condition)
 	diags = diags.Append(deprDiags)
+	result = marks.DropLintingMarks(result)
 
 	errorValue, errorDiags := validation.ErrorMessage.Value(hclCtx)
 
