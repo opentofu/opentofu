@@ -173,6 +173,8 @@ func (p *GRPCProvider) getProviderSchema(ctx context.Context) (resp providers.Ge
 	if protoResp.ServerCapabilities != nil {
 		resp.ServerCapabilities.PlanDestroy = protoResp.ServerCapabilities.PlanDestroy
 		resp.ServerCapabilities.GetProviderSchemaOptional = protoResp.ServerCapabilities.GetProviderSchemaOptional
+		resp.ServerCapabilities.MoveResourceState = protoResp.ServerCapabilities.MoveResourceState
+		resp.ServerCapabilities.GenerateResourceConfig = protoResp.ServerCapabilities.GenerateResourceConfig
 	}
 
 	return resp
@@ -883,7 +885,7 @@ func (p *GRPCProvider) MoveResourceState(ctx context.Context, r providers.MoveRe
 
 	resourceSchema, ok := schema.ResourceTypes[r.TargetTypeName]
 	if !ok {
-		schema.Diagnostics = schema.Diagnostics.Append(fmt.Errorf("unknown data source %q", r.TargetTypeName))
+		schema.Diagnostics = schema.Diagnostics.Append(fmt.Errorf("unknown managed resource type %q", r.TargetTypeName))
 		return resp
 	}
 
@@ -897,6 +899,12 @@ func (p *GRPCProvider) MoveResourceState(ctx context.Context, r providers.MoveRe
 		},
 		SourcePrivate:  r.SourcePrivate,
 		TargetTypeName: r.TargetTypeName,
+	}
+	if len(r.SourceIdentityJSON) != 0 {
+		protoReq.SourceIdentity = &proto6.RawState{
+			Json: r.SourceIdentityJSON,
+		}
+		protoReq.SourceIdentitySchemaVersion = int64(r.SourceIdentitySchemaVersion)
 	}
 
 	protoResp, err := p.client.MoveResourceState(ctx, protoReq)
@@ -913,6 +921,17 @@ func (p *GRPCProvider) MoveResourceState(ctx context.Context, r providers.MoveRe
 	}
 	resp.TargetState = state
 	resp.TargetPrivate = protoResp.TargetPrivate
+
+	if protoResp.TargetIdentity != nil && protoResp.TargetIdentity.IdentityData != nil {
+		if resourceSchema.IdentitySchema != nil {
+			identity, err := decodeDynamicValue(protoResp.TargetIdentity.IdentityData, resourceSchema.IdentitySchema.ImpliedType())
+			if err != nil {
+				resp.Diagnostics = resp.Diagnostics.Append(err)
+			} else {
+				resp.TargetIdentity = identity
+			}
+		}
+	}
 
 	resp.Diagnostics = resp.Diagnostics.Append(validation.WriteOnlyAttributes(resourceSchema.Block, resp.TargetState, r.TargetTypeName))
 
