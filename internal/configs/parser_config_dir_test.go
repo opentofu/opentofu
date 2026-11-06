@@ -305,7 +305,7 @@ func TestParserLoadConfigDirWithTests_TofuFiles(t *testing.T) {
 }
 
 func TestIsEmptyDir(t *testing.T) {
-	val, err := IsEmptyDir(filepath.Join("testdata", "valid-files"))
+	val, err := IsEmptyDir(filepath.Join("testdata", "valid-files"), "tests")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -315,7 +315,7 @@ func TestIsEmptyDir(t *testing.T) {
 }
 
 func TestIsEmptyDir_noExist(t *testing.T) {
-	val, err := IsEmptyDir(filepath.Join("testdata", "nopenopenope"))
+	val, err := IsEmptyDir(filepath.Join("testdata", "nopenopenope"), "tests")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -325,11 +325,21 @@ func TestIsEmptyDir_noExist(t *testing.T) {
 }
 
 func TestIsEmptyDir_noConfigs(t *testing.T) {
-	val, err := IsEmptyDir(filepath.Join("testdata", "dir-empty"))
+	val, err := IsEmptyDir(filepath.Join("testdata", "dir-empty"), "tests")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
 	if !val {
 		t.Fatal("should be empty")
+	}
+}
+
+func TestIsEmptyDirWithoutTestsDir_hastests(t *testing.T) {
+	val, err := IsEmptyDir(filepath.Join("testdata", "dir-tests-only"), "tests")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if val {
+		t.Fatal("should not be empty")
 	}
 }

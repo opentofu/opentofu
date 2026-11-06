@@ -103,7 +103,7 @@ func (c InitCommand) Execute(args *arguments.Init, view views.Init) int {
 	if args.FlagFromModule != "" {
 		src := args.FlagFromModule
 
-		empty, err := configs.IsEmptyDir(path)
+		empty, err := configs.IsEmptyDir(path, args.TestsDirectory)
 		if err != nil {
 			view.Diagnostics(diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
@@ -150,7 +150,7 @@ To initialize the configuration already in this working directory, omit the
 
 	// If our directory is empty, then we're done. We can't get or set up
 	// the backend with an empty directory.
-	empty, err := configs.IsEmptyDir(path)
+	empty, err := configs.IsEmptyDir(path, args.TestsDirectory)
 	if err != nil {
 		view.Diagnostics(diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,

@@ -473,7 +473,7 @@ func (c *ShowCommand) showConfiguration(ctx context.Context) (showRenderFunc, tf
 	var diags tfdiags.Diagnostics
 
 	// Check if the directory is empty
-	empty, err := configs.IsEmptyDir(".")
+	empty, err := configs.IsEmptyDir(".", "")
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,

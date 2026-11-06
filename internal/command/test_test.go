@@ -1572,6 +1572,37 @@ func TestTest_DeprecatedOutputs(t *testing.T) {
 	}
 }
 
+func TestTest_EmptyDir(t *testing.T) {
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("test/empty_dir"), td)
+	t.Chdir(td)
+
+	view, done := testView(t)
+	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       view,
+	}
+	code := RunCommander(t, InitCommander(), meta, nil)
+	if code != 0 {
+		t.Fatalf("init with unexpected exit: %d", code)
+	}
+	output := done(t)
+	if !strings.Contains(output.Stdout(), "OpenTofu has been successfully initialized!") {
+		t.Fatalf("unexpected init output:\n%s", output.Stdout())
+	}
+
+	view, done = testView(t)
+	meta.View = view
+	code = RunCommander(t, TestCommander(), meta, nil)
+	output = done(t)
+	if code != 0 {
+		t.Fatalf("expected status code 0 but got %d: %s", code, output.All())
+	}
+	if !strings.Contains(output.Stdout(), "1 passed, 0 failed.") {
+		t.Fatalf("unexpected test output:\n%s", output.Stdout())
+	}
+}
+
 func TestTest_InstanceOverride(t *testing.T) {
 	tcs := map[string]struct {
 		expected    string

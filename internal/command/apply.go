@@ -275,6 +275,7 @@ func (c *ApplyCommand) OperationRequest(
 	opReq.ForceReplace = applyArgs.Operation.ForceReplace
 	opReq.Type = backend.OperationTypeApply
 	opReq.View = view.Operation()
+	opReq.TestsDir = applyArgs.Operation.TestsDir
 
 	var err error
 	opReq.ConfigLoader, err = configload.Initialise(c.configLoader())

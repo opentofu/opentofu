@@ -81,12 +81,12 @@ func (c *lazyLoader) ImportSourcesFromSnapshot(snap *Snapshot) {
 }
 
 // IsConfigDir implements Loader
-func (c *lazyLoader) IsConfigDir(path string) bool {
+func (c *lazyLoader) IsConfigDir(path, testsDir string) bool {
 	l, err := c.init()
 	if err != nil {
 		return true // The same default with the previous version in Meta structure
 	}
-	return l.IsConfigDir(path)
+	return l.IsConfigDir(path, testsDir)
 }
 
 // ModulesDir implements Loader
