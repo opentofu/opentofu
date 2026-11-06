@@ -80,6 +80,7 @@ func (l *loader) ModuleLocalPath(_ context.Context, req *configs.ModuleRequest) 
 				Summary:  "Module not installed",
 				Detail:   "This module is not yet installed. Run \"tofu init\" to install all modules required by this configuration.",
 				Subject:  &req.CallRange,
+				Extra:    ExitInitRequired,
 			},
 		}
 	}
@@ -96,6 +97,7 @@ func (l *loader) ModuleLocalPath(_ context.Context, req *configs.ModuleRequest) 
 			Summary:  "Module source has changed",
 			Detail:   fmt.Sprintf("The source address was changed from %q to %q since this module was installed. Run \"tofu init\" to install all modules required by this configuration.", record.SourceAddr, req.SourceAddr.String()),
 			Subject:  &req.SourceAddrRange,
+			Extra:    ExitInitRequired,
 		})
 	}
 	if req.VersionConstraint.HasRequirements() && record.Version == nil {
@@ -104,6 +106,7 @@ func (l *loader) ModuleLocalPath(_ context.Context, req *configs.ModuleRequest) 
 			Summary:  "Module version requirements have changed",
 			Detail:   "The version requirements have changed since this module was installed and the installed version is no longer acceptable. Run \"tofu init\" to install all modules required by this configuration.",
 			Subject:  &req.SourceAddrRange,
+			Extra:    ExitInitRequired,
 		})
 	}
 	if record.Version != nil && !req.VersionConstraint.Check(record.Version) {
@@ -115,6 +118,7 @@ func (l *loader) ModuleLocalPath(_ context.Context, req *configs.ModuleRequest) 
 				record.Version,
 			),
 			Subject: &req.SourceAddrRange,
+			Extra:   ExitInitRequired,
 		})
 	}
 
@@ -142,6 +146,7 @@ func (l *loader) moduleWalkerLoad(ctx context.Context, req *configs.ModuleReques
 				Summary:  "Module not installed",
 				Detail:   fmt.Sprintf("This module's local cache directory %s could not be read. Run \"tofu init\" to install all modules required by this configuration.", record.Dir),
 				Subject:  &req.CallRange,
+				Extra:    ExitInitRequired,
 			},
 		}
 	}

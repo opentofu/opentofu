@@ -16,3 +16,12 @@ func Sourceless(severity Severity, summary, detail string) Diagnostic {
 		detail:   detail,
 	}
 }
+
+func SourcelessWithExtra(severity Severity, summary, detail string, extraInfo any) Diagnostic {
+	return diagnosticBase{
+		severity: severity,
+		summary:  summary,
+		detail:   detail,
+		extra:    extraInfo,
+	}
+}
