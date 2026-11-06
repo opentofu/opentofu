@@ -2,6 +2,10 @@ The v1.13.x release series is supported until **August 1 2027**.
 
 ## 1.13.10 (Unreleased)
 
+BUG FIXES:
+
+- Fix symbol libraries preventing plan when used in modules. ([#4816](https://github.com/opentofu/opentofu/pull/4816)
+
 ## 1.13.9
 
 BUG FIXES:
