@@ -333,3 +333,23 @@ func TestIsEmptyDir_noConfigs(t *testing.T) {
 		t.Fatal("should be empty")
 	}
 }
+
+func TestIsEmptyDirWithoutTestsDir_hastests(t *testing.T) {
+	val, err := IsEmptyDirWithoutTestsDir(filepath.Join("testdata", "dir-tests-only"), "tests")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if val {
+		t.Fatal("should not be empty")
+	}
+}
+
+func TestIsEmptyDirWithoutTestsDir_empty(t *testing.T) {
+	val, err := IsEmptyDirWithoutTestsDir(filepath.Join("testdata", "dir-empty"), "tests")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if !val {
+		t.Fatal("should be empty")
+	}
+}

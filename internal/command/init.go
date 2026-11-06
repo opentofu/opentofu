@@ -150,7 +150,7 @@ To initialize the configuration already in this working directory, omit the
 
 	// If our directory is empty, then we're done. We can't get or set up
 	// the backend with an empty directory.
-	empty, err := configs.IsEmptyDir(path)
+	empty, err := configs.IsEmptyDirWithoutTestsDir(path, args.TestsDirectory)
 	if err != nil {
 		view.Diagnostics(diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,

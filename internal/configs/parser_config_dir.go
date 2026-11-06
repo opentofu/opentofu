@@ -416,6 +416,19 @@ func IsIgnoredFile(name string) bool {
 		strings.HasPrefix(name, "#") && strings.HasSuffix(name, "#") // emacs
 }
 
+func dirFiles(path, testpath string) (primary, override, test []string, diags hcl.Diagnostics) {
+	if _, err := os.Stat(path); err != nil && os.IsNotExist(err) {
+		return nil, nil, nil, nil
+	}
+
+	p := NewParser(nil)
+	primary, override, test, _, diags = p.dirFiles(path, testpath)
+	if diags.HasErrors() {
+		return nil, nil, nil, diags
+	}
+	return primary, override, test, diags
+}
+
 // IsEmptyDir returns true if the given filesystem path contains no OpenTofu
 // configuration files.
 //
@@ -423,15 +436,19 @@ func IsIgnoredFile(name string) bool {
 // real filesystem, and thus it isn't appropriate to use when working with
 // configuration loaded from a plan file.
 func IsEmptyDir(path string) (bool, error) {
-	if _, err := os.Stat(path); err != nil && os.IsNotExist(err) {
-		return true, nil
-	}
-
-	p := NewParser(nil)
-	fs, os, _, _, diags := p.dirFiles(path, "")
+	fs, os, _, diags := dirFiles(path, "")
 	if diags.HasErrors() {
 		return false, diags
 	}
 
 	return len(fs) == 0 && len(os) == 0, nil
+}
+
+func IsEmptyDirWithoutTestsDir(path string, testpath string) (bool, error) {
+	fs, os, ts, diags := dirFiles(path, testpath)
+	if diags.HasErrors() {
+		return false, diags
+	}
+
+	return len(fs) == 0 && len(os) == 0 && len(ts) == 0, nil
 }
