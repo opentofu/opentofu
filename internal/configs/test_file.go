@@ -514,6 +514,42 @@ func (p *Parser) loadTestFile(body hcl.Body, baseDir string) (*TestFile, hcl.Dia
 	return &tf, diags
 }
 
+// decodeVerifyBlock it decode a verify block in a block that "run" test.
+// is not like other checkrules error_message is actually optional in here; if it is ignored the response CheckRule's error message will be nothing (nill).
+func decodeVerifyBlock(block *hcl.Block) (*CheckRule, hcl.Diagnostics) {
+	cr, diags := decodeCheckRuleBlockSchema(block, false, testVerifyBlockSchema)
+
+	// error_message can be left out, but if it is set it must not be "" or null, because that is more likely a mistake.
+	if cr.ErrorMessage != nil {
+		diags = append(diags, validateVerifyErrorMessage(cr.ErrorMessage)...)
+	}
+
+	return cr, diags
+}
+
+// validateVerifyErrorMessage returns an error if error_message is set to a constant "" or null. Expressions that refer to other values can't be checked here, so they are checked when the test runs.
+func validateVerifyErrorMessage(expr hcl.Expression) hcl.Diagnostics {
+	if len(expr.Variables()) > 0 {
+		return nil
+	}
+
+	val, valDiags := expr.Value(nil)
+	if valDiags.HasErrors() || !val.IsKnown() {
+		return nil
+	}
+
+	if val.IsNull() || (val.Type() == cty.String && val.AsString() == "") {
+		return hcl.Diagnostics{&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid error_message",
+			Detail:   "The error_message argument cannot be an empty string or null. To use the default failure output, remove the error_message argument instead.",
+			Subject:  expr.Range().Ptr(),
+		}}
+	}
+
+	return nil
+}
+
 func decodeTestRunBlock(block *hcl.Block) (*TestRun, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
@@ -538,7 +574,7 @@ func decodeTestRunBlock(block *hcl.Block) (*TestRun, hcl.Diagnostics) {
 	for _, block := range content.Blocks {
 		switch block.Type {
 		case "assert":
-			cr, crDiags := decodeCheckRuleBlock(block, false)
+			cr, crDiags := decodeVerifyBlock(block)
 			diags = append(diags, crDiags...)
 			if !crDiags.HasErrors() {
 				r.CheckRules = append(r.CheckRules, cr)
@@ -1344,6 +1380,16 @@ var testRunBlockSchema = &hcl.BodySchema{
 		{
 			Type: blockNameOverrideModule,
 		},
+	},
+}
+
+// testVerifyBlockSchema describes the schema for the assert block in a test run. This
+// schema is similar with checkRuleBlockSchema but the difference is that error_message
+// argument is optional.
+var testVerifyBlockSchema = &hcl.BodySchema{
+	Attributes: []hcl.AttributeSchema{
+		{Name: "condition", Required: true},
+		{Name: "error_message", Required: false},
 	},
 }
 
