@@ -9,6 +9,7 @@ SECURITY ADVISORIES:
 BUG FIXES:
 
 - Overriding resources for indexed modules now works correctly during `tofu test` ([#4859](https://github.com/opentofu/opentofu/pull/4859))
+- Fix symbol libraries preventing plan when used in modules. ([#4816](https://github.com/opentofu/opentofu/pull/4816)
 
 ## 1.13.9
 

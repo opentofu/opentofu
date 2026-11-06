@@ -41,6 +41,26 @@ func (l *loader) LoadConfigWithSnapshot(ctx context.Context, rootDir string, cal
 	addDiags := l.addModuleToSnapshot(snap, "", rootDir, "", nil)
 	diags = append(diags, addDiags...)
 
+	// Inject the source contents into the snapshot
+	sources := l.Sources() // should be populated with all the files we need by now
+	for _, snapMod := range snap.Modules {
+		for _, filePath := range snapMod.FilePaths {
+			filename := filepath.Base(filePath)
+			src, exists := sources[filePath]
+			if !exists {
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Missing source file for snapshot",
+					Detail:   fmt.Sprintf("The source code for file %s could not be found to produce a configuration snapshot.", filePath),
+				})
+				continue
+			}
+			snapMod.Files[filepath.Clean(filename)] = src.Bytes
+		}
+		// No-longer needed, clearing also makes testing easier
+		snapMod.FilePaths = nil
+	}
+
 	l.lastLoadedRoot = cfg
 
 	return cfg, snap, diags
@@ -108,6 +128,11 @@ type SnapshotModule struct {
 	// Files is a map from each configuration file filename for the
 	// module to a raw byte representation of the source file contents.
 	Files map[string][]byte
+
+	// FilePaths is a list of the full paths of the files within the module
+	// This is populated during the walk and used to fill in Files once
+	// all the sources have been loaded
+	FilePaths []string `json:"-"`
 
 	// SourceAddr is the source address given for this module in configuration.
 	SourceAddr string `json:"Source"`
@@ -189,20 +214,8 @@ func (l *loader) addModuleToSnapshot(snap *Snapshot, key string, dir string, sou
 	files = append(files, primaryFiles...)
 	files = append(files, overrideFiles...)
 	files = append(files, symbolFiles...)
-	sources := l.Sources() // should be populated with all the files we need by now
-	for _, filePath := range files {
-		filename := filepath.Base(filePath)
-		src, exists := sources[filePath]
-		if !exists {
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Missing source file for snapshot",
-				Detail:   fmt.Sprintf("The source code for file %s could not be found to produce a configuration snapshot.", filePath),
-			})
-			continue
-		}
-		snapMod.Files[filepath.Clean(filename)] = src.Bytes
-	}
+	snapMod.FilePaths = files
+	// Files will be populated later
 
 	snap.Modules[key] = snapMod
 
