@@ -11,9 +11,11 @@ import (
 	"fmt"
 	"log"
 	"maps"
+	"os"
 	"path"
 	"slices"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/opentofu/opentofu/internal/lang"
@@ -173,6 +175,12 @@ func (c TestCommand) Execute(args *arguments.Test, view views.Test) int {
 		return 1
 	}
 
+	hasConfig, err := dirHasConfigFiles(".")
+	if err != nil {
+		diags = diags.Append(err)
+		view.Diagnostics(nil, nil, diags)
+	}
+
 	// Don't use encryption during testing
 	ctx = encryption.ContextWithEncryption(ctx, encryption.Disabled())
 
@@ -212,6 +220,8 @@ func (c TestCommand) Execute(args *arguments.Test, view views.Test) int {
 		Stopped:   false,
 
 		Verbose: args.Verbose,
+
+		ModuleOnly: !hasConfig,
 	}
 
 	view.Abstract(&suite)
@@ -302,6 +312,23 @@ type TestSuiteRunner struct {
 
 	// Verbose tells the runner to print out plan files during each test run.
 	Verbose bool
+
+	// ModuleOnly indicates that there are no config files so all
+	// tests must include a module declaration.
+	ModuleOnly bool
+}
+
+func dirHasConfigFiles(path string) (bool, error) {
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return false, fmt.Errorf("dirHasConfigFiles: %w", err)
+	}
+	for _, entry := range entries {
+		if strings.HasSuffix(entry.Name(), ".tf") || strings.HasSuffix(entry.Name(), ".tofu") {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func (runner *TestSuiteRunner) Start(ctx context.Context) {
@@ -370,6 +397,17 @@ func (runner *TestFileRunner) ExecuteTestFile(ctx context.Context, file *modulet
 			// execute tests. Instead, we mark all remaining run blocks as
 			// skipped.
 			run.Status = moduletest.Skip
+			continue
+		}
+
+		if runner.Suite.ModuleOnly && run.Config.ConfigUnderTest == nil {
+			run.Status = moduletest.Error
+			run.Diagnostics = run.Diagnostics.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid test run",
+				Detail:   "No main module present in this directory, so all tests must contain a module declaration.",
+				Subject:  run.Config.DeclRange.Ptr(),
+			})
 			continue
 		}
 

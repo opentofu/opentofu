@@ -881,6 +881,31 @@ func TestApply_targetedDestroy(t *testing.T) {
 	}
 }
 
+func TestApplyDestroy_empty_dir(t *testing.T) {
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("test/empty_dir"), td)
+	t.Chdir(td)
+
+	p := planFixtureProvider()
+	view, done := testView(t)
+
+	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
+		testingOverrides: metaOverridesForProvider(p),
+		View:             view,
+	}
+
+	code := RunCommander(t, DestroyCommander(), meta, []string{"-no-color"})
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad status code: \n%s", output.Stderr())
+	}
+
+	if got, want := output.Stdout(), "Destroy complete! Resources: 0 destroyed."; !strings.Contains(got, want) {
+		t.Fatalf("got incorrect output, want %q, got:\n%s", want, got)
+	}
+}
+
 const testApplyDestroyStr = `
 <no state>
 `
