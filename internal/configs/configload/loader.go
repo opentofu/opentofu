@@ -28,7 +28,7 @@ import (
 type Loader interface {
 	ImportSources(sources map[string][]byte)
 	ImportSourcesFromSnapshot(snap *Snapshot)
-	IsConfigDir(path string) bool
+	IsConfigDir(path string, testPath string) bool
 	ModulesDir() string
 	RefreshModules() error
 	Sources() map[string]*hcl.File
@@ -151,8 +151,8 @@ func (l *loader) Sources() map[string]*hcl.File {
 // IsConfigDir returns true if and only if the given directory contains at
 // least one OpenTofu configuration file. This is a wrapper around calling
 // the same method name on the loader's parser.
-func (l *loader) IsConfigDir(path string) bool {
-	return l.parser.IsConfigDir(path)
+func (l *loader) IsConfigDir(path string, testPath string) bool {
+	return l.parser.IsConfigDir(path, testPath)
 }
 
 // ImportSources writes into the receiver's source code map the given source

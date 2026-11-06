@@ -129,6 +129,11 @@ type Operation struct {
 	// a module all at once. We could potentially loosen this later if we
 	// learn a use-case for broader matching.
 	ForceReplace []addrs.AbsResourceInstance
+
+	// TestDir is a path to check for tests in, used to allow
+	// operations to run without failing they are run on an empty
+	// root directory
+	TestsDir string
 }
 
 // parseDirectTargetables gets a list of strings passed from directly from the CLI
@@ -284,6 +289,7 @@ func BindOperation(cli *CommandLine) *Operation {
 	cli.StringArrayVar(&forceReplaceRaw, "replace", nil,
 		`Force replacement of a particular resource instance using its resource address. If the plan would've otherwise produced an update or no-op action for this instance, OpenTofu will plan to replace it instead. You can use this option multiple times to replace more than one object.`,
 	).SetDisplay("=resource")
+	cli.StringVar(&o.TestsDir, "tests-directory", "tests", "Path to a directory of OpenTofu configuration files to use to configure the provider. Defaults to pwd. If no config files are present, they must be provided via the input prompts or env vars.").SetDisplay("=path")
 
 	// This processes the raw target flags into addrs.Targetable values, returning diagnostics if invalid.
 	cli.PreHook(func() tfdiags.Diagnostics {

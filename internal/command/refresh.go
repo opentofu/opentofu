@@ -129,6 +129,7 @@ func (c *RefreshCommand) OperationRequest(ctx context.Context, be backend.Enhanc
 	opReq.Excludes = args.Excludes
 	opReq.Type = backend.OperationTypeRefresh
 	opReq.View = view.Operation()
+	opReq.TestsDir = args.TestsDir
 
 	var err error
 	opReq.ConfigLoader, err = configload.Initialise(c.configLoader())
