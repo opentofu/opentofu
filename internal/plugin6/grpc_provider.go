@@ -1147,15 +1147,12 @@ func (p *GRPCProvider) CallFunction(ctx context.Context, r providers.CallFunctio
 			return resp
 		}
 
-		if arg.IsNull() {
-			if paramSpec.AllowNullValue {
-				continue
-			} else {
-				resp.Error = &providers.CallFunctionArgumentError{
-					Text:             fmt.Sprintf("parameter %s is null, which is not allowed for function %s", paramSpec.Name, r.Name),
-					FunctionArgument: i,
-				}
+		if arg.IsNull() && !paramSpec.AllowNullValue {
+			resp.Error = &providers.CallFunctionArgumentError{
+				Text:             fmt.Sprintf("parameter %s is null, which is not allowed for function %s", paramSpec.Name, r.Name),
+				FunctionArgument: i,
 			}
+			return resp
 		}
 
 		encodedArg, err := msgpack.Marshal(arg, paramSpec.Type)

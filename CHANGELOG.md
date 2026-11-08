@@ -26,6 +26,7 @@ BUG FIXES:
 
 - `tofu fmt`: Fixed wrong resolution of paths when the working directory is a symlink; output now shows absolute file paths instead of giving error `Invalid file or directory path`. ([#3879](https://github.com/opentofu/opentofu/issues/3879))
 - OpenTelemetry tracing support now honors the standard OpenTelemetry environment variable `OTEL_RESOURCE_ATTRIBUTES` for specifying arbitrary additional resource attribute values to be added to traces. Previously we only supported `OTEL_SERVICE_NAME` for overriding the `service.name` attribute. ([#4621](https://github.com/opentofu/opentofu/issues/4621))
+- Provider functions with a `dynamic` parameter that allows null values no longer fail with "DynamicValue had no JSON or msgpack data set" when passed a typed null such as `tostring(null)`. ([#4819](https://github.com/opentofu/opentofu/issues/4819))
 
 ## Previous Releases
 
