@@ -57,7 +57,7 @@ func normalPlan(ctx context.Context, opts *PlanOpts, prevRoundState *states.Stat
 	planCtx.rootOutput.Previous = prevRoundState.EnsureModule(addrs.RootModuleInstance).OutputValues
 	planCtx.rootOutput.Current = oracle.PlanningResult(ctx).RootModuleOutputs
 
-	intermediate, moreDiags := glue.Finalize(ctx)
+	intermediate, moreDiags := glue.Finalize(ctx, false)
 	diags = diags.Append(moreDiags)
 
 	plan, moreDiags := finalizePlan(ctx, intermediate, providers)

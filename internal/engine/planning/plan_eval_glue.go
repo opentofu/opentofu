@@ -149,7 +149,7 @@ func (p *planGlue) PlanDesiredResourceInstance(ctx context.Context, inst *eval.D
 	return rv, diags
 }
 
-func (p *planGlue) Finalize(ctx context.Context) (*planContextResult, tfdiags.Diagnostics) {
+func (p *planGlue) Finalize(ctx context.Context, forceDelete bool) (*planContextResult, tfdiags.Diagnostics) {
 	ctx = grapheval.ContextWithNewWorker(ctx)
 	var diags tfdiags.Diagnostics
 
@@ -177,7 +177,7 @@ func (p *planGlue) Finalize(ctx context.Context) (*planContextResult, tfdiags.Di
 	for objAddr, objState := range resourceInstancesObjects(p.planCtx.prevRoundState) {
 		if objAddr.IsDeposed() {
 			diags = diags.Append(
-				p.planDeposedResourceInstanceObject(ctx, objAddr, objState),
+				p.planDeposedResourceInstanceObject(ctx, objAddr, objState, forceDelete),
 			)
 		} else if !p.planCtx.desired.HasFunc(func(desired addrs.AbsResourceInstance) bool {
 			if desired.IsPlaceholder() {
@@ -186,7 +186,7 @@ func (p *planGlue) Finalize(ctx context.Context) (*planContextResult, tfdiags.Di
 			return desired.Equal(objAddr.InstanceAddr)
 		}) {
 			diags = diags.Append(
-				p.planOrphanResourceInstance(ctx, objAddr.InstanceAddr, objState),
+				p.planOrphanResourceInstance(ctx, objAddr.InstanceAddr, objState, forceDelete),
 			)
 		}
 	}
@@ -204,7 +204,15 @@ func (p *planGlue) Finalize(ctx context.Context) (*planContextResult, tfdiags.Di
 	return intermediate, diags
 }
 
-func (p *planGlue) planOrphanResourceInstance(ctx context.Context, addr addrs.AbsResourceInstance, state *states.ResourceInstanceObjectFullSrc) tfdiags.Diagnostics {
+// planOrphanResourceInstance handles planning for a resource instance object
+// that is in the prior state but not in the desired state.
+//
+// forceDelete is set in the destroy planning mode where we treat all current
+// resource instances as "orphan" regardless of whether they are declared in
+// the configuration, which means that we need to loosen our internal
+// consistency checks to now expect an inconsistency between the "wantedness"
+// in the configuration and the action we're performing here.
+func (p *planGlue) planOrphanResourceInstance(ctx context.Context, addr addrs.AbsResourceInstance, state *states.ResourceInstanceObjectFullSrc, forceDelete bool) tfdiags.Diagnostics {
 	log.Printf("[TRACE] planContext: planning orphan resource instance %s", addr)
 
 	if p.isTargeting() {
@@ -231,7 +239,7 @@ func (p *planGlue) planOrphanResourceInstance(ctx context.Context, addr addrs.Ab
 	var diags tfdiags.Diagnostics
 	switch mode := addr.Resource.Resource.Mode; mode {
 	case addrs.ManagedResourceMode:
-		obj, diags = p.planOrphanManagedResourceInstance(ctx, addr, state)
+		obj, diags = p.planOrphanManagedResourceInstance(ctx, addr, state, forceDelete)
 	case addrs.DataResourceMode:
 		obj, diags = p.planOrphanDataResourceInstance(ctx, addr, state)
 	case addrs.EphemeralResourceMode:
@@ -250,7 +258,7 @@ func (p *planGlue) planOrphanResourceInstance(ctx context.Context, addr addrs.Ab
 	return diags
 }
 
-func (p *planGlue) planDeposedResourceInstanceObject(ctx context.Context, addr addrs.AbsResourceInstanceObject, state *states.ResourceInstanceObjectFullSrc) tfdiags.Diagnostics {
+func (p *planGlue) planDeposedResourceInstanceObject(ctx context.Context, addr addrs.AbsResourceInstanceObject, state *states.ResourceInstanceObjectFullSrc, forceDelete bool) tfdiags.Diagnostics {
 	log.Printf("[TRACE] planContext: planning deposed resource instance object %s", addr)
 	if addr.InstanceAddr.Resource.Resource.Mode != addrs.ManagedResourceMode {
 		// Should not be possible because only managed resource instances
@@ -259,7 +267,7 @@ func (p *planGlue) planDeposedResourceInstanceObject(ctx context.Context, addr a
 		diags = diags.Append(fmt.Errorf("deposed object for non-managed resource instance %s; this is a bug in OpenTofu", addr))
 		return diags
 	}
-	obj, diags := p.planDeposedManagedResourceInstanceObject(ctx, addr, state)
+	obj, diags := p.planDeposedManagedResourceInstanceObject(ctx, addr, state, forceDelete)
 	p.planCtx.resourceInstObjs.Put(obj)
 	return diags
 }

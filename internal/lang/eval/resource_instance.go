@@ -43,6 +43,30 @@ import (
 // for objects of those modes, as described in the comments on each field.
 type ConfiguredResourceInstanceObjectMeta = evalglue.ConfiguredResourceInstanceObjectMeta
 
+// ResourceInstanceObjectWant is an enumeration that summarizes whether a
+// particular resource instance object is "desired" or "unwanted", or (for the
+// zero value of this type) if there is no opinion about that in whatever
+// context the value applies to.
+type ResourceInstanceObjectWant = evalglue.ResourceInstanceObjectWant
+
+const (
+	// ResourceInstanceObjectWantUnspecified represents that there is no
+	// information about whether the object is desired or unwanted in the
+	// current context.
+	ResourceInstanceObjectWantUnspecified = evalglue.ResourceInstanceObjectWantUnspecified
+
+	// ResourceInstanceObjectDesired represents that there's something in
+	// the configuration which explicitly declares this object as part of the
+	// desired state.
+	//
+	// Deposed objects are never allowed to be "desired".
+	ResourceInstanceObjectDesired = evalglue.ResourceInstanceObjectDesired
+
+	// ResourceInstanceObjectUnwanted represents that this object is not
+	// part of the desired state.
+	ResourceInstanceObjectUnwanted = evalglue.ResourceInstanceObjectUnwanted
+)
+
 // ResourceInstanceObjectProvider is a container for the provider-related
 // information in [ConfiguredResourceInstanceObjectMeta].
 type ResourceInstanceObjectProvider = evalglue.ResourceInstanceObjectProvider

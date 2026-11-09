@@ -345,6 +345,14 @@ func BuildResourceInstanceObjectMeta[SV states.ValueOrJSONEquivalent](
 	fromConfig []eval.ModuleConfiguredResourceInstanceObjectMeta,
 	state *states.ResourceInstanceObjectRepr[SV], // We only care about metadata, so either the decoded or encoded variant is acceptable
 ) *ResourceInstanceObjectMeta {
+	// NOTE: This function should always to return something reasonable even if
+	// the given metadata objects are inconsistent with one another, because
+	// callers sometimes need to construct a best-effort merged metadata before
+	// they validate whether the individual module instances are valid. It's
+	// the planning engine's responsibility to detect and report conflicting
+	// information between the fromConfig objects and thus prevent the metadata
+	// from being used for any actual planning or applying work.
+
 	if len(fromConfig) == 0 && state == nil {
 		panic(fmt.Sprintf("cannot build resource instance object metadata for %s with neither configured nor prior state metadata", addr))
 	}
