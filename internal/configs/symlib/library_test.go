@@ -178,3 +178,71 @@ func TestTableTypeContext_nilTable(t *testing.T) {
 		t.Errorf("expected DynamicPseudoType fallback, got %#v", ty)
 	}
 }
+
+func TestTableTypeContext_uninitializedLibrary(t *testing.T) {
+	// A declared library that could not be loaded or is uninitialized (nil entry in Table)
+	table := Table{
+		"s": nil,
+	}
+	typeCtx := table.TypeContext()
+
+	expr, diags := hclsyntax.ParseExpression([]byte(`object({
+		a = optional(symbols::s::foo(), { name = "x" })
+	})`), "test.hcl", hcl.InitialPos)
+	if diags.HasErrors() {
+		t.Fatalf("failed to parse expression: %s", diags.Error())
+	}
+
+	ty, _, typeDiags := typeCtx.TypeConstraintWithDefaults(expr)
+	if !typeDiags.HasErrors() {
+		t.Fatalf("expected errors for uninitialized library, got none")
+	}
+	if !ty.IsObjectType() {
+		t.Fatalf("expected object type, got %#v", ty)
+	}
+
+	unwrapped := ty.WithoutOptionalAttributesDeep()
+	if !unwrapped.IsObjectType() {
+		t.Fatalf("expected object type after WithoutOptionalAttributesDeep, got %#v", unwrapped)
+	}
+
+	foundSummary := false
+	for _, diag := range typeDiags {
+		if diag.Summary == "Uninitialized symbol library" {
+			foundSummary = true
+			if diag.Detail != "Symbol library s could not be loaded or is not yet initialized" {
+				t.Errorf("unexpected detail: %s", diag.Detail)
+			}
+			break
+		}
+	}
+	if !foundSummary {
+		t.Errorf("expected 'Uninitialized symbol library' diagnostic, got: %s", typeDiags.Error())
+	}
+}
+
+func TestBuildTable_uninitializedLibrary(t *testing.T) {
+	calls := []*SymbolCall{
+		{
+			Name: "s",
+		},
+	}
+	loader := func(call *SymbolCall) (*Library, hcl.Diagnostics) {
+		return nil, hcl.Diagnostics{{
+			Severity: hcl.DiagError,
+			Summary:  "Module not installed",
+			Detail:   "This module is not yet installed",
+		}}
+	}
+	table, diags := BuildTable(calls, loader)
+	if !diags.HasErrors() {
+		t.Fatalf("expected diagnostics from loader")
+	}
+	lib, ok := table["s"]
+	if !ok {
+		t.Fatalf("expected 's' to be in table")
+	}
+	if lib != nil {
+		t.Fatalf("expected nil library entry for uninitialized library")
+	}
+}

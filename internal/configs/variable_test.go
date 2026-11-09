@@ -181,23 +181,30 @@ output "test" {
 }
 
 func TestBuildConfig_uninitializedSymbolLibrary(t *testing.T) {
-	// End-to-end test simulating issue #4733:
-	// A configuration declares a symbol library module and a variable using a type
-	// from that symbol library. When the symbol library is not installed/initialized,
-	// BuildConfig must not crash, and should emit proper diagnostics.
+	// End-to-end regression test replicating issue #4733 minimal reproduction:
+	// A configuration declares a symbol library module and a variable using an optional
+	// type with default value from that symbol library, plus an output referencing the variable.
+	// When the symbol library is not installed/initialized, BuildConfig must not crash with
+	// "WithoutOptionalAttributesDeep does not support the given type", and should cleanly
+	// report diagnostics.
 	src := `
 language {
   experiments = [symbol_libraries]
 }
 
-symbols "ext" {
-  source = "./missing_symlib"
+symbols "s" {
+  source = "./lib"
 }
 
-variable "config" {
+variable "v" {
   type = object({
-    entry = optional(symbols::ext::my_type(), "default_val")
+    a = optional(symbols::s::foo(), { name = "x" })
   })
+  default = {}
+}
+
+output "o" {
+  value = var.v
 }
 `
 	parser := testParser(map[string]string{
@@ -230,29 +237,37 @@ variable "config" {
 		t.Fatal("expected non-nil config even with build errors")
 	}
 
-	// Verify that the variable in cfg.Module has been safely finalized to DynamicPseudoType
-	v := cfg.Module.Variables["config"]
+	// Verify that the variable in cfg.Module has been safely finalized without crashing
+	v := cfg.Module.Variables["v"]
 	if v == nil {
-		t.Fatal("expected variable 'config' to exist in module")
+		t.Fatal("expected variable 'v' to exist in module")
 	}
 	if v.Type == cty.NilType {
 		t.Errorf("expected variable Type to not be NilType")
 	}
 
+	o := cfg.Module.Outputs["o"]
+	if o == nil {
+		t.Fatal("expected output 'o' to exist in module")
+	}
+
 	foundModuleNotInstalled := false
-	foundMissingSymbolLib := false
+	foundUninitializedSymbolLib := false
 	for _, diag := range buildDiags {
 		if diag.Summary == "Module not installed" {
 			foundModuleNotInstalled = true
 		}
-		if diag.Summary == "Missing symbol library" {
-			foundMissingSymbolLib = true
+		if diag.Summary == "Uninitialized symbol library" {
+			foundUninitializedSymbolLib = true
+			if diag.Detail != "Symbol library s could not be loaded or is not yet initialized" {
+				t.Errorf("unexpected detail for uninitialized symbol library: %s", diag.Detail)
+			}
 		}
 	}
 	if !foundModuleNotInstalled {
 		t.Errorf("expected 'Module not installed' diagnostic in buildDiags: %s", buildDiags.Error())
 	}
-	if !foundMissingSymbolLib {
-		t.Errorf("expected 'Missing symbol library' diagnostic in buildDiags: %s", buildDiags.Error())
+	if !foundUninitializedSymbolLib {
+		t.Errorf("expected 'Uninitialized symbol library' diagnostic in buildDiags: %s", buildDiags.Error())
 	}
 }

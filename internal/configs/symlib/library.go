@@ -80,11 +80,19 @@ type Table map[string]*Library
 
 func (t Table) library(name string, rng hcl.Range) (*Library, hcl.Diagnostics) {
 	lib, ok := t[name]
-	if !ok || lib == nil {
+	if !ok {
 		return nil, hcl.Diagnostics{{
 			Severity: hcl.DiagError,
 			Summary:  "Missing symbol library",
 			Detail:   fmt.Sprintf("Symbol library %s not declared", name),
+			Subject:  rng.Ptr(),
+		}}
+	}
+	if lib == nil {
+		return nil, hcl.Diagnostics{{
+			Severity: hcl.DiagError,
+			Summary:  "Uninitialized symbol library",
+			Detail:   fmt.Sprintf("Symbol library %s could not be loaded or is not yet initialized", name),
 			Subject:  rng.Ptr(),
 		}}
 	}
@@ -167,6 +175,8 @@ func BuildTable(calls []*SymbolCall, loader Loader) (Table, hcl.Diagnostics) {
 		if lib != nil {
 			lib.name = call.Name
 			table[call.Name] = lib
+		} else {
+			table[call.Name] = nil
 		}
 	}
 	return table, diags
