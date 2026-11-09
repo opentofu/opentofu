@@ -85,6 +85,10 @@ type ModuleCall struct {
 	// Only the decideInstances method accesses this directly. Use that
 	// method to obtain the coalesced result for use elsewhere.
 	instancesResult grapheval.Once[*compiledInstances[*ModuleCallInstance]]
+
+	// valueResult ensures that we only compute the value of the resource once.
+	// This is primarilly a performance optimization.
+	valueResult grapheval.Once[cty.Value]
 }
 
 var _ exprs.Valuer = (*ModuleCall)(nil)
@@ -291,6 +295,9 @@ func (c *ModuleCall) StaticCheckTraversal(traversal hcl.Traversal) tfdiags.Diagn
 
 // Value implements exprs.Valuer.
 func (c *ModuleCall) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+	return c.valueResult.Do(ctx, c.value, &c.DeclRange, "Value of %s", c.Addr)
+}
+func (c *ModuleCall) value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
 	ctx = withDebugAddr(ctx, c.Addr, "Value")
 	// We'll first check whether the arguments specifying which module to
 	// call are valid, because we can't really do anything else if not.
