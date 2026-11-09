@@ -70,6 +70,10 @@ type Resource struct {
 	// Only the decideInstances method accesses this directly. Use that
 	// method to obtain the coalesced result for use elsewhere.
 	instancesResult grapheval.Once[*compiledInstances[*ResourceInstance]]
+
+	// valueResult ensures that we only compute the value of the resource once.
+	// This is primarilly a performance optimization.
+	valueResult grapheval.Once[cty.Value]
 }
 
 var _ exprs.Valuer = (*Resource)(nil)
@@ -120,6 +124,9 @@ func (r *Resource) StaticCheckTraversal(traversal hcl.Traversal) tfdiags.Diagnos
 
 // Value implements exprs.Valuer.
 func (r *Resource) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+	return r.valueResult.Do(ctx, r.value, &r.DeclRange, "Value of %s", r.Addr)
+}
+func (r *Resource) value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
 	ctx = withDebugAddr(ctx, r.Addr, "Value")
 	selection, diags := r.decideInstances(ctx)
 	if diags.HasErrors() && selection == nil {
