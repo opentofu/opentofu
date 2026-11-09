@@ -11,12 +11,15 @@ import (
 	"slices"
 	"sync"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/resources"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // resourceInstanceObject is the planning engine's internal intermediate
@@ -456,4 +459,148 @@ func sortedResourceInstanceObjectAddrKeys[T any](seq iter.Seq2[addrs.AbsResource
 		}
 	}
 	return sortedResourceInstanceObjectAddrs(keys)
+}
+
+// validateDesiredResourceInstanceMeta checks whether all of the
+// configured resource instance object metadata for the object specified in addr
+// is consistent with how we expect desired resource instance objects to be
+// declared between modules, returning error diagnostics if there are any
+// conflicts or inconsistencies.
+func validateDesiredResourceInstanceMeta(addr addrs.AbsResourceInstance, configured []eval.ModuleConfiguredResourceInstanceObjectMeta) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+
+	hasDesired := false
+	hasImport := false
+	var desiredDeclRange *tfdiags.SourceRange
+	for _, configMeta := range configured {
+		if configMeta.ImportStatement != nil {
+			hasImport = true
+		}
+		if configMeta.Want == eval.ResourceInstanceObjectDesired {
+			if !configMeta.ModuleInstance.Equal(addr.Module) {
+				// Only the module instance that a resource instance belongs
+				// to is allowed to declare that an object is desired.
+				//
+				// We treat this as a bug in OpenTofu because right now there's
+				// no situation where the OpenTofu language allows declaring
+				// a desired resource instance anywhere other than the module
+				// it belongs to.
+				var where string
+				if configMeta.ModuleInstance.IsRoot() {
+					where = "the root module"
+				} else {
+					where = configMeta.ModuleInstance.String()
+				}
+				diags = diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Inconsistent resource instance status",
+					Detail:   fmt.Sprintf("Resource instance %s is declared as desired in %s, which is not the module instance it belongs to. This is a bug in OpenTofu.", addr, where),
+					Subject:  configMeta.PrimaryDeclRangeHCL(),
+				})
+				continue
+			}
+
+			hasDesired = true
+			desiredDeclRange = configMeta.PrimaryDeclRange
+		}
+	}
+	if !hasDesired && !hasImport {
+		// The absense of a "desired" metadata suggests a bug in the evaluator,
+		// because we'd only be calling this validation function if the
+		// evaluator already indicated that it considers this resource instance
+		// to be "desired".
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Inconsistent resource instance status",
+			Detail:   fmt.Sprintf("Resource instance %s was reported as desired but it has no desired instance metadata available. This is a bug in OpenTofu.", addr),
+		})
+	}
+	// If we already have errors then we'll just stop here, because it suggests
+	// the evaluator has some bugs and therefore the reported metadata is not
+	// trustworthy enough to use for end-user-oriented validation.
+	if diags.HasErrors() {
+		return diags
+	}
+
+	if hasDesired {
+		for _, configMeta := range configured {
+			if configMeta.Want == eval.ResourceInstanceObjectUnwanted {
+				// This means that different modules in the configuration have
+				// conflicting opinions about whether this is desired, which is
+				// an authoring error.
+				var whereDesired string
+				if desiredDeclRange != nil {
+					whereDesired = fmt.Sprintf("at %s", desiredDeclRange.StartString())
+				} else {
+					// If we don't have a source range then we'll report the module
+					// instance itself as a backup. (We already confirmed above
+					// that the module instance the resource instance belongs to
+					// declared that it was desired.)
+					if !addr.Module.IsRoot() {
+						whereDesired = fmt.Sprintf("in %s", addr.Module)
+					} else {
+						whereDesired = "in the root module"
+					}
+				}
+				var whereRemoved string
+				if configMeta.ModuleInstance.IsRoot() {
+					whereRemoved = "The root module"
+				} else {
+					whereRemoved = fmt.Sprintf("Module %s", configMeta.ModuleInstance)
+				}
+				// We currently report this using terminology from the tofu2024
+				// language edition, where explicitly-unwanted things are called
+				// "removed" to match the name of the block that declares that.
+				diags = diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Removed resource instance still exists",
+					Detail: fmt.Sprintf(
+						"%s declares that %s was removed, but it is still declared %s.",
+						whereRemoved, addr, whereDesired,
+					),
+					Subject: configMeta.PrimaryDeclRangeHCL(),
+				})
+			}
+		}
+	}
+	return diags
+}
+
+// validateDesiredResourceInstanceMeta checks whether all of the
+// configured resource instance object metadata for the object specified in addr
+// is consistent with how we expect unwanted resource instance objects to be
+// declared between modules, returning error diagnostics if there are any
+// conflicts or inconsistencies.
+//
+// Set forceDelete when in the special "destroy" planning mode, because in that
+// case we treat everything as unwanted regardless of what the object metadata
+// says.
+func validateUnwantedResourceInstanceObjectMeta(addr addrs.AbsResourceInstanceObject, configured []eval.ModuleConfiguredResourceInstanceObjectMeta, forceDelete bool) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+	if forceDelete {
+		// We currently perform no checks at all in the forceDelete mode,
+		// because in that case we're expecting the wantedness in the
+		// configuration to diagree.
+		return diags
+	}
+	for _, configMeta := range configured {
+		if configMeta.Want == eval.ResourceInstanceObjectDesired {
+			// This suggests a bug in the evaluator, since it's being
+			// inconsistent in how it's reporting the "wantedness" of this
+			// resource instance object.
+			var where string
+			if configMeta.ModuleInstance.IsRoot() {
+				where = "the root module"
+			} else {
+				where = configMeta.ModuleInstance.String()
+			}
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Inconsistent resource instance status",
+				Detail:   fmt.Sprintf("Resource instance %s is declared as desired in %s, but yet it wasn't reported as desired during planning. This is a bug in OpenTofu.", addr, where),
+				Subject:  configMeta.PrimaryDeclRangeHCL(),
+			})
+		}
+	}
+	return diags
 }

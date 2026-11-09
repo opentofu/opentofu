@@ -24,7 +24,18 @@ import (
 // defined here to avoid import cycles when this is used by language edition
 // and configgraph code.
 type ConfiguredResourceInstanceObjectMeta struct {
-	DeclRange tfdiags.SourceRange
+	// Want summarizes this module's opinion about whether this object is
+	// "wanted" or not.
+	//
+	// A module which has no information should use
+	// [ResourceInstanceObjectWantUnspecified].
+	// Use [ResourceInstanceObjectDesired] or [ResourceInstanceObjectUnwanted]
+	// only when something in the configuration directly declares the
+	// "wantedness" of the resource instance object, in which case the source
+	// range of the declaration should typically be what's recored in
+	// the PrimaryDeclRange field.
+	Want ResourceInstanceObjectWant
+
 	// PrimaryDeclRange is the source range of whatever represents the most
 	// significant declaration of this resource instance object in the
 	// configuration.
@@ -128,6 +139,20 @@ func (m *ConfiguredResourceInstanceObjectMeta) PrimaryDeclRangeHCL() *hcl.Range 
 	}
 	return m.PrimaryDeclRange.ToHCL().Ptr()
 }
+
+// ResourceInstanceObjectWant is the true internal name for what external
+// packages know as [eval.ResourceInstanceObjectWant],
+// defined here to avoid import cycles when this is used by language edition
+// and configgraph code.
+type ResourceInstanceObjectWant byte
+
+//go:generate go tool golang.org/x/tools/cmd/stringer -type=ResourceInstanceObjectWant -trimprefix ResourceInstanceObject
+
+const (
+	ResourceInstanceObjectWantUnspecified ResourceInstanceObjectWant = iota
+	ResourceInstanceObjectDesired
+	ResourceInstanceObjectUnwanted
+)
 
 // ResourceInstanceObjectProvider describes the provider-related metadata
 // for a resource instance object, as part of

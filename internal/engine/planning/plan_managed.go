@@ -60,6 +60,12 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		// non-nil metadata for a desired object.
 		panic(fmt.Sprintf("no metadata available for desired object %s", inst.Addr))
 	}
+	diags = diags.Append(validateDesiredResourceInstanceMeta(inst.Addr, configMeta))
+	if diags.HasErrors() {
+		// If the metadata isn't valid then we'll halt here to avoid returning
+		// potentially-confusing errors in the remaining logic below.
+		return ret, diags
+	}
 
 	// Inject import command address if applicable
 	for _, stmt := range p.planCtx.importCommandTargets {
@@ -565,22 +571,25 @@ func (p *planGlue) planOrphanManagedResourceInstance(
 	ctx context.Context,
 	addr addrs.AbsResourceInstance,
 	stateSrc *states.ResourceInstanceObjectFullSrc,
+	forceDelete bool,
 ) (*resourceInstanceObject, tfdiags.Diagnostics) {
-	return p.planUnwantedManagedResourceInstanceObject(ctx, addr.CurrentObject(), stateSrc)
+	return p.planUnwantedManagedResourceInstanceObject(ctx, addr.CurrentObject(), stateSrc, forceDelete)
 }
 
 func (p *planGlue) planDeposedManagedResourceInstanceObject(
 	ctx context.Context,
 	addr addrs.AbsResourceInstanceObject,
 	stateSrc *states.ResourceInstanceObjectFullSrc,
+	forceDelete bool,
 ) (*resourceInstanceObject, tfdiags.Diagnostics) {
-	return p.planUnwantedManagedResourceInstanceObject(ctx, addr, stateSrc)
+	return p.planUnwantedManagedResourceInstanceObject(ctx, addr, stateSrc, forceDelete)
 }
 
 func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 	ctx context.Context,
 	addr addrs.AbsResourceInstanceObject,
 	stateSrc *states.ResourceInstanceObjectFullSrc,
+	forceDelete bool,
 ) (*resourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
@@ -602,6 +611,7 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 	// thus we need to use metadata from that statement to decide how to delete
 	// the unwanted object.
 	configMeta := p.oracle.ResourceInstanceObjectMeta(ctx, addr)
+	diags = diags.Append(validateUnwantedResourceInstanceObjectMeta(addr, configMeta, forceDelete))
 	meta := exec.BuildResourceInstanceObjectMeta(addr, configMeta, stateSrc)
 
 	ret := &resourceInstanceObject{
@@ -623,6 +633,15 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 		UpgradedState:  stateSrc,
 		RefreshedState: stateSrc,
 	}
+	if diags.HasErrors() {
+		// If we get here then the configured metadata was invalid. We wait
+		// until here to return so that we can still return the
+		// partially-constructed ret, but we're not reporting that any change
+		// is needed for this resource instance because the error diagnostics
+		// will make the plan unapplyable anyway.
+		return ret, diags
+	}
+
 	// TODO: Populate ret.Dependencies based on the dependencies in the state,
 	// but to do that we'll need to correlate the [addrs.ConfigResource]-based
 	// dependencies with the actual resource instance objects in the prior state

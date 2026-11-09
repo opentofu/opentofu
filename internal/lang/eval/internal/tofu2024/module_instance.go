@@ -173,6 +173,10 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 	if ret == nil {
 		ret = new(evalglue.ConfiguredResourceInstanceObjectMeta)
 	}
+	if addr.IsDeposed() {
+		// Deposed objects are always unwanted.
+		ret.Want = evalglue.ResourceInstanceObjectUnwanted
+	}
 
 	rsrc, ok := c.resourceNodes[addr.InstanceAddr.Resource.Resource]
 	if !ok {
@@ -217,6 +221,12 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 		ret.OrphanActionReason = configgraph.OrphanActionForInstanceKey(rsrc.InstanceSelector, addr.InstanceAddr.Resource.Key)
 
 		return ret
+	}
+
+	// Once we get to here we can assume that this object is definitely
+	// "desired" if it's a non-deposed object.
+	if addr.IsCurrent() {
+		ret.Want = evalglue.ResourceInstanceObjectDesired
 	}
 
 	// TODO: Should ReplaceOrder actually be modeled as a resource-level

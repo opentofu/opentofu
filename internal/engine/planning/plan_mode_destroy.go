@@ -218,7 +218,7 @@ func (p *planGlueDestroy) Finalize(ctx context.Context) (*planContextResult, tfd
 	recordedMoves := p.normalGlue.planCtx.recordedMoves
 	p.normalGlue.planCtx.recordedMoves = addrs.MakeMap[addrs.AbsResourceInstance, addrs.AbsResourceInstance]()
 
-	intermediate, diags := p.normalGlue.Finalize(ctx)
+	intermediate, diags := p.normalGlue.Finalize(ctx, true)
 	intermediate.Destroying = true
 
 	// Reset recordedMoves for validation purposes and include additionally discovered moves
