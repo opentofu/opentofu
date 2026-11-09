@@ -144,7 +144,6 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 				}
 
 				// Inject information that's only used in the GenConfig path
-				ret.DeclRange = statement.DeclRange
 				ret.Provider = &evalglue.ResourceInstanceObjectProvider{
 					Provider: instance.Provider,
 
@@ -197,7 +196,7 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 		ResourceType: addr.InstanceAddr.Resource.Resource.Type,
 	}
 
-	ret.DeclRange = rsrc.DeclRange
+	ret.PrimaryDeclRange = &rsrc.DeclRange
 
 	// In the remaining code we intentionally ignore all diagnostics from
 	// accessing the configgraph.Resource and configgraph.ResourceInstance

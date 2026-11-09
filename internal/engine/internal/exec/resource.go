@@ -227,6 +227,22 @@ type ResourceInstanceObjectMeta struct {
 	// the course of the apply phase.
 	Addr addrs.AbsResourceInstanceObject
 
+	// PrimaryDeclRange is the source range that should be used to represent
+	// the declaration of this resource instance object in the configuration,
+	// if any.
+	//
+	// This is nil when there is no suitable declaration to use. Note that this
+	// can potentially be non-nil even for a non-desired resource instance
+	// object, such as if an instance of a resource has been removed while the
+	// overall resource block remains present, or when this refers to an
+	// explicit "removed" block instead of to a resource block. Generally we
+	// make a best effort to put _something_ in this field so that any errors
+	// relating to the resource instance object have some source code element
+	// to refer to.
+	//
+	// Do not mutate the object this pointer refers to.
+	PrimaryDeclRange *tfdiags.SourceRange
+
 	// Provider is the address of the provider that the resource type in
 	// [ResourceInstanceObjectMeta.ResourceType] belongs to.
 	Provider addrs.Provider
@@ -234,8 +250,6 @@ type ResourceInstanceObjectMeta struct {
 	// as would be understood by the provider identified in
 	// [ResourceInstanceObjectMeta.Provider].
 	ResourceType string
-
-	DeclRange tfdiags.SourceRange
 
 	// ProviderInstance is the address of the provider instance that is
 	// currently considered responsible for this resource instance object.
@@ -377,14 +391,7 @@ func BuildResourceInstanceObjectMeta[SV states.ValueOrJSONEquivalent](
 			}
 		}
 
-		// FIXME: This is currently just taking the range from whatever is
-		// the deepest module that has any opinion about this resource instance,
-		// which doesn't seem right. We should probably refine what
-		// [eval.ConfiguredResourceInstanceMeta.DeclRange] actually means --
-		// e.g. specifying that it should only be populated when a module
-		// instance includes a declaration that the object is desired --
-		// and let it be nil for module instances where that isn't true.
-		ret.DeclRange = fromModule.DeclRange
+		ret.PrimaryDeclRange = fromModule.PrimaryDeclRange
 
 		if fromModule.OrphanActionReason != plans.ResourceInstanceChangeNoReason {
 			ret.OrphanActionReason = fromModule.OrphanActionReason

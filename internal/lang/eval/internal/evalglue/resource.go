@@ -8,6 +8,7 @@ package evalglue
 import (
 	"context"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -24,6 +25,18 @@ import (
 // and configgraph code.
 type ConfiguredResourceInstanceObjectMeta struct {
 	DeclRange tfdiags.SourceRange
+	// PrimaryDeclRange is the source range of whatever represents the most
+	// significant declaration of this resource instance object in the
+	// configuration.
+	//
+	// This can be nil for an object that exists only in the prior state, but
+	// it can be populated even for non-desired objects in cases such as if
+	// a resource instance has been removed while its resource block still
+	// exists, or to refer to an explicit "removed" block that is acting as
+	// a "tombstone" for a resource instance that used to be declared.
+	//
+	// Do not mutate the object this pointer refers to.
+	PrimaryDeclRange *tfdiags.SourceRange
 
 	// Provider describes what is known about this resource instance object's
 	// relationship with a provider: which provider it belongs to, what name
@@ -101,6 +114,19 @@ type ConfiguredResourceInstanceObjectMeta struct {
 	ImportStatement *ImportStatement
 
 	OrphanActionReason plans.ResourceInstanceChangeActionReason
+}
+
+// PrimaryDeclRangeHCL returns the same information as
+// [ConfiguredResourceInstanceObjectMeta.PrimaryDeclRange] but using HCL's
+// range type, instead of OpenTofu's.
+//
+// It is safe to call this when the range is nil, in which case this method
+// also returns nil.
+func (m *ConfiguredResourceInstanceObjectMeta) PrimaryDeclRangeHCL() *hcl.Range {
+	if m.PrimaryDeclRange == nil {
+		return nil
+	}
+	return m.PrimaryDeclRange.ToHCL().Ptr()
 }
 
 // ResourceInstanceObjectProvider describes the provider-related metadata

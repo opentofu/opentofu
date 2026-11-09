@@ -664,15 +664,9 @@ func (p *planGlue) ResourceInstanceObjectApproxDeclRange(ctx context.Context, ad
 	var rng tfdiags.SourceRange
 
 	for _, configMeta := range p.configuredResourceInstanceObjectMeta(ctx, addr.CurrentObject()) {
-		// FIXME: This is currently just taking the range from whatever is
-		// the deepest module that has any opinion about this resource instance,
-		// which doesn't seem right. We should probably refine what
-		// [eval.ConfiguredResourceInstanceMeta.DeclRange] actually means --
-		// e.g. specifying that it should only be populated when a module
-		// instance includes a declaration that the object is desired --
-		// and let it be nil for module instances where that isn't true.
-		// This same problem exists within [exec.BuildResourceInstanceObjectMeta]
-		rng = configMeta.DeclRange
+		if configMeta.PrimaryDeclRange != nil {
+			rng = *configMeta.PrimaryDeclRange
+		}
 	}
 	return rng
 }
