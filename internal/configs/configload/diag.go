@@ -13,21 +13,18 @@ type diagnosticExitStatus interface {
 	ExitCode() int
 }
 
-type ExitCode int
+type ExitCode uint8
 
 func (e ExitCode) ExitCode() int {
 	switch e {
 	case ExitSuccess, ExitFailure, ExitInitRequired:
 		return int(e)
 	default:
-		return int(ExitUnknown)
+		return int(ExitFailure)
 	}
 }
 
 const (
-	// ExitUnknown is used to indicate an unknown exit kind was to be
-	// returned.
-	ExitUnknown ExitCode = -1
 	// ExitStatus is used to indicate the command ended in succes.
 	ExitSuccess ExitCode = 0
 	// ExitFailure is the result of a command failure.
