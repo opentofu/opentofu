@@ -136,6 +136,7 @@ func (s *SyncState) ResourceInstanceObjectFull(addr addrs.AbsResourceInstanceObj
 		SchemaVersion:        srcObj.SchemaVersion,
 		ConfigDependencies:   slices.Clone(srcObj.Dependencies),
 		Dependencies:         slices.Clone(srcObj.DependsOn),
+		SkipDestroy:          srcObj.SkipDestroy,
 		CreateBeforeDestroy:  srcObj.CreateBeforeDestroy,
 	}
 }
@@ -186,6 +187,7 @@ func (s *SyncState) SetResourceInstanceObjectFull(addr addrs.AbsResourceInstance
 		Dependencies:        obj.ConfigDependencies,
 		DependsOn:           obj.Dependencies,
 		CreateBeforeDestroy: obj.CreateBeforeDestroy,
+		SkipDestroy:         obj.SkipDestroy,
 	}
 	if len(obj.Value.SensitivePaths) != 0 {
 		smallerObj.AttrSensitivePaths = make([]cty.PathValueMarks, len(obj.Value.SensitivePaths))
@@ -309,6 +311,11 @@ type ResourceInstanceObjectRepr[V ValueOrJSONEquivalent] struct {
 	// longer available, such as if it has been removed from configuration
 	// altogether, or is now deposed.
 	Dependencies []addrs.AbsResourceInstance
+
+	// SkipDestroy is set if, in the most recent round, the configuration
+	// specified that this object ought to be "forgotten" instead of deleted
+	// if it is orphaned on the next round.
+	SkipDestroy bool
 
 	// CreateBeforeDestroy reflects the status of the lifecycle
 	// create_before_destroy option when this instance was last updated.
