@@ -257,6 +257,61 @@ func TestSkipDestroy_DestroyMode(t *testing.T) {
 	}
 }
 
+func TestSkipDestroy_DestroyMode_RemovedBlock(t *testing.T) {
+	SkipExperimental(t, ExperimentalFeatureRemoved)
+
+	tests := []skipDestroyTestCase{
+		{
+			name: "RemovedDestroyFalse_Forget",
+			config: `
+				removed {
+					from = aws_instance.foo
+					lifecycle {
+						destroy = false
+					}
+				}
+			`,
+			planMode: plans.DestroyMode,
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.foo", skipDestroy: false},
+			},
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.foo", action: plans.Forget},
+			},
+			runApply:         true,
+			expectApplyError: true,
+			expectEmptyState: true,
+		},
+		{
+			name: "RemovedDestroyTrue_Delete",
+			config: `
+				removed {
+					from = aws_instance.foo
+					lifecycle {
+						destroy = true
+					}
+				}
+			`,
+			planMode: plans.DestroyMode,
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.foo", skipDestroy: true},
+			},
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.foo", action: plans.Delete},
+			},
+			runApply:         true,
+			expectApplyError: false,
+			expectEmptyState: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			runSkipDestroyTestCase(t, tc)
+		})
+	}
+}
+
 func TestSkipDestroy_DestroyMode_Deposed(t *testing.T) {
 	SkipExperimental(t, ExperimentalFeatureDeposed)
 	tests := []skipDestroyTestCase{
