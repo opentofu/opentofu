@@ -192,6 +192,155 @@ func TestContext2Apply_createBeforeDestroy_dependsNonCBDUpdate(t *testing.T) {
 	}
 }
 
+func TestContext2Apply_createBeforeDestroyUnderPartialUpdate(t *testing.T) {
+	p := &MockProvider{
+		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+			ResourceTypes: map[string]providers.Schema{
+				"test": {
+					Block: &configschema.Block{
+						Attributes: map[string]*configschema.Attribute{
+							"id": {
+								Type:     cty.String,
+								Computed: true,
+							},
+							"foo": {
+								Type:     cty.String,
+								Optional: true,
+							},
+							"parent_id": {
+								Type:     cty.String,
+								Optional: true,
+							},
+						},
+					},
+				},
+			},
+		},
+		// We'll just thread the values through directly here because this
+		// test is only concerned about the CreateBeforeDestroy metadata in the
+		// state, and not about the actual object data.
+		PlanResourceChangeFn: func(req providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
+			return providers.PlanResourceChangeResponse{
+				PlannedState: req.ProposedNewState,
+			}
+		},
+		ApplyResourceChangeFn: func(req providers.ApplyResourceChangeRequest) providers.ApplyResourceChangeResponse {
+			return providers.ApplyResourceChangeResponse{
+				NewState: req.PlannedState,
+			}
+		},
+	}
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+			terraform {
+				required_providers {
+					test = {
+						source = "terraform.io/builtin/test"
+					}
+				}
+			}
+
+			resource "test" "a" {
+				# This is intentionally different to what's in the previous
+				# run state so that we'll propose an "update" action.
+				foo = "changed"
+			}
+
+			resource "test" "b" {
+				# This is intentionally unchanged from the previous run state
+				# so that it's a no-op in the round we're going to test.
+				parent_id = test.a.id
+
+				lifecycle {
+					create_before_destroy = true
+				}
+			}
+		`,
+	})
+	provider := addrs.NewBuiltInProvider("test")
+	instA := mustResourceInstanceAddr("test.a")
+	instB := mustResourceInstanceAddr("test.b")
+	providerConfig := addrs.AbsProviderConfig{
+		Module:   addrs.RootModule,
+		Provider: addrs.NewBuiltInProvider("test"),
+	}
+	prevRunState := states.BuildState(func(ss *states.SyncState) {
+		ss.SetResourceInstanceCurrent(
+			instA,
+			&states.ResourceInstanceObjectSrc{
+				AttrsJSON:           []byte(`{"id":"a","foo":"unchanged"}`),
+				Status:              states.ObjectReady,
+				CreateBeforeDestroy: true,
+			},
+			providerConfig, addrs.NoKey,
+		)
+		ss.SetResourceInstanceCurrent(
+			instB,
+			&states.ResourceInstanceObjectSrc{
+				AttrsJSON:           []byte(`{"id":"b","parent_id":"a"}`),
+				Status:              states.ObjectReady,
+				CreateBeforeDestroy: true,
+				DependsOn: []addrs.AbsResourceInstance{
+					instA,
+				},
+				Dependencies: []addrs.ConfigResource{
+					instA.ConfigResource(),
+				},
+			},
+			providerConfig, addrs.NoKey,
+		)
+	})
+
+	tofuCtx := testContext2(t, &ContextOpts{
+		Plugins: plugins.NewLibrary(plugins.ProviderFactories{
+			provider: testProviderFuncFixed(p),
+		}, nil),
+	})
+
+	plan, diags := tofuCtx.Plan(t.Context(), m, prevRunState, DefaultPlanOpts)
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors during plan\n%s", diags.Err().Error())
+	}
+	{
+		// Before we proceed we'll make sure we got the planned actions we
+		// were expecting, because otherwise the rest of this test is invalid
+		// and likely to produce confusing results.
+		planA := plan.Changes.ResourceInstance(instA)
+		planB := plan.Changes.ResourceInstance(instB)
+		wrong := false
+		if got, want := planA.Action, plans.Update; got != want {
+			t.Errorf("wrong action for %s\ngot:  %s\nwant: %s", instA, got, want)
+			wrong = true
+		}
+		if got, want := planB.Action, plans.NoOp; got != want {
+			t.Errorf("wrong action for %s\ngot:  %s\nwant: %s", instB, got, want)
+			wrong = true
+		}
+		if wrong {
+			return
+		}
+	}
+
+	newState, diags := tofuCtx.Apply(t.Context(), plan, m, &ApplyOpts{})
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors during apply\n%s", diags.Err().Error())
+	}
+	// Even though test.b did not include any changes in this plan, its
+	// dependency on test.a should still force test.b to have
+	// CreateBeforeDestroy set in the state, because otherwise removing the
+	// config-based dependency or removing both of these resources from the
+	// configuration in a subsequent round could cause the resulting actions to
+	// happen in the wrong order.
+	stateA := newState.ResourceInstance(instA)
+	stateB := newState.ResourceInstance(instB)
+	if !stateA.Current.CreateBeforeDestroy {
+		t.Errorf("%s does not have CreateBeforeDestroy, but should", instA)
+	}
+	if !stateB.Current.CreateBeforeDestroy {
+		t.Errorf("%s does not have CreateBeforeDestroy, but should", instB)
+	}
+}
+
 func TestContext2Apply_destroyWithDataSourceExpansion(t *testing.T) {
 	SkipExperimental(t, ExperimentalBugDataResource)
 
