@@ -87,11 +87,14 @@ type ConfiguredResourceInstanceObjectMeta struct {
 	//
 	// This field is relevant only for managed resource mode and should always
 	// be nil for other resource modes.
-	DeleteWhenRemoved *exprs.FromValue[bool]
+	DeleteWhenRemoved *exprs.WithSourceRange[bool]
 
 	// DeletionInvalid is true if the author has configured that any execution
 	// plan that involves deleting this object should be considered immediately
 	// invalid. If false then deleting is a valid action to include.
+	//
+	// This only applies when the action is actually "delete", and not when
+	// the action is "forget" due to the DeleteWhenRemoved field.
 	//
 	// This field is relevant only for managed resource mode and its value is
 	// unspecified for other resource modes.

@@ -296,9 +296,25 @@ type ResourceInstanceObjectMeta struct {
 	// unspecified for other resource modes.
 	ReplaceOrder exprs.FromValue[resources.ReplaceOrder]
 
+	// DeleteWhenRemoved is true if the expected treatment for a non-desired
+	// object at this address is to ask the associated provider to delete it,
+	// or false if the expected treatment is just to "forget" it by removing
+	// the binding from the state without notifying the provider.
+	//
+	// Other fields of this type include the word "delete" because that is the
+	// common case, but they also apply to the "forget" situation unless
+	// otherwise stated.
+	//
+	// This field is relevant only for managed resource mode and should always
+	// be nil for other resource modes.
+	DeleteWhenRemoved exprs.FromValue[bool]
+
 	// DeletionInvalid is true if the author has configured that any execution
 	// plan that involves deleting this object should be considered immediately
 	// invalid. If false then deleting is a valid action to include.
+	//
+	// This only applies when the action is actually "delete", and not when
+	// the action is "forget" due to the DeleteWhenRemoved field.
 	//
 	// This field is relevant only for managed resource mode and its value is
 	// unspecified for other resource modes.
@@ -363,6 +379,10 @@ func BuildResourceInstanceObjectMeta[SV states.ValueOrJSONEquivalent](
 		// type, but hopefully at least one of the sources we consider below
 		// will override this with something more explicit.
 		Provider: addrs.ImpliedProviderForUnqualifiedType(addr.InstanceAddr.Resource.Resource.ImpliedProvider()),
+
+		// We delete when removed unless explicitly overridden in the
+		// configuration somewhere.
+		DeleteWhenRemoved: exprs.Known(true),
 	}
 
 	// If both state and fromConfig are present then we'll start with state
@@ -385,10 +405,20 @@ func BuildResourceInstanceObjectMeta[SV states.ValueOrJSONEquivalent](
 			ret.ReplaceOrder = exprs.Known(resources.ReplaceAnyOrder)
 		}
 
+		if state.SkipDestroy {
+			// The state is allowed to change our base value for this, but the
+			// configuration always wins if it specifies anything, which it
+			// typically will unless there are no mentions of this object
+			// in the configuration at all anymore.
+			ret.DeleteWhenRemoved = exprs.Known(false)
+		}
+
 		ret.Status = state.Status
 
 		// TODO: Everything else
 	}
+
+	deleteWhenRemovedSet := false
 
 	for _, fromModule := range fromConfig {
 		if p := fromModule.Provider; p != nil {
@@ -409,6 +439,19 @@ func BuildResourceInstanceObjectMeta[SV states.ValueOrJSONEquivalent](
 		ret.PreDeleteProvisioners = append(ret.PreDeleteProvisioners, fromModule.PreDeleteProvisioners...)
 		if fromModule.ReplaceOrder != nil {
 			ret.ReplaceOrder = *fromModule.ReplaceOrder
+		}
+
+		// For the DeleteWhenRemoved option in particular we take the _outermost_
+		// setting, so that e.g. a root module can override the setting chosen
+		// by a child module it calls. deleteWhenRemovedSet is set to true when
+		// we encounter the first explicit opinion about it, and then we ignore
+		// it for any nested modules.
+		if !deleteWhenRemovedSet && fromModule.DeleteWhenRemoved != nil {
+			// We discard the source location information here because any
+			// rules restricting usage of this option are expected to be checked
+			// before we merge the configuration-based values together here.
+			ret.DeleteWhenRemoved = fromModule.DeleteWhenRemoved.FromValue
+			deleteWhenRemovedSet = true
 		}
 
 		if fromModule.DeletionInvalid != nil {
