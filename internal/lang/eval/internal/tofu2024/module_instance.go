@@ -207,6 +207,9 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 	// methods because our caller is expected to collect them separately
 	// using [CompiledModuleInstance.CheckAll].
 
+	actionIfUnwanted, _ := rsrc.ActionIfUnwanted(ctx)
+	ret.ActionIfUnwanted = actionIfUnwanted
+
 	preventDestroy, _ := rsrc.PreventDestroy(ctx)
 	ret.DeletionInvalid = &preventDestroy
 
