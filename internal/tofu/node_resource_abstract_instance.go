@@ -13,6 +13,7 @@ import (
 	"sync/atomic"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/linting/corelinting"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/convert"
 
@@ -1179,6 +1180,12 @@ func (n *NodeAbstractResourceInstance) plan(
 	if configDiags.HasErrors() {
 		return nil, nil, keyData, diags
 	}
+	if n.Addr.Module.IsRoot() {
+		var lintingInfo marks.LintingInfo
+		origConfigVal, lintingInfo = marks.ExtractLintingInformationFromValue(origConfigVal)
+		diags = diags.Append(corelinting.ImpureFuncs(ctx, config.Config.MissingItemRange(), lintingInfo))
+	}
+
 
 	var priorVal cty.Value
 	var priorValTainted cty.Value
@@ -2150,6 +2157,7 @@ func (n *NodeAbstractResourceInstance) planDataSource(ctx context.Context, evalC
 	if configDiags.HasErrors() {
 		return nil, nil, keyData, diags
 	}
+	configVal = marks.DropLintingMarks(configVal)
 
 	check, nested := n.nestedInCheckBlock()
 	if nested {
@@ -2451,6 +2459,7 @@ func (n *NodeAbstractResourceInstance) applyDataSource(ctx context.Context, eval
 	if configDiags.HasErrors() {
 		return nil, keyData, diags
 	}
+	configVal = marks.DropLintingMarks(configVal)
 
 	newVal, readDiags := n.readDataSource(ctx, evalCtx, configVal)
 	if check, nested := n.nestedInCheckBlock(); nested {
@@ -2753,6 +2762,7 @@ func (n *NodeAbstractResourceInstance) evalProvisionerConfig(ctx context.Context
 
 	config, _, configDiags := evalCtx.EvaluateBlock(ctx, body, schema, n.ResourceInstanceAddr().Resource, keyData)
 	diags = diags.Append(configDiags)
+	config = marks.DropLintingMarks(config)
 
 	return config, diags
 }
@@ -2819,6 +2829,11 @@ func (n *NodeAbstractResourceInstance) apply(
 		diags = diags.Append(configDiags)
 		if configDiags.HasErrors() {
 			return nil, diags
+		}
+		if n.Addr.Module.IsRoot() {
+			var lintingInfo marks.LintingInfo
+			configVal, lintingInfo = marks.ExtractLintingInformationFromValue(configVal)
+			diags = diags.Append(corelinting.ImpureFuncs(ctx, applyConfig.Config.MissingItemRange(), lintingInfo))
 		}
 	}
 
@@ -3231,6 +3246,7 @@ func (n *NodeAbstractResourceInstance) applyEphemeralResource(ctx context.Contex
 	if configDiags.HasErrors() {
 		return nil, keyData, diags
 	}
+	configVal = marks.DropLintingMarks(configVal)
 
 	configKnown := configVal.IsWhollyKnown()
 	// If our configuration contains any unknown values, or we depend on any
@@ -3309,6 +3325,7 @@ func (n *NodeAbstractResourceInstance) planEphemeralResource(ctx context.Context
 	if configDiags.HasErrors() {
 		return nil, keyData, diags
 	}
+	configVal = marks.DropLintingMarks(configVal)
 
 	configKnown := configVal.IsWhollyKnown()
 	depsPending := n.dependenciesHavePendingChanges(evalCtx)

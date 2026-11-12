@@ -293,7 +293,11 @@ func (n *graphNodeImportStateSub) Execute(ctx context.Context, evalCtx EvalConte
 
 	// Insert marks from configuration
 	if n.Config != nil {
-		// Since the import command allow import resource with incomplete configuration, we ignore diagnostics here
+		// Since the import command allow import resource with incomplete configuration, we ignore diagnostics here.
+		//
+		// Even though the EvaluateBlock can produce a value with linting marks, at the moment of introducing impurefunc
+		// linting rule (the first linting rule to use marks), we skipped on handling those marks here
+		// since impure functions are not evaluated fully during import operation, which this EvaluateBlock call is part of
 		valueWithConfigurationSchemaMarks, _, _ := evalCtx.EvaluateBlock(ctx, n.Config.Config, n.Schema, nil, EvalDataForNoInstanceKey)
 
 		_, stateValueMarks := state.Value.UnmarkDeepWithPaths()

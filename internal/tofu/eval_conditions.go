@@ -126,6 +126,7 @@ func evalCheckRule(ctx context.Context, addr addrs.CheckRule, rule *configs.Chec
 
 	resultVal, deprDiags := marks.ExtractDeprecatedDiagnosticsWithExpr(resultVal, rule.Condition)
 	diags = diags.Append(deprDiags)
+	resultVal = marks.DropLintingMarks(resultVal)
 
 	if diags.HasErrors() {
 		log.Printf("[TRACE] evalCheckRule: %s: %s", addr.Type, diags.Err().Error())
@@ -236,6 +237,7 @@ func evalCheckErrorMessage(expr hcl.Expression, hclCtx *hcl.EvalContext) (string
 
 	val, deprDiags := marks.ExtractDeprecatedDiagnosticsWithExpr(val, expr)
 	diags = diags.Append(deprDiags)
+	val = marks.DropLintingMarks(val)
 
 	val, err := convert.Convert(val, cty.String)
 	if err != nil {
