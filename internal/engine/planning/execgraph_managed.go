@@ -38,8 +38,8 @@ func (b *execGraphBuilder) ManagedResourceInstanceSubgraph(
 	// about the given change. Any panics in the following suggest that there's
 	// a bug in the caller, unless we're intentionally changing the rules
 	// for what the different action types represent.
-	if plannedChange.DeposedKey != states.NotDeposed && plannedChange.Action != plans.Delete {
-		// The only sensible thing to do with a deposed object is to delete it.
+	if plannedChange.DeposedKey != states.NotDeposed && plannedChange.Action != plans.Delete && plannedChange.Action != plans.Forget {
+		// The only sensible things to do with a deposed object are to delete or forget it.
 		panic(fmt.Sprintf("invalid action %s for %s deposed object %s", plannedChange.Action, plannedChange.PrevRunAddr, plannedChange.DeposedKey))
 	}
 	if plannedChange.Action == plans.Create && !plannedChange.Before.IsNull() {
