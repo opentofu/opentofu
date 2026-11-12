@@ -503,6 +503,40 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		ret.PlaceholderValue = current.Value
 		plannedAction = plans.NoOp
 	}
+
+	if plannedAction.IsReplace() {
+		// If we've planned a "replace" action but the metadata for this object
+		// says it its "if unwanted" action is forget instead of delete then
+		// we'll plan to do a "forget"-based replace instead.
+		if unwantedAction, known := meta.ActionIfUnwanted.ValueOk(); known {
+			switch unwantedAction {
+			case resources.IfUnwantedDelete:
+				// We'll just keep the action we already planned then.
+			case resources.IfUnwantedForget:
+				plannedAction = plans.ForgetThenCreate
+			default:
+				// We expect that the function which builds "meta" should not
+				// generate any other values here. In particular if the
+				// configuration did not express an opinion then that function
+				// should provide a default fallback opinion.
+				panic(fmt.Sprintf("unsupported ActionIfUnwanted %s", unwantedAction))
+			}
+		} else {
+			// TODO: The resource instance object should be treated as "deferred"
+			// in this case, but we haven't fully implemented that yet so this
+			// is just a placeholder stub until we have a real way to handle that.
+			// This error message is using terminology from the current surface
+			// language edition out of pragmatism, even though internally we use
+			// different words to describe this setting.
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid value for \"destroy\" argument",
+				Detail:   fmt.Sprintf("The \"destroy\" value for %s is derived from other values that won't be known until the apply phase, which is not allowed.", inst.Addr),
+				Subject:  meta.PrimaryDeclRangeHCL(),
+			})
+		}
+	}
+
 	// (a "desired" object cannot have a Delete action; we handle those cases
 	// in planOrphanManagedResourceInstance and planDeposedManagedResourceInstanceObject below.)
 	ret.PlannedChange = &plans.ResourceInstanceChange{
@@ -771,6 +805,35 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 		return ret, diags
 	}
 
+	var action plans.Action
+	if unwantedAction, known := meta.ActionIfUnwanted.ValueOk(); known {
+		switch unwantedAction {
+		case resources.IfUnwantedDelete:
+			action = plans.Delete
+		case resources.IfUnwantedForget:
+			action = plans.Forget
+		default:
+			// We expect that the function which builds "meta" should not
+			// generate any other values here. In particular if the
+			// configuration did not express an opinion then that function
+			// should provide a default fallback opinion.
+			panic(fmt.Sprintf("unsupported ActionIfUnwanted %s", unwantedAction))
+		}
+	} else {
+		// TODO: The resource instance object should be treated as "deferred"
+		// in this case, but we haven't fully implemented that yet so this
+		// is just a placeholder stub until we have a real way to handle that.
+		// This error message is using terminology from the current surface
+		// language edition out of pragmatism, even though internally we use
+		// different words to describe this setting.
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid value for \"destroy\" argument",
+			Detail:   fmt.Sprintf("The \"destroy\" value for %s is derived from other values that won't be known until the apply phase, which is not allowed.", addr),
+			Subject:  meta.PrimaryDeclRangeHCL(),
+		})
+		action = plans.Delete // just to make the result valid enough to be inspected with commands like "tofu show -json", despite the error
+	}
 	reason := meta.OrphanActionReason
 
 	ret.PlannedChange = &plans.ResourceInstanceChange{
@@ -788,7 +851,7 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 		},
 		RequiredReplace: planResp.RequiresReplace,
 		Private:         planResp.Planned.Private,
-		Action:          plans.Delete,
+		Action:          action,
 		Before:          prevState.Value,
 		After:           planResp.Planned.Value,
 

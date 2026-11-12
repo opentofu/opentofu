@@ -8,6 +8,7 @@ package exec
 import (
 	"fmt"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -471,4 +472,17 @@ func BuildResourceInstanceObjectMeta[SV states.ValueOrJSONEquivalent](
 	}
 
 	return ret
+}
+
+// PrimaryDeclRangeHCL returns the same information as in
+// [ResourceInstanceObjectMeta.PrimaryDeclRange], but using HCL's range type
+// instead of OpenTofu's.
+//
+// Use this instead of calling [tfdiags.SourceRange.ToHCL] directly to avoid
+// causing a nil pointer panic when it's unset.
+func (m *ResourceInstanceObjectMeta) PrimaryDeclRangeHCL() *hcl.Range {
+	if m.PrimaryDeclRange == nil {
+		return nil
+	}
+	return m.PrimaryDeclRange.ToHCL().Ptr()
 }
