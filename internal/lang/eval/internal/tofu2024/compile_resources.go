@@ -175,13 +175,27 @@ func compileModuleInstanceResource(
 	}
 
 	var pdValuer *configgraph.OnceValuer
-	if config.Managed != nil && config.Managed.PreventDestroy != nil {
-		// We currently forbid usage of any instance information in prevent destroy. We could take a similar
-		// approach to destroy provisioners eventually, but for now we will match the previous implementation.
-		// See https://github.com/opentofu/opentofu/issues/2522 for more details
-		pdValuer = configgraph.ValuerOnce(
-			exprs.NewClosure(exprs.EvalableHCLExpression(config.Managed.PreventDestroy), declScope),
-			"Prevent destroy for %s", absAddr)
+	var destroyValuer *configgraph.OnceValuer
+	if config.Managed != nil {
+		if config.Managed.PreventDestroy != nil {
+			// We currently forbid usage of any instance information in prevent destroy. We could take a similar
+			// approach to destroy provisioners eventually, but for now we will match the previous implementation.
+			// See https://github.com/opentofu/opentofu/issues/2522 for more details
+			pdValuer = configgraph.ValuerOnce(
+				exprs.NewClosure(exprs.EvalableHCLExpression(config.Managed.PreventDestroy), declScope),
+				"Prevent destroy for %s", absAddr)
+		}
+		if config.Managed.Destroy != nil {
+			// We require this to be set consistently for all objects belonging
+			// to this resource because we need to be able to answer this
+			// question for instances that have already been removed from the
+			// configuration, which therefore wouldn't have an "each.value"
+			// to refer to.
+			destroyValuer = configgraph.ValuerOnce(
+				exprs.NewClosure(exprs.EvalableHCLExpression(config.Managed.Destroy), declScope),
+				"\"destroy\" argument for %s", absAddr,
+			)
+		}
 	}
 
 	if diags.HasErrors() {
@@ -367,7 +381,8 @@ func compileModuleInstanceResource(
 			}
 			return inst
 		},
-		PreventDestroyValuer: pdValuer,
+		DeleteWhenUnwantedValuer: destroyValuer,
+		PreventDestroyValuer:     pdValuer,
 		DestroyProvisioners: func(ctx context.Context, addr addrs.ResourceInstance) []configgraph.Provisioner {
 			var repData instances.RepetitionData
 			if addr.Key != nil {
