@@ -2,6 +2,10 @@ The v1.12.x release series is supported until **February 1 2027**.
 
 ## 1.12.13 (unreleased)
 
+SECURITY ADVISORIES:
+
+- Upgrade Go toolchain to 1.26.11 to address GO-2026-6859, an HTTP/1 server crash due to a MaxBytesReader header race. ([#4831](https://github.com/opentofu/opentofu/pull/4831))
+
 ## 1.12.12
 
 BUG FIXES:
