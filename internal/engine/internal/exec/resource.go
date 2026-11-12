@@ -296,25 +296,23 @@ type ResourceInstanceObjectMeta struct {
 	// unspecified for other resource modes.
 	ReplaceOrder exprs.FromValue[resources.ReplaceOrder]
 
-	// DeleteWhenRemoved is true if the expected treatment for a non-desired
-	// object at this address is to ask the associated provider to delete it,
-	// or false if the expected treatment is just to "forget" it by removing
-	// the binding from the state without notifying the provider.
+	// ActionIfUnwanted specifies the expected treatment for a non-desired
+	// object at this address.
 	//
 	// Other fields of this type include the word "delete" because that is the
-	// common case, but they also apply to the "forget" situation unless
+	// common case, but they also apply to other "unwanted" situations unless
 	// otherwise stated.
 	//
-	// This field is relevant only for managed resource mode and should always
-	// be nil for other resource modes.
-	DeleteWhenRemoved exprs.FromValue[bool]
+	// This field is relevant only for managed resource mode and should be
+	// be ignored completely for other resource modes.
+	ActionIfUnwanted exprs.FromValue[resources.ActionIfUnwanted]
 
 	// DeletionInvalid is true if the author has configured that any execution
 	// plan that involves deleting this object should be considered immediately
 	// invalid. If false then deleting is a valid action to include.
 	//
 	// This only applies when the action is actually "delete", and not when
-	// the action is "forget" due to the DeleteWhenRemoved field.
+	// the action is "forget" due to the ActionIfUnwanted field.
 	//
 	// This field is relevant only for managed resource mode and its value is
 	// unspecified for other resource modes.
@@ -381,8 +379,8 @@ func BuildResourceInstanceObjectMeta[SV states.ValueOrJSONEquivalent](
 		Provider: addrs.ImpliedProviderForUnqualifiedType(addr.InstanceAddr.Resource.Resource.ImpliedProvider()),
 
 		// We delete when removed unless explicitly overridden in the
-		// configuration somewhere.
-		DeleteWhenRemoved: exprs.Known(true),
+		// configuration somewhere or previously set to forget in the state.
+		ActionIfUnwanted: exprs.Known(resources.IfUnwantedDelete),
 	}
 
 	// If both state and fromConfig are present then we'll start with state
@@ -410,7 +408,7 @@ func BuildResourceInstanceObjectMeta[SV states.ValueOrJSONEquivalent](
 			// configuration always wins if it specifies anything, which it
 			// typically will unless there are no mentions of this object
 			// in the configuration at all anymore.
-			ret.DeleteWhenRemoved = exprs.Known(false)
+			ret.ActionIfUnwanted = exprs.Known(resources.IfUnwantedForget)
 		}
 
 		ret.Status = state.Status
@@ -418,7 +416,7 @@ func BuildResourceInstanceObjectMeta[SV states.ValueOrJSONEquivalent](
 		// TODO: Everything else
 	}
 
-	deleteWhenRemovedSet := false
+	actionIfUnwantedSet := false
 
 	for _, fromModule := range fromConfig {
 		if p := fromModule.Provider; p != nil {
@@ -446,12 +444,18 @@ func BuildResourceInstanceObjectMeta[SV states.ValueOrJSONEquivalent](
 		// by a child module it calls. deleteWhenRemovedSet is set to true when
 		// we encounter the first explicit opinion about it, and then we ignore
 		// it for any nested modules.
-		if !deleteWhenRemovedSet && fromModule.DeleteWhenRemoved != nil {
-			// We discard the source location information here because any
-			// rules restricting usage of this option are expected to be checked
-			// before we merge the configuration-based values together here.
-			ret.DeleteWhenRemoved = fromModule.DeleteWhenRemoved.FromValue
-			deleteWhenRemovedSet = true
+		if !actionIfUnwantedSet {
+			// We ignore marks here and just propagate them into the result
+			// if relevant, since they don't affect our decision about who
+			// "wins" when there are multiple competing definitions.
+			unmarked, _ := fromModule.ActionIfUnwanted.FromValue.Unmark()
+			if val, known := unmarked.ValueOk(); !known || val != resources.IfUnwantedUndecided {
+				// We discard the source location information here because any
+				// rules restricting usage of this option are expected to be checked
+				// before we merge the configuration-based values together here.
+				ret.ActionIfUnwanted = fromModule.ActionIfUnwanted.FromValue
+				actionIfUnwantedSet = true
+			}
 		}
 
 		if fromModule.DeletionInvalid != nil {

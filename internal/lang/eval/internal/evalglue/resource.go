@@ -77,17 +77,12 @@ type ConfiguredResourceInstanceObjectMeta struct {
 	// for other resource modes.
 	ReplaceOrder *exprs.FromValue[resources.ReplaceOrder]
 
-	// DeleteWhenRemoved is true if the expected treatment for a non-desired
-	// object at this address is to ask the associated provider to delete it,
-	// or false if the expected treatment is just to "forget" it by removing
-	// the binding from the state without notifying the provider.
+	// ActionIfUnwanted specifies the expected treatment for a non-desired
+	// object at this address.
 	//
-	// An nil value represents that there is no information about how this
-	// object should be treated when removed.
-	//
-	// This field is relevant only for managed resource mode and should always
-	// be nil for other resource modes.
-	DeleteWhenRemoved *exprs.WithSourceRange[bool]
+	// This field is relevant only for managed resource mode and should be
+	// be ignored completely for other resource modes.
+	ActionIfUnwanted exprs.WithSourceRange[resources.ActionIfUnwanted]
 
 	// DeletionInvalid is true if the author has configured that any execution
 	// plan that involves deleting this object should be considered immediately
