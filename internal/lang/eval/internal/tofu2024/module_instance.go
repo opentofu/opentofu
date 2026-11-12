@@ -113,12 +113,19 @@ func (c *CompiledModuleInstance) ResultValuer(ctx context.Context) exprs.Valuer 
 func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context, relativeModuleInst []addrs.ModuleInstanceStep, addr addrs.AbsResourceInstanceObject) *evalglue.ConfiguredResourceInstanceObjectMeta {
 	// Start with everything we know about the resource from the module context
 	var ret *evalglue.ConfiguredResourceInstanceObjectMeta
+	// We'll allocate a Meta object only once we know we have something to
+	// report.
+	ensureRet := func() {
+		if ret == nil {
+			ret = evalglue.NewDefaultConfiguredInstanceObjectMeta()
+		}
+	}
 	// We'll populate the Provider fields below only once we have
 	// a specific resource and resource instance in mind.
 
 	if len(c.moveStatements) != 0 {
 		if ret == nil {
-			ret = new(evalglue.ConfiguredResourceInstanceObjectMeta)
+			ensureRet()
 		}
 		ret.MoveStatements = c.moveStatements
 	}
@@ -132,9 +139,7 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 		for _, instance := range instances {
 			statement, _ := instance.Statement(ctx)
 			if statement != nil && statement.Addr.Equal(addr.InstanceAddr) {
-				if ret == nil {
-					ret = new(evalglue.ConfiguredResourceInstanceObjectMeta)
-				}
+				ensureRet()
 				// Conflicts are handled by callers of c.ImportStatements()
 				ret.ImportStatement = &evalglue.ImportStatement{
 					Addr:      statement.Addr,
@@ -169,10 +174,9 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 		return ret
 	}
 
-	// Ensure that ret exists, regarless of module statements
-	if ret == nil {
-		ret = new(evalglue.ConfiguredResourceInstanceObjectMeta)
-	}
+	// After this point we're definitely going to return something, because
+	// this object belongs to a resource in the current module.
+	ensureRet()
 	if addr.IsDeposed() {
 		// Deposed objects are always unwanted.
 		ret.Want = evalglue.ResourceInstanceObjectUnwanted

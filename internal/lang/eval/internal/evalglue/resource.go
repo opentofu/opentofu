@@ -125,6 +125,30 @@ type ConfiguredResourceInstanceObjectMeta struct {
 	OrphanActionReason plans.ResourceInstanceChangeActionReason
 }
 
+// NewDefaultConfiguredInstanceObjectMeta returns a newly-allocated
+// [ConfiguredResourceInstanceObjectMeta] which is configured so that all of
+// its fields have values that represent "unspecified", such that it effectively
+// represents the same as a nil ConfiguredResourceInstanceObjectMeta when it
+// comes to merging opinions from multiple modules.
+func NewDefaultConfiguredInstanceObjectMeta() *ConfiguredResourceInstanceObjectMeta {
+	return &ConfiguredResourceInstanceObjectMeta{
+		// An unknown value for ActionIfUnwanted means that the argument
+		// was set but the result of evaluating it was an unknown value.
+		// The situation where it isn't set at all is represented as
+		// a known "undecided" value, which we'll populate here by
+		// default and then the caller can override later if they find something
+		// in the configuration that specifies it.
+		//
+		// (Note that if nothing in the configuration expresses an opinion
+		// about this then the planning engine will fall back on using
+		// a value from the prior state instead, so we mustn't force this
+		// to a specific action here.)
+		ActionIfUnwanted: exprs.WithSourceRange[resources.ActionIfUnwanted]{
+			FromValue: exprs.Known(resources.IfUnwantedUndecided),
+		},
+	}
+}
+
 // PrimaryDeclRangeHCL returns the same information as
 // [ConfiguredResourceInstanceObjectMeta.PrimaryDeclRange] but using HCL's
 // range type, instead of OpenTofu's.

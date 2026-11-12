@@ -225,11 +225,11 @@ func collectResourceInstanceObjectMeta(ctx context.Context, addr addrs.AbsResour
 			// the configuration, so any info we didn't already learn about
 			// this object will need to come from the previous run state, and
 			// that's the caller's responsibility to deal with.
+			configMeta := evalglue.NewDefaultConfiguredInstanceObjectMeta()
+			configMeta.OrphanActionReason = plans.ResourceInstanceDeleteBecauseNoModule
 			ret = append(ret, ModuleConfiguredResourceInstanceObjectMeta{
-				ModuleInstance: moduleInstAddr,
-				ConfiguredResourceInstanceObjectMeta: &ConfiguredResourceInstanceObjectMeta{
-					OrphanActionReason: plans.ResourceInstanceDeleteBecauseNoModule,
-				},
+				ModuleInstance:                       moduleInstAddr,
+				ConfiguredResourceInstanceObjectMeta: configMeta,
 			})
 
 			break
