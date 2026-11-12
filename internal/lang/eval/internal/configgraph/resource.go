@@ -19,6 +19,7 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/lang/marks"
+	"github.com/opentofu/opentofu/internal/resources"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -55,6 +56,11 @@ type Resource struct {
 	CompileResourceInstance func(ctx context.Context, key addrs.InstanceKey, repData instances.RepetitionData) *ResourceInstance
 
 	DestroyProvisioners func(ctx context.Context, addr addrs.ResourceInstance) []Provisioner
+
+	// DeleteWhenUnwantedValuer returns the module author's decision about
+	// whether unwanted objects belonging to this resource should be deleted
+	// (cty.True) or just "forgotten" (cty.False).
+	DeleteWhenUnwantedValuer *OnceValuer
 
 	// PreventDestroyValuer is a valuer that returns the module author's
 	// direction about if this resource instance can be destroyed.
@@ -148,6 +154,29 @@ func (r *Resource) decideInstances(ctx context.Context) (*compiledInstances[*Res
 	return r.instancesResult.Do(ctx, func(ctx context.Context) (*compiledInstances[*ResourceInstance], tfdiags.Diagnostics) {
 		return compileInstances(ctx, r.InstanceSelector, r.CompileResourceInstance)
 	}, &r.DeclRange, "Decide instances of %s", r.Addr)
+}
+
+// ActionIfUnwanted returns the author's decision (if any) about which action
+// ought to be planned for any unwanted object belonging to this resource.
+func (r *Resource) ActionIfUnwanted(ctx context.Context) (exprs.WithSourceRange[resources.ActionIfUnwanted], tfdiags.Diagnostics) {
+	if r.DeleteWhenUnwantedValuer == nil {
+		return exprs.WithSourceRange[resources.ActionIfUnwanted]{
+			FromValue: exprs.Known(resources.IfUnwantedUndecided),
+		}, nil
+	}
+	rng := r.DeleteWhenUnwantedValuer.ValueSourceRange()
+
+	val, diags := r.DeleteWhenUnwantedValuer.Value(ctx)
+	if val == cty.NilVal {
+		if !diags.HasErrors() {
+			panic("DeleteWhenUnwantedValuer returned cty.NilVal without errors")
+		}
+		val = exprs.AsEvalError(cty.DynamicVal) // just so the rest of this can run without crashing
+	}
+
+	ret, moreDiags := prepareDestroyIfUnwanted(fmt.Sprintf("Resource %s", r.Addr), val, rng)
+	diags = diags.Append(moreDiags)
+	return ret, diags
 }
 
 // PreventDestroy returns a value-based representation of the "prevent destroy"
@@ -271,6 +300,12 @@ func (r *Resource) CheckAll(ctx context.Context) tfdiags.Diagnostics {
 	// is where we report any problems with the resource's InstanceSelector.
 	// (e.g. this is where an invalid for_each expression would be reported)
 	cg.CheckValuer(ctx, r)
+	if r.DeleteWhenUnwantedValuer != nil {
+		cg.CheckDiagsFunc(ctx, func(ctx context.Context) tfdiags.Diagnostics {
+			_, diags := r.ActionIfUnwanted(ctx)
+			return diags
+		})
+	}
 	if r.PreventDestroyValuer != nil {
 		cg.CheckDiagsFunc(ctx, func(ctx context.Context) tfdiags.Diagnostics {
 			_, diags := r.PreventDestroy(ctx)
@@ -278,4 +313,108 @@ func (r *Resource) CheckAll(ctx context.Context) tfdiags.Diagnostics {
 		})
 	}
 	return cg.Complete(ctx)
+}
+
+// prepareDestroyIfUnwanted translates the raw value from evaluating a "destroy"
+// argument in either a "resource" or "removed" block into its internal
+// representation, [resources.ActionIfUnwanted].
+//
+//   - cty.True corresponds to [resources.IfUnwantedDelete]
+//   - cty.False corresponds to [resources.IfUnwantedForget]
+//   - cty.NullVal(cty.Bool) corresponds to [resources.IfUnwantedUndecided],
+//     leaving the decision to some other part of the configuration.
+//
+// This function automatically attempts to convert the given value to [cty.Bool]
+// and handles any relevant marks on the value.
+//
+// "noun" should be set to something like "Resource aws_instance.example" or
+// "Resource instance aws_instance.example[0]" describing what exactly this
+// destroy argument was associated with, suitable for appearing at the start
+// of a sentence as the subject of that sentence.
+func prepareDestroyIfUnwanted(noun string, val cty.Value, rng *tfdiags.SourceRange) (exprs.WithSourceRange[resources.ActionIfUnwanted], tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
+	val = PrepareOutgoingValue(val)
+
+	const errSummary = "Invalid value for \"destroy\" argument"
+	val, err := convert.Convert(val, cty.Bool)
+	if err != nil {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  errSummary,
+			Detail: fmt.Sprintf(
+				"%s has an invalid value for its \"destroy\" argument: %s.",
+				noun, tfdiags.FormatError(err),
+			),
+			Subject: rng.ToHCL().Ptr(),
+		})
+		return exprs.WithSourceRange[resources.ActionIfUnwanted]{
+			FromValue:   exprs.Unknown[resources.ActionIfUnwanted]().Mark(exprs.EvalError),
+			SourceRange: rng,
+		}, diags
+	}
+
+	val, valMarks := val.Unmark()
+	// TODO: Handle any deprecation marks on "val"
+	for mark := range valMarks {
+		switch mark {
+		case marks.Sensitive:
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  errSummary,
+				Detail: fmt.Sprintf(
+					"%s has a sensitive value for its \"destroy\" argument, which is invalid because it would cause OpenTofu to disclose the sensitive value by whether it proposes deleting or forgetting.\n\nIf you know this value is not sensitive in practice, consider using the nonsensitive function to declare that.",
+					noun,
+				),
+				Subject: rng.ToHCL().Ptr(),
+				Extra:   evalchecks.DiagnosticCausedByConfidentialValues(true),
+			})
+		case marks.Ephemeral:
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  errSummary,
+				Detail: fmt.Sprintf(
+					"%s has an ephemeral value for its \"destroy\" argument, which is invalid because the decision for whether to delete or forget objects belonging to this resource must stay consistent between plan and apply.",
+					noun,
+				),
+				Subject: rng.ToHCL().Ptr(),
+			})
+		default:
+			// This is a generic error message just to make sure that we'll
+			// fail if a new kind of mark gets added in future which we've
+			// not yet considered whether to allow here. If we add a new mark
+			// kind then we should add a new case for it above, even if the
+			// behavior is to do absolutely nothing because that mark is
+			// allowed in "destroy".
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  errSummary,
+				Detail: fmt.Sprintf(
+					"%s has a \"destroy\" value derived from something that isn't allowed for deciding whether to delete or forget (has internal mark %#v). The fact that OpenTofu cannot give more details about this is a bug, so please report it!",
+					noun, mark,
+				),
+				Subject: rng.ToHCL().Ptr(),
+			})
+		}
+	}
+	ret, _ := exprs.DeriveFromValue(val, func(v cty.Value) (resources.ActionIfUnwanted, error) {
+		if val.IsNull() {
+			// We treat a null value the same as omitting the argument completely,
+			// so that it's possible for a module to dynamically decide between
+			// setting the argument or letting a child module make the decision
+			// instead.
+			return resources.IfUnwantedUndecided, nil
+		}
+		if val.True() {
+			return resources.IfUnwantedDelete, nil
+		}
+		return resources.IfUnwantedForget, nil
+	})
+	if diags.HasErrors() {
+		ret = ret.Mark(exprs.EvalError)
+	}
+	return exprs.WithSourceRange[resources.ActionIfUnwanted]{
+		FromValue:   ret,
+		SourceRange: rng,
+	}, diags
 }

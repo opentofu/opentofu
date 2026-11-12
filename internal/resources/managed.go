@@ -136,3 +136,20 @@ const (
 	// system.
 	ReplaceDeleteFirst
 )
+
+type ActionIfUnwanted byte
+
+//go:generate go tool golang.org/x/tools/cmd/stringer -type ActionIfUnwanted -trimprefix IfUnwanted
+
+const (
+	// IfWantedUndecided is the zero value of [ActionIfUnwanted],
+	// representing the absence of a decision about what action should be
+	// planned when an object is found to be unwanted.
+	IfUnwantedUndecided ActionIfUnwanted = iota
+
+	// IfUnwantedDelete represents that an unwanted object should be deleted.
+	IfUnwantedDelete
+
+	// IfUnwantedForget represents that an unwanted object should be deleted.
+	IfUnwantedForget
+)
