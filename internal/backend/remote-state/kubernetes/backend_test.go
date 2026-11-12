@@ -27,9 +27,11 @@ package kubernetes
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"os"
+	"reflect"
 	"sync"
 	"testing"
 	"time"
@@ -37,7 +39,13 @@ import (
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	k8sSchema "k8s.io/apimachinery/pkg/runtime/schema"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
+	clienttesting "k8s.io/client-go/testing"
 )
 
 const (
@@ -220,3 +228,247 @@ func cleanupK8sResources(t *testing.T) {
 		t.Fatal(errs)
 	}
 }
+
+func newTestFakeDynamicClient() *dynamicfake.FakeDynamicClient {
+	scheme := runtime.NewScheme()
+	return dynamicfake.NewSimpleDynamicClientWithCustomListKinds(
+		scheme,
+		map[k8sSchema.GroupVersionResource]string{
+			secretResource: "SecretList",
+		},
+	)
+}
+
+func TestBackend_Workspaces_forbidden(t *testing.T) {
+	fakeClient := newTestFakeDynamicClient()
+	fakeClient.PrependReactor("list", "secrets", func(action clienttesting.Action) (bool, runtime.Object, error) {
+		return true, nil, apierrors.NewForbidden(
+			k8sSchema.GroupResource{Group: "", Resource: "secrets"},
+			"",
+			errors.New("cannot list resource \"secrets\" in API group \"\" in the namespace \"default\""),
+		)
+	})
+
+	b := &Backend{
+		kubernetesSecretClient: fakeClient.Resource(secretResource).Namespace("default"),
+		nameSuffix:             "test-state",
+		namespace:              "default",
+	}
+
+	workspaces, err := b.Workspaces(context.Background())
+	if err != nil {
+		t.Fatalf("expected no error on forbidden list, got: %v", err)
+	}
+
+	expected := []string{backend.DefaultStateName}
+	if !reflect.DeepEqual(workspaces, expected) {
+		t.Fatalf("expected workspaces %v, got %v", expected, workspaces)
+	}
+}
+
+func TestBackend_Workspaces_error(t *testing.T) {
+	fakeClient := newTestFakeDynamicClient()
+	expectedErr := apierrors.NewInternalError(errors.New("internal server error"))
+	fakeClient.PrependReactor("list", "secrets", func(action clienttesting.Action) (bool, runtime.Object, error) {
+		return true, nil, expectedErr
+	})
+
+	b := &Backend{
+		kubernetesSecretClient: fakeClient.Resource(secretResource).Namespace("default"),
+		nameSuffix:             "test-state",
+		namespace:              "default",
+	}
+
+	workspaces, err := b.Workspaces(context.Background())
+	if err == nil {
+		t.Fatalf("expected error on internal server error, got nil")
+	}
+	if !errors.Is(err, expectedErr) {
+		t.Fatalf("expected error %v, got: %v", expectedErr, err)
+	}
+	if workspaces != nil {
+		t.Fatalf("expected nil workspaces on error, got: %v", workspaces)
+	}
+}
+
+func TestBackend_Workspaces_genericError(t *testing.T) {
+	fakeClient := newTestFakeDynamicClient()
+	expectedErr := errors.New("connection refused")
+	fakeClient.PrependReactor("list", "secrets", func(action clienttesting.Action) (bool, runtime.Object, error) {
+		return true, nil, expectedErr
+	})
+
+	b := &Backend{
+		kubernetesSecretClient: fakeClient.Resource(secretResource).Namespace("default"),
+		nameSuffix:             "test-state",
+		namespace:              "default",
+	}
+
+	workspaces, err := b.Workspaces(context.Background())
+	if err == nil {
+		t.Fatalf("expected error on connection refused, got nil")
+	}
+	if !errors.Is(err, expectedErr) {
+		t.Fatalf("expected error %v, got: %v", expectedErr, err)
+	}
+	if workspaces != nil {
+		t.Fatalf("expected nil workspaces on error, got: %v", workspaces)
+	}
+}
+
+func TestBackend_Workspaces_success(t *testing.T) {
+	fakeClient := newTestFakeDynamicClient()
+
+	secretList := &unstructured.UnstructuredList{
+		Object: map[string]interface{}{
+			"apiVersion": "v1",
+			"kind":       "SecretList",
+		},
+		Items: []unstructured.Unstructured{
+			{
+				Object: map[string]interface{}{
+					"apiVersion": "v1",
+					"kind":       "Secret",
+					"metadata": map[string]interface{}{
+						"name":      "tfstate-default-test-state",
+						"namespace": "default",
+						"labels": map[string]interface{}{
+							tfstateKey:             "true",
+							tfstateWorkspaceKey:    backend.DefaultStateName,
+							tfstateSecretSuffixKey: "test-state",
+						},
+					},
+				},
+			},
+			{
+				Object: map[string]interface{}{
+					"apiVersion": "v1",
+					"kind":       "Secret",
+					"metadata": map[string]interface{}{
+						"name":      "tfstate-prod-test-state",
+						"namespace": "default",
+						"labels": map[string]interface{}{
+							tfstateKey:             "true",
+							tfstateWorkspaceKey:    "prod",
+							tfstateSecretSuffixKey: "test-state",
+						},
+					},
+				},
+			},
+			{
+				Object: map[string]interface{}{
+					"apiVersion": "v1",
+					"kind":       "Secret",
+					"metadata": map[string]interface{}{
+						"name":      "tfstate-stage-test-state",
+						"namespace": "default",
+						"labels": map[string]interface{}{
+							tfstateKey:             "true",
+							tfstateWorkspaceKey:    "stage",
+							tfstateSecretSuffixKey: "test-state",
+						},
+					},
+				},
+			},
+			// Secret with different suffix - must be ignored
+			{
+				Object: map[string]interface{}{
+					"apiVersion": "v1",
+					"kind":       "Secret",
+					"metadata": map[string]interface{}{
+						"name":      "tfstate-other-other-suffix",
+						"namespace": "default",
+						"labels": map[string]interface{}{
+							tfstateKey:             "true",
+							tfstateWorkspaceKey:    "other",
+							tfstateSecretSuffixKey: "other-suffix",
+						},
+					},
+				},
+			},
+			// Secret missing workspace label - must be ignored
+			{
+				Object: map[string]interface{}{
+					"apiVersion": "v1",
+					"kind":       "Secret",
+					"metadata": map[string]interface{}{
+						"name":      "unrelated-secret",
+						"namespace": "default",
+						"labels": map[string]interface{}{
+							tfstateKey:             "true",
+							tfstateSecretSuffixKey: "test-state",
+						},
+					},
+				},
+			},
+			// Secret missing suffix label - must be ignored
+			{
+				Object: map[string]interface{}{
+					"apiVersion": "v1",
+					"kind":       "Secret",
+					"metadata": map[string]interface{}{
+						"name":      "no-suffix-secret",
+						"namespace": "default",
+						"labels": map[string]interface{}{
+							tfstateKey:          "true",
+							tfstateWorkspaceKey: "dev",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	fakeClient.PrependReactor("list", "secrets", func(action clienttesting.Action) (bool, runtime.Object, error) {
+		return true, secretList, nil
+	})
+
+	b := &Backend{
+		kubernetesSecretClient: fakeClient.Resource(secretResource).Namespace("default"),
+		nameSuffix:             "test-state",
+		namespace:              "default",
+	}
+
+	workspaces, err := b.Workspaces(context.Background())
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+
+	expected := []string{"default", "prod", "stage"}
+	if !reflect.DeepEqual(workspaces, expected) {
+		t.Fatalf("expected workspaces %v, got %v", expected, workspaces)
+	}
+}
+
+func TestBackend_Workspaces_emptyList(t *testing.T) {
+	fakeClient := newTestFakeDynamicClient()
+
+	emptyList := &unstructured.UnstructuredList{
+		Object: map[string]interface{}{
+			"apiVersion": "v1",
+			"kind":       "SecretList",
+		},
+		Items: []unstructured.Unstructured{},
+	}
+
+	fakeClient.PrependReactor("list", "secrets", func(action clienttesting.Action) (bool, runtime.Object, error) {
+		return true, emptyList, nil
+	})
+
+	b := &Backend{
+		kubernetesSecretClient: fakeClient.Resource(secretResource).Namespace("default"),
+		nameSuffix:             "test-state",
+		namespace:              "default",
+	}
+
+	workspaces, err := b.Workspaces(context.Background())
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+
+	expected := []string{backend.DefaultStateName}
+	if !reflect.DeepEqual(workspaces, expected) {
+		t.Fatalf("expected workspaces %v, got %v", expected, workspaces)
+	}
+}
+
