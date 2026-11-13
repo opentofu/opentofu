@@ -147,6 +147,8 @@ func unmarshalOperationElem(protoOp *execgraphproto.Operation, prevResults []Any
 		return unmarshalOpManagedChangeAddr(protoOp.GetOperands(), prevResults, builder)
 	case opDataRead:
 		return unmarshalOpDataRead(protoOp.GetOperands(), prevResults, builder)
+	case opDataDestroy:
+		return unmarshalOpDataDestroy(protoOp.GetOperands(), prevResults, builder)
 	default:
 		// The above cases should cover all valid values of [opCode], so we
 		// should not get here unless the serialized graph was tampered
@@ -348,7 +350,7 @@ func unmarshalOpManagedChangeAddr(rawOperands []uint64, prevResults []AnyResultR
 }
 
 func unmarshalOpDataRead(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
-	if len(rawOperands) != 4 {
+	if len(rawOperands) != 3 {
 		return nil, fmt.Errorf("wrong number of operands (%d) for opDataRead", len(rawOperands))
 	}
 	metadata, err := unmarshalGetPrevResultOf[*exec.ResourceInstanceObjectMeta](prevResults, rawOperands[0])
@@ -359,15 +361,26 @@ func unmarshalOpDataRead(rawOperands []uint64, prevResults []AnyResultRef, build
 	if err != nil {
 		return nil, fmt.Errorf("invalid opDataRead desiredInst: %w", err)
 	}
-	plannedVal, err := unmarshalGetPrevResultOf[cty.Value](prevResults, rawOperands[2])
-	if err != nil {
-		return nil, fmt.Errorf("invalid opDataRead plannedVal: %w", err)
-	}
-	waitFor, err := unmarshalGetPrevResultWaiter(prevResults, rawOperands[3])
+	waitFor, err := unmarshalGetPrevResultWaiter(prevResults, rawOperands[2])
 	if err != nil {
 		return nil, fmt.Errorf("invalid opDataRead waitFor: %w", err)
 	}
-	return builder.DataRead(metadata, desiredInst, plannedVal, waitFor), nil
+	return builder.DataRead(metadata, desiredInst, waitFor), nil
+}
+
+func unmarshalOpDataDestroy(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
+	if len(rawOperands) != 2 {
+		return nil, fmt.Errorf("wrong number of operands (%d) for opDataDestroy", len(rawOperands))
+	}
+	metadata, err := unmarshalGetPrevResultOf[*exec.ResourceInstanceObjectMeta](prevResults, rawOperands[0])
+	if err != nil {
+		return nil, fmt.Errorf("invalid opDataDestroy metadata: %w", err)
+	}
+	waitFor, err := unmarshalGetPrevResultWaiter(prevResults, rawOperands[1])
+	if err != nil {
+		return nil, fmt.Errorf("invalid opDataDestroy waitFor: %w", err)
+	}
+	return builder.DataDestroy(metadata, waitFor), nil
 }
 
 func unmarshalWaiterElem(protoWaiter *execgraphproto.Waiter, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {

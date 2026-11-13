@@ -333,15 +333,26 @@ func (b *Builder) ManagedChangeAddr(
 }
 
 func (b *Builder) DataRead(
-	metadata ResultRef[*exec.ResourceInstanceObjectMeta],
+	metadataRef ResultRef[*exec.ResourceInstanceObjectMeta],
 	desiredInst ResultRef[*eval.DesiredResourceInstance],
-	plannedVal ResultRef[cty.Value],
 	waitFor AnyResultRef,
 ) ResourceInstanceResultRef {
 	waiter := b.ensureWaiterRef(waitFor)
 	return operationRef[*exec.ResourceInstanceObject](b, operationDesc{
 		opCode:   opDataRead,
-		operands: []AnyResultRef{metadata, desiredInst, plannedVal, waiter},
+		operands: []AnyResultRef{metadataRef, desiredInst, waiter},
+	})
+}
+
+// DataDestroy registers an operation to remove a data resource from state
+func (b *Builder) DataDestroy(
+	metadataRef ResultRef[*exec.ResourceInstanceObjectMeta],
+	waitFor AnyResultRef,
+) ResourceInstanceResultRef {
+	waiter := b.ensureWaiterRef(waitFor)
+	return operationRef[*exec.ResourceInstanceObject](b, operationDesc{
+		opCode:   opDataDestroy,
+		operands: []AnyResultRef{metadataRef, waiter},
 	})
 }
 

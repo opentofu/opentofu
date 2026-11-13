@@ -1121,3 +1121,17 @@ data.null_data_source.foo:
   provider = provider["registry.opentofu.org/hashicorp/null"]
   foo = yes
 `
+
+const testTofuRefreshDataRefExperimentalEngineDataStr = `
+data.null_data_source.bar:
+  ID = foo
+  provider = provider["registry.opentofu.org/hashicorp/null"]
+  bar = yes
+
+  Dependencies:
+    data.null_data_source.foo
+data.null_data_source.foo:
+  ID = foo
+  provider = provider["registry.opentofu.org/hashicorp/null"]
+  foo = yes
+`

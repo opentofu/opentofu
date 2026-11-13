@@ -9999,7 +9999,7 @@ func TestContext2Apply_moduleReplaceCycle(t *testing.T) {
 }
 
 func TestContext2Apply_destroyDataCycle(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDataResource)
+	SkipExperimental(t, ExperimentalBugDataResource, ExperimentalBugDataDestroyAndRead)
 
 	m, snap := testModuleWithSnapshot(t, "apply-destroy-data-cycle")
 	p := testProvider("null")
@@ -11053,7 +11053,7 @@ locals {
 // Ensure that we can destroy when a provider references a resource that will
 // also be destroyed
 func TestContext2Apply_destroyProviderReference(t *testing.T) {
-	SkipExperimental(t, ExperimentalBugDataResource)
+	SkipExperimental(t, ExperimentalBugDataResource, ExperimentalBugProviderDepsInExecgraph)
 
 	m, snap := testModuleWithSnapshot(t, "apply-destroy-provider-refs")
 

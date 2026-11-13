@@ -455,8 +455,44 @@ func (c *compiler) compileOpManagedChangeAddr(operands *compilerOperands) nodeEx
 }
 
 func (c *compiler) compileOpDataRead(operands *compilerOperands) nodeExecuteRaw {
+	getMetadata := nextOperand[*exec.ResourceInstanceObjectMeta](operands)
 	getDesired := nextOperand[*eval.DesiredResourceInstance](operands)
-	getInitialPlanned := nextOperand[cty.Value](operands)
+	waitForDeps := operands.OperandWaiter()
+	diags := operands.Finish()
+	c.diags = c.diags.Append(diags)
+	if diags.HasErrors() {
+		return nil
+	}
+	ops := c.ops
+
+	return func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
+		if !waitForDeps(ctx) {
+			return nil, false, diags
+		}
+		// We intentionally ask for "desired" before "metadata" here, despite
+		// the argument order, because if both of them would fail then we'd
+		// prefer to return the diagnostics from "desired".
+		desired, ok, moreDiags := getDesired(ctx)
+		diags = diags.Append(moreDiags)
+		if !ok {
+			return nil, false, diags
+		}
+		metadata, ok, moreDiags := getMetadata(ctx)
+		diags = diags.Append(moreDiags)
+		if !ok {
+			return nil, false, diags
+		}
+
+		ret, moreDiags := ops.DataRead(ctx, metadata, desired)
+		diags = diags.Append(moreDiags)
+		// TODO: Also call ops.ResourceInstancePostconditions
+		log.Printf("[WARN] opDataRead doesn't yet handle postconditions")
+		return ret, !diags.HasErrors(), diags
+	}
+}
+
+func (c *compiler) compileOpDataDestroy(operands *compilerOperands) nodeExecuteRaw {
+	getMetadata := nextOperand[*exec.ResourceInstanceObjectMeta](operands)
 	waitForDeps := operands.OperandWaiter()
 	diags := operands.Finish()
 	c.diags = c.diags.Append(diags)
@@ -470,21 +506,21 @@ func (c *compiler) compileOpDataRead(operands *compilerOperands) nodeExecuteRaw 
 			return nil, false, diags
 		}
 
-		desired, ok, moreDiags := getDesired(ctx)
-		diags = diags.Append(moreDiags)
-		if !ok {
-			return nil, false, diags
-		}
-		initialPlanned, ok, moreDiags := getInitialPlanned(ctx)
+		metadata, ok, moreDiags := getMetadata(ctx)
 		diags = diags.Append(moreDiags)
 		if !ok {
 			return nil, false, diags
 		}
 
-		ret, moreDiags := ops.DataRead(ctx, desired, initialPlanned)
+		moreDiags = ops.DataDestroy(ctx, metadata)
 		diags = diags.Append(moreDiags)
 		// TODO: Also call ops.ResourceInstancePostconditions
-		log.Printf("[WARN] opDataRead doesn't yet handle postconditions")
+		log.Printf("[WARN] opDataDestroy doesn't yet handle postconditions")
+
+		ret := &exec.ResourceInstanceObject{
+			Addr:  metadata.Addr,
+			State: nil, // because the object no longer exists as far as OpenTofu is concerned
+		}
 		return ret, !diags.HasErrors(), diags
 	}
 }

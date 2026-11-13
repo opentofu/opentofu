@@ -553,7 +553,7 @@ func TestContext2Plan_resourceChecksInExpandedModule(t *testing.T) {
 }
 
 func TestContext2Plan_dataResourceChecksManagedResourceChange(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureChanges, ExperimentalBugDataResource)
+	SkipExperimental(t, ExperimentalFeatureChanges, ExperimentalBugDataResource, ExperimentalFeatureChecks)
 
 	// This tests the situation where the remote system contains data that
 	// isn't valid per a data resource postcondition, but that the

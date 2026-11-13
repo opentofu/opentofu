@@ -304,7 +304,13 @@ type Operations interface {
 	// this method should not attempt to handle postconditions themselves.
 	DataRead(
 		ctx context.Context,
+		metadata *ResourceInstanceObjectMeta,
 		desired *eval.DesiredResourceInstance,
-		plannedVal cty.Value,
 	) (*ResourceInstanceObject, tfdiags.Diagnostics)
+
+	// DataDestroy removes the data object from state.
+	DataDestroy(
+		ctx context.Context,
+		metadata *ResourceInstanceObjectMeta,
+	) tfdiags.Diagnostics
 }
