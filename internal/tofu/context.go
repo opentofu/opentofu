@@ -208,6 +208,15 @@ func (c *Context) Stop() {
 	log.Printf("[WARN] tofu: stop complete")
 }
 
+func (c *Context) Close(ctx context.Context) {
+	if err := c.plugins.providers.CloseAll(ctx); err != nil {
+		log.Printf("[INFO] tofu: failed closing providers: %s", err)
+	}
+	if err := c.plugins.provisioners.CloseAll(); err != nil {
+		log.Printf("[INFO] tofu: failed closing provisioners: %s", err)
+	}
+}
+
 func (c *Context) acquireRun(phase string) func() {
 	// With the run lock held, grab the context lock to make changes
 	// to the run context.

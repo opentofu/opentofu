@@ -495,6 +495,9 @@ func (runner *TestFileRunner) ExecuteTestRun(ctx context.Context, run *moduletes
 	}
 
 	planCtx, plan, planDiags := runner.plan(ctx, config, state, run, file)
+	defer func() {
+		planCtx.Close(ctx)
+	}()
 	if run.Config.Command == configs.PlanTestCommand {
 		expectedFailures, sourceRanges := run.BuildExpectedFailuresAndSourceMaps()
 		// Then we want to assess our conditions and diagnostics differently.
@@ -570,6 +573,9 @@ func (runner *TestFileRunner) ExecuteTestRun(ctx context.Context, run *moduletes
 	run.Diagnostics = filteredDiags
 
 	applyCtx, updated, applyDiags := runner.apply(ctx, plan, state, config, run, file)
+	defer func() {
+		applyCtx.Close(ctx)
+	}()
 
 	// Remove expected diagnostics, and add diagnostics in case anything that should have failed didn't.
 	applyDiags = run.ValidateExpectedFailures(expectedFailures, sourceRanges, applyDiags)
