@@ -153,6 +153,7 @@ func (c *PlanCommand) OperationRequest(
 	opReq.ForceReplace = args.ForceReplace
 	opReq.Type = backend.OperationTypePlan
 	opReq.View = view.Operation()
+	opReq.TestsDir = args.TestsDir
 
 	var err error
 	opReq.ConfigLoader, err = configload.Initialise(c.configLoader())

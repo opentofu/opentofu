@@ -270,6 +270,8 @@ type Operation struct {
 	// ConfigDir is the path to the directory containing the configuration's
 	// root module.
 	ConfigDir string
+	// TestsDir is the path to the directory containing a modules tests
+	TestsDir string
 
 	// ConfigLoader is a configuration loader that can be used to load
 	// configuration from ConfigDir.
@@ -343,7 +345,7 @@ type Operation struct {
 // that refers to a directory containing at least one OpenTofu configuration
 // file.
 func (o *Operation) HasConfig() bool {
-	return o.ConfigLoader.IsConfigDir(o.ConfigDir)
+	return o.ConfigLoader.IsConfigDir(o.ConfigDir, o.TestsDir)
 }
 
 // ReportResult is a helper for the common chore of setting the status of

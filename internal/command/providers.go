@@ -56,7 +56,7 @@ func (c ProvidersCommand) Execute(args *arguments.Providers, view views.Provider
 	// This gets the current directory as full path.
 	configPath := c.WorkingDir.NormalizePath(c.WorkingDir.RootModuleDir())
 
-	empty, err := configs.IsEmptyDir(configPath)
+	empty, err := configs.IsEmptyDir(configPath, args.TestsDirectory)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
