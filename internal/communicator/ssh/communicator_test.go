@@ -136,6 +136,73 @@ func newMockLineServer(t *testing.T, signer ssh.Signer, pubKey string) (string, 
 	return l.Addr().String(), func() { wg.Wait() }
 }
 
+// newMockBastionServer starts a ssh server that accepts only "tcp" connections intended for port forwarding.
+// The given [targetAddr] is a host:port value that will be used to initialise a ssh connection to the final
+// target ssh server.
+func newMockBastionServer(t *testing.T, targetAddr string) (string, func()) {
+	t.Helper()
+
+	signer, err := ssh.ParsePrivateKey([]byte(testServerPrivateKey))
+	if err != nil {
+		t.Fatalf("parse bastion host key: %s", err)
+	}
+	srvConf := &ssh.ServerConfig{
+		PasswordCallback: acceptUserPass("user", "pass"),
+	}
+	srvConf.AddHostKey(signer)
+
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("bastion listen: %s", err)
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer l.Close()
+		c, err := l.Accept()
+		if err != nil {
+			return
+		}
+		t.Log("[Bastion] Accepted SSH connection")
+		defer c.Close()
+		conn, chans, reqs, err := ssh.NewServerConn(c, srvConf)
+		if err != nil {
+			t.Logf("bastion handshake error (expected only if pin were enforced): %v", err)
+			return
+		}
+		defer conn.Close()
+		go ssh.DiscardRequests(reqs)
+
+		for nc := range chans {
+			t.Logf("[Bastion] Channel incoming [type: %s]", nc.ChannelType())
+			if nc.ChannelType() != "direct-tcpip" {
+				_ = nc.Reject(ssh.UnknownChannelType, "only direct-tcpip")
+				continue
+			}
+			ch, chReqs, err := nc.Accept()
+			if err != nil {
+				return
+			}
+			go ssh.DiscardRequests(chReqs)
+
+			t.Logf("[Bastion] Dialing target address %s", targetAddr)
+			upstream, err := net.Dial("tcp", targetAddr)
+			if err != nil {
+				t.Logf("[Bastion] Error dialing target address %s: %s", targetAddr, err)
+				ch.Close()
+				return
+			}
+			t.Logf("[Bastion] Dialing target address %s succeedded", targetAddr)
+			go func() { _, _ = io.Copy(upstream, ch); upstream.Close() }()
+			go func() { _, _ = io.Copy(ch, upstream); ch.Close() }()
+		}
+	}()
+
+	return l.Addr().String(), func() { l.Close(); wg.Wait() }
+}
+
 func TestNew_Invalid(t *testing.T) {
 	address, sclose := newMockLineServer(t, nil, testClientPublicKey)
 	defer sclose()
@@ -826,6 +893,60 @@ func TestScriptPath_randSeed(t *testing.T) {
 	path := c.ScriptPath()
 	if path == staticSeedPath {
 		t.Fatalf("rand not seeded! got: %s", path)
+	}
+}
+
+func TestConnectionThroughBastion(t *testing.T) {
+	signer, err := ssh.ParsePrivateKey([]byte(testServerPrivateKey))
+	if err != nil {
+		t.Fatalf("parse bastion host key: %s", err)
+	}
+	pubKey := fmt.Sprintf("ssh-rsa %s", base64.StdEncoding.EncodeToString(signer.PublicKey().Marshal()))
+
+	// Create the final target server
+	targetAddr, tclose := newMockLineServer(t, nil, testClientPublicKey)
+	defer tclose()
+	targetHost, targetPortStr, _ := net.SplitHostPort(targetAddr)
+	targetPort, _ := strconv.Atoi(targetPortStr)
+
+	// Create a mocked bastion ssh connection
+	bastionAddr, bclose := newMockBastionServer(t, targetAddr)
+	defer bclose()
+	bastionHost, bastionPortStr, _ := net.SplitHostPort(bastionAddr)
+	bastionPort, _ := strconv.Atoi(bastionPortStr)
+
+	connInfo := &connectionInfo{
+		User:     "user",
+		Password: "pass",
+		Host:     targetHost,
+		Port:     uint16(targetPort),
+		HostKey:  testClientPublicKey, // (1) The target server host key is different from the one registered by the server so we expect this to fail
+
+		BastionHost:     bastionHost,
+		BastionPort:     uint16(bastionPort),
+		BastionHostKey:  pubKey, // (2) The bastion host key is the right one so we expect it to pass and move forward with the target host connection
+		BastionUser:     "user",
+		BastionPassword: "pass",
+
+		Timeout: "30s",
+	}
+
+	cfg, err := prepareSSHConfig(connInfo)
+	if err != nil {
+		t.Fatalf("prepareSSHConfig: %s", err)
+	}
+	c := &Communicator{connInfo: connInfo, config: cfg}
+
+	var cmd remote.Cmd
+	cmd.Command = "echo foo"
+	cmd.Stdout = new(bytes.Buffer)
+
+	err = c.Start(&cmd)
+	t.Cleanup(func() {
+		_ = c.Disconnect()
+	})
+	if err == nil || (!strings.Contains(err.Error(), "mismatch") && !strings.Contains(err.Error(), fmt.Sprintf("user@%s:%s", targetAddr, targetPortStr))) {
+		t.Fatalf("expected the connection to the target host to fail due to mismatching host key: %s", err)
 	}
 }
 
