@@ -1,0 +1,360 @@
+---
+sidebar_label: oracle-oci
+description: >-
+  Store OpenTofu state in OCI Object Storage with independent OCI authentication,
+  workspaces, and state locking.
+---
+
+# Backend Type: oracle-oci
+
+Stores state in a pre-existing [Oracle Cloud Infrastructure Object Storage](https://docs.oracle.com/en-us/iaas/Content/Object/Concepts/objectstorageoverview.htm) bucket using the official OCI Go SDK. Create the bucket and its IAM policies before running `tofu init`. Plans and applies run on the machine executing OpenTofu.
+
+Use `backend "oracle-oci"` to select this backend. The name `oci` is accepted as a compatibility alias and normalized to `oracle-oci`. Both names use the same configuration, state objects, and locking protocol.
+
+If a working directory was initialized with an earlier build that recorded `oci` as the canonical name, run `tofu init -reconfigure` with the same namespace, bucket, key, and workspace settings, and regenerate saved plans. This refreshes local backend metadata without moving remote state.
+
+The backend supports [state locking](../../../language/state/locking.mdx) and workspaces. The bucket must permit object creation, reading, overwriting, listing, and deletion, including lock objects. Use a private bucket with Standard storage for current state. Enable [Object Storage versioning](https://docs.oracle.com/en-us/iaas/Content/Object/Tasks/usingversioning.htm) to retain previous state snapshots. Retention rules that prevent overwriting or deleting current objects are incompatible with normal state writes and lock release.
+
+## Example Configuration
+
+```hcl
+terraform {
+  backend "oracle-oci" {
+    namespace = "example_namespace"
+    bucket    = "opentofu-state"
+    key       = "production/terraform.tfstate"
+    region    = "us-ashburn-1"
+
+    auth                = "ApiKey"
+    config_file_profile = "STATE"
+  }
+}
+```
+
+Authenticate before running `tofu init`. The backend never reads an `oci` provider block: provider plugins and resources are unavailable when the backend initializes. Backend and provider authentication can use different identities.
+
+:::warning
+Supply credentials through environment variables or protected files. Values written into a backend block or passed using `-backend-config` can be recorded in `.terraform` and saved plans, even when an attribute is marked sensitive. See [Credentials and Sensitive Data](./configuration.mdx#credentials-and-sensitive-data).
+:::
+
+## Authentication Support
+
+The supported modes were checked against both authentication implementations and tests in the [OCI provider at commit `ad4dcb798cc2a64eb77285b894f7d6edd73e176b`](https://github.com/oracle/terraform-provider-oci/tree/ad4dcb798cc2a64eb77285b894f7d6edd73e176b/internal/provider). This backend uses OCI Go SDK `v65.126.2`. Mode names are case insensitive.
+
+| `auth` | Credential source | Region | Renewal behavior |
+| --- | --- | --- | --- |
+| `ApiKey` (default) | Backend fields, environment variables, and OCI config profile; requires tenancy, user, fingerprint, and RSA private key | Backend/environment override, then profile | API keys do not expire automatically; restart OpenTofu after rotating configured credentials |
+| `InstancePrincipal` | Instance metadata service and OCI instance identity | Required backend/environment selection | SDK manages federation token renewal; instance metadata and authentication endpoints must remain reachable |
+| `InstancePrincipalWithCerts` | OCI instance leaf certificate, matching private key, and intermediate certificate files | Required backend/environment selection | SDK renews federation tokens; the supplied certificate material must remain valid |
+| `SecurityToken` | OCI config profile containing `security_token_file` and the session private key | Backend/environment override, then profile | SDK reads the token file; the backend does not perform browser login or renew the CLI session |
+| `ResourcePrincipal` | OCI runtime resource principal environment and files | Backend/environment override, then runtime identity | SDK renews runtime tokens according to the resource principal version and credential source |
+| `OKEWorkloadIdentity` | OKE pod service account token and workload identity runtime | Backend/environment selection, or workload identity runtime | SDK caches and renews OKE federation tokens |
+| `WorkloadIdentityFederation` | File containing a subject token plus IAM identity domain exchange configuration | Required backend/environment selection | SDK exchanges and renews OCI tokens; each exchange rereads the subject token file |
+
+`WorkloadIdentityFederation` supports both `OAuthClientCredentials` and `InstancePrincipal` authentication of the exchange request. It accepts the provider's requested-token and subject-token inputs, including OCI RPST and UPST flows supported by the identity domain. A certificate-based instance principal is a separate mode from a regular metadata-based instance principal.
+
+### Defaults and Precedence
+
+For authentication fields, the first non-empty value wins:
+
+1. The explicit backend configuration value.
+2. `TF_VAR_<field_name>`.
+3. `OCI_<FIELD_NAME>`.
+4. The selected OCI configuration profile, where the field is supported by the OCI SDK.
+5. The documented default, if one exists.
+
+For example, `region = "us-phoenix-1"` overrides `TF_VAR_region` and `OCI_REGION`; `TF_VAR_region` overrides `OCI_REGION`. Environment fallback is evaluated during backend configuration rather than copied into the saved backend configuration. These `TF_VAR_` names are supported for parity with the OCI provider; they are read directly and do not require matching root-module variables.
+
+`auth` defaults to `ApiKey` and `config_file_profile` defaults to `DEFAULT`. Configuration file credential names are `tenancy`, `user`, `fingerprint`, `key_file`, `pass_phrase`, and `region`. Selected profiles inherit missing values from `[DEFAULT]` using SDK behavior. A missing explicitly selected profile or invalid credential file produces an authentication error rather than silently selecting another identity.
+
+`config_file`, then `TF_VAR_config_file`, selects one explicit file. Without either, the backend first uses `~/.oci/config`; only when that file is absent does `OCI_CONFIG_FILE` select an alternative. For the `DEFAULT` API key profile, `~/.obmcs/config` can fill missing values after the primary file. A named profile uses only the primary file, followed by that file's `[DEFAULT]` values. Security token mode uses only the selected primary file.
+
+For `ApiKey`, an inline `private_key` takes precedence over `private_key_path`; both take precedence over a profile's `key_file`. A malformed explicit API key is an error. For `SecurityToken`, the selected session profile's private key comes first, then explicit/environment inline key or key path if the session key cannot be loaded, then the configuration file's `DEFAULT` key fallback. Keep any fallback key paired with the session token. API user credentials are ignored for principal-based authentication. Resource principal and OKE runtime variables are consumed by their SDK identity providers rather than treated as API key credentials.
+
+For parity with the provider's legacy API key behavior, a non-empty tenancy override is read from `TF_VAR_boat_tenancy_ocid`, then `OCI_boat_tenancy_ocid`, then `boat_tenancy_ocid`. This override takes priority over even an explicitly configured `tenancy_ocid`. Use it only when your OCI execution environment requires that tenancy override.
+
+The backend adds `config_file` and `certificates_directory` inputs because initialization must locate credentials without evaluating provider configuration. It also permits SecurityToken to use `DEFAULT` and obtain its region from its selected profile; the examined provider requires explicit profile and region inputs for that mode. Named profiles honor the SDK's `OCI_CONFIG_FILE` fallback here, while the examined provider's named-profile path is fixed to `~/.oci/config`. It supports the provider's legacy certificate directory environment variables as described below. It does not perform provider service discovery, provider-specific HTTP customization, or an interactive authentication flow. Authentication network requests made by OCI identity providers retain SDK timeout and retry behavior.
+
+SDK endpoint and region settings, including `OCI_METADATA_BASE_URL`, `OCI_SDK_AUTH_CLIENT_REGION_URL`, and `OCI_REGION_METADATA`, retain their SDK interpretation. The backend retains SDK TLS verification and transport behavior. It does not import the provider's `custom_cert_location` transport replacement or its `accept_local_certs` option that disables certificate verification; these are provider transport/testing controls, not backend authentication modes.
+
+For SDK custom TLS configuration, `OCI_DEFAULT_CERTS_PATH` selects a trusted CA bundle. `OCI_DEFAULT_CLIENT_CERTS_PATH` and `OCI_DEFAULT_CLIENT_CERTS_PRIVATE_KEY_PATH` provide an optional mutual TLS client certificate and its private key. `OCI_DEFAULT_REFRESH_INTERVAL_FOR_CUSTOM_CERTS` sets SDK certificate refresh in minutes (default `30`, `0` disables refresh). These settings supplement the chosen signing identity; they are not a substitute for API, principal, or token authentication. For example:
+
+```shell
+export OCI_DEFAULT_CERTS_PATH=/secure/oci/trusted-ca.pem
+export OCI_DEFAULT_CLIENT_CERTS_PATH=/secure/oci/client-cert.pem
+export OCI_DEFAULT_CLIENT_CERTS_PRIVATE_KEY_PATH=/secure/oci/client-key.pem
+export OCI_DEFAULT_REFRESH_INTERVAL_FOR_CUSTOM_CERTS=30
+tofu init
+```
+
+The SDK refreshes instance, resource, OKE, and workload federation credentials before its cached token expires, using its expiration buffer. Session-token mode rereads the token file but requires external session renewal. API keys and supplied instance certificate material are loaded during initialization. Keep each mode's network, key, and token sources available for the whole operation. In SDK `v65.126.2`, Object Storage uploads use a signing path that does not perform the SDK's automatic HTTP 401 re-signing retry. Upload signing still resolves the current identity token; an upload returning HTTP 401 produces a renewal error that requires correcting credentials before retrying the operation.
+
+### API Key
+
+Create an OCI API signing key and upload its public key to the user. Use a protected OCI configuration file:
+
+```ini
+[DEFAULT]
+tenancy=ocid1.tenancy.oc1..example
+region=us-ashburn-1
+
+[STATE]
+user=ocid1.user.oc1..example
+fingerprint=00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff
+key_file=/secure/oci/state_api_key.pem
+```
+
+```hcl
+terraform {
+  backend "oracle-oci" {
+    namespace           = "example_namespace"
+    bucket              = "opentofu-state"
+    auth                = "ApiKey"
+    config_file         = "/secure/oci/config"
+    config_file_profile = "STATE"
+  }
+}
+```
+
+Alternatively, provide `OCI_TENANCY_OCID`, `OCI_USER_OCID`, `OCI_FINGERPRINT`, `OCI_PRIVATE_KEY_PATH`, and `OCI_REGION`. Use `OCI_PRIVATE_KEY_PASSWORD` for an encrypted PEM. `OCI_PRIVATE_KEY` can contain a PEM key instead of a path. The corresponding backend fields are `tenancy_ocid`, `user_ocid`, `fingerprint`, `private_key_path`, `private_key_password`, `private_key`, and `region`.
+
+### Instance Principal
+
+Run OpenTofu on an OCI Compute instance admitted to an authorized dynamic group. The instance must reach its metadata service and OCI authentication endpoint.
+
+```hcl
+terraform {
+  backend "oracle-oci" {
+    namespace = "example_namespace"
+    bucket    = "opentofu-state"
+    auth      = "InstancePrincipal"
+    region    = "us-ashburn-1"
+  }
+}
+```
+
+### Instance Principal with Certificates
+
+Place `ip_cert.pem`, `ip_key.pem`, and `intermediate.pem` in a protected directory. The key must match the leaf certificate. An optional `leaf_passphrase` file supplies the passphrase for an encrypted key. These are OCI instance identity certificates, not API signing keys.
+
+```hcl
+terraform {
+  backend "oracle-oci" {
+    namespace              = "example_namespace"
+    bucket                 = "opentofu-state"
+    auth                   = "InstancePrincipalWithCerts"
+    region                 = "us-ashburn-1"
+    certificates_directory = "/secure/oci/instance-identity"
+  }
+}
+```
+
+When `certificates_directory` and its normal environment equivalents are omitted, the backend recognizes the provider's legacy variables in this order: `TF_VAR_test_certificates_location`, `OCI_test_certificates_location`, `test_certificates_location`, then the added uppercase alias `OCI_TEST_CERTIFICATES_LOCATION`. It otherwise uses the working directory. Keep certificate and key rotation coordinated. The backend reads the supplied certificate material during initialization; start a new OpenTofu process after replacing it.
+
+### Security Token
+
+Authenticate with the OCI CLI outside OpenTofu and select the profile written by that session. See [OCI CLI token authentication](https://docs.oracle.com/en-us/iaas/Content/API/SDKDocs/clitoken.htm). For example:
+
+```shell
+oci session authenticate --profile-name STATE_SESSION
+```
+
+```hcl
+terraform {
+  backend "oracle-oci" {
+    namespace           = "example_namespace"
+    bucket              = "opentofu-state"
+    auth                = "SecurityToken"
+    region              = "us-ashburn-1"
+    config_file_profile = "STATE_SESSION"
+  }
+}
+```
+
+The profile must include `security_token_file`, `key_file`, and the SDK-required tenancy and fingerprint values. Keep the session private key paired with its token. An expired session requires OCI CLI reauthentication or external token-file renewal. The SDK caches configuration and key files by path during a process; start a new OpenTofu process after replacing the paired session key or profile, even though the token file is reread. OpenTofu reports an authentication failure without printing the token.
+
+### Resource Principal
+
+Use this mode inside an OCI runtime that injects resource principal credentials, such as OCI Functions or a configured OCI managed execution environment:
+
+```hcl
+terraform {
+  backend "oracle-oci" {
+    namespace = "example_namespace"
+    bucket    = "opentofu-state"
+    auth      = "ResourcePrincipal"
+  }
+}
+```
+
+The runtime controls `OCI_RESOURCE_PRINCIPAL_VERSION` and its version-specific credential variables. The SDK supports versions `1.1`, `2.2`, and `3.0`. For a file-backed version `2.2` identity these include `OCI_RESOURCE_PRINCIPAL_RPST`, `OCI_RESOURCE_PRINCIPAL_PRIVATE_PEM`, optional `OCI_RESOURCE_PRINCIPAL_PRIVATE_PEM_PASSPHRASE`, and `OCI_RESOURCE_PRINCIPAL_REGION`. Follow the runtime's supported setup; do not replace rotating runtime files with copied static tokens.
+
+Version `1.1` uses `OCI_RESOURCE_PRINCIPAL_RPT_ENDPOINT` and optional `OCI_RESOURCE_PRINCIPAL_RPST_ENDPOINT`, with `OCI_RESOURCE_PRINCIPAL_RPT_PATH` and `OCI_RESOURCE_PRINCIPAL_RPT_ID` overriding the default token path and instance metadata resource ID.
+
+Version `3.0` uses `OCI_RESOURCE_PRINCIPAL_VERSION_FOR_LEAF_RESOURCE` (`1.1` or `2.2`) and the appropriate leaf identity inputs. These are `OCI_RESOURCE_PRINCIPAL_RPT_ENDPOINT_FOR_LEAF_RESOURCE`, `OCI_RESOURCE_PRINCIPAL_RPT_PATH_FOR_LEAF_RESOURCE`, `OCI_RESOURCE_PRINCIPAL_RPST_ENDPOINT_FOR_LEAF_RESOURCE`, `OCI_RESOURCE_PRINCIPAL_RESOURCE_ID_FOR_LEAF_RESOURCE`, and `OCI_RESOURCE_PRINCIPAL_TENANCY_ID_FOR_LEAF_RESOURCE` for a version `1.1` leaf, or `OCI_RESOURCE_PRINCIPAL_PRIVATE_PEM_FOR_LEAF_RESOURCE`, optional `OCI_RESOURCE_PRINCIPAL_PRIVATE_PEM_PASSPHRASE_FOR_LEAF_RESOURCE`, `OCI_RESOURCE_PRINCIPAL_RPST_FOR_LEAF_RESOURCE`, and `OCI_RESOURCE_PRINCIPAL_REGION_FOR_LEAF_RESOURCE` for a version `2.2` leaf. `OCI_RESOURCE_PRINCIPAL_RPT_URL_FOR_PARENT_RESOURCE` and optional `OCI_RESOURCE_PRINCIPAL_RPST_ENDPOINT_FOR_PARENT_RESOURCE` control the parent exchange. The runtime supplies this delegation configuration; use its documented values rather than constructing an unrelated resource identity. For version `3.0`, the backend obtains the generic SDK identity and applies any explicit storage-region override afterward, extending the examined provider's region-specific constructor behavior.
+
+### OKE Workload Identity
+
+Run OpenTofu in a pod on an OKE enhanced cluster with an authorized service account and an available service account token. Follow Oracle's [OKE workload identity setup](https://docs.oracle.com/en-us/iaas/Content/ContEng/Tasks/contenggrantingworkloadaccesstoresources.htm).
+
+```hcl
+terraform {
+  backend "oracle-oci" {
+    namespace = "example_namespace"
+    bucket    = "opentofu-state"
+    auth      = "OKEWorkloadIdentity"
+    region    = "us-ashburn-1"
+  }
+}
+```
+
+Assign the pod's `serviceAccountName` and mount its service account token. The SDK requires `KUBERNETES_SERVICE_HOST`, `OCI_RESOURCE_PRINCIPAL_VERSION` (`1.1` or `2.2`), and `OCI_RESOURCE_PRINCIPAL_REGION`, and reads `/var/run/secrets/kubernetes.io/serviceaccount/token` and `/var/run/secrets/kubernetes.io/serviceaccount/ca.crt`. `OCI_KUBERNETES_SERVICE_ACCOUNT_CERT_PATH` can override the CA certificate path. The backend `region` overrides the Object Storage service region; it does not replace the OKE authentication runtime's region setting. Workload IAM permissions bind the cluster OCID, Kubernetes namespace, and service account. OKE workload identities do not use dynamic groups.
+
+### Workload Identity Federation with OAuth Client Credentials
+
+Configure an IAM identity domain trust for the subject token's issuer and claims, and authorize an OAuth client to perform token exchange. Arrange for your execution environment to write and rotate the subject token at `workload_identity_token_path`. See Oracle's [JWT-to-RPST token exchange guide](https://docs.oracle.com/en-us/iaas/Content/Identity/api-getstarted/token_exchange_grant_type_workload_id-federation.htm).
+
+```hcl
+terraform {
+  backend "oracle-oci" {
+    namespace                           = "example_namespace"
+    bucket                              = "opentofu-state"
+    auth                                = "WorkloadIdentityFederation"
+    region                              = "us-ashburn-1"
+    workload_identity_token_path        = "/var/run/secrets/tokens/oci-subject"
+    token_exchange_domain_url           = "https://example.identity.oraclecloud.com"
+    token_exchange_auth                 = "OAuthClientCredentials"
+    token_exchange_requested_token_type = "urn:oci:token-type:oci-rpst"
+    token_exchange_subject_token_type   = "jwt"
+    token_exchange_resource_type        = "githubactions"
+  }
+}
+```
+
+Supply `OCI_TOKEN_EXCHANGE_CLIENT_ID` and `OCI_TOKEN_EXCHANGE_CLIENT_SECRET` from your secret manager. Do not put the secret into the backend block. `token_exchange_auth` defaults to `OAuthClientCredentials`; `token_exchange_subject_token_type` defaults to `jwt`. An RPST request requires `token_exchange_resource_type`, matching the configured trust. `token_exchange_rpst_exp` requests an RPST lifetime in minutes, subject to OCI limits. `token_exchange_public_key` is accepted for provider configuration parity, but SDK `v65.126.2` generates the signing key pair and replaces that value with its generated public key during exchange.
+
+For a user principal exchange, set `token_exchange_requested_token_type = "urn:oci:token-type:oci-upst"` and configure the identity domain's [JWT-to-UPST trust](https://docs.oracle.com/en-us/iaas/Content/Identity/api-getstarted/json_web_token_exchange.htm). Resource-type and RPST-lifetime inputs apply to RPST requests.
+
+### Workload Identity Federation with Instance Principal Exchange Authentication
+
+Run the exchange from an authorized OCI Compute instance. The instance principal authenticates the exchange request; the exchanged token identifies the subject workload.
+
+```hcl
+terraform {
+  backend "oracle-oci" {
+    namespace                           = "example_namespace"
+    bucket                              = "opentofu-state"
+    auth                                = "WorkloadIdentityFederation"
+    region                              = "us-ashburn-1"
+    workload_identity_token_path        = "/var/run/secrets/tokens/oci-subject"
+    token_exchange_domain_url           = "https://example.identity.oraclecloud.com"
+    token_exchange_auth                 = "InstancePrincipal"
+    token_exchange_requested_token_type = "urn:oci:token-type:oci-rpst"
+    token_exchange_resource_type        = "externalworkload"
+  }
+}
+```
+
+`token_exchange_client_id` and `token_exchange_client_secret`, including their environment equivalents, must be unset for this exchange authentication method. The backend rereads the subject-token file when the SDK performs an exchange. Your runner must rotate that file before its token expires. Authentication success depends on both exchange trust and Object Storage authorization for the exchanged principal.
+
+### Delegated On-Behalf-Of Requests
+
+The provider's optional on-behalf-of token settings are also supported through environment variables, in addition to the selected authentication mode. This is a delegation supplement, not another `auth` value. The selected base identity signs a request with an `opc-obo-token` header containing the delegated token.
+
+For each legacy setting, the first non-empty variable wins: `TF_VAR_<name>`, `OCI_<name>` with the lowercase suffix, the unprefixed `<name>`, then the added uppercase `OCI_<UPPERCASE_NAME>` alias. The settings are `use_obo_token` (boolean, defaults to `false`), `obo_token_path`, and `obo_token`. A configured path takes precedence over an inline token. For example, with a valid base mode already configured:
+
+```shell
+export TF_VAR_use_obo_token=true
+export TF_VAR_obo_token_path=/secure/oci/delegation-token
+tofu init
+```
+
+The token file is reread for each request so your execution environment can rotate it. Enabled delegation with missing, empty, unreadable, or multiline token input fails explicitly during initialization and subsequent requests; it does not silently fall back to the base identity. Expired recognizable JWTs are rejected; opaque non-JWT delegation tokens are passed to OCI for validation. OpenTofu does not issue or renew the delegated token. OCI must authorize the base identity and the delegated request according to the execution environment's delegation model.
+
+## Configuration Variables
+
+| Attribute | Meaning and default |
+| --- | --- |
+| `namespace` | Required Object Storage namespace; no namespace discovery is performed |
+| `bucket` | Required existing bucket name |
+| `key` | Default workspace state object name; defaults to `terraform.tfstate` |
+| `workspace_key_prefix` | Prefix for named workspace state; defaults to `env:` |
+| `kms_key_id` | Optional OCI Vault key OCID passed when writing state and lock objects |
+| `request_timeout` | Optional Object Storage operation and HTTP request timeout duration; defaults to `60s` |
+| `auth` | Authentication mode from the support matrix; defaults to `ApiKey` |
+| `config_file` | Optional path to the OCI configuration file; uses the file selection rules above |
+| `config_file_profile` | OCI configuration profile; defaults to `DEFAULT` |
+| `region` | OCI region containing the bucket; resolved for the selected mode as described above |
+| `tenancy_ocid`, `user_ocid`, `fingerprint` | API key identity fields |
+| `private_key`, `private_key_path`, `private_key_password` | API signing private key content, key-file path, and optional PEM passphrase |
+| `certificates_directory` | Directory containing instance principal certificate material |
+| `workload_identity_token_path` | Subject token file for workload identity federation |
+| `token_exchange_domain_url` | IAM identity domain URL for workload token exchange |
+| `token_exchange_auth` | `OAuthClientCredentials` (default) or `InstancePrincipal` |
+| `token_exchange_client_id`, `token_exchange_client_secret` | Required for OAuth exchange authentication; prohibited for instance principal exchange authentication |
+| `token_exchange_requested_token_type` | Required token type accepted by the identity domain, such as OCI RPST or UPST |
+| `token_exchange_subject_token_type` | Subject token type; defaults to `jwt` |
+| `token_exchange_resource_type` | Required for an OCI RPST request |
+| `token_exchange_rpst_exp` | Optional requested RPST lifetime in minutes accepted by OCI |
+| `token_exchange_public_key` | Compatibility input passed to the exchange SDK, which generates its own signing key pair |
+
+Authentication attributes support `TF_VAR_<attribute>` and `OCI_<UPPERCASE_ATTRIBUTE>` as described under precedence, with `config_file` using the explicit file-selection exception. Runtime identity providers additionally consume their SDK-defined environment variables. Storage settings are explicit backend inputs.
+
+## Workspaces and Locking
+
+The default workspace uses exactly `key`. A named workspace uses `<workspace_key_prefix>/<workspace>/<key>`; with defaults, workspace `development` uses `env:/development/terraform.tfstate`. Workspace listing returns `default` first and named workspaces in sorted order. Deleting the default workspace is prohibited.
+
+The lock object is the state object's name with `.lock` appended. Lock acquisition uses conditional object creation, and release verifies the lock ID before conditionally deleting the object at its observed ETag. Lock conflicts expose OpenTofu lock metadata so an operator can identify the owner. A lock does not expire and is never automatically stolen.
+
+State writes and deletes use Object Storage ETag conditions to reject a stale writer, including operations run with `-lock=false`. This protects against overwriting a snapshot changed since the client last read it. A conflict requires rereading state and rerunning the operation. Transient Object Storage failures are retried with bounded backoff within `request_timeout`; authentication, authorization, and precondition failures produce actionable errors. Mutation retries reconcile ambiguous outcomes using an operation identifier in object metadata rather than assuming a lost response means the write failed.
+
+If a process exits while holding a lock, verify that it has stopped before running `tofu force-unlock LOCK_ID`. OCI cannot make an ownership check on the lock object and a state write atomic across both objects. A forcibly unlocked process can still be in flight; ETag checks reduce this risk but do not make forced unlocking safe while the old operation is active.
+
+## Required OCI IAM Policies
+
+For API keys or a user security token, grant the identity's group permissions on the state bucket. Replace the domain, group, compartment, and bucket values:
+
+```text
+Allow group 'Default'/'OpenTofuStateUsers' to manage objects in compartment StateStorage where all {target.bucket.name = 'opentofu-state', any {request.permission = 'OBJECT_INSPECT', request.permission = 'OBJECT_READ', request.permission = 'OBJECT_CREATE', request.permission = 'OBJECT_OVERWRITE', request.permission = 'OBJECT_DELETE'}}
+```
+
+These permissions cover workspace listing, state reads and writes, lock acquisition and release, and named workspace deletion. Bucket creation and administration are performed separately. The backend does not call bucket APIs or discover namespaces. Oracle's [Object Storage policy reference](https://docs.oracle.com/en-us/iaas/Content/Identity/Reference/objectstoragepolicyreference.htm) describes the permissions for each operation.
+
+For instance or resource principals, grant the same permissions to the dynamic group containing the compute instance or OCI resource:
+
+```text
+Allow dynamic-group OpenTofuRunners to manage objects in compartment StateStorage where all {target.bucket.name = 'opentofu-state', any {request.permission = 'OBJECT_INSPECT', request.permission = 'OBJECT_READ', request.permission = 'OBJECT_CREATE', request.permission = 'OBJECT_OVERWRITE', request.permission = 'OBJECT_DELETE'}}
+```
+
+For OKE workload identity, bind the permission to the intended cluster, namespace, and service account:
+
+```text
+Allow any-user to manage objects in compartment StateStorage where all {target.bucket.name = 'opentofu-state', request.principal.type = 'workload', request.principal.namespace = 'infrastructure', request.principal.service_account = 'opentofu', request.principal.cluster_id = 'ocid1.cluster.oc1.iad.example', any {request.permission = 'OBJECT_INSPECT', request.permission = 'OBJECT_READ', request.permission = 'OBJECT_CREATE', request.permission = 'OBJECT_OVERWRITE', request.permission = 'OBJECT_DELETE'}}
+```
+
+For generic workload identity federation, authorize the principal represented by the issued token, not merely the OAuth client or the instance that performed token exchange. An UPST follows user/group authorization. An RPST follows the resource type and propagated attributes configured in the identity domain's trust. Use a policy scoped to those trusted attributes and the state bucket; the exact principal condition depends on that trust.
+
+If the bucket or `kms_key_id` uses an OCI Vault key, authorize the regional Object Storage service to use that key. For a runner selecting a key, also authorize key delegation. For example, adapt these statements to the key compartment and the selected principal:
+
+```text
+Allow service objectstorage-us-ashburn-1 to use keys in compartment StateKeys where target.key.id = 'ocid1.key.oc1.iad.example'
+Allow group 'Default'/'OpenTofuStateUsers' to use key-delegate in compartment StateKeys where target.key.id = 'ocid1.key.oc1.iad.example'
+```
+
+Use equivalent dynamic-group or workload conditions for a principal-based runner. See Oracle's [key delegation and regional Object Storage service policies](https://docs.oracle.com/en-us/iaas/Content/Identity/Concepts/commonpolicies.htm) and [Object Storage encryption guidance](https://docs.oracle.com/en-us/iaas/Content/Object/Tasks/encryption.htm). The state backend does not manage Vault keys or IAM policies.
+
+## Migration
+
+1. Stop writers to the old backend and retain a protected backup from `tofu state pull`. Record the active workspace and all named workspaces.
+2. Create the destination private bucket, IAM permissions, and optional versioning. Authenticate the destination identity before changing the backend configuration.
+3. Replace the backend block with `backend "oracle-oci"` and the appropriate non-secret configuration. Supply credentials through the selected external source.
+4. Run `tofu init -migrate-state`. Review OpenTofu's migration prompts and migrate every workspace you intend to retain. `-reconfigure` alone does not copy state.
+5. Read state from the destination and check its resources, outputs, lineage, and serial against the backup. Run a plan before resuming automated writes. Keep the old backup until recovery has been verified.
+
+The object layout and lock format belong to this backend. Do not assume another OCI, HTTP proxy, or S3-compatible backend uses the same names or locking protocol. Use OpenTofu state migration instead of concurrently pointing two backend implementations at the same objects. Copying an object manually also requires preserving OpenTofu state encryption settings and selecting the correct destination workspace.
+
+## Validation and Limitations
+
+The backend's automated unit tests use local credential fixtures, injected identity factories, and mocked Object Storage responses. These verify configuration resolution and validation, mode selection, file rereading, state operations, conditional writes, lock conflicts, and error handling. Mocked tests do not validate OCI IAM policies or service behavior.
+
+Live OCI validation is separate and requires an authorized tenancy, a disposable bucket, and each authentication runtime. No live OCI result is implied by unit-test success. Federation exchange, certificate renewal, custom TLS/mutual TLS, metadata access, OKE token rotation, resource principal variants, Vault permissions, retention/versioning behavior, and cross-process forced unlock races must be validated in the intended execution environment. The backend uses single-object uploads, not multipart uploads, and does not provide customer-supplied SSE-C key inputs. See the implementation's validation record for the checks actually run.
