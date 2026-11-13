@@ -452,6 +452,13 @@ func (c *Context) destroyPlan(ctx context.Context, config *configs.Config, prevR
 		skipNormalPlanForRefresh = true
 	}
 
+	var endpointsToRemoveDiags tfdiags.Diagnostics
+	opts.RemoveStatements, endpointsToRemoveDiags = refactoring.FindRemoveStatements(config)
+	diags = diags.Append(endpointsToRemoveDiags)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
 	// A destroy plan starts by running Refresh to read any pending data
 	// sources, and remove missing managed resources. This is required because
 	// a "destroy plan" is only creating delete changes, and is essentially a
@@ -948,6 +955,7 @@ func (c *Context) planGraph(ctx context.Context, config *configs.Config, prevRun
 			Excludes:                opts.Excludes,
 			skipRefresh:             opts.SkipRefresh,
 			Operation:               walkPlanDestroy,
+			RemoveStatements:        opts.RemoveStatements,
 			ProviderFunctionTracker: providerFunctionTracker,
 		}).Build(ctx, addrs.RootModuleInstance)
 		return graph, walkPlanDestroy, diags

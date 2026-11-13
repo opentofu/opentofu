@@ -330,6 +330,7 @@ func (b *PlanGraphBuilder) initDestroy() {
 		return &NodePlanDestroyableResourceInstance{
 			NodeAbstractResourceInstance: a,
 			skipRefresh:                  b.skipRefresh,
+			RemoveStatements:             b.RemoveStatements,
 		}
 	}
 }
