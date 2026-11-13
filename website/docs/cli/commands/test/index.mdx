@@ -113,6 +113,7 @@ tofu test -test-directory=extra-tests -filter=extra-tests/a.tftest.hcl
 * `-json` Change the output format to JSON.
 * `-json-into=out.json` - Produces the same output as -json, but redirected to a file. This allows
   for simultaneous capture of both human readable and machine readable logs.
+* `-junit-xml=xmlfile` Specify a file to write out JUnit compatible XML for a `tofu test` run.
 * `-no-color` Disable colorized output in the command output.
 * `-verbose` Print the plan or state for each test run block as it executes.
 
