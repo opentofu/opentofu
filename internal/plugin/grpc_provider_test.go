@@ -1470,7 +1470,7 @@ func TestGRPCProvider_CallFunction(t *testing.T) {
 
 	resp := p.CallFunction(t.Context(), providers.CallFunctionRequest{
 		Name:      "fn",
-		Arguments: []cty.Value{cty.StringVal("bar"), cty.NilVal},
+		Arguments: []cty.Value{cty.StringVal("bar"), cty.NullVal(cty.String)},
 	})
 
 	if resp.Error != nil {
@@ -1503,4 +1503,36 @@ func TestGRPCProvider_ProviderMetaNull(t *testing.T) {
 	})
 
 	checkDiags(t, resp.Diagnostics)
+}
+
+func TestGRPCProvider_CallFunctionTypedNullArgument(t *testing.T) {
+	client := mockProviderClient(t)
+	p := newGRPCProvider(client)
+
+	client.EXPECT().CallFunction(
+		gomock.Any(),
+		gomock.Any(),
+	).DoAndReturn(func(_ context.Context, req *proto.CallFunction_Request, _ ...grpc.CallOption) (*proto.CallFunction_Response, error) {
+		if len(req.Arguments) != 2 {
+			t.Fatalf("expected 2 arguments, got %d", len(req.Arguments))
+		}
+		for i, arg := range req.Arguments {
+			// A nil or empty DynamicValue makes providers fail with
+			// "DynamicValue had no JSON or msgpack data set" (#4819).
+			if arg == nil || len(arg.Msgpack) == 0 {
+				t.Errorf("argument %d was not encoded: %#v", i, arg)
+			}
+		}
+		return &proto.CallFunction_Response{
+			Result: &proto.DynamicValue{Json: []byte(`"foo"`)},
+		}, nil
+	})
+
+	resp := p.CallFunction(t.Context(), providers.CallFunctionRequest{
+		Name:      "fn",
+		Arguments: []cty.Value{cty.StringVal("bar"), cty.NullVal(cty.String)},
+	})
+	if resp.Error != nil {
+		t.Fatal(resp.Error)
+	}
 }
