@@ -278,6 +278,9 @@ func NewModule(primaryFiles, overrideFiles []*File, sourceDir string, load Selec
 }
 
 func (m *Module) Finalize(l symlib.Table, call StaticModuleCall) hcl.Diagnostics {
+	if m == nil {
+		return nil
+	}
 	var diags hcl.Diagnostics
 
 	m.SymbolTable = l

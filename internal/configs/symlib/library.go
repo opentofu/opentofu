@@ -88,6 +88,14 @@ func (t Table) library(name string, rng hcl.Range) (*Library, hcl.Diagnostics) {
 			Subject:  rng.Ptr(),
 		}}
 	}
+	if lib == nil {
+		return nil, hcl.Diagnostics{{
+			Severity: hcl.DiagError,
+			Summary:  "Uninitialized symbol library",
+			Detail:   fmt.Sprintf("Symbol library %s could not be loaded or is not yet initialized", name),
+			Subject:  rng.Ptr(),
+		}}
+	}
 	return lib, nil
 }
 
@@ -113,9 +121,19 @@ func (t Table) TypeContext() typeexpr.TypeContext {
 				Name:      split[2],
 				Range:     call.NameRange,
 			})
+			if ty == cty.NilType {
+				dyn := cty.DynamicPseudoType
+				return &dyn, nil, diags
+			}
 			return &ty, def, diags
 		default:
-			return nil, nil, nil
+			dyn := cty.DynamicPseudoType
+			return &dyn, nil, hcl.Diagnostics{{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid type call structure",
+				Detail:   "Expected symbol type call of the form symbols::namespace::name()",
+				Subject:  call.NameRange.Ptr(),
+			}}
 		}
 	}}
 }
@@ -131,7 +149,9 @@ func (t Table) Value(ref ValueRef) (cty.Value, hcl.Diagnostics) {
 func (t Table) Values() map[string]cty.Value {
 	values := map[string]cty.Value{}
 	for name, lib := range t {
-		values[name] = lib.value()
+		if lib != nil {
+			values[name] = lib.value()
+		}
 	}
 	return values
 }
@@ -155,6 +175,8 @@ func BuildTable(calls []*SymbolCall, loader Loader) (Table, hcl.Diagnostics) {
 		if lib != nil {
 			lib.name = call.Name
 			table[call.Name] = lib
+		} else {
+			table[call.Name] = nil
 		}
 	}
 	return table, diags
