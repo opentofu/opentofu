@@ -33,8 +33,6 @@ func ProvidersMirrorCommander() Command {
 
 The mirror directory will contain JSON index files that can be published along with the mirrored packages on a static HTTP file server to produce a network mirror. Those index files will be ignored if the directory is used instead as a local filesystem mirror.
 
-The generated JSON index files include "use_mirror_credentials": true for each mirrored package, which instructs OpenTofu to forward any configured mirror credentials when downloading the package archive from the network mirror. This is appropriate for mirrors that require authentication.`,
-
 		DiagsWithNewline: true,
 	}
 
