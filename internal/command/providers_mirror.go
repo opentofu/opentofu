@@ -31,7 +31,7 @@ func ProvidersMirrorCommander() Command {
 		Short: "Save local copies of all required provider plugins",
 		Long: `Populates a local directory with copies of the provider plugins needed for the current configuration, so that the directory can be used either directly as a filesystem mirror or as the basis for a network mirror and thus obtain  those providers without access to their origin registries in future.
 
-The mirror directory will contain JSON index files that can be published along with the mirrored packages on a static HTTP file server to produce a network mirror. Those index files will be ignored if the directory is used instead as a local filesystem mirror.
+The mirror directory will contain JSON index files that can be published along with the mirrored packages on a static HTTP file server to produce a network mirror. Those index files will be ignored if the directory is used instead as a local filesystem mirror.`,
 
 		DiagsWithNewline: true,
 	}
