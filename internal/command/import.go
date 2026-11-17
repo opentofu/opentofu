@@ -105,7 +105,7 @@ func (c ImportCommand) Execute(args *arguments.Import, view views.Import) int {
 		return 1
 	}
 
-	if !c.configLoader().IsConfigDir(args.ConfigPath) {
+	if !c.configLoader().IsConfigDir(args.ConfigPath, "") {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "No OpenTofu configuration files",

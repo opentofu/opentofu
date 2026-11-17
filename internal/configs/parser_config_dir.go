@@ -118,9 +118,9 @@ func (p Parser) ConfigDirFilesWithTests(dir string, testDirectory string) (prima
 // exists and contains at least one OpenTofu config file (with a .tf or
 // .tf.json extension.). Note, we explicitly exclude checking for tests here
 // as tests must live alongside actual .tf config files.
-func (p *Parser) IsConfigDir(path string) bool {
-	primaryPaths, overridePaths, _, _, _ := p.dirFiles(path, "")
-	return (len(primaryPaths) + len(overridePaths)) > 0
+func (p *Parser) IsConfigDir(path string, testPath string) bool {
+	primaryPaths, overridePaths, testPaths, _, _ := p.dirFiles(path, testPath)
+	return (len(primaryPaths) + len(overridePaths) + len(testPaths)) > 0
 }
 
 func (p *Parser) LoadSymbolFilesInDir(dir string) ([]*symlib.SymbolFile, hcl.Diagnostics) {
@@ -417,21 +417,21 @@ func IsIgnoredFile(name string) bool {
 }
 
 // IsEmptyDir returns true if the given filesystem path contains no OpenTofu
-// configuration files.
+// configuration or test files.
 //
 // Unlike the methods of the Parser type, this function always consults the
 // real filesystem, and thus it isn't appropriate to use when working with
 // configuration loaded from a plan file.
-func IsEmptyDir(path string) (bool, error) {
+func IsEmptyDir(path string, testpath string) (bool, error) {
 	if _, err := os.Stat(path); err != nil && os.IsNotExist(err) {
 		return true, nil
 	}
 
 	p := NewParser(nil)
-	fs, os, _, _, diags := p.dirFiles(path, "")
+	fs, os, ts, _, diags := p.dirFiles(path, testpath)
 	if diags.HasErrors() {
 		return false, diags
 	}
 
-	return len(fs) == 0 && len(os) == 0, nil
+	return len(fs) == 0 && len(os) == 0 && len(ts) == 0, nil
 }

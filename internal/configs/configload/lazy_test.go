@@ -28,7 +28,7 @@ func TestLazyLoader_Initialize(t *testing.T) {
 			t.Fatalf("unexpected error: %s", err)
 		}
 		// do a sanity call to ensure that the returned loader works as expected
-		if ok := il.IsConfigDir(d); !ok {
+		if ok := il.IsConfigDir(d, ""); !ok {
 			t.Errorf("expected for the current directory to be a config directory but got %t", ok)
 		}
 	})
@@ -43,7 +43,7 @@ func TestLazyLoader_Initialize(t *testing.T) {
 			t.Fatalf("unexpected error: %s", err)
 		}
 		// do a sanity call to ensure that the returned loader works as expected
-		if ok := il.IsConfigDir(d); !ok {
+		if ok := il.IsConfigDir(d, ""); !ok {
 			t.Errorf("expected for the current directory to be a config directory but got %t", ok)
 		}
 	})
@@ -227,7 +227,7 @@ func TestLoaderInitializationDuringMethodCalls(t *testing.T) {
 				writeConfigFile(t, filepath.Join(wd, "main.tf"), []byte(`variable "in" {}`))
 			},
 			act: func(t *testing.T, wd string, l Loader) {
-				if ok := l.IsConfigDir("unexisting"); ok {
+				if ok := l.IsConfigDir("unexisting", ""); ok {
 					t.Errorf("expected to be false but was true")
 				}
 			},
@@ -237,7 +237,7 @@ func TestLoaderInitializationDuringMethodCalls(t *testing.T) {
 				writeConfigFile(t, filepath.Join(wd, "main.tf"), []byte(`variable "in" {}`))
 			},
 			act: func(t *testing.T, wd string, l Loader) {
-				if ok := l.IsConfigDir(wd); !ok {
+				if ok := l.IsConfigDir(wd, ""); !ok {
 					t.Errorf("expected to be true but was false")
 				}
 			},
@@ -247,7 +247,7 @@ func TestLoaderInitializationDuringMethodCalls(t *testing.T) {
 				writeManifestFile(t, wd, []byte("invalid content")) // to break the loader initialization
 			},
 			act: func(t *testing.T, wd string, l Loader) {
-				if ok := l.IsConfigDir(wd); !ok {
+				if ok := l.IsConfigDir(wd, ""); !ok {
 					t.Errorf("expected to be true (as default because initialization of the loader should have failed) but was false")
 				}
 			},
