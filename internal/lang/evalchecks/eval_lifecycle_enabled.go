@@ -64,6 +64,8 @@ func EvaluateEnabledExpression(expr hcl.Expression, hclCtxFunc ContextFunc) (boo
 	var deprDiags tfdiags.Diagnostics
 	rawEnabledVal, deprDiags = marks.ExtractDeprecatedDiagnosticsWithExpr(rawEnabledVal, expr)
 	diags = diags.Append(deprDiags)
+	// linting marks dropped here since the enabled value cannot be used on the resource arguments
+	rawEnabledVal = marks.DropLintingMarks(rawEnabledVal)
 
 	if rawEnabledVal.IsNull() {
 		diags = diags.Append(&hcl.Diagnostic{
