@@ -513,7 +513,7 @@ func (c *Context) destroyPlan(ctx context.Context, config *configs.Config, prevR
 		return destroyPlan, diags
 	}
 
-	if !opts.SkipRefresh {
+	if !skipNormalPlanForRefresh {
 		// If we didn't skip refreshing then we want the previous run state to
 		// be the one we originally fed into the c.refreshOnlyPlan call above,
 		// not the refreshed version we used for the destroy planWalk.
