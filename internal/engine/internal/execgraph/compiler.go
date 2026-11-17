@@ -128,6 +128,8 @@ func (c *compiler) Compile() (*CompiledGraph, tfdiags.Diagnostics) {
 			compileFunc = c.compileOpManagedChangeAddr
 		case opDataRead:
 			compileFunc = c.compileOpDataRead
+		case opDataDestroy:
+			compileFunc = c.compileOpDataDestroy
 		default:
 			c.diags = c.diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,

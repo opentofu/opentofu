@@ -63,6 +63,7 @@ func (b *execGraphBuilder) AddResourceInstanceObjectSubgraphs(
 	// for objects that aren't changing.
 	for _, addr := range objAddrs {
 		obj := objs.Get(addr)
+
 		plannedChange := obj.PlannedChange
 		if plannedChange == nil {
 			// For this first loop we only care about objects that have planned
@@ -244,7 +245,8 @@ func (b *execGraphBuilder) resourceInstanceChangeSubgraph(
 	switch resourceMode {
 	case addrs.ManagedResourceMode:
 		return b.ManagedResourceInstanceSubgraph(change, effectiveReplaceOrder)
-
+	case addrs.DataResourceMode:
+		return b.DataResourceInstanceSubgraph(change)
 	// TODO: DataResourceMode, and possibly also EphemeralResourceMode if
 	// we decide to handle those as "changes" (but it's currently looking
 	// like they would be better handled in some other special way, since
