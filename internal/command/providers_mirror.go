@@ -326,8 +326,9 @@ func (c ProvidersMirrorCommand) Execute(args *arguments.ProvidersMirror, view vi
 				indexArchives[version] = map[string]any{}
 			}
 			indexArchives[version][platform.String()] = map[string]any{
-				"url":    archiveFilename, // a relative URL from the index file's URL
-				"hashes": hashes,          // an array to allow for additional hash formats in future
+				"url":                    archiveFilename, // a relative URL from the index file's URL
+				"hashes":                 hashes,          // an array to allow for additional hash formats in future
+				"use_mirror_credentials": true,            // allow credential forwarding when used as a network mirror
 			}
 		}
 		mainIndex := map[string]any{

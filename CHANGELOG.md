@@ -15,8 +15,9 @@ UPGRADE NOTES:
 ENHANCEMENTS:
 
 - `tofu plan` no longer prints iterative warnings for multiple resources but instead it shows one warning with all of the affected resources. ([#4201](https://github.com/opentofu/opentofu/issues/4201))
-- For provider installation, registry and network mirror sources can now optionally forward authentication credentials to the package download URL if the server explicitly opts in. Previously the package download requests were always made without any credentials. ([#4584](https://github.com/opentofu/opentofu/issues/4584))
+- `tofu providers mirror`: The generated JSON index files now include `use_mirror_credentials: true` for each archive entry, so that consumers using the generated mirror as a network mirror automatically get credential forwarding. ([#4314](https://github.com/opentofu/opentofu/issues/4314))
 - `mock_provider` now supports the `source` argument that can get a file or directory with specific provider overrides ([#4532](https://github.com/opentofu/opentofu/pull/4532))
+- For provider installation, registry and network mirror sources can now optionally forward authentication credentials to the package download URL if the server explicitly opts in. Previously the package download requests were always made without any credentials. ([#4584](https://github.com/opentofu/opentofu/issues/4584))
 - `tofu test` now supports the `error_message` as optional in `assert` blocks ([#4642](https://github.com/opentofu/opentofu/pull/4642))
 - Module outputs now support specifying their type. ([#4645](https://github.com/opentofu/opentofu/pull/4645))
 - The `tofu` cli will now read `*.tfrc` file to load its configuration from system standard directories. ([#4624](https://github.com/opentofu/opentofu/pull/4624))
