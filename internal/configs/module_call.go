@@ -398,9 +398,9 @@ var moduleBlockSchema = &hcl.BodySchema{
 	},
 	Blocks: []hcl.BlockHeaderSchema{
 		{Type: "_"}, // meta-argument escaping block
+		{Type: "lifecycle"},
 
 		// These are all reserved for future use.
-		{Type: "lifecycle"},
 		{Type: "locals"},
 		{Type: "provider", LabelNames: []string{"type"}},
 	},

@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"iter"
 
-	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/ext/typeexpr"
 	"github.com/zclconf/go-cty/cty"
@@ -20,6 +19,7 @@ import (
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
+	"github.com/opentofu/opentofu/internal/plans/objchange"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -62,6 +62,13 @@ type InputVariable struct {
 	// test whether the author's configured conditions have been met
 	// for the given value.
 	CompileValidationRules func(ctx context.Context, value cty.Value) iter.Seq[*CheckRule]
+
+	// valueOnce helps us to memoize the result from [InputVariable.Value]
+	// so that we'll definitely return a consistent value to every call without
+	// re-running whatever logic is behind the [InputVariable.FinalizeValue]
+	// implementation, which might involve side-effects that could produce
+	// different results
+	valueOnce grapheval.Once[cty.Value]
 }
 
 var _ exprs.Valuer = (*InputVariable)(nil)
@@ -81,6 +88,12 @@ func (i *InputVariable) StaticCheckTraversal(traversal hcl.Traversal) tfdiags.Di
 
 // Value implements exprs.Valuer.
 func (i *InputVariable) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+	ctx = withDebugAddr(ctx, i.Addr, "Value")
+	return i.valueOnce.Do(ctx, func(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+		return i.value(ctx)
+	}, i.ValueSourceRange(), "Value of %s", i.Addr)
+}
+func (i *InputVariable) value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	rawV, moreDiags := i.RawValue.Value(ctx)
@@ -115,6 +128,10 @@ func (i *InputVariable) Value(ctx context.Context) (cty.Value, tfdiags.Diagnosti
 			finalV = exprs.AsEvalError(cty.UnknownVal(i.TargetType.WithoutOptionalAttributesDeep()))
 		}
 	}
+
+	// Pending changes do not propagate through input vars
+	// See TestContext2Plan_dataReferencesResourceIndirectly
+	finalV = objchange.RemovePendingChangesMark(finalV)
 
 	// Once we have our converted and prepared value we can finally compile
 	// the validation rules against it and then check them.
@@ -166,18 +183,4 @@ func (i *InputVariable) CheckAll(ctx context.Context) tfdiags.Diagnostics {
 	// of our own evaluation that might contribute additional errors.
 	cg.CheckValuer(ctx, i)
 	return cg.Complete(ctx)
-}
-
-func (i *InputVariable) AnnounceAllGraphevalRequests(announce func(workgraph.RequestID, grapheval.RequestInfo)) {
-	announce(i.RawValue.RequestID(), grapheval.RequestInfo{
-		// FIXME: Have the "compiler" in package eval put an
-		// addrs.AbsInputVariable in here so we can better avoid ambiguity
-		// between module instances using variables of the same name.
-		Name:        fmt.Sprintf("value for %s", i.Addr),
-		SourceRange: i.RawValue.ValueSourceRange(),
-	})
-	// FIXME: This doesn't currently cover any of the validation rules because
-	// we're not currently using a distinct workgraph request for each of
-	// those. Should our Value method be evaluating those through a
-	// grapheval.Once so that they can have their own RequestInfo values?
 }

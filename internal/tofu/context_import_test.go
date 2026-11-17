@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/zclconf/go-cty-debug/ctydebug"
 	"github.com/zclconf/go-cty/cty"
 
@@ -299,12 +300,13 @@ func TestContextImport_multiInstanceProviderConfig(t *testing.T) {
 		Status:       states.ObjectReady,
 		Dependencies: []addrs.ConfigResource{},
 	}
-	if diff := cmp.Diff(wantObjState, gotObjState, ctydebug.CmpOptions); diff != "" {
+	if diff := cmp.Diff(wantObjState, gotObjState, ctydebug.CmpOptions, cmpopts.EquateEmpty()); diff != "" {
 		t.Error("wrong final object state\n" + diff)
 	}
 }
 
 func TestContextImport_importResourceWithSensitiveDataSource(t *testing.T) {
+	SkipExperimental(t, ExperimentalBugDataResource)
 	p := testProvider("aws")
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
@@ -399,10 +401,8 @@ func TestContextImport_collision(t *testing.T) {
 				Name: "foo",
 			}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
 			&states.ResourceInstanceObjectSrc{
-				AttrsFlat: map[string]string{
-					"id": "bar",
-				},
-				Status: states.ObjectReady,
+				AttrsJSON: []byte(`{"id": "bar"}`),
+				Status:    states.ObjectReady,
 			},
 			addrs.AbsProviderConfig{
 				Provider: addrs.NewDefaultProvider("aws"),
@@ -553,6 +553,11 @@ func TestContextImport_moduleProvider(t *testing.T) {
 func TestContextImport_providerModule(t *testing.T) {
 	p := testProvider("aws")
 	m := testModule(t, "import-module")
+	if experimentalRuntimeEnabled() {
+		// Current test uses empty providers in place of required_providers
+		// See ExperimentalChangePreReqdProvider
+		m = testModule(t, "tempruntime-import-module")
+	}
 	ctx := testContext2(t, &ContextOpts{
 		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -678,6 +683,9 @@ func TestContextImport_providerConfig(t *testing.T) {
 
 // Test that provider configs can't reference resources.
 func TestContextImport_providerConfigResources(t *testing.T) {
+	// This is not an exact match, but providers now accept unknown values
+	// and are trusted to handle them appropriately
+	SkipExperimental(t, ExperimentalChangeDeferredActions)
 	p := testProvider("aws")
 	pTest := testProvider("test")
 	m := testModule(t, "import-provider-resources")
@@ -852,6 +860,11 @@ func TestContextImport_refreshNil(t *testing.T) {
 func TestContextImport_module(t *testing.T) {
 	p := testProvider("aws")
 	m := testModule(t, "import-module")
+	if experimentalRuntimeEnabled() {
+		// Current test uses empty providers in place of required_providers
+		// See ExperimentalChangePreReqdProvider
+		m = testModule(t, "tempruntime-import-module")
+	}
 	ctx := testContext2(t, &ContextOpts{
 		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -895,6 +908,11 @@ func TestContextImport_module(t *testing.T) {
 func TestContextImport_moduleDepth2(t *testing.T) {
 	p := testProvider("aws")
 	m := testModule(t, "import-module")
+	if experimentalRuntimeEnabled() {
+		// Current test uses empty providers in place of required_providers
+		// See ExperimentalChangePreReqdProvider
+		m = testModule(t, "tempruntime-import-module")
+	}
 	ctx := testContext2(t, &ContextOpts{
 		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -938,6 +956,11 @@ func TestContextImport_moduleDepth2(t *testing.T) {
 func TestContextImport_moduleDiff(t *testing.T) {
 	p := testProvider("aws")
 	m := testModule(t, "import-module")
+	if experimentalRuntimeEnabled() {
+		// Current test uses empty providers in place of required_providers
+		// See ExperimentalChangePreReqdProvider
+		m = testModule(t, "tempruntime-import-module")
+	}
 	ctx := testContext2(t, &ContextOpts{
 		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -979,6 +1002,7 @@ func TestContextImport_moduleDiff(t *testing.T) {
 }
 
 func TestContextImport_multiState(t *testing.T) {
+	SkipExperimental(t, ExperimentalObsoleteImportMulti)
 	p := testProvider("aws")
 	m := testModule(t, "import-provider")
 
@@ -1049,6 +1073,7 @@ func TestContextImport_multiState(t *testing.T) {
 }
 
 func TestContextImport_multiStateSame(t *testing.T) {
+	SkipExperimental(t, ExperimentalObsoleteImportMulti)
 	p := testProvider("aws")
 	m := testModule(t, "import-provider")
 
@@ -1125,6 +1150,7 @@ func TestContextImport_multiStateSame(t *testing.T) {
 }
 
 func TestContextImport_nestedModuleImport(t *testing.T) {
+	SkipExperimental(t, ExperimentalChangeImportValid)
 	p := testProvider("aws")
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
@@ -1209,9 +1235,7 @@ resource "test_resource" "unused" {
 			},
 		},
 	})
-	if diags.HasErrors() {
-		t.Fatal(diags.ErrWithWarnings())
-	}
+	assertNoErrors(t, diags)
 
 	ri := state.ResourceInstance(mustResourceInstanceAddr("test_resource.test"))
 	expected := `{"id":"test","required":"value"}`
@@ -1297,6 +1321,7 @@ resource "test_resource" "test" {
 }
 
 func TestContextImport_33572(t *testing.T) {
+	SkipExperimental(t, ExperimentalBugDataResource)
 	p := testProvider("aws")
 	m := testModule(t, "issue-33572")
 

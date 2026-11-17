@@ -209,6 +209,10 @@ func (s ModuleInstanceStep) IsPlaceholder() bool {
 	return ok
 }
 
+func (s ModuleInstanceStep) PlaceholderContains(other ModuleInstanceStep) bool {
+	return (s.IsPlaceholder() || s.InstanceKey == other.InstanceKey)
+}
+
 // RootModuleInstance is the module instance address representing the root
 // module, which is also the zero value of ModuleInstance.
 var RootModuleInstance ModuleInstance
@@ -256,7 +260,7 @@ func (m ModuleInstance) Parent() ModuleInstance {
 // be used with care.
 func (m ModuleInstance) IsPlaceholder() bool {
 	for _, step := range m {
-		if _, ok := step.InstanceKey.(WildcardKey); ok {
+		if step.IsPlaceholder() {
 			return true
 		}
 	}
@@ -317,6 +321,21 @@ func (m ModuleInstance) Equal(o ModuleInstance) bool {
 
 	for i := range m {
 		if m[i] != o[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// PlaceholderContains returns true if the receiver and the given other value
+// contains the exact same parts.
+func (m ModuleInstance) PlaceholderContains(o ModuleInstance) bool {
+	if len(m) != len(o) {
+		return false
+	}
+
+	for i := range m {
+		if m[i] != o[i] && !m[i].PlaceholderContains(o[i]) {
 			return false
 		}
 	}

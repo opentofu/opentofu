@@ -121,7 +121,8 @@ type Command struct {
 	// CommandLine defines what flags and arguments are available to this command.
 	CommandLine arguments.CommandLine
 	// Run is the action that will be executed if this command is selected.
-	Run func(Meta) int
+	Run              func(Meta) int
+	AutocompleteArgs func(Meta) func(nargs int) []string
 
 	// A legacy option that will be removed at some point
 	// This was introduced during the migration to proper
@@ -413,7 +414,7 @@ func RootCommander(help *bool, ver *bool, chdir *string) Command {
 	}}
 
 	root.CommandLine.StringVar(chdir, "chdir", "", "Switch to a different working directory before executing the given subcommand.").SetDisplay("=DIR")
-	root.CommandLine.BoolVar(ver, "version", false, `An alias for the "version" subcommand.`)
+	root.CommandLine.BoolVarWithShortAlias(ver, "version", 'v', false, `An alias for the "version" subcommand.`)
 	root.CommandLine.BoolVar(help, "help", false, "Show this help output, or the help for a specified subcommand.")
 
 	return root

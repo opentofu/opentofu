@@ -272,6 +272,25 @@ func (c *CommandLine) BoolVar(p *bool, name string, value bool, usage string) *F
 	return f
 }
 
+// BoolVarWithShort attaches a bool flag to the CommandLine, giving both a
+// long name and a short (one-rune) alias.
+//
+// This is a specialized variant of [CommandLine.BoolVar] for situations
+// where a boolean-only option has a single-character variant, such as
+// with "--version" and "-v". Note that OpenTofu intentionally does not offer
+// single-character aliases for most options, so most new options should not
+// use this function.
+func (c *CommandLine) BoolVarWithShortAlias(p *bool, name string, short rune, value bool, usage string) *Flag {
+	f := c.Flag(&Flag{
+		Name:  name,
+		Usage: usage,
+	})
+	f.Cli = func() cli.Flag {
+		return &cli.BoolFlag{Name: f.Name, Aliases: []string{string(short)}, Category: f.GroupID, DefaultText: f.Display, Local: true, Usage: f.Usage, Hidden: f.Hidden, Value: value, Destination: p}
+	}
+	return f
+}
+
 // IntVar attaches a int flag to the CommandLine.
 func (c *CommandLine) IntVar(p *int, name string, value int, usage string) *Flag {
 	f := c.Flag(&Flag{

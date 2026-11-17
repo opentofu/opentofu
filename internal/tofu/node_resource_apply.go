@@ -207,7 +207,6 @@ func (n *nodeExpandApplyableResource) ephemeralInstanceSubgraph(ctx context.Cont
 		a.ResolvedProvider = n.ResolvedProvider
 		a.Schema = n.Schema
 		a.ProvisionerSchemas = n.ProvisionerSchemas
-		a.ProviderMetas = n.ProviderMetas
 		a.dependsOn = n.dependsOn
 		a.generateConfigPath = n.generateConfigPath
 

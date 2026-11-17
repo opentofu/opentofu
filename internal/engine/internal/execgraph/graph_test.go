@@ -102,6 +102,36 @@ func TestGraphMarshalUnmarshalValid(t *testing.T) {
 				test.example = r[4];
 			`,
 		},
+		"managed resource instance final plan and apply for forget": {
+			func(builder *Builder) *Graph {
+				instAddr := addrs.Resource{
+					Mode: addrs.ManagedResourceMode,
+					Type: "test",
+					Name: "example",
+				}.Absolute(addrs.RootModuleInstance).Instance(addrs.NoKey)
+				instAddrResult := builder.ConstantResourceInstAddr(instAddr)
+				priorState := builder.ResourceInstancePrior(instAddrResult)
+				meta := builder.ResourceInstanceCurrentMeta(instAddrResult, priorState)
+				finalPlan := builder.ManagedFinalPlanForget(
+					meta,
+					priorState,
+				)
+				newState := builder.ManagedForget(
+					finalPlan,
+					builder.Waiter(),
+				)
+				builder.SetResourceInstanceFinalStateResult(instAddr, newState)
+				return builder.Finish()
+			},
+			`
+				r[0] = ResourceInstancePrior(test.example);
+				r[1] = ResourceInstanceCurrentMeta(test.example, r[0]);
+				r[2] = ManagedFinalPlanForget(r[1], r[0]);
+				r[3] = ManagedForget(r[2], await());
+
+				test.example = r[3];
+			`,
+		},
 		"data resource instance read": {
 			// This is intended to mimic how the planning engine would represent
 			// the process of reading the data for a data resource instance.

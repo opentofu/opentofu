@@ -16,7 +16,6 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
-	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/plans"
@@ -346,8 +345,4 @@ func (c *MockEvalContext) ImportResolver() *ImportResolver {
 func (c *MockEvalContext) InstanceExpander() *instances.Expander {
 	c.InstanceExpanderCalled = true
 	return c.InstanceExpanderExpander
-}
-
-func (c *MockEvalContext) GetEncryption() encryption.Encryption {
-	return encryption.Disabled()
 }

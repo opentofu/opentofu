@@ -31,6 +31,8 @@ var commonEnvVars = []string{
 func TestConfigFileLocations(t *testing.T) {
 	home := os.Getenv("HOME")
 	xdgDir := filepath.Join(home, ".myconfig")
+	sysdir := filepath.Join(home, "Library", "Application Support", "org.opentofu")
+
 	tests := []locationTest{
 		{
 			locationTestParameters: locationTestParameters{
@@ -138,6 +140,35 @@ func TestConfigFileLocations(t *testing.T) {
 						"modules.v0": "https://0and2.example.com/",
 					},
 				},
+			},
+		},
+		{
+			locationTestParameters: locationTestParameters{
+				name:        "tfrc files are loaded from Application Support dir",
+				files:       []string{filepath.Join(sysdir, "mytofufile.tfrc")},
+				directories: []string{sysdir},
+			},
+			expected: map[string]*ConfigHost{
+				"config0.example.com": {
+					Services: map[string]interface{}{
+						"modules.v0": "https://config0.example.com/",
+					},
+				},
+			},
+		},
+		{
+			locationTestParameters: locationTestParameters{
+				name: ".tofurc and application support tfrc files are loaded",
+				files: []string{
+					filepath.Join(sysdir, "mytofufile.tfrc"),
+					filepath.Join(home, ".tofurc"),
+				},
+				directories: []string{sysdir},
+			},
+			expected: map[string]*ConfigHost{
+				"0and1.example.com":   {Services: map[string]any{"modules.v0": string("https://0and1.example.com/")}},
+				"config0.example.com": {Services: map[string]any{"modules.v0": string("https://config0.example.com/")}},
+				"config1.example.com": {Services: map[string]any{"modules.v1": string("https://config1.example.com/")}},
 			},
 		},
 	}

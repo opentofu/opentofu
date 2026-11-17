@@ -45,7 +45,7 @@ func (c *ConfigInstance) precheckedModuleInstance(ctx context.Context) (evalglue
 	// For validation purposes we don't need to do anything other than the
 	// full-tree check that would normally run alongside the driving of
 	// some other operation.
-	moreDiags = checkAll(ctx, rootModuleInstance)
+	moreDiags = rootModuleInstance.CheckAll(ctx)
 	diags = diags.Append(moreDiags)
 	return rootModuleInstance, diags
 }

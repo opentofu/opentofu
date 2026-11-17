@@ -74,8 +74,10 @@ func (c LoginCommand) Execute(args *arguments.Login, view views.Login) int {
 	var diags tfdiags.Diagnostics
 
 	ctx := c.CommandContext()
+	ctx, cancel := c.InterruptibleContext(ctx)
 	ctx, span := tracing.Tracer().Start(ctx, "Login")
 	defer span.End()
+	defer cancel()
 
 	if !c.input {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -498,6 +500,20 @@ func (c *LoginCommand) interactiveGetTokenByCode(ctx context.Context, hostname s
 				clientConfig.MinPort, clientConfig.MaxPort,
 			),
 		))
+		wg.Wait()
+		close(codeCh)
+		return nil, diags
+	case <-ctx.Done():
+		diags = diags.Append(
+			tfdiags.Sourceless(
+				tfdiags.Error,
+				"Action aborted",
+				"Current command was aborted",
+			),
+		)
+		if err := server.Shutdown(ctx); err != nil {
+			log.Printf("[WARN] login: callback server shutdown failed: %s", err)
+		}
 		wg.Wait()
 		close(codeCh)
 		return nil, diags

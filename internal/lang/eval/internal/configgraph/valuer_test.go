@@ -35,6 +35,7 @@ func testValuer[T exprs.Valuer](t *testing.T, tests map[string]valuerTest[T]) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			ctx := grapheval.ContextWithNewWorker(t.Context())
+			ctx = grapheval.ContextWithRequestTracker(ctx, grapheval.NewRequestTracker())
 			gotValue, gotDiags := test.object.Value(ctx)
 
 			if !test.wantValue.RawEquals(gotValue) {
@@ -92,26 +93,26 @@ type valuerTest[T exprs.Valuer] struct {
 
 // constantOnceValuer wraps the given value in a [OnceValuer], for convenient
 // construction of values in test cases.
-func constantOnceValuer(v cty.Value) *OnceValuer {
-	return ValuerOnce(exprs.ConstantValuer(v))
+func constantOnceValuer(v cty.Value, label string, labelArgs ...any) *OnceValuer {
+	return ValuerOnce(exprs.ConstantValuer(v), label, labelArgs...)
 }
 
 // constantOnceValuerWithSource wraps the given value in a [OnceValuer], for
 // convenient construction of values in test cases.
-func constantOnceValuerWithSource(v cty.Value, rng tfdiags.SourceRange) *OnceValuer {
-	return ValuerOnce(exprs.ConstantValuerWithSourceRange(v, rng))
+func constantOnceValuerWithSource(v cty.Value, rng tfdiags.SourceRange, label string, labelArgs ...any) *OnceValuer {
+	return ValuerOnce(exprs.ConstantValuerWithSourceRange(v, rng), label, labelArgs...)
 }
 
 // constantOnceValuerMap wraps each of the values in the given map into
 // [OnceValuer]s and returns a new map, for convenient construction of
 // maps of values in test cases.
-func constantOnceValuerMap[T comparable](vs map[T]cty.Value) map[T]*OnceValuer {
+func constantOnceValuerMap[T comparable](vs map[T]cty.Value, label string, labelArgs ...any) map[T]*OnceValuer {
 	if len(vs) == 0 {
 		return nil
 	}
 	ret := make(map[T]*OnceValuer, len(vs))
 	for k, v := range vs {
-		ret[k] = constantOnceValuer(v)
+		ret[k] = constantOnceValuer(v, label, labelArgs...)
 	}
 	return ret
 }

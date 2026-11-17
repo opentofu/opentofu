@@ -141,7 +141,6 @@ func (n *nodeExpandPlannableResource) DynamicExpand(evalCtx EvalContext) (*Graph
 		// ResolvedProviderKey set in AttachResourceState
 		a.Schema = n.Schema
 		a.ProvisionerSchemas = n.ProvisionerSchemas
-		a.ProviderMetas = n.ProviderMetas
 		a.Dependencies = n.dependencies
 
 		return &NodePlannableResourceInstanceOrphan{
@@ -371,7 +370,6 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx context.Conte
 		a.ResolvedProvider = n.ResolvedProvider
 		a.Schema = n.Schema
 		a.ProvisionerSchemas = n.ProvisionerSchemas
-		a.ProviderMetas = n.ProviderMetas
 		a.dependsOn = n.dependsOn
 		a.Dependencies = n.dependencies
 		a.preDestroyRefresh = n.preDestroyRefresh
@@ -410,7 +408,6 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx context.Conte
 		// ResolvedProviderKey will be set during AttachResourceState
 		a.Schema = n.Schema
 		a.ProvisionerSchemas = n.ProvisionerSchemas
-		a.ProviderMetas = n.ProviderMetas
 
 		return &NodePlannableResourceInstanceOrphan{
 			NodeAbstractResourceInstance: a,

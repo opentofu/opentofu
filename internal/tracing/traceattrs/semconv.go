@@ -39,7 +39,7 @@ import (
 // The unit test [TestNewResource] runs this function in isolation so we can
 // make sure it succeeds without having to actually initialize the telemetry
 // system.
-func NewResource(ctx context.Context, serviceName string) (*resource.Resource, error) {
+func NewResource(ctx context.Context, defaultServiceName string) (*resource.Resource, error) {
 	return resource.New(ctx,
 		// Use built-in detectors to simplify the collation of the tracing information
 		resource.WithOS(),
@@ -50,7 +50,7 @@ func NewResource(ctx context.Context, serviceName string) (*resource.Resource, e
 
 		// Add custom service attributes
 		resource.WithAttributes(
-			semconv.ServiceName(serviceName),
+			semconv.ServiceName(defaultServiceName), // WithFromEnv allows overriding this with OTEL_SERVICE_NAME environment variable
 			semconv.ServiceVersion(version.Version),
 
 			// We add in the telemetry SDK information so that we don't end up with
@@ -59,6 +59,10 @@ func NewResource(ctx context.Context, serviceName string) (*resource.Resource, e
 			semconv.TelemetrySDKLanguageGo,
 			semconv.TelemetrySDKVersion(sdk.Version()),
 		),
+
+		// Environment variable detector goes last so that it can override
+		// any of the auto-detected attribute values from above.
+		resource.WithFromEnv(),
 	)
 }
 

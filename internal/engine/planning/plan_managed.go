@@ -10,13 +10,15 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
-	ctyjson "github.com/zclconf/go-cty/cty/json"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/lang/eval"
+	"github.com/opentofu/opentofu/internal/lang/evalchecks"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/plans/objchange"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/resources"
 	"github.com/opentofu/opentofu/internal/states"
@@ -27,53 +29,11 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 	ctx context.Context,
 	inst *eval.DesiredResourceInstance,
 ) (ret *resourceInstanceObject, diags tfdiags.Diagnostics) {
-
-	configMeta := p.oracle.ResourceInstanceObjectMeta(ctx, inst.Addr.CurrentObject())
-	if configMeta == nil {
-		// Should not happen: the evaluator is required to always produce
-		// non-nil metadata for a desired object.
-		panic(fmt.Sprintf("no metadata available for desired object %s", inst.Addr))
-	}
-	// For a desired object we never pass a prior state object in here because
-	// the configuration is expected to be authoritative. We blend configuration
-	// and state metadata only for non-desired objects where the configuration
-	// tends to be incomplete and so we rely on prior state to fill gaps.
-	meta := exec.BuildResourceInstanceObjectMeta(inst.Addr.CurrentObject(), configMeta, (*states.ResourceInstanceObjectFullSrc)(nil))
-
-	// There are various reasons why we might need to defer final planning
-	// of this to a later round. The following is not exhaustive but is a
-	// placeholder to show where deferral might fit in.
-	if p.desiredResourceInstanceMustBeDeferred(inst, meta) {
-		p.planCtx.deferred.Put(inst.Addr, struct{}{})
-		defer func() {
-			// Our result must be marked as deferred, whichever return path
-			// we leave through.
-			if ret != nil && ret.PlannedChange.After != cty.NilVal {
-				ret.PlannedChange.After = deferredVal(ret.PlannedChange.After)
-			}
-		}()
-		// We intentionally continue anyway, because we'll make a best effort
-		// to produce a speculative plan based on the information we _do_ know
-		// in case that allows us to detect a problem sooner. The important
-		// thing is that in the deferred case we won't actually propose any
-		// planned changes for this resource instance.
-	}
-
-	tracer := contextTracer(ctx)
-	if cb := tracer.StartManagedResourceInstanceObjectPlanning; cb != nil {
-		ctx = cb(ctx, inst.Addr.CurrentObject())
-	}
-	if cb := tracer.EndManagedResourceInstanceObjectPlanning; cb != nil {
-		defer func() { // closure to delay evaluating diags until we return
-			cb(ctx, inst.Addr.CurrentObject(), diags)
-		}()
-	}
-
 	ret = &resourceInstanceObject{
 		Addr:               inst.Addr.CurrentObject(),
+		PrevRoundAddr:      inst.Addr.CurrentObject(),
 		ConfigDependencies: addrs.MakeSet[addrs.AbsResourceInstanceObject](),
 		StateDependencies:  addrs.MakeSet[addrs.AbsResourceInstanceObject](),
-		Provider:           meta.Provider,
 
 		// We'll start off with a completely-unknown placeholder value, but
 		// we might refine this to be more specific as we learn more below.
@@ -87,6 +47,78 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 	for dep := range inst.RequiredResourceInstances.All() {
 		ret.ConfigDependencies.Add(dep.CurrentObject())
 	}
+
+	prevStateInfo, moveDiags := p.locateStateForConfig(ctx, inst.Addr)
+	diags = diags.Append(moveDiags)
+	if diags.HasErrors() {
+		return ret, diags
+	}
+
+	configMeta := p.oracle.ResourceInstanceObjectMeta(ctx, inst.Addr.CurrentObject())
+	if configMeta == nil {
+		// Should not happen: the evaluator is required to always produce
+		// non-nil metadata for a desired object.
+		panic(fmt.Sprintf("no metadata available for desired object %s", inst.Addr))
+	}
+	diags = diags.Append(validateDesiredResourceInstanceMeta(inst.Addr, configMeta))
+	if diags.HasErrors() {
+		// If the metadata isn't valid then we'll halt here to avoid returning
+		// potentially-confusing errors in the remaining logic below.
+		return ret, diags
+	}
+
+	// Inject import command address if applicable
+	for _, stmt := range p.planCtx.importCommandTargets {
+		if stmt.Addr.Equal(inst.Addr) {
+			configMeta = append(configMeta, eval.ModuleConfiguredResourceInstanceObjectMeta{
+				ConfiguredResourceInstanceObjectMeta: &eval.ConfiguredResourceInstanceObjectMeta{
+					ImportStatement: stmt,
+					// DeclRange is intentionally nil
+				},
+			})
+		}
+	}
+
+	meta := exec.BuildResourceInstanceObjectMeta(inst.Addr.CurrentObject(), configMeta, prevStateInfo.state)
+
+	// There are various reasons why we might need to defer final planning
+	// of this to a later round. The following is not exhaustive but is a
+	// placeholder to show where deferral might fit in.
+	if p.desiredResourceInstanceMustBeDeferred(inst, meta) {
+		// For now, we emulate the original engine, which treats
+		// deferral as not-touching the resource at all.
+		// See notes below for potential future enhancements.
+		return &resourceInstanceObject{
+			PlaceholderValue: deferredVal(cty.DynamicVal),
+		}, diags
+		// We intentionally continue anyway, because we'll make a best effort
+		// to produce a speculative plan based on the information we _do_ know
+		// in case that allows us to detect a problem sooner. The important
+		// thing is that in the deferred case we won't actually propose any
+		// planned changes for this resource instance.
+		/*defer func() {
+			// Our result must be marked as deferred, whichever return path
+			// we leave through.
+			if ret != nil && ret.PlannedChange != nil && ret.PlannedChange.After != cty.NilVal {
+				ret.PlannedChange.After = deferredVal(ret.PlannedChange.After)
+			}
+			if ret != nil && ret.PlaceholderValue != cty.NilVal {
+				ret.PlaceholderValue = deferredVal(ret.PlaceholderValue)
+			}
+		}()*/
+	}
+
+	tracer := contextTracer(ctx)
+	if cb := tracer.StartManagedResourceInstanceObjectPlanning; cb != nil {
+		ctx = cb(ctx, inst.Addr.CurrentObject())
+	}
+	if cb := tracer.EndManagedResourceInstanceObjectPlanning; cb != nil {
+		defer func() { // closure to delay evaluating diags until we return
+			cb(ctx, inst.Addr.CurrentObject(), diags)
+		}()
+	}
+
+	ret.Provider = meta.Provider
 	replaceOrder, ok := meta.ReplaceOrder.ValueOk()
 	if ok {
 		ret.ReplaceOrder = replaceOrder
@@ -122,350 +154,250 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		ret.ReplaceOrder = resources.ReplaceAnyOrder
 	}
 
-	providerInstUnmarked, providerInstMarks := meta.ProviderInstance.Unmark()
-	// TODO: What should we do with these marks, if anything?
-	_ = providerInstMarks
-	providerInst, ok := providerInstUnmarked.ValueOk()
-	if !ok {
+	if prevStateInfo.state == nil && p.planCtx.refreshOnly && meta.ImportStatement == nil {
+		// Nothing to do here, improve the guess and return
+		schema, moreDiags := p.planCtx.providers.ResourceTypeSchema(ctx, meta.Provider, inst.Addr.Resource.Resource.Mode, inst.Addr.Resource.Resource.Type)
+		diags = diags.Append(moreDiags)
+		if diags.HasErrors() {
+			return ret, diags
+		}
+		ret.PlaceholderValue = cty.UnknownVal(schema.Block.ImpliedType())
+		return ret, diags
+	}
+
+	resourceType, providerInst, moreDiags := p.managedResourceType(ctx, meta)
+	diags = diags.Append(moreDiags)
+	if diags.HasErrors() {
+		return ret, diags
+	}
+	if resourceType == nil {
 		// If we don't even know which provider instance we're supposed to be
 		// talking to then we can't proceed any further.
 		return ret, diags
 	}
-	providerClient, moreDiags := p.providerClient(ctx, providerInst)
-	if providerClient == nil {
-		moreDiags = moreDiags.Append(tfdiags.AttributeValue(
-			tfdiags.Error,
-			"Provider instance not available",
-			fmt.Sprintf("Cannot plan %s because its associated provider instance %s cannot initialize.", inst.Addr, providerInst),
-			nil,
-		))
-	}
+
+	ret.ProviderInst = providerInst
+
+	// Improve what we know about the potential value
+	ret.PlaceholderValue, moreDiags = resourceType.NullValue(ctx)
 	diags = diags.Append(moreDiags)
-	if moreDiags.HasErrors() {
-		return ret, diags
-	}
-
-	resourceType := resources.NewManagedResourceType(meta.Provider, meta.ResourceType, providerClient)
-	schema, schemaDiags := resourceType.LoadSchema(ctx)
-	if schemaDiags.HasErrors() {
-		// We don't return the schema-loading diagnostics directly here because
-		// they should have already been returned by earlier code, but we do
-		// return a more specific error to make it clear that this specific
-		// resource instance was unplannable because of the problem.
-		diags = diags.Append(tfdiags.AttributeValue(
-			tfdiags.Error,
-			"Resource type schema unavailable",
-			fmt.Sprintf(
-				"Cannot plan %s because provider %s failed to return the schema for its resource type %q.",
-				inst.Addr, meta.Provider, meta.ResourceType,
-			),
-			nil, // this error belongs to the whole resource config
-		))
-		return ret, diags
-	}
-
-	validateDiags := resourceType.ValidateConfig(ctx, inst.ConfigVal)
-	diags = diags.Append(validateDiags)
 	if diags.HasErrors() {
 		return ret, diags
+	}
+
+	isGeneratingConfiguration := PlaceholderForGeneratedConfigImport.Type().Equals(inst.ConfigVal.Type())
+	if !isGeneratingConfiguration {
+		validateDiags := resourceType.ValidateConfig(ctx, inst.ConfigVal)
+		diags = diags.Append(validateDiags)
+		if diags.HasErrors() {
+			return ret, diags
+		}
 	}
 
 	unmarkedConfigVal, _ := inst.ConfigVal.UnmarkDeep()
 
-	validateDiags = p.planCtx.providers.ValidateResourceConfig(ctx, meta.Provider, addrs.ManagedResourceMode, meta.ResourceType, unmarkedConfigVal)
-	diags = diags.Append(validateDiags)
-	if diags.HasErrors() {
-		return ret, diags
-	}
+	var prevState *resources.ManagedResourceStateWithIdentity
+	if prevStateInfo.state != nil {
+		// Include dependencies from the previous stateInfo
+		for instAddr := range prevStateInfo.state.FlattenedDependencies(p.planCtx.prevRoundState) {
+			ret.StateDependencies.Add(instAddr.CurrentObject())
+		}
 
-	var prevRoundVal cty.Value
-	var prevRoundPrivate []byte
-	prevRoundState := p.planCtx.prevRoundState.SyncWrapper().ResourceInstanceObjectFull(inst.Addr.CurrentObject())
-
-	prevRunAddr := inst.Addr
-	diags = diags.Append(p.oracle.CheckMovesFromAddr(inst.Addr))
-	if diags.HasErrors() {
-		return ret, diags
-	}
-
-	impliedMove := false
-	moved := false
-	if prevRoundState == nil {
-		// check for ambiguous moves
-		_, moveDiags := p.oracle.FindAddressesMovedToHere(ctx, inst.Addr)
-		diags = diags.Append(moveDiags)
+		var prevValue *resources.ValueWithPrivate
+		prevValue, prevStateFull, moreDiags := processMoveOrUpgrade(
+			ctx,
+			inst.Addr.CurrentObject(),
+			meta.Provider,
+			resourceType,
+			prevStateInfo.state,
+			prevStateInfo.isMove() && !prevStateInfo.isImplicit(),
+		)
+		diags = diags.Append(moreDiags)
 		if diags.HasErrors() {
-			// More than one address this could move to.
-			// "Ambiguous move statements": many From, one To
 			return ret, diags
 		}
-		if moveInfo, ok := p.oracle.MovedAddress(inst.Addr); ok {
-			// we tracked a move in "Unwanted", manage state upgrades and plans here.
-			moved = true
-			prevRunAddr = moveInfo.From
-			prevRoundState = p.planCtx.prevRoundState.SyncWrapper().ResourceInstanceObjectFull(prevRunAddr.CurrentObject())
-			impliedMove = moveInfo.Implied
+		// TODO Identity passthrough
+		prevState = &resources.ManagedResourceStateWithIdentity{ValueWithPrivate: *prevValue}
+		ret.UpgradedState = prevStateFull
+		ret.UpgradedValue = prevValue.Value
+
+		if prevStateInfo.isImplicit() {
+			// due to a quirk in how moves are handled,
+			// if it's an implied move, we save state
+			// in the prevAddr instead of current.
+			ret.PrevRoundAddr = prevStateInfo.from.CurrentObject()
+		}
+
+		// Improve what we know about the potential value
+		ret.PlaceholderValue = prevState.Value
+	}
+
+	importing := !p.planCtx.skipImport && meta.ImportStatement != nil
+	if importing && prevState != nil {
+		if !meta.ImportStatement.FromConfig() {
+			// CLI import statement conflict
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Resource already managed by OpenTofu",
+				fmt.Sprintf("OpenTofu is already managing a remote object for %s. To import to this address you must first remove the existing object from the state.", inst.Addr),
+			))
+			return ret, diags
+		}
+		importing = false
+	}
+
+	var planImport *plans.Importing
+	var planGenConfig string
+	if importing {
+		prevState, ret.UpgradedState, moreDiags = processImport(
+			ctx,
+			inst.Addr.CurrentObject(),
+			providerInst,
+			resourceType,
+			meta.ImportStatement,
+		)
+		diags = diags.Append(moreDiags)
+		if diags.HasErrors() {
+			return ret, diags
+		}
+		if prevState != nil {
+			ret.PlaceholderValue = prevState.Value
+			ret.UpgradedValue = prevState.Value
+
+			if isGeneratingConfiguration {
+				// Pretend the configuration always was the imported value.
+				unmarkedConfigVal = prevState.Value
+
+				planGenConfig, moreDiags = resourceType.GenerateConfigFor(ctx, prevState.Value, providerInst, inst.Addr)
+				diags = diags.Append(moreDiags)
+				if diags.HasErrors() {
+					return ret, diags
+				}
+
+				defer func() {
+					// A quirk of config generation is that we still need a planned change even in planning fails:
+					// TestContext2Plan_importResourceConfigGenWithError
+					if ret.PlannedChange != nil {
+						return
+					}
+					// Inject fallback planned change if we have exited without setting a planned change
+					ret.PlannedChange = &plans.ResourceInstanceChange{
+						Addr:        inst.Addr,
+						PrevRunAddr: prevStateInfo.from,
+						ProviderAddr: addrs.AbsProviderConfig{
+							// FIXME: This is a lossy shim to the old-style provider instance
+							// address representation, since our old models aren't yet updated
+							// to support the modern one. It cannot handle a provider config
+							// inside a module call that uses count or for_each.
+							Module:   providerInst.Config.Module.Module(),
+							Provider: providerInst.Config.Config.Provider,
+							Alias:    providerInst.Config.Config.Alias,
+						},
+
+						Importing:       planImport,
+						GeneratedConfig: planGenConfig,
+
+						Action: plans.Update,
+						Before: prevState.Value,
+						After:  prevState.Value,
+					}
+				}()
+			}
+
+			planImport = &plans.Importing{
+				ID:       meta.ImportStatement.ID,
+				Identity: meta.ImportStatement.Identity,
+			}
 		}
 	}
-	// only run MoveResourceState or UpgradeResourceState if prevRoundState is non-nil at this point.
-	if prevRoundState != nil {
-		if moved && !impliedMove && (resourceType.ResourceTypeName() != prevRoundState.ResourceType || !meta.Provider.Equals(prevRoundState.ProviderInstanceAddr.Config.Config.Provider)) {
-			moveCtx := ctx
-			if cb := tracer.StartManagedResourceInstanceObjectMove; cb != nil {
-				moveCtx = cb(ctx, inst.Addr.CurrentObject())
-			}
 
-			// log.Printf("[TRACE] moveResourceStateTransform: new address: %s, previous address: %s", inst.Addr, prevRunAddr)
-			req := providers.MoveResourceStateRequest{
-				SourceProviderAddress: prevRunAddr.Resource.Resource.ImpliedProvider(),
-				SourceTypeName:        prevRunAddr.Resource.Resource.Type,
-				SourceSchemaVersion:   prevRoundState.SchemaVersion,
-				// We'll make the same assumption as [ResourceInstanceObjectFullSrc] and
-				// assume we'll never encounter a legacy state snapshot that uses AttrsFlat.
-				SourceStateJSON: prevRoundState.Value.ValueJSON,
-				// SourceStateFlatmap:    prevRoundState.AttrsFlat,
-				SourcePrivate:  prevRoundState.Private,
-				TargetTypeName: inst.Addr.Resource.Resource.Type,
-			}
-			resp := providerClient.MoveResourceState(moveCtx, req)
-			diags = diags.Append(resp.Diagnostics)
-			// TODO this tracer bit is copypasta for upgrade instance, IDK if it's actually legit...
-			if cb := tracer.EndManagedResourceInstanceObjectMove; cb != nil {
-				upgradedVal := cty.DynamicVal
-				if resp.TargetState != cty.NilVal {
-					// TODO: Should apply "sensitive" marks here where appropriate in
-					// case the tracer is reporting events in the UI.
-					upgradedVal = resp.TargetState
-				}
-				cb(moveCtx, inst.Addr.CurrentObject(), upgradedVal, diags)
-			}
-			if diags.HasErrors() {
-				return
-			}
-
-			src, moreDiags := checkAndMarshalUpdatedState(resp.TargetState, schema, inst)
-			diags = diags.Append(moreDiags)
-			if diags.HasErrors() {
-				return ret, diags
-			}
-
-			// TODO this is very similar to what's below in upgraded state.
-			// Consider refactoring to de-duplicate
-			movedPrevState := &states.ResourceInstanceObjectFullSrc{
-				Value: states.ValueJSONWithMetadata{
-					ValueJSON:      src,
-					SensitivePaths: prevRoundState.Value.SensitivePaths,
-				},
-				Private:              resp.TargetPrivate,
-				Status:               prevRoundState.Status,
-				ProviderInstanceAddr: prevRoundState.ProviderInstanceAddr,
-				ResourceType:         prevRoundState.ResourceType,
-				SchemaVersion:        uint64(schema.Version),
-				Dependencies:         prevRoundState.Dependencies,
-				CreateBeforeDestroy:  prevRoundState.CreateBeforeDestroy,
-			}
-			p.planCtx.upgradedState.SetResourceInstanceObjectFull(inst.Addr.CurrentObject(), movedPrevState)
-			// Update the provider instance for the refreshed state only, not the "upgraded" state
-			movedPrevState.ProviderInstanceAddr = providerInst
-			p.planCtx.refreshedState.SetResourceInstanceObjectFull(inst.Addr.CurrentObject(), movedPrevState)
-
-			obj, err := states.DecodeResourceInstanceObjectFull(movedPrevState, schema.Block.ImpliedType())
-			if err != nil {
-				diags = diags.Append(tfdiags.AttributeValue(
-					tfdiags.Error,
-					"Invalid prior state for resource instance",
-					fmt.Sprintf(
-						"Cannot decode the most recent state snapshot for %s: %s.\n\nIs the selected version of %s incompatible with the provider that most recently changed this object?",
-						inst.Addr, tfdiags.FormatError(err), providerInst,
-					),
-					nil, // this error belongs to the whole resource config
-				))
-				return ret, diags
-			}
-			prevRoundVal = obj.Value
-			prevRoundPrivate = resp.TargetPrivate
-
-			if len(prevRoundState.Dependencies) != 0 {
-				for _, instAddr := range prevRoundState.Dependencies {
-					ret.StateDependencies.Add(instAddr.CurrentObject())
-				}
-			} else {
-				// Unfortunately our old state model represents dependencies only
-				// between static [addrs.ConfigResource] and loses specific instance
-				// information, so we must conservatively assume that all matching
-				// instances are dependencies. This only occurs during migration
-				// from a state generated by an older runtime.
-				for _, configAddr := range prevRoundState.ConfigDependencies {
-					for instAddr := range p.planCtx.prevRoundState.InstancesMatchingConfigResource(configAddr) {
-						ret.StateDependencies.Add(instAddr.CurrentObject())
-					}
-				}
-			}
-		} else {
-			// While we know prevRoundState is non-nil, let's upgrade state, too.
-			// Let's do a schema version comparison before upgrade
-
-			if prevRoundState.SchemaVersion > uint64(schema.Version) {
-				return ret, diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
-					"Resource instance managed by newer provider version",
-					// This is not a very good error message, but we don't retain enough
-					// information in state to give good feedback on what provider
-					// version might be required here. :(
-					// Or maybe we do. I dunno, I just copied the comment+diag from
-					// upgrade_resource_state.go:upgradeResourceStateTransform :P
-					fmt.Sprintf("The current state of %s was created by a newer provider version than is currently selected. Upgrade %s to work with this state.", inst.Addr, meta.Provider.ForDisplay()),
-				))
-			}
-
-			upgradeCtx := ctx
-			if cb := tracer.StartManagedResourceInstanceObjectUpgrade; cb != nil {
-				upgradeCtx = cb(ctx, inst.Addr.CurrentObject())
-			}
-			upgradeReq := providers.UpgradeResourceStateRequest{
-				TypeName: inst.Addr.Resource.Resource.Type,
-
-				// TODO: The internal schema version representations are all using
-				// uint64 instead of int64, but unsigned integers aren't friendly
-				// to all protobuf target languages so in practice we use int64
-				// on the wire. In future we will change all of our internal
-				// representations to int64 too.
-				Version: int64(prevRoundState.SchemaVersion),
-
-				// We'll make the same assumption as [ResourceInstanceObjectFullSrc] and
-				// assume we'll never encounter a legacy state snapshot that uses AttrsFlat.
-				RawStateJSON: prevRoundState.Value.ValueJSON,
-			}
-			upgradeResp := providerClient.UpgradeResourceState(upgradeCtx, upgradeReq)
-			diags = diags.Append(upgradeResp.Diagnostics)
-			if cb := tracer.EndManagedResourceInstanceObjectUpgrade; cb != nil {
-				upgradedVal := cty.DynamicVal
-				if upgradeResp.UpgradedState != cty.NilVal {
-					// TODO: Should apply "sensitive" marks here where appropriate in
-					// case the tracer is reporting events in the UI.
-					upgradedVal = upgradeResp.UpgradedState
-				}
-				cb(upgradeCtx, inst.Addr.CurrentObject(), upgradedVal, diags)
-			}
-			if diags.HasErrors() {
-				return ret, diags
-			}
-			src, moreDiags := checkAndMarshalUpdatedState(upgradeResp.UpgradedState, schema, inst)
-			diags = diags.Append(moreDiags)
-			if diags.HasErrors() {
-				return ret, diags
-			}
-
-			upgradedPrevState := &states.ResourceInstanceObjectFullSrc{
-				Value: states.ValueJSONWithMetadata{
-					ValueJSON:      src,
-					SensitivePaths: prevRoundState.Value.SensitivePaths,
-				},
-				Private:              prevRoundState.Private,
-				Status:               prevRoundState.Status,
-				ProviderInstanceAddr: prevRoundState.ProviderInstanceAddr,
-				ResourceType:         prevRoundState.ResourceType,
-				SchemaVersion:        uint64(schema.Version),
-				Dependencies:         prevRoundState.Dependencies,
-				ConfigDependencies:   prevRoundState.ConfigDependencies,
-				CreateBeforeDestroy:  prevRoundState.CreateBeforeDestroy,
-			}
-
-			stateSaveObj := inst.Addr.CurrentObject()
-			if impliedMove {
-				// due to a quirk in how moves are handled,
-				// if it's an implied move, we save state
-				// in the prevAddr instead of current.
-				stateSaveObj = prevRunAddr.CurrentObject()
-			}
-			p.planCtx.upgradedState.SetResourceInstanceObjectFull(stateSaveObj, upgradedPrevState)
-			// Update the provider instance for the refreshed state only, not the upgraded state
-			upgradedPrevState.ProviderInstanceAddr = providerInst
-			p.planCtx.refreshedState.SetResourceInstanceObjectFull(stateSaveObj, upgradedPrevState)
-
-			obj, err := states.DecodeResourceInstanceObjectFull(upgradedPrevState, schema.Block.ImpliedType())
-			if err != nil {
-				diags = diags.Append(tfdiags.AttributeValue(
-					tfdiags.Error,
-					"Invalid prior state for resource instance",
-					fmt.Sprintf(
-						"Cannot decode the most recent state snapshot for %s: %s.\n\nIs the selected version of %s incompatible with the provider that most recently changed this object?",
-						inst.Addr, tfdiags.FormatError(err), meta.Provider,
-					),
-					nil, // this error belongs to the whole resource config
-				))
-				return ret, diags
-			}
-			prevRoundVal = obj.Value
-			prevRoundPrivate = obj.Private
-
-			if len(prevRoundState.Dependencies) != 0 {
-				for _, instAddr := range prevRoundState.Dependencies {
-					ret.StateDependencies.Add(instAddr.CurrentObject())
-				}
-			} else {
-				// Unfortunately our old state model represents dependencies only
-				// between static [addrs.ConfigResource] and loses specific instance
-				// information, so we must conservatively assume that all matching
-				// instances are dependencies. This only occurs during migration
-				// from a state generated by an older runtime.
-				for _, configAddr := range prevRoundState.ConfigDependencies {
-					for instAddr := range p.planCtx.prevRoundState.InstancesMatchingConfigResource(configAddr) {
-						ret.StateDependencies.Add(instAddr.CurrentObject())
-					}
-				}
-			}
+	if !p.planCtx.skipRefresh {
+		prevState, ret.RefreshedState, moreDiags = processRefresh(
+			ctx,
+			inst.Addr.CurrentObject(),
+			providerInst,
+			resourceType,
+			inst.RequiredResourceInstances,
+			prevState,
+			ret.UpgradedState,
+		)
+		diags = diags.Append(moreDiags)
+		if diags.HasErrors() {
+			return ret, diags
 		}
-	} else {
-		// No move or upgrade occurred; this is just a configured address without any state
-		// It'll probably get created below
-		prevRoundVal = cty.NullVal(schema.Block.ImpliedType())
+		if prevState != nil {
+			// Update refreshed and config value before we mess with drift marks
+			ret.RefreshedValue = prevState.Value
+			if isGeneratingConfiguration {
+				// Pretend the configuration always was the refreshed value.
+				unmarkedConfigVal = prevState.Value
+			}
+
+			schema, moreDiags := resourceType.LoadSchema(ctx)
+			diags = diags.Append(moreDiags)
+			prevState.Value = objchange.MarkChanges(schema.Block, ret.UpgradedValue, prevState.Value, func(path cty.Path) any {
+				// NOTE: The path given here is mutable and must be copied if it is to be saved.
+				return newDriftMark(inst.Addr, path)
+			})
+
+			// Improve what we know about the potential value
+			ret.PlaceholderValue = prevState.Value
+		}
+
+		// verify the existence of the imported resource
+		if importing && (prevState == nil || prevState.Value.IsNull()) {
+			var diags tfdiags.Diagnostics
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Cannot import non-existent remote object",
+				fmt.Sprintf(
+					"While attempting to import an existing object to %q, "+
+						"the provider detected that no object exists with the given id or identity. "+
+						"Only pre-existing objects can be imported; check that the id or identity "+
+						"is correct and that it is associated with the provider's "+
+						"configured region or endpoint, or use \"tofu apply\" to "+
+						"create a new remote object for this resource.",
+					inst.Addr,
+				),
+			))
+			return ret, diags
+		}
 	}
 
-	// TODO: Call resourceType.RefreshObject, update the "refreshed state",
-	// and reassign this refreshedVal to the refreshed result.
-	refreshCtx := ctx
-	if cb := tracer.StartManagedResourceInstanceObjectRefresh; cb != nil {
-		refreshCtx = cb(ctx, inst.Addr.CurrentObject(), prevRoundVal)
-	}
-	refreshedVal := prevRoundVal
-	refreshedPrivate := prevRoundPrivate
-	if cb := tracer.EndManagedResourceInstanceObjectRefresh; cb != nil {
-		// TODO: Should apply "sensitive" marks here where appropriate in
-		// case the tracer is reporting events in the UI.
-		cb(refreshCtx, inst.Addr.CurrentObject(), prevRoundVal, refreshedVal, diags)
+	if p.planCtx.refreshOnly {
+		if ret.PlaceholderValue.IsNull() {
+			ret.PlaceholderValue = cty.UnknownVal(ret.PlaceholderValue.Type())
+		}
+		return ret, diags
 	}
 
-	// TODO: ProviderMeta is a rarely-used feature that only really makes
-	// sense when the module and provider are both written by the same
-	// party and the module author is using the provider as a way to
-	// transport module usage telemetry. We should decide whether we want
-	// to keep supporting that, and if so design a way for the relevant
-	// meta value to get from the evaluator into here.
-	providerMetaValue := cty.NilVal
+	// Our best guess as to what the current value is (probably cty.NullVal)
+	current := resources.ValueWithPrivate{Value: ret.PlaceholderValue}
+	if prevState != nil {
+		current = prevState.ValueWithPrivate
+	}
 
 	planChangesCtx := ctx
 	if cb := tracer.StartManagedResourceInstanceObjectPlanChanges; cb != nil {
-		planChangesCtx = cb(ctx, inst.Addr.CurrentObject(), refreshedVal, unmarkedConfigVal)
+		planChangesCtx = cb(ctx, inst.Addr.CurrentObject(), current.Value, unmarkedConfigVal)
 	}
 	planResp, planDiags := resourceType.PlanChanges(planChangesCtx, &resources.ManagedResourcePlanRequest{
-		Current: resources.ValueWithPrivate{
-			Value:   refreshedVal,
-			Private: refreshedPrivate,
-		},
+		Current:            current,
 		DesiredValue:       unmarkedConfigVal,
-		ProviderMetaValue:  providerMetaValue,
 		IgnoreChangesPaths: inst.IgnoreChangesPaths,
 	}, ret.Addr)
 	diags = diags.Append(planDiags)
 	if planDiags.HasErrors() {
 		if cb := tracer.EndManagedResourceInstanceObjectPlanChanges; cb != nil {
-			cb(planChangesCtx, inst.Addr.CurrentObject(), plans.NoOp, refreshedVal, cty.DynamicVal, diags)
+			cb(planChangesCtx, inst.Addr.CurrentObject(), plans.NoOp, current.Value, cty.DynamicVal, diags)
 		}
 		return ret, diags
 	}
 
 	// Incomplete
+	// The ordering here is designed to match the existing runtime where possible,
+	// but some of the priorities (replaceRequest vs replaceTaint) are
+	// somewhat arbitrary.
 	actionReason := plans.ResourceInstanceChangeNoReason
 
 	// Check for if replacement is required
@@ -503,6 +435,16 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		// prevent us from getting here in that case.
 	}
 
+	if !planResp.RequiresReplace.Empty() {
+		forceReplace = true
+		actionReason = plans.ResourceInstanceReplaceBecauseCannotUpdate
+	}
+
+	if meta.Status == states.ObjectTainted {
+		forceReplace = true
+		actionReason = plans.ResourceInstanceReplaceBecauseTainted
+	}
+
 	// TODO: Check for resp.Deferred once we've updated package providers to
 	// include it. If that's set then the _provider_ is telling us we must
 	// defer planning any action for this resource instance. We'd still
@@ -511,9 +453,9 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 	// proposed change for it.
 
 	plannedAction := plans.Update
-	if prevRoundState == nil {
+	if current.Value.IsNull() {
 		plannedAction = plans.Create
-	} else if !planResp.RequiresReplace.Empty() || forceReplace {
+	} else if forceReplace {
 		// For "replace" actions the execution graph will include two separate
 		// plan and apply operations, where one handles deletion and the other
 		// handles creation. There is therefore an implicit third intermediate
@@ -528,21 +470,16 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		createPlanResp, planDiags := resourceType.PlanChanges(ctx, &resources.ManagedResourcePlanRequest{
 			// "Current" is intentionally not set here, because we're asking
 			// for a plan to create a new object matching the configuration.
-			DesiredValue:      unmarkedConfigVal,
-			ProviderMetaValue: providerMetaValue,
+			DesiredValue: unmarkedConfigVal,
 		}, ret.Addr)
 		diags = diags.Append(planDiags)
 		if planDiags.HasErrors() {
 			return ret, diags
 		}
 		deletePlanResp, planDiags := resourceType.PlanChanges(ctx, &resources.ManagedResourcePlanRequest{
-			Current: resources.ValueWithPrivate{
-				Value:   refreshedVal,
-				Private: refreshedPrivate,
-			},
+			Current: current,
 			// DesiredValue is intentionally not set here, because we're asking
 			// asking for a plan to just destroy what currently exists.
-			ProviderMetaValue: providerMetaValue,
 		}, ret.Addr)
 		diags = diags.Append(planDiags)
 		if planDiags.HasErrors() {
@@ -562,15 +499,49 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		} else {
 			plannedAction = plans.DeleteThenCreate
 		}
-	} else if eq, _ := planResp.Planned.Value.Equals(refreshedVal).Unmark(); eq.IsKnown() && eq.True() {
-		ret.PlaceholderValue = refreshedVal
+	} else if eq, _ := planResp.Planned.Value.Equals(current.Value).Unmark(); eq.IsKnown() && eq.True() {
+		ret.PlaceholderValue = current.Value
 		plannedAction = plans.NoOp
 	}
+
+	if plannedAction.IsReplace() {
+		// If we've planned a "replace" action but the metadata for this object
+		// says it its "if unwanted" action is forget instead of delete then
+		// we'll plan to do a "forget"-based replace instead.
+		if unwantedAction, known := meta.ActionIfUnwanted.ValueOk(); known {
+			switch unwantedAction {
+			case resources.IfUnwantedDelete:
+				// We'll just keep the action we already planned then.
+			case resources.IfUnwantedForget:
+				plannedAction = plans.ForgetThenCreate
+			default:
+				// We expect that the function which builds "meta" should not
+				// generate any other values here. In particular if the
+				// configuration did not express an opinion then that function
+				// should provide a default fallback opinion.
+				panic(fmt.Sprintf("unsupported ActionIfUnwanted %s", unwantedAction))
+			}
+		} else {
+			// TODO: The resource instance object should be treated as "deferred"
+			// in this case, but we haven't fully implemented that yet so this
+			// is just a placeholder stub until we have a real way to handle that.
+			// This error message is using terminology from the current surface
+			// language edition out of pragmatism, even though internally we use
+			// different words to describe this setting.
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid value for \"destroy\" argument",
+				Detail:   fmt.Sprintf("The \"destroy\" value for %s is derived from other values that won't be known until the apply phase, which is not allowed.", inst.Addr),
+				Subject:  meta.PrimaryDeclRangeHCL(),
+			})
+		}
+	}
+
 	// (a "desired" object cannot have a Delete action; we handle those cases
 	// in planOrphanManagedResourceInstance and planDeposedManagedResourceInstanceObject below.)
 	ret.PlannedChange = &plans.ResourceInstanceChange{
 		Addr:        inst.Addr,
-		PrevRunAddr: prevRunAddr,
+		PrevRunAddr: prevStateInfo.from,
 		ProviderAddr: addrs.AbsProviderConfig{
 			// FIXME: This is a lossy shim to the old-style provider instance
 			// address representation, since our old models aren't yet updated
@@ -586,13 +557,36 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		Before:          planResp.Current.Value,
 		After:           planResp.Planned.Value,
 
+		Importing:       planImport,
+		GeneratedConfig: planGenConfig,
+
 		// TODO: ActionReason, but need to figure out how to get the information
 		// we'd need for that into here since most of the reasons are
 		// configuration-related and so would need to be driven by stuff in
 		// [eval.DesiredResourceInstance].
 		ActionReason: actionReason,
 	}
-	ret.ProviderInst = providerInst
+
+	// Determine if any of the planned changes are due to drift
+	if plannedAction != plans.NoOp {
+		// TODO examine the performance impact of this precise marks wrangling for every change
+		// the previous implementation of this was a lot more coarse and only checked
+		// for NoOp.
+		changeMark := objchange.NewPendingChange(inst.Addr)
+		for path, v := range cty.DeepValues(planResp.Planned.Value) {
+			if v.HasMark(changeMark) {
+				configV, err := path.Apply(inst.ConfigVal)
+				if err == nil {
+					// path exists, copy all drift marks into the ongoing collection
+					for mark := range cty.ValueMarksOfTypeDeep[driftMark](configV) {
+						p.planCtx.driftCausingChanges[mark] = struct{}{}
+					}
+				}
+			}
+		}
+	}
+
+	diags = diags.Append(checkPreventDestroy(ctx, meta, ret))
 
 	if cb := tracer.EndManagedResourceInstanceObjectPlanChanges; cb != nil {
 		plannedVal := cty.DynamicVal
@@ -601,63 +595,35 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 			// case the tracer is reporting events in the UI.
 			plannedVal = planResp.Planned.Value
 		}
-		cb(planChangesCtx, inst.Addr.CurrentObject(), plannedAction, refreshedVal, plannedVal, diags)
+		cb(planChangesCtx, inst.Addr.CurrentObject(), plannedAction, current.Value, plannedVal, diags)
 	}
 
 	return ret, diags
-}
-
-func checkAndMarshalUpdatedState(newState cty.Value, schema providers.Schema, inst *eval.DesiredResourceInstance) (ret []byte, diags tfdiags.Diagnostics) {
-	// After upgrading, the new value must conform to the current schema. When
-	// going over RPC this is actually already ensured by the
-	// marshaling/unmarshaling of the new value, but we'll check it here
-	// anyway for robustness, e.g. for in-process providers.
-	if errs := newState.Type().TestConformance(schema.Block.ImpliedType()); len(errs) > 0 {
-		providerType := inst.Addr.Resource.Resource.ImpliedProvider()
-		for _, err := range errs {
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
-				"Invalid resource state transformation",
-				fmt.Sprintf("The %s provider changed the state for %s, but produced an invalid result: %s.", providerType, inst.Addr, tfdiags.FormatError(err)),
-			))
-		}
-		return nil, diags
-	}
-
-	src, err := ctyjson.Marshal(newState, schema.Block.ImpliedType())
-	if err != nil {
-		// We just checked for type conformance above, so getting into this
-		// codepath is probably a bug.
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to encode result of resource state transformation",
-			fmt.Sprintf("Failed to encode state for %s after resource schema upgrade: %s.", inst.Addr, tfdiags.FormatError(err)),
-		))
-	}
-	return src, diags
 }
 
 func (p *planGlue) planOrphanManagedResourceInstance(
 	ctx context.Context,
 	addr addrs.AbsResourceInstance,
 	stateSrc *states.ResourceInstanceObjectFullSrc,
+	forceDelete bool,
 ) (*resourceInstanceObject, tfdiags.Diagnostics) {
-	return p.planUnwantedManagedResourceInstanceObject(ctx, addr.CurrentObject(), stateSrc)
+	return p.planUnwantedManagedResourceInstanceObject(ctx, addr.CurrentObject(), stateSrc, forceDelete)
 }
 
 func (p *planGlue) planDeposedManagedResourceInstanceObject(
 	ctx context.Context,
-	addr addrs.AbsResourceInstance,
-	deposedKey states.DeposedKey,
+	addr addrs.AbsResourceInstanceObject,
 	stateSrc *states.ResourceInstanceObjectFullSrc,
+	forceDelete bool,
 ) (*resourceInstanceObject, tfdiags.Diagnostics) {
-	return p.planUnwantedManagedResourceInstanceObject(ctx, addr.Object(deposedKey), stateSrc)
+	return p.planUnwantedManagedResourceInstanceObject(ctx, addr, stateSrc, forceDelete)
 }
 
 func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 	ctx context.Context,
 	addr addrs.AbsResourceInstanceObject,
 	stateSrc *states.ResourceInstanceObjectFullSrc,
+	forceDelete bool,
 ) (*resourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
@@ -667,11 +633,24 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 	// how to factor out as much of this logic as possible into shared functions
 	// so that this'll be easier to maintain in future as requirements change.
 
+	// TODO: Resolve any relevant moves up front here and then use
+	// p.ResourceInstanceObjectMeta directly to request the aggregate metadata.
+	//
+	// Now that we've reworked the main planning flow to complete all of the
+	// "desired" objects first and only then begin handling unwanted objects,
+	// we should be able to handle this all in one step instead of re-fetching
+	// a different metadata conditionally below based on whether there was
+	// a moved statement or not. In particular this'll make it easier to support
+	// the situation where a chain of moves ends at a "removed" statement, and
+	// thus we need to use metadata from that statement to decide how to delete
+	// the unwanted object.
 	configMeta := p.oracle.ResourceInstanceObjectMeta(ctx, addr)
+	diags = diags.Append(validateUnwantedResourceInstanceObjectMeta(addr, configMeta, forceDelete))
 	meta := exec.BuildResourceInstanceObjectMeta(addr, configMeta, stateSrc)
 
 	ret := &resourceInstanceObject{
 		Addr:              addr,
+		PrevRoundAddr:     addr,
 		StateDependencies: addrs.MakeSet[addrs.AbsResourceInstanceObject](),
 		Provider:          meta.Provider,
 
@@ -683,83 +662,58 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 		// so early returns with errors are not guaranteed to have a valid
 		// change object. Evaluation falls back on using PlaceholderValue
 		// when no planned change is present.
+
+		// Start with unchanged stateSrc
+		UpgradedState:  stateSrc,
+		RefreshedState: stateSrc,
 	}
+	if diags.HasErrors() {
+		// If we get here then the configured metadata was invalid. We wait
+		// until here to return so that we can still return the
+		// partially-constructed ret, but we're not reporting that any change
+		// is needed for this resource instance because the error diagnostics
+		// will make the plan unapplyable anyway.
+		return ret, diags
+	}
+
 	// TODO: Populate ret.Dependencies based on the dependencies in the state,
 	// but to do that we'll need to correlate the [addrs.ConfigResource]-based
 	// dependencies with the actual resource instance objects in the prior state
 	// to get a comprehensive set of everything we ought to depend on.
+	for instAddr := range stateSrc.FlattenedDependencies(p.planCtx.prevRoundState) {
+		ret.StateDependencies.Add(instAddr.CurrentObject())
+	}
 
 	currentRunAddr := addr.InstanceAddr
-	if addr.IsCurrent() {
-		// Ask the planning oracle whether there are any "moved" blocks
-		// starting at inst.Addr in the configuration (possibly following
-		// a chain of multiple moves).
-		moveAddrs, moveDiags := p.oracle.FindAddressesMovedFromHere(ctx, addr.InstanceAddr)
-		diags = diags.Append(moveDiags)
+	movedToAddress := p.locateExecutedMove(currentRunAddr)
+	if movedToAddress != nil {
+		if addr.IsCurrent() {
+			// We were part of a move already and can safely be ignored
+			log.Printf("[TRACE] Potentially orphaned resource %s was recorded as being moved to %s and is therefore not orphaned", currentRunAddr, *movedToAddress)
+			return ret, diags
+		}
+	} else {
+		var movedDiags tfdiags.Diagnostics
+		movedToAddress, movedDiags = p.locateConfigForState(ctx, currentRunAddr, addr.IsCurrent())
+		diags = diags.Append(movedDiags)
 		if diags.HasErrors() {
-			// More than one address this could move to.
-			// "Ambiguous move statements": one From, many To
 			return ret, diags
 		}
-		// Check the target instance address of each
-		// one in turn in case we find an as-yet-unbound resource address
-		// that wants to be rebound to the state given here.
-		// Addresses are given from start "From" to final "To"
-		foundAddr := false
-		blockedMove := false
-		for _, nextAddr := range moveAddrs {
-			if nextAddr.Equal(addr.InstanceAddr) {
-				continue
-			}
-			if p.oracle.HasAddress(ctx, nextAddr) {
-				// found state at a moveable address!
-				foundAddr = true
-				blockedMove = p.checkStateAndRecordMoveResult(currentRunAddr, nextAddr, addr, false)
-				if blockedMove {
-					// STOP THE PRESSES!
-					// We're going to handle this state with another function call
-					// (or the state is already bound to an address).
-					// As it is, this state is blocked.
+	}
+	if movedToAddress != nil {
+		log.Printf("[TRACE] Orphaned resource %s is moved to %s", currentRunAddr, *movedToAddress)
 
-					// We also undo the address, but keep that we "found a move"
-					// so we correctly remove this blocked state
-					currentRunAddr = addr.InstanceAddr
-				} else {
-					currentRunAddr = nextAddr
-				}
-				// If there is another address down the chain, it is an error;
-				// you cannot move from an address that exists in configuration.
-				// We'll leave the loop now.
-				break
-			}
-		}
-		if !foundAddr && !blockedMove {
-			// no address found. Try an implicit move
-			// TODO a logical question: do we check these implicit moves for EVERY candidate address above?
-			// I'd prefer it if we didn't... but I'm afraid that might match what we're expecting...
-			// Except! Who in the world is actually combining moves like that???
-			implicitMoveAddr, pyrrhicMove := p.oracle.SearchForImplicitMoveableResourceInstance(ctx, addr.InstanceAddr)
-			if implicitMoveAddr != nil {
-				if pyrrhicMove {
-					// We set currentRunAddr to implicitMoveAddr,
-					// but we're still going to be deleting it
-					// because we didn't actually find an instance
-					// in the configuration
-					currentRunAddr = *implicitMoveAddr
-				} else {
-					foundAddr = true
-					blockedMove = p.checkStateAndRecordMoveResult(currentRunAddr, *implicitMoveAddr, addr, true)
-					if !blockedMove {
-						currentRunAddr = *implicitMoveAddr
-					}
-				}
-			}
-		}
-		if foundAddr && !blockedMove {
-			// No change planned: it's moved, and the state movement is handled in "Desired"
-			ret.PlannedChange = nil
-			return ret, diags
-		}
+		// Update the currentRunAddress to match the move
+		currentRunAddr = *movedToAddress
+		ret.PrevRoundAddr = currentRunAddr.Object(addr.DeposedKey)
+
+		// Discover true configMeta based on state moves
+		movedObj := movedToAddress.Object(addr.DeposedKey)
+		configMeta = p.oracle.ResourceInstanceObjectMeta(ctx, movedObj)
+		meta = exec.BuildResourceInstanceObjectMeta(movedObj, configMeta, stateSrc)
+
+		// Update fields that rely on meta
+		ret.Provider = meta.Provider
 	}
 
 	// FIXME: Currently this fails if the only mention of a particular provider
@@ -772,9 +726,12 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 	//
 	// There's another FIXME comment further down the callstack beneath this
 	// function identifying the main location of the problem.
-	providerAddr := meta.Provider
-	providerInstAddr, ok := meta.ProviderInstance.ValueOk()
-	if !ok {
+	resourceType, providerInstAddr, moreDiags := p.managedResourceType(ctx, meta)
+	diags = diags.Append(moreDiags)
+	if diags.HasErrors() {
+		return ret, diags
+	}
+	if resourceType == nil {
 		// TODO: Is there anything sensible to do here? It should only be
 		// possible to get into this situation if the unwanted object still
 		// has configuration, but we specify the provider instance using a
@@ -783,77 +740,18 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 		// resource instance is "unwanted".
 		panic(fmt.Sprintf("unknown provider instance address for %s", providerInstAddr))
 	}
-	providerClient, moreDiags := p.providerClient(ctx, meta.ProviderInstance.KnownValue())
-	if providerClient == nil {
-		moreDiags = moreDiags.Append(tfdiags.AttributeValue(
-			tfdiags.Error,
-			"Provider instance not available",
-			fmt.Sprintf("Cannot plan %s because its associated provider instance %s cannot initialize.", addr, providerInstAddr),
-			nil,
-		))
-	}
+	ret.ProviderInst = providerInstAddr
+
+	var prevValue *resources.ValueWithPrivate
+	prevValue, ret.UpgradedState, moreDiags = processMoveOrUpgrade(ctx, addr, meta.Provider, resourceType, stateSrc, movedToAddress != nil)
 	diags = diags.Append(moreDiags)
-	if moreDiags.HasErrors() {
+	if diags.HasErrors() {
 		return ret, diags
 	}
-
-	resourceType := resources.NewManagedResourceType(providerAddr, meta.ResourceType, providerClient)
-	schema, schemaDiags := resourceType.LoadSchema(ctx)
-	if schemaDiags.HasErrors() {
-		// We don't return the schema-loading diagnostics directly here because
-		// they should have already been returned by earlier code, but we do
-		// return a more specific error to make it clear that this specific
-		// resource instance was unplannable because of the problem.
-		diags = diags.Append(tfdiags.AttributeValue(
-			tfdiags.Error,
-			"Resource type schema unavailable",
-			fmt.Sprintf(
-				"Cannot plan %s because provider %s failed to return the schema for its resource type %q.",
-				addr, providerAddr, meta.ResourceType,
-			),
-			nil, // this error belongs to the whole resource config
-		))
-		return ret, diags
-	}
-
-	// FIXME: Need to "upgrade" the previous run state before we try to decode
-	// it, because the current provider version might be different than the one
-	// which most recently updated this object.
-
-	var prevRoundVal cty.Value
-	var prevRoundPrivate []byte
-	prevRoundState, err := states.DecodeResourceInstanceObjectFull(stateSrc, schema.Block.ImpliedType())
-	if err != nil {
-		diags = diags.Append(tfdiags.AttributeValue(
-			tfdiags.Error,
-			"Invalid prior state for resource instance",
-			fmt.Sprintf(
-				"Cannot decode the most recent state snapshot for %s: %s.\n\nIs the selected version of %s incompatible with the provider that most recently changed this object?",
-				addr, tfdiags.FormatError(err), providerAddr,
-			),
-			nil, // this error belongs to the whole resource config
-		))
-		return ret, diags
-	}
-	prevRoundVal = prevRoundState.Value
-	prevRoundPrivate = prevRoundState.Private
-
-	if len(prevRoundState.Dependencies) != 0 {
-		for _, instAddr := range prevRoundState.Dependencies {
-			ret.StateDependencies.Add(instAddr.CurrentObject())
-		}
-	} else {
-		// Unfortunately our old state model represents dependencies only
-		// between static [addrs.ConfigResource] and loses specific instance
-		// information, so we must conservatively assume that all matching
-		// instances are dependencies. This only occurs during migration
-		// from a state generated by an older runtime.
-		for _, configAddr := range prevRoundState.ConfigDependencies {
-			for instAddr := range p.planCtx.prevRoundState.InstancesMatchingConfigResource(configAddr) {
-				ret.StateDependencies.Add(instAddr.CurrentObject())
-			}
-		}
-	}
+	// TODO Identity passthrough
+	prevState := &resources.ManagedResourceStateWithIdentity{ValueWithPrivate: *prevValue}
+	ret.PlaceholderValue = prevState.Value
+	ret.UpgradedValue = prevState.Value
 
 	// Include destroy provisioner dependencies
 	for _, p := range meta.PostCreateProvisioners {
@@ -861,43 +759,82 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 		// will be collected by the concurrent "CheckAll" walk. We'll just make
 		// a best effort to collect whatever dependencies the configuration is
 		// valid enough for us to collect.
-		cfg, _ := p.BuildConfig(ctx, prevRoundVal)
+		cfg, _ := p.BuildConfig(ctx, prevState.Value)
 		for _, ri := range cfg.RequiredResourceInstances {
 			ret.ConfigDependencies.Add(ri.CurrentObject())
 		}
 	}
 
-	// TODO: Call providerClient.ReadResource and update the "refreshed state"
-	// and reassign this refreshedVal to the refreshed result.
-	refreshedVal := prevRoundVal
-	refreshedPrivate := prevRoundPrivate
+	if !p.planCtx.skipRefresh {
+		prevState, ret.RefreshedState, moreDiags = processRefresh(
+			ctx,
+			addr,
+			providerInstAddr,
+			resourceType,
+			nil,
+			prevState,
+			ret.UpgradedState,
+		)
+		diags = diags.Append(moreDiags)
+		if diags.HasErrors() {
+			return ret, diags
+		}
+		ret.PlaceholderValue = prevState.Value
+		ret.RefreshedValue = prevState.Value
+	}
 
-	if refreshedVal.IsNull() {
+	if prevState.Value.IsNull() {
 		// The orphan object seems to have already been deleted outside of
 		// OpenTofu, so we've got nothing more to do here.
-		ret.PlaceholderValue = refreshedVal
+		return ret, diags
+	}
+
+	if p.planCtx.refreshOnly {
+		// TODO: We may still want to produce a NoOp Change in this scenario, it depends
+		// on what the expectations are for refresh only plans as we get deeper into
+		// integration and e2e testing
 		return ret, diags
 	}
 
 	planResp, planDiags := resourceType.PlanChanges(ctx, &resources.ManagedResourcePlanRequest{
-		Current: resources.ValueWithPrivate{
-			Value:   refreshedVal,
-			Private: refreshedPrivate,
-		},
+		Current:      prevState.ValueWithPrivate,
 		DesiredValue: cty.NilVal, // we want to destroy this object
-
-		// TODO: ProviderMeta is a rarely-used feature that only really makes
-		// sense when the module and provider are both written by the same
-		// party and the module author is using the provider as a way to
-		// transport module usage telemetry. We should decide whether we want
-		// to keep supporting that, and if so design a way for the relevant
-		// meta value to get from the evaluator into here.
-		ProviderMetaValue: cty.NilVal,
 	}, addr)
 	diags = diags.Append(planDiags)
 	if planDiags.HasErrors() {
 		return ret, diags
 	}
+
+	var action plans.Action
+	if unwantedAction, known := meta.ActionIfUnwanted.ValueOk(); known {
+		switch unwantedAction {
+		case resources.IfUnwantedDelete:
+			action = plans.Delete
+		case resources.IfUnwantedForget:
+			action = plans.Forget
+		default:
+			// We expect that the function which builds "meta" should not
+			// generate any other values here. In particular if the
+			// configuration did not express an opinion then that function
+			// should provide a default fallback opinion.
+			panic(fmt.Sprintf("unsupported ActionIfUnwanted %s", unwantedAction))
+		}
+	} else {
+		// TODO: The resource instance object should be treated as "deferred"
+		// in this case, but we haven't fully implemented that yet so this
+		// is just a placeholder stub until we have a real way to handle that.
+		// This error message is using terminology from the current surface
+		// language edition out of pragmatism, even though internally we use
+		// different words to describe this setting.
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid value for \"destroy\" argument",
+			Detail:   fmt.Sprintf("The \"destroy\" value for %s is derived from other values that won't be known until the apply phase, which is not allowed.", addr),
+			Subject:  meta.PrimaryDeclRangeHCL(),
+		})
+		action = plans.Delete // just to make the result valid enough to be inspected with commands like "tofu show -json", despite the error
+	}
+	reason := meta.OrphanActionReason
 
 	ret.PlannedChange = &plans.ResourceInstanceChange{
 		Addr:        currentRunAddr,
@@ -914,8 +851,8 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 		},
 		RequiredReplace: planResp.RequiresReplace,
 		Private:         planResp.Planned.Private,
-		Action:          plans.Delete,
-		Before:          refreshedVal,
+		Action:          action,
+		Before:          prevState.Value,
 		After:           planResp.Planned.Value,
 
 		// TODO: ActionReason, but need to figure out how to get the information
@@ -925,20 +862,280 @@ func (p *planGlue) planUnwantedManagedResourceInstanceObject(
 		// should just pass in a reason as an additonal argument to this
 		// function, since it presumably already knows how it concluded that
 		// this address is "orphaned".
+		ActionReason: reason,
 	}
-	ret.ProviderInst = providerInstAddr
+
+	diags = diags.Append(checkPreventDestroy(ctx, meta, ret))
+
 	return ret, diags
 }
 
-// checkStateAndRecordMoveResult returns true is a successful move and false if
-// the move is blocked by pre-existing state
-func (p *planGlue) checkStateAndRecordMoveResult(currentRunAddr addrs.AbsResourceInstance, nextAddr addrs.AbsResourceInstance, addr addrs.AbsResourceInstanceObject, impliedMove bool) bool {
-	preExistingState := p.planCtx.prevRoundState.SyncWrapper().ResourceInstanceObjectFull(nextAddr.CurrentObject())
-	if preExistingState != nil {
-		p.oracle.RecordBlockedMove(currentRunAddr, nextAddr)
-		return true
+func (p *planGlue) managedResourceType(ctx context.Context, meta *exec.ResourceInstanceObjectMeta) (*resources.ManagedResourceType, addrs.AbsProviderInstanceCorrect, tfdiags.Diagnostics) {
+	providerInstUnmarked, providerInstMarks := meta.ProviderInstance.Unmark()
+	// TODO: What should we do with these marks, if anything?
+	_ = providerInstMarks
+	providerInst, ok := providerInstUnmarked.ValueOk()
+	if !ok {
+		// If we don't even know which provider instance we're supposed to be
+		// talking to then we can't proceed any further.
+		return nil, providerInst, nil
 	}
-	// Record move in the oracle, for use in "Desired" section
-	p.oracle.RecordSuccessfulMove(nextAddr, addr.InstanceAddr, impliedMove)
-	return false
+
+	providerClient, diags := p.providerClient(ctx, providerInst)
+	if providerClient == nil {
+		diags = diags.Append(tfdiags.AttributeValue(
+			tfdiags.Error,
+			"Provider instance not available",
+			fmt.Sprintf("Cannot plan %s because its associated provider instance %s cannot initialize.", meta.Addr, providerInst),
+			nil,
+		))
+	}
+	if diags.HasErrors() {
+		return nil, providerInst, diags
+	}
+
+	return resources.NewManagedResourceType(meta.Provider, meta.ResourceType, providerClient), providerInst, diags
+
+}
+
+func processMoveOrUpgrade(
+	ctx context.Context,
+	addr addrs.AbsResourceInstanceObject,
+	provider addrs.Provider,
+	resourceType *resources.ManagedResourceType,
+	prevRoundState *states.ResourceInstanceObjectFullSrc,
+	isMove bool,
+) (*resources.ValueWithPrivate, *states.ResourceInstanceObjectFullSrc, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+	tracer := contextTracer(ctx)
+
+	var updatedState *resources.ValueWithPrivate
+	isMoveToNewType := isMove && (resourceType.ResourceTypeName() != prevRoundState.ResourceType || !provider.Equals(prevRoundState.ProviderInstanceAddr.Config.Config.Provider))
+	if isMoveToNewType {
+		// Moved to a new resource type
+		moveCtx := ctx
+		if cb := tracer.StartManagedResourceInstanceObjectMove; cb != nil {
+			moveCtx = cb(ctx, addr)
+		}
+
+		var moreDiags tfdiags.Diagnostics
+		updatedState, moreDiags = resourceType.MoveState(moveCtx, &resources.ManagedResourceMoveStateRequest{
+			Provider:      prevRoundState.ProviderInstanceAddr.Config.Config.Provider,
+			ResourceType:  prevRoundState.ResourceType,
+			SchemaVersion: prevRoundState.SchemaVersion,
+			ValueJSON:     prevRoundState.Value.ValueJSON,
+			Private:       prevRoundState.Private,
+		}, addr)
+		diags = diags.Append(moreDiags)
+
+		if cb := tracer.EndManagedResourceInstanceObjectMove; cb != nil {
+			updatedVal := cty.DynamicVal
+			if updatedState.Value != cty.NilVal {
+				// TODO: Should apply "sensitive" marks here where appropriate in
+				// case the tracer is reporting events in the UI.
+				updatedVal = updatedState.Value
+			}
+			cb(moveCtx, addr, updatedVal, diags)
+		}
+	} else {
+		upgradeCtx := ctx
+		if cb := tracer.StartManagedResourceInstanceObjectUpgrade; cb != nil {
+			upgradeCtx = cb(ctx, addr)
+		}
+
+		var moreDiags tfdiags.Diagnostics
+		updatedState, moreDiags = resourceType.UpgradeState(upgradeCtx, &resources.ManagedResourceUpgradeStateRequest{
+			SchemaVersion: prevRoundState.SchemaVersion,
+			ValueJSON:     prevRoundState.Value.ValueJSON,
+			Private:       prevRoundState.Private,
+		}, addr)
+		diags = diags.Append(moreDiags)
+
+		if cb := tracer.EndManagedResourceInstanceObjectUpgrade; cb != nil {
+			updatedVal := cty.DynamicVal
+			if updatedState.Value != cty.NilVal {
+				// TODO: Should apply "sensitive" marks here where appropriate in
+				// case the tracer is reporting events in the UI.
+				updatedVal = updatedState.Value
+			}
+			cb(upgradeCtx, addr, updatedVal, diags)
+		}
+	}
+	if diags.HasErrors() {
+		return updatedState, prevRoundState, diags
+	}
+
+	encodedValue, moreDiags := resourceType.EncodeValue(ctx, updatedState.Value, addr)
+	diags = diags.Append(moreDiags)
+	if diags.HasErrors() {
+		return updatedState, prevRoundState, diags
+	}
+
+	prevRoundState.Private = updatedState.Private
+	prevRoundState.Value.ValueJSON = encodedValue.ValueJSON
+	prevRoundState.SchemaVersion = encodedValue.SchemaVersion
+
+	return updatedState, prevRoundState, diags
+}
+
+func processImport(
+	ctx context.Context,
+	addr addrs.AbsResourceInstanceObject,
+	providerInst addrs.AbsProviderInstanceCorrect,
+	resourceType *resources.ManagedResourceType,
+	stmt *eval.ImportStatement,
+) (*resources.ManagedResourceStateWithIdentity, *states.ResourceInstanceObjectFullSrc, tfdiags.Diagnostics) {
+	tracer := contextTracer(ctx)
+
+	importTarget := providers.ImportTarget{
+		ID:       stmt.ID,
+		Identity: stmt.Identity,
+	}
+
+	importCtx := ctx
+	if cb := tracer.StartManagedResourceInstanceObjectImport; cb != nil {
+		importCtx = cb(ctx, addr, importTarget)
+	}
+	importState, diags := resourceType.ImportState(importCtx, &resources.ManagedResourceImportStateRequest{Target: importTarget}, addr)
+	if diags.HasErrors() {
+		return nil, nil, diags
+	}
+
+	if cb := tracer.EndManagedResourceInstanceObjectImport; cb != nil {
+		cb(importCtx, addr)
+	}
+
+	encodedValue, moreDiags := resourceType.EncodeValue(ctx, importState.Value, addr)
+	diags = diags.Append(moreDiags)
+	if diags.HasErrors() {
+		return nil, nil, diags
+	}
+
+	// Fake updatedState for refresh
+	importStateFull := &states.ResourceInstanceObjectFullSrc{
+		Value: states.ValueJSONWithMetadata{
+			ValueJSON:      encodedValue.ValueJSON,
+			SensitivePaths: nil, // TODO sensitive handling
+		},
+		Private: importState.Private,
+		Status:  states.ObjectReady,
+		//TODO ProviderInstanceAddr: providerInst,
+		ResourceType: addr.InstanceAddr.Resource.Resource.Type,
+		//TODO SchemaVersion:        uint64(schema.Version),
+	}
+
+	return importState, importStateFull, diags
+}
+
+func processRefresh(
+	ctx context.Context,
+	addr addrs.AbsResourceInstanceObject,
+	providerInst addrs.AbsProviderInstanceCorrect,
+	resourceType *resources.ManagedResourceType,
+	requiredResourceInstances addrs.Set[addrs.AbsResourceInstance],
+	prevState *resources.ManagedResourceStateWithIdentity,
+	prevStateFull *states.ResourceInstanceObjectFullSrc,
+) (*resources.ManagedResourceStateWithIdentity, *states.ResourceInstanceObjectFullSrc, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
+	if prevStateFull != nil {
+		prevStateFull = new(*prevStateFull)
+		// Update the provider instance for the refreshed state only, not the upgraded state
+		prevStateFull.ProviderInstanceAddr = providerInst
+	}
+
+	if prevState == nil {
+		return prevState, prevStateFull, diags
+	}
+
+	tracer := contextTracer(ctx)
+
+	refreshCtx := ctx
+	prevValueForTracing := prevState.Value
+	if cb := tracer.StartManagedResourceInstanceObjectRefresh; cb != nil {
+		refreshCtx = cb(ctx, addr, prevValueForTracing)
+	}
+
+	prevState, moreDiags := resourceType.RefreshState(refreshCtx, prevState, addr)
+	diags = diags.Append(moreDiags)
+	if diags.HasErrors() {
+		return nil, nil, diags
+	}
+
+	if cb := tracer.EndManagedResourceInstanceObjectRefresh; cb != nil {
+		// TODO: Should apply "sensitive" marks here where appropriate in
+		// case the tracer is reporting events in the UI.
+		cb(refreshCtx, addr, prevValueForTracing, prevState.Value, diags)
+	}
+
+	if prevState.Value.IsNull() {
+		// Object no longer exists
+		return prevState, nil, diags
+	}
+
+	encodedValue, moreDiags := resourceType.EncodeValue(ctx, prevState.Value, addr)
+	diags = diags.Append(moreDiags)
+	if diags.HasErrors() {
+		return prevState, prevStateFull, diags
+	}
+
+	// TODO Identity
+	prevStateFull.Private = prevState.Private
+	prevStateFull.Value.ValueJSON = encodedValue.ValueJSON
+	prevStateFull.SchemaVersion = encodedValue.SchemaVersion
+
+	return prevState, prevStateFull, diags
+}
+
+// Handle "prevent_destroy" arguments once the changes have been built,
+// generating error diagnostics for anything that is proposed for deletion
+// when deletion is prohibited.
+func checkPreventDestroy(ctx context.Context, meta *exec.ResourceInstanceObjectMeta, obj *resourceInstanceObject) tfdiags.Diagnostics {
+	change := obj.PlannedChange
+	if change == nil {
+		return nil
+	}
+	if change.Action != plans.Delete && !change.Action.IsReplace() {
+		// If we're not attempting to destroy then we'll skip the remaining
+		// checks because they are likely to fail dynamically in non-destroy
+		// situations even though they could be valid by the time this
+		// object actually is planned for destroy.
+		return nil
+	}
+
+	if meta.DeletionInvalid == nil {
+		return nil
+	}
+
+	rng := meta.DeletionInvalid.SourceRange
+	preventDestroyV, preventDestroyMarks := meta.DeletionInvalid.Unmark()
+	// FIXME: What should we do with these marks, if anything?
+	_ = preventDestroyMarks
+
+	preventDestroy, ok := preventDestroyV.ValueOk()
+	if !ok {
+		return tfdiags.New(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid value for prevent_destroy",
+			Detail: fmt.Sprintf(
+				"Resource instance %s has a prevent_destroy argument but its value will not be known until the apply step, so OpenTofu can't predict whether destroying this is acceptable.\n\nTo proceed, exclude instances of this resource from this round using:\n    -exclude=%q",
+				change.Addr.String(), change.Addr.ContainingResource().String(),
+			),
+			Subject: rng.ToHCL().Ptr(),
+			Extra:   evalchecks.DiagnosticCausedByUnknown(true),
+		})
+	}
+
+	if preventDestroy {
+		return tfdiags.New(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Resource instance cannot be destroyed",
+			Detail: fmt.Sprintf(
+				"Resource instance %s has prevent_destroy set, but the plan calls for it to be destroyed.\n\nTo proceed, either disable prevent_destroy for this resource or exclude instances of this resource from this round using:\n    -exclude=%q",
+				change.Addr.String(), change.Addr.ContainingResource().String(),
+			),
+			Subject: rng.ToHCL().Ptr(),
+		})
+	}
+	return nil
 }

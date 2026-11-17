@@ -122,7 +122,6 @@ func (p *MockProvider) ProviderSchema() *ProviderSchema {
 
 	schema := &ProviderSchema{
 		Provider:                   resp.Provider.Block,
-		ProviderMeta:               resp.ProviderMeta.Block,
 		ResourceTypes:              map[string]*configschema.Block{},
 		DataSources:                map[string]*configschema.Block{},
 		EphemeralTypes:             map[string]*configschema.Block{},
@@ -149,7 +148,6 @@ func (p *MockProvider) ProviderSchema() *ProviderSchema {
 // provider package, but we keep this here for a shim in existing tests.
 type ProviderSchema struct {
 	Provider                   *configschema.Block
-	ProviderMeta               *configschema.Block
 	ResourceTypes              map[string]*configschema.Block
 	ResourceTypeSchemaVersions map[string]uint64
 	DataSources                map[string]*configschema.Block
@@ -161,7 +159,6 @@ type ProviderSchema struct {
 func getProviderSchemaResponseFromProviderSchema(providerSchema *ProviderSchema) *providers.GetProviderSchemaResponse {
 	resp := &providers.GetProviderSchemaResponse{
 		Provider:           providers.Schema{Block: providerSchema.Provider},
-		ProviderMeta:       providers.Schema{Block: providerSchema.ProviderMeta},
 		ResourceTypes:      map[string]providers.Schema{},
 		DataSources:        map[string]providers.Schema{},
 		EphemeralResources: map[string]providers.Schema{},

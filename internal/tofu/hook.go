@@ -129,14 +129,14 @@ type Hook interface {
 	Stopping()
 
 	// PostStateUpdate is called each time a portion of the state is updated. It receives
-	// a function that mutates the syncronized state object.
+	// a function that mutates the state object.
 	//
 	// This should return an error only if the hook tried to persist the updated state
 	// to the primary state storage location and failed to do so, because this method
 	// is called as a side-effect of updating resource instances in the state and any
 	// error returned will be treated as a failure to update the state, returned to the
 	// end-user.
-	PostStateUpdate(func(*states.SyncState)) (HookAction, error)
+	PostStateUpdate(func(*states.State)) (HookAction, error)
 }
 
 // NilHook is a Hook implementation that does nothing. It exists only to
@@ -253,6 +253,6 @@ func (*NilHook) Stopping() {
 	// Does nothing at all by default
 }
 
-func (*NilHook) PostStateUpdate(func(*states.SyncState)) (HookAction, error) {
+func (*NilHook) PostStateUpdate(func(*states.State)) (HookAction, error) {
 	return HookActionContinue, nil
 }

@@ -1482,3 +1482,27 @@ func TestGRPCProvider_CallFunction(t *testing.T) {
 		t.Fatalf("%v", resp.Result)
 	}
 }
+
+func TestGRPCProvider_ProviderMetaNull(t *testing.T) {
+	client := mockProviderClient(t)
+	p := newGRPCProvider(client)
+
+	client.EXPECT().ReadDataSource(
+		gomock.Any(),
+		gomock.Any(),
+	).DoAndReturn(func(_ context.Context, req *proto.ReadDataSource_Request, _ ...grpc.CallOption) (*proto.ReadDataSource_Response, error) {
+		if req.ProviderMeta == nil || !bytes.Equal(req.ProviderMeta.Msgpack, []byte{0xc0}) {
+			t.Errorf("wrong ProviderMeta: %#v", req.ProviderMeta)
+		}
+		return &proto.ReadDataSource_Response{State: &proto.DynamicValue{Msgpack: []byte("\x81\xa4attr\xa3bar")}}, nil
+	})
+
+	resp := p.ReadDataSource(t.Context(), providers.ReadDataSourceRequest{
+		TypeName: "data",
+		Config: cty.ObjectVal(map[string]cty.Value{
+			"attr": cty.StringVal("foo"),
+		}),
+	})
+
+	checkDiags(t, resp.Diagnostics)
+}

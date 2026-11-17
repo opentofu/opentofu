@@ -45,6 +45,10 @@ type PlanCommand struct {
 func (c PlanCommand) Execute(args *arguments.Plan, view views.Plan) int {
 	var diags tfdiags.Diagnostics
 	ctx := c.CommandContext()
+	// This is safe to be done since the execution engine contexts are created by ignoring the cancellation from the parent context.
+	// internal/backend/local/backend.go
+	ctx, cancel := c.InterruptibleContext(ctx)
+	defer cancel()
 	ctx = tfdiags.ContextWithLintFilterHints(ctx, args.View.LintInclude, args.View.LintExclude)
 	diags = diags.Append(tfdiags.ExperimentalLintWarn(ctx))
 

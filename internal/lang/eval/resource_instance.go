@@ -6,17 +6,20 @@
 package eval
 
 import (
+	"context"
+
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
+	"github.com/opentofu/opentofu/internal/plans"
 )
 
 // ConfiguredResourceInstanceObjectMeta represents the subset of metadata
-// about a resource instance object that comes from the configuration, based
-// on configuration arguments that could potentially vary between language
-// editions.
+// about a resource instance object that comes from some module instance in
+// the configuration configuration, based on configuration arguments that could
+// potentially vary between language editions.
 //
 // It's up to the specific language edition implementation to decide how to
 // populate an object of this type. Some fields will be based on per-resource
@@ -27,16 +30,70 @@ import (
 //
 // Note that this is NOT what you should use directly in the planning or
 // applying engines as the full metadata for a resource instance object.
-// Instead, this should typically be combined with information taken from the
-// prior state (in a way that's outside the scope of this package) to determine
-// the full effective metadata for an object.
+// Instead, a set of these contained inside
+// [ModuleConfiguredResourceInstanceObjectMeta] wrappers describing the
+// information from different module instances should be combined with
+// information taken from the prior state (in a way that's outside the scope of
+// this package) to determine the full effective metadata for an object.
 //
 // The design of this type is biased towards the needs of the "managed" resource
 // mode since that represents our primary functionality and the most complicated
 // set of available metadata features. Nonetheless we do still use this type
 // for other resource modes and just leave the irrelevant fields unpopulated
-// for objects of those modes.
+// for objects of those modes, as described in the comments on each field.
 type ConfiguredResourceInstanceObjectMeta = evalglue.ConfiguredResourceInstanceObjectMeta
+
+// ResourceInstanceObjectWant is an enumeration that summarizes whether a
+// particular resource instance object is "desired" or "unwanted", or (for the
+// zero value of this type) if there is no opinion about that in whatever
+// context the value applies to.
+type ResourceInstanceObjectWant = evalglue.ResourceInstanceObjectWant
+
+const (
+	// ResourceInstanceObjectWantUnspecified represents that there is no
+	// information about whether the object is desired or unwanted in the
+	// current context.
+	ResourceInstanceObjectWantUnspecified = evalglue.ResourceInstanceObjectWantUnspecified
+
+	// ResourceInstanceObjectDesired represents that there's something in
+	// the configuration which explicitly declares this object as part of the
+	// desired state.
+	//
+	// Deposed objects are never allowed to be "desired".
+	ResourceInstanceObjectDesired = evalglue.ResourceInstanceObjectDesired
+
+	// ResourceInstanceObjectUnwanted represents that this object is not
+	// part of the desired state.
+	ResourceInstanceObjectUnwanted = evalglue.ResourceInstanceObjectUnwanted
+)
+
+// ResourceInstanceObjectProvider is a container for the provider-related
+// information in [ConfiguredResourceInstanceObjectMeta].
+type ResourceInstanceObjectProvider = evalglue.ResourceInstanceObjectProvider
+
+// ModuleConfiguredResourceInstanceObjectMeta describes the relationship
+// between a [ConfiguredResourceInstanceObjectMeta] object and the module
+// instance that produced it.
+//
+// The module instance where the object is declared and all of its ancestors
+// each get to contribute their own [ConfiguredResourceInstanceObjectMeta]
+// describing whatever is declared about the object in that module, and then
+// eventually all of the individual declarations, along with similar information
+// derived from the prior state, is merged together to produce a single
+// object describing the overall effective metadata for the resource instance.
+type ModuleConfiguredResourceInstanceObjectMeta struct {
+	// ModuleInstance is the address of the module that provided this specific
+	// metadata, which is important for interpreting certain information inside
+	// which could be module-instance-relative.
+	//
+	// For example, "moved" statements are described relative to the module
+	// where they are declared, and so they need to be "absolutized" using
+	// [addrs.MoveEndpointInModule.InModuleInstance] when we
+	// finally assemble the merged effective metadata for the resource instance
+	// based on the statements across all modules.
+	ModuleInstance addrs.ModuleInstance
+	*ConfiguredResourceInstanceObjectMeta
+}
 
 // DesiredResourceInstance describes a resource instance that is part of
 // the desired state (i.e. declared in the configuration).
@@ -157,3 +214,34 @@ type ResourceProvisioner = evalglue.ResourceProvisioner
 // is supposed to be an implementation detail of tofu2024 and any other future
 // HCL-based language editions.
 type ResourceInstanceAttributePath = configgraph.ResourceInstanceAttributePath
+type ImportStatement = evalglue.ImportStatement
+
+func collectResourceInstanceObjectMeta(ctx context.Context, addr addrs.AbsResourceInstanceObject, rootModInst evalglue.CompiledModuleInstance) []ModuleConfiguredResourceInstanceObjectMeta {
+	leafModuleInstAddr := addr.InstanceAddr.Module
+	ret := make([]ModuleConfiguredResourceInstanceObjectMeta, 0, len(leafModuleInstAddr))
+	for moduleInstAddr, moduleInst := range evalglue.ModuleInstanceSteps(ctx, rootModInst, leafModuleInstAddr) {
+		if moduleInst == nil {
+			// We've reached the deepest level that is currently declared in
+			// the configuration, so any info we didn't already learn about
+			// this object will need to come from the previous run state, and
+			// that's the caller's responsibility to deal with.
+			configMeta := evalglue.NewDefaultConfiguredInstanceObjectMeta()
+			configMeta.OrphanActionReason = plans.ResourceInstanceDeleteBecauseNoModule
+			ret = append(ret, ModuleConfiguredResourceInstanceObjectMeta{
+				ModuleInstance:                       moduleInstAddr,
+				ConfiguredResourceInstanceObjectMeta: configMeta,
+			})
+
+			break
+		}
+		relativeModuleInst := []addrs.ModuleInstanceStep(leafModuleInstAddr[len(moduleInstAddr):])
+		meta := moduleInst.ResourceInstanceObjectMeta(ctx, relativeModuleInst, addr)
+		if meta != nil {
+			ret = append(ret, ModuleConfiguredResourceInstanceObjectMeta{
+				ModuleInstance:                       moduleInstAddr,
+				ConfiguredResourceInstanceObjectMeta: meta,
+			})
+		}
+	}
+	return ret
+}

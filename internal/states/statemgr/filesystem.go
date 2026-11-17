@@ -144,7 +144,7 @@ func (s *Filesystem) WriteState(state *states.State) error {
 func (s *Filesystem) MutateState(fn func(*states.State) *states.State) error {
 	defer s.mutex()()
 
-	if s.readFile == nil {
+	if s.readFile == nil && s.file == nil {
 		err := s.refreshState()
 		if err != nil {
 			return err
@@ -157,11 +157,12 @@ func (s *Filesystem) MutateState(fn func(*states.State) *states.State) error {
 	}
 
 	state = fn(state)
-
-	if s.file == nil {
-		s.file = NewStateFile()
+	if state != nil {
+		if s.file == nil {
+			s.file = NewStateFile()
+		}
+		s.file.State = state
 	}
-	s.file.State = state
 
 	return nil
 }

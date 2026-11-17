@@ -129,8 +129,7 @@ func (tc *TestContext) evaluate(state *states.SyncState, changes *plans.ChangesS
 
 		hclCtx, moreDiags := scope.EvalContext(context.TODO(), refs)
 		diags = diags.Append(moreDiags)
-
-		errorMessage, moreDiags := evalCheckErrorMessage(rule.ErrorMessage, hclCtx)
+		errorMessage, moreDiags := evalVerifyErrorMessage(rule.ErrorMessage, hclCtx)
 		diags = diags.Append(moreDiags)
 
 		runVal, hclDiags := rule.Condition.Value(hclCtx)

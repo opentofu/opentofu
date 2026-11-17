@@ -18,12 +18,13 @@ func compileModuleInstanceLocalValues(_ context.Context, configs map[string]*con
 	ret := make(map[addrs.LocalValue]*configgraph.LocalValue, len(configs))
 	for name, vc := range configs {
 		addr := addrs.LocalValue{Name: name}
+		instAddr := moduleInstAddr.LocalValue(name)
 		value := configgraph.ValuerOnce(exprs.NewClosure(
 			exprs.EvalableHCLExpression(vc.Expr),
 			declScope,
-		))
+		), "Value of %s", instAddr)
 		ret[addr] = &configgraph.LocalValue{
-			Addr:     moduleInstAddr.LocalValue(name),
+			Addr:     instAddr,
 			RawValue: value,
 		}
 	}

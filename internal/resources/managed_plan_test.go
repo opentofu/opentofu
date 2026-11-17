@@ -16,11 +16,17 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/plans/objchange"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 func TestManagedResourceTypePlanChanges(t *testing.T) {
+	objAddr := addrs.Resource{
+		Mode: addrs.ManagedResourceMode,
+		Type: "test_thing",
+		Name: "test",
+	}.Absolute(addrs.RootModuleInstance).Instance(addrs.NoKey).CurrentObject()
 	emptySchema := &configschema.Block{
 		// Intentionally empty
 	}
@@ -215,7 +221,7 @@ func TestManagedResourceTypePlanChanges(t *testing.T) {
 						// The computed attribute value from "current".
 						"id": cty.StringVal("imp-ab463455"),
 						// The optional attribute value from "desired".
-						"name": cty.StringVal("rumleskaft"),
+						"name": objchange.ValuePendingChange(cty.StringVal("rumleskaft"), objAddr.InstanceAddr),
 					}),
 				},
 			},
@@ -243,7 +249,7 @@ func TestManagedResourceTypePlanChanges(t *testing.T) {
 				}),
 				Planned: ValueWithPrivate{
 					Value: cty.ObjectVal(map[string]cty.Value{
-						"name": cty.StringVal("rumpelstiltskin").Mark("mischievous").Mark("imp"),
+						"name": objchange.ValuePendingChange(cty.StringVal("rumpelstiltskin").Mark("mischievous").Mark("imp"), objAddr.InstanceAddr),
 					}),
 				},
 			},
@@ -271,43 +277,11 @@ func TestManagedResourceTypePlanChanges(t *testing.T) {
 				}),
 				Planned: ValueWithPrivate{
 					Value: cty.ObjectVal(map[string]cty.Value{
-						"password": cty.StringVal("12345"),
+						"password": objchange.ValuePendingChange(cty.StringVal("12345"), objAddr.InstanceAddr),
 						// FIXME: We've not actually implemented the schema-based marking yet,
 						// but this result should actually be:
 						// cty.StringVal("12345").Mark(marks.Sensitive),
 					}),
-				},
-			},
-		},
-		"absent ProviderMeta given as null": {
-			Schema: emptySchema,
-			PlanImpl: func(_ context.Context, req providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
-				var diags tfdiags.Diagnostics
-				// Real-world providers crash if given a nil ProviderMeta,
-				// so our PlanChanges implementation must automatically
-				// substitute a null value when the input is nil.
-				if req.ProviderMeta == cty.NilVal || !req.ProviderMeta.IsNull() {
-					diags = diags.Append(fmt.Errorf("provider meta is %#v; want null", req.ProviderMeta))
-				}
-				return providers.PlanResourceChangeResponse{
-					PlannedState: req.ProposedNewState,
-					Diagnostics:  diags,
-				}
-			},
-			Request: &ManagedResourcePlanRequest{
-				Current: ValueWithPrivate{
-					Value: cty.EmptyObjectVal,
-				},
-				DesiredValue:      cty.EmptyObjectVal,
-				ProviderMetaValue: cty.NilVal, // zero value of cty.Value
-			},
-			WantResponse: &ManagedResourcePlanResponse{
-				Current: ValueWithPrivate{
-					Value: cty.EmptyObjectVal,
-				},
-				DesiredValue: cty.EmptyObjectVal,
-				Planned: ValueWithPrivate{
-					Value: cty.EmptyObjectVal,
 				},
 			},
 		},
@@ -342,7 +316,7 @@ func TestManagedResourceTypePlanChanges(t *testing.T) {
 				}),
 				Planned: ValueWithPrivate{
 					Value: cty.ObjectVal(map[string]cty.Value{
-						"name": cty.StringVal("rumleskaft"),
+						"name": objchange.ValuePendingChange(cty.StringVal("rumleskaft"), objAddr.InstanceAddr),
 					}),
 				},
 				RequiresReplace: cty.NewPathSet(
@@ -425,9 +399,9 @@ func TestManagedResourceTypePlanChanges(t *testing.T) {
 					"name": cty.StringVal("rumpelstiltskin"),
 				}),
 				Planned: ValueWithPrivate{
-					Value: cty.ObjectVal(map[string]cty.Value{
+					Value: objchange.ValuePendingChange(cty.ObjectVal(map[string]cty.Value{
 						"name": cty.StringVal("rumpelstiltskin"),
-					}),
+					}), objAddr.InstanceAddr),
 				},
 				// Some real-world providers return a nonsensical "requires
 				// replace" even when they're describing the creation of
@@ -468,9 +442,9 @@ func TestManagedResourceTypePlanChanges(t *testing.T) {
 					"name": cty.String,
 				})),
 				Planned: ValueWithPrivate{
-					Value: cty.NullVal(cty.Object(map[string]cty.Type{
+					Value: objchange.ValuePendingChange(cty.NullVal(cty.Object(map[string]cty.Type{
 						"name": cty.String,
-					})),
+					})), objAddr.InstanceAddr),
 				},
 				// Some real-world providers return a nonsensical "requires
 				// replace" even when they're describing the creation of
@@ -557,13 +531,13 @@ This is a bug in the provider, which should be reported in the provider's own is
 					"name": cty.StringVal("rumpelstiltskin"),
 				}),
 				Planned: ValueWithPrivate{
-					Value: cty.ObjectVal(map[string]cty.Value{
+					Value: objchange.ValuePendingChange(cty.ObjectVal(map[string]cty.Value{
 						// The invalid value is allowed to leak out in this
 						// case, because the quirks that causes are less
 						// disruptive than completely refusing to interact
 						// with old provider implementations.
 						"name": cty.StringVal("RUMPELSTILTSKIN"),
-					}),
+					}), objAddr.InstanceAddr),
 				},
 			},
 		},
@@ -633,9 +607,9 @@ This is a bug in the provider, which should be reported in the provider's own is
 					"name": cty.String,
 				})),
 				Planned: ValueWithPrivate{
-					Value: cty.NullVal(cty.Object(map[string]cty.Type{
+					Value: objchange.ValuePendingChange(cty.NullVal(cty.Object(map[string]cty.Type{
 						"name": cty.String,
-					})),
+					})), objAddr.InstanceAddr),
 				},
 			},
 		},
@@ -661,11 +635,6 @@ This is a bug in the provider, which should be reported in the provider's own is
 				"test_thing",
 				providerClient,
 			)
-			objAddr := addrs.Resource{
-				Mode: addrs.ManagedResourceMode,
-				Type: "test_thing",
-				Name: "test",
-			}.Absolute(addrs.RootModuleInstance).Instance(addrs.NoKey).CurrentObject()
 
 			gotResp, gotDiags := resourceType.PlanChanges(t.Context(), test.Request, objAddr)
 			if diff := cmp.Diff(test.WantResponse, gotResp, ctydebug.CmpOptions); diff != "" {

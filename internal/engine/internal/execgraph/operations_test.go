@@ -27,8 +27,10 @@ type mockOperations struct {
 	ManagedApplyFunc                   func(ctx context.Context, plan *exec.ManagedResourceObjectFinalPlan, fallback *exec.ResourceInstanceObject) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
 	ManagedChangeAddrFunc              func(ctx context.Context, currentObj *exec.ResourceInstanceObject, newAddr addrs.AbsResourceInstance) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
 	ManagedDeposedMetaFunc             func(ctx context.Context, instAddr addrs.AbsResourceInstance, deposedKey states.DeposedKey, prior *exec.ResourceInstanceObject) (*exec.ResourceInstanceObjectMeta, tfdiags.Diagnostics)
+	ManagedForgetFunc                  func(ctx context.Context, plan *exec.ManagedResourceObjectFinalPlan) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
 	ManagedPerformDeposeFunc           func(ctx context.Context, currentObj *exec.ResourceInstanceObject, deletePlan *exec.ManagedResourceObjectFinalPlan) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
 	ManagedFinalPlanFunc               func(ctx context.Context, metadata *exec.ResourceInstanceObjectMeta, desired *eval.DesiredResourceInstance, prior *exec.ResourceInstanceObject, plannedVal cty.Value) (*exec.ManagedResourceObjectFinalPlan, tfdiags.Diagnostics)
+	ManagedFinalPlanForgetFunc         func(ctx context.Context, metadata *exec.ResourceInstanceObjectMeta, prior *exec.ResourceInstanceObject) (*exec.ManagedResourceObjectFinalPlan, tfdiags.Diagnostics)
 	ResourceInstanceDesiredFunc        func(ctx context.Context, meta *exec.ResourceInstanceObjectMeta) (*eval.DesiredResourceInstance, tfdiags.Diagnostics)
 	ResourceInstanceCurrentMetaFunc    func(ctx context.Context, instAddr addrs.AbsResourceInstance, prior *exec.ResourceInstanceObject) (*exec.ResourceInstanceObjectMeta, tfdiags.Diagnostics)
 	ResourceInstancePostconditionsFunc func(ctx context.Context, result *exec.ResourceInstanceObject) tfdiags.Diagnostics
@@ -94,6 +96,17 @@ func (m *mockOperations) ManagedDeposedMeta(ctx context.Context, instAddr addrs.
 	return result, diags
 }
 
+// ManagedForget implements [exec.Operations].
+func (m *mockOperations) ManagedForget(ctx context.Context, plan *exec.ManagedResourceObjectFinalPlan) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+	var result *exec.ResourceInstanceObject
+	if m.ManagedForgetFunc != nil {
+		result, diags = m.ManagedForgetFunc(ctx, plan)
+	}
+	m.appendLog("ManagedForget", []any{plan}, result)
+	return result, diags
+}
+
 // ManagedPerformDepose implements [exec.Operations].
 func (m *mockOperations) ManagedPerformDepose(ctx context.Context, currentObj *exec.ResourceInstanceObject, deletePlan *exec.ManagedResourceObjectFinalPlan) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
@@ -113,6 +126,17 @@ func (m *mockOperations) ManagedFinalPlan(ctx context.Context, metadata *exec.Re
 		result, diags = m.ManagedFinalPlanFunc(ctx, metadata, desired, prior, plannedVal)
 	}
 	m.appendLog("ManagedFinalPlan", []any{desired, prior, plannedVal}, result)
+	return result, diags
+}
+
+// ManagedFinalPlanForget implements [exec.Operations].
+func (m *mockOperations) ManagedFinalPlanForget(ctx context.Context, metadata *exec.ResourceInstanceObjectMeta, prior *exec.ResourceInstanceObject) (*exec.ManagedResourceObjectFinalPlan, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+	var result *exec.ManagedResourceObjectFinalPlan
+	if m.ManagedFinalPlanFunc != nil {
+		result, diags = m.ManagedFinalPlanForgetFunc(ctx, metadata, prior)
+	}
+	m.appendLog("ManagedFinalPlanForget", []any{metadata, prior}, result)
 	return result, diags
 }
 

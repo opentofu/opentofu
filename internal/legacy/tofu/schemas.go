@@ -170,10 +170,6 @@ func loadProviderSchemas(schemas map[addrs.Provider]*ProviderSchema, config *con
 		// NOTE: No ephemeral resources schema for the legacy code
 
 		schemas[fqn] = s
-
-		if resp.ProviderMeta.Block != nil {
-			s.ProviderMeta = resp.ProviderMeta.Block
-		}
 	}
 
 	if config != nil {

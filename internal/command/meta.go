@@ -427,13 +427,13 @@ func (m *Meta) contextOpts(ctx context.Context) (*tofu.ContextOpts, error) {
 }
 
 // confirm asks a yes/no confirmation.
-func (m *Meta) confirm(opts *tofu.InputOpts) (bool, error) {
+func (m *Meta) confirm(ctx context.Context, opts *tofu.InputOpts) (bool, error) {
 	if !m.Input() {
 		return false, errors.New("input is disabled")
 	}
 
 	for range 2 {
-		v, err := m.UIInput().Input(context.Background(), opts)
+		v, err := m.UIInput().Input(ctx, opts)
 		if err != nil {
 			return false, fmt.Errorf(
 				"Error asking for confirmation: %w", err)

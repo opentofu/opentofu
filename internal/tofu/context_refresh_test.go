@@ -163,7 +163,7 @@ func TestContext2Refresh_dynamicAttr(t *testing.T) {
 }
 
 func TestContext2Refresh_dataComputedModuleVar(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureRefresh)
+	SkipExperimental(t, ExperimentalFeatureRefreshOnly, ExperimentalBugDataResource)
 
 	p := testProvider("aws")
 	m := testModule(t, "refresh-data-module-var")
@@ -227,7 +227,7 @@ func TestContext2Refresh_dataComputedModuleVar(t *testing.T) {
 }
 
 func TestContext2Refresh_targeted(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureTarget)
+	SkipExperimental(t, ExperimentalFeatureTarget, ExperimentalFeatureRefresh)
 
 	p := testProvider("aws")
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
@@ -314,7 +314,7 @@ func TestContext2Refresh_targeted(t *testing.T) {
 // Usually that test exists right before the exclude flag test
 
 func TestContext2Refresh_excluded(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureTarget)
+	SkipExperimental(t, ExperimentalFeatureTarget, ExperimentalFeatureRefresh)
 
 	p := testProvider("aws")
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
@@ -400,7 +400,7 @@ func TestContext2Refresh_excluded(t *testing.T) {
 }
 
 func TestContext2Refresh_targetedCount(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureTarget)
+	SkipExperimental(t, ExperimentalFeatureTarget, ExperimentalFeatureRefresh)
 
 	p := testProvider("aws")
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
@@ -492,7 +492,7 @@ func TestContext2Refresh_targetedCount(t *testing.T) {
 }
 
 func TestContext2Refresh_excludedCount(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureTarget)
+	SkipExperimental(t, ExperimentalFeatureTarget, ExperimentalFeatureRefresh)
 
 	p := testProvider("aws")
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
@@ -585,7 +585,7 @@ func TestContext2Refresh_excludedCount(t *testing.T) {
 }
 
 func TestContext2Refresh_targetedCountIndex(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureTarget)
+	SkipExperimental(t, ExperimentalFeatureTarget, ExperimentalFeatureRefresh)
 
 	p := testProvider("aws")
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
@@ -671,7 +671,7 @@ func TestContext2Refresh_targetedCountIndex(t *testing.T) {
 }
 
 func TestContext2Refresh_excludedCountIndex(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureTarget)
+	SkipExperimental(t, ExperimentalFeatureTarget, ExperimentalFeatureRefresh)
 
 	p := testProvider("aws")
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
@@ -994,7 +994,7 @@ func TestContext2Refresh_noState(t *testing.T) {
 }
 
 func TestContext2Refresh_output(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureRefresh)
+	SkipExperimental(t, ExperimentalFeatureRefreshOnly)
 
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
@@ -1235,7 +1235,7 @@ func TestContext2Refresh_dataState(t *testing.T) {
 
 	mod := s.RootModule()
 
-	SkipExperimental(t, ExperimentalFeatureRefresh)
+	SkipExperimental(t, ExperimentalFeatureRefresh, ExperimentalBugDataResource)
 
 	newState, err := mod.Resources["data.null_data_source.testing"].Instances[addrs.NoKey].Current.Decode(schema.ImpliedType())
 	if err != nil {
@@ -1248,7 +1248,7 @@ func TestContext2Refresh_dataState(t *testing.T) {
 }
 
 func TestContext2Refresh_dataStateRefData(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureRefresh)
+	SkipExperimental(t, ExperimentalFeatureRefresh, ExperimentalBugDataResource)
 
 	p := testProvider("null")
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
@@ -1927,7 +1927,7 @@ func TestContext2Refresh_dataSourceOrphan(t *testing.T) {
 // the diff output and unexpected behavior with ignore_changes. Make sure
 // refresh fixes these up before storing the state.
 func TestContext2Refresh_reifyNullBlock(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureRefresh)
+	SkipExperimental(t, ExperimentalFeatureRefreshOnly)
 
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `

@@ -6,23 +6,41 @@ on:
   workflow_dispatch:
 
 jobs:
-  nightly:
-    runs-on: larger-runners
-    permissions:
-      contents: read
-      id-token: write
-      packages: write
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include: # NOTE: Ensure this list EXACTLY matches the cache steps below and the release action 
+          - {goos: "linux",   goarch: "amd64"}
+          - {goos: "linux",   goarch: "arm64"}
+          - {goos: "freebsd", goarch: "amd64"}
+          - {goos: "openbsd", goarch: "amd64"}
+          - {goos: "solaris", goarch: "amd64"}
+          - {goos: "darwin",  goarch: "amd64"}
+          - {goos: "darwin",  goarch: "arm64"}
+          - {goos: "windows", goarch: "amd64"}
+          - {goos: "windows", goarch: "arm64"}
+    
+    name: Build for ${{ matrix.goos }}_${{ matrix.goarch }}
+    runs-on: ubuntu-latest
+    environment: gpg
+    env:
+      GOOS: ${{ matrix.goos }}
+      GOARCH: ${{ matrix.goarch }}
+
     steps:
-      - name: Checkout
+      - name: "Fetch source code"
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          ref: main
           fetch-depth: 0
+          ref: main 
 
-      - name: Set up Go
-        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
-        with:
-          go-version-file: "go.mod"
+      - name: "Configure Go toolchain"
+        uses: ./.github/actions/go-toolchain
+
+      - name: Cache
+        uses: ./.github/actions/release-cache
+        with: { goos: "${{ matrix.goos }}", goarch: "${{ matrix.goarch }}", tag: "${{ github.sha }}" }
 
       # Prepare the nightly version to be able to have it returned correctly when running `tofu --version`.
       - name: Prepare version file
@@ -31,29 +49,75 @@ jobs:
           short_commit=`git rev-parse --short=12 ${GITHUB_SHA}`
           sed -i "s/-dev/-nightly${commit_created_at}-${short_commit}/" version/VERSION
 
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@9c156ee8a17a598857849441385a2041ef570552 # v6.3.0
+
+      - name: Run GoReleaser (Build)
+        uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
         with:
-          version: v1.21.2
+          version: v2.19.0
           distribution: goreleaser-pro
-          args: release --nightly --clean --timeout=60m --skip=sign,docker
+          # Without single-target, only GOOS is used as a filter, not GOARCH
+          args: release --nightly --skip=docker,sign --split --clean --single-target --timeout=60m --config=release/.goreleaser.yaml
+        env:
+          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
+          RELEASE_FLAG_LATEST: "false" 
+          RELEASE_FLAG_PRERELEASE: "true" 
+
+  release:
+    needs: [build]
+    runs-on: "ubuntu-latest"
+    name: "Nightly Release"
+    environment: gpg
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          ref: main 
+
+      - name: Fetch tags
+        run: git fetch --force --tags
+
+      - name: Cache
+        uses: ./.github/actions/release-cache
+        with: { goos: "linux", goarch: "amd64", tag: "${{ github.sha }}"}
+      - name: Cache
+        uses: ./.github/actions/release-cache
+        with: { goos: "linux", goarch: "arm64", tag: "${{ github.sha }}"}
+      - name: Cache
+        uses: ./.github/actions/release-cache
+        with: { goos: "freebsd", goarch: "amd64", tag: "${{ github.sha }}"}
+      - name: Cache
+        uses: ./.github/actions/release-cache
+        with: { goos: "openbsd", goarch: "amd64", tag: "${{ github.sha }}"}
+      - name: Cache
+        uses: ./.github/actions/release-cache
+        with: { goos: "solaris", goarch: "amd64", tag: "${{ github.sha }}"}
+      - name: Cache
+        uses: ./.github/actions/release-cache
+        with: { goos: "darwin", goarch: "amd64", tag: "${{ github.sha }}"}
+      - name: Cache
+        uses: ./.github/actions/release-cache
+        with: { goos: "darwin", goarch: "arm64", tag: "${{ github.sha }}"}
+      - name: Cache
+        uses: ./.github/actions/release-cache
+        with: { goos: "windows", goarch: "amd64", tag: "${{ github.sha }}"}
+      - name: Cache
+        uses: ./.github/actions/release-cache
+        with: { goos: "windows", goarch: "arm64", tag: "${{ github.sha }}"}
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
+        with:
+          version: v2.19.0
+          distribution: goreleaser-pro
+          # No need to specify config file here (not allowed) as it uses the config from the dists (undocumented)
+          args: continue --skip=docker,sign --merge --timeout=60m
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
-          RELEASE_FLAG_LATEST: "false"
-          RELEASE_FLAG_PRERELEASE: "true"
-
-      # The step before goreleaser one updated version/VERSION to have it stored in the binary, but we want to bring the
-      # repo to a clean state now.
-      - name: Restore version
-        run: git restore version/VERSION
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: nightly-dist
-          path: dist
-          retention-days: 7
+          RELEASE_FLAG_LATEST: "false" 
+          RELEASE_FLAG_PRERELEASE: "true" 
 
       - name: Setup dependencies
         run: sudo apt-get update && sudo apt-get install rclone jq
@@ -62,15 +126,17 @@ jobs:
         run: |
           # Get today's date in YYYYMMDD format
           DATE=$(date +%Y%m%d)
-          VERSION=$(grep -E '"version":' dist/metadata.json | cut -d'"' -f4)
+          VERSION=$(grep -E '"version":' dist/linux_amd64/metadata.json | cut -d'"' -f4)
           COMMIT=$(git rev-parse --short=12 HEAD)
 
           # Create a staging directory for upload
           mkdir -p ./upload/nightlies/${DATE}
 
+          find dist/
+
           # Copy relevant artifacts
-          cp dist/*.tar.gz ./upload/nightlies/${DATE}/ 2>/dev/null || true
-          cp dist/*.zip ./upload/nightlies/${DATE}/ 2>/dev/null || true
+          cp dist/*/*.tar.gz ./upload/nightlies/${DATE}/ 2>/dev/null || true
+          cp dist/*/*.zip ./upload/nightlies/${DATE}/ 2>/dev/null || true
           cp dist/*SHA256SUMS* ./upload/nightlies/${DATE}/ 2>/dev/null || true
 
           # Create latest.json

@@ -18,6 +18,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/instances"
+	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -425,6 +426,20 @@ func (c *Context) Import(ctx context.Context, config *configs.Config, prevRunSta
 
 	// Hold a lock since we can modify our own state here
 	defer c.acquireRun("import")()
+
+	// TEMP: Opt-in support for testing with the new experimental language
+	// runtime. Refer to backend_temp_new_runtime.go for more information.
+	if experimentalRuntimeEnabled() {
+		plan, diags := c.newEnginePlan(ctx, config, prevRunState, &PlanOpts{
+			Mode:          plans.RefreshOnlyMode,
+			SetVariables:  opts.SetVariables,
+			ImportTargets: opts.Targets,
+		})
+		if plan.Errored || diags.HasErrors() {
+			return prevRunState, diags
+		}
+		return plan.PriorState, diags
+	}
 
 	// Don't modify our caller's state
 	state := prevRunState.DeepCopy()

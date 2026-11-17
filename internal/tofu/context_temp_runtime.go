@@ -7,6 +7,7 @@ package tofu
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -25,6 +26,7 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/shared"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -192,13 +194,30 @@ func (c *Context) newEnginePlan(ctx context.Context, config *configs.Config, pre
 
 	defer done()
 
+	var importTargets []*eval.ImportStatement
+	for _, target := range opts.ImportTargets {
+		if target.IsFromImportCommandLine() {
+			importTargets = append(importTargets, &eval.ImportStatement{
+				Addr: target.Addr,
+				ID:   target.ID,
+			})
+		}
+	}
+
 	newOpts := &planning.PlanOpts{
 		Mode:         opts.Mode,
 		ForceReplace: opts.ForceReplace,
+		SkipRefresh:  opts.SkipRefresh,
+
+		ImportCommandTargets: importTargets,
+		GenerateConfigPath:   opts.GenerateConfigPath,
+
 		// TODO: Most other things that are in this package's [PlanOpts]
 		// package, though notably not "SetVariables" because the new runtime
 		// deals with input variables during the module compilation step, rather
 		// than directly during planning.
+		Targets:  opts.Targets,
+		Excludes: opts.Excludes,
 	}
 
 	plan, moreDiags := planning.PlanChanges(ctx, newOpts, prevRoundState, configInst, plugins)
@@ -231,6 +250,19 @@ func (c *Context) newEnginePlanTracer() *planning.Tracer {
 			gen := addr.DeposedKey.Generation()
 			c.eachHook(func(h Hook) (HookAction, error) {
 				return h.PostRefresh(inst, gen, prevRoundVal, refreshedVal)
+			})
+		},
+		StartManagedResourceInstanceObjectImport: func(ctx context.Context, addr addrs.AbsResourceInstanceObject, identity providers.ImportTarget) context.Context {
+			inst := addr.InstanceAddr
+			c.eachHook(func(h Hook) (HookAction, error) {
+				return h.PrePlanImport(inst, identity)
+			})
+			return ctx
+		},
+		EndManagedResourceInstanceObjectImport: func(ctx context.Context, addr addrs.AbsResourceInstanceObject) {
+			inst := addr.InstanceAddr
+			c.eachHook(func(h Hook) (HookAction, error) {
+				return h.PostPlanImport(inst, nil) // Practically speaking passing in the list of potential imports here does not make sense
 			})
 		},
 		StartManagedResourceInstanceObjectPlanChanges: func(ctx context.Context, addr addrs.AbsResourceInstanceObject, priorVal, configVal cty.Value) context.Context {
@@ -305,8 +337,37 @@ func (c *Context) newEngineApply(ctx context.Context, config *configs.Config, pl
 
 	defer done()
 
-	newState, moreDiags := applying.ApplyPlannedChanges(ctx, plan, configInst, plugins)
+	persistState := func(state *states.State) error {
+		var errs []error
+		for _, h := range c.hooks {
+			action, err := h.PostStateUpdate(func(mut *states.State) {
+				// Intentional struct copy
+				*mut = *state
+			})
+			errs = append(errs, err)
+			switch action {
+			case HookActionContinue:
+				continue
+			case HookActionHalt:
+				break
+			}
+		}
+		return errors.Join(errs...)
+	}
+	newState, moreDiags := applying.ApplyPlannedChanges(ctx, plan, configInst, plugins, persistState)
 	diags = diags.Append(moreDiags)
+
+	if len(plan.TargetAddrs) > 0 || len(plan.ExcludeAddrs) > 0 {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Warning,
+			"Applied changes may be incomplete",
+			`The plan was created with the -target or the -exclude option in effect, so some changes requested in the configuration may have been ignored and the output values may not be fully updated. Run the following command to verify that no other changes are pending:
+    tofu plan
+	
+Note that the -target and -exclude options are not suitable for routine use, and are provided only for exceptional situations such as recovering from errors or mistakes, or when OpenTofu specifically suggests to use it as part of an error message.`,
+		))
+	}
+
 	return newState, diags
 }
 

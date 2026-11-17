@@ -138,7 +138,10 @@ func (p PackageHTTPURL) InstallProviderPackage(ctx context.Context, meta Package
 // This is kept as it was previously, before being moved here, to avoid introducing unwanted behaviors
 // in a package download process.
 // Later, this method might be removed in favor of a more common client from [httpclient] package.
-func packageHTTPUrlClientWithRetry(ctx context.Context, retries int) *retryablehttp.Client {
+//
+// If transport is non-nil it is set as the HTTP transport on the returned client, allowing callers to
+// inject credential-wrapping or other custom transports without duplicating the client-setup boilerplate.
+func packageHTTPUrlClientWithRetry(ctx context.Context, retries int, transport http.RoundTripper) *retryablehttp.Client {
 	retryableClient := retryablehttp.NewClient()
 	retryableClient.HTTPClient = httpclient.New(ctx)
 	retryableClient.RetryMax = retries
@@ -148,5 +151,8 @@ func packageHTTPUrlClientWithRetry(ctx context.Context, retries int) *retryableh
 		}
 	}
 	retryableClient.Logger = log.New(logging.LogOutput(), "", log.Flags())
+	if transport != nil {
+		retryableClient.HTTPClient.Transport = transport
+	}
 	return retryableClient
 }

@@ -7,9 +7,12 @@ package command
 
 import (
 	"context"
+	"io"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -364,6 +367,51 @@ func TestLogin(t *testing.T) {
 			t.Fatalf("missing expected error message\nwant: %s\nfull output:\n%s", want, got)
 		}
 	}, false))
+
+	t.Run("cancel input during login confirmation", loginTestCase(func(t *testing.T, m *Meta, closeView func(*testing.T) *terminal.TestOutput) {
+		// Create a cancelled context to see if it is passed (next I will ask the input to be a pipe so it works)
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+
+		// make suer that the actual call will use the cancellable context
+		prefCtx := m.CallerContext
+		m.CallerContext = ctx
+		defer func() { m.CallerContext = prefCtx }()
+		// defer func() { abortCh <- struct{}{} }()
+
+		// create a pipe that is idle
+		rx, tx := io.Pipe()
+
+		// cancel the context right before you start reading
+		var once sync.Once
+		rWrapped := notifyReader{
+			cancel: cancel,
+			once:   &once,
+			Reader: rx,
+		}
+
+		// and force the code to use it so it hangs on input for address
+		defaultInputReader = &rWrapped
+
+		// reset all things I set when done to not hog resources
+		defer func() {
+			defaultInputReader = os.Stdin
+			rx.Close()
+			tx.Close()
+		}()
+
+		out := RunCommander(t, LoginCommander(), *m, []string{"example.com"})
+		loginOutput := closeView(t).All()
+
+		if out != 1 {
+			t.Fatalf("error code and stdout dont match expected test: %d %s", out, loginOutput)
+
+		}
+		if !strings.Contains(loginOutput, "interrupted: context canceled") {
+			t.Fatalf("an error occured but not the one I expected %s", loginOutput)
+		}
+	}, false))
+
 }
 
 // TestLoginOAuthCallbackRace verifies that no panic, deadlock, or data race

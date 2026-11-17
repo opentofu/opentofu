@@ -15,6 +15,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
+	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -287,4 +288,33 @@ func staticCheckTraversalForInstances(selector InstanceSelector, traversal hcl.T
 		}
 	}
 	return diags
+}
+
+func OrphanActionForInstanceKey(selector InstanceSelector, key addrs.InstanceKey) plans.ResourceInstanceChangeActionReason {
+	// Ported from tofu/orphan nodes
+	switch key.(type) {
+	case nil: // no instance key at all
+		if selector.InstanceKeyType() != addrs.NoKeyType {
+			return plans.ResourceInstanceDeleteBecauseWrongRepetition
+		}
+		return plans.ResourceInstanceDeleteBecauseEnabledFalse
+	case addrs.IntKey:
+		if selector.InstanceKeyType() != addrs.IntKeyType {
+			// This resource isn't using "count" at all, then
+			return plans.ResourceInstanceDeleteBecauseWrongRepetition
+		} else {
+			// This instance key is outside of the configured range
+			return plans.ResourceInstanceDeleteBecauseCountIndex
+		}
+	case addrs.StringKey:
+		if selector.InstanceKeyType() != addrs.StringKeyType {
+			// This resource isn't using "for_each" at all, then
+			return plans.ResourceInstanceDeleteBecauseWrongRepetition
+		} else {
+			// This instance key is outside of the configured range
+			return plans.ResourceInstanceDeleteBecauseEachKey
+		}
+	}
+	// Wildcard?
+	return plans.ResourceInstanceChangeNoReason
 }

@@ -23,21 +23,39 @@ func TestVersion(t *testing.T) {
 
 	t.Parallel()
 
-	fixturePath := filepath.Join("testdata", "empty")
-	tf := e2e.NewBinary(t, tofuBin, fixturePath)
+	// Although OpenTofu typically uses its own single quirky option style
+	// inherited from Go's "flag" package, for version in particular we have
+	// various aliases that resemble how other software tends to expose
+	// version information.
+	//
+	// ("--v" in particular is more just an artifact of how our quirky option
+	// parsing works than something we intentionally support, but it currently
+	// works and is included here to make sure we notice if it regresses in
+	// future. If we later adopt another option-parsing library that's more
+	// "normal" then we can decide at that point whether we think it's
+	// important to continue supporting that.)
+	variants := []string{"version", "-version", "--version", "-v", "--v"}
+	for _, variant := range variants {
+		t.Run(variant, func(t *testing.T) {
+			t.Parallel()
 
-	stdout, stderr, err := tf.Run("version")
-	if err != nil {
-		t.Errorf("unexpected error: %s", err)
-	}
+			fixturePath := filepath.Join("testdata", "empty")
+			tf := e2e.NewBinary(t, tofuBin, fixturePath)
 
-	if stderr != "" {
-		t.Errorf("unexpected stderr output:\n%s", stderr)
-	}
+			stdout, stderr, err := tf.Run(variant)
+			if err != nil {
+				t.Errorf("unexpected error: %s", err)
+			}
 
-	wantVersion := fmt.Sprintf("OpenTofu v%s", version.String())
-	if !strings.Contains(stdout, wantVersion) {
-		t.Errorf("output does not contain our current version %q:\n%s", wantVersion, stdout)
+			if stderr != "" {
+				t.Errorf("unexpected stderr output:\n%s", stderr)
+			}
+
+			wantVersion := fmt.Sprintf("OpenTofu v%s", version.String())
+			if !strings.Contains(stdout, wantVersion) {
+				t.Errorf("output does not contain our current version %q:\n%s", wantVersion, stdout)
+			}
+		})
 	}
 }
 

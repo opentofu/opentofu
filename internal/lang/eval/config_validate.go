@@ -7,6 +7,7 @@ package eval
 
 import (
 	"context"
+	"slices"
 
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -26,7 +27,17 @@ func (c *ConfigInstance) Validate(ctx context.Context) tfdiags.Diagnostics {
 	// as the initial worker node in the work graph.
 	ctx = grapheval.ContextWithNewWorker(ctx)
 
+	// If the grapheval package detects a self-dependency problem during
+	// evaluation then it'll use this tracker to find human-friendly names
+	// for all of the requests involved in the error.
+	ctx = grapheval.ContextWithRequestTracker(ctx, grapheval.NewRequestTracker())
+
 	_, diags := c.precheckedModuleInstance(ctx)
+
+	// Filter out ImportStatement addr unknown diags.
+	// I don't like this, but it seems like the only reasonable solution here.
+	diags = slices.DeleteFunc(diags, tfdiags.DiagnosticCausedByUnknown)
+
 	// For validation purposes we don't need to do anything more with
 	// the module instance we checked... the check result _is_ the validation
 	// result.

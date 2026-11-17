@@ -155,7 +155,13 @@ func (c ConsoleCommand) Execute(args *arguments.Console, view views.Console) int
 	// Before we can evaluate expressions, we must compute and populate any
 	// derived values (input variables, local values, output values)
 	// that are not stored in the persistent state.
-	scope, scopeDiags := lr.Core.Eval(ctx, lr.Config, lr.InputState, addrs.RootModuleInstance, evalOpts)
+	scope, done, scopeDiags := lr.Core.Eval(ctx, lr.Config, lr.InputState, addrs.RootModuleInstance, evalOpts)
+	defer func() {
+		err := done(ctx)
+		if err != nil {
+			view.Diagnostics(tfdiags.New(err))
+		}
+	}()
 	diags = diags.Append(scopeDiags)
 	if scope == nil {
 		// scope is nil if there are errors so bad that we can't even build a scope.

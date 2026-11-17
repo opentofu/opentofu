@@ -233,6 +233,21 @@ func TestSkipDestroy_DestroyMode(t *testing.T) {
 				{addr: "aws_instance.foo", action: plans.Delete},
 			},
 		},
+		{
+			name: "InvalidConfigFlag",
+			config: `
+				variable "input" {
+				  default = false
+				}
+				resource "aws_instance" "foo" {
+					lifecycle {
+						destroy = var.input
+					}
+				}
+			`,
+			planMode:        plans.DestroyMode,
+			expectPlanError: true,
+		},
 	}
 
 	for _, tc := range tests {

@@ -154,8 +154,8 @@ func TestValidate_valuesOnlyCycle(t *testing.T) {
 		// reported in the template interpolation for local value "b".
 		Summary: "Self-referential expressions",
 		Detail: `The following objects in the configuration form a dependency cycle, so there is no valid order to evaluate them in:
-  - local.a (<ModuleFromStringForTesting>:3,11)
-  - local.b (<ModuleFromStringForTesting>:4,11)`,
+  - Value of local.a (<ModuleFromStringForTesting>:3,11)
+  - Value of local.b (<ModuleFromStringForTesting>:4,11)`,
 	})
 	wantDiags = wantDiags.Append(wantDiags[0])
 	gotDiags := configInst.Validate(t.Context())

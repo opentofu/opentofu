@@ -52,6 +52,45 @@ func TestConsole_basic(t *testing.T) {
 	}
 }
 
+func TestConsole_functions(t *testing.T) {
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("console-functions"), td)
+	t.Chdir(td)
+
+	streams, done := terminal.StreamsForTesting(t)
+	view := views.NewView(streams)
+	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       view,
+	}
+
+	code := RunCommander(t, InitCommander(), meta, nil)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
+	}
+
+	streams, done = terminal.StreamsForTesting(t)
+	view = views.NewView(streams)
+	meta = Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       view,
+	}
+
+	defer testStdinPipe(t, strings.NewReader(`provider::terraform::decode_tfvars("b = 2")`+"\n"))()
+
+	code = RunCommander(t, ConsoleCommander(), meta, nil)
+	output = done(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
+	}
+
+	actual := output.Stdout()
+	if actual != "{\n  \"b\" = 2\n}\n" {
+		t.Fatalf("bad: %q", actual)
+	}
+}
+
 func TestConsole_tfvars(t *testing.T) {
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply-vars"), td)

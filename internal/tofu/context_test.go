@@ -197,8 +197,6 @@ func testContext2(t testing.TB, opts *ContextOpts) *Context {
 		t.Fatalf("failed to create test context\n\n%s\n", diags.Err())
 	}
 
-	ctx.encryption = encryption.Disabled()
-
 	return ctx
 }
 
@@ -339,7 +337,7 @@ func checkStateString(t *testing.T, state *states.State, expected string) {
 	expected = strings.TrimSpace(expected)
 
 	if actual != expected {
-		t.Fatalf("incorrect state\ngot:\n%s\n\nwant:\n%s", actual, expected)
+		t.Fatalf("incorrect state\ngot:\n%s\n\nwant:\n%s\ndiff:%s", actual, expected, cmp.Diff(actual, expected))
 	}
 }
 

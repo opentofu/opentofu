@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -495,6 +496,61 @@ func TestFilesystem_prettyPrintState(t *testing.T) {
 
 	if content[len(content)-1] != '\n' {
 		t.Fatal("state file does not end with a trailing newline")
+	}
+}
+
+func TestFilesystem_Mutate(t *testing.T) {
+	defer testOverrideVersion(t, "1.2.3")()
+
+	td := t.TempDir()
+	s := NewFilesystem(path.Join(td, "test.tfstate"), encryption.StateEncryptionDisabled())
+
+	lockID, err := s.Lock(t.Context(), NewLockInfo())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Simulate mutating the state multiple times
+	// before it's been written to disk.
+	// See https://github.com/opentofu/opentofu/issues/4809 for reference.
+	err = s.MutateState(func(in *states.State) *states.State {
+		if in == nil {
+			in = states.NewState()
+		}
+		in.RootModule().SetOutputValue("first", cty.StringVal("FIRST"), false, "")
+		return in
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = s.MutateState(func(in *states.State) *states.State {
+		if in == nil {
+			in = states.NewState()
+		}
+		in.RootModule().SetOutputValue("second", cty.StringVal("SECOND"), false, "")
+		return in
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := s.PersistState(t.Context(), nil); err != nil {
+		t.Fatal(err)
+	}
+
+	recorded := s.file.State.RootModule().OutputValues
+	if _, ok := recorded["first"]; !ok {
+		t.Error("Expected first")
+	}
+	if _, ok := recorded["second"]; !ok {
+		t.Error("Expected second")
+	}
+
+	// Unlock releases the file handle, which is required on Windows
+	// where t.TempDir cleanup cannot remove open files.
+	if err := s.Unlock(t.Context(), lockID); err != nil {
+		t.Fatalf("failed to unlock state: %s", err)
 	}
 }
 

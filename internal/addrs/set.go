@@ -43,6 +43,15 @@ func (s Set[T]) Has(addr T) bool {
 	return exists
 }
 
+func (s Set[T]) HasFunc(fn func(T) bool) bool {
+	for _, entry := range s {
+		if fn(entry) {
+			return true
+		}
+	}
+	return false
+}
+
 // All returns a sequence of all addresses in the set in a pseudorandom order.
 func (s Set[T]) All() iter.Seq[T] {
 	return maps.Values(s)

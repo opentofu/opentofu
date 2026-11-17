@@ -113,9 +113,9 @@ func (b *EvalGraphBuilder) Steps() []GraphTransformer {
 		// have to connect again later for providers and so on.
 		&ReferenceTransformer{},
 
-		// Although we don't configure providers, we do still start them up
-		// to get their schemas, and so we must shut them down again here.
-		&CloseProviderTransformer{},
+		// We need to leave providers open for function support
+		// in tofu console
+		//&CloseProviderTransformer{},
 
 		// Close root module
 		&CloseRootModuleTransformer{

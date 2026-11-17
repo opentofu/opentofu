@@ -163,6 +163,13 @@ func CompileModuleInstance(
 		call.EvaluationGlue.ResourceInstanceValue,
 		call.DependencyMarks,
 	)
+	ret.importNodes = compileImports(
+		ctx,
+		topScope,
+		call.EvalContext.Providers,
+		providersSidechannel,
+		module.Import,
+	)
 	ret.moveStatements = compileMoveStatements(
 		module,
 		call.CalleeAddr,
@@ -174,7 +181,7 @@ func CompileModuleInstance(
 	// instance.
 	ret.moduleInstanceNode.OutputValuers = make(map[addrs.OutputValue]*configgraph.OnceValuer, len(ret.outputValueNodes))
 	for addr, node := range ret.outputValueNodes {
-		ret.moduleInstanceNode.OutputValuers[addr] = configgraph.ValuerOnce(node)
+		ret.moduleInstanceNode.OutputValuers[addr] = configgraph.ValuerOnce(node, "Output values of %s", node.Addr)
 	}
 
 	return ret

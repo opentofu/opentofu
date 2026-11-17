@@ -6,8 +6,12 @@
 package command
 
 import (
+	"context"
+	"io"
+	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/command/workdir"
@@ -175,11 +179,14 @@ func TestStateReplaceProvider(t *testing.T) {
 			WorkingDir: workdir.NewDir("."),
 			View:       view,
 		}
+		defer testInputMap(t, map[string]string{
+			"confirm": "no",
+		})()
 
 		args := []string{
 			"-state", statePath,
-			"hashicorp/google",
-			"acmecorp/google",
+			"hashicorp/aws",
+			"acmecorp/aws",
 		}
 		code := RunCommander(t, StateReplaceProviderCommander(), meta, args)
 		output := done(t)
@@ -193,6 +200,60 @@ func TestStateReplaceProvider(t *testing.T) {
 		if len(backups) != 0 {
 			t.Fatalf("unexpected backups: %#v", backups)
 		}
+	})
+
+	t.Run("cancel input at approval step", func(t *testing.T) {
+		statePath := testStateFile(t, state)
+
+		view, done := testView(t)
+
+		// Create a cancelled context to see if it is passed (next I will ask the input to be a pipe so it works)
+		ctx, cancel := context.WithCancel(t.Context())
+
+		meta := Meta{
+			WorkingDir: workdir.NewDir("."),
+			View:       view,
+
+			// make suer that the actual call will use the cancellable context
+			CallerContext: ctx,
+		}
+
+		// create a pipe that is idle
+		rx, tx := io.Pipe()
+
+		// cancel the context right before you start reading
+		var once sync.Once
+		rWrapped := notifyReader{
+			cancel: cancel,
+			once:   &once,
+			Reader: rx,
+		}
+
+		// and force the code to use it so it hangs on input for address
+		defaultInputReader = &rWrapped
+
+		// reset all things I set when done to not hog resources
+		defer func() {
+			defaultInputReader = os.Stdin
+			rx.Close()
+			tx.Close()
+		}()
+
+		args := []string{
+			"-state", statePath,
+			"hashicorp/aws",
+			"acmecorp/aws",
+		}
+		code := RunCommander(t, StateReplaceProviderCommander(), meta, args)
+		output := done(t).Stderr()
+		if code != 1 {
+			t.Fatalf("bad status code: %d\n\n%s", code, output)
+		}
+
+		if !strings.Contains(output, "interrupted: context canceled") {
+			t.Fatalf("error was not the one I expected to have, %s", output)
+		}
+
 	})
 
 	t.Run("invalid flags", func(t *testing.T) {

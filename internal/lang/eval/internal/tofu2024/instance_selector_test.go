@@ -27,7 +27,8 @@ import (
 
 func TestCompileInstanceSelectorSingleton(t *testing.T) {
 	ctx := grapheval.ContextWithNewWorker(t.Context())
-	selector := compileInstanceSelector(ctx, exprs.FlatScopeForTesting(nil), nil, nil, nil, dependsOn{})
+	ctx = grapheval.ContextWithRequestTracker(ctx, grapheval.NewRequestTracker())
+	selector := compileInstanceSelector(ctx, addrs.ModuleCall{Name: "test"}, exprs.FlatScopeForTesting(nil), nil, nil, nil, dependsOn{})
 	instsSeq, diags := selector.Instances(ctx)
 	instsSeq, marks := instsSeq.Unmark()
 	insts, _ := instsSeq.Derive(func(s configgraph.InstancesSeq) (map[addrs.InstanceKey]instances.RepetitionData, error) {
@@ -392,7 +393,7 @@ func TestCompileInstanceSelectorForEach(t *testing.T) {
 			},
 		},
 		func(ctx context.Context, e hcl.Expression, deps dependsOn) configgraph.InstanceSelector {
-			return compileInstanceSelector(ctx, scope, e, nil, nil, deps)
+			return compileInstanceSelector(ctx, addrs.ModuleCall{Name: "test"}, scope, e, nil, nil, deps)
 		},
 	)
 }
@@ -552,7 +553,7 @@ func TestCompileInstanceSelectorCount(t *testing.T) {
 			},
 		},
 		func(ctx context.Context, e hcl.Expression, deps dependsOn) configgraph.InstanceSelector {
-			return compileInstanceSelector(ctx, scope, nil, e, nil, deps)
+			return compileInstanceSelector(ctx, addrs.ModuleCall{Name: "test"}, scope, nil, e, nil, deps)
 		},
 	)
 }
@@ -664,7 +665,7 @@ func TestCompileInstanceSelectorEnabled(t *testing.T) {
 			},
 		},
 		func(ctx context.Context, e hcl.Expression, deps dependsOn) configgraph.InstanceSelector {
-			return compileInstanceSelector(ctx, scope, nil, nil, e, deps)
+			return compileInstanceSelector(ctx, addrs.ModuleCall{Name: "test"}, scope, nil, nil, e, deps)
 		},
 	)
 }
@@ -686,6 +687,7 @@ func testCompileInstanceSelector(
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			ctx := grapheval.ContextWithNewWorker(t.Context())
+			ctx = grapheval.ContextWithRequestTracker(ctx, grapheval.NewRequestTracker())
 
 			selector := compile(ctx, test.expr, test.deps)
 			instsSeq, diags := selector.Instances(ctx)

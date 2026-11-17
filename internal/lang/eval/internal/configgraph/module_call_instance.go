@@ -8,7 +8,6 @@ package configgraph
 import (
 	"context"
 
-	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 
@@ -93,6 +92,7 @@ func (m *ModuleCallInstance) StaticCheckTraversal(traversal hcl.Traversal) tfdia
 // Glue field, after indirection through whatever the compilation layer does
 // to compile and evaluate the child module instance.
 func (m *ModuleCallInstance) InputsValue(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+	ctx = withDebugAddr(ctx, m.ModuleInstanceAddr, "InputsValue")
 	// We perform the config validation in a [grapheval.Once] so that we
 	// can coalesce around a single call to m.Glue.ValidateInputs, which is
 	// likely to cause a provider RPC request.
@@ -115,11 +115,12 @@ func (m *ModuleCallInstance) InputsValue(ctx context.Context) (cty.Value, tfdiag
 			return cty.DynamicVal, diags
 		}
 		return inputsVal, diags
-	})
+	}, m.InputsValuer.ValueSourceRange(), "Input values of %s", m.ModuleInstanceAddr)
 }
 
 // Value implements exprs.Valuer.
 func (m *ModuleCallInstance) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+	ctx = withDebugAddr(ctx, m.ModuleInstanceAddr, "Value")
 	// The actual result value is decided by our caller, which is expected
 	// to know how to actually find, compile, and evaluate the target module.
 	//
@@ -152,11 +153,4 @@ func (m *ModuleCallInstance) CheckAll(ctx context.Context) tfdiags.Diagnostics {
 	var cg CheckGroup
 	cg.CheckValuer(ctx, m)
 	return cg.Complete(ctx)
-}
-
-func (m *ModuleCallInstance) AnnounceAllGraphevalRequests(announce func(workgraph.RequestID, grapheval.RequestInfo)) {
-	announce(m.InputsValuer.RequestID(), grapheval.RequestInfo{
-		Name:        m.ModuleInstanceAddr.String() + " input variable values",
-		SourceRange: m.InputsValuer.ValueSourceRange(),
-	})
 }

@@ -9,7 +9,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/convert"
@@ -20,6 +19,7 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/lang/marks"
+	"github.com/opentofu/opentofu/internal/resources"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -33,6 +33,13 @@ type Resource struct {
 	// itself a placeholder for zero or more resources whose existence
 	// and addresses we cannot determine yet.
 	Addr addrs.AbsResource
+
+	// Provider is the provider that this resource's type belongs to. This
+	// is the provider to use when asking for config validation, etc.
+	//
+	// Each instance of the resource is required to have the same provider,
+	// but they are allowed to use different instances of that provider.
+	Provider addrs.Provider
 
 	// InstanceSelector represents a rule for deciding which instances of
 	// this resource have been declared.
@@ -50,6 +57,11 @@ type Resource struct {
 
 	DestroyProvisioners func(ctx context.Context, addr addrs.ResourceInstance) []Provisioner
 
+	// DeleteWhenUnwantedValuer returns the module author's decision about
+	// whether unwanted objects belonging to this resource should be deleted
+	// (cty.True) or just "forgotten" (cty.False).
+	DeleteWhenUnwantedValuer *OnceValuer
+
 	// PreventDestroyValuer is a valuer that returns the module author's
 	// direction about if this resource instance can be destroyed.
 	//
@@ -64,6 +76,10 @@ type Resource struct {
 	// Only the decideInstances method accesses this directly. Use that
 	// method to obtain the coalesced result for use elsewhere.
 	instancesResult grapheval.Once[*compiledInstances[*ResourceInstance]]
+
+	// valueResult ensures that we only compute the value of the resource once.
+	// This is primarilly a performance optimization.
+	valueResult grapheval.Once[cty.Value]
 }
 
 var _ exprs.Valuer = (*Resource)(nil)
@@ -90,6 +106,7 @@ func (r *Resource) IsExpansionPlaceholder() bool {
 // that it needs to produce a result value for a particular resource instance
 // before we actually request that value.
 func (r *Resource) Instances(ctx context.Context) map[addrs.InstanceKey]*ResourceInstance {
+	ctx = withDebugAddr(ctx, r.Addr, "Instances")
 	// We ignore the diagnostics here because they will be returned by
 	// the Value method instead.
 	result, diags := r.decideInstances(ctx)
@@ -113,6 +130,10 @@ func (r *Resource) StaticCheckTraversal(traversal hcl.Traversal) tfdiags.Diagnos
 
 // Value implements exprs.Valuer.
 func (r *Resource) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+	return r.valueResult.Do(ctx, r.value, &r.DeclRange, "Value of %s", r.Addr)
+}
+func (r *Resource) value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+	ctx = withDebugAddr(ctx, r.Addr, "Value")
 	selection, diags := r.decideInstances(ctx)
 	if diags.HasErrors() && selection == nil {
 		// If decideInstances fails for grapheval-related reasons, such as a
@@ -132,22 +153,39 @@ func (r *Resource) ValueSourceRange() *tfdiags.SourceRange {
 func (r *Resource) decideInstances(ctx context.Context) (*compiledInstances[*ResourceInstance], tfdiags.Diagnostics) {
 	return r.instancesResult.Do(ctx, func(ctx context.Context) (*compiledInstances[*ResourceInstance], tfdiags.Diagnostics) {
 		return compileInstances(ctx, r.InstanceSelector, r.CompileResourceInstance)
-	})
+	}, &r.DeclRange, "Decide instances of %s", r.Addr)
+}
+
+// ActionIfUnwanted returns the author's decision (if any) about which action
+// ought to be planned for any unwanted object belonging to this resource.
+func (r *Resource) ActionIfUnwanted(ctx context.Context) (exprs.WithSourceRange[resources.ActionIfUnwanted], tfdiags.Diagnostics) {
+	if r.DeleteWhenUnwantedValuer == nil {
+		return exprs.WithSourceRange[resources.ActionIfUnwanted]{
+			FromValue: exprs.Known(resources.IfUnwantedUndecided),
+		}, nil
+	}
+	rng := r.DeleteWhenUnwantedValuer.ValueSourceRange()
+
+	val, diags := r.DeleteWhenUnwantedValuer.Value(ctx)
+	if val == cty.NilVal {
+		if !diags.HasErrors() {
+			panic("DeleteWhenUnwantedValuer returned cty.NilVal without errors")
+		}
+		val = exprs.AsEvalError(cty.DynamicVal) // just so the rest of this can run without crashing
+	}
+
+	ret, moreDiags := prepareDestroyIfUnwanted(fmt.Sprintf("Resource %s", r.Addr), val, rng)
+	diags = diags.Append(moreDiags)
+	return ret, diags
 }
 
 // PreventDestroy returns a value-based representation of the "prevent destroy"
 // setting for this resource.
-//
-// The result is guaranteed to be a [cty.Bool] value, but it could potentially
-// be unknown or marked and it's the caller's responsibility to handle those
-// situations.
-//
-// The different possible known boolean results have the following meaning:
 //   - true means that this resource instance MUST NOT be destroyed.
 //   - false means that this resource instance MAY be destroyed.
-func (r *Resource) PreventDestroy(ctx context.Context) (exprs.FromValue[bool], *tfdiags.SourceRange, tfdiags.Diagnostics) {
+func (r *Resource) PreventDestroy(ctx context.Context) (exprs.WithSourceRange[bool], tfdiags.Diagnostics) {
 	if r.PreventDestroyValuer == nil {
-		return exprs.Known(false), nil, nil
+		return exprs.WithSourceRange[bool]{FromValue: exprs.Known(false)}, nil
 	}
 	rng := r.PreventDestroyValuer.ValueSourceRange()
 
@@ -171,7 +209,7 @@ func (r *Resource) PreventDestroy(ctx context.Context) (exprs.FromValue[bool], *
 			),
 			Subject: rng.ToHCL().Ptr(),
 		})
-		return exprs.Unknown[bool](), rng, diags
+		return exprs.WithSourceRange[bool]{FromValue: exprs.Unknown[bool](), SourceRange: rng}, diags
 	}
 	// TODO deprecated handling
 	//preventDestroyVal, moreDiags := marks.ExtractDeprecatedDiagnosticsWithExpr(preventDestroyVal, preventDestroyExpr)
@@ -245,7 +283,7 @@ func (r *Resource) PreventDestroy(ctx context.Context) (exprs.FromValue[bool], *
 	ret, _ := exprs.DeriveFromValue(preventDestroyVal, func(v cty.Value) (bool, error) {
 		return v.True(), nil
 	})
-	return ret, rng, diags
+	return exprs.WithSourceRange[bool]{FromValue: ret, SourceRange: rng}, diags
 }
 
 // CheckAll implements allChecker.
@@ -262,34 +300,121 @@ func (r *Resource) CheckAll(ctx context.Context) tfdiags.Diagnostics {
 	// is where we report any problems with the resource's InstanceSelector.
 	// (e.g. this is where an invalid for_each expression would be reported)
 	cg.CheckValuer(ctx, r)
+	if r.DeleteWhenUnwantedValuer != nil {
+		cg.CheckDiagsFunc(ctx, func(ctx context.Context) tfdiags.Diagnostics {
+			_, diags := r.ActionIfUnwanted(ctx)
+			return diags
+		})
+	}
 	if r.PreventDestroyValuer != nil {
-		cg.CheckValuer(ctx, r.PreventDestroyValuer)
+		cg.CheckDiagsFunc(ctx, func(ctx context.Context) tfdiags.Diagnostics {
+			_, diags := r.PreventDestroy(ctx)
+			return diags
+		})
 	}
 	return cg.Complete(ctx)
 }
 
-func (r *Resource) AnnounceAllGraphevalRequests(announce func(workgraph.RequestID, grapheval.RequestInfo)) {
-	// There might be other grapheval requests in our dynamic instances, but
-	// they are hidden behind another request themselves so we'll try to
-	// report them only if that request was already started.
-	instancesReqId := r.instancesResult.RequestID()
-	if instancesReqId == workgraph.NoRequest {
-		return
-	}
-	announce(instancesReqId, grapheval.RequestInfo{
-		Name:        fmt.Sprintf("decide instances for %s", r.Addr),
-		SourceRange: r.InstanceSelector.InstancesSourceRange(),
-	})
-	if r.PreventDestroyValuer != nil {
-		announce(r.PreventDestroyValuer.RequestID(), grapheval.RequestInfo{
-			Name:        fmt.Sprintf("prevent_destroy argument for %s", r.Addr),
-			SourceRange: r.PreventDestroyValuer.ValueSourceRange(),
+// prepareDestroyIfUnwanted translates the raw value from evaluating a "destroy"
+// argument in either a "resource" or "removed" block into its internal
+// representation, [resources.ActionIfUnwanted].
+//
+//   - cty.True corresponds to [resources.IfUnwantedDelete]
+//   - cty.False corresponds to [resources.IfUnwantedForget]
+//   - cty.NullVal(cty.Bool) corresponds to [resources.IfUnwantedUndecided],
+//     leaving the decision to some other part of the configuration.
+//
+// This function automatically attempts to convert the given value to [cty.Bool]
+// and handles any relevant marks on the value.
+//
+// "noun" should be set to something like "Resource aws_instance.example" or
+// "Resource instance aws_instance.example[0]" describing what exactly this
+// destroy argument was associated with, suitable for appearing at the start
+// of a sentence as the subject of that sentence.
+func prepareDestroyIfUnwanted(noun string, val cty.Value, rng *tfdiags.SourceRange) (exprs.WithSourceRange[resources.ActionIfUnwanted], tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
+	val = PrepareOutgoingValue(val)
+
+	const errSummary = "Invalid value for \"destroy\" argument"
+	val, err := convert.Convert(val, cty.Bool)
+	if err != nil {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  errSummary,
+			Detail: fmt.Sprintf(
+				"%s has an invalid value for its \"destroy\" argument: %s.",
+				noun, tfdiags.FormatError(err),
+			),
+			Subject: rng.ToHCL().Ptr(),
 		})
+		return exprs.WithSourceRange[resources.ActionIfUnwanted]{
+			FromValue:   exprs.Unknown[resources.ActionIfUnwanted]().Mark(exprs.EvalError),
+			SourceRange: rng,
+		}, diags
 	}
-	// The Instances method potentially starts a new request, but we already
-	// confirmed above that this request was already started and so we
-	// can safely just await its result here.
-	for _, inst := range r.Instances(grapheval.ContextWithNewWorker(context.Background())) {
-		inst.AnnounceAllGraphevalRequests(announce)
+
+	val, valMarks := val.Unmark()
+	// TODO: Handle any deprecation marks on "val"
+	for mark := range valMarks {
+		switch mark {
+		case marks.Sensitive:
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  errSummary,
+				Detail: fmt.Sprintf(
+					"%s has a sensitive value for its \"destroy\" argument, which is invalid because it would cause OpenTofu to disclose the sensitive value by whether it proposes deleting or forgetting.\n\nIf you know this value is not sensitive in practice, consider using the nonsensitive function to declare that.",
+					noun,
+				),
+				Subject: rng.ToHCL().Ptr(),
+				Extra:   evalchecks.DiagnosticCausedByConfidentialValues(true),
+			})
+		case marks.Ephemeral:
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  errSummary,
+				Detail: fmt.Sprintf(
+					"%s has an ephemeral value for its \"destroy\" argument, which is invalid because the decision for whether to delete or forget objects belonging to this resource must stay consistent between plan and apply.",
+					noun,
+				),
+				Subject: rng.ToHCL().Ptr(),
+			})
+		default:
+			// This is a generic error message just to make sure that we'll
+			// fail if a new kind of mark gets added in future which we've
+			// not yet considered whether to allow here. If we add a new mark
+			// kind then we should add a new case for it above, even if the
+			// behavior is to do absolutely nothing because that mark is
+			// allowed in "destroy".
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  errSummary,
+				Detail: fmt.Sprintf(
+					"%s has a \"destroy\" value derived from something that isn't allowed for deciding whether to delete or forget (has internal mark %#v). The fact that OpenTofu cannot give more details about this is a bug, so please report it!",
+					noun, mark,
+				),
+				Subject: rng.ToHCL().Ptr(),
+			})
+		}
 	}
+	ret, _ := exprs.DeriveFromValue(val, func(v cty.Value) (resources.ActionIfUnwanted, error) {
+		if val.IsNull() {
+			// We treat a null value the same as omitting the argument completely,
+			// so that it's possible for a module to dynamically decide between
+			// setting the argument or letting a child module make the decision
+			// instead.
+			return resources.IfUnwantedUndecided, nil
+		}
+		if val.True() {
+			return resources.IfUnwantedDelete, nil
+		}
+		return resources.IfUnwantedForget, nil
+	})
+	if diags.HasErrors() {
+		ret = ret.Mark(exprs.EvalError)
+	}
+	return exprs.WithSourceRange[resources.ActionIfUnwanted]{
+		FromValue:   ret,
+		SourceRange: rng,
+	}, diags
 }

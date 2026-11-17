@@ -62,7 +62,8 @@ func commandMain(
 	subcommand := detectSubcommand(command.RootCommander(&help, &version, &chdirArg))
 	if version {
 		// Inject the version subcommand, this is a
-		// odd legacy hack to match the old cli.
+		// odd legacy hack to match the old cli. This hack bleeds also into arguments/version.go where the root flags
+		// are also defined to not add more heavy processing here to reorder the flags.
 		subcommand = "version"
 		args = append([]string{subcommand}, args...)
 	}
@@ -121,7 +122,7 @@ func commandMain(
 	}
 
 	root := command.RootCommander(&help, &version, &chdirArg)
-	if checkAndRunCompletion(&root) {
+	if checkAndRunCompletion(&root, meta) {
 		return 0
 	}
 
@@ -285,7 +286,7 @@ func detectSubcommand(cmd command.Command) string {
 // Additionally, moving away from the `command -C` approach used by posener/complete is complicated
 // by the bash-complete project shipping a fallback for "tofu" that uses `command -C`. Moving away from
 // that and not breaking userspace is going to be quite tricky in the long term.
-func checkAndRunCompletion(root *command.Command) bool {
+func checkAndRunCompletion(root *command.Command, meta func() (command.Meta, int)) bool {
 	compLine := os.Getenv("COMP_LINE")
 	compPoint := os.Getenv("COMP_POINT")
 	completingSingleDash := true
@@ -322,6 +323,15 @@ func checkAndRunCompletion(root *command.Command) bool {
 		}
 		for _, sub := range cmd.Commands {
 			comp.Sub[sub.Name] = builder(sub)
+		}
+		if cmd.AutocompleteArgs != nil {
+			comp.Args = complete.PredictFunc(func(args complete.Args) []string {
+				m, ec := meta()
+				if ec != 0 {
+					return nil
+				}
+				return cmd.AutocompleteArgs(m)(len(args.Completed))
+			})
 		}
 
 		return comp

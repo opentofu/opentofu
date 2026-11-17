@@ -8,13 +8,16 @@ package exec
 import (
 	"fmt"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
+	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/resources"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // ManagedResourceObjectFinalPlan represents a final plan -- ready to actually
@@ -225,6 +228,22 @@ type ResourceInstanceObjectMeta struct {
 	// the course of the apply phase.
 	Addr addrs.AbsResourceInstanceObject
 
+	// PrimaryDeclRange is the source range that should be used to represent
+	// the declaration of this resource instance object in the configuration,
+	// if any.
+	//
+	// This is nil when there is no suitable declaration to use. Note that this
+	// can potentially be non-nil even for a non-desired resource instance
+	// object, such as if an instance of a resource has been removed while the
+	// overall resource block remains present, or when this refers to an
+	// explicit "removed" block instead of to a resource block. Generally we
+	// make a best effort to put _something_ in this field so that any errors
+	// relating to the resource instance object have some source code element
+	// to refer to.
+	//
+	// Do not mutate the object this pointer refers to.
+	PrimaryDeclRange *tfdiags.SourceRange
+
 	// Provider is the address of the provider that the resource type in
 	// [ResourceInstanceObjectMeta.ResourceType] belongs to.
 	Provider addrs.Provider
@@ -277,6 +296,45 @@ type ResourceInstanceObjectMeta struct {
 	// This field is relevant only for managed resource mode and its value is
 	// unspecified for other resource modes.
 	ReplaceOrder exprs.FromValue[resources.ReplaceOrder]
+
+	// ActionIfUnwanted specifies the expected treatment for a non-desired
+	// object at this address.
+	//
+	// Other fields of this type include the word "delete" because that is the
+	// common case, but they also apply to other "unwanted" situations unless
+	// otherwise stated.
+	//
+	// This field is relevant only for managed resource mode and should be
+	// be ignored completely for other resource modes.
+	ActionIfUnwanted exprs.FromValue[resources.ActionIfUnwanted]
+
+	// DeletionInvalid is true if the author has configured that any execution
+	// plan that involves deleting this object should be considered immediately
+	// invalid. If false then deleting is a valid action to include.
+	//
+	// This only applies when the action is actually "delete", and not when
+	// the action is "forget" due to the ActionIfUnwanted field.
+	//
+	// This field is relevant only for managed resource mode and its value is
+	// unspecified for other resource modes.
+	DeletionInvalid *exprs.WithSourceRange[bool]
+
+	ImportStatement *eval.ImportStatement
+
+	// Note that we intentionally do not aggregate
+	// [eval.ConfiguredResourceInstanceObjectMeta.MoveStatements] elements
+	// here because by the time the caller knows enough to ask for the
+	// final aggregate metadata they must already have processed all of the
+	// relevant moved statements in order to know which previous run and
+	// desired object addresses to specify. There is a separate function in
+	// the planning engine that deals with aggregating those, and no other
+	// part of the system should be interacting with individual move statements
+	// because the planning engine should already have resolved them into a
+	// more convenient, finalized form.
+
+	Status states.ObjectStatus
+
+	OrphanActionReason plans.ResourceInstanceChangeActionReason
 }
 
 // BuildResourceInstanceObjectMeta constructs a [ResourceInstanceObjectMeta]
@@ -294,19 +352,36 @@ type ResourceInstanceObjectMeta struct {
 // address will be the value of [ResourceInstanceObjectMeta.Addr] and so must
 // be consistent with the documentation of that field.
 //
-// At least one of fromConfig and state must be non-nil, or this function will
-// panic. There is no reason to ask for metadata for an object that exists in
-// neither the desired nor the prior state.
+// If there are no configuration objects and no the state object is nil then
+// this function will panic. There is no reason to ask for metadata for an
+// object that exists in neither the desired nor the prior state.
 func BuildResourceInstanceObjectMeta[SV states.ValueOrJSONEquivalent](
 	addr addrs.AbsResourceInstanceObject,
-	fromConfig *eval.ConfiguredResourceInstanceObjectMeta,
+	fromConfig []eval.ModuleConfiguredResourceInstanceObjectMeta,
 	state *states.ResourceInstanceObjectRepr[SV], // We only care about metadata, so either the decoded or encoded variant is acceptable
 ) *ResourceInstanceObjectMeta {
-	if fromConfig == nil && state == nil {
+	// NOTE: This function should always to return something reasonable even if
+	// the given metadata objects are inconsistent with one another, because
+	// callers sometimes need to construct a best-effort merged metadata before
+	// they validate whether the individual module instances are valid. It's
+	// the planning engine's responsibility to detect and report conflicting
+	// information between the fromConfig objects and thus prevent the metadata
+	// from being used for any actual planning or applying work.
+
+	if len(fromConfig) == 0 && state == nil {
 		panic(fmt.Sprintf("cannot build resource instance object metadata for %s with neither configured nor prior state metadata", addr))
 	}
 	ret := &ResourceInstanceObjectMeta{
 		Addr: addr,
+
+		// We'll start with the usual implied provider based on the resource
+		// type, but hopefully at least one of the sources we consider below
+		// will override this with something more explicit.
+		Provider: addrs.ImpliedProviderForUnqualifiedType(addr.InstanceAddr.Resource.Resource.ImpliedProvider()),
+
+		// We delete when removed unless explicitly overridden in the
+		// configuration somewhere or previously set to forget in the state.
+		ActionIfUnwanted: exprs.Known(resources.IfUnwantedDelete),
 	}
 
 	// If both state and fromConfig are present then we'll start with state
@@ -329,40 +404,85 @@ func BuildResourceInstanceObjectMeta[SV states.ValueOrJSONEquivalent](
 			ret.ReplaceOrder = exprs.Known(resources.ReplaceAnyOrder)
 		}
 
+		if state.SkipDestroy {
+			// The state is allowed to change our base value for this, but the
+			// configuration always wins if it specifies anything, which it
+			// typically will unless there are no mentions of this object
+			// in the configuration at all anymore.
+			ret.ActionIfUnwanted = exprs.Known(resources.IfUnwantedForget)
+		}
+
+		ret.Status = state.Status
+
 		// TODO: Everything else
 	}
 
-	if fromConfig != nil {
-		// The provider instance is a little awkward because the config form
-		// of this uses a pointer to represent there being no selection at all
-		// but we can only check the nilness by unwrapping it first.
-		// FIXME: Consider a different way of representing
-		// "no provider specified", such as by making the top-level
-		// exprs.FromValue be a pointer instead of the value inside it being a
-		// pointer.
-		piUnmarked, _ := fromConfig.ProviderInstance.Unmark()
-		pi, ok := piUnmarked.ValueOk()
-		providerSpecified := !ok || pi != nil
-		if providerSpecified {
-			nonPtr, _ := fromConfig.ProviderInstance.Derive(func(addr *addrs.AbsProviderInstanceCorrect) (addrs.AbsProviderInstanceCorrect, error) {
-				return *addr, nil
-			})
-			ret.ProviderInstance = nonPtr
+	actionIfUnwantedSet := false
+
+	for _, fromModule := range fromConfig {
+		if p := fromModule.Provider; p != nil {
+			ret.Provider = p.Provider
+			ret.ResourceType = p.ResourceType
+			if p.Instance != nil {
+				ret.ProviderInstance = *p.Instance
+			}
 		}
 
-		if providerSpecified || state == nil {
-			// Use the configured provider only if the configuration specifies a provider, or take the best guess from config if the state does not exist
-			ret.Provider = fromConfig.Provider
+		ret.PrimaryDeclRange = fromModule.PrimaryDeclRange
+
+		if fromModule.OrphanActionReason != plans.ResourceInstanceChangeNoReason {
+			ret.OrphanActionReason = fromModule.OrphanActionReason
 		}
 
-		ret.ResourceType = fromConfig.ResourceType
+		ret.PostCreateProvisioners = append(ret.PostCreateProvisioners, fromModule.PostCreateProvisioners...)
+		ret.PreDeleteProvisioners = append(ret.PreDeleteProvisioners, fromModule.PreDeleteProvisioners...)
+		if fromModule.ReplaceOrder != nil {
+			ret.ReplaceOrder = *fromModule.ReplaceOrder
+		}
 
-		ret.PostCreateProvisioners = fromConfig.PostCreateProvisioners
-		ret.PreDeleteProvisioners = fromConfig.PreDestroyProvisioners
-		ret.ReplaceOrder = fromConfig.ReplaceOrder
+		// For the DeleteWhenRemoved option in particular we take the _outermost_
+		// setting, so that e.g. a root module can override the setting chosen
+		// by a child module it calls. deleteWhenRemovedSet is set to true when
+		// we encounter the first explicit opinion about it, and then we ignore
+		// it for any nested modules.
+		if !actionIfUnwantedSet {
+			// We ignore marks here and just propagate them into the result
+			// if relevant, since they don't affect our decision about who
+			// "wins" when there are multiple competing definitions.
+			unmarked, _ := fromModule.ActionIfUnwanted.FromValue.Unmark()
+			if val, known := unmarked.ValueOk(); !known || val != resources.IfUnwantedUndecided {
+				// We discard the source location information here because any
+				// rules restricting usage of this option are expected to be checked
+				// before we merge the configuration-based values together here.
+				ret.ActionIfUnwanted = fromModule.ActionIfUnwanted.FromValue
+				actionIfUnwantedSet = true
+			}
+		}
+
+		if fromModule.DeletionInvalid != nil {
+			ret.DeletionInvalid = fromModule.DeletionInvalid
+		}
+
+		if fromModule.ImportStatement != nil {
+			// Conflicts are handled during plan finalize
+			ret.ImportStatement = fromModule.ImportStatement
+		}
 
 		// TODO: Everything else
 	}
 
 	return ret
+}
+
+// PrimaryDeclRangeHCL returns the same information as in
+// [ResourceInstanceObjectMeta.PrimaryDeclRange], but using HCL's range type
+// instead of OpenTofu's.
+//
+// Use this instead of calling [tfdiags.SourceRange.ToHCL] directly to avoid
+// causing a nil pointer panic when it's unset.
+func (m *ResourceInstanceObjectMeta) PrimaryDeclRangeHCL() *hcl.Range {
+	if m.PrimaryDeclRange == nil {
+		return nil
+	}
+	return m.PrimaryDeclRange.ToHCL().Ptr()
 }

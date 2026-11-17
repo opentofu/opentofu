@@ -156,6 +156,34 @@ func (c *compiler) compileOpManagedFinalPlan(operands *compilerOperands) nodeExe
 	}
 }
 
+func (c *compiler) compileOpManagedFinalPlanForget(operands *compilerOperands) nodeExecuteRaw {
+	getMetadata := nextOperand[*exec.ResourceInstanceObjectMeta](operands)
+	getPrior := nextOperand[*exec.ResourceInstanceObject](operands)
+	diags := operands.Finish()
+	c.diags = c.diags.Append(diags)
+	if diags.HasErrors() {
+		return nil
+	}
+	ops := c.ops
+
+	return func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
+		metadata, ok, moreDiags := getMetadata(ctx)
+		diags = diags.Append(moreDiags)
+		if !ok {
+			return nil, false, diags
+		}
+		prior, ok, moreDiags := getPrior(ctx)
+		diags = diags.Append(moreDiags)
+		if !ok {
+			return nil, false, diags
+		}
+
+		ret, moreDiags := ops.ManagedFinalPlanForget(ctx, metadata, prior)
+		diags = diags.Append(moreDiags)
+		return ret, !diags.HasErrors(), diags
+	}
+}
+
 func (c *compiler) compileOpManagedApply(operands *compilerOperands) nodeExecuteRaw {
 	getFinalPlan := nextOperand[*exec.ManagedResourceObjectFinalPlan](operands)
 	getFallback := nextOperand[*exec.ResourceInstanceObject](operands)
@@ -188,6 +216,33 @@ func (c *compiler) compileOpManagedApply(operands *compilerOperands) nodeExecute
 		// TODO: Also call ops.ResourceInstancePostconditions if we produced a non-nil result
 		log.Printf("[WARN] opManagedApply doesn't yet handle postconditions")
 
+		return ret, !diags.HasErrors(), diags
+	}
+}
+
+func (c *compiler) compileOpManagedForget(operands *compilerOperands) nodeExecuteRaw {
+	getFinalPlan := nextOperand[*exec.ManagedResourceObjectFinalPlan](operands)
+	waitForDeps := operands.OperandWaiter()
+	diags := operands.Finish()
+	c.diags = c.diags.Append(diags)
+	if diags.HasErrors() {
+		return nil
+	}
+	ops := c.ops
+
+	return func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
+		var diags tfdiags.Diagnostics
+		if !waitForDeps(ctx) {
+			return nil, false, diags
+		}
+		finalPlan, ok, moreDiags := getFinalPlan(ctx)
+		diags = diags.Append(moreDiags)
+		if !ok {
+			return nil, false, diags
+		}
+
+		ret, moreDiags := ops.ManagedForget(ctx, finalPlan)
+		diags = diags.Append(moreDiags)
 		return ret, !diags.HasErrors(), diags
 	}
 }

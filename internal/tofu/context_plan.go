@@ -280,7 +280,7 @@ The -target and -exclude options are not for routine use, and are provided only 
 		panic("nil plan but no errors")
 	}
 
-	if plan != nil {
+	if plan != nil && !experimentalRuntimeEnabled() {
 		relevantAttrs, rDiags := c.relevantResourceAttrsForPlan(ctx, config, plan)
 		diags = diags.Append(rDiags)
 		plan.RelevantAttributes = relevantAttrs

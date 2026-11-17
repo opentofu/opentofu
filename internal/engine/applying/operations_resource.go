@@ -94,7 +94,7 @@ func (ops *execOperations) ResourceInstancePrior(
 	instAddr addrs.AbsResourceInstance,
 ) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
 	log.Printf("[TRACE] apply phase: ResourceInstancePrior %s", instAddr)
-	return ops.resourceInstanceStateObject(ctx, ops.priorState, instAddr, states.NotDeposed)
+	return ops.resourceInstanceStateObject(ctx, instAddr, states.NotDeposed)
 }
 
 // ResourceInstancePostconditions implements [exec.Operations].
@@ -108,10 +108,8 @@ func (ops *execOperations) ResourceInstancePostconditions(
 	return nil
 }
 
-// ResourceInstancePrior implements [exec.Operations].
 func (ops *execOperations) resourceInstanceStateObject(
 	ctx context.Context,
-	fromState *states.SyncState,
 	instAddr addrs.AbsResourceInstance,
 	deposedKey states.DeposedKey,
 ) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {

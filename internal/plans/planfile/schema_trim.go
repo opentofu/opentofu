@@ -21,14 +21,16 @@ import (
 // plan (its configuration, prior state, or proposed changes).
 // We dont need ephemeral as they dont get stored in the config
 type referencedTypes struct {
-	managed map[string]struct{}
-	data    map[string]struct{}
+	managed   map[string]struct{}
+	data      map[string]struct{}
+	ephemeral map[string]struct{}
 }
 
 func newReferencedTypes() *referencedTypes {
 	return &referencedTypes{
-		managed: make(map[string]struct{}),
-		data:    make(map[string]struct{}),
+		managed:   make(map[string]struct{}),
+		data:      make(map[string]struct{}),
+		ephemeral: make(map[string]struct{}),
 	}
 }
 
@@ -38,6 +40,8 @@ func (rt *referencedTypes) addType(mode addrs.ResourceMode, typeName string) {
 		rt.managed[typeName] = struct{}{}
 	case addrs.DataResourceMode:
 		rt.data[typeName] = struct{}{}
+	case addrs.EphemeralResourceMode:
+		rt.ephemeral[typeName] = struct{}{}
 	default:
 	}
 }
@@ -69,6 +73,9 @@ func referencedResourceTypes(plan *plans.Plan, config *configs.Config) map[addrs
 				get(r.Provider).addType(r.Mode, r.Type)
 			}
 			for _, r := range c.Module.DataResources {
+				get(r.Provider).addType(r.Mode, r.Type)
+			}
+			for _, r := range c.Module.EphemeralResources {
 				get(r.Provider).addType(r.Mode, r.Type)
 			}
 		}
@@ -138,9 +145,10 @@ func trimSchemas(plan *plans.Plan, config *configs.Config, schemas map[addrs.Pro
 		}
 
 		trimmed := providers.ProviderSchema{
-			Provider:      full.Provider,
-			ResourceTypes: make(map[string]providers.Schema, len(rt.managed)),
-			DataSources:   make(map[string]providers.Schema, len(rt.data)),
+			Provider:           full.Provider,
+			ResourceTypes:      make(map[string]providers.Schema, len(rt.managed)),
+			DataSources:        make(map[string]providers.Schema, len(rt.data)),
+			EphemeralResources: make(map[string]providers.Schema, len(rt.ephemeral)),
 		}
 
 		for typeName := range rt.managed {
@@ -153,6 +161,12 @@ func trimSchemas(plan *plans.Plan, config *configs.Config, schemas map[addrs.Pro
 			trimmed.DataSources[typeName], ok = full.DataSources[typeName]
 			if !ok {
 				missing = append(missing, fmt.Sprintf("data source %q of provider %s", typeName, provider))
+			}
+		}
+		for typeName := range rt.ephemeral {
+			trimmed.EphemeralResources[typeName], ok = full.EphemeralResources[typeName]
+			if !ok {
+				missing = append(missing, fmt.Sprintf("ephemeral resource type %q of provider %s", typeName, provider))
 			}
 		}
 

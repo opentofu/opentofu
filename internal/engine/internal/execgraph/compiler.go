@@ -110,8 +110,12 @@ func (c *compiler) Compile() (*CompiledGraph, tfdiags.Diagnostics) {
 			compileFunc = c.compileOpResourceInstancePrior
 		case opManagedFinalPlan:
 			compileFunc = c.compileOpManagedFinalPlan
+		case opManagedFinalPlanForget:
+			compileFunc = c.compileOpManagedFinalPlanForget
 		case opManagedApply:
 			compileFunc = c.compileOpManagedApply
+		case opManagedForget:
+			compileFunc = c.compileOpManagedForget
 		case opManagedPrepareDepose:
 			compileFunc = c.compileOpManagedPrepareDepose
 		case opManagedPerformDepose:
@@ -146,7 +150,13 @@ func (c *compiler) Compile() (*CompiledGraph, tfdiags.Diagnostics) {
 			resolver := opResolvers[opIdx]
 			worker := workgraph.NewWorker(resolver)
 			ctx := grapheval.ContextWithWorker(parentCtx, worker)
-			trackWorkgraphRequest(ctx, opIdx, resolver.RequestID())
+
+			grapheval.ReportRequestInContext(ctx, resolver.RequestID(), func() grapheval.RequestInfo {
+				return grapheval.RequestInfo{
+					Name: "internal operation: " + c.sourceGraph.operationDebugSummary(opDesc),
+				}
+			})
+
 			ret, ok, diags := mainExec(ctx)
 			// Resolving the promise might allow dependent operations to begin.
 			resolver.ReportSuccess(worker, nodeResultRaw{

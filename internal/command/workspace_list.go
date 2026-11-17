@@ -10,8 +10,6 @@ import (
 
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
-	"github.com/posener/complete"
-
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -92,12 +90,4 @@ func (c WorkspaceListCommand) Execute(args *arguments.WorkspaceList, view views.
 	}
 
 	return 0
-}
-
-func (c *WorkspaceListCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictDirs("")
-}
-
-func (c *WorkspaceListCommand) AutocompleteFlags() complete.Flags {
-	return nil
 }

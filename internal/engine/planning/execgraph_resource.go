@@ -121,6 +121,12 @@ func (b *execGraphBuilder) AddResourceInstanceObjectSubgraphs(
 				// overhead is minimal.)
 				objB.CreateOrUpdateDependsOn(objA.CreateOrUpdateCompletionRef())
 			}
+			// If object B is being completely deleted and object A is being create/updated
+			// we need to record that the create/update depends on that deletion.
+			// TestContext2Apply_destroyThenUpdate is where this is tested (with a race condition...)
+			if objA.HasCreateOrUpdateLeg() && objB.HasDeleteLeg() && !objB.HasCreateOrUpdateLeg() {
+				objA.CreateOrUpdateDependsOn(objB.DeletionRef())
+			}
 			// If object A is not being deleted then there's nothing else for us
 			// to do here.
 			if !objA.HasDeleteLeg() {

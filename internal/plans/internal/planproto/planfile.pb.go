@@ -1719,12 +1719,13 @@ func (x *ResourceSchema) GetIdentitySchema() *ResourceIdentitySchema {
 // ProviderSchema is a trimmed-down subset of a single provider's schema,
 // containing only the parts needed to render a particular saved plan.
 type ProviderSchema struct {
-	state                protoimpl.MessageState     `protogen:"open.v1"`
-	ProviderConfig       *Schema                    `protobuf:"bytes,1,opt,name=provider_config,json=providerConfig,proto3" json:"provider_config,omitempty"`
-	ManagedResourceTypes map[string]*ResourceSchema `protobuf:"bytes,2,rep,name=managed_resource_types,json=managedResourceTypes,proto3" json:"managed_resource_types,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	DataSources          map[string]*ResourceSchema `protobuf:"bytes,3,rep,name=data_sources,json=dataSources,proto3" json:"data_sources,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	state                  protoimpl.MessageState     `protogen:"open.v1"`
+	ProviderConfig         *Schema                    `protobuf:"bytes,1,opt,name=provider_config,json=providerConfig,proto3" json:"provider_config,omitempty"`
+	ManagedResourceTypes   map[string]*ResourceSchema `protobuf:"bytes,2,rep,name=managed_resource_types,json=managedResourceTypes,proto3" json:"managed_resource_types,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	DataSources            map[string]*ResourceSchema `protobuf:"bytes,3,rep,name=data_sources,json=dataSources,proto3" json:"data_sources,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	EphemeralResourceTypes map[string]*ResourceSchema `protobuf:"bytes,4,rep,name=ephemeral_resource_types,json=ephemeralResourceTypes,proto3" json:"ephemeral_resource_types,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *ProviderSchema) Reset() {
@@ -1774,6 +1775,13 @@ func (x *ProviderSchema) GetManagedResourceTypes() map[string]*ResourceSchema {
 func (x *ProviderSchema) GetDataSources() map[string]*ResourceSchema {
 	if x != nil {
 		return x.DataSources
+	}
+	return nil
+}
+
+func (x *ProviderSchema) GetEphemeralResourceTypes() map[string]*ResourceSchema {
+	if x != nil {
+		return x.EphemeralResourceTypes
 	}
 	return nil
 }
@@ -2156,15 +2164,19 @@ const file_planfile_proto_rawDesc = "" +
 	"\x04body\x18\x02 \x01(\v2\x14.tfplan.SchemaObjectR\x04body\"\x81\x01\n" +
 	"\x0eResourceSchema\x12&\n" +
 	"\x06schema\x18\x01 \x01(\v2\x0e.tfplan.SchemaR\x06schema\x12G\n" +
-	"\x0fidentity_schema\x18\x02 \x01(\v2\x1e.tfplan.ResourceIdentitySchemaR\x0eidentitySchema\"\xb6\x03\n" +
+	"\x0fidentity_schema\x18\x02 \x01(\v2\x1e.tfplan.ResourceIdentitySchemaR\x0eidentitySchema\"\x87\x05\n" +
 	"\x0eProviderSchema\x127\n" +
 	"\x0fprovider_config\x18\x01 \x01(\v2\x0e.tfplan.SchemaR\x0eproviderConfig\x12f\n" +
 	"\x16managed_resource_types\x18\x02 \x03(\v20.tfplan.ProviderSchema.ManagedResourceTypesEntryR\x14managedResourceTypes\x12J\n" +
-	"\fdata_sources\x18\x03 \x03(\v2'.tfplan.ProviderSchema.DataSourcesEntryR\vdataSources\x1a_\n" +
+	"\fdata_sources\x18\x03 \x03(\v2'.tfplan.ProviderSchema.DataSourcesEntryR\vdataSources\x12l\n" +
+	"\x18ephemeral_resource_types\x18\x04 \x03(\v22.tfplan.ProviderSchema.EphemeralResourceTypesEntryR\x16ephemeralResourceTypes\x1a_\n" +
 	"\x19ManagedResourceTypesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
 	"\x05value\x18\x02 \x01(\v2\x16.tfplan.ResourceSchemaR\x05value:\x028\x01\x1aV\n" +
 	"\x10DataSourcesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
+	"\x05value\x18\x02 \x01(\v2\x16.tfplan.ResourceSchemaR\x05value:\x028\x01\x1aa\n" +
+	"\x1bEphemeralResourceTypesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
 	"\x05value\x18\x02 \x01(\v2\x16.tfplan.ResourceSchemaR\x05value:\x028\x01\"\x9d\x01\n" +
 	"\aSchemas\x12<\n" +
@@ -2232,7 +2244,7 @@ func file_planfile_proto_rawDescGZIP() []byte {
 }
 
 var file_planfile_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
-var file_planfile_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
+var file_planfile_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
 var file_planfile_proto_goTypes = []any{
 	(Mode)(0),                         // 0: tfplan.Mode
 	(Action)(0),                       // 1: tfplan.Action
@@ -2264,7 +2276,8 @@ var file_planfile_proto_goTypes = []any{
 	(*Path_Step)(nil),                 // 27: tfplan.Path.Step
 	nil,                               // 28: tfplan.ProviderSchema.ManagedResourceTypesEntry
 	nil,                               // 29: tfplan.ProviderSchema.DataSourcesEntry
-	nil,                               // 30: tfplan.Schemas.ProvidersEntry
+	nil,                               // 30: tfplan.ProviderSchema.EphemeralResourceTypesEntry
+	nil,                               // 31: tfplan.Schemas.ProvidersEntry
 }
 var file_planfile_proto_depIdxs = []int32{
 	0,  // 0: tfplan.Plan.ui_mode:type_name -> tfplan.Mode
@@ -2306,19 +2319,21 @@ var file_planfile_proto_depIdxs = []int32{
 	19, // 36: tfplan.ProviderSchema.provider_config:type_name -> tfplan.Schema
 	28, // 37: tfplan.ProviderSchema.managed_resource_types:type_name -> tfplan.ProviderSchema.ManagedResourceTypesEntry
 	29, // 38: tfplan.ProviderSchema.data_sources:type_name -> tfplan.ProviderSchema.DataSourcesEntry
-	30, // 39: tfplan.Schemas.providers:type_name -> tfplan.Schemas.ProvidersEntry
-	12, // 40: tfplan.Plan.VariablesEntry.value:type_name -> tfplan.DynamicValue
-	13, // 41: tfplan.Plan.resource_attr.attr:type_name -> tfplan.Path
-	4,  // 42: tfplan.CheckResults.ObjectResult.status:type_name -> tfplan.CheckResults.Status
-	12, // 43: tfplan.Path.Step.element_key:type_name -> tfplan.DynamicValue
-	21, // 44: tfplan.ProviderSchema.ManagedResourceTypesEntry.value:type_name -> tfplan.ResourceSchema
-	21, // 45: tfplan.ProviderSchema.DataSourcesEntry.value:type_name -> tfplan.ResourceSchema
-	22, // 46: tfplan.Schemas.ProvidersEntry.value:type_name -> tfplan.ProviderSchema
-	47, // [47:47] is the sub-list for method output_type
-	47, // [47:47] is the sub-list for method input_type
-	47, // [47:47] is the sub-list for extension type_name
-	47, // [47:47] is the sub-list for extension extendee
-	0,  // [0:47] is the sub-list for field type_name
+	30, // 39: tfplan.ProviderSchema.ephemeral_resource_types:type_name -> tfplan.ProviderSchema.EphemeralResourceTypesEntry
+	31, // 40: tfplan.Schemas.providers:type_name -> tfplan.Schemas.ProvidersEntry
+	12, // 41: tfplan.Plan.VariablesEntry.value:type_name -> tfplan.DynamicValue
+	13, // 42: tfplan.Plan.resource_attr.attr:type_name -> tfplan.Path
+	4,  // 43: tfplan.CheckResults.ObjectResult.status:type_name -> tfplan.CheckResults.Status
+	12, // 44: tfplan.Path.Step.element_key:type_name -> tfplan.DynamicValue
+	21, // 45: tfplan.ProviderSchema.ManagedResourceTypesEntry.value:type_name -> tfplan.ResourceSchema
+	21, // 46: tfplan.ProviderSchema.DataSourcesEntry.value:type_name -> tfplan.ResourceSchema
+	21, // 47: tfplan.ProviderSchema.EphemeralResourceTypesEntry.value:type_name -> tfplan.ResourceSchema
+	22, // 48: tfplan.Schemas.ProvidersEntry.value:type_name -> tfplan.ProviderSchema
+	49, // [49:49] is the sub-list for method output_type
+	49, // [49:49] is the sub-list for method input_type
+	49, // [49:49] is the sub-list for extension type_name
+	49, // [49:49] is the sub-list for extension extendee
+	0,  // [0:49] is the sub-list for field type_name
 }
 
 func init() { file_planfile_proto_init() }
@@ -2336,7 +2351,7 @@ func file_planfile_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_planfile_proto_rawDesc), len(file_planfile_proto_rawDesc)),
 			NumEnums:      6,
-			NumMessages:   25,
+			NumMessages:   26,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

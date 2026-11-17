@@ -132,9 +132,6 @@ func (ops *execOperations) ManagedFinalPlan(
 			Private: currentPrivate,
 		},
 		DesiredValue: desiredVal,
-		// TODO: Do we want to still support ProviderMeta? If so, who is
-		// responsible for propagating its value into here?
-		ProviderMetaValue: cty.NilVal,
 	}, objAddr)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
@@ -162,6 +159,85 @@ func (ops *execOperations) ManagedFinalPlan(
 		ProvisionersAfter:         provisionersAfter,
 		ProviderInstance:          providerConfigAddr,
 		ProviderPrivate:           resp.Planned.Private,
+	}, diags
+}
+
+// ManagedFinalPlanForget implements [exec.Operations].
+func (ops *execOperations) ManagedFinalPlanForget(
+	ctx context.Context,
+	metadata *exec.ResourceInstanceObjectMeta,
+	prior *exec.ResourceInstanceObject,
+) (*exec.ManagedResourceObjectFinalPlan, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
+	if prior == nil {
+		// It's weird for prior to be dynamically nil, but if that turns out to
+		// be true then we'll assume this was already dealt with some other
+		// way and return a nil final plan to represent "noop".
+		log.Printf("[TRACE] apply phase: ManagedFinalPlanForget without prior state, so no change is needed")
+		return nil, diags
+	}
+
+	// TODO: Right now the code here is independent of the code in
+	// [execOperations.ManagedFinalPlan] even though there's a tiny amount of
+	// overlap in the handling of provisioners. Is it worth trying to factor
+	// out that small amount of common code, or would that just make each
+	// of these functions harder to read linearly?
+
+	// Note that an object being "forgotten" can still potentially be
+	// participating in a "move", if for example there was a chain of moves
+	// leading to a "removed" block with destroy = false specified. In that
+	// case as usual prior.Addr represents the address of the object in the
+	// previous round state, while metadata.Addr represents the address of
+	// the object in the current configuration. We should generally use
+	// metadata.Addr for most external-facing things unless we're intentionally
+	// talking about how things _were_, rather than how things are intended
+	// to become after applying this plan.
+
+	var provisionersBefore []*eval.ResourceProvisioner
+	if prior.State.Status == states.ObjectTainted {
+		// No point in provisioning an object that is already tainted, since
+		// it's going to get recreated on the next apply anyway.
+		log.Printf("[TRACE] %s is tainted in prior state, so skipping provisioning", prior.Addr)
+	} else {
+		provisionersBefore = metadata.PreDeleteProvisioners
+	}
+
+	priorVal := prior.State.Value
+	plannedVal := cty.NullVal(cty.DynamicPseudoType)
+
+	// We'll just re-use the main "final plan" tracer function here because
+	// this is close enough for intended caller uses of tracing. Note that
+	// since we're not actually making any provider calls here there will
+	// be very little time passing between these, and no child spans for
+	// callers that are using this for stuff like OpenTelemetry tracing.
+	tracer := contextTracer(ctx)
+	if cb := tracer.StartManagedResourceInstanceObjectFinalPlan; cb != nil {
+		ctx = cb(ctx, metadata.Addr, priorVal, plannedVal, plannedVal)
+	}
+	if cb := tracer.EndManagedResourceInstanceObjectFinalPlan; cb != nil {
+		defer func() { // Extra closure to delay evaluating diags until we actually return
+			cb(ctx, metadata.Addr, priorVal, plannedVal, diags)
+		}()
+	}
+
+	// This variant of planning intentionally doesn't configure the provider
+	// at all, because "forgetting" is sometimes used as a last resort to get
+	// rid of something that has become completely unplannable, such as if
+	// the API it belongs to just doesn't exist at all anymore.
+	//
+	// We just synthesize a reasonable "final plan" that's suitable for what
+	// [execOperations.ManagedForget] will do downstream.
+	return &exec.ManagedResourceObjectFinalPlan{
+		Addr:                      metadata.Addr,
+		ResourceType:              metadata.ResourceType,
+		RequiredResourceInstances: nil,
+		PriorStateVal:             priorVal,
+		ConfigVal:                 plannedVal,
+		PlannedVal:                plannedVal,
+		ProvisionersBefore:        provisionersBefore,
+		ProvisionersAfter:         nil,                              // there would be nothing to provision if forgetting succeeds
+		ProviderInstance:          prior.State.ProviderInstanceAddr, // unused but populated anyway for consistency
 	}, diags
 }
 
@@ -294,9 +370,6 @@ func (ops *execOperations) ManagedApply(
 		Config:         configValUnmarked,
 		PlannedState:   plannedValUnmarked,
 		PlannedPrivate: plan.ProviderPrivate,
-		// TODO: Do we want to still support ProviderMeta? If so, who is
-		// responsible for propagating its value into here?
-		ProviderMeta: cty.NullVal(cty.DynamicPseudoType),
 	})
 	diags = diags.Append(resp.Diagnostics)
 	if resp.NewState == cty.NilVal {
@@ -314,7 +387,8 @@ func (ops *execOperations) ManagedApply(
 		// back to being the current object for our resource instance before
 		// we return.
 		if fallback != nil {
-			ok := ops.workingState.MaybeRestoreResourceInstanceDeposed(fallback.Addr.InstanceAddr, fallback.Addr.DeposedKey)
+			ok, err := ops.workingState.MaybeRestoreResourceInstanceDeposed(fallback.Addr.InstanceAddr, fallback.Addr.DeposedKey)
+			diags = diags.Append(err)
 			if !ok {
 				diags = diags.Append(tfdiags.Sourceless(
 					tfdiags.Error,
@@ -326,7 +400,7 @@ func (ops *execOperations) ManagedApply(
 				))
 			}
 		}
-		result, moreDiags := ops.resourceInstanceStateObject(ctx, ops.workingState, plan.Addr.InstanceAddr, states.NotDeposed)
+		result, moreDiags := ops.resourceInstanceStateObject(ctx, plan.Addr.InstanceAddr, states.NotDeposed)
 		diags = diags.Append(moreDiags)
 		return result, diags
 	}
@@ -354,10 +428,55 @@ func (ops *execOperations) ManagedApply(
 
 	var state *states.ResourceInstanceObjectFull
 	if !resp.NewState.IsNull() {
-		status := states.ObjectTainted
-		if !diags.HasErrors() {
-			status = states.ObjectReady
+		// By this point there must not be any unknown values remaining in our
+		// object, because we've applied the change and we can't save unknowns
+		// in our persistent state. If any are present then we will indicate an
+		// error (which is always a bug in the provider) but we will also replace
+		// them with nulls so that we can successfully save the portions of the
+		// returned value that are known.
+		if !resp.NewState.IsWhollyKnown() {
+			// To generate better error messages, we'll go for a walk through the
+			// value and make a separate diagnostic for each unknown value we
+			// find.
+			// We don't care about the error return here as it's only to help build a more detailed error message
+			_ = cty.Walk(resp.NewState, func(path cty.Path, val cty.Value) (bool, error) {
+				if !val.IsKnown() {
+					pathStr := tfdiags.FormatCtyPath(path)
+					diags = diags.Append(tfdiags.Sourceless(
+						tfdiags.Error,
+						"Provider returned invalid result object after apply",
+						fmt.Sprintf(
+							"After the apply operation, the provider still indicated an unknown value for %s%s. All values must be known after apply, so this is always a bug in the provider and should be reported in the provider's own repository. OpenTofu will still save the other known object values in the state.",
+							plan.Addr, pathStr,
+						),
+					))
+				}
+				return true, nil
+			})
+
+			// NOTE: This operation can potentially be lossy if there are multiple
+			// elements in a set that differ only by unknown values: after
+			// replacing with null these will be merged together into a single set
+			// element. Since we can only get here in the presence of a provider
+			// bug, we accept this because storing a result here is always a
+			// best-effort sort of thing.
+			resp.NewState = cty.UnknownAsNull(resp.NewState)
 		}
+
+		status := states.ObjectReady
+		if plan.Addr.IsCurrent() && diags.HasErrors() {
+			status = states.ObjectTainted
+
+			prev := ops.priorState.ResourceInstanceObjectFull(plan.Addr)
+			if prev != nil && prev.Status == states.ObjectTainted {
+				// If the current object was already tainted, don't modify state
+				// TestContext2Apply_errorRestoreStatus covers this functionallity.
+				// NOTE: we are ignoring the providers new value here, which
+				// may or may not be correct after attempting a provider operation.
+				return nil, diags
+			}
+		}
+
 		state = &states.ResourceInstanceObjectFull{
 			Status:               status,
 			Value:                resp.NewState,
@@ -395,14 +514,16 @@ func (ops *execOperations) ManagedApply(
 			diags = diags.Append(fmt.Errorf("failed to encode the new state for %s: %w", plan.Addr, err))
 			return nil, diags
 		}
-		ops.workingState.SetResourceInstanceObjectFull(objAddr, stateSrc)
+		err = ops.workingState.SetResourceInstanceObjectFull(objAddr, stateSrc)
+		diags = diags.Append(err)
 	} else {
 		// A null value for "new state" represents that the object has been
 		// deleted, so we now just need to remove it from the state.
 		// Unfortunately this API is still a little quirkly and wants us to
 		// pass the provider instance address so that it can update some
 		// resource-level and instance-level metadata as a side-effect.
-		ops.workingState.RemoveResourceInstanceObjectFull(objAddr, providerConfigAddr)
+		err := ops.workingState.RemoveResourceInstanceObjectFull(objAddr, providerConfigAddr)
+		diags = diags.Append(err)
 	}
 
 	if state != nil {
@@ -414,6 +535,75 @@ func (ops *execOperations) ManagedApply(
 	ret := &exec.ResourceInstanceObject{
 		Addr:  plan.Addr,
 		State: state, // nil if the object was deleted
+	}
+	return ret, diags
+}
+
+// ManagedForget implements [exec.Operations].
+func (ops *execOperations) ManagedForget(
+	ctx context.Context,
+	plan *exec.ManagedResourceObjectFinalPlan,
+) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+	if plan == nil || plan.PriorStateVal.IsNull() {
+		log.Printf("[TRACE] apply phase: ManagedForget skipped because no change is needed")
+		return nil, diags
+	}
+	if !plan.PlannedVal.IsNull() {
+		// This suggests a bug in whatever constructed the execution graph,
+		// because "forgetting" something can never result in a non-nil value.
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Inconsistent request to forget object",
+			fmt.Sprintf(
+				"This plan calls for OpenTofu to \"forget\" %s, but also expects it to have a non-null final value. This is a bug in OpenTofu.",
+				plan.Addr,
+			),
+		))
+		return nil, diags
+	}
+
+	objAddr := plan.Addr
+	log.Printf("[TRACE] apply phase: ManagedForget %s", objAddr)
+
+	tracer := contextTracer(ctx)
+	if cb := tracer.StartManagedResourceInstanceObjectForget; cb != nil {
+		ctx = cb(ctx, objAddr, plan.PriorStateVal)
+	}
+	if cb := tracer.EndManagedResourceInstanceObjectForget; cb != nil {
+		defer func() { // Extra closure to delay evaluating diags until we actually return
+			cb(ctx, objAddr, diags)
+		}()
+	}
+
+	if provs := plan.ProvisionersBefore; len(provs) != 0 {
+		log.Printf("[TRACE] apply phase: ManagedForget running %d pre-apply provisioner(s) for %s", len(provs), plan.Addr)
+		for _, prov := range provs {
+			cont, provDiags := ops.runProvisioner(ctx, objAddr, prov, plan.PriorStateVal)
+			diags = diags.Append(provDiags)
+			if !cont {
+				log.Printf("[TRACE] apply phase: ManagedForget %s pre-apply provisioner failed, so aborting", plan.Addr)
+				return nil, diags
+			}
+		}
+		log.Printf("[TRACE] apply phase: ManagedForget %s pre-apply provisioners finished", plan.Addr)
+	}
+
+	// For "forget" we just unconditionally remove the object from the state.
+	err := ops.workingState.RemoveResourceInstanceObjectFull(objAddr, plan.ProviderInstance)
+	diags = diags.Append(err)
+
+	if provs := plan.ProvisionersAfter; len(provs) != 0 {
+		// Post-apply provisioners are only relevant when there's still an
+		// object left to run them with, and in this operation that's never
+		// true so we just skip them unconditionally, but we'll trace that just
+		// in case it's somehow relevant when debugging something.
+		log.Printf("[TRACE] apply phase: ManagedForget ignoring %d post-apply provisioner(s) for %s, because there's no longer any object to apply them to", len(provs), plan.Addr)
+	}
+
+	ret := &exec.ResourceInstanceObject{
+		Addr:  plan.Addr,
+		State: nil, // because the object no longer exists as far as OpenTofu is concerned
 	}
 	return ret, diags
 }
@@ -447,7 +637,8 @@ func (ops *execOperations) ManagedPerformDepose(
 	}
 
 	deposedKey := deletePlan.Addr.DeposedKey
-	ops.workingState.DeposeResourceInstanceObjectForceKey(deletePlan.Addr.InstanceAddr, deposedKey)
+	err := ops.workingState.DeposeResourceInstanceObjectForceKey(deletePlan.Addr.InstanceAddr, deposedKey)
+	diags = diags.Append(err)
 	return currentObj.IntoDeposed(deposedKey), diags
 }
 
@@ -475,7 +666,7 @@ func (ops *execOperations) ManagedAlreadyDeposed(
 	// This is essentially the same as ResourceInstancePrior, but for deposed
 	// objects rather than "current" objects. Therefore we'll share most of the
 	// implementation between these two.
-	return ops.resourceInstanceStateObject(ctx, ops.priorState, instAddr, deposedKey)
+	return ops.resourceInstanceStateObject(ctx, instAddr, deposedKey)
 }
 
 // ManagedChangeAddr implements [exec.Operations].
@@ -502,7 +693,9 @@ func (ops *execOperations) ManagedChangeAddr(
 		return nil, diags
 	}
 
-	if !ops.workingState.MaybeMoveResourceInstance(currentObj.Addr.InstanceAddr, newAddr) {
+	moved, err := ops.workingState.MaybeMoveResourceInstance(currentObj.Addr.InstanceAddr, newAddr)
+	diags = diags.Append(err)
+	if !moved {
 		// We should not get here with a correctly-constructed execution graph
 		// because currentObj being non-nil means that there should definitely
 		// be something to move.

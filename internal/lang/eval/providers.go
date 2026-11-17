@@ -133,7 +133,7 @@ func (p *managedProviders) ProviderInstance(ctx context.Context, addr addrs.AbsP
 		}()
 
 		return ret, diags
-	})
+	}, nil, "Open %s", addr)
 }
 
 func (p *managedProviders) OpenEphemeralResourceInstance(ctx context.Context, addr addrs.AbsResourceInstance, cfgVal cty.Value, provider addrs.Provider, maybeProviderInstance exprs.FromValue[addrs.AbsProviderInstanceCorrect]) (cty.Value, tfdiags.Diagnostics) {

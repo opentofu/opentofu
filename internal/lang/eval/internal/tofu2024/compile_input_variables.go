@@ -25,14 +25,15 @@ func compileModuleInstanceInputVariables(_ context.Context, configs map[string]*
 	ret := make(map[addrs.InputVariable]*configgraph.InputVariable, len(configs))
 	for name, vc := range configs {
 		addr := addrs.InputVariable{Name: name}
+		instAddr := moduleInstAddr.InputVariable(name)
 
 		// The valuer for an individual input variable derives from the
 		// valuer for the single object representing all of the input
 		// variables together.
 		rawValuer := compileInputVariableValuer(values, vc, moduleInstAddr, missingDefRange)
 		ret[addr] = &configgraph.InputVariable{
-			Addr:           moduleInstAddr.InputVariable(name),
-			RawValue:       configgraph.ValuerOnce(rawValuer),
+			Addr:           instAddr,
+			RawValue:       configgraph.ValuerOnce(rawValuer, "Inputs of %s", instAddr),
 			TargetType:     vc.ConstraintType,
 			TargetDefaults: vc.TypeDefaults,
 			FinalizeValue: func(_ context.Context, v cty.Value) (cty.Value, tfdiags.Diagnostics) {

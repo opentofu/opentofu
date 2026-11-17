@@ -365,3 +365,70 @@ func TestNodeDestroyableOutputExecute_notInState(t *testing.T) {
 		t.Fatal("Unexpected outputs in state after removal")
 	}
 }
+
+func TestNodeApplyableOutputExecute_typedOutput(t *testing.T) {
+	for _, tc := range []struct {
+		title       string
+		val         cty.Value
+		coercedType cty.Type
+		expectedVal cty.Value
+		expectedErr bool
+	}{
+		{
+			title: "no-op type conversion",
+			val: cty.MapVal(map[string]cty.Value{
+				"a": cty.NumberIntVal(1234),
+			}),
+			coercedType: cty.Map(cty.Number),
+			expectedVal: cty.MapVal(map[string]cty.Value{
+				"a": cty.NumberIntVal(1234),
+			}),
+		},
+		{
+			title: "string coerced into number",
+			val: cty.MapVal(map[string]cty.Value{
+				"a": cty.StringVal("1234"),
+			}),
+			coercedType: cty.Map(cty.Number),
+			expectedVal: cty.MapVal(map[string]cty.Value{
+				"a": cty.NumberIntVal(1234),
+			}),
+		},
+		{
+			title: "bad type conversion",
+			val: cty.MapVal(map[string]cty.Value{
+				"a": cty.StringVal("hello"),
+			}),
+			coercedType: cty.Map(cty.Number),
+			expectedErr: true,
+		},
+	} {
+		t.Run(tc.title, func(t *testing.T) {
+			evalCtx := new(MockEvalContext)
+			evalCtx.StateState = states.NewState().SyncWrapper()
+			evalCtx.RefreshStateState = states.NewState().SyncWrapper()
+			evalCtx.ChecksState = checks.NewState(nil)
+
+			config := &configs.Output{
+				Name:           "map-output",
+				ConstraintType: tc.coercedType,
+			}
+			addr := addrs.OutputValue{Name: config.Name}.Absolute(addrs.RootModuleInstance)
+			node := &NodeApplyableOutput{Config: config, Addr: addr}
+			evalCtx.EvaluateExprResult = tc.val
+
+			err := node.Execute(t.Context(), evalCtx, walkApply)
+			if err != nil {
+				if tc.expectedErr {
+					return
+				}
+				t.Fatalf("unexpected execute error: %s", err)
+			}
+
+			outputVal := evalCtx.StateState.OutputValue(addr)
+			if got, want := outputVal.Value, tc.expectedVal; !got.RawEquals(want) {
+				t.Errorf("wrong output value in state\n got: %#v\nwant: %#v", got, want)
+			}
+		})
+	}
+}

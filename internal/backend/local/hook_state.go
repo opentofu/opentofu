@@ -64,7 +64,7 @@ type IntermediateStatePersistInfo struct {
 
 var _ tofu.Hook = (*StateHook)(nil)
 
-func (h *StateHook) PostStateUpdate(mutate func(*states.SyncState)) (tofu.HookAction, error) {
+func (h *StateHook) PostStateUpdate(mutate func(*states.State)) (tofu.HookAction, error) {
 	h.Lock()
 	defer h.Unlock()
 
@@ -81,7 +81,7 @@ func (h *StateHook) PostStateUpdate(mutate func(*states.SyncState)) (tofu.HookAc
 			if state == nil {
 				state = states.NewState()
 			}
-			mutate(state.SyncWrapper())
+			mutate(state)
 			return state
 		})
 		if err != nil {

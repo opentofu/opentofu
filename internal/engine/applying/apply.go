@@ -29,12 +29,14 @@ import (
 // right for what we need here. A future version of this function will hopefully
 // have a signature more tailored to the needs of the new apply engine, once
 // we have a stronger understanding of what those needs are.
-func ApplyPlannedChanges(ctx context.Context, plan *plans.Plan, configInst *eval.ConfigInstance, plugins plugins.Plugins) (*states.State, tfdiags.Diagnostics) {
+func ApplyPlannedChanges(ctx context.Context, plan *plans.Plan, configInst *eval.ConfigInstance, plugins plugins.Plugins, persistState PersistState) (*states.State, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// We'll make the "shared" tracer also available to everything we call.
 	tracer := contextTracer(ctx)
 	ctx = shared.ContextWithTracer(ctx, &tracer.Tracer)
+
+	ctx = grapheval.ContextWithRequestTracker(ctx, grapheval.NewRequestTracker())
 
 	glue := &evalGlue{
 		plugins: plugins,
@@ -47,7 +49,7 @@ func ApplyPlannedChanges(ctx context.Context, plan *plans.Plan, configInst *eval
 		return nil, diags
 	}
 
-	execGraphSrc, execGraph, execOps, moreDiags := compileExecutionGraph(ctx, plan, oracle, plugins)
+	execGraph, execOps, moreDiags := compileExecutionGraph(ctx, plan, oracle, plugins, persistState)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		return nil, diags
@@ -55,13 +57,13 @@ func ApplyPlannedChanges(ctx context.Context, plan *plans.Plan, configInst *eval
 	glue.graph = execGraph
 	glue.ops = execOps
 
-	reqTracker := newRequestTracker(execGraphSrc, execOps)
-	ctx = grapheval.ContextWithRequestTracker(ctx, reqTracker)
-
 	moreDiags = execGraph.Execute(ctx)
 	diags = diags.Append(moreDiags)
 
-	newState, moreDiags := execOps.Finish(ctx)
+	// We skip updating the output values for the new state when destroying
+	// because after destroy output values would be in a confusing state due to
+	// referring to resource instance objects that no longer exist.
+	newState, moreDiags := execOps.Finish(ctx, !plan.Destroying)
 	diags = diags.Append(moreDiags)
 
 	return newState, diags

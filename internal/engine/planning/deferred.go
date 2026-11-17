@@ -34,6 +34,10 @@ func deferredVal(v cty.Value) cty.Value {
 	return v.Mark(deferredMark)
 }
 
+func isDeferredVal(v cty.Value) bool {
+	return v.HasMark(deferredMark)
+}
+
 // derivedFromDeferredVal returns true if any part of the given value is
 // derived from something that was previously produced by a call to
 // deferredVal.

@@ -133,6 +133,20 @@ type Operations interface {
 		plannedVal cty.Value,
 	) (*ManagedResourceObjectFinalPlan, tfdiags.Diagnostics)
 
+	// ManagedFinalPlanForget is a variant of [ManagedFinalPlan] which
+	// produces a plan intended for use with [Operations.ManagedForget],
+	// which just collects some necessary information from the metadata for
+	// the object.
+	//
+	// We have this operation mainly just so that the execution graph has a
+	// similar shape for "forget" as for "delete" actions, so that the graph
+	// building in the planning phase doesn't need so many special cases itself.
+	ManagedFinalPlanForget(
+		ctx context.Context,
+		metadata *ResourceInstanceObjectMeta,
+		prior *ResourceInstanceObject,
+	) (*ManagedResourceObjectFinalPlan, tfdiags.Diagnostics)
+
 	// ManagedApply uses the given provider client to apply the given plan.
 	//
 	// This operation MUST fully encapsulate all of the externally-visible
@@ -168,6 +182,21 @@ type Operations interface {
 		ctx context.Context,
 		plan *ManagedResourceObjectFinalPlan,
 		fallback *ResourceInstanceObject,
+	) (*ResourceInstanceObject, tfdiags.Diagnostics)
+
+	// ManagedForget just removes the object identified in the given plan from
+	// the state, without involving the provider at all.
+	//
+	// This is intended to act as a substitute for [Operations.ManagedApply]
+	// working with a deletion plan, and so on success the returned object
+	// always has a nil state to represent that -- as far as OpenTofu is
+	// concerned, at least -- this object no longer exists.
+	//
+	// Note that "forgetting" is still potentially fallible for a resource
+	// instance object that has pre-deletion provisioners.
+	ManagedForget(
+		ctx context.Context,
+		plan *ManagedResourceObjectFinalPlan,
 	) (*ResourceInstanceObject, tfdiags.Diagnostics)
 
 	// ManagedPerformDepose takes a "current" object for some resource instance

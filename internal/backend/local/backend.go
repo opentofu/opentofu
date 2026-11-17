@@ -288,6 +288,9 @@ func (b *Local) Operation(ctx context.Context, op *backend.Operation) (*backend.
 		panic("Operation called with nil View")
 	}
 
+	// Inject encryption context as early as possible
+	ctx = encryption.ContextWithEncryption(ctx, op.Encryption)
+
 	// Determine the function to call for our operation
 	var f func(context.Context, context.Context, *backend.Operation, *backend.RunningOperation)
 	switch op.Type {

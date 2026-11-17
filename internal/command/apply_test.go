@@ -313,7 +313,7 @@ func TestApply_parallelism(t *testing.T) {
 	// calls until we reach the desired concurrency. The cancel func "begin" is
 	// called once we reach the desired concurrency, allowing all apply calls
 	// to proceed in unison.
-	beginCtx, begin := context.WithCancel(context.Background())
+	beginCtx, begin := context.WithCancel(t.Context())
 	// Ensure cancel is fired regardless of test
 	defer begin()
 

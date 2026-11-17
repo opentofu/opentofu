@@ -243,6 +243,7 @@ func TestCompileInputVariable(t *testing.T) {
 			}
 
 			ctx := grapheval.ContextWithNewWorker(t.Context())
+			ctx = grapheval.ContextWithRequestTracker(ctx, grapheval.NewRequestTracker())
 			gotValue, gotDiags := vn.Value(ctx)
 			if diff := cmp.Diff(test.wantValue, gotValue, ctydebug.CmpOptions); diff != "" {
 				t.Error("wrong result value\n" + diff)

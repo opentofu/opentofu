@@ -17,10 +17,17 @@ ENHANCEMENTS:
 - `tofu plan` no longer prints iterative warnings for multiple resources but instead it shows one warning with all of the affected resources. ([#4201](https://github.com/opentofu/opentofu/issues/4201))
 - `tofu providers mirror`: The generated JSON index files now include `use_mirror_credentials: true` for each archive entry, so that consumers using the generated mirror as a network mirror automatically get credential forwarding. ([#4314](https://github.com/opentofu/opentofu/issues/4314))
 - `mock_provider` now supports the `source` argument that can get a file or directory with specific provider overrides ([#4532](https://github.com/opentofu/opentofu/pull/4532))
+- For provider installation, registry and network mirror sources can now optionally forward authentication credentials to the package download URL if the server explicitly opts in. Previously the package download requests were always made without any credentials. ([#4584](https://github.com/opentofu/opentofu/issues/4584))
+- `tofu test` now supports the `error_message` as optional in `assert` blocks ([#4642](https://github.com/opentofu/opentofu/pull/4642))
+- Module outputs now support specifying their type. ([#4645](https://github.com/opentofu/opentofu/pull/4645))
+- The `tofu` cli will now read `*.tfrc` file to load its configuration from system standard directories. ([#4624](https://github.com/opentofu/opentofu/pull/4624))
+- `override_data`/`override_resource` blocks may override non-computed fields in tofu test. ([#4777](https://github.com/opentofu/opentofu/pull/4777))
+- `tofu version` now includes the list of modules and their versions. ([#3270](https://github.com/opentofu/opentofu/issues/3270))
 
 BUG FIXES:
 
 - `tofu fmt`: Fixed wrong resolution of paths when the working directory is a symlink; output now shows absolute file paths instead of giving error `Invalid file or directory path`. ([#3879](https://github.com/opentofu/opentofu/issues/3879))
+- OpenTelemetry tracing support now honors the standard OpenTelemetry environment variable `OTEL_RESOURCE_ATTRIBUTES` for specifying arbitrary additional resource attribute values to be added to traces. Previously we only supported `OTEL_SERVICE_NAME` for overriding the `service.name` attribute. ([#4621](https://github.com/opentofu/opentofu/issues/4621))
 
 ## Previous Releases
 

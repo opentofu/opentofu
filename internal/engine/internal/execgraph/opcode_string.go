@@ -12,18 +12,20 @@ func _() {
 	_ = x[opResourceInstanceDesired-2]
 	_ = x[opResourceInstancePrior-3]
 	_ = x[opManagedFinalPlan-4]
-	_ = x[opManagedApply-5]
-	_ = x[opManagedPrepareDepose-6]
-	_ = x[opManagedPerformDepose-7]
-	_ = x[opManagedDesposedMeta-8]
-	_ = x[opManagedAlreadyDeposed-9]
-	_ = x[opManagedChangeAddr-10]
-	_ = x[opDataRead-11]
+	_ = x[opManagedFinalPlanForget-5]
+	_ = x[opManagedApply-6]
+	_ = x[opManagedForget-7]
+	_ = x[opManagedPrepareDepose-8]
+	_ = x[opManagedPerformDepose-9]
+	_ = x[opManagedDesposedMeta-10]
+	_ = x[opManagedAlreadyDeposed-11]
+	_ = x[opManagedChangeAddr-12]
+	_ = x[opDataRead-13]
 }
 
-const _opCode_name = "opResourceInstanceCurrentMetaopResourceInstanceDesiredopResourceInstancePrioropManagedFinalPlanopManagedApplyopManagedPrepareDeposeopManagedPerformDeposeopManagedDesposedMetaopManagedAlreadyDeposedopManagedChangeAddropDataRead"
+const _opCode_name = "opResourceInstanceCurrentMetaopResourceInstanceDesiredopResourceInstancePrioropManagedFinalPlanopManagedFinalPlanForgetopManagedApplyopManagedForgetopManagedPrepareDeposeopManagedPerformDeposeopManagedDesposedMetaopManagedAlreadyDeposedopManagedChangeAddropDataRead"
 
-var _opCode_index = [...]uint8{0, 29, 54, 77, 95, 109, 131, 153, 174, 197, 216, 226}
+var _opCode_index = [...]uint16{0, 29, 54, 77, 95, 119, 133, 148, 170, 192, 213, 236, 255, 265}
 
 func (i opCode) String() string {
 	idx := int(i) - 1

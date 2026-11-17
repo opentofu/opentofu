@@ -78,14 +78,14 @@ var (
 
 	ExperimentalBugCancel            = ExperimentalFlag{"Bug Context Cancel", false}
 	ExperimentalBugStateCBD          = ExperimentalFlag{"Bug CreateBeforeDestroy Not Tracked In State", false}
-	ExperimentalBugStateUpdateHook   = ExperimentalFlag{"Bug State Update Hook", false}
-	ExperimentalBugMissingResource   = ExperimentalFlag{"Bug Missing Configuration For Resource Instance", false}
-	ExperimentalBugResourceReadNull  = ExperimentalFlag{"Bug Read Resource Deleted", false}
+	ExperimentalBugStateUpdateHook   = ExperimentalFlag{"Bug State Update Hook", true}
+	ExperimentalBugMissingResource   = ExperimentalFlag{"Bug Missing Configuration For Resource Instance", true}
+	ExperimentalBugResourceReadNull  = ExperimentalFlag{"Bug Read Resource Deleted", true}
 	ExperimentalBugDataResource      = ExperimentalFlag{"Bug Data Resource", false}
 	ExperimentalBugResourceMarks     = ExperimentalFlag{"Bug Not Transferring Marks from Resource Instance Config Value to Final Value", false}
-	ExperimentalBugTaintOnCreateFail = ExperimentalFlag{"Bug Not Tainted When Create Fails", false}
-	ExperimentalBugProviderPrivate   = ExperimentalFlag{"Bug Provider Private Data Not Preserved", false}
-	ExperimentalBugCircularReference = ExperimentalFlag{"Bug Circular Reference", false}
+	ExperimentalBugTaintOnCreateFail = ExperimentalFlag{"Bug Not Tainted When Create Fails", true}
+	ExperimentalBugProviderPrivate   = ExperimentalFlag{"Bug Provider Private Data Not Preserved", true}
+	ExperimentalBugCircularReference = ExperimentalFlag{"Bug Circular Reference", true}
 
 	ExperimentalChangeDiagWording     = ExperimentalFlag{"Change Different Diagnostic Wording", false}
 	ExperimentalChangeErrorEarly      = ExperimentalFlag{"Change Detect Error Earlier", false}
@@ -96,38 +96,42 @@ var (
 	ExperimentalChangeDestroyOrder    = ExperimentalFlag{"Change Destroy Order", false}
 	ExperimentalChangeModuleOutput    = ExperimentalFlag{"Change Module Outputs (test only)", false}
 	ExperimentalChangeCursedSelfRef   = ExperimentalFlag{"Change Cursed Self Reference (legacy race condition)", false}
+	ExperimentalChangeMoved           = ExperimentalFlag{"Moved blocks that are not \"active\" are not processed", false}
+	ExperimentalChangeImportValid     = ExperimentalFlag{"Import command requires a configuration that can pass validate", false}
 
-	ExperimentalFeatureDeposed         = ExperimentalFlag{"Missing Deposed", false}
+	ExperimentalFeatureDeposed         = ExperimentalFlag{"Missing Deposed", true}
 	ExperimentalFeatureCondition       = ExperimentalFlag{"Missing Pre/Post Conditions", false}
 	ExperimentalFeatureLocalState      = ExperimentalFlag{"Missing Store locals in state", false}
 	ExperimentalFeatureChecks          = ExperimentalFlag{"Missing Checks", false}
-	ExperimentalFeatureChanges         = ExperimentalFlag{"Missing Plan Changes", false}
+	ExperimentalFeatureChanges         = ExperimentalFlag{"Missing Plan Changes", true}
 	ExperimentalFeatureDeprecated      = ExperimentalFlag{"Missing Deprecated", false}
-	ExperimentalFeatureImport          = ExperimentalFlag{"Missing Importing", false}
+	ExperimentalFeatureImport          = ExperimentalFlag{"Missing Importing", true}
+	ExperimentalFeatureImportGenConfig = ExperimentalFlag{"Missing Import GenConfig", true}
 	ExperimentalFeatureLinting         = ExperimentalFlag{"Missing Linting", false}
-	ExperimentalFeatureRefresh         = ExperimentalFlag{"Missing Refresh", false}
-	ExperimentalFeatureRefreshOnly     = ExperimentalFlag{"Missing Refresh-only Planning Mode", false}
+	ExperimentalFeatureRefresh         = ExperimentalFlag{"Missing Refresh", true}
+	ExperimentalFeatureRefreshOnly     = ExperimentalFlag{"Missing Refresh-only Planning Mode", true}
 	ExperimentalFeatureMoved           = ExperimentalFlag{"Missing Moved", true}
 	ExperimentalFeatureRemoved         = ExperimentalFlag{"Missing Removed", false}
 	ExperimentalFeatureSkipDestroy     = ExperimentalFlag{"Missing Lifecycle Destroy", false}
 	ExperimentalFeatureUpgradeUnwanted = ExperimentalFlag{"Missing Upgrade Orphan or Deposed Resource Instance State", false}
-	ExperimentalFeatureTarget          = ExperimentalFlag{"Missing Targeting", false}
+	ExperimentalFeatureTarget          = ExperimentalFlag{"Missing Targeting", true}
 	ExperimentalFeatureVarCondition    = ExperimentalFlag{"Missing Variable Condiitions", false}
 	ExperimentalFeaturePlannedState    = ExperimentalFlag{"Missing Planned State", false}
 	ExperimentalFeatureSensitivity     = ExperimentalFlag{"Missing Sensitivity Handling", false}
 	ExperimentalFeatureSelfReference   = ExperimentalFlag{"Missing Self Reference", false}
-	ExperimentalFeatureProviderMeta    = ExperimentalFlag{"Missing Provider Meta", false}
-	ExperimentalFeatureTaint           = ExperimentalFlag{"Missing Taint", false}
+	ExperimentalFeatureTaint           = ExperimentalFlag{"Missing Taint", true}
 	ExperimentalFeatureErrorHandling   = ExperimentalFlag{"Missing Error Handling", false}
 	ExperimentalFeatureProviderInput   = ExperimentalFlag{"Missing Provider Input Prompting", false}
-	ExperimentalFeatureModuleEnabled   = ExperimentalFlag{"Missing Module Lifecycle Enabled", false}
-	ExperimentalFeatureActionReason    = ExperimentalFlag{"Missing ActionReason", false}
+	ExperimentalFeatureModuleEnabled   = ExperimentalFlag{"Missing Module Lifecycle Enabled", true}
+	ExperimentalFeatureActionReason    = ExperimentalFlag{"Missing ActionReason", true}
+	ExperimentalFeatureDriftedResource = ExperimentalFlag{"Missing Plan Drifted Resources", true}
 
 	// Obsolete flags indicate a test which depends on a feature we do not
 	// intend to carry forward into the new engine
 	ExperimentalObsoleteFlatAttrs        = ExperimentalFlag{"Obsolete Flat Mapped Attributes", false}
 	ExperimentalObsoleteDestroyData      = ExperimentalFlag{"Obsolete Explicit Destroy of Data Resource Instances", false}
 	ExperimentalObsoleteEphemeralInState = ExperimentalFlag{"Obsolete Ephemeral Resource Instances in State", false}
+	ExperimentalObsoleteImportMulti      = ExperimentalFlag{"Obsilete Importing Multi (cli only)", false}
 
 	// ExperimentalNewStrategyNeeded is a special experimental flag that
 	// represents that a test is failing not because the underlying behavior

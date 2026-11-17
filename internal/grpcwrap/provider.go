@@ -68,13 +68,6 @@ func (p *provider) GetSchema(_ context.Context, req *tfplugin5.GetProviderSchema
 		resp.Provider.Block = convert.ConfigSchemaToProto(p.schema.Provider.Block)
 	}
 
-	resp.ProviderMeta = &tfplugin5.Schema{
-		Block: &tfplugin5.Schema_Block{},
-	}
-	if p.schema.ProviderMeta.Block != nil {
-		resp.ProviderMeta.Block = convert.ConfigSchemaToProto(p.schema.ProviderMeta.Block)
-	}
-
 	for typ, res := range p.schema.ResourceTypes {
 		resp.ResourceSchemas[typ] = &tfplugin5.Schema{
 			Version: res.Version,
@@ -249,18 +242,10 @@ func (p *provider) ReadResource(ctx context.Context, req *tfplugin5.ReadResource
 		return resp, nil
 	}
 
-	metaTy := p.schema.ProviderMeta.Block.ImpliedType()
-	metaVal, err := decodeDynamicValue(req.ProviderMeta, metaTy)
-	if err != nil {
-		resp.Diagnostics = convert.AppendProtoDiag(resp.Diagnostics, err)
-		return resp, nil
-	}
-
 	readReq := providers.ReadResourceRequest{
-		TypeName:     req.TypeName,
-		PriorState:   stateVal,
-		Private:      req.Private,
-		ProviderMeta: metaVal,
+		TypeName:   req.TypeName,
+		PriorState: stateVal,
+		Private:    req.Private,
 	}
 	if req.CurrentIdentity != nil && req.CurrentIdentity.IdentityData != nil {
 		if identitySchema, ok := p.identitySchemas[req.TypeName]; ok {
@@ -323,20 +308,12 @@ func (p *provider) PlanResourceChange(ctx context.Context, req *tfplugin5.PlanRe
 		return resp, nil
 	}
 
-	metaTy := p.schema.ProviderMeta.Block.ImpliedType()
-	metaVal, err := decodeDynamicValue(req.ProviderMeta, metaTy)
-	if err != nil {
-		resp.Diagnostics = convert.AppendProtoDiag(resp.Diagnostics, err)
-		return resp, nil
-	}
-
 	planReq := providers.PlanResourceChangeRequest{
 		TypeName:         req.TypeName,
 		PriorState:       priorStateVal,
 		ProposedNewState: proposedStateVal,
 		Config:           configVal,
 		PriorPrivate:     req.PriorPrivate,
-		ProviderMeta:     metaVal,
 	}
 	if req.PriorIdentity != nil && req.PriorIdentity.IdentityData != nil {
 		if identitySchema, ok := p.identitySchemas[req.TypeName]; ok {
@@ -403,20 +380,12 @@ func (p *provider) ApplyResourceChange(ctx context.Context, req *tfplugin5.Apply
 		return resp, nil
 	}
 
-	metaTy := p.schema.ProviderMeta.Block.ImpliedType()
-	metaVal, err := decodeDynamicValue(req.ProviderMeta, metaTy)
-	if err != nil {
-		resp.Diagnostics = convert.AppendProtoDiag(resp.Diagnostics, err)
-		return resp, nil
-	}
-
 	applyReq := providers.ApplyResourceChangeRequest{
 		TypeName:       req.TypeName,
 		PriorState:     priorStateVal,
 		PlannedState:   plannedStateVal,
 		Config:         configVal,
 		PlannedPrivate: req.PlannedPrivate,
-		ProviderMeta:   metaVal,
 	}
 	if req.PlannedIdentity != nil && req.PlannedIdentity.IdentityData != nil {
 		if identitySchema, ok := p.identitySchemas[req.TypeName]; ok {
@@ -543,17 +512,9 @@ func (p *provider) ReadDataSource(ctx context.Context, req *tfplugin5.ReadDataSo
 		return resp, nil
 	}
 
-	metaTy := p.schema.ProviderMeta.Block.ImpliedType()
-	metaVal, err := decodeDynamicValue(req.ProviderMeta, metaTy)
-	if err != nil {
-		resp.Diagnostics = convert.AppendProtoDiag(resp.Diagnostics, err)
-		return resp, nil
-	}
-
 	readResp := p.provider.ReadDataSource(ctx, providers.ReadDataSourceRequest{
-		TypeName:     req.TypeName,
-		Config:       configVal,
-		ProviderMeta: metaVal,
+		TypeName: req.TypeName,
+		Config:   configVal,
 	})
 	resp.Diagnostics = convert.AppendProtoDiag(resp.Diagnostics, readResp.Diagnostics)
 	if readResp.Diagnostics.HasErrors() {

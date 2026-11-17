@@ -13,6 +13,7 @@ import (
 )
 
 func assertDiagnosticsMatch(t *testing.T, got, want tfdiags.Diagnostics) {
+	t.Helper()
 	// We'll use the "for RPC" representation as a common baseline here
 	// so that we're comparing the diagnostics just semantically rather
 	// than by their implementation details. Note however that this

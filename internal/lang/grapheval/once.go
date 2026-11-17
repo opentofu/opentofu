@@ -7,10 +7,13 @@ package grapheval
 
 import (
 	"context"
+	"fmt"
+	"runtime/pprof"
 	"sync"
 
 	"github.com/apparentlymart/go-workgraph/workgraph"
 
+	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -48,7 +51,9 @@ type Once[T any] struct {
 // Once object in the program MUST pass a context derived from the one passed
 // into the callback function, because it includes internal tracking
 // information.
-func (o *Once[T]) Do(ctx context.Context, f func(ctx context.Context) (T, tfdiags.Diagnostics)) (T, tfdiags.Diagnostics) {
+func (o *Once[T]) Do(ctx context.Context, f func(ctx context.Context) (T, tfdiags.Diagnostics), rng *tfdiags.SourceRange, label string, labelArgs ...any) (T, tfdiags.Diagnostics) {
+	ctx, panicHandler := logging.PanicHandlerWithContext(ctx, label, labelArgs...)
+
 	worker := WorkerFromContext(ctx)
 	o.mu.Lock()
 	if o.promise == nil {
@@ -57,7 +62,19 @@ func (o *Once[T]) Do(ctx context.Context, f func(ctx context.Context) (T, tfdiag
 		resolver, promise := workgraph.NewRequest[withDiagnostics[T]](worker)
 		o.promise = &promise
 		o.requestID = resolver.RequestID()
+		// Report that this request is in-flight
+		ReportRequestInContext(ctx, o.requestID, func() RequestInfo {
+			return RequestInfo{
+				// We defer this call to prevent undue gc thrashing for all the string manipulations
+				// implied by this formatting call.
+				Name:        fmt.Sprintf(label, labelArgs...),
+				SourceRange: rng,
+			}
+		})
 		workgraph.WithNewAsyncWorker(func(w *workgraph.Worker) {
+			defer panicHandler()
+
+			pprof.SetGoroutineLabels(ctx) // Just in case the caller uses pprof labels to describe what this worker's goal is
 			ctx := ContextWithWorker(ctx, w)
 			ret, diags := f(ctx)
 			resolver.Report(w, withDiagnostics[T]{ret, diags}, nil)

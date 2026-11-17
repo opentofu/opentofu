@@ -209,3 +209,27 @@ Set `TOFU_CPU_PROFILE` to instruct OpenTofu to write a [Go pprof file](https://p
 TOFU_CPU_PROFILE=./tofu.pprof tofu plan
 go tool pprof -http ./tofu.pprof
 ```
+
+## TOFU_PANIC_TRACE
+
+:::warning
+This feature is currently experimental and only impacts the new runtime
+:::
+
+Set `TOFU_PANIC_TRACE` to instruct OpenTofu to provide a full trace of panics across go-routines. This is an expensive option to enable and should only be used as a last resort.
+
+```shell
+TOFU_PANIC_TRACE=1 tofu plan
+!!!!!!!!!!!!!!!!!!!!!!!!!!! OPENTOFU CRASH !!!!!!!!!!!!!!!!!!!!!!!!!!!!
+< crash header >
+
+With go-routine called from:
+< stacktrace >
+
+With go-routine called from:
+< stacktrace >
+
+With go-routine called from:
+< stacktrace >
+
+```
