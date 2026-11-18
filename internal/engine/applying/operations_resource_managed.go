@@ -68,6 +68,26 @@ func (ops *execOperations) ManagedFinalPlan(
 	objAddr := instAddr.Object(deposedKey)
 	log.Printf("[TRACE] apply phase: ManagedFinalPlan %s using %s", objAddr, providerConfigAddr)
 
+	newSkipDestroy := false
+	if metadata.NewActionIfUnwanted.IsKnown() {
+		// The state only gets to optionally force choosing "forget" on the
+		// next round, and otherwise it gets no opinion at all.
+		// FIXME: Should we be doing anything with these marks?
+		if action, _ := metadata.ActionIfUnwanted.Unmark(); action.KnownValue() == resources.IfUnwantedForget {
+			newSkipDestroy = true
+		}
+	} else {
+		// We should not get here because the planning phase should refuse to
+		// produce a plan if we wouldn't know what to set this to during the
+		// apply phase.
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			`Unknown value for "destroy" argument`,
+			fmt.Sprintf("The \"destroy\" argument for %s has an unknown value. It's a bug in OpenTofu that this wasn't caught during the planning phase.", instAddr),
+		))
+		return nil, diags
+	}
+
 	if desired != nil && prior == nil { // creating
 		provisionersAfter = metadata.PostCreateProvisioners
 	} else if prior != nil && desired == nil { // deleting
@@ -159,6 +179,7 @@ func (ops *execOperations) ManagedFinalPlan(
 		ProvisionersAfter:         provisionersAfter,
 		ProviderInstance:          providerConfigAddr,
 		ProviderPrivate:           resp.Planned.Private,
+		NewSkipDestroy:            newSkipDestroy,
 	}, diags
 }
 
@@ -484,6 +505,7 @@ func (ops *execOperations) ManagedApply(
 			ProviderInstanceAddr: providerConfigAddr,
 			ResourceType:         plan.ResourceType,
 			SchemaVersion:        uint64(schema.Version),
+			SkipDestroy:          plan.NewSkipDestroy,
 
 			// TODO: Propagate the dependencies from the desired object into
 			// the final plan and then populate "Dependencies" here.

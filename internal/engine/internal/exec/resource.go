@@ -93,6 +93,11 @@ type ManagedResourceObjectFinalPlan struct {
 	// then if they fail the object is left in a "tainted" state so that the
 	// next plan/apply round knows that the object is not yet ready to use.
 	ProvisionersBefore, ProvisionersAfter []*eval.ResourceProvisioner
+
+	// NewSkipDestroy specifies what the "SkipDestroy" value ought to be set
+	// to in the new state for this object, assuming it still exists once
+	// this change has been applied.
+	NewSkipDestroy bool
 }
 
 // IntoDeposed returns a new [ManagedResourceObjectFinalPlan] that represents
@@ -308,6 +313,19 @@ type ResourceInstanceObjectMeta struct {
 	// be ignored completely for other resource modes.
 	ActionIfUnwanted exprs.FromValue[resources.ActionIfUnwanted]
 
+	// NewActionIfUnwanted is the "action if unwanted" as selected in
+	// the current configuration, ignoring whatever was recorded in the previous
+	// run state.
+	//
+	// This should be used to decide what decision to save into the state for
+	// the next round, assuming that there is still an object associated with
+	// this address in the new state (i.e. if it isn't being deleted/forgotten
+	// on this round.)
+	//
+	// This field is relevant only for managed resource mode and should be
+	// be ignored completely for other resource modes.
+	NewActionIfUnwanted exprs.FromValue[resources.ActionIfUnwanted]
+
 	// DeletionInvalid is true if the author has configured that any execution
 	// plan that involves deleting this object should be considered immediately
 	// invalid. If false then deleting is a valid action to include.
@@ -379,10 +397,18 @@ func BuildResourceInstanceObjectMeta[SV states.ValueOrJSONEquivalent](
 		// will override this with something more explicit.
 		Provider: addrs.ImpliedProviderForUnqualifiedType(addr.InstanceAddr.Resource.Resource.ImpliedProvider()),
 
-		// We delete when removed unless explicitly overridden in the
-		// configuration somewhere or previously set to forget in the state.
-		ActionIfUnwanted: exprs.Known(resources.IfUnwantedDelete),
+		// We delete when removed unless we find an explicit declaration that
+		// supersedes this.
+		ActionIfUnwanted:    exprs.Known(resources.IfUnwantedDelete),
+		NewActionIfUnwanted: exprs.Known(resources.IfUnwantedDelete),
 	}
+
+	// The "action if unwanted" field has some special priority rules, so we
+	// keep track of a few different opinions about it and then choose one
+	// at the end.
+	var actionIfUnwantedFromPrior resources.ActionIfUnwanted
+	actionIfUnwantedFromUnwanted := exprs.Known(resources.IfUnwantedUndecided)
+	actionIfUnwantedFromDesired := exprs.Known(resources.IfUnwantedUndecided)
 
 	// If both state and fromConfig are present then we'll start with state
 	// so that the config values can potentially override the state values.
@@ -405,11 +431,10 @@ func BuildResourceInstanceObjectMeta[SV states.ValueOrJSONEquivalent](
 		}
 
 		if state.SkipDestroy {
-			// The state is allowed to change our base value for this, but the
-			// configuration always wins if it specifies anything, which it
-			// typically will unless there are no mentions of this object
-			// in the configuration at all anymore.
-			ret.ActionIfUnwanted = exprs.Known(resources.IfUnwantedForget)
+			// The only opinion the state is allowed to express is forcing
+			// "forget" if there is no explicit "unwanted" declaration. In
+			// all other cases the configuration decides.
+			actionIfUnwantedFromPrior = resources.IfUnwantedForget
 		}
 
 		ret.Status = state.Status
@@ -417,8 +442,7 @@ func BuildResourceInstanceObjectMeta[SV states.ValueOrJSONEquivalent](
 		// TODO: Everything else
 	}
 
-	actionIfUnwantedSet := false
-
+	var unwanted bool
 	for _, fromModule := range fromConfig {
 		if p := fromModule.Provider; p != nil {
 			ret.Provider = p.Provider
@@ -445,18 +469,30 @@ func BuildResourceInstanceObjectMeta[SV states.ValueOrJSONEquivalent](
 		// by a child module it calls. deleteWhenRemovedSet is set to true when
 		// we encounter the first explicit opinion about it, and then we ignore
 		// it for any nested modules.
-		if !actionIfUnwantedSet {
-			// We ignore marks here and just propagate them into the result
-			// if relevant, since they don't affect our decision about who
-			// "wins" when there are multiple competing definitions.
-			unmarked, _ := fromModule.ActionIfUnwanted.FromValue.Unmark()
-			if val, known := unmarked.ValueOk(); !known || val != resources.IfUnwantedUndecided {
-				// We discard the source location information here because any
-				// rules restricting usage of this option are expected to be checked
-				// before we merge the configuration-based values together here.
-				ret.ActionIfUnwanted = fromModule.ActionIfUnwanted.FromValue
-				actionIfUnwantedSet = true
+		switch fromModule.Want {
+		case eval.ResourceInstanceObjectWantUnspecified:
+			// If there's no "want" specified then this module's opinion about
+			// the action when unwanted is irrelevant.
+		case eval.ResourceInstanceObjectDesired:
+			// The deepest "desired" wins, though in practice there should be
+			// only one because only the module instance that the resource
+			// belongs to should report it as such.
+			actionIfUnwantedFromDesired = fromModule.ActionIfUnwanted.FromValue
+		case eval.ResourceInstanceObjectUnwanted:
+			// For an explicit "unwanted" declaration, the shallowest
+			// declaration wins so that an ancestor module can override a
+			// decision made inside one of its descendents.
+			if actionIfUnwantedFromUnwanted.IsKnown() {
+				a, _ := actionIfUnwantedFromUnwanted.Unmark()
+				if a.KnownValue() == resources.IfUnwantedUndecided {
+					actionIfUnwantedFromUnwanted = fromModule.ActionIfUnwanted.FromValue
+				}
 			}
+			unwanted = true
+		default:
+			// The above cases should be exhaustive for all variants of
+			// [eval.ResourceInstanceObjectWant].
+			panic(fmt.Sprintf("unsupported 'want' %s", fromModule.Want))
 		}
 
 		if fromModule.DeletionInvalid != nil {
@@ -469,6 +505,30 @@ func BuildResourceInstanceObjectMeta[SV states.ValueOrJSONEquivalent](
 		}
 
 		// TODO: Everything else
+	}
+
+	// Now we'll finally resolve the ActionIfUnwanted and
+	// NewActionIfUnwanted fields, based on what we learned above.
+	if unwanted {
+		// If there are any explicit declarations that this object is unwanted
+		// then those declarations get priority over what the "action if
+		// unwanted" is.
+		if action, ok := resolveActionIfUnwanted(actionIfUnwantedFromUnwanted); ok {
+			ret.ActionIfUnwanted = action
+		}
+	} else {
+		// We prefer the prior state selection if any, and the "desired"
+		// selection otherwise.
+		if actionIfUnwantedFromPrior != resources.IfUnwantedUndecided {
+			ret.ActionIfUnwanted = exprs.Known(actionIfUnwantedFromPrior)
+		} else if action, ok := resolveActionIfUnwanted(actionIfUnwantedFromDesired); ok {
+			ret.ActionIfUnwanted = action
+		}
+	}
+	// NewActionIfUnwanted always comes from the "desired" declaration, if any,
+	// because it represents what the state should report on the next round.
+	if action, ok := resolveActionIfUnwanted(actionIfUnwantedFromDesired); ok {
+		ret.NewActionIfUnwanted = action
 	}
 
 	return ret
@@ -485,4 +545,23 @@ func (m *ResourceInstanceObjectMeta) PrimaryDeclRangeHCL() *hcl.Range {
 		return nil
 	}
 	return m.PrimaryDeclRange.ToHCL().Ptr()
+}
+
+// resolveActionIfUnwanted determines whether "found" expresses any opinion at
+// all about the action if unwanted, returning that opinion and true if so,
+// or a meaningless value and false if not.
+func resolveActionIfUnwanted(found exprs.FromValue[resources.ActionIfUnwanted]) (exprs.FromValue[resources.ActionIfUnwanted], bool) {
+	if !found.IsKnown() {
+		// An unknown value is preserved exactly as-is so that the caller
+		// can see that there's an unknown value in the configuration and
+		// react accordingly (e.g. by deferring changes for this object
+		// until a subsequent round if it turns out to be unwanted in
+		// this round.)
+		return found, true
+	}
+	a, _ := found.Unmark()
+	if a.KnownValue() != resources.IfUnwantedUndecided {
+		return found, true
+	}
+	return exprs.Unknown[resources.ActionIfUnwanted](), false
 }
