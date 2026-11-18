@@ -97,6 +97,7 @@ func (o *OutputValue) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics
 	preconditionMarks, moreDiags := CheckAllRules(ctx,
 		slices.Values(o.Preconditions),
 		func(ruleDeclRange tfdiags.SourceRange, status checks.Status, errMsg string) tfdiags.Diagnostics {
+			checks.ReportCheckInContext(ctx, o.Addr, addrs.InputValidation, status, errMsg)
 			var diags tfdiags.Diagnostics
 			if status == checks.StatusFail {
 				diags = diags.Append(&hcl.Diagnostic{

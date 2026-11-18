@@ -11,6 +11,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/engine/internal/execgraph"
 	"github.com/opentofu/opentofu/internal/engine/plugins"
 	"github.com/opentofu/opentofu/internal/lang/eval"
@@ -36,6 +37,8 @@ func ApplyPlannedChanges(ctx context.Context, plan *plans.Plan, configInst *eval
 	tracer := contextTracer(ctx)
 	ctx = shared.ContextWithTracer(ctx, &tracer.Tracer)
 
+	checkReport := &checks.ReportedChecks{}
+	ctx = checks.ContextWithCheckReporting(ctx, checkReport)
 	ctx = grapheval.ContextWithRequestTracker(ctx, grapheval.NewRequestTracker())
 
 	glue := &evalGlue{
@@ -65,6 +68,9 @@ func ApplyPlannedChanges(ctx context.Context, plan *plans.Plan, configInst *eval
 	// referring to resource instance objects that no longer exist.
 	newState, moreDiags := execOps.Finish(ctx, !plan.Destroying)
 	diags = diags.Append(moreDiags)
+
+	// TODO copy from plan in certain scenarios?
+	newState.CheckResults = states.NewCheckResults(checkReport.State())
 
 	return newState, diags
 }
