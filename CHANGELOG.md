@@ -6,6 +6,10 @@ SECURITY ADVISORIES:
 
 - Upgrade Go toolchain to 1.27.4 to address GO-2026-6859, an HTTP/1 server crash due to a MaxBytesReader header race. ([#4831](https://github.com/opentofu/opentofu/pull/4831))
 
+BUG FIXES:
+
+- Overriding resources for indexed modules now works correctly during `tofu test` ([#4859](https://github.com/opentofu/opentofu/pull/4859))
+
 ## 1.13.9
 
 BUG FIXES:
