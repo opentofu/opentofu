@@ -13,6 +13,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/engine/plugins"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/plans"
@@ -38,6 +39,9 @@ import (
 // each managed resource instance.
 func destroyPlan(ctx context.Context, opts *PlanOpts, prevRoundState *states.State, configInst *eval.ConfigInstance, providers plugins.Providers) (*plans.Plan, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
+
+	checkReport := &checks.ReportedChecks{}
+	ctx = checks.ContextWithCheckReporting(ctx, checkReport)
 
 	planCtx := newPlanContext(configInst.EvalContext(), prevRoundState, providers, opts)
 
@@ -82,7 +86,7 @@ func destroyPlan(ctx context.Context, opts *PlanOpts, prevRoundState *states.Sta
 	intermediate, moreDiags := glue.Finalize(ctx)
 	diags = diags.Append(moreDiags)
 
-	plan, moreDiags := finalizePlan(ctx, intermediate, providers)
+	plan, moreDiags := finalizePlan(ctx, intermediate, providers, checkReport)
 	diags = diags.Append(moreDiags)
 	if diags.HasErrors() {
 		plan.Errored = true

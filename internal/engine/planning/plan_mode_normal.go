@@ -9,6 +9,7 @@ import (
 	"context"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/engine/plugins"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/plans"
@@ -21,6 +22,9 @@ import (
 // the desired state described by the current configuration.
 func normalPlan(ctx context.Context, opts *PlanOpts, prevRoundState *states.State, configInst *eval.ConfigInstance, providers plugins.Providers) (*plans.Plan, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
+
+	checkReport := &checks.ReportedChecks{}
+	ctx = checks.ContextWithCheckReporting(ctx, checkReport)
 
 	planCtx := newPlanContext(configInst.EvalContext(), prevRoundState, providers, opts)
 
@@ -60,10 +64,11 @@ func normalPlan(ctx context.Context, opts *PlanOpts, prevRoundState *states.Stat
 	intermediate, moreDiags := glue.Finalize(ctx, false)
 	diags = diags.Append(moreDiags)
 
-	plan, moreDiags := finalizePlan(ctx, intermediate, providers)
+	plan, moreDiags := finalizePlan(ctx, intermediate, providers, checkReport)
 	diags = diags.Append(moreDiags)
 	if diags.HasErrors() {
 		plan.Errored = true
 	}
+
 	return plan, diags
 }

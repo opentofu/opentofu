@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/collections"
 	"github.com/opentofu/opentofu/internal/engine/plugins"
 	"github.com/opentofu/opentofu/internal/lang/eval"
@@ -84,7 +85,7 @@ func PlanChanges(ctx context.Context, opts *PlanOpts, prevRoundState *states.Sta
 	}
 }
 
-func finalizePlan(ctx context.Context, intermediate *planContextResult, providers plugins.Providers) (*plans.Plan, tfdiags.Diagnostics) {
+func finalizePlan(ctx context.Context, intermediate *planContextResult, providers plugins.Providers, checkReport *checks.ReportedChecks) (*plans.Plan, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// Collect all of the upgraded and refreshed stateObjects
@@ -241,6 +242,7 @@ func finalizePlan(ctx context.Context, intermediate *planContextResult, provider
 		Changes:      changes,
 		PrevRunState: upgradedState,
 		PriorState:   refreshedState,
+		Checks:       states.NewCheckResults(checkReport.State()),
 
 		DriftedResources:   intermediate.DriftedResources,
 		RelevantAttributes: intermediate.DriftCausingChanges,

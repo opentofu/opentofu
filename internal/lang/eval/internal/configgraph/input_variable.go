@@ -140,6 +140,7 @@ func (i *InputVariable) value(ctx context.Context) (cty.Value, tfdiags.Diagnosti
 		validationMarks, moreDiags = CheckAllRules(ctx,
 			i.CompileValidationRules(ctx, finalV),
 			func(ruleDeclRange tfdiags.SourceRange, status checks.Status, errMsg string) tfdiags.Diagnostics {
+				checks.ReportCheckInContext(ctx, i.Addr, addrs.InputValidation, status, errMsg)
 				var diags tfdiags.Diagnostics
 				if status == checks.StatusFail {
 					var srcRange *hcl.Range
