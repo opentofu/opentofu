@@ -1703,3 +1703,35 @@ func TestTest_InstanceOverride(t *testing.T) {
 		})
 	}
 }
+
+func TestTest_InstanceOverrideWithoutMockProvider(t *testing.T) {
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath(path.Join("test", "override_instance_no_mock_provider")), td)
+	t.Chdir(td)
+
+	view, done := testView(t)
+	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
+		View:       view,
+	}
+
+	initCode := RunCommander(t, InitCommander(), meta, nil)
+	if initCode != 0 {
+		initOutput := done(t)
+		t.Fatalf("expected status code 0 but got %d: %s", initCode, initOutput.Stderr())
+	}
+
+	view, done = testView(t)
+	meta.View = view
+
+	code := RunCommander(t, TestCommander(), meta, nil)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("expected status code 0 but got %d: %s", code, output.All())
+	}
+
+	if !strings.Contains(output.Stdout(), "2 passed, 0 failed.") {
+		t.Errorf("output didn't contain expected string %q:\n\n%s\n", "2 passed, 0 failed.",
+			output.All())
+	}
+}

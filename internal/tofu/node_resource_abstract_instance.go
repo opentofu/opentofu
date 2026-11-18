@@ -3174,8 +3174,6 @@ func (n *NodeAbstractResourceInstance) getProvider(ctx context.Context, evalCtx 
 
 	if n.Config != nil && n.Config.IsOverridden && n.Config.Overrides != nil {
 		// Overridden in the currently running test (overrides any provider settings)
-		isOverridden = true
-
 		newOverrideValues, resourceOverrideDiags := n.Config.Overrides.Get(&n.Addr)
 		if resourceOverrideDiags.HasErrors() {
 			return nil, providers.ProviderSchema{}, resourceOverrideDiags.Err()
@@ -3183,6 +3181,7 @@ func (n *NodeAbstractResourceInstance) getProvider(ctx context.Context, evalCtx 
 		// set resource override, if it exists
 		if newOverrideValues != nil {
 			overrideValues = *newOverrideValues
+			isOverridden = true
 		}
 	}
 
