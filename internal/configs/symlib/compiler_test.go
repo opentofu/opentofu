@@ -470,29 +470,6 @@ typedef "customexp" {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			// Parse files into "directory" structure
-			files := map[string][]*SymbolFile{}
-			for path, contents := range tc.files {
-				parts := strings.Split(path, "/")
-				fileName := parts[len(parts)-1]
-				dir := strings.Join(parts[:len(parts)-1], "/") + "/"
-
-				parsed, diags := hclsyntax.ParseConfig([]byte(contents), fileName, hcl.InitialPos)
-				assertNoDiags(t, diags)
-
-				sFile, diags := LoadSymbolFile(parsed.Body)
-				assertNoDiags(t, diags)
-
-				files[dir] = append(files[dir], sFile)
-			}
-
-			var loader Loader
-			loader = func(call *SymbolCall) (*Library, hcl.Diagnostics) {
-				var source string
-				diags := gohcl.DecodeExpression(call.Source, nil, &source)
-				assertNoDiags(t, diags)
-				return CompileLibrary(files[source], loader, testCtyFuncs)
-			}
 			lib, diags := testCompile(tc.files)
 			assertNoDiags(t, diags)
 			tc.assert(t, lib)
@@ -613,31 +590,55 @@ values { foo = symbols::foo() }`},
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			// Parse files into "directory" structure
-			files := map[string][]*SymbolFile{}
-			for path, contents := range tc.files {
-				parts := strings.Split(path, "/")
-				fileName := parts[len(parts)-1]
-				dir := strings.Join(parts[:len(parts)-1], "/") + "/"
-
-				parsed, diags := hclsyntax.ParseConfig([]byte(contents), fileName, hcl.InitialPos)
-				assertNoDiags(t, diags)
-
-				sFile, diags := LoadSymbolFile(parsed.Body)
-				assertNoDiags(t, diags)
-
-				files[dir] = append(files[dir], sFile)
-			}
-
-			var loader Loader
-			loader = func(call *SymbolCall) (*Library, hcl.Diagnostics) {
-				var source string
-				diags := gohcl.DecodeExpression(call.Source, nil, &source)
-				assertNoDiags(t, diags)
-				return CompileLibrary(files[source], loader, testCtyFuncs)
-			}
 			_, diags := testCompile(tc.files)
 			tc.assert(t, diags)
+		})
+	}
+}
+
+// TestMissingTypeConversion ensures that different type missing scenarios don't
+// cause panics and correctly return diagnostics
+func TestMissingTypeConversion(t *testing.T) {
+	testFiles := map[string]string{"./contents.sym.hcl": `typedef "foo" { type = symbols::bar() } `}
+	lib, diags := testCompile(testFiles)
+	if !diags.HasErrors() {
+		t.Error("Expected errors")
+	}
+	table := Table{"lib": lib}
+
+	cases := []struct {
+		name  string
+		tname string
+	}{{
+		name:  "missing dependent type",
+		tname: "symbols::lib::foo()",
+	}, {
+		name:  "missing type",
+		tname: "symbols::lib::undef()",
+	}, {
+		name:  "missing library",
+		tname: "symbols::missing::ty()",
+	}}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			defer func() {
+				err := recover()
+				if err != nil {
+					t.Fatal("unexpected panic", err)
+				}
+			}()
+			typeCtx := table.TypeContext()
+
+			expr, diags := hclsyntax.ParseExpression([]byte("object({a = optional(symbols::bar::foo(), 5)})"), "", hcl.InitialPos)
+			if diags.HasErrors() {
+				t.Error("Expected no errors")
+			}
+
+			_, _, diags = typeCtx.TypeConstraintWithDefaults(expr)
+			if !diags.HasErrors() {
+				t.Error("Expected errors")
+			}
 		})
 	}
 }
