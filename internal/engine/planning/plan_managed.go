@@ -394,6 +394,18 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		return ret, diags
 	}
 
+	if !meta.NewActionIfUnwanted.IsKnown() {
+		// FIXME: We should defer changes for this object to the next round
+		// then, since we don't yet know what "SkipDestroy" is supposed to
+		// be updated to and so the apply phase wouldn't be able to populate it.
+		// However, we might find that we can refine this a little and only
+		// defer if the unknown result is marked as "deferred" itself, since
+		// presumably otherwise the value would be known by the time we need it
+		// during the apply phase anyway. Need to think about this a little
+		// more before deciding how to proceed.
+		diags = diags.Append(fmt.Errorf("unknown 'destroy' value not handled yet; this is a bug in OpenTofu"))
+	}
+
 	// Incomplete
 	// The ordering here is designed to match the existing runtime where possible,
 	// but some of the priorities (replaceRequest vs replaceTaint) are
