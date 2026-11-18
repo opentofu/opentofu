@@ -48,7 +48,8 @@ type Library struct {
 func (l Library) typeWithDefaults(name string, rng hcl.Range) (cty.Type, *typeexpr.Defaults, hcl.Diagnostics) {
 	tyd, ok := l.types[name]
 	if !ok {
-		return cty.NilType, nil, hcl.Diagnostics{{
+		// We must return *some* valid type here even if there are diags.
+		return cty.DynamicPseudoType, nil, hcl.Diagnostics{{
 			Severity: hcl.DiagError,
 			Summary:  "Missing type",
 			Detail:   fmt.Sprintf("Type %s not defined in symbol library %s", name, l.name),
@@ -94,7 +95,8 @@ func (t Table) library(name string, rng hcl.Range) (*Library, hcl.Diagnostics) {
 func (t Table) Type(ref TypeRef) (cty.Type, *typeexpr.Defaults, hcl.Diagnostics) {
 	lib, diags := t.library(ref.Namespace, ref.Range)
 	if diags.HasErrors() {
-		return cty.NilType, nil, diags
+		// We must return *some* valid type here even if there are diags.
+		return cty.DynamicPseudoType, nil, diags
 	}
 	return lib.typeWithDefaults(ref.Name, ref.Range)
 }
