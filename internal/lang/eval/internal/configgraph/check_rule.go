@@ -14,6 +14,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/convert"
 
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/lang/marks"
@@ -190,4 +191,44 @@ func CheckAllRules(ctx context.Context, rules iter.Seq[*CheckRule], handleResult
 		diags = diags.Append(moreDiags)
 	}
 	return marks, diags
+}
+
+func CheckAllRulesDefault(ctx context.Context, addr addrs.Checkable, checkType addrs.CheckRuleType, rules iter.Seq[*CheckRule], rng *tfdiags.SourceRange) (cty.ValueMarks, tfdiags.Diagnostics) {
+	var errType string
+	switch checkType {
+	case addrs.ResourcePrecondition, addrs.OutputPrecondition:
+		errType = "precondition"
+	case addrs.ResourcePostcondition:
+		errType = "postcondition"
+	default:
+		errType = "condition"
+	}
+	return CheckAllRules(ctx,
+		rules,
+		func(ruleDeclRange tfdiags.SourceRange, status checks.Status, errMsg string) tfdiags.Diagnostics {
+			checks.ReportCheckInContext(ctx, addr, checkType, status, errMsg)
+			var diags tfdiags.Diagnostics
+			if status == checks.StatusFail {
+				diags = diags.Append(&hcl.Diagnostic{
+					Severity: checks.SeverityFromContext(ctx, addr).ToHCL(),
+					Summary:  checkType.Description() + " failed",
+					Detail:   fmt.Sprintf("%s\n\nThis problem was reported by the %s at %s.", errMsg, errType, ruleDeclRange.StartString()),
+					Subject:  MaybeHCLSourceRange(rng),
+				})
+			}
+			return diags
+		},
+	)
+}
+
+// MarksFromAllRules is a best-effort attempt to determine all applicable marks
+// within the given rules
+func MarksFromAllRules(ctx context.Context, rules iter.Seq[*CheckRule]) cty.ValueMarks {
+	marks, _ := CheckAllRules(ctx,
+		rules,
+		func(ruleDeclRange tfdiags.SourceRange, status checks.Status, errMsg string) tfdiags.Diagnostics {
+			return nil
+		},
+	)
+	return marks
 }

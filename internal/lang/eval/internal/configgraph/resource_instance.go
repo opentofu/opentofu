@@ -15,7 +15,6 @@ import (
 	"github.com/zclconf/go-cty/cty/convert"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/lang/marks"
@@ -244,22 +243,7 @@ func (ri *ResourceInstance) Value(ctx context.Context) (v cty.Value, diags tfdia
 	return ri.valueOnce.Do(ctx, func(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
 		configVal, diags := ri.ConfigValue(ctx)
 
-		preconditionMarks, preDiags := CheckAllRules(ctx,
-			ri.Preconditions(ctx, configVal),
-			func(ruleDeclRange tfdiags.SourceRange, status checks.Status, errMsg string) tfdiags.Diagnostics {
-				checks.ReportCheckInContext(ctx, ri.Addr, addrs.ResourcePrecondition, status, errMsg)
-				var diags tfdiags.Diagnostics
-				if status == checks.StatusFail {
-					diags = diags.Append(&hcl.Diagnostic{
-						Severity: checks.SeverityFromContext(ctx, ri.Addr).ToHCL(),
-						Summary:  "Resource precondition failed",
-						Detail:   fmt.Sprintf("%s\n\nThis problem was reported by the precondition at %s.", errMsg, ruleDeclRange.StartString()),
-						Subject:  MaybeHCLSourceRange(ri.ValueSourceRange()),
-					})
-				}
-				return diags
-			},
-		)
+		preconditionMarks, preDiags := CheckAllRulesDefault(ctx, ri.Addr, addrs.ResourcePrecondition, ri.Preconditions(ctx, configVal), ri.ValueSourceRange())
 		diags = diags.Append(preDiags)
 
 		// Include precondition marks in config value
@@ -280,13 +264,9 @@ func (ri *ResourceInstance) Value(ctx context.Context) (v cty.Value, diags tfdia
 		// computation below.  However, we would normally compute the postconditionMarks down there.
 		// Instead, we need to do our best to get all of the possible dependency marks out of the conditions
 		// before resultVal computation.
-		postconditionMarks, _ := CheckAllRules(ctx,
-			ri.Postconditions(ctx, cty.DynamicVal.WithSameMarks(configVal)), // This is *very* overzealous
-			func(ruleDeclRange tfdiags.SourceRange, status checks.Status, errMsg string) tfdiags.Diagnostics {
-				// NOP, actuall reporting is done with the real result value below, this is only for early marks
-				return nil
-			},
-		)
+		// The alternative approach is to integrate the postcondition logic directly into the engine through a callback.
+		// It's unclear if that additional complexity is nessesary at this point and is likely unnessesary complexity.
+		postconditionMarks := MarksFromAllRules(ctx, ri.Postconditions(ctx, cty.DynamicVal.WithSameMarks(configVal)))
 		configVal = configVal.WithMarks(postconditionMarks)
 
 		providerInst, moreDiags := ri.ProviderInstance(ctx)
@@ -314,22 +294,7 @@ func (ri *ResourceInstance) Value(ctx context.Context) (v cty.Value, diags tfdia
 		// Postconditions, and transfer [ResourceInstanceMark] marks from
 		// the check rule expressions onto resultVal because the presence of
 		// a valid result value indirectly depends on those references.
-		_, postDiags := CheckAllRules(ctx,
-			ri.Postconditions(ctx, resultVal),
-			func(ruleDeclRange tfdiags.SourceRange, status checks.Status, errMsg string) tfdiags.Diagnostics {
-				checks.ReportCheckInContext(ctx, ri.Addr, addrs.ResourcePostcondition, status, errMsg)
-				var diags tfdiags.Diagnostics
-				if status == checks.StatusFail {
-					diags = diags.Append(&hcl.Diagnostic{
-						Severity: checks.SeverityFromContext(ctx, ri.Addr).ToHCL(),
-						Summary:  "Resource postcondition failed",
-						Detail:   fmt.Sprintf("%s\n\nThis problem was reported by the postcondition at %s.", errMsg, ruleDeclRange.StartString()),
-						Subject:  MaybeHCLSourceRange(ri.ValueSourceRange()),
-					})
-				}
-				return diags
-			},
-		)
+		_, postDiags := CheckAllRulesDefault(ctx, ri.Addr, addrs.ResourcePostcondition, ri.Postconditions(ctx, resultVal), ri.ValueSourceRange())
 		diags = diags.Append(postDiags)
 
 		// We must pass the marks from the provider instance selection into the
