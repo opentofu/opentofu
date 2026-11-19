@@ -15,6 +15,7 @@ import (
 	"github.com/zclconf/go-cty/cty/convert"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/lang/marks"
@@ -98,6 +99,14 @@ type ResourceInstance struct {
 	// Any resource instance mentioned in this collection will always also
 	// appear in RequiredResourceInstances.
 	ReplaceTriggeredBy []ResourceInstanceAttributePath
+
+	// Preconditions are user-defined checks that must succeed before OpenTofu
+	// will evaluate the resource value's expression.
+	Preconditions func(ctx context.Context, value cty.Value) iter.Seq[*CheckRule]
+
+	// Postconditions are user-defined checks that must succeed before OpenTofu
+	// will evaluate the resource value's expression.
+	Postconditions func(ctx context.Context, value cty.Value) iter.Seq[*CheckRule]
 
 	// Glue is provided by the system that "compiled" this [ResourceInstance]
 	// object to allow calling back into that system to ask further questions
@@ -233,7 +242,45 @@ func (ri *ResourceInstance) ReplaceOrder(ctx context.Context) (exprs.FromValue[r
 func (ri *ResourceInstance) Value(ctx context.Context) (v cty.Value, diags tfdiags.Diagnostics) {
 	ctx = withDebugAddr(ctx, ri.Addr, "Value")
 	return ri.valueOnce.Do(ctx, func(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
-		configVal, diags := ri.ConfigValue(ctx)
+		var diags tfdiags.Diagnostics
+
+		configVal, configDiags := ri.ConfigValue(ctx)
+
+		// The preconditions "guard" the evaluation of the resource's
+		// expression, so we need to check them first and skip trying to evaluate
+		// if any of them fail. This allows module authors to use preconditions
+		// to provide a more specialized error message for certain cases, which
+		// would then replace a more general error message that might otherwise
+		// be produced by expression evaluation.
+		preconditionMarks, moreDiags := CheckAllRules(ctx,
+			ri.Preconditions(ctx, configVal),
+			func(ruleDeclRange tfdiags.SourceRange, status checks.Status, errMsg string) tfdiags.Diagnostics {
+				checks.ReportCheckInContext(ctx, ri.Addr, addrs.ResourcePrecondition, status, errMsg)
+				var diags tfdiags.Diagnostics
+				if status == checks.StatusFail {
+					diags = diags.Append(&hcl.Diagnostic{
+						Severity: hcl.DiagError,
+						Summary:  "Resource precondition failed",
+						Detail:   fmt.Sprintf("%s\n\nThis problem was reported by the precondition at %s.", errMsg, ruleDeclRange.StartString()),
+						Subject:  MaybeHCLSourceRange(ri.ValueSourceRange()),
+					})
+				}
+				return diags
+			},
+		)
+		diags = diags.Append(moreDiags)
+
+		if diags.HasErrors() {
+			// If the preconditions caused at least one error then we must
+			// not proceed any further.
+			return exprs.AsEvalError(configVal).WithMarks(preconditionMarks), diags
+		}
+
+		// Now that preconditions have run, collect the config diags.  TODO: this seems wrong to me.
+		diags = diags.Append(configDiags)
+
+		// Include precondition marks in config value
+		configVal = configVal.WithMarks(preconditionMarks)
 
 		providerInst, moreDiags := ri.ProviderInstance(ctx)
 		diags = diags.Append(moreDiags)
@@ -257,16 +304,36 @@ func (ri *ResourceInstance) Value(ctx context.Context) (v cty.Value, diags tfdia
 		resultVal, moreDiags := ri.Glue.ResultValue(ctx, configVal, providerInst, riDeps)
 		diags = diags.Append(moreDiags)
 
+		// Postconditions, and transfer [ResourceInstanceMark] marks from
+		// the check rule expressions onto resultVal because the presence of
+		// a valid result value indirectly depends on those references.
+		postconditionMarks, moreDiags := CheckAllRules(ctx,
+			ri.Postconditions(ctx, resultVal),
+			func(ruleDeclRange tfdiags.SourceRange, status checks.Status, errMsg string) tfdiags.Diagnostics {
+				checks.ReportCheckInContext(ctx, ri.Addr, addrs.ResourcePostcondition, status, errMsg)
+				var diags tfdiags.Diagnostics
+				if status == checks.StatusFail {
+					diags = diags.Append(&hcl.Diagnostic{
+						Severity: hcl.DiagError,
+						Summary:  "Resource postcondition failed",
+						Detail:   fmt.Sprintf("%s\n\nThis problem was reported by the postcondition at %s.", errMsg, ruleDeclRange.StartString()),
+						Subject:  MaybeHCLSourceRange(ri.ValueSourceRange()),
+					})
+				}
+				return diags
+			},
+		)
+		diags = diags.Append(moreDiags)
+		// TODO consider RemoveNonDependencyMarks for all check rules?
+		// TODO these dependencies don't get recorded as part of the engine, that's likely a big problem...
+		resultVal = resultVal.WithMarks(postconditionMarks)
+
 		// We must pass the marks from the provider instance selection into the
 		// result because the values that were returned may vary depending on
 		// the provider configuration.
 		_, providerInstMarks := providerInst.Unmark()
 		RemoveNonDependencyMarks(providerInstMarks)
 		resultVal = resultVal.WithMarks(providerInstMarks)
-
-		// TODO: Postconditions, and transfer [ResourceInstanceMark] marks from
-		// the check rule expressions onto resultVal because the presence of
-		// a valid result value indirectly depends on those references.
 
 		// The result needs some additional preparation to make sure it's
 		// marked correctly for ongoing use in other expressions.

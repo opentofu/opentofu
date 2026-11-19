@@ -65,6 +65,9 @@ func (c *Context) Validate(ctx context.Context, config *configs.Config) tfdiags.
 			Value:      cty.UnknownVal(ty),
 			SourceType: ValueFromUnknown,
 		}
+		if experimentalRuntimeEnabled() && variable.Default != cty.NilVal {
+			varValues[name].Value = variable.Default
+		}
 	}
 
 	// TEMP: Opt-in support for testing with the new experimental language

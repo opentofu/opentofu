@@ -104,7 +104,7 @@ var (
 	ExperimentalChangeImportValid     = ExperimentalFlag{"Import command requires a configuration that can pass validate", false}
 
 	ExperimentalFeatureDeposed         = ExperimentalFlag{"Missing Deposed", true}
-	ExperimentalFeatureCondition       = ExperimentalFlag{"Missing Pre/Post Conditions", false}
+	ExperimentalFeatureCondition       = ExperimentalFlag{"Missing Pre/Post Conditions", true}
 	ExperimentalFeatureLocalState      = ExperimentalFlag{"Missing Store locals in state", false}
 	ExperimentalFeatureChecks          = ExperimentalFlag{"Missing Checks", false}
 	ExperimentalFeatureChanges         = ExperimentalFlag{"Missing Plan Changes", true}
@@ -119,7 +119,7 @@ var (
 	ExperimentalFeatureSkipDestroy     = ExperimentalFlag{"Missing Lifecycle Destroy", false}
 	ExperimentalFeatureUpgradeUnwanted = ExperimentalFlag{"Missing Upgrade Orphan or Deposed Resource Instance State", true}
 	ExperimentalFeatureTarget          = ExperimentalFlag{"Missing Targeting", true}
-	ExperimentalFeatureVarCondition    = ExperimentalFlag{"Missing Variable Condiitions", false}
+	ExperimentalFeatureVarCondition    = ExperimentalFlag{"Missing Variable Condiitions", true}
 	ExperimentalFeaturePlannedState    = ExperimentalFlag{"Missing Planned State", false}
 	ExperimentalFeatureSensitivity     = ExperimentalFlag{"Missing Sensitivity Handling", false}
 	ExperimentalFeatureSelfReference   = ExperimentalFlag{"Missing Self Reference", false}

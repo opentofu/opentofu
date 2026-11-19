@@ -90,19 +90,15 @@ func (o *OutputValue) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics
 	// to provide a more specialized error message for certain cases, which
 	// would then replace a more general error message that might otherwise
 	// be produced by expression evaluation.
-	//
-	// TODO: We probably need to find some way to collect up check results for
-	// inclusion in the checks summary in the plan or state, but for now we're
-	// not worrying about that because it's pretty rarely-used functionality.
 	preconditionMarks, moreDiags := CheckAllRules(ctx,
 		slices.Values(o.Preconditions),
 		func(ruleDeclRange tfdiags.SourceRange, status checks.Status, errMsg string) tfdiags.Diagnostics {
-			checks.ReportCheckInContext(ctx, o.Addr, addrs.InputValidation, status, errMsg)
+			checks.ReportCheckInContext(ctx, o.Addr, addrs.OutputPrecondition, status, errMsg)
 			var diags tfdiags.Diagnostics
 			if status == checks.StatusFail {
 				diags = diags.Append(&hcl.Diagnostic{
 					Severity: hcl.DiagError,
-					Summary:  "Output value precondition failed",
+					Summary:  "Module output value precondition failed",
 					Detail:   fmt.Sprintf("%s\n\nThis problem was reported by the precondition at %s.", errMsg, ruleDeclRange.StartString()),
 					Subject:  MaybeHCLSourceRange(o.ValueSourceRange()),
 				})
