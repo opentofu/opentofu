@@ -16,7 +16,6 @@ import (
 	"github.com/zclconf/go-cty/cty/convert"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/plans/objchange"
@@ -90,22 +89,7 @@ func (o *OutputValue) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics
 	// to provide a more specialized error message for certain cases, which
 	// would then replace a more general error message that might otherwise
 	// be produced by expression evaluation.
-	preconditionMarks, moreDiags := CheckAllRules(ctx,
-		slices.Values(o.Preconditions),
-		func(ruleDeclRange tfdiags.SourceRange, status checks.Status, errMsg string) tfdiags.Diagnostics {
-			checks.ReportCheckInContext(ctx, o.Addr, addrs.OutputPrecondition, status, errMsg)
-			var diags tfdiags.Diagnostics
-			if status == checks.StatusFail {
-				diags = diags.Append(&hcl.Diagnostic{
-					Severity: checks.SeverityFromContext(ctx, o.Addr).ToHCL(),
-					Summary:  "Module output value precondition failed",
-					Detail:   fmt.Sprintf("%s\n\nThis problem was reported by the precondition at %s.", errMsg, ruleDeclRange.StartString()),
-					Subject:  MaybeHCLSourceRange(o.ValueSourceRange()),
-				})
-			}
-			return diags
-		},
-	)
+	preconditionMarks, moreDiags := CheckAllRulesDefault(ctx, o.Addr, addrs.OutputPrecondition, slices.Values(o.Preconditions), o.ValueSourceRange())
 	diags = diags.Append(moreDiags)
 
 	if diags.HasErrors() {
