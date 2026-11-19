@@ -114,7 +114,7 @@ func TestOutputValue_Value(t *testing.T) {
 				// doing that correctly right now.
 				tfdiags.Sourceless(
 					tfdiags.Error,
-					"Output value precondition failed",
+					"Module output value precondition failed",
 					"Failure Message\n\nThis problem was reported by the precondition at precondition:0,0.",
 				),
 			),

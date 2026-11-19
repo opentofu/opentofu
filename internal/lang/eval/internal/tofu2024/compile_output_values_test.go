@@ -160,7 +160,7 @@ func TestCompileModuleInstanceOutputValuesValue(t *testing.T) {
 					},
 				},
 			},
-			WantError: `Output value precondition failed`,
+			WantError: `Module output value precondition failed`,
 			WantValue: cty.DynamicVal.Mark(exprs.EvalError),
 		},
 	}
