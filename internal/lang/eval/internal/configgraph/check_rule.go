@@ -74,12 +74,13 @@ func (r *CheckRule) Check(ctx context.Context) (checks.Status, cty.ValueMarks, t
 	if err == nil && rawResult.IsNull() {
 		err = fmt.Errorf("value must not be null")
 	}
+	/*Value can be sensitive, not error message though
 	if _, sensitive := resultMarks[marks.Sensitive]; err == nil && sensitive {
 		err = fmt.Errorf("must not be derived from a sensitive value")
 		// TODO: Also annotate the diagnostic with the "caused by sensitive"
 		// annotation, so that the diagnostic renderer can describe where
 		// the sensitive values might have come from.
-	}
+	}*/
 	if err != nil {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
@@ -104,15 +105,26 @@ func (r *CheckRule) ErrorMessage(ctx context.Context) (string, tfdiags.Diagnosti
 	if diags.HasErrors() {
 		return "", diags
 	}
+	errMsg := ""
 	rawResult, err := convert.Convert(rawResult, cty.String)
 	if err == nil && rawResult.IsNull() {
 		err = fmt.Errorf("value must not be null")
 	}
 	if err == nil && rawResult.HasMark(marks.Sensitive) {
-		err = fmt.Errorf("must not be derived from a sensitive value")
 		// TODO: Also annotate the diagnostic with the "caused by sensitive"
 		// annotation, so that the diagnostic renderer can describe where
 		// the sensitive values might have come from.
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagWarning,
+			Summary:  "Error message refers to sensitive values",
+			Detail: `The error expression used to explain this condition refers to sensitive values, so OpenTofu will not display the resulting message.
+
+You can correct this by removing references to sensitive values, or by carefully using the nonsensitive() function if the expression will not reveal the sensitive data.`,
+			Subject: r.ErrorMessageValuer.ValueSourceRange().ToHCL().Ptr(),
+			//Expression:  expr,
+			//EvalContext: hclCtx,
+		})
+		errMsg = "This check failed, but has an invalid error message as described in the other accompanying messages."
 	}
 	if err == nil && !rawResult.IsKnown() {
 		err = fmt.Errorf("derived from value that is not yet known")
@@ -127,7 +139,9 @@ func (r *CheckRule) ErrorMessage(ctx context.Context) (string, tfdiags.Diagnosti
 			Detail:   fmt.Sprintf("Invalid result for error message expression: %s.", tfdiags.FormatError(err)),
 			Subject:  r.ErrorMessageValuer.ValueSourceRange().ToHCL().Ptr(),
 		})
-		return "", diags
+	}
+	if errMsg != "" {
+		return errMsg, diags
 	}
 	// TODO: Handle "deprecated" marks, adding any deprecation-related
 	// diagnostics into diags.

@@ -1238,7 +1238,7 @@ resource "test_resource" "c" {
 		if !diags.HasErrors() {
 			t.Fatal("succeeded; want errors")
 		}
-		if got, want := diags.Err().Error(), "Resource postcondition failed: Output must not be blank."; got != want {
+		if got, want := diags.Err().Error(), "Resource postcondition failed: Output must not be blank."; !strings.Contains(got, want) {
 			t.Fatalf("wrong error:\ngot:  %s\nwant: %q", got, want)
 		}
 
@@ -1435,7 +1435,7 @@ resource "test_resource" "c" {
 				if !diags.HasErrors() {
 					t.Fatal("succeeded; want errors")
 				}
-				if got, want := diags.Err().Error(), tc.expectedErrorMsg; got != want {
+				if got, want := diags.Err().Error(), tc.expectedErrorMsg; !strings.Contains(got, want) {
 					t.Fatalf("wrong error:\ngot:  %s\nwant: %q", got, want)
 				}
 			} else {

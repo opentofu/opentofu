@@ -2424,6 +2424,7 @@ resource "aws_instance" "test" {
 }
 
 func TestContext2Validate_precondition_count(t *testing.T) {
+	SkipExperimental(t, ExperimentalNewStrategyNeeded) // ForEach is correctly expanded during validate (if known)
 	SkipExperimental(t, ExperimentalFeatureCondition)
 
 	p := testProvider("aws")
@@ -2469,6 +2470,7 @@ resource "aws_instance" "test" {
 }
 
 func TestContext2Validate_postcondition_forEach(t *testing.T) {
+	SkipExperimental(t, ExperimentalNewStrategyNeeded) // ForEach is correctly expanded during validate (if known)
 	p := testProvider("aws")
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
 		ResourceTypes: map[string]*configschema.Block{

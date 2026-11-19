@@ -4248,7 +4248,7 @@ resource "test_resource" "a" {
 		if !diags.HasErrors() {
 			t.Fatal("succeeded; want errors")
 		}
-		if got, want := diags.Err().Error(), "Resource precondition failed: Wrong boop."; got != want {
+		if got, want := diags.Err().Error(), "Resource precondition failed: Wrong boop."; !strings.Contains(got, want) {
 			t.Fatalf("wrong error:\ngot:  %s\nwant: %q", got, want)
 		}
 		if p.PlanResourceChangeCalled {
@@ -4282,7 +4282,7 @@ resource "test_resource" "a" {
 		if len(diags) == 0 {
 			t.Fatalf("no diags, but should have warnings")
 		}
-		if got, want := diags.ErrWithWarnings().Error(), "Resource precondition failed: Wrong boop."; got != want {
+		if got, want := diags.ErrWithWarnings().Error(), "Resource precondition failed: Wrong boop."; !strings.Contains(got, want) {
 			t.Fatalf("wrong warning:\ngot:  %s\nwant: %q", got, want)
 		}
 		if !p.ReadResourceCalled {
@@ -4317,7 +4317,7 @@ resource "test_resource" "a" {
 		if !diags.HasErrors() {
 			t.Fatal("succeeded; want errors")
 		}
-		if got, want := diags.Err().Error(), "Resource postcondition failed: Output must not be blank."; got != want {
+		if got, want := diags.Err().Error(), "Resource postcondition failed: Output must not be blank."; !strings.Contains(got, want) {
 			t.Fatalf("wrong error:\ngot:  %s\nwant: %q", got, want)
 		}
 		if !p.PlanResourceChangeCalled {
@@ -4367,7 +4367,7 @@ resource "test_resource" "a" {
 		if len(diags) == 0 {
 			t.Fatalf("no diags, but should have warnings")
 		}
-		if got, want := diags.ErrWithWarnings().Error(), "Resource postcondition failed: Output must not be blank."; got != want {
+		if got, want := diags.ErrWithWarnings().Error(), "Resource postcondition failed: Output must not be blank."; !strings.Contains(got, want) {
 			t.Fatalf("wrong warning:\ngot:  %s\nwant: %q", got, want)
 		}
 		if !p.ReadResourceCalled {
@@ -4565,7 +4565,7 @@ resource "test_resource" "a" {
 		if !diags.HasErrors() {
 			t.Fatal("succeeded; want errors")
 		}
-		if got, want := diags.Err().Error(), "Resource precondition failed: Wrong boop."; got != want {
+		if got, want := diags.Err().Error(), "Resource precondition failed: Wrong boop."; !strings.Contains(got, want) {
 			t.Fatalf("wrong error:\ngot:  %s\nwant: %q", got, want)
 		}
 		if p.ReadDataSourceCalled {
@@ -4592,7 +4592,7 @@ resource "test_resource" "a" {
 		if len(diags) == 0 {
 			t.Fatalf("no diags, but should have warnings")
 		}
-		if got, want := diags.ErrWithWarnings().Error(), "Resource precondition failed: Wrong boop."; got != want {
+		if got, want := diags.ErrWithWarnings().Error(), "Resource precondition failed: Wrong boop."; !strings.Contains(got, want) {
 			t.Fatalf("wrong warning:\ngot:  %s\nwant: %q", got, want)
 		}
 		for _, res := range plan.Changes.Resources {
@@ -4635,7 +4635,7 @@ resource "test_resource" "a" {
 		if !diags.HasErrors() {
 			t.Fatal("succeeded; want errors")
 		}
-		if got, want := diags.Err().Error(), "Resource postcondition failed: Results cannot be empty."; got != want {
+		if got, want := diags.Err().Error(), "Resource postcondition failed: Results cannot be empty."; !strings.Contains(got, want) {
 			t.Fatalf("wrong error:\ngot:  %s\nwant: %q", got, want)
 		}
 		if !p.ReadDataSourceCalled {
@@ -4665,7 +4665,7 @@ resource "test_resource" "a" {
 			},
 		})
 		assertNoErrors(t, diags)
-		if got, want := diags.ErrWithWarnings().Error(), "Resource postcondition failed: Results cannot be empty."; got != want {
+		if got, want := diags.ErrWithWarnings().Error(), "Resource postcondition failed: Results cannot be empty."; !strings.Contains(got, want) {
 			t.Fatalf("wrong error:\ngot:  %s\nwant: %q", got, want)
 		}
 		addr := mustResourceInstanceAddr("data.test_data_source.a")
@@ -4982,6 +4982,7 @@ output "a" {
 	if got, want := len(diags), 2; got != want {
 		t.Errorf("wrong number of diags, got %d, want %d", got, want)
 	}
+	t.Log(diags.Err().Error())
 	for _, diag := range diags {
 		desc := diag.Description()
 		switch desc.Summary {

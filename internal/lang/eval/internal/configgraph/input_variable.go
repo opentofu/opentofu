@@ -150,7 +150,7 @@ func (i *InputVariable) value(ctx context.Context) (cty.Value, tfdiags.Diagnosti
 					}
 					diags = diags.Append(&hcl.Diagnostic{
 						Severity: hcl.DiagError,
-						Summary:  "Invalid value for input variable",
+						Summary:  "Invalid value for variable",
 						Detail:   fmt.Sprintf("%s\n\nThis problem was reported by the validation rule at %s.", errMsg, ruleDeclRange.StartString()),
 						Subject:  srcRange,
 					})

@@ -8,6 +8,7 @@ package tofu2024
 import (
 	"context"
 	"fmt"
+	"iter"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
@@ -374,6 +375,23 @@ func compileModuleInstanceResource(
 				CreateProvisioners:        provisionerConfigs,
 				IgnoreChangesPaths:        ignoreChanges,
 				ReplaceTriggeredBy:        replaceTriggeredBy,
+
+				Preconditions: func(ctx context.Context, self cty.Value) iter.Seq[*configgraph.CheckRule] {
+					condScope := selfScope(
+						localScope,
+						configgraph.WithoutResourceInstanceDependency(self, instAddr),
+						instAddr.Resource.Resource.Type, instAddr.Resource.Resource.Name,
+					)
+					return compileCheckRules(config.Preconditions, condScope)
+				},
+				Postconditions: func(ctx context.Context, self cty.Value) iter.Seq[*configgraph.CheckRule] {
+					condScope := selfScope(
+						localScope,
+						configgraph.WithoutResourceInstanceDependency(self, instAddr),
+						instAddr.Resource.Resource.Type, instAddr.Resource.Resource.Name,
+					)
+					return compileCheckRules(config.Postconditions, condScope)
+				},
 			}
 			// Again the [ResourceInstance] implementation will call back
 			// through this object so we can help it interact with the
