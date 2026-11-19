@@ -105,7 +105,7 @@ func TestInputVariable_Value(t *testing.T) {
 				// also mentions the location of the check rule so an author
 				// can find it if they want to learn more about it.
 				Severity: hcl.DiagError,
-				Summary:  "Invalid value for input variable",
+				Summary:  "Invalid value for variable",
 				Detail: `The value was cty.EmptyObjectVal.
 
 This problem was reported by the validation rule at child.tf:0,0.`,
