@@ -263,6 +263,7 @@ func (ri *ResourceInstance) Value(ctx context.Context) (v cty.Value, diags tfdia
 		diags = diags.Append(preDiags)
 
 		// Include precondition marks in config value
+		// TODO consider RemoveNonDependencyMarks for all check rules?
 		configVal = configVal.WithMarks(preconditionMarks)
 
 		if preDiags.HasErrors() {
@@ -274,6 +275,19 @@ func (ri *ResourceInstance) Value(ctx context.Context) (v cty.Value, diags tfdia
 			// I'm not sure if this is intentional or a bug.  I'm pretty sure it's a bug.
 			configVal = exprs.AsEvalError(cty.DynamicVal).WithSameMarks(configVal)
 		}
+
+		// Workaround: the dependencies need to be fully known by the time we get into the resultVal
+		// computation below.  However, we would normally compute the postconditionMarks down there.
+		// Instead, we need to do our best to get all of the possible dependency marks out of the conditions
+		// before resultVal computation.
+		postconditionMarks, _ := CheckAllRules(ctx,
+			ri.Postconditions(ctx, cty.DynamicVal.WithSameMarks(configVal)), // This is *very* overzealous
+			func(ruleDeclRange tfdiags.SourceRange, status checks.Status, errMsg string) tfdiags.Diagnostics {
+				// NOP, actuall reporting is done with the real result value below, this is only for early marks
+				return nil
+			},
+		)
+		configVal = configVal.WithMarks(postconditionMarks)
 
 		providerInst, moreDiags := ri.ProviderInstance(ctx)
 		diags = diags.Append(moreDiags)
@@ -300,7 +314,7 @@ func (ri *ResourceInstance) Value(ctx context.Context) (v cty.Value, diags tfdia
 		// Postconditions, and transfer [ResourceInstanceMark] marks from
 		// the check rule expressions onto resultVal because the presence of
 		// a valid result value indirectly depends on those references.
-		postconditionMarks, postDiags := CheckAllRules(ctx,
+		_, postDiags := CheckAllRules(ctx,
 			ri.Postconditions(ctx, resultVal),
 			func(ruleDeclRange tfdiags.SourceRange, status checks.Status, errMsg string) tfdiags.Diagnostics {
 				checks.ReportCheckInContext(ctx, ri.Addr, addrs.ResourcePostcondition, status, errMsg)
@@ -317,9 +331,6 @@ func (ri *ResourceInstance) Value(ctx context.Context) (v cty.Value, diags tfdia
 			},
 		)
 		diags = diags.Append(postDiags)
-		// TODO consider RemoveNonDependencyMarks for all check rules?
-		// TODO these dependencies don't get recorded as part of the engine, that's likely a big problem...
-		resultVal = resultVal.WithMarks(postconditionMarks)
 
 		// We must pass the marks from the provider instance selection into the
 		// result because the values that were returned may vary depending on
