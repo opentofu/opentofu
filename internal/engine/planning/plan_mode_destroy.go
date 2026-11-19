@@ -42,6 +42,13 @@ func destroyPlan(ctx context.Context, opts *PlanOpts, prevRoundState *states.Sta
 
 	checkReport := &checks.ReportedChecks{}
 	ctx = checks.ContextWithCheckReporting(ctx, checkReport)
+	ctx = checks.ContextWithSeverity(ctx, func(addr addrs.Checkable) tfdiags.Severity {
+		// TODO I'm not sure that this matches the current engine and/or is a good idea
+		if addr.CheckableKind() == addrs.CheckableInputVariable {
+			return tfdiags.Error
+		}
+		return tfdiags.Warning
+	})
 
 	planCtx := newPlanContext(configInst.EvalContext(), prevRoundState, providers, opts)
 

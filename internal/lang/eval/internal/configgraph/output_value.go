@@ -97,7 +97,7 @@ func (o *OutputValue) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics
 			var diags tfdiags.Diagnostics
 			if status == checks.StatusFail {
 				diags = diags.Append(&hcl.Diagnostic{
-					Severity: hcl.DiagError,
+					Severity: checks.SeverityFromContext(ctx, o.Addr).ToHCL(),
 					Summary:  "Module output value precondition failed",
 					Detail:   fmt.Sprintf("%s\n\nThis problem was reported by the precondition at %s.", errMsg, ruleDeclRange.StartString()),
 					Subject:  MaybeHCLSourceRange(o.ValueSourceRange()),

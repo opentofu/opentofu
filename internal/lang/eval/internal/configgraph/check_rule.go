@@ -74,13 +74,6 @@ func (r *CheckRule) Check(ctx context.Context) (checks.Status, cty.ValueMarks, t
 	if err == nil && rawResult.IsNull() {
 		err = fmt.Errorf("value must not be null")
 	}
-	/*Value can be sensitive, not error message though
-	if _, sensitive := resultMarks[marks.Sensitive]; err == nil && sensitive {
-		err = fmt.Errorf("must not be derived from a sensitive value")
-		// TODO: Also annotate the diagnostic with the "caused by sensitive"
-		// annotation, so that the diagnostic renderer can describe where
-		// the sensitive values might have come from.
-	}*/
 	if err != nil {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
@@ -190,11 +183,9 @@ func CheckAllRules(ctx context.Context, rules iter.Seq[*CheckRule], handleResult
 		status, moreMarks, moreDiags := rule.Check(ctx)
 		maps.Copy(marks, moreMarks)
 		diags = diags.Append(moreDiags)
-		var errMsg string // empty unless StatusFail
-		if status == checks.StatusFail {
-			errMsg, moreDiags = rule.ErrorMessage(ctx)
-			diags = diags.Append(moreDiags)
-		}
+		// Always evaluate error message for validation purposes
+		errMsg, moreDiags := rule.ErrorMessage(ctx)
+		diags = diags.Append(moreDiags)
 		moreDiags = handleResult(rule.DeclSourceRange, status, errMsg)
 		diags = diags.Append(moreDiags)
 	}

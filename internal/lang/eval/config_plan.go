@@ -146,9 +146,12 @@ func (p *planningEvalGlue) ProviderFunction(ctx context.Context, provider addrs.
 func (p *planningEvalGlue) ResourceInstanceValue(ctx context.Context, ri *configgraph.ResourceInstance, configVal cty.Value, providerInst exprs.FromValue[*configgraph.ProviderInstance], riDeps addrs.Set[addrs.AbsResourceInstance]) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
+	// We want to strip the resource instance marks, but not eval error marks as that will help decide how to handle the resource's desired status
+	configVal = configgraph.WithoutResourceInstanceMarks(configVal)
+
 	desired := &DesiredResourceInstance{
 		Addr:                      ri.Addr,
-		ConfigVal:                 configgraph.PrepareOutgoingValue(configVal),
+		ConfigVal:                 configVal,
 		RequiredResourceInstances: riDeps,
 		IgnoreChangesPaths:        ri.IgnoreChangesPaths,
 		ReplaceTriggeredBy:        ri.ReplaceTriggeredBy,
