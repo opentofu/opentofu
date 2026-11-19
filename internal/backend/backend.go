@@ -360,9 +360,12 @@ func (o *Operation) HasConfig() bool {
 // output, but terminating immediately after reporting error diagnostics is
 // common and can be expressed concisely via this method.
 func (o *Operation) ReportResult(op *RunningOperation, diags tfdiags.Diagnostics) {
-	if diags.HasErrors() {
+	switch configload.ExitStatus(diags) {
+	case int(configload.ExitInitRequired):
+		op.Result = OperationInitRequired
+	case int(configload.ExitFailure):
 		op.Result = OperationFailure
-	} else {
+	default:
 		op.Result = OperationSuccess
 	}
 	if o.View != nil {
@@ -424,6 +427,10 @@ const (
 	// of error, and thus may have been only partially performed or not
 	// performed at all.
 	OperationFailure OperationResult = 1
+
+	// OperationInitRequired indicates that the operation encountered
+	// an error due to `tofu init` needing to be executed.
+	OperationInitRequired OperationResult = 4
 )
 
 func (r OperationResult) ExitStatus() int {
