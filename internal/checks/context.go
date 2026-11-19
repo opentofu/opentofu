@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 type ReportedChecks struct {
@@ -63,7 +64,7 @@ func (r *ReportedChecks) State() *State {
 		obj[entry.ruleType] = append(obj[entry.ruleType], entry.status)
 
 		if entry.failureMessage != "" {
-			index := len(obj[entry.ruleType])
+			index := len(obj[entry.ruleType]) - 1
 			checkAddr := addrs.NewCheckRule(entry.addr, entry.ruleType, index)
 			state.failureMsgs.Put(checkAddr, entry.failureMessage)
 		}
@@ -98,4 +99,19 @@ func ReportCheckInContext(
 		status:         status,
 		failureMessage: failureMessage,
 	})
+}
+
+const severityContextKey = contextKey('I')
+
+type checkSeverity func(addrs.Checkable) tfdiags.Severity
+
+func ContextWithSeverity(parent context.Context, severity checkSeverity) context.Context {
+	return context.WithValue(parent, severityContextKey, severity)
+}
+func SeverityFromContext(ctx context.Context, checkable addrs.Checkable) tfdiags.Severity {
+	severity, ok := ctx.Value(severityContextKey).(checkSeverity)
+	if !ok {
+		return tfdiags.Error
+	}
+	return severity(checkable)
 }

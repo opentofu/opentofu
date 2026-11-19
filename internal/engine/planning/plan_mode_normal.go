@@ -25,6 +25,15 @@ func normalPlan(ctx context.Context, opts *PlanOpts, prevRoundState *states.Stat
 
 	checkReport := &checks.ReportedChecks{}
 	ctx = checks.ContextWithCheckReporting(ctx, checkReport)
+	ctx = checks.ContextWithSeverity(ctx, func(addr addrs.Checkable) tfdiags.Severity {
+		if addr.CheckableKind() == addrs.CheckableInputVariable {
+			return tfdiags.Error
+		}
+		if opts.Mode == plans.RefreshOnlyMode {
+			return tfdiags.Warning
+		}
+		return tfdiags.Error
+	})
 
 	planCtx := newPlanContext(configInst.EvalContext(), prevRoundState, providers, opts)
 

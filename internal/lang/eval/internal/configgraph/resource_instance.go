@@ -242,24 +242,16 @@ func (ri *ResourceInstance) ReplaceOrder(ctx context.Context) (exprs.FromValue[r
 func (ri *ResourceInstance) Value(ctx context.Context) (v cty.Value, diags tfdiags.Diagnostics) {
 	ctx = withDebugAddr(ctx, ri.Addr, "Value")
 	return ri.valueOnce.Do(ctx, func(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
-		var diags tfdiags.Diagnostics
+		configVal, diags := ri.ConfigValue(ctx)
 
-		configVal, configDiags := ri.ConfigValue(ctx)
-
-		// The preconditions "guard" the evaluation of the resource's
-		// expression, so we need to check them first and skip trying to evaluate
-		// if any of them fail. This allows module authors to use preconditions
-		// to provide a more specialized error message for certain cases, which
-		// would then replace a more general error message that might otherwise
-		// be produced by expression evaluation.
-		preconditionMarks, moreDiags := CheckAllRules(ctx,
+		preconditionMarks, preDiags := CheckAllRules(ctx,
 			ri.Preconditions(ctx, configVal),
 			func(ruleDeclRange tfdiags.SourceRange, status checks.Status, errMsg string) tfdiags.Diagnostics {
 				checks.ReportCheckInContext(ctx, ri.Addr, addrs.ResourcePrecondition, status, errMsg)
 				var diags tfdiags.Diagnostics
 				if status == checks.StatusFail {
 					diags = diags.Append(&hcl.Diagnostic{
-						Severity: hcl.DiagError,
+						Severity: checks.SeverityFromContext(ctx, ri.Addr).ToHCL(),
 						Summary:  "Resource precondition failed",
 						Detail:   fmt.Sprintf("%s\n\nThis problem was reported by the precondition at %s.", errMsg, ruleDeclRange.StartString()),
 						Subject:  MaybeHCLSourceRange(ri.ValueSourceRange()),
@@ -268,19 +260,20 @@ func (ri *ResourceInstance) Value(ctx context.Context) (v cty.Value, diags tfdia
 				return diags
 			},
 		)
-		diags = diags.Append(moreDiags)
-
-		if diags.HasErrors() {
-			// If the preconditions caused at least one error then we must
-			// not proceed any further.
-			return exprs.AsEvalError(configVal).WithMarks(preconditionMarks), diags
-		}
-
-		// Now that preconditions have run, collect the config diags.  TODO: this seems wrong to me.
-		diags = diags.Append(configDiags)
+		diags = diags.Append(preDiags)
 
 		// Include precondition marks in config value
 		configVal = configVal.WithMarks(preconditionMarks)
+
+		if preDiags.HasErrors() {
+			// TODO There's some weird interactions that aren't quite right between
+			// pre and post conditions (HasErrors vs len /w warnings).
+			// TestContext2Plan_resourcePreconditionPostcondition/precondition_fail_refresh-only
+			// It appears that for data resources, failing preconditions still cause the provider
+			// to read the value during refresh-only planning.
+			// I'm not sure if this is intentional or a bug.  I'm pretty sure it's a bug.
+			configVal = exprs.AsEvalError(cty.DynamicVal).WithSameMarks(configVal)
+		}
 
 		providerInst, moreDiags := ri.ProviderInstance(ctx)
 		diags = diags.Append(moreDiags)
@@ -307,14 +300,14 @@ func (ri *ResourceInstance) Value(ctx context.Context) (v cty.Value, diags tfdia
 		// Postconditions, and transfer [ResourceInstanceMark] marks from
 		// the check rule expressions onto resultVal because the presence of
 		// a valid result value indirectly depends on those references.
-		postconditionMarks, moreDiags := CheckAllRules(ctx,
+		postconditionMarks, postDiags := CheckAllRules(ctx,
 			ri.Postconditions(ctx, resultVal),
 			func(ruleDeclRange tfdiags.SourceRange, status checks.Status, errMsg string) tfdiags.Diagnostics {
 				checks.ReportCheckInContext(ctx, ri.Addr, addrs.ResourcePostcondition, status, errMsg)
 				var diags tfdiags.Diagnostics
 				if status == checks.StatusFail {
 					diags = diags.Append(&hcl.Diagnostic{
-						Severity: hcl.DiagError,
+						Severity: checks.SeverityFromContext(ctx, ri.Addr).ToHCL(),
 						Summary:  "Resource postcondition failed",
 						Detail:   fmt.Sprintf("%s\n\nThis problem was reported by the postcondition at %s.", errMsg, ruleDeclRange.StartString()),
 						Subject:  MaybeHCLSourceRange(ri.ValueSourceRange()),
@@ -323,7 +316,7 @@ func (ri *ResourceInstance) Value(ctx context.Context) (v cty.Value, diags tfdia
 				return diags
 			},
 		)
-		diags = diags.Append(moreDiags)
+		diags = diags.Append(postDiags)
 		// TODO consider RemoveNonDependencyMarks for all check rules?
 		// TODO these dependencies don't get recorded as part of the engine, that's likely a big problem...
 		resultVal = resultVal.WithMarks(postconditionMarks)
@@ -337,7 +330,15 @@ func (ri *ResourceInstance) Value(ctx context.Context) (v cty.Value, diags tfdia
 
 		// The result needs some additional preparation to make sure it's
 		// marked correctly for ongoing use in other expressions.
-		return exprs.EvalResult(prepareResourceInstanceResult(resultVal, ri, configVal), diags)
+		resultVal = prepareResourceInstanceResult(resultVal, ri, configVal)
+
+		if len(postDiags) != 0 {
+			// If the postconditions caused at least one error then we must
+			// not proceed any further.
+			resultVal = exprs.AsEvalError(cty.DynamicVal).WithSameMarks(resultVal)
+		}
+
+		return exprs.EvalResult(resultVal, diags)
 	}, ri.ConfigValuer.ValueSourceRange(), "Value of %s", ri.Addr)
 }
 

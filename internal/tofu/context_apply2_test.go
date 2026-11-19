@@ -5537,9 +5537,6 @@ variable "res_data" {
 		t.Fatal(diags.Err())
 	}
 	invalidValueMessage := "Invalid value for variable"
-	if experimentalRuntimeEnabled() {
-		invalidValueMessage = "Invalid value for input variable"
-	}
 	if got, want := diags[0].Description().Summary, invalidValueMessage; got != want {
 		t.Fatalf("Expected: %q, got %q", want, got)
 	}
