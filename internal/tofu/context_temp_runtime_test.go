@@ -76,7 +76,7 @@ var experimentalFlagSkipMu sync.Mutex
 var (
 	ExperimentalFlagUnknown = ExperimentalFlag{"Unknown", false}
 
-	ExperimentalBugCancel            = ExperimentalFlag{"Bug Context Cancel", false}
+	ExperimentalBugCancel            = ExperimentalFlag{"Bug Context Cancel", true}
 	ExperimentalBugStateCBD          = ExperimentalFlag{"Bug CreateBeforeDestroy Not Tracked In State", false}
 	ExperimentalBugStateUpdateHook   = ExperimentalFlag{"Bug State Update Hook", true}
 	ExperimentalBugMissingResource   = ExperimentalFlag{"Bug Missing Configuration For Resource Instance", true}

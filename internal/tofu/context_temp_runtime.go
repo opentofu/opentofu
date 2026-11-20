@@ -111,6 +111,11 @@ func (c *Context) newEngineShim(ctx context.Context, config *configs.Config, inp
 		Applying:           applying,
 		Workspace:          workspace,
 	}
+
+	// Watch for the done signal, either at the end of the engine execution, or due to cancellation
+	// This will appropriately stop the providers and provisioners
+	watchStop, watchWait := c.watchStop(c.plugins.providers, c.plugins.provisioners)
+
 	done := func() {
 		// We'll call close with a cancel-free context because we do still
 		// want to shut the providers down even if we're dealing with
@@ -122,6 +127,8 @@ func (c *Context) newEngineShim(ctx context.Context, config *configs.Config, inp
 		if err != nil {
 			log.Printf("[ERROR] plugin shutdown failed: %s", err.Error())
 		}
+		close(watchStop)
+		<-watchWait
 	}
 
 	// The new config-loading system wants to work in terms of module source
