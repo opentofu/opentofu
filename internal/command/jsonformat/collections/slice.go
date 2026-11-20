@@ -20,8 +20,8 @@ type IsComparableType[Input any] func(input Input) bool
 
 // TransformSlice compares two slices and returns a slice of computed.Diff and the action that was taken for the entire slice.
 // This function calls ProcessSlice to process the elements in the slices, which in turn uses the TransformIndices function to create the computed.Diff for each element based on their type.
-// IsComparable argument is used to determine if before and after elements should be 'diffed' with each other instead of marking the old element as deleted.
-// IsComparable argument is primarily useful to provide detailed differences for Object types and strings. It is called for each element in the both slices.
+// IsComparableType argument is used to determine if before and after elements should be 'diffed' with each other instead of marking the old element as deleted.
+// IsComparableType argument is primarily useful to provide detailed differences for Object types and strings. It is called for each element in the both slices.
 func TransformSlice[Input any](before, after []Input, process TransformIndices, isComparableType IsComparableType[Input]) ([]computed.Diff, plans.Action) {
 	current := plans.NoOp
 	if before != nil && after == nil {

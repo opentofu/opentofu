@@ -2377,7 +2377,6 @@ func TestResourceChange_primitiveList(t *testing.T) {
 					"list_field": {Type: cty.List(cty.String), Optional: true},
 				},
 			},
-			// TODO andrei try to make this diff a little bit better. Whenn updating from a multiline to to a nonn-multiline, we would wannt to use -> format
 			ExpectedOutput: `  # test_instance.example will be updated in-place
   ~ resource "test_instance" "example" {
       ~ id         = "i-02ae66f368e8518a9" -> (known after apply)
