@@ -14,6 +14,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/internal/exec"
+	"github.com/opentofu/opentofu/internal/lang/contextstop"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/objchange"
@@ -169,6 +170,7 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 	if cb := tracer.StartDataResourceInstanceRead; cb != nil {
 		readCtx = cb(ctx, inst.Addr, proposedNewVal)
 	}
+	diags = diags.Append(contextstop.CheckStop(readCtx))
 
 	resp, readDiags := resourceType.Read(readCtx, &resources.DataResourceReadRequest{
 		ResourceAddress: inst.Addr,
@@ -184,6 +186,7 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 		}
 		cb(readCtx, inst.Addr, resultVal, diags.Err())
 	}
+	diags = diags.Append(contextstop.CheckStop(readCtx))
 
 	encodedVal, encodeDiags := resourceType.EncodeValue(ctx, resp.ResultUnmarked, inst.Addr.CurrentObject())
 	diags = diags.Append(encodeDiags)

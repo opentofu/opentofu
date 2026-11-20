@@ -14,6 +14,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/engine/internal/exec"
+	"github.com/opentofu/opentofu/internal/lang/contextstop"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/resources"
 	"github.com/opentofu/opentofu/internal/states"
@@ -66,6 +67,7 @@ func (ops *execOperations) DataRead(
 	if cb := tracer.StartDataResourceInstanceRead; cb != nil {
 		ctx = cb(ctx, desired.Addr)
 	}
+	diags = diags.Append(contextstop.CheckStop(ctx))
 
 	resp, readDiags := resourceType.Read(ctx, &resources.DataResourceReadRequest{
 		ResourceAddress: desired.Addr,
@@ -80,6 +82,7 @@ func (ops *execOperations) DataRead(
 			if ret.State != nil {
 				resultVal = ret.State.Value
 			}
+			diags = diags.Append(contextstop.CheckStop(ctx))
 			cb(ctx, desired.Addr, resultVal, diags)
 		}()
 	}

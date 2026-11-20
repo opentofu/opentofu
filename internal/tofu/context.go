@@ -15,6 +15,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/lang/contextstop"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/plugins"
@@ -251,7 +252,7 @@ func (c *Context) releaseRun() {
 	c.runContext = nil
 }
 func (c *Context) watchStopWalker(walker *ContextGraphWalker) (chan struct{}, <-chan struct{}) {
-	return c.watchStop(walker.Context.plugins.providers, walker.Context.plugins.provisioners)
+	return c.watchStop(walker.Context.runContext, walker.Context.plugins.providers, walker.Context.plugins.provisioners)
 }
 
 // watchStop immediately returns a `stop` and a `wait` chan after dispatching
@@ -263,7 +264,7 @@ func (c *Context) watchStopWalker(walker *ContextGraphWalker) (chan struct{}, <-
 // incorrectly causing providers to be stopped. Even if the graph walk is done
 // at that point, stopping a provider permanently cancels its StopContext which
 // can cause later actions to fail.
-func (c *Context) watchStop(providers plugins.ProviderManager, provisioners plugins.ProvisionerManager) (chan struct{}, <-chan struct{}) {
+func (c *Context) watchStop(ctx context.Context, providers plugins.ProviderManager, provisioners plugins.ProvisionerManager) (chan struct{}, <-chan struct{}) {
 	stop := make(chan struct{})
 	wait := make(chan struct{})
 
@@ -276,6 +277,8 @@ func (c *Context) watchStop(providers plugins.ProviderManager, provisioners plug
 		defer panicHandler()
 
 		defer close(wait)
+
+		defer contextstop.Stop(ctx)
 		// Wait for a stop or completion
 		select {
 		case <-done:
