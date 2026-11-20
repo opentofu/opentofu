@@ -136,9 +136,10 @@ func finalizePlan(ctx context.Context, intermediate *planContextResult, provider
 	clear(refreshedOutputs)
 	for k, v := range intermediate.RootOutput.Current {
 		if v.Value.IsKnown() {
+			unmarkedVal, _ := v.Value.UnmarkDeep()
 			refreshedOutputs[k] = &states.OutputValue{
 				Addr:  addrs.AbsOutputValue{OutputValue: addrs.OutputValue{Name: k}},
-				Value: v.Value,
+				Value: unmarkedVal,
 				// TODO Sensitive  bool
 				// TODO Deprecated string
 			}
