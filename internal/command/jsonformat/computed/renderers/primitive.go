@@ -153,6 +153,20 @@ func (renderer primitiveRenderer) renderStringDiff(diff computed.Diff, indent in
 
 		if !beforeString.IsMultiline && !afterString.IsMultiline {
 			return fmt.Sprintf("%s %s %s%s", beforeString.RenderSimple(), opts.Colorize.Color("[yellow]->[reset]"), afterString.RenderSimple(), forcesReplacement(diff.Replace, opts))
+		} else if beforeString.IsMultiline && !afterString.IsMultiline {
+			beforeLines := strings.Split(beforeString.String, "\n")
+			res := make([]string, len(beforeLines))
+			for i, line := range beforeLines {
+				res[i] = fmt.Sprintf("%s%s", formatIndent(indent+2), line)
+			}
+			return fmt.Sprintf("<<-EOT%s\n%s\n%sEOT %s %s", forcesReplacement(diff.Replace, opts), strings.Join(res, "\n"), formatIndent(indent+1), opts.Colorize.Color("[yellow]->[reset]"), afterString.RenderSimple())
+		} else if afterString.IsMultiline && !beforeString.IsMultiline {
+			afterLines := strings.Split(afterString.String, "\n")
+			res := make([]string, len(afterLines))
+			for i, line := range afterLines {
+				res[i] = fmt.Sprintf("%s%s", formatIndent(indent+2), line)
+			}
+			return fmt.Sprintf("%s %s <<-EOT%s\n%s\n%sEOT", beforeString.RenderSimple(), opts.Colorize.Color("[yellow]->[reset]"), forcesReplacement(diff.Replace, opts), strings.Join(res, "\n"), formatIndent(indent+1))
 		}
 
 		beforeLines := strings.Split(beforeString.String, "\n")
@@ -171,11 +185,12 @@ func (renderer primitiveRenderer) renderStringDiff(diff computed.Diff, indent in
 
 			lines = append(lines, fmt.Sprintf("%s%s%s", formatIndent(indent+1), writeDiffActionSymbol(plans.NoOp, opts), beforeLines[beforeIx]))
 		}
-		isObjType := func(_, _ string) bool {
+		// The slice items type is already known so we don't need to run the inner comparison again
+		isComparableType := func(_ string) bool {
 			return false
 		}
 
-		collections.ProcessSlice(beforeLines, afterLines, processIndices, isObjType)
+		collections.ProcessSlice(beforeLines, afterLines, processIndices, isComparableType)
 	}
 
 	// We return early if we find non-multiline strings or JSON strings, so we

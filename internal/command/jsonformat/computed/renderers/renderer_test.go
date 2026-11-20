@@ -68,10 +68,9 @@ func TestRenderers_Human(t *testing.T) {
 			},
 			expected: `
 <<-EOT
-      - nu
-      - ll
-      + null
-    EOT
+        nu
+        ll
+    EOT -> null
 `,
 		},
 		"primitive_update_multiline_string_from_null": {
@@ -80,10 +79,9 @@ func TestRenderers_Human(t *testing.T) {
 				Action:   plans.Update,
 			},
 			expected: `
-<<-EOT
-      - null
-      + nu
-      + ll
+null -> <<-EOT
+        nu
+        ll
     EOT
 `,
 		},
@@ -366,10 +364,9 @@ jsonencode(
 			},
 			expected: `
 <<-EOT
-      - hello
-      - world
-      + hello world
-    EOT
+        hello
+        world
+    EOT -> "hello world"
 `,
 		},
 		"primitive_single_to_multi_update": {
@@ -378,10 +375,9 @@ jsonencode(
 				Action:   plans.Update,
 			},
 			expected: `
-<<-EOT
-      - hello world
-      + hello
-      + world
+"hello world" -> <<-EOT
+        hello
+        world
     EOT
 `,
 		},
@@ -2315,8 +2311,8 @@ jsonencode(
         EOT,
       ~ <<-EOT
             line1
-          - linex
-        EOT,
+            linex
+        EOT -> "line1",
     ]
 `,
 		},
