@@ -89,7 +89,7 @@ func (p *ProviderInstance) Value(ctx context.Context) (cty.Value, tfdiags.Diagno
 		ret = ret.Mark(exprs.EvalError)
 	}
 	for ri := range ContributingResourceInstances(configVal) {
-		ret = ret.Mark(ResourceInstanceMark{ri})
+		ret = ret.Mark(NewResourceInstanceMark(ri))
 	}
 	return ret, nil
 }
