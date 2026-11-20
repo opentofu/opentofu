@@ -15,6 +15,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tracing"
@@ -28,6 +29,9 @@ type NodePlanDestroyableResourceInstance struct {
 
 	// skipRefresh indicates that we should skip refreshing
 	skipRefresh bool
+
+	// RemoveStatements is a list of resource instance addresses to remove from the state
+	RemoveStatements []*refactoring.RemoveStatement
 }
 
 var (
@@ -134,21 +138,18 @@ func (n *NodePlanDestroyableResourceInstance) managedResourceExecute(ctx context
 	}
 
 	var planDiags tfdiags.Diagnostics
-	skipDestroy, skipDiags := n.shouldSkipDestroy()
-	diags = diags.Append(skipDiags)
+	shouldDestroy, forgetActionReason, decisionDiags := n.planDestroyDecision(state.SkipDestroy)
+	diags = diags.Append(decisionDiags)
 	if diags.HasErrors() {
 		return diags
 	}
-	if skipDestroy {
-		log.Printf("[DEBUG] NodePlanDestroyableResourceInstance.managedResourceExecute: %s planning forget instead of destroy due to lifecycle.destroy=false in configuration", addr)
-		change = n.planForget(ctx, evalCtx, state, "")
-		change.ActionReason = plans.ResourceInstanceForgotBecauseLifecycleDestroyInConfig
-	} else if state.SkipDestroy {
-		log.Printf("[DEBUG] NodePlanDestroyableResourceInstance.managedResourceExecute: %s planning forget instead of destroy due to lifecycle.destroy=false in state", addr)
-		change = n.planForget(ctx, evalCtx, state, "")
-		change.ActionReason = plans.ResourceInstanceForgotBecauseLifecycleDestroyInState
-	} else {
+
+	if shouldDestroy {
 		change, planDiags = n.planDestroy(ctx, evalCtx, state, "")
+	} else {
+		log.Printf("[DEBUG] NodePlanDestroyableResourceInstance.managedResourceExecute: %s planning forget instead of destroy", addr)
+		change = n.planForget(ctx, evalCtx, state, "")
+		change.ActionReason = forgetActionReason
 	}
 	diags = diags.Append(planDiags)
 	if diags.HasErrors() {
@@ -161,6 +162,33 @@ func (n *NodePlanDestroyableResourceInstance) managedResourceExecute(ctx context
 	}
 	diags = diags.Append(n.checkPreventDestroy(ctx, evalCtx, change))
 	return diags
+}
+
+// planDestroyDecision collates all the logic around if we should be destroying a resource instance or not.
+func (n *NodePlanDestroyableResourceInstance) planDestroyDecision(stateSkipDestroy bool) (bool, plans.ResourceInstanceChangeActionReason, tfdiags.Diagnostics) {
+	skipDestroy, diags := n.shouldSkipDestroy()
+	if diags.HasErrors() {
+		return false, plans.ResourceInstanceChangeNoReason, diags
+	}
+
+	shouldDestroy := !skipDestroy && !stateSkipDestroy
+	forgetActionReason := plans.ResourceInstanceChangeNoReason
+	if skipDestroy {
+		forgetActionReason = plans.ResourceInstanceForgotBecauseLifecycleDestroyInConfig
+	} else if stateSkipDestroy {
+		forgetActionReason = plans.ResourceInstanceForgotBecauseLifecycleDestroyInState
+	}
+
+	// Now check the RemoveStatements
+	addr := n.ResourceInstanceAddr()
+	for _, rs := range n.RemoveStatements {
+		if rs.From.TargetContains(addr) {
+			shouldDestroy = rs.Destroy
+			log.Printf("[DEBUG] NodePlanDestroyableResourceInstance.planDestroyDecision: %s removed block found, overriding shouldDestroy to %t", addr, shouldDestroy)
+		}
+	}
+
+	return shouldDestroy, forgetActionReason, diags
 }
 
 func (n *NodePlanDestroyableResourceInstance) dataResourceExecute(ctx context.Context, evalCtx EvalContext, _ walkOperation) (diags tfdiags.Diagnostics) {
