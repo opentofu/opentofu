@@ -37,6 +37,9 @@ func ApplyPlannedChanges(ctx context.Context, plan *plans.Plan, configInst *eval
 	tracer := contextTracer(ctx)
 	ctx = shared.ContextWithTracer(ctx, &tracer.Tracer)
 
+	// NOTE: The current runtime starts off with a copy of checks from
+	// the plan. Since we visit each node and don't perform graph
+	// surgery here, we can just start with a fresh set of check results
 	checkReport := &checks.ReportedChecks{}
 	ctx = checks.ContextWithCheckReporting(ctx, checkReport)
 	ctx = checks.ContextWithSeverity(ctx, func(addr addrs.Checkable) tfdiags.Severity {
@@ -77,7 +80,9 @@ func ApplyPlannedChanges(ctx context.Context, plan *plans.Plan, configInst *eval
 	newState, moreDiags := execOps.Finish(ctx, !plan.Destroying)
 	diags = diags.Append(moreDiags)
 
-	// TODO copy from plan in certain scenarios?
+	// NOTE: The current runtime has a few scenarios where it copies
+	// the checks from the plan (refresh-only), but that should not
+	// be necessary due to how we structured the this runtime.
 	newState.CheckResults = states.NewCheckResults(checkReport.State())
 
 	return newState, diags
