@@ -979,9 +979,9 @@ new line`),
 			ExpectedOutput: `  # test_instance.example must be replaced
 -/+ resource "test_instance" "example" {
       ~ id         = "i-02ae66f368e8518a9" -> (known after apply)
-      ~ more_lines = <<-EOT # forces replacement
+      ~ more_lines = "original" -> <<-EOT # forces replacement
             original
-          + new line
+            new line
         EOT
     }`,
 		},
@@ -2289,8 +2289,7 @@ func TestResourceChange_primitiveList(t *testing.T) {
       ~ id         = "i-02ae66f368e8518a9" -> (known after apply)
       ~ list_field = [
             "aaaa",
-          - "bbbb",
-          + (known after apply),
+          ~ "bbbb" -> (known after apply),
             "cccc",
         ]
         # (1 unchanged attribute hidden)
@@ -2335,8 +2334,7 @@ func TestResourceChange_primitiveList(t *testing.T) {
       ~ id         = "i-02ae66f368e8518a9" -> (known after apply)
       ~ list_field = [
             "aaaa",
-          - "bbbb",
-          + (known after apply),
+          ~ "bbbb" -> (known after apply),
           + (known after apply),
             "cccc",
             # (2 unchanged elements hidden)
@@ -2356,6 +2354,7 @@ func TestResourceChange_primitiveList(t *testing.T) {
 					cty.StringVal("bbbb"),
 					cty.StringVal("cccc"),
 					cty.StringVal("line1\nline2\nline3"),
+					cty.StringVal("line4\nline5\nline6"),
 					cty.StringVal("dddd"),
 					cty.StringVal("ffff"),
 				}),
@@ -2367,6 +2366,8 @@ func TestResourceChange_primitiveList(t *testing.T) {
 					cty.StringVal("aaaa"),
 					cty.StringVal("line1\nline2+\nline3"),
 					cty.StringVal("ffff\nline2"),
+					cty.StringVal("ggggg"),
+					cty.StringVal("line8\nline8\nline9"),
 				}),
 			}),
 			Schema: &configschema.Block{
@@ -2376,24 +2377,36 @@ func TestResourceChange_primitiveList(t *testing.T) {
 					"list_field": {Type: cty.List(cty.String), Optional: true},
 				},
 			},
+			// TODO andrei try to make this diff a little bit better. Whenn updating from a multiline to to a nonn-multiline, we would wannt to use -> format
 			ExpectedOutput: `  # test_instance.example will be updated in-place
   ~ resource "test_instance" "example" {
       ~ id         = "i-02ae66f368e8518a9" -> (known after apply)
       ~ list_field = [
             "aaaa",
-          - "bbbb",
-          - "cccc",
-          ~ <<-EOT
+          ~ "bbbb" -> <<-EOT
                 line1
-              - line2
-              + line2+
+                line2+
                 line3
             EOT,
-          - "dddd",
-          ~ <<-EOT
+          ~ "cccc" -> <<-EOT
                 ffff
-              + line2
+                line2
             EOT,
+          ~ <<-EOT
+                line1
+                line2
+                line3
+            EOT -> "ggggg",
+          ~ <<-EOT
+              - line4
+              - line5
+              - line6
+              + line8
+              + line8
+              + line9
+            EOT,
+          - "dddd",
+          - "ffff",
         ]
         # (1 unchanged attribute hidden)
     }`,
@@ -6717,8 +6730,9 @@ func TestResourceChange_sensitiveVariable(t *testing.T) {
       ~ list_field  = [
             # (1 unchanged element hidden)
             "friends",
-          - (sensitive value),
-          + ".",
+          # Warning: this attribute value will no longer be marked as sensitive
+          # after applying this change.
+          ~ (sensitive value),
         ]
       ~ map_key     = {
           # Warning: this attribute value will no longer be marked as sensitive
@@ -6836,8 +6850,9 @@ func TestResourceChange_sensitiveVariable(t *testing.T) {
   ~ resource "test_instance" "example" {
         id         = "i-02ae66f368e8518a9"
       ~ list_field = [
-          - "hello",
-          + (sensitive value),
+          # Warning: this attribute value will be marked as sensitive and will not
+          # display in UI output after applying this change.
+          ~ (sensitive value),
             "friends",
         ]
       ~ map_key    = {
@@ -6972,8 +6987,7 @@ func TestResourceChange_sensitiveVariable(t *testing.T) {
       ~ ami        = (sensitive value)
         id         = "i-02ae66f368e8518a9"
       ~ list_field = [
-          - (sensitive value),
-          + (sensitive value),
+          ~ (sensitive value),
             "friends",
         ]
       ~ map_key    = {
