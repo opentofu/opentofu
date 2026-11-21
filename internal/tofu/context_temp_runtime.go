@@ -23,6 +23,7 @@ import (
 	"github.com/opentofu/opentofu/internal/engine/applying"
 	"github.com/opentofu/opentofu/internal/engine/planning"
 	"github.com/opentofu/opentofu/internal/engine/plugins"
+	"github.com/opentofu/opentofu/internal/lang/contextstop"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/plans"
@@ -111,6 +112,11 @@ func (c *Context) newEngineShim(ctx context.Context, config *configs.Config, inp
 		Applying:           applying,
 		Workspace:          workspace,
 	}
+
+	// Watch for the done signal, either at the end of the engine execution, or due to cancellation
+	// This will appropriately stop the providers and provisioners
+	watchStop, watchWait := c.watchStop(ctx, c.plugins.providers, c.plugins.provisioners)
+
 	done := func() {
 		// We'll call close with a cancel-free context because we do still
 		// want to shut the providers down even if we're dealing with
@@ -122,6 +128,8 @@ func (c *Context) newEngineShim(ctx context.Context, config *configs.Config, inp
 		if err != nil {
 			log.Printf("[ERROR] plugin shutdown failed: %s", err.Error())
 		}
+		close(watchStop)
+		<-watchWait
 	}
 
 	// The new config-loading system wants to work in terms of module source
@@ -161,6 +169,7 @@ func (c *Context) newEngineValidate(ctx context.Context, config *configs.Config,
 
 	log.Println("[WARN] Using validate implementation from the experimental language runtime")
 
+	ctx = contextstop.AddStopFlag(ctx)
 	configInst, _, done, moreDiags := c.newEngineShim(ctx, config, inputValues, time.Time{}, false, false)
 	diags = diags.Append(moreDiags)
 
@@ -185,6 +194,7 @@ func (c *Context) newEnginePlan(ctx context.Context, config *configs.Config, pre
 	tracer := c.newEnginePlanTracer()
 	ctx = planning.ContextWithTracer(ctx, tracer)
 
+	ctx = contextstop.AddStopFlag(ctx)
 	configInst, plugins, done, moreDiags := c.newEngineShim(ctx, config, opts.SetVariables, timestamp, false, false)
 	diags = diags.Append(moreDiags)
 
@@ -328,6 +338,7 @@ func (c *Context) newEngineApply(ctx context.Context, config *configs.Config, pl
 	tracer := c.newEngineApplyTracer()
 	ctx = applying.ContextWithTracer(ctx, tracer)
 
+	ctx = contextstop.AddStopFlag(ctx)
 	configInst, plugins, done, moreDiags := c.newEngineShim(ctx, config, variables, plan.Timestamp, true, true)
 	diags = diags.Append(moreDiags)
 

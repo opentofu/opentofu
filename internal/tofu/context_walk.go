@@ -57,7 +57,7 @@ func (c *Context) walk(ctx context.Context, graph *Graph, operation walkOperatio
 	walker := c.graphWalker(operation, opts)
 
 	// Watch for a stop so we can call the provider Stop() API.
-	watchStop, watchWait := c.watchStop(walker)
+	watchStop, watchWait := c.watchStopWalker(walker)
 
 	// Walk the real graph, this will block until it completes
 	diags := graph.Walk(ctx, walker, opts.BackupStateForPanic)

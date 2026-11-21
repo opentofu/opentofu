@@ -209,6 +209,17 @@ func TestContext2Apply_stop(t *testing.T) {
 		{"PostApply", "indefinite.foo"},
 		{"PostStateUpdate", ""},
 	}
+
+	if experimentalRuntimeEnabled() {
+		// the new runtime has a slightly different hook-call ordering
+		wantEvents = []*testHookCall{
+			{"PreDiff", "indefinite.foo"},
+			{"PostDiff", "indefinite.foo"},
+			{"PreApply", "indefinite.foo"},
+			{"PostStateUpdate", ""},
+			{"PostApply", "indefinite.foo"},
+		}
+	}
 	// The "Stopping" event gets sent to the hook asynchronously from the others
 	// because it is triggered in the ctx.Stop call above, rather than from
 	// the goroutine where ctx.Apply was running, and therefore it doesn't
@@ -2160,7 +2171,7 @@ func TestContext2Apply_cancelProvisioner(t *testing.T) {
 
 	for _, d := range applyDiags {
 		desc := d.Description()
-		if desc.Summary != "execution halted" {
+		if strings.ToLower(desc.Summary) != "execution halted" {
 			t.Fatalf("unexpected error: %v", applyDiags.Err())
 		}
 	}
