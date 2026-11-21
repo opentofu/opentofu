@@ -169,8 +169,7 @@ func (c *Context) newEngineValidate(ctx context.Context, config *configs.Config,
 
 	log.Println("[WARN] Using validate implementation from the experimental language runtime")
 
-	ctx, after := contextstop.AddStopFlag(ctx)
-	defer after()
+	ctx = contextstop.AddStopFlag(ctx)
 	configInst, _, done, moreDiags := c.newEngineShim(ctx, config, inputValues, time.Time{}, false, false)
 	diags = diags.Append(moreDiags)
 
@@ -195,8 +194,7 @@ func (c *Context) newEnginePlan(ctx context.Context, config *configs.Config, pre
 	tracer := c.newEnginePlanTracer()
 	ctx = planning.ContextWithTracer(ctx, tracer)
 
-	ctx, after := contextstop.AddStopFlag(ctx)
-	defer after()
+	ctx = contextstop.AddStopFlag(ctx)
 	configInst, plugins, done, moreDiags := c.newEngineShim(ctx, config, opts.SetVariables, timestamp, false, false)
 	diags = diags.Append(moreDiags)
 
@@ -340,8 +338,7 @@ func (c *Context) newEngineApply(ctx context.Context, config *configs.Config, pl
 	tracer := c.newEngineApplyTracer()
 	ctx = applying.ContextWithTracer(ctx, tracer)
 
-	ctx, after := contextstop.AddStopFlag(ctx)
-	defer after()
+	ctx = contextstop.AddStopFlag(ctx)
 	configInst, plugins, done, moreDiags := c.newEngineShim(ctx, config, variables, plan.Timestamp, true, true)
 	diags = diags.Append(moreDiags)
 

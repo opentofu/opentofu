@@ -13,7 +13,6 @@ package contextstop
 
 import (
 	"context"
-	"log"
 	"sync/atomic"
 
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -24,15 +23,9 @@ type contextStopKey string
 const stopKey contextStopKey = "stop"
 
 // AddStopFlag adds a stop flag to the context.
-//
-// A function to trace the flag is also returned. Running this function as a defer ensures that
-// the stop flag remains in memory for the duration that it's needed.
-func AddStopFlag(ctx context.Context) (context.Context, func()) {
+func AddStopFlag(ctx context.Context) context.Context {
 	var stop uint32
-	heapEscaper := func() {
-		log.Printf("[TRACE] stop flag: %d", stop)
-	}
-	return context.WithValue(ctx, stopKey, &stop), heapEscaper
+	return context.WithValue(ctx, stopKey, &stop)
 }
 
 // Stop sets the stop flag on the context
