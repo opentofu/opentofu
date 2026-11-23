@@ -11,7 +11,6 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -33,15 +32,11 @@ func (c *CheckAssertions) assert(ctx context.Context) (cty.ValueMarks, tfdiags.D
 	ctx = withDebugAddr(ctx, c.Addr, "Assert")
 	return c.valueOnce.Do(ctx, func(ctx context.Context) (cty.ValueMarks, tfdiags.Diagnostics) {
 		if c.NestedResource != nil {
-			val, nestedDiags := c.NestedResource(ctx).Value(ctx)
+			val, _ := c.NestedResource(ctx).Value(ctx)
 			if exprs.IsEvalError(val) {
-				// TODO nestedDiags does not work correctly here during apply
-				msg := "apply bug"
-				if len(nestedDiags) > 0 {
-					msg = nestedDiags.ErrWithWarnings().Error()
-				}
-				checks.ReportCheckInContext(ctx, c.Addr, addrs.CheckAssertion, checks.StatusFail, msg)
-				return nil, nil
+				// Reporting the check failure is already handled by the engine due to the inability
+				// to get the resource diags here in the apply engine.
+				return MarksFromAllRules(ctx, c.Assertions), nil
 			}
 		}
 		return CheckAllRulesDefault(ctx, c.Addr, addrs.CheckAssertion, c.Assertions, new(tfdiags.SourceRangeFromHCL(c.DeclRange)))

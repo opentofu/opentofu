@@ -14,6 +14,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
@@ -37,6 +38,10 @@ func (ops *execOperations) DataRead(
 				}
 			}
 			if diags.HasErrors() {
+				// I don't love doing the check reporting in the engine.  It's weird and feels wrong.
+				// However, given the design of the diags flow in the apply engine, this is currently
+				// the only option.
+				checks.ReportCheckInContext(ctx, metadata.NestedCheckAddr, addrs.CheckAssertion, checks.StatusFail, diags.Err().Error())
 				ret.State.Value = exprs.AsEvalError(ret.State.Value)
 			}
 			// We're just going to jump in here and hide away any errors for nested
