@@ -28,7 +28,6 @@ type CheckAssertions struct {
 }
 
 func (c *CheckAssertions) assert(ctx context.Context) (cty.ValueMarks, tfdiags.Diagnostics) {
-	// TODO CheckDataResource elsewhere
 	ctx = withDebugAddr(ctx, c.Addr, "Assert")
 	return c.valueOnce.Do(ctx, func(ctx context.Context) (cty.ValueMarks, tfdiags.Diagnostics) {
 		if c.NestedResource != nil {

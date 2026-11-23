@@ -41,8 +41,10 @@ func (ops *execOperations) DataRead(
 				// I don't love doing the check reporting in the engine.  It's weird and feels wrong.
 				// However, given the design of the diags flow in the apply engine, this is currently
 				// the only option.
-				checks.ReportCheckInContext(ctx, metadata.NestedCheckAddr, addrs.CheckAssertion, checks.StatusFail, diags.Err().Error())
+				checks.ReportCheckInContext(ctx, metadata.NestedCheckAddr, addrs.CheckDataResource, checks.StatusFail, diags.Err().Error())
 				ret.State.Value = exprs.AsEvalError(ret.State.Value)
+			} else {
+				checks.ReportCheckInContext(ctx, metadata.NestedCheckAddr, addrs.CheckDataResource, checks.StatusPass, "")
 			}
 			// We're just going to jump in here and hide away any errors for nested
 			// data blocks.
