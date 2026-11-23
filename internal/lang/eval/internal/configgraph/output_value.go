@@ -17,6 +17,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
+	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/plans/objchange"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -51,6 +52,8 @@ type OutputValue struct {
 	// If ForceEphemeral is true then the final value will be marked as
 	// ephemeral regardless of whether the associated raw value was ephemeral.
 	ForceEphemeral bool
+
+	valueOnce grapheval.Once[cty.Value]
 }
 
 var _ exprs.Valuer = (*OutputValue)(nil)
@@ -80,6 +83,9 @@ func (o *OutputValue) StaticCheckTraversal(traversal hcl.Traversal) tfdiags.Diag
 
 // Value implements exprs.Valuer.
 func (o *OutputValue) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+	return o.valueOnce.Do(ctx, o.value, o.ValueSourceRange(), "Value of %s", o.Addr)
+}
+func (o *OutputValue) value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
 	ctx = withDebugAddr(ctx, o.Addr, "Value")
 	var diags tfdiags.Diagnostics
 
@@ -98,7 +104,8 @@ func (o *OutputValue) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics
 		return exprs.AsEvalError(cty.UnknownVal(o.TargetType.WithoutOptionalAttributesDeep())).WithMarks(preconditionMarks), diags
 	}
 
-	rawV, diags := o.RawValue.Value(ctx)
+	rawV, moreDiags := o.RawValue.Value(ctx)
+	diags = diags.Append(moreDiags)
 	if o.TargetDefaults != nil {
 		rawV = o.TargetDefaults.Apply(rawV)
 	}

@@ -271,7 +271,6 @@ check "nested_data_block" {
 					},
 				},
 				ReadDataSourceFn: func(request providers.ReadDataSourceRequest) providers.ReadDataSourceResponse {
-					println("READY")
 					return providers.ReadDataSourceResponse{
 						State: cty.ObjectVal(map[string]cty.Value{
 							"number": cty.NumberIntVal(-1),
