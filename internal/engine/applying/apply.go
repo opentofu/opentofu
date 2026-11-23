@@ -43,9 +43,14 @@ func ApplyPlannedChanges(ctx context.Context, plan *plans.Plan, configInst *eval
 	checkReport := &checks.ReportedChecks{}
 	ctx = checks.ContextWithCheckReporting(ctx, checkReport)
 	ctx = checks.ContextWithSeverity(ctx, func(addr addrs.Checkable) tfdiags.Severity {
-		if plan.Destroying && addr.CheckableKind() == addrs.CheckableOutputValue {
-			// The current runtime skips evaluating these all in the first place.
-			// However, going from a NOP to a Warning in this edge case is probably fine?
+		switch addr.CheckableKind() {
+		case addrs.CheckableOutputValue:
+			if plan.Destroying {
+				// The current runtime skips evaluating these all in the first place.
+				// However, going from a NOP to a Warning in this edge case is probably fine?
+				return tfdiags.Warning
+			}
+		case addrs.CheckableCheck:
 			return tfdiags.Warning
 		}
 		return tfdiags.Error

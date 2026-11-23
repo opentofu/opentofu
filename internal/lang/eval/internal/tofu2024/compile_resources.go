@@ -366,6 +366,14 @@ func compileModuleInstanceResource(
 				},
 			), "Value of %s", instAddr)
 
+			var nestedCheckAddr *addrs.AbsCheck
+			if config.Container != nil {
+				check, ok := config.Container.(*configs.Check)
+				if ok {
+					nestedCheckAddr = new(check.Addr().Absolute(moduleInstanceAddr))
+				}
+			}
+
 			inst := &configgraph.ResourceInstance{
 				Addr:                      instAddr,
 				Provider:                  config.Provider, // must match the corresponding field in the parent configgraph.Resource
@@ -375,6 +383,7 @@ func compileModuleInstanceResource(
 				CreateProvisioners:        provisionerConfigs,
 				IgnoreChangesPaths:        ignoreChanges,
 				ReplaceTriggeredBy:        replaceTriggeredBy,
+				NestedCheckAddr:           nestedCheckAddr,
 
 				Preconditions: func(ctx context.Context, self cty.Value) iter.Seq[*configgraph.CheckRule] {
 					condScope := selfScope(

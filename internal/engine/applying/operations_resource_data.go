@@ -13,8 +13,10 @@ import (
 
 	"github.com/zclconf/go-cty/cty"
 
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/lang/eval"
+	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/resources"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -25,10 +27,30 @@ func (ops *execOperations) DataRead(
 	ctx context.Context,
 	metadata *exec.ResourceInstanceObjectMeta,
 	desired *eval.DesiredResourceInstance,
-) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
+) (ret *exec.ResourceInstanceObject, diags tfdiags.Diagnostics) {
+	if metadata.NestedCheckAddr != nil {
+		defer func() {
+			if ret.State == nil {
+				// Placeholder
+				ret.State = &states.ResourceInstanceObjectFull{
+					Value: cty.DynamicVal,
+				}
+			}
+			if diags.HasErrors() {
+				ret.State.Value = exprs.AsEvalError(ret.State.Value)
+			}
+			// We're just going to jump in here and hide away any errors for nested
+			// data blocks.
+			// NOTE: this only works because of named return values and I don't love it.
+			diags = tfdiags.OverrideAll(diags, tfdiags.Warning, func() tfdiags.DiagnosticExtraWrapper {
+				return &addrs.CheckRuleDiagnosticExtra{
+					CheckRule: addrs.NewCheckRule(ret.Addr.InstanceAddr, addrs.CheckDataResource, 0),
+				}
+			})
+		}()
+	}
 
-	ret := &exec.ResourceInstanceObject{
+	ret = &exec.ResourceInstanceObject{
 		Addr: desired.Addr.CurrentObject(),
 	}
 

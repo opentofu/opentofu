@@ -215,6 +215,19 @@ func CheckAllRulesDefault(ctx context.Context, addr addrs.Checkable, checkType a
 					Detail:   fmt.Sprintf("%s\n\nThis problem was reported by the %s at %s.", errMsg, errType, ruleDeclRange.StartString()),
 					Subject:  MaybeHCLSourceRange(rng),
 				})
+			} else if status == checks.StatusUnknown && checkType == addrs.CheckAssertion {
+				// Check assertions warn if a status is unknown.
+				diags = diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagWarning,
+					Summary:  fmt.Sprintf("%s known after apply", checkType.Description()),
+					Detail:   "The condition could not be evaluated at this time, a result will be known when this plan is applied.",
+					Subject:  ruleDeclRange.ToHCL().Ptr(),
+					//Expression:  rule.Condition,
+					//EvalContext: hclCtx,
+					Extra: &addrs.CheckRuleDiagnosticExtra{
+						CheckRule: addrs.NewCheckRule(addr, checkType, 0),
+					},
+				})
 			}
 			return diags
 		},

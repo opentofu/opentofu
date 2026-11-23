@@ -53,8 +53,10 @@ type planContext struct {
 	// prevRoundState MUST be treated as immutable
 	prevRoundState *states.State
 
+	// TODO refactor this to just use PlanResult
 	// rootOutput is the values and dependencies of the root module outputs
-	rootOutput rootOutput
+	rootOutput             rootOutput
+	checkBlockDependencies addrs.Set[addrs.AbsResourceInstance]
 
 	providers plugins.Providers
 
@@ -117,6 +119,7 @@ func (p *planContext) Close(ctx context.Context) (*planContextResult, tfdiags.Di
 		ResourceInstanceObjects: objs,
 		PrevRoundState:          p.prevRoundState,
 		RootOutput:              p.rootOutput,
+		CheckBlockDependencies:  p.checkBlockDependencies,
 		DriftedResources:        drift,
 		DriftCausingChanges:     driftCausingChanges,
 	}
@@ -136,6 +139,7 @@ type planContextResult struct {
 	ResourceInstanceObjects *resourceInstanceObjects
 	PrevRoundState          *states.State
 	RootOutput              rootOutput
+	CheckBlockDependencies  addrs.Set[addrs.AbsResourceInstance]
 
 	// Unfortunately, we need to signal to the apply engine that some things
 	// like output values need to be handled a bit differently.

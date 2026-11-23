@@ -191,6 +191,8 @@ type CompiledModuleInstance interface {
 
 	DetectImplicitMoveForAddress(ctx context.Context, addr addrs.AbsResourceInstance) *addrs.AbsResourceInstance
 
+	CheckAssertions(ctx context.Context) iter.Seq[*configgraph.CheckAssertions]
+
 	// ProviderInstances returns a sequence of all of the provider instances
 	// declared in the module.
 	//
