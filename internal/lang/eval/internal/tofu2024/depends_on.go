@@ -278,6 +278,10 @@ type dependsOnModuleCallItemValuer struct {
 func (v dependsOnModuleCallItemValuer) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
 	marks := make(cty.ValueMarks)
 	for resourceInst := range moduleCallResourceInstancesDeep(ctx, v.scope, v.addr) {
+		if resourceInst.NestedCheckAddr != nil {
+			// Depends on should *not* include check resources
+			continue
+		}
 		mark := configgraph.NewResourceInstanceMark(resourceInst)
 		marks[mark] = struct{}{}
 	}

@@ -54,6 +54,9 @@ func (b *execGraphBuilder) AddResourceInstanceObjectSubgraphs(
 	// easier reading of debug output.
 	objAddrs := sortedResourceInstanceObjectAddrKeys(objs.All())
 
+	nestedDataResources := addrs.MakeSet[addrs.AbsResourceInstanceObject]()
+	allManagedResources := addrs.MakeSet[addrs.AbsResourceInstanceObject]()
+
 	// First we'll insert separate subgraphs for each resource instance object
 	// that has a planned action, without putting any explicit dependency
 	// edges between them yet.
@@ -82,6 +85,13 @@ func (b *execGraphBuilder) AddResourceInstanceObjectSubgraphs(
 		if addr.IsCurrent() && subgraph.valueRef != nil {
 			b.lower.SetResourceInstanceFinalStateResult(addr.InstanceAddr, subgraph.valueRef)
 		}
+		if addr.IsCurrent() && plannedChange.ActionReason == plans.ResourceInstanceReadBecauseCheckNested {
+			// Nested data resources *must* happen after all managed resources have been applied.
+			nestedDataResources.Add(addr)
+		}
+		if addr.InstanceAddr.Resource.Resource.Mode == addrs.ManagedResourceMode {
+			allManagedResources.Add(addr)
+		}
 	}
 
 	// Now we'll add explicit dependencies between the subgraphs we just created
@@ -97,6 +107,26 @@ func (b *execGraphBuilder) AddResourceInstanceObjectSubgraphs(
 	// they use the "create before destroy" ordering for replacing.
 	for _, addrB := range objAddrs {
 		objB := subgraphs.Get(addrB)
+
+		if nestedDataResources.Has(addrB) {
+			// Depend on all managed resource create/updates being complete
+			// NOTE: This adds a *lot* of edges to the graph. For massive configurations
+			// with checks, we should try to do a transitive reduction of this step.
+			// NOTE: there are *no tests or documentation* for this quirk of data resources
+			// nested within check blocks.
+			for _, addrA := range allManagedResources {
+				objA := ensureResourceInstanceObjectSubgraph(addrA, subgraphs, b)
+
+				if objA.HasCreateOrUpdateLeg() {
+					objB.CreateOrUpdateDependsOn(objA.CreateOrUpdateCompletionRef())
+				}
+				/*NOTE: current runtime does *not* depend on deletions, though
+				it probably should...
+				if objA.HasDeleteLeg() {
+					objB.CreateOrUpdateDependsOn(objA.DeletionRef())
+				}*/
+			}
+		}
 
 		for addrA := range objs.ConfigDependencies(addrB) {
 			objA := ensureResourceInstanceObjectSubgraph(addrA, subgraphs, b)
