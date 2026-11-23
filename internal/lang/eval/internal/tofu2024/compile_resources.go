@@ -199,6 +199,14 @@ func compileModuleInstanceResource(
 		}
 	}
 
+	var nestedCheckAddr *addrs.AbsCheck
+	if config.Container != nil {
+		check, ok := config.Container.(*configs.Check)
+		if ok {
+			nestedCheckAddr = new(check.Addr().Absolute(moduleInstanceAddr))
+		}
+	}
+
 	if diags.HasErrors() {
 		configEvalable = exprs.ForcedErrorEvalable(diags, tfdiags.SourceRangeFromHCL(config.TypeRange))
 	}
@@ -366,14 +374,6 @@ func compileModuleInstanceResource(
 				},
 			), "Value of %s", instAddr)
 
-			var nestedCheckAddr *addrs.AbsCheck
-			if config.Container != nil {
-				check, ok := config.Container.(*configs.Check)
-				if ok {
-					nestedCheckAddr = new(check.Addr().Absolute(moduleInstanceAddr))
-				}
-			}
-
 			inst := &configgraph.ResourceInstance{
 				Addr:                      instAddr,
 				Provider:                  config.Provider, // must match the corresponding field in the parent configgraph.Resource
@@ -439,6 +439,8 @@ func compileModuleInstanceResource(
 			}
 			return provisionerConfigs
 		},
+
+		NestedCheckAddr: nestedCheckAddr,
 	}
 	return resourceAddr, ret
 }
