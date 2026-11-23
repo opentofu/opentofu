@@ -64,6 +64,9 @@ func OpenEphemeralResourceInstance(
 		openCtx = cb(ctx, addr)
 	}
 	diags = diags.Append(contextstop.CheckStop(openCtx))
+	if diags.HasErrors() {
+		return newVal, nil, diags
+	}
 
 	openReq := providers.OpenEphemeralResourceRequest{
 		TypeName: addr.ContainingResource().Resource.Type,
@@ -185,6 +188,7 @@ func OpenEphemeralResourceInstance(
 						renewCtx = cb(ctx, addr)
 					}
 					diags = diags.Append(contextstop.CheckStop(renewCtx))
+					// TODO: I'm not sure how this ought to be stopped if there's an error diag here.
 
 					renewReq := providers.RenewEphemeralResourceRequest{
 						TypeName: addr.Resource.Resource.Type,
@@ -214,6 +218,7 @@ func OpenEphemeralResourceInstance(
 			closeCtx = cb(closeCtx, addr)
 		}
 		diags = diags.Append(contextstop.CheckStop(closeCtx))
+		// TODO: I'm not sure how this ought to be stopped if there's an error diag here.
 
 		closReq := providers.CloseEphemeralResourceRequest{
 			TypeName: addr.Resource.Resource.Type,

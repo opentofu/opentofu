@@ -171,6 +171,9 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 		readCtx = cb(ctx, inst.Addr, proposedNewVal)
 	}
 	diags = diags.Append(contextstop.CheckStop(readCtx))
+	if diags.HasErrors() {
+		return ret, diags
+	}
 
 	resp, readDiags := resourceType.Read(readCtx, &resources.DataResourceReadRequest{
 		ResourceAddress: inst.Addr,

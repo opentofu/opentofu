@@ -39,9 +39,7 @@ func Stop(ctx context.Context) {
 //
 // This is safe to call on any context, and works with concurrent processes. Call this anywhere most hooks might be called.
 func CheckStop(ctx context.Context) tfdiags.Diagnostics {
-	// if stop, ok := ctx.Value(stopKey).(*uint32); ok && atomic.LoadUint32(stop) == 1 {
-	stop, ok := ctx.Value(stopKey).(*uint32)
-	if ok && atomic.LoadUint32(stop) == 1 {
+	if stop, ok := ctx.Value(stopKey).(*uint32); ok && atomic.LoadUint32(stop) == 1 {
 		return tfdiags.New(tfdiags.Sourceless(tfdiags.Error, "Execution halted", "Providers and provisioners have been stopped in the course of ordinary operations."))
 	}
 	return nil

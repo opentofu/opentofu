@@ -34,6 +34,9 @@ func (ops *execOperations) runProvisioner(ctx context.Context, objAddr addrs.Abs
 		ctx = cb(ctx, objAddr.InstanceAddr, prov.Type)
 	}
 	diags = diags.Append(contextstop.CheckStop(ctx))
+	if diags.HasErrors() {
+		return false, diags
+	}
 
 	// If our config or connection info contains any marked values, ensure
 	// those are stripped out before sending to the provisioner. Unlike

@@ -114,6 +114,9 @@ func (ops *execOperations) ManagedFinalPlan(
 		ctx = cb(ctx, objAddr, priorVal, configVal, initialPlannedVal)
 	}
 	diags = diags.Append(contextstop.CheckStop(ctx))
+	if diags.HasErrors() {
+		return nil, diags
+	}
 	plannedVal := cty.DynamicVal // reassigned once we have a final value to return
 	if cb := tracer.EndManagedResourceInstanceObjectFinalPlan; cb != nil {
 		priorVal := cty.NullVal(cty.DynamicPseudoType)
@@ -330,6 +333,9 @@ func (ops *execOperations) ManagedApply(
 		ctx = cb(ctx, plan.Addr, plan.PriorStateVal, plan.PlannedVal)
 	}
 	diags = diags.Append(contextstop.CheckStop(ctx))
+	if diags.HasErrors() {
+		return nil, diags
+	}
 	resultVal := cty.DynamicVal // reassigned once we have a final value to return
 	if cb := tracer.EndManagedResourceInstanceObjectApply; cb != nil {
 		defer func() { // Extra closure to delay evaluating resultVal and diags until we actually return

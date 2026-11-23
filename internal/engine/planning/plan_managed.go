@@ -383,6 +383,9 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		planChangesCtx = cb(ctx, inst.Addr.CurrentObject(), current.Value, unmarkedConfigVal)
 	}
 	diags = diags.Append(contextstop.CheckStop(planChangesCtx))
+	if diags.HasErrors() {
+		return ret, diags
+	}
 	planResp, planDiags := resourceType.PlanChanges(planChangesCtx, &resources.ManagedResourcePlanRequest{
 		Current:            current,
 		DesiredValue:       unmarkedConfigVal,
@@ -1013,6 +1016,9 @@ func processImport(
 		importCtx = cb(ctx, addr, importTarget)
 	}
 	stopDiags := contextstop.CheckStop(importCtx)
+	if stopDiags.HasErrors() {
+		return nil, nil, stopDiags
+	}
 	importState, diags := resourceType.ImportState(importCtx, &resources.ManagedResourceImportStateRequest{Target: importTarget}, addr)
 	diags = diags.Append(stopDiags)
 	if diags.HasErrors() {
@@ -1075,6 +1081,9 @@ func processRefresh(
 		refreshCtx = cb(ctx, addr, prevValueForTracing)
 	}
 	diags = diags.Append(contextstop.CheckStop(refreshCtx))
+	if diags.HasErrors() {
+		return nil, nil, diags
+	}
 
 	prevState, moreDiags := resourceType.RefreshState(refreshCtx, prevState, addr)
 	diags = diags.Append(moreDiags)
