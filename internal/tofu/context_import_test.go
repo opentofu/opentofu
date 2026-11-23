@@ -1359,6 +1359,9 @@ func TestContextImport_33572(t *testing.T) {
 	}
 	actual := strings.TrimSpace(state.String())
 	expected := strings.TrimSpace(testImportStrWithDataSource)
+	if experimentalRuntimeEnabled() {
+		expected = strings.TrimSpace(testImportStrWithDataSourceNewEngine)
+	}
 	if diff := cmp.Diff(actual, expected); len(diff) > 0 {
 		t.Fatalf("wrong final state\ngot:\n%s\nwant:\n%s\ndiff:\n%s", actual, expected, diff)
 	}
@@ -1374,6 +1377,12 @@ const testImportStrWithDataSource = `
 data.aws_data_source.bar:
   ID = baz
   provider = provider["registry.opentofu.org/hashicorp/aws"]
+aws_instance.foo:
+  ID = foo
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
+`
+
+const testImportStrWithDataSourceNewEngine = `
 aws_instance.foo:
   ID = foo
   provider = provider["registry.opentofu.org/hashicorp/aws"]
