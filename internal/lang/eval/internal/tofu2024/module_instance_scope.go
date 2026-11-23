@@ -201,6 +201,7 @@ func (m *moduleInstanceScope) resolveResourceAttr(addr addrs.Resource, rng tfdia
 		})
 		return nil, diags
 	}
+	//nolint:staticcheck // De Morgan's law would make this harder to understand
 	if r.NestedCheckAddr != nil && !(m.nestedResource != nil && r.Addr.Resource.Equal(*m.nestedResource)) {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
