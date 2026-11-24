@@ -543,6 +543,15 @@ func (n *NodePlannableResourceInstance) replaceTriggered(ctx context.Context, ev
 	if n.Config == nil {
 		return diags
 	}
+	// we want to skip replacement of a resource if it is imported and there is no previous state for it.
+	// This is needed because if an import target has also a replace_triggered_by configured, during the same run,
+	// the import will be executed first followed by the replacement which will result in destruction and recreation of
+	// the freshly imported resource.
+	prevState := evalCtx.State().ResourceInstance(n.Addr)
+	hasPrevState := prevState != nil && prevState.HasCurrent()
+	if !hasPrevState && n.importTarget.Config != nil {
+		return diags
+	}
 
 	for _, expr := range n.Config.TriggersReplacement {
 		ref, replace, evalDiags := evalCtx.EvaluateReplaceTriggeredBy(ctx, expr, repData)
