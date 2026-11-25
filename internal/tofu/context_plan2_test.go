@@ -10111,3 +10111,130 @@ resource "test_resource" "dependy" {
 		}
 	})
 }
+
+// This test creates the conditions from https://github.com/opentofu/opentofu/issues/4871.
+// Having a resource (A) that has an import block and the resource block (A) is also configured with replace_triggered_by targeting
+// resource (B), when both, the resource A and B are missing from the state, the replace_triggered_by should be ignored for the resource A.
+// But when the resource A exists in the state but B is missing, then the replace_triggered_by condition should trigger the replacement of the resource A.
+func TestContext2Plan_ReplaceTriggeredByOnImportedResource(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+resource "test_resource" "trigger" {
+  input = "v1"
+}
+
+resource "test_resource" "adopted" {
+  lifecycle {
+    replace_triggered_by = [test_resource.trigger]
+  }
+}
+
+import {
+  to = test_resource.adopted
+  id = "existing-object"
+}
+`,
+	})
+
+	testResSchema := providers.Schema{
+		Block: &configschema.Block{
+			Attributes: map[string]*configschema.Attribute{
+				"input":            {Type: cty.DynamicPseudoType, Optional: true},
+				"output":           {Type: cty.DynamicPseudoType, Computed: true},
+				"triggers_replace": {Type: cty.DynamicPseudoType, Optional: true},
+				"id":               {Type: cty.String, Computed: true},
+			},
+		},
+	}
+	p := &MockProvider{
+		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+			Provider: providers.Schema{Block: &configschema.Block{}},
+			ResourceTypes: map[string]providers.Schema{
+				"test_resource": testResSchema,
+			},
+		},
+	}
+
+	p.ImportResourceStateFn = func(req providers.ImportResourceStateRequest) (resp providers.ImportResourceStateResponse) {
+		v := cty.ObjectVal(map[string]cty.Value{
+			"id": cty.StringVal(req.Target.ID),
+		})
+		state, err := testResSchema.Block.CoerceValue(v)
+		resp.Diagnostics = resp.Diagnostics.Append(err)
+
+		resp.ImportedResources = []providers.ImportedResource{
+			{
+				TypeName: req.TypeName,
+				State:    state,
+			},
+		}
+		return resp
+	}
+	p.PlanResourceChangeFn = func(req providers.PlanResourceChangeRequest) (resp providers.PlanResourceChangeResponse) {
+		if req.PriorState.IsNull() {
+			return providers.PlanResourceChangeResponse{PlannedState: req.Config}
+		}
+		return providers.PlanResourceChangeResponse{PlannedState: req.PriorState}
+	}
+	ctx := testContext2(t, &ContextOpts{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		}, nil),
+	})
+
+	t.Run("without a state", func(t *testing.T) {
+		plan, diags := ctx.Plan(t.Context(), m, states.NewState(), DefaultPlanOpts)
+		if diags.HasErrors() {
+			t.Errorf("unexpected errors: %s", diags.Err())
+		}
+		expectedActions := []plans.Action{plans.Create, plans.NoOp}
+		if len(expectedActions) != len(plan.Changes.Resources) {
+			t.Fatalf("invalid number of changes. expected %d but got %d", len(expectedActions), len(plan.Changes.Resources))
+		}
+		for i, change := range plan.Changes.Resources {
+			if change.Action != expectedActions[i] {
+				t.Errorf("unexpected change action %s. wanted %s", change.Action, expectedActions[i])
+			}
+			if change.Action == plans.NoOp {
+				if change.Importing == nil {
+					t.Fatalf("expected the noop change to be an import but got a nil import")
+				}
+				if change.Importing.ID != "existing-object" {
+					t.Fatalf("invalid importing id %q. wanted %q", change.Importing.ID, "existing-object")
+				}
+			}
+		}
+	})
+	t.Run("with a state", func(t *testing.T) {
+		addr := mustResourceInstanceAddr("test_resource.adopted")
+		state := states.BuildState(func(s *states.SyncState) {
+			s.SetResourceInstanceCurrent(addr, &states.ResourceInstanceObjectSrc{
+				AttrsJSON: []byte(`{"id":"existing-object"}`),
+				Status:    states.ObjectReady,
+			}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
+		})
+		p.PlanResourceChangeFn = func(req providers.PlanResourceChangeRequest) (resp providers.PlanResourceChangeResponse) { // simulates the implementation of "terraform_data" resource
+			if req.PriorState.IsNull() {
+				planned := req.Config.AsValueMap()
+				if v, ok := planned["input"]; !ok || v.IsNull() {
+					planned["id"] = cty.UnknownVal(cty.String).RefineNotNull()
+				}
+				return providers.PlanResourceChangeResponse{PlannedState: cty.ObjectVal(planned)}
+			}
+			return providers.PlanResourceChangeResponse{PlannedState: req.PriorState}
+		}
+		plan, diags := ctx.Plan(t.Context(), m, state, DefaultPlanOpts)
+		if diags.HasErrors() {
+			t.Errorf("unexpected errors: %s", diags.Err())
+		}
+		expectedActions := []plans.Action{plans.Create, plans.DeleteThenCreate}
+		if len(expectedActions) != len(plan.Changes.Resources) {
+			t.Fatalf("invalid number of changes. expected %d but got %d", len(expectedActions), len(plan.Changes.Resources))
+		}
+		for i, change := range plan.Changes.Resources {
+			if change.Action != expectedActions[i] {
+				t.Errorf("unexpected change action %s. wanted %s", change.Action, expectedActions[i])
+			}
+		}
+	})
+}
