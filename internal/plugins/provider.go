@@ -151,20 +151,10 @@ func (p *providerManager) NewProvider(ctx context.Context, addr addrs.Provider) 
 }
 
 func (p *providerManager) NewConfiguredProvider(ctx context.Context, addr addrs.Provider, configVal cty.Value) (providers.Configured, tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	p.instancesLock.Lock()
-	defer p.instancesLock.Unlock()
-	if p.isShutdown.Load() {
-		return nil, diags.Append(fmt.Errorf("bug: unable to start provider %s, manager is shutdown", addr))
+	provider, diags := p.NewProvider(ctx, addr)
+	if diags.HasErrors() {
+		return nil, diags
 	}
-
-	provider, err := p.providerFactories.NewInstance(addr)
-	if err != nil {
-		return nil, diags.Append(err)
-	}
-
-	p.instances = append(p.instances, provider)
 
 	// If our config value contains any marked values, ensure those are
 	// stripped out before sending this to the provider
