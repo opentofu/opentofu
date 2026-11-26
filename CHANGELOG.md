@@ -2,6 +2,10 @@ The v1.13.x release series is supported until **August 1 2027**.
 
 ## 1.13.11 (Unreleased)
 
+BUG FIXES:
+
+- Downloading metadata of a provider from a network mirror now bounds the read bytes based on the received `Content-Length` header ([#4881](https://github.com/opentofu/opentofu/pull/4881))
+
 ## 1.13.10
 
 SECURITY ADVISORIES:
