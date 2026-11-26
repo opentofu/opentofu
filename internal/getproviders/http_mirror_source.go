@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -357,6 +358,21 @@ func (s *HTTPMirrorSource) get(ctx context.Context, relativePath string) (status
 			log.Printf("[WARN] Network mirror returned %q as part of its JSON content type, which is not defined. Ignoring.", name)
 		}
 		body = resp.Body
+		// if content-length is specified, use it to return a reader that can read only the indicated content-length
+		cl := resp.Header.Get("Content-Length")
+		if len(cl) > 0 {
+			contentLen, err := strconv.ParseInt(cl, 10, 0)
+			if err != nil {
+				log.Printf("[WARN] Network mirror returned invalid value %q for content-length. This will be ignored but the unbounded body could create unexpected behavior", cl)
+			}
+			body = struct {
+				io.Reader
+				io.Closer
+			}{
+				Reader: io.LimitReader(body, contentLen),
+				Closer: body,
+			}
+		}
 	}
 
 	return resp.StatusCode, body, finalURL, nil
