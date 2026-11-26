@@ -6,6 +6,10 @@ SECURITY ADVISORIES:
 
 - Upgrade Go toolchain to 1.26.11 to address GO-2026-6859, an HTTP/1 server crash due to a MaxBytesReader header race. ([#4831](https://github.com/opentofu/opentofu/pull/4831))
 
+BUG FIXES:
+
+- Downloading metadata of a provider from a network mirror now bounds the read bytes based on the received `Content-Length` header ([#4882](https://github.com/opentofu/opentofu/pull/4882))
+
 ## 1.12.12
 
 BUG FIXES:

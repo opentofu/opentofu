@@ -48,6 +48,8 @@ func TestHTTPMirrorSource(t *testing.T) {
 	failingProvider := addrs.MustParseProviderSourceString("terraform.io/test/fails")
 	redirectingProvider := addrs.MustParseProviderSourceString("terraform.io/test/redirects")
 	redirectLoopProvider := addrs.MustParseProviderSourceString("terraform.io/test/redirect-loop")
+	contentLenSmallerProvider := addrs.MustParseProviderSourceString("registry.opentofu.org/length/smaller")
+	contentLenHigherProvider := addrs.MustParseProviderSourceString("registry.opentofu.org/length/higher")
 	tosPlatform := Platform{OS: "tos", Arch: "m68k"}
 
 	clientBuilderFromHTTPLocation := func(t *testing.T, expectedRetries int) func(ctx context.Context) *retryablehttp.Client {
@@ -68,6 +70,29 @@ func TestHTTPMirrorSource(t *testing.T) {
 
 	t.Run("AvailableVersions for provider that exists", func(t *testing.T) {
 		got, _, err := source.AvailableVersions(context.Background(), existingProvider)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		want := VersionList{
+			MustParseVersion("1.0.0"),
+			MustParseVersion("1.0.1"),
+			MustParseVersion("1.0.2-beta.1"),
+		}
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Errorf("wrong result\n%s", diff)
+		}
+	})
+
+	t.Run("AvailableVersions for provider that specifies content-length smaller than the body content", func(t *testing.T) {
+		_, _, err := source.AvailableVersions(context.Background(), contentLenSmallerProvider)
+		expected := "invalid response content from mirror server: unexpected EOF"
+		if err == nil || !strings.Contains(err.Error(), expected) {
+			t.Fatalf("unexpected error: %s. Expected to contain %q", err, expected)
+		}
+	})
+
+	t.Run("AvailableVersions for provider that specifies content-length higher than the body content", func(t *testing.T) {
+		got, _, err := source.AvailableVersions(context.Background(), contentLenHigherProvider)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -359,6 +384,30 @@ func testHTTPMirrorSourceHandlerNoAuth(resp http.ResponseWriter, req *http.Reque
 		resp.Header().Add("Content-Type", "application/json; ignored=yes")
 		// Just return a retryable status code
 		resp.WriteHeader(http.StatusInternalServerError)
+	case "/registry.opentofu.org/length/smaller/index.json":
+		resp.Header().Add("Content-Type", "application/json")
+		resp.Header().Add("Content-Length", "1") // having the content-length smaller than the body content, limits the reading to the size specified in the header
+		resp.WriteHeader(http.StatusOK)
+		fmt.Fprint(resp, `
+			{
+				"versions": {
+					"1.0.0": {},
+					"1.0.1": {},
+					"1.0.2-beta.1": {}
+				}
+			}`)
+	case "/registry.opentofu.org/length/higher/index.json":
+		resp.Header().Add("Content-Type", "application/json")
+		resp.Header().Add("Content-Length", "1024") // having the content-length higher, reads exactly the content of the body
+		resp.WriteHeader(http.StatusOK)
+		fmt.Fprint(resp, `
+			{
+				"versions": {
+					"1.0.0": {},
+					"1.0.1": {},
+					"1.0.2-beta.1": {}
+				}
+			}`)
 
 	default:
 		resp.WriteHeader(404)
