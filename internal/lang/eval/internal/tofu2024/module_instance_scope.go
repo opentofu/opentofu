@@ -55,6 +55,9 @@ type moduleInstanceScope struct {
 	workingDir string
 	rootDir    string
 	sourceDir  string
+
+	// enable nested resource
+	nestedResource *addrs.Resource
 }
 
 var _ exprs.Scope = (*moduleInstanceScope)(nil)
@@ -197,6 +200,15 @@ func (m *moduleInstanceScope) resolveResourceAttr(addr addrs.Resource, rng tfdia
 			Subject:  rng.ToHCL().Ptr(),
 		})
 		return nil, diags
+	}
+	//nolint:staticcheck // De Morgan's law would make this harder to understand
+	if r.NestedCheckAddr != nil && !(m.nestedResource != nil && r.Addr.Resource.Equal(*m.nestedResource)) {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  `Reference to scoped resource`,
+			Detail:   fmt.Sprintf(`The referenced %s resource %q %q is not available from this context.`, addrs.ResourceModeBlockName(addr.Mode), addr.Type, addr.Name),
+			Subject:  rng.ToHCL().Ptr(),
+		})
 	}
 	return exprs.ValueOf(r), diags
 }

@@ -123,6 +123,8 @@ type ConfiguredResourceInstanceObjectMeta struct {
 	ImportStatement *ImportStatement
 
 	OrphanActionReason plans.ResourceInstanceChangeActionReason
+
+	NestedCheckAddr *addrs.AbsCheck
 }
 
 // NewDefaultConfiguredInstanceObjectMeta returns a newly-allocated

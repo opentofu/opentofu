@@ -174,6 +174,12 @@ func CompileModuleInstance(
 		module,
 		call.CalleeAddr,
 	)
+	ret.checkNodes = compileCheckAssertions(ctx,
+		module.Checks,
+		topScope,
+		call.CalleeAddr,
+		ret.resourceNodes,
+	)
 
 	// Now that we've assembled all of the innards of the module instance,
 	// we'll wire the output values up to the top-level module instance

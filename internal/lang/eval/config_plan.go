@@ -122,6 +122,8 @@ type PlanningResult struct {
 	// value which depends on the result of an action that won't be taken
 	// until the apply phase.
 	RootModuleOutputs RootModuleOutputs
+
+	CheckBlockDependencies addrs.Set[addrs.AbsResourceInstance]
 }
 
 type planningEvalGlue struct {

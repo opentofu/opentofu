@@ -13,8 +13,10 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/lang/eval"
+	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/objchange"
 	"github.com/opentofu/opentofu/internal/providers"
@@ -23,9 +25,7 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance) (*resourceInstanceObject, tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
+func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance) (ret *resourceInstanceObject, diags tfdiags.Diagnostics) {
 	tracer := contextTracer(ctx)
 	if cb := tracer.StartDataResourceInstancePlanning; cb != nil {
 		ctx = cb(ctx, inst.Addr)
@@ -46,8 +46,9 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 	// only for ancillary uses like the "tofu console" command) and so the
 	// metadata is always exclusively from the configuration.
 	meta := exec.BuildResourceInstanceObjectMeta(inst.Addr.CurrentObject(), configMeta, (*states.ResourceInstanceObjectFullSrc)(nil))
+	nestedCheck := meta.NestedCheckAddr != nil
 
-	ret := &resourceInstanceObject{
+	ret = &resourceInstanceObject{
 		Addr:               inst.Addr.CurrentObject(),
 		PrevRoundAddr:      inst.Addr.CurrentObject(),
 		ConfigDependencies: addrs.MakeSet[addrs.AbsResourceInstanceObject](),
@@ -94,6 +95,60 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 		return ret, diags
 	}
 
+	if nestedCheck {
+		defer func() {
+			if diags.HasErrors() {
+				// I don't love doing the check reporting in the engine.  It's weird and feels wrong.
+				// However, given the design of the diags flow in the apply engine, this is currently
+				// the only option.
+				checks.ReportCheckInContext(ctx, meta.NestedCheckAddr, addrs.CheckDataResource, checks.StatusFail, diags.Err().Error())
+				ret.PlaceholderValue = exprs.AsEvalError(ret.PlaceholderValue)
+			} else {
+				checks.ReportCheckInContext(ctx, meta.NestedCheckAddr, addrs.CheckDataResource, checks.StatusPass, "")
+			}
+			// We're just going to jump in here and hide away any errors for nested
+			// data blocks.
+			// NOTE: this only works because of named return values and I don't love it.
+			diags = tfdiags.OverrideAll(diags, tfdiags.Warning, func() tfdiags.DiagnosticExtraWrapper {
+				return &addrs.CheckRuleDiagnosticExtra{
+					CheckRule: addrs.NewCheckRule(ret.Addr.InstanceAddr, addrs.CheckDataResource, 0),
+				}
+			})
+
+			if ret.PlannedChange != nil || p.planCtx.refreshOnly {
+				// Already planned
+				return
+			}
+			// If we are a nested block, then we want to create a plannedChange that
+			// tells OpenTofu to reload the data block during the apply stage even if
+			// we managed to get the data now.
+			// Another consideration is that if we failed to load the data, we need to
+			// disguise that for a nested block. Nested blocks will report the overall
+			// check as failed but won't affect the rest of the plan operation or block
+			// an apply operation.
+
+			ret.PlannedChange = &plans.ResourceInstanceChange{
+				Addr:        ret.Addr.InstanceAddr,
+				PrevRunAddr: ret.PrevRoundAddr.InstanceAddr,
+				ProviderAddr: addrs.AbsProviderConfig{
+					// FIXME: This is a lossy shim to the old-style provider instance
+					// address representation, since our old models aren't yet updated
+					// to support the modern one. It cannot handle a provider config
+					// inside a module call that uses count or for_each.
+					Module:   providerInstAddr.Config.Module.Module(),
+					Provider: providerInstAddr.Config.Config.Provider,
+					Alias:    providerInstAddr.Config.Config.Alias,
+				},
+				Change: plans.Change{
+					Action: plans.Read,
+					Before: cty.NullVal(ret.PlaceholderValue.Type()),
+					After:  ret.PlaceholderValue,
+				},
+				ActionReason: plans.ResourceInstanceReadBecauseCheckNested,
+			}
+		}()
+	}
+
 	providerClient, moreDiags := p.providerClient(ctx, providerInstAddr)
 	if providerClient == nil {
 		moreDiags = moreDiags.Append(tfdiags.AttributeValue(
@@ -116,6 +171,9 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 	if depsPending || !configKnown {
 		var reason plans.ResourceInstanceChangeActionReason
 		switch {
+		case nestedCheck:
+			// Check takes precedence
+			reason = plans.ResourceInstanceReadBecauseCheckNested
 		case !configKnown:
 			// log.Printf("[TRACE] planDataSource: %s configuration not fully known yet, so deferring to apply phase", n.Addr)
 			reason = plans.ResourceInstanceReadBecauseConfigUnknown

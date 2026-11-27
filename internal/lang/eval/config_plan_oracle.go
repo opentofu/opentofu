@@ -82,8 +82,19 @@ func (o *PlanningOracle) CheckAll(ctx context.Context) tfdiags.Diagnostics {
 }
 
 func (o *PlanningOracle) PlanningResult(ctx context.Context) *PlanningResult {
+	checkDeps := addrs.MakeSet[addrs.AbsResourceInstance]()
+
+	for _, mod := range evalglue.ModuleInstancesDeep(ctx, o.root) {
+		for check := range mod.CheckAssertions(ctx) {
+			for dep := range check.ResourceDependencies(ctx) {
+				checkDeps.Add(dep)
+			}
+		}
+	}
+
 	return &PlanningResult{
-		RootModuleOutputs: CollectRootModuleOutputs(ctx, o.root),
+		RootModuleOutputs:      CollectRootModuleOutputs(ctx, o.root),
+		CheckBlockDependencies: checkDeps,
 	}
 }
 

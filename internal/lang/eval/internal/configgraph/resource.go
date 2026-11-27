@@ -68,6 +68,8 @@ type Resource struct {
 	// The valuer must return something that can be converted to [cty.Bool].
 	PreventDestroyValuer *OnceValuer
 
+	NestedCheckAddr *addrs.AbsCheck
+
 	DeclRange tfdiags.SourceRange
 
 	// instancesResult tracks the process of deciding which instances are

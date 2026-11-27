@@ -39,6 +39,7 @@ type CompiledModuleInstance struct {
 	moduleCallNodes     map[addrs.ModuleCall]*configgraph.ModuleCall
 	providerConfigNodes map[addrs.LocalProviderConfig]*configgraph.ProviderConfig
 	providerLocalNames  map[addrs.Provider]string
+	checkNodes          map[addrs.Check]*configgraph.CheckAssertions
 
 	moveStatements []refactoring.MoveStatement
 	importNodes    []*configgraph.Import
@@ -93,6 +94,10 @@ func (c *CompiledModuleInstance) CheckAll(ctx context.Context) tfdiags.Diagnosti
 	for _, n := range c.importNodes {
 		cg.CheckChild(ctx, n)
 	}
+	for _, n := range c.checkNodes {
+		cg.CheckChild(ctx, n)
+	}
+
 	// TODO: Once we have support for module calls we'll need to check both
 	// the calls _and_ the nested [evalglue.CompiledModuleInstance] objects
 	// that encapsulate the child contents, which might potentially use a
@@ -268,6 +273,8 @@ func (c *CompiledModuleInstance) ResourceInstanceObjectMeta(ctx context.Context,
 	ret.Provider.Instance = &providerInstAddr
 
 	ret.PostCreateProvisioners = prepareResourceProvisioners(inst.CreateProvisioners)
+
+	ret.NestedCheckAddr = inst.NestedCheckAddr
 
 	// TODO: All of the other fields of ConfiguredResourceInstanceObjectMeta
 
@@ -536,4 +543,14 @@ func (c *CompiledModuleInstance) DetectImplicitMoveForAddress(ctx context.Contex
 	}
 
 	return nil
+}
+
+func (c *CompiledModuleInstance) CheckAssertions(ctx context.Context) iter.Seq[*configgraph.CheckAssertions] {
+	return func(yield func(*configgraph.CheckAssertions) bool) {
+		for _, check := range c.checkNodes {
+			if !yield(check) {
+				return
+			}
+		}
+	}
 }

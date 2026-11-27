@@ -7,6 +7,7 @@ package tofu
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/zclconf/go-cty/cty"
@@ -437,6 +438,9 @@ check "error" {
 				},
 				ReadDataSourceFn: func(request providers.ReadDataSourceRequest) providers.ReadDataSourceResponse {
 					return providers.ReadDataSourceResponse{
+						State: cty.ObjectVal(map[string]cty.Value{
+							"number": cty.NumberIntVal(-1),
+						}),
 						Diagnostics: tfdiags.Diagnostics{tfdiags.Sourceless(tfdiags.Error, "data source read failed", "something bad happened and the provider couldn't read the data source")},
 					}
 				},
@@ -538,6 +542,9 @@ check "error" {
 				},
 				ReadDataSourceFn: func(request providers.ReadDataSourceRequest) providers.ReadDataSourceResponse {
 					return providers.ReadDataSourceResponse{
+						State: cty.ObjectVal(map[string]cty.Value{
+							"number": cty.NumberIntVal(-1),
+						}),
 						Diagnostics: tfdiags.Diagnostics{tfdiags.Sourceless(tfdiags.Error, "data source read failed", "something bad happened and the provider couldn't read the data source")},
 					}
 				},
@@ -725,6 +732,7 @@ check "error" {
 				initialState = test.state
 			}
 
+			t.Logf("Planing")
 			plan, diags := ctx.Plan(context.Background(), configs, initialState, &PlanOpts{
 				Mode: plans.NormalMode,
 			})
@@ -739,6 +747,7 @@ check "error" {
 				test.providerHook(test.provider)
 			}
 
+			t.Logf("Applying")
 			state, diags := ctx.Apply(context.Background(), plan, configs, nil)
 			if validateCheckDiagnostics(t, "apply", test.applyWarning, test.applyError, diags) {
 				return
@@ -751,11 +760,23 @@ check "error" {
 func validateCheckDiagnostics(t *testing.T, stage string, expectedWarning, expectedError string, actual tfdiags.Diagnostics) bool {
 	SkipExperimental(t, ExperimentalFeatureChecks)
 
+	removeNewProblemReports := func(in string) string {
+		var out []string
+		for line := range strings.Lines(in) {
+			if !strings.Contains(line, "This problem was reported by the ") && len(strings.TrimSpace(line)) != 0 {
+				out = append(out, line)
+			}
+		}
+		return strings.Join(out, "")
+	}
+
 	if expectedError != "" {
+		expectedError = removeNewProblemReports(expectedError)
+
 		if !actual.HasErrors() {
 			t.Errorf("expected %s to error with \"%s\", but no errors were returned", stage, expectedError)
-		} else if expectedError != actual.Err().Error() {
-			t.Errorf("expected %s to error with \"%s\" but found \"%s\"", stage, expectedError, actual.Err())
+		} else if gotError := removeNewProblemReports(actual.Err().Error()); !strings.Contains(gotError, expectedError) {
+			t.Errorf("expected %s to error with \"%s\" but found \"%s\"", stage, expectedError, gotError)
 		}
 
 		// If we expected an error then we won't finish the rest of the test.
@@ -763,11 +784,13 @@ func validateCheckDiagnostics(t *testing.T, stage string, expectedWarning, expec
 	}
 
 	if expectedWarning != "" {
+		expectedWarning = removeNewProblemReports(expectedWarning)
+
 		warnings := actual.ErrWithWarnings()
 		if actual.ErrWithWarnings() == nil {
 			t.Errorf("expected %s to warn with \"%s\", but no errors were returned", stage, expectedWarning)
-		} else if expectedWarning != warnings.Error() {
-			t.Errorf("expected %s to warn with \"%s\" but found \"%s\"", stage, expectedWarning, warnings)
+		} else if gotWarnings := removeNewProblemReports(warnings.Error()); !strings.Contains(gotWarnings, expectedWarning) {
+			t.Errorf("expected %s to warn with \"%s\" but found \"%s\"", stage, expectedWarning, gotWarnings)
 		}
 	} else {
 		if actual.ErrWithWarnings() != nil {

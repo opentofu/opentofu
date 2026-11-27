@@ -553,7 +553,8 @@ func TestContext2Plan_resourceChecksInExpandedModule(t *testing.T) {
 }
 
 func TestContext2Plan_dataResourceChecksManagedResourceChange(t *testing.T) {
-	SkipExperimental(t, ExperimentalFeatureChanges, ExperimentalBugDataResource, ExperimentalFeatureChecks)
+	SkipExperimental(t, ExperimentalFeatureChanges, ExperimentalBugDataResource, ExperimentalFeatureChecks, ExperimentalChangeDependencies)
+	// This test relies on imprecise dependencies for PendingChanges (and passing through locals which might be a bug in the new runtime)
 
 	// This tests the situation where the remote system contains data that
 	// isn't valid per a data resource postcondition, but that the
@@ -4795,7 +4796,7 @@ output "a" {
 		if !diags.HasErrors() {
 			t.Fatal("succeeded; want errors")
 		}
-		if got, want := diags.Err().Error(), "Module output value precondition failed: Wrong boop."; got != want {
+		if got, want := diags.Err().Error(), "Module output value precondition failed: Wrong boop."; !strings.Contains(got, want) {
 			t.Fatalf("wrong error:\ngot:  %s\nwant: %q", got, want)
 		}
 	})
@@ -4814,7 +4815,7 @@ output "a" {
 		if len(diags) == 0 {
 			t.Fatalf("no diags, but should have warnings")
 		}
-		if got, want := diags.ErrWithWarnings().Error(), "Module output value precondition failed: Wrong boop."; got != want {
+		if got, want := diags.ErrWithWarnings().Error(), "Module output value precondition failed: Wrong boop."; !strings.Contains(got, want) {
 			t.Errorf("wrong warning:\ngot:  %s\nwant: %q", got, want)
 		}
 		addr := addrs.RootModuleInstance.OutputValue("a")

@@ -93,6 +93,10 @@ func (c AbsCheck) UniqueKey() UniqueKey {
 	return absCheckUniqueKey(c.String())
 }
 
+func (c AbsCheck) Equal(o AbsCheck) bool {
+	return c.Check.Equal(o.Check) && c.Module.Equal(o.Module)
+}
+
 func (c AbsCheck) checkableSigil() {}
 
 // CheckRule returns an address for a given rule type within the check block.

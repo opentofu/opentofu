@@ -188,6 +188,8 @@ func finalizePlan(ctx context.Context, intermediate *planContextResult, provider
 		additionalStateDependencies = additionalStateDependencies.Union(out.ResourceDependencies)
 	}
 
+	additionalStateDependencies = additionalStateDependencies.Union(intermediate.CheckBlockDependencies)
+
 	execGraph := buildExecutionGraph(
 		intermediate.ResourceInstanceObjects,
 		effectiveReplaceOrders,

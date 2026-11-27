@@ -26,8 +26,11 @@ func normalPlan(ctx context.Context, opts *PlanOpts, prevRoundState *states.Stat
 	checkReport := &checks.ReportedChecks{}
 	ctx = checks.ContextWithCheckReporting(ctx, checkReport)
 	ctx = checks.ContextWithSeverity(ctx, func(addr addrs.Checkable) tfdiags.Severity {
-		if addr.CheckableKind() == addrs.CheckableInputVariable {
+		switch addr.CheckableKind() {
+		case addrs.CheckableInputVariable:
 			return tfdiags.Error
+		case addrs.CheckableCheck:
+			return tfdiags.Warning
 		}
 		if opts.Mode == plans.RefreshOnlyMode {
 			return tfdiags.Warning
@@ -66,9 +69,12 @@ func normalPlan(ctx context.Context, opts *PlanOpts, prevRoundState *states.Stat
 	moreDiags = oracle.CheckAll(ctx)
 	diags = diags.Append(moreDiags)
 
+	planResult := oracle.PlanningResult(ctx)
+
 	// Record output values and resource dependencies for the plan
 	planCtx.rootOutput.Previous = prevRoundState.EnsureModule(addrs.RootModuleInstance).OutputValues
-	planCtx.rootOutput.Current = oracle.PlanningResult(ctx).RootModuleOutputs
+	planCtx.rootOutput.Current = planResult.RootModuleOutputs
+	planCtx.checkBlockDependencies = planResult.CheckBlockDependencies
 
 	intermediate, moreDiags := glue.Finalize(ctx, false)
 	diags = diags.Append(moreDiags)

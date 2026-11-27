@@ -353,6 +353,8 @@ type ResourceInstanceObjectMeta struct {
 	Status states.ObjectStatus
 
 	OrphanActionReason plans.ResourceInstanceChangeActionReason
+
+	NestedCheckAddr *addrs.AbsCheck
 }
 
 // BuildResourceInstanceObjectMeta constructs a [ResourceInstanceObjectMeta]
@@ -502,6 +504,10 @@ func BuildResourceInstanceObjectMeta[SV states.ValueOrJSONEquivalent](
 		if fromModule.ImportStatement != nil {
 			// Conflicts are handled during plan finalize
 			ret.ImportStatement = fromModule.ImportStatement
+		}
+
+		if fromModule.NestedCheckAddr != nil {
+			ret.NestedCheckAddr = fromModule.NestedCheckAddr
 		}
 
 		// TODO: Everything else

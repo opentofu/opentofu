@@ -107,6 +107,8 @@ type ResourceInstance struct {
 	// will evaluate the resource value's expression.
 	Postconditions func(ctx context.Context, value cty.Value) iter.Seq[*CheckRule]
 
+	NestedCheckAddr *addrs.AbsCheck
+
 	// Glue is provided by the system that "compiled" this [ResourceInstance]
 	// object to allow calling back into that system to ask further questions
 	// that arise dynamically during evaluation but whose results vary based
