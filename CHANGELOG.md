@@ -146,6 +146,10 @@ BUG FIXES:
 - `tofu plan`: Performance improved for large depends_on chains. ([#4465](https://github.com/opentofu/opentofu/4465))
 - SSH connections through an HTTP proxy now report a connection error instead of crashing when the proxy fails to answer the CONNECT request. ([#4358](https://github.com/opentofu/opentofu/issues/4358))
 
+BREAKING CHANGES:
+
+- `ssh` connection for provisioners now uses `bastion_host_key` correctly instead of using the `host_key` as it did before. ([#4845](https://github.com/opentofu/opentofu/pull/4845))
+
 ## Previous Releases
 
 For information on prior major and minor releases, refer to their changelogs:
