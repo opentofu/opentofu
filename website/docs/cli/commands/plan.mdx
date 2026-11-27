@@ -418,9 +418,11 @@ instead, which works across all commands and makes OpenTofu consistently look
 in the given directory for all files it would normally read or write in the
 current working directory.
 
-### Exit status
+### Exit Status
 
-`tofu plan` can result in several exit statuses. The `-detailed-exitcode` code behavior is
-documented above however, in cases where `tofu init` is required to be run the exit code will
-be `4`, and it will exit in `1` for any other error.
+`tofu plan` can result in several exit statuses. In cases where `tofu init` is required to be run
+before an operation, exit code `4` is returned. Other errors will return `1`. Otherwise an exitcode
+of 0 will be returned, indicating success.
 
+When `-detailed-exitcode` is provided, the an exit code of `2` will be returned if the plan
+succeeded and there were changes present, or `0` if there were no changes.

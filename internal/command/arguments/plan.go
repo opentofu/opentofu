@@ -48,7 +48,8 @@ func BindPlan(cli *CommandLine) *Plan {
 		`Return detailed exit codes when the command exits. The detailed exit codes are:
   0 - Succeeded but no changes proposed
   1 - Planning failed with an error
-  2 - Succeeded and changes are proposed`)
+  2 - Succeeded and changes are proposed
+  4 - Planning failed as init is required`)
 	cli.StringVar(&plan.OutPath, "out", "",
 		`Write a plan file to the given path. This can be used as input to the "apply" command.`,
 	).SetDisplay("=path")

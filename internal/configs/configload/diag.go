@@ -25,7 +25,7 @@ func (e ExitCode) ExitCode() int {
 }
 
 const (
-	// ExitStatus is used to indicate the command ended in succes.
+	// ExitStatus is used to indicate the command ended in success.
 	ExitSuccess ExitCode = 0
 	// ExitFailure is the result of a command failure.
 	ExitFailure ExitCode = 1
@@ -36,7 +36,7 @@ const (
 
 // ExitStatus checks if any of the diagnostics includes a
 // DiagnosticExitStatus in the ExtraInfo and returns its exit code, or
-// returns 1 if the diags have any errors
+// returns 1 if the diags have any errors.
 func ExitStatus(diags tfdiags.Diagnostics) int {
 	var exit diagnosticExitStatus = ExitSuccess
 	if diags.HasErrors() {
@@ -44,6 +44,9 @@ func ExitStatus(diags tfdiags.Diagnostics) int {
 	}
 
 	for _, d := range diags {
+		// The first diagnostic with a diagnosticExitStatus in the
+		// extra info is returned, as the issues they pertain to are
+		// fixed, those exit codes will be used in future runs
 		if e, ok := d.ExtraInfo().(diagnosticExitStatus); ok {
 			exit = e
 			break

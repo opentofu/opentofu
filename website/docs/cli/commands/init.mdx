@@ -221,3 +221,17 @@ the root module directory, use
 instead, which works across all commands and makes OpenTofu consistently look
 in the given directory for all files it would normally read or write in the
 current working directory.
+
+## Operation Exit Codes
+
+When any of the `tofu` operation commands such as `plan`, `apply`, `refresh` and
+`destroy` are run there are specific exit codes that may be returned.
+
+* `0` is returned to indicate success.
+* `1` is returned to indicate that an error occurred.
+* `4` is returned to indicate that `tofu init` must be run.
+
+There is a special case for [`tofu plan` when `-detailed-exitcode` is provided](./plan.mdx#exit-status).
+
+For all other commands, exit code `0` indicates success and `1` indicates that an
+error was encountered.

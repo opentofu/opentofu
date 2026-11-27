@@ -146,13 +146,14 @@ func (m *Meta) Backend(ctx context.Context, opts *BackendOpts, enc encryption.St
 					// Don't mention "tofu init" specifically if we're running in an automation wrapper
 					suggestion = "You must install the required plugins before running OpenTofu operations."
 				}
-				diags = diags.Append(tfdiags.Sourceless(
+				diags = diags.Append(tfdiags.SourcelessWithExtra(
 					tfdiags.Error,
 					"Required plugins are not installed",
 					fmt.Sprintf(
 						"The installed provider plugins are not consistent with the packages selected in the dependency lock file:%s\n\nOpenTofu uses external plugins to integrate with a variety of different infrastructure services. %s",
 						buf.String(), suggestion,
 					),
+					configload.ExitInitRequired,
 				))
 				return nil, diags
 			}
