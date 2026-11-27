@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log"
 	"reflect"
+	"runtime"
 	"slices"
 	"strings"
 
@@ -1197,22 +1198,15 @@ func (c *InitCommand) platformSupportWarnings() tfdiags.Diagnostics {
 		// they are willing to maintain support for.
 		return diags
 	}
-	// This is not active yet but is a placeholder for a warning to be added
-	// later once one of the various possible triggers for end of darwin_amd64
-	// support occurs. Most likely this will come after the last macOS release
-	// which supports this platform is no longer supported by Apple.
-	/*
-		if runtime.GOARCH == "darwin" || runtime.GOARCH == "amd64" {
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Warning,
-				"Support for macOS on Intel CPUs is ending soon",
-				fmt.Sprintf(
-					"OpenTofu v1.TODO is the last release series that will include official release packages for macOS on Intel CPUs.\n\nWe recommend planning to migrate either to macOS on Apple Silicon or to another operating system that's still supported on Intel CPUs, such as Linux.",
-					getproviders.CurrentPlatform,
-				),
-			))
-		}
-	*/
+
+	if runtime.GOOS == "darwin" && runtime.GOARCH == "amd64" {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Warning,
+			"Support for macOS on Intel CPUs is ending soon",
+			"OpenTofu v1.14 is the last release series that will include official release packages for macOS on Intel CPUs.\n\nWe recommend planning to migrate either to macOS on Apple Silicon or to another operating system that's still supported on Intel CPUs, such as Linux.",
+		))
+	}
+
 	return diags
 }
 

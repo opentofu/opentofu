@@ -10,6 +10,12 @@ UPGRADE NOTES:
 
     Third parties may continue to offer their own OpenTofu builds targeting platforms that we don't officially support. This only affects the official packages published directly by the OpenTofu project in this repository's release artifacts.
 
+- Official builds for macOS on Intel CPUs are ending. v1.14 is the last release series that will include them. ([#4743](https://github.com/opentofu/opentofu/issues/4743))
+
+    If you use the official OpenTofu packages on an Intel Mac, plan to move to macOS on Apple Silicon (`darwin_arm64`) or to another OS that still supports Intel CPUs, such as Linux, before upgrading past the v1.14 series.
+
+    Third parties may continue to offer their own OpenTofu builds targeting platforms that we don't officially support. This only affects the official packages published directly by the OpenTofu project in this repository's release artifacts.
+
 - `provider_meta` blocks in `terraform` blocks are now just silently ignored by OpenTofu, behaving as if they were not declared at all. ([#4600](https://github.com/opentofu/opentofu/pull/4600))
 
 ENHANCEMENTS:

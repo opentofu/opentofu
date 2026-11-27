@@ -3153,7 +3153,7 @@ func TestInit_platformSupportWarnings(t *testing.T) {
 	// Platform support warnings only appear in official builds, so we'll
 	// pretend to be one just for the duration of this test.
 	tofuVersion.WithFakedOfficialBuild(true, func() {
-		expectWarning := runtime.GOARCH == "386" || runtime.GOARCH == "arm"
+		expectWarning := runtime.GOOS == "darwin" && runtime.GOARCH == "amd64"
 
 		// We use an empty directory for this test, because the warning we're
 		// testing for is produced very early on in "tofu init", regardless
@@ -3173,12 +3173,12 @@ func TestInit_platformSupportWarnings(t *testing.T) {
 			t.Fatal("unexpected failure")
 		}
 
-		gotWarning := strings.Contains(output.All(), "Support for 32-bit CPU architectures is ending soon")
+		gotWarning := strings.Contains(output.All(), "Support for macOS on Intel CPUs is ending soon")
 		if gotWarning && !expectWarning {
-			t.Error("unexpected warning about 32-bit CPU architectures")
+			t.Error("unexpected warning about macOS on Intel CPUs")
 		}
 		if !gotWarning && expectWarning {
-			t.Error("missing expected warning about 32-bit CPU architectures")
+			t.Error("missing expected warning about macOS on Intel CPUs")
 		}
 	})
 }
