@@ -121,7 +121,7 @@ func (opts JsonOpts) processArray(change structured.ChangeSlice) computed.Diff {
 		return (GetType(a) == Object && GetType(b) == Object) || ShouldDiffMultilineStrings(a, b)
 	}
 
-	return opts.Array(collections.TransformSlice(change.Before, change.After, processIndices, shouldDiffElement))
+	return opts.Array(collections.TransformSlice(change.Before, change.After, processIndices, shouldDiffElement, Equal))
 }
 
 func (opts JsonOpts) processObject(change structured.ChangeMap) computed.Diff {

@@ -24,14 +24,24 @@ func ValueEqual(x, y cty.Value) bool {
 	return false
 }
 
+// Limits on how much work the subsequence search may do before treating
+// everything between the matched prefix and suffix as changed. The trace of
+// furthest reaches grows with the square of the round count, so the round
+// limit keeps it under ~34 MB; the cost limit bounds the search time.
+const (
+	lcsMaxRounds = 2048
+	lcsMaxCost   = 1 << 24
+)
+
 // LongestCommonSubsequence finds a sequence of values that are common to both
-// x and y, with the same relative ordering as in both collections. This result
+// xs and ys, with the same relative ordering as in both collections. This result
 // is useful as a first step towards computing a diff showing added/removed
 // elements in a sequence.
 //
-// The approached used here is a "naive" one, assuming that both xs and ys will
-// generally be small in most reasonable OpenTofu configurations. For larger
-// lists the time/space usage may be sub-optimal.
+// The search is Myers' O((N+M)·D) algorithm, where D is the number of elements
+// that are not part of the subsequence. When the slices are so different that
+// the search would be too expensive, only the matched prefix and suffix are
+// returned and everything in between is treated as changed.
 //
 // A pair of lists may have multiple longest common subsequences. In that
 // case, the one selected by this function is undefined.
@@ -40,84 +50,140 @@ func LongestCommonSubsequence[V any](xs, ys []V, equals func(x, y V) bool) []V {
 		return make([]V, 0)
 	}
 
-	c := make([]int, len(xs)*len(ys))
-	eqs := make([]bool, len(xs)*len(ys))
-	w := len(xs)
+	// The common prefix and suffix always belong to the subsequence, so match
+	// them up front and only search through what remains in the middle.
+	p := 0
+	for p < len(xs) && p < len(ys) && equals(xs[p], ys[p]) {
+		p++
+	}
+	out := make([]V, 0, min(len(xs), len(ys)))
+	out = append(out, xs[:p]...)
+	xs, ys = xs[p:], ys[p:]
+	if len(xs) == 0 || len(ys) == 0 {
+		return out
+	}
 
-	for y := 0; y < len(ys); y++ {
-		for x := 0; x < len(xs); x++ {
-			eq := false
-			if equals(xs[x], ys[y]) {
-				eq = true
-				eqs[(w*y)+x] = true // equality tests can be expensive, so cache it
+	suffix := 0
+	for suffix < len(xs) && suffix < len(ys) && equals(xs[len(xs)-1-suffix], ys[len(ys)-1-suffix]) {
+		suffix++
+	}
+	tail := xs[len(xs)-suffix:]
+	xs, ys = xs[:len(xs)-suffix], ys[:len(ys)-suffix]
+
+	middle := lcsMiddle(xs, ys, equals)
+	out = append(out, middle...)
+	return append(out, tail...)
+}
+
+// lcsMiddle returns a longest common subsequence of xs and ys, or nil when
+// the search exceeds the limits. The slices must not start or end with equal
+// elements; the caller trims them first.
+//
+// The search walks a furthest-reaching path from (0, 0) one edit per round,
+// as described in Myers' paper "An O(ND) Difference Algorithm and Its
+// Variations". Each round's furthest reaches are recorded in a trace, which
+// is walked back afterwards to collect the matches.
+func lcsMiddle[V any](xs, ys []V, equals func(x, y V) bool) []V {
+	n, m := len(xs), len(ys)
+
+	// The end is reached after at most n+m edits.
+	rounds := min(n+m, lcsMaxRounds)
+
+	// v holds, per diagonal k = x - y, how far the search has advanced from
+	// (0, 0); -1 means not reached yet.
+	v := make([]int, 2*rounds+3)
+	offset := rounds + 1
+	for i := range v {
+		v[i] = -1
+	}
+	v[offset+1] = 0
+
+	// trace holds a snapshot of the reached diagonals after every round;
+	// round D's snapshot starts at D*D and holds diagonals -D through D.
+	var trace []int
+
+	cost := lcsMaxCost
+	d := 0
+	for {
+		if d > rounds {
+			return nil
+		}
+		found := false
+		for k := -d; k <= d; k += 2 {
+			cost--
+			if cost < 0 {
+				return nil
 			}
-			if eq {
-				// Sequence gets one longer than for the cell at top left,
-				// since we'd append a new item to the sequence here.
-				if x == 0 || y == 0 {
-					c[(w*y)+x] = 1
-				} else {
-					c[(w*y)+x] = c[(w*(y-1))+(x-1)] + 1
+			off := offset + k
+			// A path with d edits reaches diagonal k from diagonal k+1 by
+			// moving down, or from diagonal k-1 by moving right. Keep the
+			// stored reach when neither move fits in the grid.
+			x := v[off]
+			if right := v[off-1]; right >= 0 && right+1 > x {
+				x = right + 1
+			}
+			if down := v[off+1]; down >= 0 && down > x {
+				x = down
+			}
+			if x < 0 || x > n || x-k > m {
+				continue
+			}
+			y := x - k
+			for x < n && y < m && equals(xs[x], ys[y]) {
+				x++
+				y++
+				cost--
+				if cost < 0 {
+					return nil
 				}
-			} else {
-				// We follow the longest of the sequence above and the sequence
-				// to the left of us in the matrix.
-				l := 0
-				u := 0
-				if x > 0 {
-					l = c[(w*y)+(x-1)]
-				}
-				if y > 0 {
-					u = c[(w*(y-1))+x]
-				}
-				if l > u {
-					c[(w*y)+x] = l
-				} else {
-					c[(w*y)+x] = u
-				}
+			}
+			v[off] = x
+			if x == n && y == m {
+				found = true
+				break
 			}
 		}
-	}
-
-	// The bottom right cell tells us how long our longest sequence will be
-	seq := make([]V, c[len(c)-1])
-
-	// Now we will walk back from the bottom right cell, finding again all
-	// of the equal pairs to construct our sequence.
-	x := len(xs) - 1
-	y := len(ys) - 1
-	i := len(seq) - 1
-
-	for x > -1 && y > -1 {
-		if eqs[(w*y)+x] {
-			// Add the value to our result list and then walk diagonally
-			// up and to the left.
-			seq[i] = xs[x]
-			x--
-			y--
-			i--
-		} else {
-			// Take the path with the greatest sequence length in the matrix.
-			l := 0
-			u := 0
-			if x > 0 {
-				l = c[(w*y)+(x-1)]
-			}
-			if y > 0 {
-				u = c[(w*(y-1))+x]
-			}
-			if l > u {
-				x--
-			} else {
-				y--
-			}
+		trace = append(trace, v[offset-d:offset+d+1]...)
+		if found {
+			break
 		}
+		d++
 	}
 
-	if i > -1 {
-		// should never happen if the matrix was constructed properly
-		panic("not enough elements in sequence")
-	}
+	// Walk the trace back from (n, m), collecting the matched elements. The
+	// matches come out in reverse order, so they are flipped at the end.
+	seq := make([]V, 0, min(n, m))
+	x, y := n, m
+	for ; d > 0; d-- {
+		r := trace[d*d : (d+1)*(d+1)] // round d's snapshot, indexed by k+d
+		k := x - y
+		prevK := k - 1
+		if k == -d || (k != d && r[k-1+d] < r[k+1+d]) {
+			prevK = k + 1
+		}
+		p := trace[(d-1)*(d-1) : d*d] // round d-1's snapshot, indexed by k+d-1
+		px := p[prevK + d - 1]
+		py := px - prevK
 
+		// The edit lands at (px, py+1) when it moved down, or at (px+1, py)
+		// when it moved right, and the matches run from there to (x, y). They
+		// are collected back to front, like everything else on the way out.
+		lx := px + 1
+		if prevK == k+1 {
+			lx = px
+		}
+		for ix := x - 1; ix >= lx; ix-- {
+			seq = append(seq, xs[ix])
+		}
+		x, y = px, py
+	}
+	for x > 0 && y > 0 {
+		x--
+		y--
+		seq = append(seq, xs[x])
+	}
+	for i, j := 0, len(seq)-1; i < j; i, j = i+1, j-1 {
+		seq[i], seq[j] = seq[j], seq[i]
+	}
 	return seq
 }
