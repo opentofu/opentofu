@@ -17,7 +17,6 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	awsbase "github.com/hashicorp/aws-sdk-go-base/v2"
 	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/version"
@@ -180,7 +179,7 @@ func TestConfig_asAWSBase(t *testing.T) {
 
 			config := new(Config)
 
-			diags = gohcl.DecodeBody(input.Body, nil, config)
+			diags = config.DecodeConfig(input.Body, nil)
 			if diags.HasErrors() {
 				t.Fatal(diags.Error())
 			}
@@ -200,6 +199,48 @@ func TestConfig_asAWSBase(t *testing.T) {
 				t.Fatalf("Expected %s, got %s", spew.Sdump(tc.expected), spew.Sdump(*actual))
 			}
 		})
+	}
+}
+
+// Regression test for opentofu/opentofu#4858: null nested objects must be treated as "not set" instead of panicking.
+func TestConfig_DecodeConfig_nullAssumeRole(t *testing.T) {
+	testCases := map[string]string{
+		"assume_role null":                                `assume_role = null`,
+		"assume_role_with_web_identity null":              `assume_role_with_web_identity = null`,
+		"both null":                                       "assume_role = null\nassume_role_with_web_identity = null",
+		"assume_role from conditional evaluating to null": `assume_role = true ? null : { role_arn = "arn:aws:iam::111111111111:role/x" }`,
+	}
+	for name, extra := range testCases {
+		t.Run(name, func(t *testing.T) {
+			src := "kms_key_id = \"my-kms-key-id\"\nkey_spec = \"AES_256\"\nregion = \"us-east-1\"\n" + extra
+			input, diags := hclsyntax.ParseConfig([]byte(src), "test", hcl.InitialPos)
+			if diags.HasErrors() {
+				t.Fatal(diags.Error())
+			}
+			config := new(Config)
+			diags = config.DecodeConfig(input.Body, nil)
+			if diags.HasErrors() {
+				t.Fatal(diags.Error())
+			}
+			if config.AssumeRole != nil || config.AssumeRoleWithWebIdentity != nil {
+				t.Fatalf("expected nested roles to be unset, got %#v / %#v", config.AssumeRole, config.AssumeRoleWithWebIdentity)
+			}
+			if _, err := config.asAWSBase(); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
+func TestConfig_DecodeConfig_nonObjectAssumeRole(t *testing.T) {
+	src := "kms_key_id = \"k\"\nkey_spec = \"AES_256\"\nregion = \"us-east-1\"\nassume_role = \"foo\"\n"
+	input, diags := hclsyntax.ParseConfig([]byte(src), "test", hcl.InitialPos)
+	if diags.HasErrors() {
+		t.Fatal(diags.Error())
+	}
+	diags = new(Config).DecodeConfig(input.Body, nil)
+	if !diags.HasErrors() {
+		t.Fatal("expected an error diagnostic for a non-object assume_role")
 	}
 }
 

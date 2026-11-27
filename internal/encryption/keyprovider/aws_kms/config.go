@@ -17,6 +17,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/kms/types"
 	awsbase "github.com/hashicorp/aws-sdk-go-base/v2"
 	baselogging "github.com/hashicorp/aws-sdk-go-base/v2/logging"
+	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/logging"
@@ -62,6 +64,64 @@ type Config struct {
 	ForbiddenAccountIds            []string                   `hcl:"forbidden_account_ids,optional"`
 	RetryMode                      string                     `hcl:"retry_mode,optional"`
 	EncryptionContext              map[string]string          `hcl:"encryption_context,optional"`
+}
+
+var _ keyprovider.SelfDecodingConfig = (*Config)(nil)
+
+// DepsTraversals returns all the references used in the given body.
+func (c *Config) DepsTraversals(body hcl.Body) ([]hcl.Traversal, hcl.Diagnostics) {
+	return gohcl.VariablesInBody(body, c)
+}
+
+// DecodeConfig decodes the body into the config. It exists because gohcl cannot decode a null value into
+// the pointer-to-struct fields (assume_role, assume_role_with_web_identity) and panics instead.
+// Those attributes are decoded here, where null is treated as "not set", like the s3 backend does.
+func (c *Config) DecodeConfig(body hcl.Body, evalCtx *hcl.EvalContext) hcl.Diagnostics {
+	nullableAttrs := []string{"assume_role", "assume_role_with_web_identity"}
+	schema := &hcl.BodySchema{}
+	for _, name := range nullableAttrs {
+		schema.Attributes = append(schema.Attributes, hcl.AttributeSchema{Name: name})
+	}
+	content, remaining, diags := body.PartialContent(schema)
+	if diags.HasErrors() {
+		return diags
+	}
+	diags = diags.Extend(gohcl.DecodeBody(remaining, evalCtx, c))
+
+	decodeNullable := func(name string, target any) bool {
+		attr, ok := content.Attributes[name]
+		if !ok {
+			return false
+		}
+		val, valDiags := attr.Expr.Value(evalCtx)
+		diags = diags.Extend(valDiags)
+		if valDiags.HasErrors() || val.IsNull() {
+			return false
+		}
+		// gohcl panics instead of returning a diagnostic if the value is not an object/map, so check it first.
+		if ty := val.Type(); !val.IsKnown() || (!ty.IsObjectType() && !ty.IsMapType()) {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Unsuitable value type",
+				Detail:   fmt.Sprintf("The attribute %q must be an object or null.", name),
+				Subject:  attr.Expr.Range().Ptr(),
+			})
+			return false
+		}
+		decDiags := gohcl.DecodeValue(val, attr.Expr.StartRange(), attr.Expr.Range(), target)
+		diags = diags.Extend(decDiags)
+		return !decDiags.HasErrors()
+	}
+
+	var assumeRole AssumeRole
+	if decodeNullable("assume_role", &assumeRole) {
+		c.AssumeRole = &assumeRole
+	}
+	var assumeRoleWebIdentity AssumeRoleWithWebIdentity
+	if decodeNullable("assume_role_with_web_identity", &assumeRoleWebIdentity) {
+		c.AssumeRoleWithWebIdentity = &assumeRoleWebIdentity
+	}
+	return diags
 }
 
 func stringAttrEnvFallback(val string, env string) string {
