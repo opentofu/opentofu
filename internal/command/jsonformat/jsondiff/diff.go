@@ -6,8 +6,9 @@
 package jsondiff
 
 import (
-	"github.com/zclconf/go-cty/cty"
 	"reflect"
+
+	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/command/jsonformat/collections"
 	"github.com/opentofu/opentofu/internal/command/jsonformat/computed"
@@ -116,12 +117,11 @@ func (opts JsonOpts) processArray(change structured.ChangeSlice) computed.Diff {
 		return opts.Transform(change.GetChild(beforeIx, afterIx))
 	}
 
-	// This callback is used to determine if we should diff the elements in the slices instead of marking them as deleted and created.
-	shouldDiffElement := func(a, b interface{}) bool {
-		return (GetType(a) == Object && GetType(b) == Object) || ShouldDiffMultilineStrings(a, b)
+	isComparableType := func(v interface{}) bool {
+		return GetType(v) == Object || GetType(v) == String
 	}
 
-	return opts.Array(collections.TransformSlice(change.Before, change.After, processIndices, shouldDiffElement))
+	return opts.Array(collections.TransformSlice(change.Before, change.After, processIndices, isComparableType))
 }
 
 func (opts JsonOpts) processObject(change structured.ChangeMap) computed.Diff {
