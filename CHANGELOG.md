@@ -2,6 +2,11 @@ The v1.13.x release series is supported until **August 1 2027**.
 
 ## 1.13.11 (Unreleased)
 
+SECURITY ADVISORIES:
+
+- `ssh` connection for provisioners now uses `bastion_host_key` correctly instead of using the `host_key` as it did before. ([#4885](https://github.com/opentofu/opentofu/pull/4885))
+  - :exclamation: This change can be considered also a breaking change for those that use `host_key` and bastion configurations. Before this change `host_key` was used instead of `bastion_host_key`. If you are in a situation like that, you need to add the `bastion_host_key` configuration pointing to the same value as `host_key`.
+
 ## 1.13.10
 
 SECURITY ADVISORIES:
