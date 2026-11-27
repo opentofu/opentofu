@@ -119,8 +119,8 @@ func (p Parser) ConfigDirFilesWithTests(dir string, testDirectory string) (prima
 // .tf.json extension.). Note, we explicitly exclude checking for tests here
 // as tests must live alongside actual .tf config files.
 func (p *Parser) IsConfigDir(path string) bool {
-	primaryPaths, overridePaths, _, _, _ := p.dirFiles(path, "")
-	return (len(primaryPaths) + len(overridePaths)) > 0
+	primaryPaths, overridePaths, testPaths, _, _ := p.dirFiles(path, "")
+	return (len(primaryPaths) + len(overridePaths) + len(testPaths)) > 0
 }
 
 func (p *Parser) LoadSymbolFilesInDir(dir string) ([]*symlib.SymbolFile, hcl.Diagnostics) {
@@ -417,7 +417,7 @@ func IsIgnoredFile(name string) bool {
 }
 
 // IsEmptyDir returns true if the given filesystem path contains no OpenTofu
-// configuration files.
+// configuration or test files.
 //
 // Unlike the methods of the Parser type, this function always consults the
 // real filesystem, and thus it isn't appropriate to use when working with
@@ -428,10 +428,10 @@ func IsEmptyDir(path string) (bool, error) {
 	}
 
 	p := NewParser(nil)
-	fs, os, _, _, diags := p.dirFiles(path, "")
+	fs, os, ts, _, diags := p.dirFiles(path, ".")
 	if diags.HasErrors() {
 		return false, diags
 	}
 
-	return len(fs) == 0 && len(os) == 0, nil
+	return len(fs) == 0 && len(os) == 0 && len(ts) == 0, nil
 }
