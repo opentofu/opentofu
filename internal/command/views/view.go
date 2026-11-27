@@ -149,6 +149,14 @@ func (v *View) SetModuleSourceAddrs(cb func(addrs.Module) addrs.ModuleSource) {
 	v.moduleSourceAddrs = cb
 }
 
+func (v *View) GetStreams() *terminal.Streams {
+	return v.streams
+}
+
+func (v *View) SetStreams(streams *terminal.Streams) {
+	v.streams = streams
+}
+
 // Diagnostics renders a set of warnings and errors in human-readable form.
 // Warnings are printed to stdout, and errors to stderr.
 func (v *View) Diagnostics(diags tfdiags.Diagnostics) {

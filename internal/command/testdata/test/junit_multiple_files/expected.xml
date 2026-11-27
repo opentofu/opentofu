@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite assertions="1" errors="0" failures="0" file="main.tftest.hcl" name="main.tftest.hcl" skipped="0" tests="1" time="0" timestamp="2000-01-01T00:00:00Z">
+    <testcase assertions="1" file="main.tftest.hcl" line="1" name="validate_test_resource" time="0"></testcase>
+  </testsuite>
+  <testsuite assertions="1" errors="0" failures="0" file="other.tftest.hcl" name="other.tftest.hcl" skipped="0" tests="1" time="0" timestamp="2000-01-01T00:00:00Z">
+    <testcase assertions="1" file="other.tftest.hcl" line="1" name="validate_test_resource_other" time="0"></testcase>
+  </testsuite>
+</testsuites>
