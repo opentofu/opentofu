@@ -15,6 +15,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/internal/exec"
+	"github.com/opentofu/opentofu/internal/lang/contextstop"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/lang/evalchecks"
 	"github.com/opentofu/opentofu/internal/plans"
@@ -381,6 +382,10 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 	if cb := tracer.StartManagedResourceInstanceObjectPlanChanges; cb != nil {
 		planChangesCtx = cb(ctx, inst.Addr.CurrentObject(), current.Value, unmarkedConfigVal)
 	}
+	diags = diags.Append(contextstop.CheckStop(planChangesCtx))
+	if diags.HasErrors() {
+		return ret, diags
+	}
 	planResp, planDiags := resourceType.PlanChanges(planChangesCtx, &resources.ManagedResourcePlanRequest{
 		Current:            current,
 		DesiredValue:       unmarkedConfigVal,
@@ -391,6 +396,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		if cb := tracer.EndManagedResourceInstanceObjectPlanChanges; cb != nil {
 			cb(planChangesCtx, inst.Addr.CurrentObject(), plans.NoOp, current.Value, cty.DynamicVal, diags)
 		}
+		diags = diags.Append(contextstop.CheckStop(planChangesCtx))
 		return ret, diags
 	}
 
@@ -609,6 +615,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		}
 		cb(planChangesCtx, inst.Addr.CurrentObject(), plannedAction, current.Value, plannedVal, diags)
 	}
+	diags = diags.Append(contextstop.CheckStop(planChangesCtx))
 
 	return ret, diags
 }
@@ -1008,7 +1015,12 @@ func processImport(
 	if cb := tracer.StartManagedResourceInstanceObjectImport; cb != nil {
 		importCtx = cb(ctx, addr, importTarget)
 	}
+	stopDiags := contextstop.CheckStop(importCtx)
+	if stopDiags.HasErrors() {
+		return nil, nil, stopDiags
+	}
 	importState, diags := resourceType.ImportState(importCtx, &resources.ManagedResourceImportStateRequest{Target: importTarget}, addr)
+	diags = diags.Append(stopDiags)
 	if diags.HasErrors() {
 		return nil, nil, diags
 	}
@@ -1016,6 +1028,7 @@ func processImport(
 	if cb := tracer.EndManagedResourceInstanceObjectImport; cb != nil {
 		cb(importCtx, addr)
 	}
+	diags = diags.Append(contextstop.CheckStop(importCtx))
 
 	encodedValue, moreDiags := resourceType.EncodeValue(ctx, importState.Value, addr)
 	diags = diags.Append(moreDiags)
@@ -1067,6 +1080,10 @@ func processRefresh(
 	if cb := tracer.StartManagedResourceInstanceObjectRefresh; cb != nil {
 		refreshCtx = cb(ctx, addr, prevValueForTracing)
 	}
+	diags = diags.Append(contextstop.CheckStop(refreshCtx))
+	if diags.HasErrors() {
+		return nil, nil, diags
+	}
 
 	prevState, moreDiags := resourceType.RefreshState(refreshCtx, prevState, addr)
 	diags = diags.Append(moreDiags)
@@ -1079,6 +1096,7 @@ func processRefresh(
 		// case the tracer is reporting events in the UI.
 		cb(refreshCtx, addr, prevValueForTracing, prevState.Value, diags)
 	}
+	diags = diags.Append(contextstop.CheckStop(refreshCtx))
 
 	if prevState.Value.IsNull() {
 		// Object no longer exists

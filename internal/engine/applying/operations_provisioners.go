@@ -12,6 +12,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/lang/contextstop"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -31,6 +32,10 @@ func (ops *execOperations) runProvisioner(ctx context.Context, objAddr addrs.Abs
 	// Call pre hook
 	if cb := tracer.StartProvisionInstanceStep; cb != nil {
 		ctx = cb(ctx, objAddr.InstanceAddr, prov.Type)
+	}
+	diags = diags.Append(contextstop.CheckStop(ctx))
+	if diags.HasErrors() {
+		return false, diags
 	}
 
 	// If our config or connection info contains any marked values, ensure
@@ -68,6 +73,7 @@ func (ops *execOperations) runProvisioner(ctx context.Context, objAddr addrs.Abs
 	if cb := tracer.StopProvisionInstanceStep; cb != nil {
 		cb(ctx, objAddr.InstanceAddr, prov.Type, applyDiags)
 	}
+	diags = diags.Append(contextstop.CheckStop(ctx))
 
 	if prov.ContinueOnFailure {
 		if applyDiags.HasErrors() {

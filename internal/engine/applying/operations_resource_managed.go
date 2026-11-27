@@ -15,6 +15,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/internal/exec"
+	"github.com/opentofu/opentofu/internal/lang/contextstop"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/resources"
@@ -112,6 +113,10 @@ func (ops *execOperations) ManagedFinalPlan(
 		}
 		ctx = cb(ctx, objAddr, priorVal, configVal, initialPlannedVal)
 	}
+	diags = diags.Append(contextstop.CheckStop(ctx))
+	if diags.HasErrors() {
+		return nil, diags
+	}
 	plannedVal := cty.DynamicVal // reassigned once we have a final value to return
 	if cb := tracer.EndManagedResourceInstanceObjectFinalPlan; cb != nil {
 		priorVal := cty.NullVal(cty.DynamicPseudoType)
@@ -119,6 +124,7 @@ func (ops *execOperations) ManagedFinalPlan(
 			priorVal = prior.State.Value
 		}
 		defer func() { // Extra closure to delay evaluating plannedVal and diags until we actually return
+			diags = diags.Append(contextstop.CheckStop(ctx))
 			cb(ctx, objAddr, priorVal, plannedVal, diags)
 		}()
 	}
@@ -236,8 +242,10 @@ func (ops *execOperations) ManagedFinalPlanForget(
 	if cb := tracer.StartManagedResourceInstanceObjectFinalPlan; cb != nil {
 		ctx = cb(ctx, metadata.Addr, priorVal, plannedVal, plannedVal)
 	}
+	diags = diags.Append(contextstop.CheckStop(ctx))
 	if cb := tracer.EndManagedResourceInstanceObjectFinalPlan; cb != nil {
 		defer func() { // Extra closure to delay evaluating diags until we actually return
+			diags = diags.Append(contextstop.CheckStop(ctx))
 			cb(ctx, metadata.Addr, priorVal, plannedVal, diags)
 		}()
 	}
@@ -324,9 +332,14 @@ func (ops *execOperations) ManagedApply(
 	if cb := tracer.StartManagedResourceInstanceObjectApply; cb != nil {
 		ctx = cb(ctx, plan.Addr, plan.PriorStateVal, plan.PlannedVal)
 	}
+	diags = diags.Append(contextstop.CheckStop(ctx))
+	if diags.HasErrors() {
+		return nil, diags
+	}
 	resultVal := cty.DynamicVal // reassigned once we have a final value to return
 	if cb := tracer.EndManagedResourceInstanceObjectApply; cb != nil {
 		defer func() { // Extra closure to delay evaluating resultVal and diags until we actually return
+			diags = diags.Append(contextstop.CheckStop(ctx))
 			cb(ctx, plan.Addr, resultVal, diags)
 		}()
 	}

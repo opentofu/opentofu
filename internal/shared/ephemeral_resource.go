@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/lang/contextstop"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
@@ -62,6 +63,10 @@ func OpenEphemeralResourceInstance(
 	if cb := tracer.StartEphemeralResourceInstanceOpen; cb != nil {
 		openCtx = cb(ctx, addr)
 	}
+	diags = diags.Append(contextstop.CheckStop(openCtx))
+	if diags.HasErrors() {
+		return newVal, nil, diags
+	}
 
 	openReq := providers.OpenEphemeralResourceRequest{
 		TypeName: addr.ContainingResource().Resource.Type,
@@ -73,6 +78,7 @@ func OpenEphemeralResourceInstance(
 		if cb := tracer.EndEphemeralResourceInstanceOpen; cb != nil {
 			cb(openCtx, addr, diags)
 		}
+		diags = diags.Append(contextstop.CheckStop(openCtx))
 		return newVal, nil, diags
 	}
 
@@ -122,6 +128,7 @@ func OpenEphemeralResourceInstance(
 	if cb := tracer.EndEphemeralResourceInstanceOpen; cb != nil {
 		cb(openCtx, addr, diags)
 	}
+	diags = diags.Append(contextstop.CheckStop(openCtx))
 
 	if diags.HasErrors() {
 		// We have an open ephemeral resource, but don't plan to use it due to validation errors
@@ -180,6 +187,8 @@ func OpenEphemeralResourceInstance(
 					if cb := tracer.StartEphemeralResourceInstanceRenew; cb != nil {
 						renewCtx = cb(ctx, addr)
 					}
+					diags = diags.Append(contextstop.CheckStop(renewCtx))
+					// TODO: I'm not sure how this ought to be stopped if there's an error diag here.
 
 					renewReq := providers.RenewEphemeralResourceRequest{
 						TypeName: addr.Resource.Resource.Type,
@@ -194,6 +203,7 @@ func OpenEphemeralResourceInstance(
 					if cb := tracer.EndEphemeralResourceInstanceRenew; cb != nil {
 						cb(renewCtx, addr, diags)
 					}
+					diags = diags.Append(contextstop.CheckStop(renewCtx))
 				case closeCtx = <-closeCh:
 					return
 				case <-ctx.Done():
@@ -207,6 +217,8 @@ func OpenEphemeralResourceInstance(
 		if cb := tracer.StartEphemeralResourceInstanceClose; cb != nil {
 			closeCtx = cb(closeCtx, addr)
 		}
+		diags = diags.Append(contextstop.CheckStop(closeCtx))
+		// TODO: I'm not sure how this ought to be stopped if there's an error diag here.
 
 		closReq := providers.CloseEphemeralResourceRequest{
 			TypeName: addr.Resource.Resource.Type,
@@ -218,6 +230,7 @@ func OpenEphemeralResourceInstance(
 		if cb := tracer.EndEphemeralResourceInstanceClose; cb != nil {
 			cb(closeCtx, addr, diags)
 		}
+		diags = diags.Append(contextstop.CheckStop(closeCtx))
 
 		select {
 		case diagsCh <- diags:
