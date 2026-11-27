@@ -8,6 +8,7 @@ package jsondiff
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strings"
 )
 
@@ -40,6 +41,53 @@ func GetType(val interface{}) Type {
 		return Object
 	default:
 		panic(fmt.Sprintf("unrecognized json type %T", val))
+	}
+}
+
+// Equal reports whether two generic JSON values are equal. Numbers compare
+// lexically, matching how the JSON was decoded. Types that JSON decoding
+// never produces are compared with reflect.DeepEqual as a fallback.
+func Equal(a, b interface{}) bool {
+	switch a := a.(type) {
+	case nil:
+		return b == nil
+	case string:
+		b, ok := b.(string)
+		return ok && a == b
+	case bool:
+		b, ok := b.(bool)
+		return ok && a == b
+	case json.Number:
+		b, ok := b.(json.Number)
+		return ok && a == b
+	case float64:
+		b, ok := b.(float64)
+		return ok && a == b
+	case []interface{}:
+		b, ok := b.([]interface{})
+		if !ok || len(a) != len(b) {
+			return false
+		}
+		for i := range a {
+			if !Equal(a[i], b[i]) {
+				return false
+			}
+		}
+		return true
+	case map[string]interface{}:
+		b, ok := b.(map[string]interface{})
+		if !ok || len(a) != len(b) {
+			return false
+		}
+		for key, val := range a {
+			other, ok := b[key]
+			if !ok || !Equal(val, other) {
+				return false
+			}
+		}
+		return true
+	default:
+		return reflect.DeepEqual(a, b)
 	}
 }
 

@@ -6,6 +6,8 @@
 package objchange
 
 import (
+	"math"
+
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -24,14 +26,20 @@ func ValueEqual(x, y cty.Value) bool {
 	return false
 }
 
+// lcsMaxCost bounds how many steps the subsequence search may take before
+// treating everything between the matched prefix and suffix as changed.
+const lcsMaxCost = 1 << 27
+
 // LongestCommonSubsequence finds a sequence of values that are common to both
-// x and y, with the same relative ordering as in both collections. This result
+// xs and ys, with the same relative ordering as in both collections. This result
 // is useful as a first step towards computing a diff showing added/removed
 // elements in a sequence.
 //
-// The approached used here is a "naive" one, assuming that both xs and ys will
-// generally be small in most reasonable OpenTofu configurations. For larger
-// lists the time/space usage may be sub-optimal.
+// The search is Myers' O((N+M)·D) algorithm in its linear-space variant, where
+// D is the number of elements that are not part of the subsequence. When the
+// slices are so different that the search would be too expensive, only the
+// matched prefix and suffix are returned and everything in between is treated
+// as changed.
 //
 // A pair of lists may have multiple longest common subsequences. In that
 // case, the one selected by this function is undefined.
@@ -40,84 +48,194 @@ func LongestCommonSubsequence[V any](xs, ys []V, equals func(x, y V) bool) []V {
 		return make([]V, 0)
 	}
 
-	c := make([]int, len(xs)*len(ys))
-	eqs := make([]bool, len(xs)*len(ys))
-	w := len(xs)
+	// The common prefix and suffix always belong to the subsequence, so match
+	// them up front. They are returned even when the search for the middle
+	// runs out of budget.
+	p := 0
+	for p < len(xs) && p < len(ys) && equals(xs[p], ys[p]) {
+		p++
+	}
+	out := make([]V, 0, min(len(xs), len(ys)))
+	out = append(out, xs[:p]...)
+	xs, ys = xs[p:], ys[p:]
+	if len(xs) == 0 || len(ys) == 0 {
+		return out
+	}
 
-	for y := 0; y < len(ys); y++ {
-		for x := 0; x < len(xs); x++ {
-			eq := false
-			if equals(xs[x], ys[y]) {
-				eq = true
-				eqs[(w*y)+x] = true // equality tests can be expensive, so cache it
+	suffix := 0
+	for suffix < len(xs) && suffix < len(ys) && equals(xs[len(xs)-1-suffix], ys[len(ys)-1-suffix]) {
+		suffix++
+	}
+	tail := xs[len(xs)-suffix:]
+	xs, ys = xs[:len(xs)-suffix], ys[:len(ys)-suffix]
+
+	out = append(out, lcsMiddle(xs, ys, equals)...)
+	return append(out, tail...)
+}
+
+// lcsMiddle returns a longest common subsequence of xs and ys, or nil when
+// the search runs out of budget. The slices must not start or end with equal
+// elements; the caller trims them first.
+func lcsMiddle[V any](xs, ys []V, equals func(x, y V) bool) []V {
+	s := &lcsSearcher[V]{equals: equals, budget: lcsMaxCost}
+	// The empty slice must be non-nil: search returns nil only when the
+	// budget runs out, and an empty result must not read as a failure.
+	return s.search(xs, ys, []V{})
+}
+
+// lcsSearcher accumulates the subsequence while tracking the remaining budget.
+type lcsSearcher[V any] struct {
+	equals func(x, y V) bool
+	budget int
+}
+
+// spend charges one search step to the budget and reports whether any remain.
+func (s *lcsSearcher[V]) spend() bool {
+	s.budget--
+	return s.budget >= 0
+}
+
+// search appends a longest common subsequence of xs and ys to out and returns
+// the longer slice, or nil if the search ran out of budget.
+func (s *lcsSearcher[V]) search(xs, ys, out []V) []V {
+	// The common prefix and suffix always belong to the subsequence, so match
+	// them up front and only search through what remains in the middle.
+	p := 0
+	for p < len(xs) && p < len(ys) && s.equals(xs[p], ys[p]) {
+		p++
+	}
+	out = append(out, xs[:p]...)
+	xs, ys = xs[p:], ys[p:]
+	if len(xs) == 0 || len(ys) == 0 {
+		return out
+	}
+
+	suffix := 0
+	for suffix < len(xs) && suffix < len(ys) && s.equals(xs[len(xs)-1-suffix], ys[len(ys)-1-suffix]) {
+		suffix++
+	}
+	tail := xs[len(xs)-suffix:]
+	xs, ys = xs[:len(xs)-suffix], ys[:len(ys)-suffix]
+	if len(xs) == 0 || len(ys) == 0 {
+		return append(out, tail...)
+	}
+
+	x, y, ok := s.middleSnake(xs, ys)
+	if !ok {
+		return nil
+	}
+	out = s.search(xs[:x], ys[:y], out)
+	if out == nil {
+		return nil
+	}
+	out = s.search(xs[x:], ys[y:], out)
+	if out == nil {
+		return nil
+	}
+	return append(out, tail...)
+}
+
+// middleSnake finds a point (x, y) that an optimal edit script between xs and
+// ys passes through, as described in section 4b of Myers' paper "An O(ND)
+// Difference Algorithm and Its Variations". The caller must trim equal
+// prefixes and suffixes first, so the corner snakes are empty. It returns
+// ok=false when the searches don't meet within the budget.
+func (s *lcsSearcher[V]) middleSnake(xs, ys []V) (int, int, bool) {
+	n, m := len(xs), len(ys)
+
+	// vf and vb hold, per diagonal k = x - y, how far the forward search has
+	// advanced from (0, 0) and how far the backward search has advanced from
+	// (n, m) in the same coordinates. Diagonals not reached yet hold -1 in vf
+	// and math.MaxInt in vb, so neither counts as a reach when the searches
+	// take the best of their options.
+	maxD := (n + m + 1) / 2
+	offset := maxD + 1 + max(m-n, 0)
+	vf := make([]int, 2*maxD+max(n-m, 0)+max(m-n, 0)+3)
+	vb := make([]int, len(vf))
+	for i := range vf {
+		vf[i] = -1
+		vb[i] = math.MaxInt
+	}
+	// The searches start at (0, 0) and (n, m) without having spent any edits.
+	vf[offset] = 0
+	vb[offset+n-m] = n
+
+	// An optimal script has D ≡ n+m (mod 2) edits, so the searches can only
+	// meet after a forward round when that count is odd, and after a backward
+	// round when it is even.
+	delta := n - m
+	odd := delta%2 != 0
+
+	for d := 1; d <= maxD; d++ {
+		// Advance the forward search by one edit per round.
+		for k := -d; k <= d; k += 2 {
+			if !s.spend() {
+				return 0, 0, false
 			}
-			if eq {
-				// Sequence gets one longer than for the cell at top left,
-				// since we'd append a new item to the sequence here.
-				if x == 0 || y == 0 {
-					c[(w*y)+x] = 1
-				} else {
-					c[(w*y)+x] = c[(w*(y-1))+(x-1)] + 1
+			off := offset + k
+			// A path with d edits reaches diagonal k from diagonal k+1 by
+			// moving down, or from diagonal k-1 by moving right. Keep the
+			// stored reach when neither move fits in the grid.
+			x := vf[off]
+			if right := vf[off-1]; right >= 0 && right+1 > x {
+				x = right + 1
+			}
+			if down := vf[off+1]; down >= 0 && down > x {
+				x = down
+			}
+			if x < 0 || x > n || x-k > m {
+				continue
+			}
+			y := x - k
+			for x < n && y < m && s.equals(xs[x], ys[y]) {
+				x++
+				y++
+				if !s.spend() {
+					return 0, 0, false
 				}
-			} else {
-				// We follow the longest of the sequence above and the sequence
-				// to the left of us in the matrix.
-				l := 0
-				u := 0
-				if x > 0 {
-					l = c[(w*y)+(x-1)]
-				}
-				if y > 0 {
-					u = c[(w*(y-1))+x]
-				}
-				if l > u {
-					c[(w*y)+x] = l
-				} else {
-					c[(w*y)+x] = u
+			}
+			vf[off] = x
+			if odd {
+				if b := vb[off]; b <= x {
+					return x, y, true
 				}
 			}
 		}
-	}
 
-	// The bottom right cell tells us how long our longest sequence will be
-	seq := make([]V, c[len(c)-1])
-
-	// Now we will walk back from the bottom right cell, finding again all
-	// of the equal pairs to construct our sequence.
-	x := len(xs) - 1
-	y := len(ys) - 1
-	i := len(seq) - 1
-
-	for x > -1 && y > -1 {
-		if eqs[(w*y)+x] {
-			// Add the value to our result list and then walk diagonally
-			// up and to the left.
-			seq[i] = xs[x]
-			x--
-			y--
-			i--
-		} else {
-			// Take the path with the greatest sequence length in the matrix.
-			l := 0
-			u := 0
-			if x > 0 {
-				l = c[(w*y)+(x-1)]
+		// Advance the backward search by one edit per round.
+		for k := delta - d; k <= delta+d; k += 2 {
+			if !s.spend() {
+				return 0, 0, false
 			}
-			if y > 0 {
-				u = c[(w*(y-1))+x]
+			off := offset + k
+			// A backward path with d edits reaches diagonal k from diagonal
+			// k-1 by moving up, or from diagonal k+1 by moving left. Keep the
+			// stored reach when neither move fits in the grid.
+			x := vb[off]
+			if up := vb[off-1]; up < x {
+				x = up
 			}
-			if l > u {
+			if left := vb[off+1]; left-1 < x {
+				x = left - 1
+			}
+			if x < 0 || x > n || x-k < 0 {
+				continue
+			}
+			y := x - k
+			for x > 0 && y > 0 && s.equals(xs[x-1], ys[y-1]) {
 				x--
-			} else {
 				y--
+				if !s.spend() {
+					return 0, 0, false
+				}
+			}
+			vb[off] = x
+			if !odd {
+				if f := vf[off]; x <= f {
+					return x, y, true
+				}
 			}
 		}
 	}
-
-	if i > -1 {
-		// should never happen if the matrix was constructed properly
-		panic("not enough elements in sequence")
-	}
-
-	return seq
+	return 0, 0, false
 }

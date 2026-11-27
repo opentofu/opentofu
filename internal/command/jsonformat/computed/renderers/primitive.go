@@ -174,8 +174,11 @@ func (renderer primitiveRenderer) renderStringDiff(diff computed.Diff, indent in
 		isObjType := func(_, _ string) bool {
 			return false
 		}
+		equals := func(before, after string) bool {
+			return before == after
+		}
 
-		collections.ProcessSlice(beforeLines, afterLines, processIndices, isObjType)
+		collections.ProcessSlice(beforeLines, afterLines, processIndices, isObjType, equals)
 	}
 
 	// We return early if we find non-multiline strings or JSON strings, so we

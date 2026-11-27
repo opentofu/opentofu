@@ -50,7 +50,7 @@ func computeAttributeDiffAsList(change structured.Change, elementType cty.Type) 
 	shouldDiffElement := func(a, b interface{}) bool {
 		return elementType.IsObjectType() || jsondiff.ShouldDiffMultilineStrings(a, b)
 	}
-	elements, current := collections.TransformSlice(sliceValue.Before, sliceValue.After, processIndices, shouldDiffElement)
+	elements, current := collections.TransformSlice(sliceValue.Before, sliceValue.After, processIndices, shouldDiffElement, jsondiff.Equal)
 	return computed.NewDiff(renderers.List(elements), current, change.ReplacePaths.Matches())
 }
 
