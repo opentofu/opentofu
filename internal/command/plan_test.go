@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/zclconf/go-cty/cty"
@@ -1473,26 +1474,50 @@ func TestPlan_varFileWithDecls(t *testing.T) {
 }
 
 func TestPlan_detailedExitcode(t *testing.T) {
-	td := t.TempDir()
-	testCopyDir(t, testFixturePath("plan"), td)
-	t.Chdir(td)
 
 	t.Run("return 1", func(t *testing.T) {
-		view, done := testView(t)
+		td := t.TempDir()
+		testCopyDir(t, testFixturePath("plan-invalid"), td)
+		t.Chdir(td)
 
+		p := testProvider()
+		p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
+			ResourceTypes: map[string]providers.Schema{
+				"test_instance": {
+					Block: &configschema.Block{
+						Attributes: map[string]*configschema.Attribute{
+							"id": {Type: cty.String, Optional: true, Computed: true},
+						},
+					},
+				},
+			},
+		}
+		p.PlanResourceChangeFn = func(req providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
+			return providers.PlanResourceChangeResponse{
+				PlannedState: req.ProposedNewState,
+			}
+		}
+
+		view, done := testView(t)
 		meta := Meta{
 			WorkingDir: workdir.NewDir("."),
 			// Running plan without setting testingOverrides is similar to plan without init
-			View: view,
+			View:             view,
+			testingOverrides: metaOverridesForProvider(p),
 		}
+
 		code := RunCommander(t, PlanCommander(), meta, []string{"-detailed-exitcode"})
 		output := done(t)
-		if code != 1 {
+		if code != int(backend.OperationFailure) {
 			t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
 		}
 	})
 
 	t.Run("return 2", func(t *testing.T) {
+		td := t.TempDir()
+		testCopyDir(t, testFixturePath("plan"), td)
+		t.Chdir(td)
+
 		p := planFixtureProvider()
 		view, done := testView(t)
 
@@ -1505,6 +1530,25 @@ func TestPlan_detailedExitcode(t *testing.T) {
 		code := RunCommander(t, PlanCommander(), meta, []string{"-detailed-exitcode"})
 		output := done(t)
 		if code != 2 {
+			t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
+		}
+	})
+
+	t.Run("return 4", func(t *testing.T) {
+		td := t.TempDir()
+		testCopyDir(t, testFixturePath("plan"), td)
+		t.Chdir(td)
+
+		view, done := testView(t)
+		meta := Meta{
+			WorkingDir: workdir.NewDir("."),
+			// Running plan without setting testingOverrides is similar to plan without init
+			View: view,
+		}
+
+		code := RunCommander(t, PlanCommander(), meta, []string{"-detailed-exitcode"})
+		output := done(t)
+		if code != int(backend.OperationInitRequired) {
 			t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
 		}
 	})
@@ -1622,7 +1666,7 @@ func TestPlan_init_required(t *testing.T) {
 	args := []string{"-no-color"}
 	code := RunCommander(t, PlanCommander(), meta, args)
 	output := done(t)
-	if code != 1 {
+	if code != int(backend.OperationInitRequired) {
 		t.Fatalf("expected error, got success")
 	}
 	got := output.Stderr()
@@ -2174,6 +2218,10 @@ func TestPlan_concise(t *testing.T) {
 	if got, want := output.Stdout(), "Reading..."; strings.Contains(got, want) {
 		t.Fatalf("got incorrect output, want %q, got:\n%s", want, got)
 	}
+}
+
+func TestPlan_initRequired(t *testing.T) {
+	testInitRequiredExit(t, PlanCommander())
 }
 
 // planFixtureProvider returns a mock provider that is configured for basic

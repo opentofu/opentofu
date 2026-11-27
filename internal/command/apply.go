@@ -107,7 +107,7 @@ func (c ApplyCommand) Execute(args *arguments.Apply, view views.Apply) int {
 	diags = diags.Append(beDiags)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
-		return 1
+		return configload.ExitStatus(diags)
 	}
 
 	// Build the operation request
