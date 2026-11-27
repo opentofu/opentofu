@@ -48,7 +48,7 @@ func TestLongestCommonSubsequence(t *testing.T) {
 		{
 			[]cty.Value{cty.NumberIntVal(2), cty.NumberIntVal(1)},
 			[]cty.Value{cty.NumberIntVal(1), cty.NumberIntVal(2)},
-			[]cty.Value{cty.NumberIntVal(1)}, // arbitrarily selected 1; 2 would also be valid
+			[]cty.Value{cty.NumberIntVal(2)}, // arbitrarily selected 2; 1 would also be valid
 		},
 		{
 			[]cty.Value{cty.NumberIntVal(1), cty.NumberIntVal(2), cty.NumberIntVal(3), cty.NumberIntVal(4)},
@@ -58,7 +58,7 @@ func TestLongestCommonSubsequence(t *testing.T) {
 		{
 			[]cty.Value{cty.NumberIntVal(1), cty.NumberIntVal(2), cty.NumberIntVal(3), cty.NumberIntVal(4)},
 			[]cty.Value{cty.NumberIntVal(4), cty.NumberIntVal(2), cty.NumberIntVal(5)},
-			[]cty.Value{cty.NumberIntVal(4)}, // 2 would also be valid
+			[]cty.Value{cty.NumberIntVal(2)}, // 4 would also be valid
 		},
 		{
 			[]cty.Value{cty.NumberIntVal(1), cty.NumberIntVal(2), cty.NumberIntVal(3), cty.NumberIntVal(5)},

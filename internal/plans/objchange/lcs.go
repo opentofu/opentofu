@@ -6,6 +6,8 @@
 package objchange
 
 import (
+	"math"
+
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -24,24 +26,20 @@ func ValueEqual(x, y cty.Value) bool {
 	return false
 }
 
-// Limits on how much work the subsequence search may do before treating
-// everything between the matched prefix and suffix as changed. The trace of
-// furthest reaches grows with the square of the round count, so the round
-// limit keeps it under ~34 MB; the cost limit bounds the search time.
-const (
-	lcsMaxRounds = 2048
-	lcsMaxCost   = 1 << 24
-)
+// lcsMaxCost bounds how many steps the subsequence search may take before
+// treating everything between the matched prefix and suffix as changed.
+const lcsMaxCost = 1 << 27
 
 // LongestCommonSubsequence finds a sequence of values that are common to both
 // xs and ys, with the same relative ordering as in both collections. This result
 // is useful as a first step towards computing a diff showing added/removed
 // elements in a sequence.
 //
-// The search is Myers' O((N+M)·D) algorithm, where D is the number of elements
-// that are not part of the subsequence. When the slices are so different that
-// the search would be too expensive, only the matched prefix and suffix are
-// returned and everything in between is treated as changed.
+// The search is Myers' O((N+M)·D) algorithm in its linear-space variant, where
+// D is the number of elements that are not part of the subsequence. When the
+// slices are so different that the search would be too expensive, only the
+// matched prefix and suffix are returned and everything in between is treated
+// as changed.
 //
 // A pair of lists may have multiple longest common subsequences. In that
 // case, the one selected by this function is undefined.
@@ -51,7 +49,8 @@ func LongestCommonSubsequence[V any](xs, ys []V, equals func(x, y V) bool) []V {
 	}
 
 	// The common prefix and suffix always belong to the subsequence, so match
-	// them up front and only search through what remains in the middle.
+	// them up front. They are returned even when the search for the middle
+	// runs out of budget.
 	p := 0
 	for p < len(xs) && p < len(ys) && equals(xs[p], ys[p]) {
 		p++
@@ -70,120 +69,173 @@ func LongestCommonSubsequence[V any](xs, ys []V, equals func(x, y V) bool) []V {
 	tail := xs[len(xs)-suffix:]
 	xs, ys = xs[:len(xs)-suffix], ys[:len(ys)-suffix]
 
-	middle := lcsMiddle(xs, ys, equals)
-	out = append(out, middle...)
+	out = append(out, lcsMiddle(xs, ys, equals)...)
 	return append(out, tail...)
 }
 
 // lcsMiddle returns a longest common subsequence of xs and ys, or nil when
-// the search exceeds the limits. The slices must not start or end with equal
+// the search runs out of budget. The slices must not start or end with equal
 // elements; the caller trims them first.
-//
-// The search walks a furthest-reaching path from (0, 0) one edit per round,
-// as described in Myers' paper "An O(ND) Difference Algorithm and Its
-// Variations". Each round's furthest reaches are recorded in a trace, which
-// is walked back afterwards to collect the matches.
 func lcsMiddle[V any](xs, ys []V, equals func(x, y V) bool) []V {
+	s := &lcsSearcher[V]{equals: equals, budget: lcsMaxCost}
+	// The empty slice must be non-nil: search returns nil only when the
+	// budget runs out, and an empty result must not read as a failure.
+	return s.search(xs, ys, []V{})
+}
+
+// lcsSearcher accumulates the subsequence while tracking the remaining budget.
+type lcsSearcher[V any] struct {
+	equals func(x, y V) bool
+	budget int
+}
+
+// spend charges one search step to the budget and reports whether any remain.
+func (s *lcsSearcher[V]) spend() bool {
+	s.budget--
+	return s.budget >= 0
+}
+
+// search appends a longest common subsequence of xs and ys to out and returns
+// the longer slice, or nil if the search ran out of budget.
+func (s *lcsSearcher[V]) search(xs, ys, out []V) []V {
+	// The common prefix and suffix always belong to the subsequence, so match
+	// them up front and only search through what remains in the middle.
+	p := 0
+	for p < len(xs) && p < len(ys) && s.equals(xs[p], ys[p]) {
+		p++
+	}
+	out = append(out, xs[:p]...)
+	xs, ys = xs[p:], ys[p:]
+	if len(xs) == 0 || len(ys) == 0 {
+		return out
+	}
+
+	suffix := 0
+	for suffix < len(xs) && suffix < len(ys) && s.equals(xs[len(xs)-1-suffix], ys[len(ys)-1-suffix]) {
+		suffix++
+	}
+	tail := xs[len(xs)-suffix:]
+	xs, ys = xs[:len(xs)-suffix], ys[:len(ys)-suffix]
+	if len(xs) == 0 || len(ys) == 0 {
+		return append(out, tail...)
+	}
+
+	x, y, ok := s.middleSnake(xs, ys)
+	if !ok {
+		return nil
+	}
+	out = s.search(xs[:x], ys[:y], out)
+	if out == nil {
+		return nil
+	}
+	out = s.search(xs[x:], ys[y:], out)
+	if out == nil {
+		return nil
+	}
+	return append(out, tail...)
+}
+
+// middleSnake finds a point (x, y) that an optimal edit script between xs and
+// ys passes through, as described in section 4b of Myers' paper "An O(ND)
+// Difference Algorithm and Its Variations". The caller must trim equal
+// prefixes and suffixes first, so the corner snakes are empty. It returns
+// ok=false when the searches don't meet within the budget.
+func (s *lcsSearcher[V]) middleSnake(xs, ys []V) (int, int, bool) {
 	n, m := len(xs), len(ys)
 
-	// The end is reached after at most n+m edits.
-	rounds := min(n+m, lcsMaxRounds)
-
-	// v holds, per diagonal k = x - y, how far the search has advanced from
-	// (0, 0); -1 means not reached yet.
-	v := make([]int, 2*rounds+3)
-	offset := rounds + 1
-	for i := range v {
-		v[i] = -1
+	// vf and vb hold, per diagonal k = x - y, how far the forward search has
+	// advanced from (0, 0) and how far the backward search has advanced from
+	// (n, m) in the same coordinates. Diagonals not reached yet hold -1 in vf
+	// and math.MaxInt in vb, so neither counts as a reach when the searches
+	// take the best of their options.
+	maxD := (n + m + 1) / 2
+	offset := maxD + 1 + max(m-n, 0)
+	vf := make([]int, 2*maxD+max(n-m, 0)+max(m-n, 0)+3)
+	vb := make([]int, len(vf))
+	for i := range vf {
+		vf[i] = -1
+		vb[i] = math.MaxInt
 	}
-	v[offset+1] = 0
+	// The searches start at (0, 0) and (n, m) without having spent any edits.
+	vf[offset] = 0
+	vb[offset+n-m] = n
 
-	// trace holds a snapshot of the reached diagonals after every round;
-	// round D's snapshot starts at D*D and holds diagonals -D through D.
-	var trace []int
+	// An optimal script has D ≡ n+m (mod 2) edits, so the searches can only
+	// meet after a forward round when that count is odd, and after a backward
+	// round when it is even.
+	delta := n - m
+	odd := delta%2 != 0
 
-	cost := lcsMaxCost
-	d := 0
-	for {
-		if d > rounds {
-			return nil
-		}
-		found := false
+	for d := 1; d <= maxD; d++ {
+		// Advance the forward search by one edit per round.
 		for k := -d; k <= d; k += 2 {
-			cost--
-			if cost < 0 {
-				return nil
+			if !s.spend() {
+				return 0, 0, false
 			}
 			off := offset + k
 			// A path with d edits reaches diagonal k from diagonal k+1 by
 			// moving down, or from diagonal k-1 by moving right. Keep the
 			// stored reach when neither move fits in the grid.
-			x := v[off]
-			if right := v[off-1]; right >= 0 && right+1 > x {
+			x := vf[off]
+			if right := vf[off-1]; right >= 0 && right+1 > x {
 				x = right + 1
 			}
-			if down := v[off+1]; down >= 0 && down > x {
+			if down := vf[off+1]; down >= 0 && down > x {
 				x = down
 			}
 			if x < 0 || x > n || x-k > m {
 				continue
 			}
 			y := x - k
-			for x < n && y < m && equals(xs[x], ys[y]) {
+			for x < n && y < m && s.equals(xs[x], ys[y]) {
 				x++
 				y++
-				cost--
-				if cost < 0 {
-					return nil
+				if !s.spend() {
+					return 0, 0, false
 				}
 			}
-			v[off] = x
-			if x == n && y == m {
-				found = true
-				break
+			vf[off] = x
+			if odd {
+				if b := vb[off]; b <= x {
+					return x, y, true
+				}
 			}
 		}
-		trace = append(trace, v[offset-d:offset+d+1]...)
-		if found {
-			break
-		}
-		d++
-	}
 
-	// Walk the trace back from (n, m), collecting the matched elements. The
-	// matches come out in reverse order, so they are flipped at the end.
-	seq := make([]V, 0, min(n, m))
-	x, y := n, m
-	for ; d > 0; d-- {
-		r := trace[d*d : (d+1)*(d+1)] // round d's snapshot, indexed by k+d
-		k := x - y
-		prevK := k - 1
-		if k == -d || (k != d && r[k-1+d] < r[k+1+d]) {
-			prevK = k + 1
+		// Advance the backward search by one edit per round.
+		for k := delta - d; k <= delta+d; k += 2 {
+			if !s.spend() {
+				return 0, 0, false
+			}
+			off := offset + k
+			// A backward path with d edits reaches diagonal k from diagonal
+			// k-1 by moving up, or from diagonal k+1 by moving left. Keep the
+			// stored reach when neither move fits in the grid.
+			x := vb[off]
+			if up := vb[off-1]; up < x {
+				x = up
+			}
+			if left := vb[off+1]; left-1 < x {
+				x = left - 1
+			}
+			if x < 0 || x > n || x-k < 0 {
+				continue
+			}
+			y := x - k
+			for x > 0 && y > 0 && s.equals(xs[x-1], ys[y-1]) {
+				x--
+				y--
+				if !s.spend() {
+					return 0, 0, false
+				}
+			}
+			vb[off] = x
+			if !odd {
+				if f := vf[off]; x <= f {
+					return x, y, true
+				}
+			}
 		}
-		p := trace[(d-1)*(d-1) : d*d] // round d-1's snapshot, indexed by k+d-1
-		px := p[prevK + d - 1]
-		py := px - prevK
-
-		// The edit lands at (px, py+1) when it moved down, or at (px+1, py)
-		// when it moved right, and the matches run from there to (x, y). They
-		// are collected back to front, like everything else on the way out.
-		lx := px + 1
-		if prevK == k+1 {
-			lx = px
-		}
-		for ix := x - 1; ix >= lx; ix-- {
-			seq = append(seq, xs[ix])
-		}
-		x, y = px, py
 	}
-	for x > 0 && y > 0 {
-		x--
-		y--
-		seq = append(seq, xs[x])
-	}
-	for i, j := 0, len(seq)-1; i < j; i, j = i+1, j-1 {
-		seq[i], seq[j] = seq[j], seq[i]
-	}
-	return seq
+	return 0, 0, false
 }
