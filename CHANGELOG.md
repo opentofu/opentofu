@@ -195,6 +195,10 @@ value was declared inside the module. ([#3067](https://github.com/opentofu/opent
 - `count` cannot use ephemeral values ([#3924](https://github.com/opentofu/opentofu/pull/3924))
 -  Powershell support over ssh in the `remote-exec` provisioner has been fixed. ([#3998](https://github.com/opentofu/opentofu/pull/3998))
 
+BREAKING CHANGES:
+
+- `ssh` connection for provisioners now uses `bastion_host_key` correctly instead of using the `host_key` as it did before. ([#4845](https://github.com/opentofu/opentofu/pull/4845))
+
 ## Previous Releases
 
 For information on prior major and minor releases, refer to their changelogs:
