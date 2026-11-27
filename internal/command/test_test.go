@@ -1707,3 +1707,100 @@ func TestTest_InstanceOverride(t *testing.T) {
 		})
 	}
 }
+
+func TestTest_MockProviderImport(t *testing.T) {
+	tcs := map[string]struct {
+		expected string
+		code     int
+	}{
+		"mock_provider_without_override_resource": {
+			expected: "1 passed, 0 failed.",
+			code:     0,
+		},
+		"mock_provider_with_mock_provider_override_resource": {
+			expected: "1 passed, 0 failed.",
+			code:     0,
+		},
+		"mock_provider_run_override_takes_precedence": {
+			expected: "1 passed, 0 failed.",
+			code:     0,
+		},
+		"mock_provider_override_indexed_resource": {
+			expected: "2 passed, 0 failed.",
+			code:     0,
+		},
+	}
+
+	providerSource, closePS := newMockProviderSource(t, map[string][]string{
+		"test": {"1.0.0"},
+	})
+	defer closePS()
+
+	for name, tc := range tcs {
+		t.Run(name, func(t *testing.T) {
+			td := t.TempDir()
+			testCopyDir(t, testFixturePath(path.Join("test", name)), td)
+			t.Chdir(td)
+
+			provider := testing_command.NewProvider(nil)
+			provider.Provider.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
+				Provider: providers.Schema{Block: &configschema.Block{}},
+				ResourceTypes: map[string]providers.Schema{
+					"test_resource": {
+						Block: &configschema.Block{
+							Attributes: map[string]*configschema.Attribute{
+								"id": {
+									Type:     cty.String,
+									Computed: true,
+								},
+								"value": {
+									Type:     cty.String,
+									Optional: true,
+								},
+								"computed_value": {
+									Type:     cty.String,
+									Computed: true,
+								},
+							},
+						},
+					},
+				},
+			}
+			provider.Provider.ConfigureProviderCalled = true
+			provider.Provider.ImportResourceStateResponse = &providers.ImportResourceStateResponse{
+				ImportedResources: []providers.ImportedResource{
+					{
+						TypeName: "test_resource",
+						State: cty.ObjectVal(map[string]cty.Value{
+							"id":             cty.StringVal("existing-id"),
+							"value":          cty.StringVal("from-import"),
+							"computed_value": cty.StringVal("from-provider-import"),
+						}),
+					},
+				},
+			}
+
+			view, done := testView(t)
+			meta := Meta{
+				WorkingDir:       workdir.NewDir("."),
+				testingOverrides: metaOverridesForProvider(provider.Provider),
+				View:             view,
+				ProviderSource:   providerSource,
+			}
+
+			code := RunCommander(t, TestCommander(), meta, nil)
+			output := done(t)
+
+			if code != tc.code {
+				t.Errorf("expected status code %d but got %d", tc.code, code)
+			}
+			if !strings.Contains(output.Stdout(), tc.expected) {
+				t.Errorf("output didn't contain expected string \"%s\":\n\n%s\n", tc.expected, output.All())
+			}
+
+			if provider.ResourceCount() > 0 {
+				t.Errorf("should have deleted all resources on completion but left %v\n", provider.ResourceString())
+			}
+		})
+	}
+}

@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"hash/fnv"
+	"maps"
 
 	"github.com/zclconf/go-cty/cty"
 
@@ -162,8 +163,14 @@ func (p providerForTest) ConfigureProvider(context.Context, providers.ConfigureP
 	return providers.ConfigureProviderResponse{}
 }
 
-func (p providerForTest) ImportResourceState(context.Context, providers.ImportResourceStateRequest) providers.ImportResourceStateResponse {
-	panic("Importing is not supported in testing context. providerForTest must not be used to call ImportResourceState")
+func (p providerForTest) ImportResourceState(ctx context.Context, r providers.ImportResourceStateRequest) providers.ImportResourceStateResponse {
+	resp := p.internal.ImportResourceState(ctx, r)
+	for i, ir := range resp.ImportedResources {
+		vm := ir.State.AsValueMap()
+		maps.Copy(vm, p.overrideValues)
+		resp.ImportedResources[i].State = cty.ObjectVal(vm)
+	}
+	return resp
 }
 
 func (p providerForTest) MoveResourceState(context.Context, providers.MoveResourceStateRequest) providers.MoveResourceStateResponse {
