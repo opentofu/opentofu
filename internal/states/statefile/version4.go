@@ -613,6 +613,15 @@ func appendInstanceObjectStateV4(rs *states.Resource, is *states.ResourceInstanc
 	// This check was added proactively as a safety net for future development and was not added reactively to a found issue.
 	// Before this change, the only values that could have been marked as ephemeral and written into state were already
 	// nullified and unmarked (see usage of Block.RemoveEphemeralFromWriteOnly)
+	//
+	// The TransientPathValueMarks might also contain [lintingMark]s. This is due to the fact that the linting marks should
+	// be able to be passed through the resources: if one resource uses an impure function and a second resource
+	// uses that attribute of the first resource, then the second resource should be able to generate a linting warning too.
+	// Removing these marks at the time of writing the resource state in the in memory state would break this behavior
+	// since the evaluation relies on that state to get propagate the marks.
+	// At the moment of writing this second comment here, there was no need to remove the marks from TransientPathValueMarks.
+	// If TransientPathValueMarks will be used later in further processing, ensure that the [lintingMark]s are removed or handled
+	// properly before being removed.
 	for _, mark := range obj.TransientPathValueMarks {
 		_, ok := mark.Marks[marks.Ephemeral]
 		if ok {
