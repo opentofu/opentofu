@@ -5,6 +5,8 @@ The v1.12.x release series is supported until **February 1 2027**.
 SECURITY ADVISORIES:
 
 - Upgrade Go toolchain to 1.26.11 to address GO-2026-6859, an HTTP/1 server crash due to a MaxBytesReader header race. ([#4831](https://github.com/opentofu/opentofu/pull/4831))
+- `ssh` connection for provisioners now uses `bastion_host_key` correctly instead of using the `host_key` as it did before. ([#4886](https://github.com/opentofu/opentofu/pull/4886))
+  - :exclamation: This change can be considered also a breaking change for those that use `host_key` and bastion configurations. Before this change `host_key` was used instead of `bastion_host_key`. If you are in a situation like that, you need to add the `bastion_host_key` configuration pointing to the same value as `host_key`.
 
 ## 1.12.12
 
