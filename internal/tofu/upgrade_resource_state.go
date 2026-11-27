@@ -34,15 +34,24 @@ type stateTransformArgs struct {
 
 	provider  providers.Interface
 	objectSrc *states.ResourceInstanceObjectSrc
-	// currentSchema is the latest schema of the resource
+	// currentSchema is the latest schema of the resource type
 	currentSchema *configschema.Block
-	// currentSchemaVersion is the latest schema version of the resource
+	// currentSchemaVersion is the latest schema version of the resource type
 	currentSchemaVersion uint64
+	// currentIdentitySchema is the latest identity schema of the resource type
+	currentIdentitySchema *configschema.Object
+	// currentIdentitySchemaVersion is the latest identity schema version of the resource type
+	currentIdentitySchemaVersion uint64
 }
 
 // providerStateTransform transforms the state given the current and the previous AbsResourceInstance, Provider and ResourceInstanceObjectSrc
-// and returns a new state as cty.Value, new private state as []byte and diagnostics
-type providerStateTransform func(args stateTransformArgs) (cty.Value, []byte, tfdiags.Diagnostics)
+// and returns a new state and identity as cty.Value, new private state as []byte and diagnostics
+type providerStateTransform func(args stateTransformArgs) (
+	newState cty.Value,
+	newPrivate []byte,
+	newIdentity cty.Value,
+	diags tfdiags.Diagnostics,
+)
 
 // upgradeResourceState will, if necessary, run the provider-defined upgrade
 // logic against the given state object to make it compliant with the
@@ -55,7 +64,12 @@ func upgradeResourceState(args stateTransformArgs) (*states.ResourceInstanceObje
 }
 
 // upgradeResourceStateTransform is a providerStateTransform that upgrades the state via provider upgrade logic
-func upgradeResourceStateTransform(args stateTransformArgs) (cty.Value, []byte, tfdiags.Diagnostics) {
+func upgradeResourceStateTransform(args stateTransformArgs) (
+	newState cty.Value,
+	newPrivate []byte,
+	newIdentity cty.Value,
+	diags tfdiags.Diagnostics,
+) {
 	log.Printf("[TRACE] upgradeResourceStateTransform: address: %s", args.currentAddr)
 
 	// Remove any attributes from state that are not present in the schema.
@@ -77,7 +91,7 @@ func upgradeResourceStateTransform(args stateTransformArgs) (cty.Value, []byte, 
 	if args.objectSrc.SchemaVersion > args.currentSchemaVersion {
 		log.Printf("[TRACE] upgradeResourceStateTransform: can't downgrade state for %s from version %d to %d", args.currentAddr, args.objectSrc.SchemaVersion, args.currentSchemaVersion)
 		var diags tfdiags.Diagnostics
-		return cty.NilVal, nil, diags.Append(tfdiags.Sourceless(
+		return cty.NilVal, nil, cty.NilVal, diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Resource instance managed by newer provider version",
 			// This is not a very good error message, but we don't retain enough
@@ -117,13 +131,75 @@ func upgradeResourceStateTransform(args stateTransformArgs) (cty.Value, []byte, 
 	}
 
 	resp := args.provider.UpgradeResourceState(context.TODO(), req)
-	diags := resp.Diagnostics
+	diags = resp.Diagnostics
 	if diags.HasErrors() {
 		log.Printf("[TRACE] upgradeResourceStateTransform: failed - address: %s", args.currentAddr)
-		return cty.NilVal, nil, diags
+		return cty.NilVal, nil, cty.NilVal, diags
 	}
 
-	return resp.UpgradedState, args.objectSrc.Private, diags
+	// If the prior object has identity information then we might need to
+	// upgrade that to the latest schema version too.
+	if args.objectSrc.IdentitySchemaVersion != nil {
+		if args.currentIdentitySchema == nil || *args.objectSrc.IdentitySchemaVersion > args.currentIdentitySchemaVersion {
+			// No downgrading allowed
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Resource identity managed by newer provider version",
+				fmt.Sprintf("The current identity of %s was created by a newer provider version than is currently selected. Upgrade the %s provider to work with this identity.", args.currentAddr, args.currentProviderAddr),
+			))
+			return cty.NilVal, nil, cty.NilVal, diags.Append()
+		}
+		// Unlike for the main UpgradeResourceState, the Terraform plugin
+		// framework implementation of UpgradeResourceIdentity returns an error
+		// if it's asked merely to decode the identity JSON using its current
+		// schema, so we'll only ask it if the current version is lower and
+		// otherwise we'll just attempt to decode what we have with the current
+		// schema directly.
+		if *args.objectSrc.IdentitySchemaVersion < args.currentIdentitySchemaVersion {
+			// We need to upgrade the resource identity information too, then.
+			resp := args.provider.UpgradeResourceIdentity(context.TODO(), providers.UpgradeResourceIdentityRequest{
+				TypeName: args.currentAddr.Resource.Resource.Type,
+
+				// TODO: The internal schema version representations are all using
+				// uint64 instead of int64, but unsigned integers aren't friendly
+				// to all protobuf target languages so in practice we use int64
+				// on the wire. In future we will change all of our internal
+				// representations to int64 too.
+				Version:         int64(args.currentSchemaVersion),
+				RawIdentityJSON: args.objectSrc.IdentityJSON,
+			})
+			diags = diags.Append(resp.Diagnostics)
+			if resp.Diagnostics.HasErrors() {
+				log.Printf("[TRACE] upgradeResourceStateTransform: failed upgrading resource identity for %s", args.currentAddr)
+				return cty.NilVal, nil, cty.NilVal, diags
+			}
+			newIdentity = resp.UpgradedIdentity
+		} else {
+			var err error
+			ty := args.currentIdentitySchema.ImpliedType()
+			newIdentity, err = ctyjson.Unmarshal(args.objectSrc.IdentityJSON, ty)
+			if err != nil {
+				// If we get here then it suggests that one of the following
+				// unexpected situations has occurred:
+				// - A newer version of the provider has an incompatible
+				//   identity schema but did not increase the schema version
+				//   to represent that.
+				// - Someone has tinkered with the latest state snapshot outside
+				//   of OpenTofu and made it not conform to the schema.
+				diags = diags.Append(tfdiags.Sourceless(
+					tfdiags.Error,
+					"Invalid resource identity data",
+					fmt.Sprintf(
+						"The prior state for %s has resource identity information that does not match the provider schema: %s.",
+						args.currentAddr, tfdiags.FormatError(err),
+					),
+				))
+				return cty.NilVal, nil, cty.NilVal, diags
+			}
+		}
+	}
+
+	return resp.UpgradedState, args.objectSrc.Private, newIdentity, diags
 }
 
 // moveResourceState moves the state from one type or provider to another
@@ -135,8 +211,30 @@ func moveResourceState(params stateTransformArgs) (*states.ResourceInstanceObjec
 }
 
 // moveResourceStateTransform is a providerStateTransform that moves the state via provider move logic
-func moveResourceStateTransform(args stateTransformArgs) (cty.Value, []byte, tfdiags.Diagnostics) {
+func moveResourceStateTransform(args stateTransformArgs) (
+	newState cty.Value,
+	newPrivate []byte,
+	newIdentity cty.Value,
+	diags tfdiags.Diagnostics,
+) {
 	log.Printf("[TRACE] moveResourceStateTransform: new address: %s, previous address: %s", args.currentAddr, args.prevAddr)
+	schema := args.provider.GetProviderSchema(context.TODO())
+	if !schema.ServerCapabilities.MoveResourceState {
+		// For providers that don't support this operation at all we'll produce
+		// a more relevant error message because otherwise we'd just return
+		// the generic "Not implemented" error message, which isn't very helpful.
+		// Unfortunately we don't have source information for the "moved" block
+		// in here, so we'll just accept a sourceless diagnostic for now.
+		return cty.NilVal, nil, cty.NilVal, tfdiags.New(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Unsupported move between resource types",
+			fmt.Sprintf(
+				"Cannot automatically move %s into %s: provider %s does not support migrating this resource type from provider %s.",
+				args.prevAddr, args.currentAddr,
+				args.currentProviderAddr, args.prevProviderAddr,
+			),
+		))
+	}
 	req := providers.MoveResourceStateRequest{
 		SourceProviderAddress: args.prevProviderAddr.String(),
 		SourceTypeName:        args.prevAddr.Resource.Resource.Type,
@@ -146,13 +244,17 @@ func moveResourceStateTransform(args stateTransformArgs) (cty.Value, []byte, tfd
 		SourcePrivate:         args.objectSrc.Private,
 		TargetTypeName:        args.currentAddr.Resource.Resource.Type,
 	}
+	if args.objectSrc.IdentitySchemaVersion != nil {
+		req.SourceIdentityJSON = args.objectSrc.IdentityJSON
+		req.SourceIdentitySchemaVersion = *args.objectSrc.IdentitySchemaVersion
+	}
 	resp := args.provider.MoveResourceState(context.TODO(), req)
-	diags := resp.Diagnostics
+	diags = resp.Diagnostics
 	if diags.HasErrors() {
 		log.Printf("[TRACE] moveResourceStateTransform: failed - new address: %s %s, previous address: %s %s - diags: %s", args.currentProviderAddr, args.currentAddr, args.prevProviderAddr, args.prevAddr, diags.Err().Error())
-		return cty.NilVal, nil, diags
+		return cty.NilVal, nil, cty.NilVal, diags
 	}
-	return resp.TargetState, resp.TargetPrivate, diags
+	return resp.TargetState, resp.TargetPrivate, resp.TargetIdentity, diags
 }
 
 // transformResourceState transforms the state based on passed in providerStateTransform and returns new ResourceInstanceObjectSrc
@@ -166,17 +268,18 @@ func transformResourceState(args stateTransformArgs, stateTransform providerStat
 		return args.objectSrc, nil
 	}
 
-	newState, newPrivate, diags := stateTransform(args)
+	newState, newPrivate, newIdentity, diags := stateTransform(args)
 	if diags.HasErrors() {
 		return nil, diags
 	}
+
+	providerType := args.currentProviderAddr
 
 	// After upgrading, the new value must conform to the current schema. When
 	// going over RPC this is actually already ensured by the
 	// marshaling/unmarshaling of the new value, but we'll check it here
 	// anyway for robustness, e.g. for in-process providers.
 	if errs := newState.Type().TestConformance(args.currentSchema.ImpliedType()); len(errs) > 0 {
-		providerType := args.currentProviderAddr
 		for _, err := range errs {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
@@ -186,7 +289,19 @@ func transformResourceState(args stateTransformArgs, stateTransform providerStat
 		}
 		return nil, diags
 	}
-	newSrc, err := args.objectSrc.CompleteUpgrade(newState, args.currentSchema.ImpliedType(), args.currentSchemaVersion)
+	if newIdentity != cty.NilVal {
+		if errs := newIdentity.Type().TestConformance(args.currentIdentitySchema.ImpliedType()); len(errs) > 0 {
+			for _, err := range errs {
+				diags = diags.Append(tfdiags.Sourceless(
+					tfdiags.Error,
+					"Invalid resource state transformation",
+					fmt.Sprintf("The %s provider changed the identity information for %s, but produced an invalid result: %s.", providerType, args.currentAddr, tfdiags.FormatError(err)),
+				))
+			}
+			return nil, diags
+		}
+	}
+	newSrc, err := args.objectSrc.CompleteUpgrade(newState, args.currentSchema.ImpliedType(), args.currentSchemaVersion, newIdentity, args.currentIdentitySchema.ImpliedType(), args.currentIdentitySchemaVersion)
 	if err != nil {
 		// We already checked for type conformance above, so getting into this
 		// codepath should be rare and is probably a bug somewhere under CompleteUpgrade.
@@ -282,73 +397,4 @@ func removeRemovedAttrs(v interface{}, ty cty.Type) bool {
 		}
 	}
 	return modified
-}
-
-// upgradeResourceIdentity upgrades the identity data if the schema version has changed
-func upgradeResourceIdentity(
-	ctx context.Context,
-	addr addrs.AbsResourceInstance,
-	src *states.ResourceInstanceObjectSrc,
-	provider providers.Interface,
-	providerAddr addrs.Provider,
-	providerSchema providers.ProviderSchema,
-	diags tfdiags.Diagnostics,
-) (*states.ResourceInstanceObjectSrc, tfdiags.Diagnostics) {
-	typeName := addr.Resource.Resource.Type
-	resourceSchema, ok := providerSchema.ResourceTypes[typeName]
-	if !ok {
-		return src, diags
-	}
-
-	currentIdentityVersion := resourceSchema.IdentitySchemaVersion
-	stateIdentityVersion := int64(0)
-	if src.IdentitySchemaVersion != nil {
-		stateIdentityVersion = int64(*src.IdentitySchemaVersion)
-	}
-
-	// Based on the logic in upgradeResourceStateTransform
-	if stateIdentityVersion > currentIdentityVersion {
-		// No downgrading allowed
-		log.Printf("[TRACE] upgradeResourceIdentity: can't downgrade identity for %s from version %d to %d", addr, stateIdentityVersion, currentIdentityVersion)
-		return src, diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Resource identity managed by newer provider version",
-			fmt.Sprintf("The current identity of %s was created by a newer provider version than is currently selected. Upgrade the %s provider to work with this identity.", addr, providerAddr),
-		))
-	}
-
-	if stateIdentityVersion == currentIdentityVersion {
-		// No upgrade necessary
-		return src, diags
-	}
-
-	log.Printf("[TRACE] upgradeResourceIdentity: upgrading identity for %s from version %d to %d", addr, stateIdentityVersion, currentIdentityVersion)
-
-	identityResp := provider.UpgradeResourceIdentity(ctx, providers.UpgradeResourceIdentityRequest{
-		TypeName:        typeName,
-		Version:         stateIdentityVersion,
-		RawIdentityJSON: src.IdentityJSON,
-	})
-	diags = diags.Append(identityResp.Diagnostics)
-
-	if identityResp.Diagnostics.HasErrors() {
-		return src, diags
-	}
-
-	// Re-encode the upgraded identity
-	identitySchema := resourceSchema.IdentitySchema
-	if identitySchema == nil {
-		diags = diags.Append(fmt.Errorf("identity schema is required to re-encode upgraded identity for %s", typeName))
-		return src, diags
-	}
-	newIdentityJSON, err := ctyjson.Marshal(identityResp.UpgradedIdentity, identitySchema.ImpliedType())
-	if err != nil {
-		diags = diags.Append(fmt.Errorf("failed to encode upgraded identity: %w", err))
-		return src, diags
-	}
-	src.IdentityJSON = newIdentityJSON
-	newVersion := uint64(currentIdentityVersion)
-	src.IdentitySchemaVersion = &newVersion
-
-	return src, diags
 }

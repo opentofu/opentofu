@@ -693,6 +693,51 @@ func TestGRPCProvider_MoveResourceState(t *testing.T) {
 	}
 }
 
+func TestGRPCProvider_MoveResourceStateWithIdentity(t *testing.T) {
+	client := mockProviderClientWithSchema(t, &proto.GetProviderSchema_Response{
+		Provider: &proto.Schema{
+			Block: &proto.Schema_Block{},
+		},
+		ResourceSchemas: map[string]*proto.Schema{
+			"resource": {
+				Block: &proto.Schema_Block{},
+			},
+		},
+		// TODO: Not currently possible to return identity schemas via this
+		// mock helper.
+	})
+	p := newGRPCProvider(client)
+
+	client.EXPECT().MoveResourceState(
+		gomock.Any(),
+		gomock.Any(),
+	).Return(&proto.MoveResourceState_Response{
+		TargetState: &proto.DynamicValue{
+			Msgpack: []byte("\x81\xa4attr\xa3bar"),
+		},
+		TargetIdentity: &proto.ResourceIdentityData{
+			IdentityData: &proto.DynamicValue{
+				Msgpack: []byte("\x81\xa4attr\xa3bah"),
+			},
+		},
+	}, nil)
+
+	resp := p.MoveResourceState(t.Context(), providers.MoveResourceStateRequest{
+		SourceTypeName:      "resource_old",
+		SourceSchemaVersion: 0,
+		SourceIdentityJSON:  []byte(`{"attr":"ugh"}`),
+		TargetTypeName:      "resource",
+	})
+	checkDiags(t, resp.Diagnostics)
+
+	expectedIdentity := cty.ObjectVal(map[string]cty.Value{
+		"attr": cty.StringVal("bah"),
+	})
+	if diff := cmp.Diff(expectedIdentity, resp.TargetIdentity, typeComparer, valueComparer, equateEmpty); diff != "" {
+		t.Fatal("wrong identity\n" + diff)
+	}
+}
+
 func TestGRPCProvider_MoveResourceStateReturnsWriteOnlyValue(t *testing.T) {
 	client := mockProviderClientWithSchema(t, mutateSchemaResponse(providerProtoSchema(), addAttributeToResource("resource", &proto.Schema_Attribute{
 		Name:      "write_only_attr",
